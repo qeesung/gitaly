@@ -1,7 +1,7 @@
-PKG=gitlab.com/gitlab-org/git-access-daemon
+PKG=gitlab.com/gitlab-org/gitaly
 BUILD_DIR=$(shell pwd)
-CLIENT_BIN=git-daemon-client
-SERVER_BIN=git-daemon-server
+CLIENT_BIN=gitaly-client
+SERVER_BIN=gitaly-server
 
 export GOPATH=${BUILD_DIR}/_build
 export PATH:=${GOPATH}/bin:$(PATH)

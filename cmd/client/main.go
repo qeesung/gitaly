@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"gitlab.com/gitlab-org/git-access-daemon/client"
+	"gitlab.com/gitlab-org/gitaly/client"
 )
 
 func main() {

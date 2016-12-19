@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/gitlab-org/git-access-daemon/messaging"
+	"gitlab.com/gitlab-org/gitaly/messaging"
 )
 
 func TestServerStandingUp(t *testing.T) {

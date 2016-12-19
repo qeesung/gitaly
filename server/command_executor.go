@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"gitlab.com/gitlab-org/git-access-daemon/messaging"
+	"gitlab.com/gitlab-org/gitaly/messaging"
 )
 
 func CommandExecutor(chans *commChans) {

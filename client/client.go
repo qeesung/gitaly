@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 
-	"gitlab.com/gitlab-org/git-access-daemon/messaging"
+	"gitlab.com/gitlab-org/gitaly/messaging"
 )
 
 type Client struct {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	serv "gitlab.com/gitlab-org/git-access-daemon/server"
+	serv "gitlab.com/gitlab-org/gitaly/server"
 )
 
 const serverAddress = "127.0.0.1:6667"

@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"gitlab.com/gitlab-org/git-access-daemon/messaging"
+	"gitlab.com/gitlab-org/gitaly/messaging"
 )
 
 func TestRunningCommandSuccessfully(t *testing.T) {

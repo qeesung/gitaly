@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	serv "gitlab.com/gitlab-org/git-access-daemon/server"
+	serv "gitlab.com/gitlab-org/gitaly/server"
 )
 
 func main() {
