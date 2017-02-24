@@ -150,8 +150,8 @@ with these calculations.
 | `Projects::CommitController#show` | #64 | #80 | #88 | #89| | |
 | `Projects::MergeRequestsController#ci_status.json` / `Projects::MergeRequestsController#ci_environments_status.json` | #66 | #81 | #86 | #87 | | |
 | `Projects::TreeController#show` | #65 | #82 | #84 | #85 | | |
-| **SSH**: `POST /{upload,receive}-pack` | #92 |  | | | | |
-| **SSH**: handle gitlab-shell sessions | #91 |  | | | | |
+| Git HTTP: `POST /{upload,receive}-pack` | #92 |  | | | | |
+| Git SSH: handle gitlab-shell sessions | #91 |  | | | | |
 | `RootController#index` | | | | | | |
 | `Projects::RawController#show` | | | | | | |
 | `Projects::BlobController#show` | | | | | | |
