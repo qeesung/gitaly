@@ -24,7 +24,7 @@ Make the git data storage tier of large GitLab instances, and *GitLab.com in par
 
 This will be achieved by focusing on two areas (in this order):
 
-  1. Move git operations as close to the data as possibly
+  1. Move git operations as close to the data as possible
      * Migrate from git operations on workers, accessing git data over NFS to
        Gitaly services running on file-severs accessing git data on local
        drives
