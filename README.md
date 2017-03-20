@@ -24,8 +24,13 @@ Make the git data storage tier of large GitLab instances, and *GitLab.com in par
 
 This will be achieved by focusing on two areas (in this order):
 
-  1. Allow efficient caching
-  2. Resilient horizontal scaling of GitLab's Git data tier
+  1. Move git operations as close to the data as possibly
+     * Migrate from git operations on workers, accessing git data over NFS to
+       Gitaly services running on file-severs accessing git data on local
+       drives
+     * Ultimately, this will lead to all git operations occurring via the Gitaly
+       service and the removal of the need for NFS access to git volumes.
+  1. Optimize git services using caching
 
 #### Scope
 
