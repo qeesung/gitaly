@@ -26,7 +26,7 @@ This will be achieved by focusing on two areas (in this order):
 
   1. Move git operations as close to the data as possible
      * Migrate from git operations on workers, accessing git data over NFS to
-       Gitaly services running on file-severs accessing git data on local
+       Gitaly services running on file-servers accessing git data on local
        drives
      * Ultimately, this will lead to all git operations occurring via the Gitaly
        service and the removal of the need for NFS access to git volumes.
