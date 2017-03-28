@@ -154,7 +154,7 @@ Based on the  [daily overview dashboard](http://performance.gitlab.net/dashboard
 
 Using [data based on the](#generating-prioritization-data) [daily overview dashboard](http://performance.gitlab.net/dashboard/db/daily-overview?panelId=14&fullscreen),
 we've prioritised the order in which we'll work through the `gitlab-rails` controllers
-in descending order of **95% Cumulative Time** (that is `(number of calls) * (95% call time)`).
+in descending order of **99% Cumulative Time** (that is `(number of calls) * (99% call time)`).
 
 A [Google Spreadsheet](https://docs.google.com/spreadsheets/d/1MVjsbLIjBVryMxO0UhBWebrwXuqpbCz18ZtrThcSFFU/edit) is available
 with these calculations.
@@ -187,7 +187,7 @@ with these calculations.
 
 ### Generating the Priorization Data
 
-Use this script to generate a CSV of the 95 percentile accumulated for a 7 day period.
+Use this script to generate a CSV of the 99th percentile accumulated for a 7 day period.
 
 This data will change over time, so it's important to reprioritize from time-to-time.
 
@@ -197,11 +197,12 @@ influx \
   -username gitlab \
   -password $GITLAB_INFLUXDB_PASSWORD \
   -database gitlab \
-  -execute "SELECT sum(count) as Amount, mean(duration_mean) AS Mean, mean(duration_95th) AS p95, sum(count) * mean(duration_95th) as Accum FROM downsampled.rails_git_timings_per_action_per_day WHERE time > now() - 7d GROUP BY action" \
+  -execute "SELECT sum(count) as Amount, mean(duration_mean) AS Mean, mean(duration_99th) AS p99, sum(count) * mean(duration_99th) as Accum FROM downsampled.rails_git_timings_per_action_per_day WHERE time > now() - 7d GROUP BY action" \
   -format csv | \
   grep -v 'name,tags,'| \
   cut -d, -f2,3,4,5,6,7| \
-  sed 's/action=//' > data.csv
+  sed 's/action=//' | \
+  sort --general-numeric-sort --key=6 --field-separator=, --reverse > data.csv
 ```
 
 ## Plan
