@@ -192,6 +192,7 @@ Use this script to generate a CSV of the 99th percentile accumulated for a 7 day
 This data will change over time, so it's important to reprioritize from time-to-time.
 
 ```shell
+(echo 'Controller,Amount,Mean,p99,p99Accum'; \
 influx \
   -host performance.gitlab.net \
   -username gitlab \
@@ -200,9 +201,10 @@ influx \
   -execute "SELECT sum(count) as Amount, mean(duration_mean) AS Mean, mean(duration_99th) AS p99, sum(count) * mean(duration_99th) as Accum FROM downsampled.rails_git_timings_per_action_per_day WHERE time > now() - 7d GROUP BY action" \
   -format csv | \
   grep -v 'name,tags,'| \
-  cut -d, -f2,3,4,5,6,7| \
+  cut -d, -f2,4,5,6,7| \
   sed 's/action=//' | \
-  sort --general-numeric-sort --key=6 --field-separator=, --reverse > data.csv
+  sort --general-numeric-sort --key=5 --field-separator=, --reverse \
+) > data.csv
 ```
 
 ## Plan
