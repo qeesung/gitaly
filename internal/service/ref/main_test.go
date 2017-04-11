@@ -29,18 +29,20 @@ func TestMain(m *testing.M) {
 	if err := os.MkdirAll(scratchDir, 0755); err != nil {
 		log.Fatal(err)
 	}
+	server := runRefServer(m)
+	defer server.Stop()
 
 	os.Exit(func() int {
 		return m.Run()
 	}())
 }
 
-func runRefServer(t *testing.T) *grpc.Server {
+func runRefServer(m *testing.M) *grpc.Server {
 	os.Remove(serverSocketPath)
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
-		t.Fatal(err)
+		log.Panic(err)
 	}
 
 	// Use 100 bytes as the maximum message size to test that fragmenting the ref list works correctly
