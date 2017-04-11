@@ -48,7 +48,7 @@ func findRefName(path, commitID, prefix string) (string, error) {
 
 	line := string(output)
 	if err != nil {
-		return "", fmt.Errorf("findRefName: stdout: %q", line)
+		return "", nil
 	}
 
 	// Trailing spaces are not allowed per the documentation
