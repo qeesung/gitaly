@@ -48,6 +48,8 @@ func findRefName(path, commitID, prefix string) (string, error) {
 
 	line := string(output)
 	if err != nil {
+		// We're suppressing the error since invalid commits isn't an error
+		//  according to Rails
 		return "", nil
 	}
 

@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 	if err := os.MkdirAll(scratchDir, 0755); err != nil {
 		log.Fatal(err)
 	}
-	server := runRefServer(m)
+	server := runRefServer()
 	defer server.Stop()
 
 	os.Exit(func() int {
@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}())
 }
 
-func runRefServer(m *testing.M) *grpc.Server {
+func runRefServer() *grpc.Server {
 	os.Remove(serverSocketPath)
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("unix", serverSocketPath)
