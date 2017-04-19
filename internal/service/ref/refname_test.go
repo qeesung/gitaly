@@ -12,6 +12,9 @@ import (
 )
 
 func TestFindRefNameSuccess(t *testing.T) {
+	server := runRefServer(t)
+	defer server.Stop()
+
 	client := newRefClient(t)
 	repo := &pb.Repository{Path: testRepoPath}
 	rpcRequest := &pb.FindRefNameRequest{
@@ -33,6 +36,9 @@ func TestFindRefNameSuccess(t *testing.T) {
 }
 
 func TestFindRefNameEmptyCommit(t *testing.T) {
+	server := runRefServer(t)
+	defer server.Stop()
+
 	client := newRefClient(t)
 	repo := &pb.Repository{Path: testRepoPath}
 	rpcRequest := &pb.FindRefNameRequest{
@@ -56,6 +62,9 @@ func TestFindRefNameEmptyCommit(t *testing.T) {
 }
 
 func TestFindRefNameInvalidRepo(t *testing.T) {
+	server := runRefServer(t)
+	defer server.Stop()
+
 	client := newRefClient(t)
 	repo := &pb.Repository{Path: ""}
 	rpcRequest := &pb.FindRefNameRequest{
@@ -79,6 +88,9 @@ func TestFindRefNameInvalidRepo(t *testing.T) {
 }
 
 func TestFindRefNameInvalidPrefix(t *testing.T) {
+	server := runRefServer(t)
+	defer server.Stop()
+
 	client := newRefClient(t)
 	repo := &pb.Repository{Path: testRepoPath}
 	rpcRequest := &pb.FindRefNameRequest{
@@ -97,6 +109,9 @@ func TestFindRefNameInvalidPrefix(t *testing.T) {
 }
 
 func TestFindRefNameInvalidObject(t *testing.T) {
+	server := runRefServer(t)
+	defer server.Stop()
+
 	client := newRefClient(t)
 	repo := &pb.Repository{Path: testRepoPath}
 	rpcRequest := &pb.FindRefNameRequest{
