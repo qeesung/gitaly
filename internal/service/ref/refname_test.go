@@ -3,8 +3,6 @@ package ref
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -23,11 +21,15 @@ func TestFindRefNameSuccess(t *testing.T) {
 	}
 
 	c, err := client.FindRefName(context.Background(), rpcRequest)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	response := string(c.GetName())
 
-	assert.Equal(t, `refs/heads/expand-collapse-diffs`, response)
+	if response != `refs/heads/expand-collapse-diffs` {
+		t.Errorf("Expected FindRefName to return `refs/heads/expand-collapse-diffs`, got `%#v`", response)
+	}
 }
 
 func TestFindRefNameEmptyCommit(t *testing.T) {
@@ -40,11 +42,17 @@ func TestFindRefNameEmptyCommit(t *testing.T) {
 	}
 
 	c, err := client.FindRefName(context.Background(), rpcRequest)
-	assert.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	if err == nil {
+		t.Fatalf("Expected FindRefName to throw an error")
+	}
+	if grpc.Code(err) != codes.InvalidArgument {
+		t.Errorf("Expected FindRefName to throw InvalidArgument, got %v", err)
+	}
 
 	response := string(c.GetName())
-	assert.Empty(t, response)
+	if response != `` {
+		t.Errorf("Expected FindRefName to return empty-string, got %q", response)
+	}
 }
 
 func TestFindRefNameInvalidRepo(t *testing.T) {
@@ -57,11 +65,17 @@ func TestFindRefNameInvalidRepo(t *testing.T) {
 	}
 
 	c, err := client.FindRefName(context.Background(), rpcRequest)
-	assert.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	if err == nil {
+		t.Fatalf("Expected FindRefName to throw an error")
+	}
+	if grpc.Code(err) != codes.InvalidArgument {
+		t.Errorf("Expected FindRefName to throw InvalidArgument, got %v", err)
+	}
 
 	response := string(c.GetName())
-	assert.Empty(t, response)
+	if response != `` {
+		t.Errorf("Expected FindRefName to return empty-string, got %q", response)
+	}
 }
 
 func TestFindRefNameInvalidPrefix(t *testing.T) {
@@ -74,8 +88,12 @@ func TestFindRefNameInvalidPrefix(t *testing.T) {
 	}
 
 	c, err := client.FindRefName(context.Background(), rpcRequest)
-	assert.NoError(t, err)
-	assert.Empty(t, c.Name)
+	if err != nil {
+		t.Fatalf("Expected FindRefName to not throw an error: %v", err)
+	}
+	if len(c.Name) > 0 {
+		t.Errorf("Expected empty name, got %q instead", c.Name)
+	}
 }
 
 func TestFindRefNameInvalidObject(t *testing.T) {
@@ -87,6 +105,11 @@ func TestFindRefNameInvalidObject(t *testing.T) {
 	}
 
 	c, err := client.FindRefName(context.Background(), rpcRequest)
-	assert.NoError(t, err)
-	assert.Empty(t, c.GetName())
+	if err != nil {
+		t.Fatalf("Expected FindRefName to not throw an error")
+	}
+
+	if len(c.GetName()) > 0 {
+		t.Errorf("Expected FindRefName to return empty-string, got %q", string(c.GetName()))
+	}
 }
