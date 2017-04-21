@@ -178,7 +178,7 @@ with these calculations.
 | Git HTTP: `POST /{upload,receive}-pack` | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | | |
 | Git SSH: handle gitlab-shell sessions | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | |
 | `Projects::BranchesController#index` | #127 | #128 | | | | |
-| `ProjectsController#show` | #157 | | | gitlab-org/gitlab-ce!10780 | | |
+| `ProjectsController#show` | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | | |
 | `Projects::GraphsController#charts` | #158 |  | | | | |
 | `Projects::MergeRequestsController#new` | #159 | | | | | |
 | `Projects::RawController#show` | #160 | | | | | |
