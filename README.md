@@ -178,20 +178,10 @@ with these calculations.
 | Git HTTP: `POST /{upload,receive}-pack` | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | | |
 | Git SSH: handle gitlab-shell sessions | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | |
 | `Projects::BranchesController#index` | #127 | #128 | | | | |
-| `RootController#index` | | | | | | |
-| `Projects::RawController#show` | | | | | | |
-| `Projects::BlobController#show` | | | | | | |
-| `ProjectsController#show` | | | | | | |
-| `Projects::RefsController#logs_tree` | | | | | | |
-| `GroupsController#show` | | | | | | |
-| `Projects::MergeRequestsController#show` | | | | | | |
-| `Dashboard::ProjectsController#index` | | | | | | |
-| `Explore::ProjectsController#trending` | | | | | | |
-| `Projects::MergeRequestsController#new` | | | | | | |
-| `Projects::MergeRequestsController#create` | | | | | | |
-| `Projects::BuildsController#show` | | | | | | |
-| `Explore::ProjectsController#index` | | | | | | |
-| `Projects::GitHttpController#git_upload_pack.json` | | | | | | |
+| `ProjectsController#show` | #157 |  | | | | |
+| `Projects::GraphsController#charts` | #158 |  | | | | |
+| `Projects::MergeRequestsController#new` | #159 | | | | | |
+| `Projects::RawController#show` | #160 | | | | | |
 
 (More to follow!)
 
