@@ -181,7 +181,7 @@ with these calculations.
 | `Projects::TreeController#show` | #65 | #82 | #84 | #85 | #211 | | |  
 | Git HTTP: `POST /{upload,receive}-pack` | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | #184 | | |
 | Git SSH: handle gitlab-shell sessions | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | | |
-| `Projects::BranchesController#index` | #127 | #128 | | | | | |
+| `Projects::BranchesController#index` | #127 | #128 | !103 | | | | |
 | `ProjectsController#show` | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | | | |
 | `Projects::GraphsController#charts` (shelved for now) | #158 |  | | | | | |
 | `Projects::MergeRequestsController#new` | #159 | | | | | | |
