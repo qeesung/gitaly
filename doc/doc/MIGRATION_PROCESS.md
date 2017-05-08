@@ -46,6 +46,9 @@ The server implementation of the `gitaly-proto` endpoint is completed, including
 * Unit tests
 * Integration tests
 
+Note: the client and server implementations may occur in parallel, or sequentially
+depending on the particular case.
+
 ---------------------------------------------------------------------
 
 ## Client Implementation
