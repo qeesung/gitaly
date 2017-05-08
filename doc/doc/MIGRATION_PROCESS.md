@@ -5,6 +5,7 @@ This described the Gitaly migration process.
 Migration is done on a feature-by-feature basis. Although not strictly correct, for simplicity, think of each migrated feature as being a single Gitaly endpoint.
 
 ![](https://docs.google.com/drawings/d/1wPwweMnEUPgffsdmoVmHwho5wzKtj61ll_Q90N9eZc8/pub?w=756&h=720)
+
 [Edit this document](https://docs.google.com/drawings/d/1wPwweMnEUPgffsdmoVmHwho5wzKtj61ll_Q90N9eZc8/edit)
 
 ## Selection
