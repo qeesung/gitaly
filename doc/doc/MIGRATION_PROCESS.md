@@ -22,7 +22,7 @@ The order of migration is roughly determined using the formula described in the 
 
 ---------------------------------------------------------------------
 
-## Migration Analysis
+## Migration Analysis: ~"Migration Analysis"  
 
 Once a route has been selected, the route in the client will be analysed and profiled in order to figure out the best way of migrating the route to Gitaly.
 
@@ -34,13 +34,13 @@ The artefacts of this stage will be:
 
 ---------------------------------------------------------------------
 
-## RPC Design
+## RPC Design: ~"RPC Design" 
 
 A new GRPC endpoint is added to the [`gitaly-proto`](https://gitlab.com/gitlab-org/gitaly-proto) project.
 
 ---------------------------------------------------------------------
 
-## Server Implementation
+## Server Implementation: ~"Server Implementation"
 
 The server implementation of the `gitaly-proto` endpoint is completed, including:
 * Unit tests
@@ -51,11 +51,11 @@ depending on the particular case.
 
 ---------------------------------------------------------------------
 
-## Client Implementation
+## Client Implementation: ~"Client Implementation" 
 
 The client implementation in `gitlab-ce`, `GitLab-Workhorse` or `GitLab-Shell` is completed.
 
----------------------------------------------------------------------
+
 
 #### Feature Flags
 
@@ -69,7 +69,7 @@ Once the client and server implementations are delivered, the feature should rem
 
 ---------------------------------------------------------------------
 
-## Acceptance Testing
+## Acceptance Testing: ~"Acceptance Testing"
 
 A feature is tested in dev, staging and gitlab.com. If the results are satisfactory, the testing continues on to the next environment until the test is complete. 
 
