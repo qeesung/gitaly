@@ -139,7 +139,7 @@ If the flag is missing, the feature will be **enabled by default**.
 
 ---------------------------------------------------------------------
 
-## Feature Status: *Mandatory**
+## Feature Status: *Mandatory*
 
 In the next GitLab release following the change to Opt-Out feature status, the feature will be made mandatory. At this point, the option to opt-out will be gone and all GitLab installations will need to use the feature.
 
