@@ -8,6 +8,8 @@ Migration is done on a feature-by-feature basis. Although not strictly correct, 
 
 [Edit this document](https://docs.google.com/drawings/d/1wPwweMnEUPgffsdmoVmHwho5wzKtj61ll_Q90N9eZc8/edit)
 
+---------------------------------------------------------------------
+
 ## Selection
 
 First step is to consider a route for migration. A route is an endpoint in one of the following GitLab projects:
@@ -17,6 +19,8 @@ First step is to consider a route for migration. A route is an endpoint in one o
 * GitLab Shell
 
 The order of migration is roughly determined using the formula described in the [Order of Migration](../README.md#order-of-migration) section in the Gitaly readme, although tactical and strategic reasons may affect the actual order.
+
+---------------------------------------------------------------------
 
 ## Migration Analysis
 
@@ -28,9 +32,13 @@ The artefacts of this stage will be:
 1. **Decision to move ahead with migration**: At this stage of the project, we're working to achieve the best value for effort. If we feel that a migration will take too much effort for the value gained, then it may be shelved. 
 2. **Optional: a new grpc Endpoint**: the analysis may show that the route can be migrated using an existing Gitaly endpoint, or that a new endpoint needs to be designed. If an existing endpoint is used, jump directly to **Client Implementation**, skipping **RPC design** and **Server Implementation**
 
+---------------------------------------------------------------------
+
 ## RPC Design
 
 A new GRPC endpoint is added to the [`gitaly-proto`](https://gitlab.com/gitlab-org/gitaly-proto) project.
+
+---------------------------------------------------------------------
 
 ## Server Implementation
 
@@ -38,17 +46,25 @@ The server implementation of the `gitaly-proto` endpoint is completed, including
 * Unit tests
 * Integration tests
 
+---------------------------------------------------------------------
+
 ## Client Implementation
 
 The client implementation in `gitlab-ce`, `GitLab-Workhorse` or `GitLab-Shell` is completed.
+
+---------------------------------------------------------------------
 
 #### Feature Flags
 
 The client code will either call the old route or the new route, depending on a **feature flag**. This flag name should be derived from the name of the grpc endpoint.
 
+---------------------------------------------------------------------
+
 ## Feature Status: *Disabled*
 
 Once the client and server implementations are delivered, the feature should remain disabled by default until acceptance testing has been completed.
+
+---------------------------------------------------------------------
 
 ## Acceptance Testing
 
@@ -73,6 +89,7 @@ Once acceptance testing has been successfully completed in all three environment
 * The [Gitaly runbook](https://gitlab.com/gitlab-com/runbooks/blob/master/troubleshooting/gitaly-error-rate.md) should be updated to include any diagnosis information and a description of how to disable the feature flag.
 * Using the error-rate data from the gitlab.com acceptance testing, new alerts need to be added to the [Gitaly prometheus rules](https://gitlab.com/gitlab-com/runbooks/blob/master/alerts/gitaly.rules). The alert should also include a link to the new runbook amendments.
 
+---------------------------------------------------------------------
 
 ## Feature Status: *Opt-In*
 
@@ -92,6 +109,8 @@ GITALY_EXAMPLE_FEATURE=1 # "One" to enable
 
 If the flag is missing, the feature will be **disabled by default**.
 
+---------------------------------------------------------------------
+
 ## Feature Status: *Opt-Out*
 
 In the next GitLab release, the client application logic will be switched around to make the feature toggle enabled by default. 
@@ -107,6 +126,8 @@ GITALY_EXAMPLE_FEATURE=0 # "Zero" to disable
 ```
 
 If the flag is missing, the feature will be **enabled by default**.
+
+---------------------------------------------------------------------
 
 ## Feature Status: *Mandatory**
 
