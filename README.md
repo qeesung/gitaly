@@ -175,7 +175,7 @@ with these calculations.
 
 |**Controller**|**~"Migration Analysis"**|**~"RPC Design"**|**~"Server Implementation"**|**~"Client Implementation"**|**~"Acceptance Testing"**|**Optim 1**|**Optim 2**|
 |--------------|-------------------------|-----------------|----------------------------|----------------------------|-------------------------|-----------|-----------|
-| SmartHTTP Workhorse Interceptors | #36 | - | | | | | |
+| [`SmartHTTP::InfoRefsUploadPack` and `SmartHTTP::InfoRefsReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/223) | #36 | - | | | | | |
 | [`Diff::CommitDiff`](https://gitlab.com/gitlab-org/gitaly/issues/222) | #64 | #80 | #88 | #89| #209 | | |
 | [`Ref::FindRefName` and `Commit::CommitIsAncestor`](https://gitlab.com/gitlab-org/gitaly/issues/221) | #66 | #81 | #86 | #87 | #210 | | |
 | [`Ref::FindDefaultBranchName`, `Ref::FindAllBranchNames`, `Ref::FindAllTagNames`](https://gitlab.com/gitlab-org/gitaly/issues/220) | #65 | #82 | #84 | #85 | #211 | | |  
