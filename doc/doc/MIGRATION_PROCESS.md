@@ -63,13 +63,13 @@ The client code will either call the old route or the new route, depending on a 
 
 ---------------------------------------------------------------------
 
-## Feature Status: *Disabled*
+## Feature Status: *Ready-for-Testing*
 
 At this stage, the feature will be considered to complete, but should remain 
 disabled by default until acceptance testing has been completed.
 
 This happens in three stages:
-* Feature Status: Disabled
+* Feature Status: Ready-for-Testing
 * Feature Status Opt-In
 * Feature Status: Opt-Out
 * Feature Status: Mandatory
