@@ -184,7 +184,7 @@ with these calculations.
 | `Projects::BranchesController#index` | #127 | #128 | !103 | gitlab-org/gitlab-ce!10059 | | | |
 | [`Ref::count_branch_names` and `Ref::count_tag_names`](https://gitlab.com/gitlab-org/gitaly/issues/214) | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | #215 | | |
 | `Projects::GraphsController#charts` (shelved for now) | #158 |  | | | | | |
-| `Projects::MergeRequestsController#new` | #159 | | | | | | |
+| [`Commit::GetAuthor`](https://gitlab.com/gitlab-org/gitaly/issues/216) | #159 | | | | | | |
 | `Projects::RawController#show` | #160 | #195 | | | | | |
 | [`CatFile::Blob`](https://gitlab.com/gitlab-org/gitaly/issues/212) | #194 |  | | | | | |
 
