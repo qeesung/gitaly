@@ -1,6 +1,8 @@
+[All current migrations](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=Migration&scope=all&state=all)
+
 # Gitaly Migration Process
 
-This described the Gitaly migration process.
+This document describes the Gitaly migration process.
 
 Migration is done on a feature-by-feature basis. Although not strictly correct, for simplicity, think of each migrated feature as being a single Gitaly endpoint.
 
