@@ -2,7 +2,7 @@
 
 ## Perform a Migration Analysis
 
-- **Client**: `GitLab-CE`/`Workhorse`/`GitLab-Shell`
+- **Client**: `GitLab-CE`/`Workhorse`/`GitLab-Shell` (choose one)
 - **Route**: 
 
 ## Expected Artefacts
