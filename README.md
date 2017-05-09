@@ -180,7 +180,7 @@ with these calculations.
 | `Projects::MergeRequestsController#ci_status.json` / `Projects::MergeRequestsController#ci_environments_status.json` | #66 | #81 | #86 | #87 | #210 | | |
 | `Projects::TreeController#show` | #65 | #82 | #84 | #85 | #211 | | |  
 | Git HTTP: `POST /{upload,receive}-pack` | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | #184 | | |
-| Git SSH: handle gitlab-shell sessions | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | | |
+| [`SSH:SSHUploadPack` and `SSH::SSHReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/218) | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | | |
 | [`Ref::FindLocalBranches`](https://gitlab.com/gitlab-org/gitaly/issues/217) | #127 | #128 | !103 | gitlab-org/gitlab-ce!10059 | | | |
 | [`Ref::count_branch_names` and `Ref::count_tag_names`](https://gitlab.com/gitlab-org/gitaly/issues/214) | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | #215 | | |
 | `Projects::GraphsController#charts` (shelved for now) | #158 |  | | | | | |
