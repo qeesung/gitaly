@@ -31,12 +31,12 @@ Once a route has been selected, the route in the client will be analysed and pro
 The artefacts of this stage will be:
 
 1. **Rough estimation of the amount of work involved in the migration**: from the analysis, we should have a rough idea of how long this migration will take.
-1. **Decision to move ahead with migration**: At this stage of the project, we're working to achieve the best value for effort. If we feel that a migration will take too much effort for the value gained, then it may be shelved. 
+1. **Decision to move ahead with migration**: At this stage of the project, we're working to achieve the best value for effort. If we feel that a migration will take too much effort for the value gained, then it may be shelved.
 2. **Optional: a new grpc Endpoint**: the analysis may show that the route can be migrated using an existing Gitaly endpoint, or that a new endpoint needs to be designed. If an existing endpoint is used, jump directly to **Client Implementation**, skipping **RPC design** and **Server Implementation**
 
 ---------------------------------------------------------------------
 
-## RPC Design: ~"RPC Design" 
+## RPC Design: ~"RPC Design"
 
 A new GRPC endpoint is added to the [`gitaly-proto`](https://gitlab.com/gitlab-org/gitaly-proto) project.
 
@@ -53,7 +53,7 @@ depending on the particular case.
 
 ---------------------------------------------------------------------
 
-## Client Implementation: ~"Client Implementation" 
+## Client Implementation: ~"Client Implementation"
 
 The client implementation in `gitlab-ce`, `GitLab-Workhorse` or `GitLab-Shell` is completed.
 
@@ -67,7 +67,7 @@ The client code will either call the old route or the new route, depending on a 
 
 ## Feature Status: *Ready-for-Testing*
 
-At this stage, the feature will be considered to complete, but should remain 
+At this stage, the feature will be considered to complete, but should remain
 disabled by default until acceptance testing has been completed.
 
 This happens in three stages:
@@ -80,13 +80,20 @@ This happens in three stages:
 
 ## Acceptance Testing: ~"Acceptance Testing"
 
-A feature is tested in dev, staging and gitlab.com. If the results are satisfactory, the testing continues on to the next environment until the test is complete. 
+A feature is tested in dev, staging and gitlab.com. If the results are satisfactory, the testing continues on to the next environment until the test is complete.
 
 The following procedure should be used for testing:
 
-1. Create a [chef recipe](https://dev.gitlab.org/cookbooks/chef-repo) to enable the feature flag.
+1. Update the relevant [chef roles](https://dev.gitlab.org/cookbooks/chef-repo) to enable the feature flag(s) under `default_attributes -> omnibus-gitlab -> gitlab_rb -> gitlab-rails -> env`:
+  - For dev: roles/dev-gitlab-org.json
+  - For staging: roles/gitlab-staging-base.json
+  - For producion: roles/gitlab-cluster-base.json
 2. Create a dashboard to monitor the feature
-3. Arrange for one of the production engineers in the team, Ahmad or Alejandro, to enable the feature in the environment. (also ensure that they are around for the entire duration of the test,  to roll the feature-back toggle back, and also in case of emergency) 
+3. Arrange for one of the production engineers in the team, Ahmad or Alejandro, to enable the feature in the environment. (also ensure that they are around for the entire duration of the test,  to roll the feature-back toggle back, and also in case of emergency). They should do the following:
+  - Merge the chef-repo MRs
+  - Make sure new role file is on chef server `bundle exec knife role from file [role-path]`
+  - Run chef client and restart unicorn: `bundle exec knife ssh -C 1 role:[role-name] 'sudo chef-client; sleep 60; sudo gitlab-ctl term unicorn; echo done $?'`
+  - Verify the process have the env values set: `bundle exec knife ssh role:[role-name] 'for p in $(pgrep -f "unicorn master"); do ps -o pid,etime,args -p $p; sudo cat  /proc/$p/environ | xargs --null --max-args=1 | grep GITALY; done'`
 4. Restart client process (unicorn, workhorse, etc) if necessary to enable the feature.
 5. Monitor dashboards and host systems to ensure that feature is working.
 6. Get the production engineer to roll the feature back.
@@ -106,7 +113,7 @@ Once acceptance testing has been successfully completed in all three environment
 ## Feature Status: *Opt-In*
 
 As the maintainer of Gitaly, Jacob to review:
- 
+
 * The testing evidence completed in the acceptance testing stage is sufficient, using the dashboards created in the previous stage.
 * The alerts are in-place
 * The runbooks are good
@@ -125,7 +132,7 @@ If the flag is missing, the feature will be **disabled by default**.
 
 ## Feature Status: *Opt-Out*
 
-In the next GitLab release, the client application logic will be switched around to make the feature toggle enabled by default. 
+In the next GitLab release, the client application logic will be switched around to make the feature toggle enabled by default.
 
 This gives on-premise installations a month to test a feature and disable it if there are any problems.
 
