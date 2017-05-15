@@ -85,16 +85,17 @@ A feature is tested in dev, staging and gitlab.com. If the results are satisfact
 The following procedure should be used for testing:
 
 1. Create a [chef recipe](https://dev.gitlab.org/cookbooks/chef-repo) to enable the feature flag.
-2. Create a dashboard to monitor the feature
-3. Arrange for one of the production engineers in the team, Ahmad or Alejandro, to enable the feature in the environment. (also ensure that they are around for the entire duration of the test,  to roll the feature-back toggle back, and also in case of emergency) 
-4. Restart client process (unicorn, workhorse, etc) if necessary to enable the feature.
-5. Monitor dashboards and host systems to ensure that feature is working.
-6. Get the production engineer to roll the feature back.
-7. Review data:
+2. Create a new row in the Gitaly dashboard to monitor the feature in the [`gitaly-dashboards`](https://gitlab.com/gitlab-org/gitaly-dashboards) repo.
+3. Once the dashboard MR is accepted, manually update the Gitaly dashboard in Grafana by uploading the new JSON
+4. Arrange for one of the production engineers in the team, Ahmad or Alejandro, to enable the feature in the environment. (also ensure that they are around for the entire duration of the test,  to roll the feature-back toggle back, and also in case of emergency) 
+5. Restart client process (unicorn, workhorse, etc) if necessary to enable the feature.
+6. Monitor dashboards and host systems to ensure that feature is working.
+7. Get the production engineer to roll the feature back.
+8. Review data:
     1. Did the test route perform well?
     2. Did the client or server processes consume excessive resources during the test?
     3. Did error rates jump during the test?
-8. If the test if successful, proceed to next environment.
+9. If the test if successful, proceed to next environment.
 
 Once acceptance testing has been successfully completed in all three environments, we need to prepare for opt-in status.
 
