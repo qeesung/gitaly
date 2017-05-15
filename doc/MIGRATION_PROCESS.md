@@ -32,7 +32,7 @@ The artefacts of this stage will be:
 
 1. **Rough estimation of the amount of work involved in the migration**: from the analysis, we should have a rough idea of how long this migration will take.
 1. **Decision to move ahead with migration**: At this stage of the project, we're working to achieve the best value for effort. If we feel that a migration will take too much effort for the value gained, then it may be shelved.
-2. **Optional: a new grpc Endpoint**: the analysis may show that the route can be migrated using an existing Gitaly endpoint, or that a new endpoint needs to be designed. If an existing endpoint is used, jump directly to **Client Implementation**, skipping **RPC design** and **Server Implementation**
+1. **Optional: a new grpc Endpoint**: the analysis may show that the route can be migrated using an existing Gitaly endpoint, or that a new endpoint needs to be designed. If an existing endpoint is used, jump directly to **Client Implementation**, skipping **RPC design** and **Server Implementation**
 
 ---------------------------------------------------------------------
 
@@ -88,20 +88,19 @@ The following procedure should be used for testing:
   - For dev: roles/dev-gitlab-org.json
   - For staging: roles/gitlab-staging-base.json
   - For producion: roles/gitlab-cluster-base.json
-2. Create a dashboard to monitor the feature
-3. Arrange for one of the production engineers in the team, Ahmad or Alejandro, to enable the feature in the environment. (also ensure that they are around for the entire duration of the test,  to roll the feature-back toggle back, and also in case of emergency). They should do the following:
+1. Create a new row in the Gitaly dashboard to monitor the feature in the [`gitaly-dashboards`](https://gitlab.com/gitlab-org/gitaly-dashboards) repo.
   - Merge the chef-repo MRs
   - Make sure new role file is on chef server `bundle exec knife role from file [role-path]`
   - Run chef client and restart unicorn: `bundle exec knife ssh -C 1 role:[role-name] 'sudo chef-client; sleep 60; sudo gitlab-ctl term unicorn; echo done $?'`
   - Verify the process have the env values set: `bundle exec knife ssh role:[role-name] 'for p in $(pgrep -f "unicorn master"); do ps -o pid,etime,args -p $p; sudo cat  /proc/$p/environ | xargs --null --max-args=1 | grep GITALY; done'`
-4. Restart client process (unicorn, workhorse, etc) if necessary to enable the feature.
-5. Monitor dashboards and host systems to ensure that feature is working.
-6. Get the production engineer to roll the feature back.
-7. Review data:
+1. Restart client process (unicorn, workhorse, etc) if necessary to enable the feature.
+1. Monitor dashboards and host systems to ensure that feature is working.
+1. Get the production engineer to roll the feature back.
+1. Review data:
     1. Did the test route perform well?
-    2. Did the client or server processes consume excessive resources during the test?
-    3. Did error rates jump during the test?
-8. If the test if successful, proceed to next environment.
+    1. Did the client or server processes consume excessive resources during the test?
+    1. Did error rates jump during the test?
+1. If the test if successful, proceed to next environment.
 
 Once acceptance testing has been successfully completed in all three environments, we need to prepare for opt-in status.
 

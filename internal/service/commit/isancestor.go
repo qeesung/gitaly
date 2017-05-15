@@ -32,7 +32,7 @@ func (s *server) CommitIsAncestor(ctx context.Context, in *pb.CommitIsAncestorRe
 // Assumes that `path`, `ancestorID` and `childID` are populated :trollface:
 func commitIsAncestorName(path, ancestorID, childID string) (bool, error) {
 	osCommand := exec.Command("git", "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
-	cmd, err := helper.NewCommand(osCommand, nil, ioutil.Discard)
+	cmd, err := helper.NewCommand(osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}

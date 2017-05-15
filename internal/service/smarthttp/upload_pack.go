@@ -35,7 +35,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTP_PostUploadPackServer) error 
 	helper.Debugf("PostUploadPack: RepoPath=%q", repoPath)
 
 	osCommand := exec.Command("git", "upload-pack", "--stateless-rpc", repoPath)
-	cmd, err := helper.NewCommand(osCommand, stdin, stdout)
+	cmd, err := helper.NewCommand(osCommand, stdin, stdout, nil)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)

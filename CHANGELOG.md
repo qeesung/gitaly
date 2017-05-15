@@ -17,6 +17,8 @@ v0.10.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/139
 - PostReceivePack: Set GL_REPOSITORY env variable when provided in request
   https://gitlab.com/gitlab-org/gitaly/merge_requests/137
+- Add SSHUpload/ReceivePack Implementation
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/132
 
 v0.9.0
 
