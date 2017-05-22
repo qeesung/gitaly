@@ -20,12 +20,18 @@ type config struct {
 	ListenAddr           string    `toml:"listen_addr" split_words:"true"`
 	PrometheusListenAddr string    `toml:"prometheus_listen_addr" split_words:"true"`
 	Storages             []Storage `toml:"storage" envconfig:"storage"`
+	Logging              Logging   `toml:"logging" envconfig:"logging"`
 }
 
 // Storage contains a single storage-shard
 type Storage struct {
 	Name string
 	Path string
+}
+
+// Logging contains the logging configuration for Gitaly
+type Logging struct {
+	Format string
 }
 
 // Load initializes the Config variable from file and the environment.

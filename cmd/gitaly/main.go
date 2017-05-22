@@ -68,6 +68,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	config.ConfigureLogging()
+
 	var listeners []net.Listener
 
 	if socketPath := config.Config.SocketPath; socketPath != "" {
