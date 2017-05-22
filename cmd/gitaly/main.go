@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
@@ -28,18 +29,24 @@ func loadConfig() {
 	case len(os.Args) >= 2:
 		cfgFile, err := os.Open(os.Args[1])
 		if err != nil {
-			log.Printf("warning: can not open file for reading: %q: %v", os.Args[1], err)
+			log.WithFields(log.Fields{
+				"filename": os.Args[1],
+				"error":    err,
+			}).Warn("can not open file for reading")
 			break
 		}
 		defer cfgFile.Close()
 		if err = config.Load(cfgFile); err != nil {
-			log.Printf("warning: can not load configuration: %q: %v", os.Args[1], err)
+			log.WithFields(log.Fields{
+				"filename": os.Args[1],
+				"error":    err,
+			}).Warn("can not load configuration")
 		}
 
 	default:
-		log.Printf("warning: no configuration file given")
+		log.Warn("no configuration file given")
 		if err := config.Load(nil); err != nil {
-			log.Printf("warning: can not load configuration: %v", err)
+			log.WithError(err).Warn("can not load configuration")
 		}
 	}
 }
@@ -53,7 +60,7 @@ func validateConfig() error {
 }
 
 func main() {
-	log.Println("Starting Gitaly", version)
+	log.WithField("version", version).Info("Starting Gitaly")
 
 	loadConfig()
 
@@ -66,18 +73,19 @@ func main() {
 	if socketPath := config.Config.SocketPath; socketPath != "" {
 		l, err := createUnixListener(socketPath)
 		if err != nil {
-			log.Fatalf("configure unix listener: %v", err)
+			log.WithError(err).Fatal("configure unix listener")
 		}
-		log.Printf("listening on unix socket %q", socketPath)
+		log.WithField("address", socketPath).Info("listening on unix socket")
 		listeners = append(listeners, l)
 	}
 
 	if addr := config.Config.ListenAddr; addr != "" {
 		l, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Fatalf("configure tcp listener: %v", err)
+			log.WithError(err).Fatal("configure tcp listener")
 		}
-		log.Printf("listening at tcp address %q", addr)
+
+		log.WithField("address", addr).Info("listening at tcp address")
 		listeners = append(listeners, connectioncounter.New("tcp", l))
 	}
 
@@ -110,7 +118,7 @@ func main() {
 	}
 
 	if config.Config.PrometheusListenAddr != "" {
-		log.Print("Starting prometheus listener ", config.Config.PrometheusListenAddr)
+		log.WithField("address", config.Config.PrometheusListenAddr).Info("Starting prometheus listener")
 		promMux := http.NewServeMux()
 		promMux.Handle("/metrics", promhttp.Handler())
 		go func() {

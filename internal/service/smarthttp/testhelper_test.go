@@ -1,12 +1,13 @@
 package smarthttp
 
 import (
-	"log"
 	"net"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 

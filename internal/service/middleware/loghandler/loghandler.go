@@ -1,8 +1,9 @@
 package loghandler
 
 import (
-	"log"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -25,8 +26,22 @@ func StreamLogHandler(srv interface{}, stream grpc.ServerStream, info *grpc.Stre
 }
 
 func logRequest(method string, start time.Time, err error) {
+	var fields log.Fields
+
+	duration := time.Since(start).Seconds()
+
 	if err != nil {
-		log.Printf("error: %s: %v", method, err)
+		fields = log.Fields{
+			"method":   method,
+			"duration": duration,
+			"error":    err,
+		}
+	} else {
+		fields = log.Fields{
+			"method":   method,
+			"duration": duration,
+		}
 	}
-	log.Printf("%s %.3f", method, time.Since(start).Seconds())
+
+	log.WithFields(fields).Info("access")
 }

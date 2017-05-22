@@ -3,13 +3,14 @@ package testhelper
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

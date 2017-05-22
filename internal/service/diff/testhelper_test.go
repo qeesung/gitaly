@@ -1,9 +1,10 @@
 package diff
 
 import (
-	"log"
 	"os"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
@@ -16,7 +17,7 @@ func TestMain(m *testing.M) {
 	testRepoPath = testhelper.GitlabTestRepoPath()
 
 	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("mkdirall failed")
 	}
 
 	os.Exit(func() int {

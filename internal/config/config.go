@@ -3,7 +3,8 @@ package config
 import (
 	"fmt"
 	"io"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kelseyhightower/envconfig"
@@ -41,7 +42,7 @@ func Load(file io.Reader) error {
 
 	err := envconfig.Process("gitaly", &Config)
 	if err != nil {
-		log.Fatalf("process environment variables: %v", err)
+		log.WithError(err).Fatal("process environment variables")
 	}
 
 	return fileErr

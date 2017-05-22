@@ -1,8 +1,9 @@
 package helper
 
 import (
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Debugf behaves similarly to log.Printf. No-op unless GITALY_DEBUG=1.
@@ -11,5 +12,5 @@ func Debugf(format string, args ...interface{}) {
 		return
 	}
 
-	log.Printf("debug: "+format, args...)
+	log.Debugf(format, args...)
 }
