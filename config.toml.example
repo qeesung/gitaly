@@ -20,3 +20,6 @@ path = "/home/git/repositories"
 # name = "other_storage"
 # path = "/mnt/other_storage/repositories"
 #
+
+[logging]
+format = "json"
