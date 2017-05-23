@@ -5,6 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"math"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -25,22 +27,24 @@ func StreamLogHandler(srv interface{}, stream grpc.ServerStream, info *grpc.Stre
 	return err
 }
 
-func logRequest(method string, start time.Time, err error) {
-	var fields log.Fields
+func roundPositive(value float64) float64 {
+	return math.Floor(value + 0.5)
+}
 
-	duration := time.Since(start).Seconds()
+// durationInSecondsRoundedToMilliseconds returns a duration, in seconds with a maximum resolution of a microsecond
+func durationInSecondsRoundedToMilliseconds(d time.Duration) float64 {
+	return roundPositive(d.Seconds()*1e6) / 1e6
+}
+
+func logRequest(method string, start time.Time, err error) {
+	duration := durationInSecondsRoundedToMilliseconds(time.Since(start))
+	fields := log.Fields{
+		"method":   method,
+		"duration": duration,
+	}
 
 	if err != nil {
-		fields = log.Fields{
-			"method":   method,
-			"duration": duration,
-			"error":    err,
-		}
-	} else {
-		fields = log.Fields{
-			"method":   method,
-			"duration": duration,
-		}
+		fields["error"] = err
 	}
 
 	log.WithFields(fields).Info("access")
