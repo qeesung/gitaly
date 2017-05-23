@@ -1,4 +1,48 @@
-# Gitaly
+# Gitaly [![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![coverage report](https://gitlab.com/gitlab-org/gitaly/badges/master/coverage.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) 
+ 
+Gitaly is a Git [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call)
+service for handling all the git calls made by GitLab.
+
+### Project Goals
+
+Make the git data storage tier of large GitLab instances, and *GitLab.com in particular*, fast.
+
+This will be achieved by focusing on two areas (in this order):
+
+  1. Move git operations as close to the data as possible
+     * Migrate from git operations on workers, accessing git data over NFS to
+       Gitaly services running on file-servers accessing git data on local
+       drives
+     * Ultimately, this will lead to all git operations occurring via the Gitaly
+       service and the removal of the need for NFS access to git volumes.
+  1. Optimize git services using caching and other techniques
+
+## Current Status 
+
+Gitaly has been shipped as part of GitLab since 9.0. We are migrating git operations from in-process Rugged implementations to Gitaly service endpoints. The migration process is [documented](/doc/MIGRATION_PROCESS.md).
+
+If you're interested in seeing how well Gitaly is performing on GitLab.com, we have dashboards!
+
+Overall: [![image](/uploads/ee1fd4f33e9bfb92fefca60fee1f44ad/image.png)](http://monitor.gitlab.net/dashboard/db/gitaly?orgId=1&var-job=gitaly-production&from=now-7d&to=now)
+By Feature: [![image](/uploads/5b3825e01c48975c2a64e01ae37b4a3d/image.png)](http://monitor.gitlab.net/dashboard/db/gitaly-features?orgId=1&var-job=gitaly-production&from=now-7d&to=now)
+
+## Current Features
+
+|**Controller**|**~"Migration Analysis"**|**~"RPC Design"**|**~"Server Implementation"**|**~"Client Implementation"**|**~"Acceptance Testing"**|**Optim 1**|**Optim 2**|
+|--------------|-------------------------|-----------------|----------------------------|----------------------------|-------------------------|-----------|-----------|
+| [`SmartHTTP::InfoRefsUploadPack` and `SmartHTTP::InfoRefsReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/223) | #36 | - | | | | | |
+| [`Diff::CommitDiff`](https://gitlab.com/gitlab-org/gitaly/issues/222) | #64 | #80 | #88 | #89| #209 | | |
+| [`Ref::FindRefName` and `Commit::CommitIsAncestor`](https://gitlab.com/gitlab-org/gitaly/issues/221) | #66 | #81 | #86 | #87 | #210 | | |
+| [`Ref::FindDefaultBranchName`, `Ref::FindAllBranchNames`, `Ref::FindAllTagNames`](https://gitlab.com/gitlab-org/gitaly/issues/220) | #65 | #82 | #84 | #85 | #211 | | |  
+| [`SmartHTTP::PostUploadPack` and `SmartHTTP::PostReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/219) | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | #184 | | |
+| [`SSH:SSHUploadPack` and `SSH::SSHReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/218) | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | | |
+| [`Ref::FindLocalBranches`](https://gitlab.com/gitlab-org/gitaly/issues/217) | #127 | #128 | !103 | gitlab-org/gitlab-ce!10059 | | | |
+| [`Ref::count_branch_names` and `Ref::count_tag_names`](https://gitlab.com/gitlab-org/gitaly/issues/214) | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | #215 | | |
+| `Projects::GraphsController#charts` (shelved for now) | #158 |  | | | | | |
+| [`Commit::GetAuthor`](https://gitlab.com/gitlab-org/gitaly/issues/216) | #159 | | | | | | |
+| `Projects::RawController#show` | #160 | #195 | | | | | |
+| [`CatFile::Blob`](https://gitlab.com/gitlab-org/gitaly/issues/212) | #194 |  | | | | | |
+
 
 - [What](#what)
 - [Name](#name)
