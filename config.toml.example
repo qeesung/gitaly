@@ -21,5 +21,6 @@ path = "/home/git/repositories"
 # path = "/mnt/other_storage/repositories"
 #
 
-[logging]
-format = "json"
+# # You can optionally configure Gitaly to output JSON-formatted log messages to stdout
+# [logging]
+# format = "json"
