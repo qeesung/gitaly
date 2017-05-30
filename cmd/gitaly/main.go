@@ -63,16 +63,16 @@ func validateConfig() error {
 // registerServerVersionPromGauge registers a label with the current server version
 // making it easy to see what versions of Gitaly are running across a cluster
 func registerServerVersionPromGauge() {
-	gitlabServerVersionGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name:        "gitlab_server_version",
-		Help:        "Current version of this GitLab Service",
+	gitlabBuildInfoGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "gitlab_build_info",
+		Help:        "Current build info for this GitLab Service",
 		ConstLabels: prometheus.Labels{"version": version},
 	})
 
-	prometheus.MustRegister(gitlabServerVersionGauge)
+	prometheus.MustRegister(gitlabBuildInfoGauge)
 
 	// Configure the gauge to a constant value of 1
-	gitlabServerVersionGauge.Set(1)
+	gitlabBuildInfoGauge.Set(1)
 }
 
 func main() {
