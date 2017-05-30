@@ -70,8 +70,6 @@ func registerServerVersionPromGauge() {
 	})
 
 	prometheus.MustRegister(gitlabBuildInfoGauge)
-
-	// Configure the gauge to a constant value of 1
 	gitlabBuildInfoGauge.Set(1)
 }
 
