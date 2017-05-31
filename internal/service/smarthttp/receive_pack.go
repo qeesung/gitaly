@@ -29,7 +29,10 @@ func (s *server) PostReceivePack(stream pb.SmartHTTP_PostReceivePackServer) erro
 	stdout := pbhelper.NewSendWriter(func(p []byte) error {
 		return stream.Send(&pb.PostReceivePackResponse{Data: p})
 	})
-	env := []string{fmt.Sprintf("GL_ID=%s", req.GlId)}
+	env := []string{
+		fmt.Sprintf("GL_ID=%s", req.GlId),
+		"GL_PROTOCOL=http",
+	}
 	if req.GlRepository != "" {
 		env = append(env, fmt.Sprintf("GL_REPOSITORY=%s", req.GlRepository))
 	}

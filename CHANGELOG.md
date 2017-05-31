@@ -16,6 +16,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/163
 - Add support for exposing the Gitaly build information via Prometheus
   https://gitlab.com/gitlab-org/gitaly/merge_requests/168
+- Set GL_PROTOCOL during SmartHTTP.PostReceivePack
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/169
 
 v0.10.0
 
