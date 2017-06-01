@@ -18,7 +18,9 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/168
 - Set GL_PROTOCOL during SmartHTTP.PostReceivePack
   https://gitlab.com/gitlab-org/gitaly/merge_requests/169
-
+- Add support for GRPC Latency Histograms in Prometheus
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/172
+  
 v0.10.0
 
 - CommitDiff: Parse a typechange diff correctly
