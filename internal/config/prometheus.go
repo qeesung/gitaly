@@ -14,7 +14,6 @@ func ConfigurePrometheus() {
 
 	log.WithField("latencies", Config.Prometheus.GRPCLatencyBuckets).Debug("grpc prometheus histograms enabled")
 
-	// After all your registrations, make sure all of the Prometheus metrics are initialized.
 	grpc_prometheus.EnableHandlingTimeHistogram(func(histogramOpts *prometheus.HistogramOpts) {
 		histogramOpts.Buckets = Config.Prometheus.GRPCLatencyBuckets
 	})
