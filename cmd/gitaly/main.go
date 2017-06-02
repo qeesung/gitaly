@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -84,6 +85,7 @@ func main() {
 	}
 
 	config.ConfigureLogging()
+	grpclog.SetLogger(log.StandardLogger())
 
 	var listeners []net.Listener
 
