@@ -1,5 +1,15 @@
-# Gitaly [![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) 
- 
+
+# ![Gitaly Logo](https://gitlab.com/gitlab-org/gitaly/uploads/509123ed56bd51247996038c858db006/gitaly-wordmark-small.png) Gitaly
+
+[![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) 
+
+Quick Links: 
+  [Conversations](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=Conversation) | 
+  [Migrations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=Migration) | 
+  [Want to Contribute?](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Accepting%20Merge%20Requests)
+  
+--------------------------------------------
+
 Gitaly is a Git [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call)
 service for handling all the git calls made by GitLab.
 
@@ -8,19 +18,19 @@ To see where it fits in please look at [GitLab's architecture](https://docs.gitl
 Gitaly is still under development. We expect it to become a standard
 component of GitLab in Q1 2017 and to reach full scope in Q3 2017.
 
-### Project Goals
+## Project Goals
 
-Make the git data storage tier of large GitLab instances, and *GitLab.com in particular*, fast.
+Make the git data storage tier of large GitLab instances, and *GitLab.com in particular*, **fast**.
 
 This will be achieved by focusing on two areas (in this order):
 
-  1. Move git operations as close to the data as possible
+  1. **Move git operations as close to the data as possible**
      * Migrate from git operations on workers, accessing git data over NFS to
        Gitaly services running on file-servers accessing git data on local
-       drives
+       drives ([See our test results](https://gitlab.com/gitlab-com/infrastructure/issues/1912#note_31368476))
      * Ultimately, this will lead to all git operations occurring via the Gitaly
        service and the removal of the need for NFS access to git volumes.
-  1. Optimize git services using caching and other techniques
+  1. **Optimize git services using caching and other techniques**
 
 ## Current Status 
 
