@@ -12,7 +12,17 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/152
 - FindDefaultBranchName: Handle repos with non-existing HEAD
   https://gitlab.com/gitlab-org/gitaly/merge_requests/164
-
+- Add support for structured logging via logrus
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/163
+- Add support for exposing the Gitaly build information via Prometheus
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/168
+- Set GL_PROTOCOL during SmartHTTP.PostReceivePack
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/169
+- Handle server side errors from shallow clone
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/173
+- Ensure that grpc server log messages are sent to logrus
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/174
+  
 v0.10.0
 
 - CommitDiff: Parse a typechange diff correctly

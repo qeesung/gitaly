@@ -3,7 +3,8 @@ package config
 import (
 	"fmt"
 	"io"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kelseyhightower/envconfig"
@@ -19,12 +20,18 @@ type config struct {
 	ListenAddr           string    `toml:"listen_addr" split_words:"true"`
 	PrometheusListenAddr string    `toml:"prometheus_listen_addr" split_words:"true"`
 	Storages             []Storage `toml:"storage" envconfig:"storage"`
+	Logging              Logging   `toml:"logging" envconfig:"logging"`
 }
 
 // Storage contains a single storage-shard
 type Storage struct {
 	Name string
 	Path string
+}
+
+// Logging contains the logging configuration for Gitaly
+type Logging struct {
+	Format string
 }
 
 // Load initializes the Config variable from file and the environment.
@@ -41,7 +48,7 @@ func Load(file io.Reader) error {
 
 	err := envconfig.Process("gitaly", &Config)
 	if err != nil {
-		log.Fatalf("process environment variables: %v", err)
+		log.WithError(err).Fatal("process environment variables")
 	}
 
 	return fileErr

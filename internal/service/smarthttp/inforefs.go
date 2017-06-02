@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -38,7 +39,10 @@ func handleInfoRefs(service string, repo *pb.Repository, w io.Writer) error {
 	}
 	defer cmd.Kill()
 
-	helper.Debugf("handleInfoRefs: service=%q RepoPath=%q", service, repoPath)
+	log.WithFields(log.Fields{
+		"service":  service,
+		"RepoPath": repoPath,
+	}).Debug("handleInfoRefs")
 
 	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)

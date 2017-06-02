@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -41,7 +42,10 @@ func findRefs(writer refsWriter, repo *pb.Repository, pattern string, args ...st
 		return err
 	}
 
-	helper.Debugf("FindRefs: RepoPath=%q Pattern=%q", repoPath, pattern)
+	log.WithFields(log.Fields{
+		"RepoPath": repoPath,
+		"Pattern":  pattern,
+	}).Debug("FindRefs")
 
 	baseArgs := []string{"--git-dir", repoPath, "for-each-ref", pattern}
 
@@ -174,7 +178,9 @@ func (s *server) FindDefaultBranchName(ctx context.Context, in *pb.FindDefaultBr
 		return nil, err
 	}
 
-	helper.Debugf("FindDefaultBranchName: RepoPath=%q", repoPath)
+	log.WithFields(log.Fields{
+		"RepoPath": repoPath,
+	}).Debug("FindDefaultBranchName")
 
 	defaultBranchName, err := defaultBranchName(repoPath)
 	if err != nil {

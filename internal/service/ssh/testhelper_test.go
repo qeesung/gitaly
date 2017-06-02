@@ -1,12 +1,13 @@
 package ssh
 
 import (
-	"log"
 	"net"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 

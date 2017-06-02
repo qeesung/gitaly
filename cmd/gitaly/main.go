@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
@@ -15,9 +16,11 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/mwitkow/go-grpc-middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -28,18 +31,24 @@ func loadConfig() {
 	case len(os.Args) >= 2:
 		cfgFile, err := os.Open(os.Args[1])
 		if err != nil {
-			log.Printf("warning: can not open file for reading: %q: %v", os.Args[1], err)
+			log.WithFields(log.Fields{
+				"filename": os.Args[1],
+				"error":    err,
+			}).Warn("can not open file for reading")
 			break
 		}
 		defer cfgFile.Close()
 		if err = config.Load(cfgFile); err != nil {
-			log.Printf("warning: can not load configuration: %q: %v", os.Args[1], err)
+			log.WithFields(log.Fields{
+				"filename": os.Args[1],
+				"error":    err,
+			}).Warn("can not load configuration")
 		}
 
 	default:
-		log.Printf("warning: no configuration file given")
+		log.Warn("no configuration file given")
 		if err := config.Load(nil); err != nil {
-			log.Printf("warning: can not load configuration: %v", err)
+			log.WithError(err).Warn("can not load configuration")
 		}
 	}
 }
@@ -52,8 +61,22 @@ func validateConfig() error {
 	return config.ValidateStorages()
 }
 
+// registerServerVersionPromGauge registers a label with the current server version
+// making it easy to see what versions of Gitaly are running across a cluster
+func registerServerVersionPromGauge() {
+	gitlabBuildInfoGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "gitlab_build_info",
+		Help:        "Current build info for this GitLab Service",
+		ConstLabels: prometheus.Labels{"version": version},
+	})
+
+	prometheus.MustRegister(gitlabBuildInfoGauge)
+	gitlabBuildInfoGauge.Set(1)
+}
+
 func main() {
-	log.Println("Starting Gitaly", version)
+	log.WithField("version", version).Info("Starting Gitaly")
+	registerServerVersionPromGauge()
 
 	loadConfig()
 
@@ -61,23 +84,27 @@ func main() {
 		log.Fatal(err)
 	}
 
+	config.ConfigureLogging()
+	grpclog.SetLogger(log.StandardLogger())
+
 	var listeners []net.Listener
 
 	if socketPath := config.Config.SocketPath; socketPath != "" {
 		l, err := createUnixListener(socketPath)
 		if err != nil {
-			log.Fatalf("configure unix listener: %v", err)
+			log.WithError(err).Fatal("configure unix listener")
 		}
-		log.Printf("listening on unix socket %q", socketPath)
+		log.WithField("address", socketPath).Info("listening on unix socket")
 		listeners = append(listeners, l)
 	}
 
 	if addr := config.Config.ListenAddr; addr != "" {
 		l, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Fatalf("configure tcp listener: %v", err)
+			log.WithError(err).Fatal("configure tcp listener")
 		}
-		log.Printf("listening at tcp address %q", addr)
+
+		log.WithField("address", addr).Info("listening at tcp address")
 		listeners = append(listeners, connectioncounter.New("tcp", l))
 	}
 
@@ -110,7 +137,7 @@ func main() {
 	}
 
 	if config.Config.PrometheusListenAddr != "" {
-		log.Print("Starting prometheus listener ", config.Config.PrometheusListenAddr)
+		log.WithField("address", config.Config.PrometheusListenAddr).Info("Starting prometheus listener")
 		promMux := http.NewServeMux()
 		promMux.Handle("/metrics", promhttp.Handler())
 		go func() {

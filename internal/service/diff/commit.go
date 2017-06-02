@@ -3,10 +3,10 @@ package diff
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -30,14 +30,13 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.Diff_CommitDiffS
 	ignoreWhitespaceChange := in.GetIgnoreWhitespaceChange()
 	paths := in.GetPaths()
 
-	helper.Debugf(
-		"CommitDiff: RepoPath=%q LeftCommitId=%q RightCommitId=%q IgnoreWhitespaceChange=%t Paths=%s",
-		repoPath,
-		leftSha,
-		rightSha,
-		ignoreWhitespaceChange,
-		paths,
-	)
+	log.WithFields(log.Fields{
+		"RepoPath":               repoPath,
+		"LeftCommitId":           leftSha,
+		"RightCommitId":          rightSha,
+		"IgnoreWhitespaceChange": ignoreWhitespaceChange,
+		"Paths":                  paths,
+	}).Debug("CommitDiff")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,
@@ -94,13 +93,12 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.Diff_CommitDel
 	rightSha := in.RightCommitId
 	paths := in.GetPaths()
 
-	helper.Debugf(
-		"CommitDelta: RepoPath=%q LeftCommitId=%q RightCommitId=%q Paths=%s",
-		repoPath,
-		leftSha,
-		rightSha,
-		paths,
-	)
+	log.WithFields(log.Fields{
+		"RepoPath":      repoPath,
+		"LeftCommitId":  leftSha,
+		"RightCommitId": rightSha,
+		"Paths":         paths,
+	}).Debug("CommitDelta")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,

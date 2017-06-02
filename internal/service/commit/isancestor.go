@@ -9,6 +9,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	log "github.com/sirupsen/logrus"
+
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
@@ -38,6 +40,11 @@ func commitIsAncestorName(path, ancestorID, childID string) (bool, error) {
 	}
 	defer cmd.Kill()
 
-	helper.Debugf("commitIsAncestor: RepoPath=%q ancestorSha=%s childSha=%s", path, ancestorID, childID)
+	log.WithFields(log.Fields{
+		"RepoPath":    path,
+		"ancestorSha": ancestorID,
+		"childSha":    childID,
+	}).Debug("commitIsAncestor")
+
 	return cmd.Wait() == nil, nil
 }

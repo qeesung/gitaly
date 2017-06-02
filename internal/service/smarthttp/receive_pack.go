@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -28,7 +29,10 @@ func (s *server) PostReceivePack(stream pb.SmartHTTP_PostReceivePackServer) erro
 	stdout := pbhelper.NewSendWriter(func(p []byte) error {
 		return stream.Send(&pb.PostReceivePackResponse{Data: p})
 	})
-	env := []string{fmt.Sprintf("GL_ID=%s", req.GlId)}
+	env := []string{
+		fmt.Sprintf("GL_ID=%s", req.GlId),
+		"GL_PROTOCOL=http",
+	}
 	if req.GlRepository != "" {
 		env = append(env, fmt.Sprintf("GL_REPOSITORY=%s", req.GlRepository))
 	}
@@ -37,7 +41,11 @@ func (s *server) PostReceivePack(stream pb.SmartHTTP_PostReceivePackServer) erro
 		return err
 	}
 
-	helper.Debugf("PostReceivePack: RepoPath=%q GlID=%q GlRepository=%q", repoPath, req.GlId, req.GlRepository)
+	log.WithFields(log.Fields{
+		"RepoPath":     repoPath,
+		"GlID":         req.GlId,
+		"GlRepository": req.GlRepository,
+	}).Debug("PostReceivePack")
 
 	osCommand := exec.Command("git", "receive-pack", "--stateless-rpc", repoPath)
 	cmd, err := helper.NewCommand(osCommand, stdin, stdout, nil, env...)

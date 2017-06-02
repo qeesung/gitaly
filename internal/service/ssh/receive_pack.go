@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -44,7 +45,11 @@ func (s *server) SSHReceivePack(stream pb.SSH_SSHReceivePackServer) error {
 		return err
 	}
 
-	helper.Debugf("SSHReceivePack: RepoPath=%q GlID=%q GlRepository=%q", repoPath, req.GlId, req.GlRepository)
+	log.WithFields(log.Fields{
+		"RepoPath":     repoPath,
+		"GlID":         req.GlId,
+		"GlRepository": req.GlRepository,
+	}).Debug("SSHReceivePack")
 
 	osCommand := exec.Command("git-receive-pack", repoPath)
 	cmd, err := helper.NewCommand(osCommand, stdin, stdout, stderr, env...)

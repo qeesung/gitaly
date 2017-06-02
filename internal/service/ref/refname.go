@@ -7,10 +7,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"golang.org/x/net/context"
-
+	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"golang.org/x/net/context"
 )
 
 // FindRefName returns a ref that starts with the given prefix, if one exists.
@@ -41,7 +41,11 @@ func findRefName(path, commitID, prefix string) (string, error) {
 	}
 	defer cmd.Kill()
 
-	helper.Debugf("findRefName: RepoPath=%q commitSha=%s prefix=%s", path, commitID, prefix)
+	log.WithFields(log.Fields{
+		"RepoPath":  path,
+		"commitSha": commitID,
+		"prefix":    prefix,
+	}).Debug("findRefName")
 
 	scanner := bufio.NewScanner(cmd)
 	scanner.Scan()
