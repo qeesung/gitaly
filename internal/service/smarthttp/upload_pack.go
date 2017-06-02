@@ -1,6 +1,7 @@
 package smarthttp
 
 import (
+	"io"
 	"os/exec"
 
 	log "github.com/sirupsen/logrus"
@@ -8,9 +9,24 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
+
+var (
+	deepenCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_smarthttp_deepen_count",
+			Help: "Number of git-upload-pack requests processed that contained a 'deepen' message",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(deepenCount)
+}
 
 func (s *server) PostUploadPack(stream pb.SmartHTTP_PostUploadPackServer) error {
 	req, err := stream.Recv() // First request contains Repository only
@@ -21,10 +37,18 @@ func (s *server) PostUploadPack(stream pb.SmartHTTP_PostUploadPackServer) error 
 		return err
 	}
 
-	stdin := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	stdinReader := pbhelper.NewReceiveReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	stdin := io.TeeReader(stdinReader, pw)
+	deepenCh := make(chan bool, 1)
+	go func() {
+		deepenCh <- scanDeepen(pr)
+	}()
+
 	stdout := pbhelper.NewSendWriter(func(p []byte) error {
 		return stream.Send(&pb.PostUploadPackResponse{Data: p})
 	})
@@ -46,6 +70,14 @@ func (s *server) PostUploadPack(stream pb.SmartHTTP_PostUploadPackServer) error 
 	defer cmd.Kill()
 
 	if err := cmd.Wait(); err != nil {
+		pw.Close() // ensure scanDeepen returns
+		if _, ok := helper.ExitStatus(err); ok && <-deepenCh {
+			// We have seen a 'deepen' message in the request. It is expected that
+			// git-upload-pack has a non-zero exit status: don't treat this as an
+			// error.
+			deepenCount.Inc()
+			return nil
+		}
 		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd wait for %v: %v", cmd.Args, err)
 	}
 

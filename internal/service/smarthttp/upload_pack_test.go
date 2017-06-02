@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -14,7 +15,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 )
@@ -112,6 +116,36 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 
 	// The fact that this command succeeds means that we got the commit correctly, no further checks should be needed.
 	testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "show", string(newHead))
+}
+
+// This test is here because git-upload-pack returns a non-zero exit code
+// on 'deepen' requests even though the request is being handled just
+// fine from the client perspective.
+func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
+	server := runSmartHTTPServer(t)
+	defer server.Stop()
+
+	client := newSmartHTTPClient(t)
+	stream, err := client.PostUploadPack(context.Background())
+	require.NoError(t, err)
+
+	repo := &pb.Repository{Path: testhelper.GitlabTestRepoPath()}
+	require.NoError(t, stream.Send(&pb.PostUploadPackRequest{Repository: repo}))
+
+	requestBody := `00a4want e63f41fe459e62e1228fcef60d7189127aeba95a multi_ack_detailed no-done side-band-64k thin-pack include-tag ofs-delta deepen-since deepen-not agent=git/2.12.2
+000cdeepen 10000`
+	require.NoError(t, stream.Send(&pb.PostUploadPackRequest{Data: []byte(requestBody)}))
+	stream.CloseSend()
+
+	rr := pbhelper.NewReceiveReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetData(), err
+	})
+
+	response, err := ioutil.ReadAll(rr)
+	// This assertion is the main reason this test exists.
+	assert.NoError(t, err)
+	assert.Equal(t, `0034shallow e63f41fe459e62e1228fcef60d7189127aeba95a0000`, string(response))
 }
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
