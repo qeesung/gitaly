@@ -22,6 +22,7 @@ type config struct {
 	Storages             []Storage  `toml:"storage" envconfig:"storage"`
 	Logging              Logging    `toml:"logging" envconfig:"logging"`
 	Prometheus           Prometheus `toml:"prometheus"`
+	Auth                 Auth       `toml:"auth"`
 }
 
 // Storage contains a single storage-shard
@@ -61,8 +62,17 @@ func Load(file io.Reader) error {
 	return fileErr
 }
 
-// ValidateStorages checks for pathological values in Config.Storages
-func ValidateStorages() error {
+// Validate checks the current Config for sanity.
+func Validate() error {
+	for _, err := range []error{validateStorages(), validateToken()} {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateStorages() error {
 	seenNames := make(map[string]bool)
 	for _, st := range Config.Storages {
 		if st.Name == "" {

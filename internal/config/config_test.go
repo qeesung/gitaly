@@ -199,7 +199,7 @@ func TestValidateStorages(t *testing.T) {
 
 	for _, tc := range testCases {
 		Config.Storages = tc.storages
-		err := ValidateStorages()
+		err := validateStorages()
 		if tc.invalid {
 			assert.Error(t, err, "%+v", tc.storages)
 			continue
@@ -236,5 +236,32 @@ func TestStoragePath(t *testing.T) {
 			continue
 		}
 		assert.Equal(t, tc.out, out, "%+v", tc)
+	}
+}
+
+func TestTokenValidation(t *testing.T) {
+	defer func(oldAuth Auth) {
+		Config.Auth = oldAuth
+	}(Config.Auth)
+
+	testCases := []struct {
+		token    Token
+		required bool
+		ok       bool
+	}{
+		{token: Token(""), ok: true},
+		{token: Token(""), required: true},
+		{token: Token("foobar"), ok: true},
+		{token: Token("foobar"), ok: true, required: true},
+	}
+	for _, tc := range testCases {
+		Config.Auth.Token = tc.token
+		Config.Auth.Required = tc.required
+		err := validateToken()
+		if tc.ok {
+			assert.NoError(t, err, "%+v", tc)
+		} else {
+			assert.Error(t, err, "%+v", tc)
+		}
 	}
 }

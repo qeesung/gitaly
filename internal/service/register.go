@@ -10,6 +10,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // RegisterAll will register all the known grpc services with
@@ -21,4 +23,5 @@ func RegisterAll(grpcServer *grpc.Server) {
 	pb.RegisterDiffServer(grpcServer, diff.NewServer())
 	pb.RegisterCommitServer(grpcServer, commit.NewServer())
 	pb.RegisterSSHServer(grpcServer, ssh.NewServer())
+	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 }

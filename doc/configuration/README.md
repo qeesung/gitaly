@@ -23,6 +23,10 @@ socket_path = "/path/to/gitaly.sock"
 listen_addr = ":8081"
 prometheus_listen_addr = ":9236"
 
+[auth]
+# required = true
+# token = "abc123def456......."
+
 [[storage]]
 path = "/path/to/storage/repositories"
 name = "my_shard"
@@ -39,6 +43,33 @@ name = "my_shard"
 |listen_addr|string|see notes|TCP address for Gitaly to listen on (See #GITALY_LISTEN_ADDR). Required unless socket_path is set|
 |prometheus_listen_addr|string|no|TCP listen address for Prometheus metrics. If not set, no Prometheus listener is started|
 |storage|array|yes|An array of storage shards|
+
+### Authentication
+
+Gitaly can be configured to reject requests that do not contain a
+specific bearer token in their headers. This is a security measure to
+be used when serving requests over TCP.
+
+The token has to be a non-empty string.
+
+```toml
+[auth]
+token = "the secret token"
+```
+
+By default, authentication is not required. To enable it set
+`required` to true.
+
+```toml
+[auth]
+required = true
+```
+
+It is possible to configure a token but leave `required` set to false.
+This way you can monitor if all your Gitaly clients are supplying a
+correct token before enforcing authentication. Successful and
+unsuccessful authentication attempts are counted in Prometheus under
+the `gitaly_authentications` metric.
 
 ### Storage
 

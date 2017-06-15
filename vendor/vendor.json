@@ -83,6 +83,12 @@
 			"revisionTime": "2017-05-24T14:47:55Z"
 		},
 		{
+			"checksumSHA1": "zsl4yCXK72d8UIEpczA1vPf7RFg=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/auth",
+			"revision": "04e29b049615a854b3a943e372e180c5ec3f7dc3",
+			"revisionTime": "2017-05-24T14:47:55Z"
+		},
+		{
 			"checksumSHA1": "S3ewTxb4DObPxnizenAS0qq1QvE=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/logging",
 			"revision": "04e29b049615a854b3a943e372e180c5ec3f7dc3",
@@ -97,6 +103,12 @@
 		{
 			"checksumSHA1": "ajCG0vV10Aj13kh6lQaveMyyOdY=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tags",
+			"revision": "04e29b049615a854b3a943e372e180c5ec3f7dc3",
+			"revisionTime": "2017-05-24T14:47:55Z"
+		},
+		{
+			"checksumSHA1": "ObQpPFXn6MDDagcVLszSGLqlvSo=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/util/metautils",
 			"revision": "04e29b049615a854b3a943e372e180c5ec3f7dc3",
 			"revisionTime": "2017-05-24T14:47:55Z"
 		},
@@ -329,6 +341,18 @@
 		{
 			"checksumSHA1": "3Lt5hNAG8qJAYSsNghR5uA1zQns=",
 			"path": "google.golang.org/grpc/grpclog",
+			"revision": "8de2dff78c3b968a51c99ec526d934f686537437",
+			"revisionTime": "2017-06-05T17:25:41Z"
+		},
+		{
+			"checksumSHA1": "d0iunsiWfA0qXxLMNkTC4tGJnOo=",
+			"path": "google.golang.org/grpc/health",
+			"revision": "8de2dff78c3b968a51c99ec526d934f686537437",
+			"revisionTime": "2017-06-05T17:25:41Z"
+		},
+		{
+			"checksumSHA1": "pSFXzfvPlaDBK2RsMcTiIeks4ok=",
+			"path": "google.golang.org/grpc/health/grpc_health_v1",
 			"revision": "8de2dff78c3b968a51c99ec526d934f686537437",
 			"revisionTime": "2017-06-05T17:25:41Z"
 		},
