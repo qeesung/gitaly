@@ -246,17 +246,17 @@ func TestTokenValidation(t *testing.T) {
 
 	testCases := []struct {
 		token    Token
-		required bool
+		enforced bool
 		ok       bool
 	}{
 		{token: Token(""), ok: true},
-		{token: Token(""), required: true},
+		{token: Token(""), enforced: true},
 		{token: Token("foobar"), ok: true},
-		{token: Token("foobar"), ok: true, required: true},
+		{token: Token("foobar"), ok: true, enforced: true},
 	}
 	for _, tc := range testCases {
 		Config.Auth.Token = tc.token
-		Config.Auth.Required = tc.required
+		Config.Auth.Enforced = tc.enforced
 		err := validateToken()
 		if tc.ok {
 			assert.NoError(t, err, "%+v", tc)

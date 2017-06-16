@@ -24,7 +24,7 @@ listen_addr = ":8081"
 prometheus_listen_addr = ":9236"
 
 [auth]
-# required = true
+# enforced = true
 # token = "abc123def456......."
 
 [[storage]]
@@ -58,14 +58,15 @@ token = "the secret token"
 ```
 
 By default, authentication is not required. To enable it set
-`required` to true.
+`enforced` to true.
 
 ```toml
 [auth]
-required = true
+token = "the secret token"
+enforced = true
 ```
 
-It is possible to configure a token but leave `required` set to false.
+It is possible to configure a token but leave `enforced` set to false.
 This way you can monitor if all your Gitaly clients are supplying a
 correct token before enforcing authentication. Successful and
 unsuccessful authentication attempts are counted in Prometheus under

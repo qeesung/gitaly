@@ -39,14 +39,14 @@ func check(ctx context.Context) (context.Context, error) {
 	if err != nil {
 		countStatus("unauthenticated").Inc()
 		err = grpc.Errorf(codes.Unauthenticated, "authentication required")
-		return ctx, ifRequired(err)
+		return ctx, ifEnforced(err)
 	}
 
 	token, err := base64.StdEncoding.DecodeString(encodedToken)
 	if err != nil {
 		countStatus("invalid").Inc()
 		err = grpc.Errorf(codes.Unauthenticated, "authentication required")
-		return ctx, ifRequired(err)
+		return ctx, ifEnforced(err)
 	}
 
 	if config.Config.Auth.Token.Equal(string(token)) {
@@ -56,18 +56,18 @@ func check(ctx context.Context) (context.Context, error) {
 
 	countStatus("denied").Inc()
 	err = grpc.Errorf(codes.PermissionDenied, "permission denied")
-	return ctx, ifRequired(err)
+	return ctx, ifEnforced(err)
 }
 
-func ifRequired(err error) error {
-	if config.Config.Auth.Required {
+func ifEnforced(err error) error {
+	if config.Config.Auth.Enforced {
 		return err
 	}
 	return nil
 }
 
 func okLabel() string {
-	if config.Config.Auth.Required {
+	if config.Config.Auth.Enforced {
 		return "ok"
 	}
 	// This special value is an extra warning sign to administrators that
@@ -77,7 +77,7 @@ func okLabel() string {
 
 func countStatus(status string) prometheus.Counter {
 	enforced := "false"
-	if config.Config.Auth.Required {
+	if config.Config.Auth.Enforced {
 		enforced = "true"
 	}
 	return authCount.WithLabelValues(enforced, status)

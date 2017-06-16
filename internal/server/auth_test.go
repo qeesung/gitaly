@@ -42,7 +42,7 @@ func TestAuthFailures(t *testing.T) {
 	defer func(oldAuth config.Auth) {
 		config.Config.Auth = oldAuth
 	}(config.Config.Auth)
-	config.Config.Auth.Required = true
+	config.Config.Auth.Enforced = true
 
 	srv := runServer(t)
 	defer srv.Stop()
@@ -118,7 +118,7 @@ func TestAuthSuccess(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		config.Config.Auth.Token = tc.token
-		config.Config.Auth.Required = tc.required
+		config.Config.Auth.Enforced = tc.required
 		t.Logf("%+v", config.Config.Auth)
 		connOpts := append(tc.opts, grpc.WithInsecure())
 		func() {

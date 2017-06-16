@@ -7,7 +7,7 @@ import (
 
 // Auth contains the authentication settings for this Gitaly process.
 type Auth struct {
-	Required bool  `toml:"required"`
+	Enforced bool  `toml:"enforced"`
 	Token    Token `toml:"token"`
 }
 
@@ -21,7 +21,7 @@ func (t Token) Equal(other string) bool {
 }
 
 func validateToken() error {
-	if !Config.Auth.Required {
+	if !Config.Auth.Enforced {
 		return nil
 	}
 
