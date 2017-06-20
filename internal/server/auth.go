@@ -18,7 +18,7 @@ var (
 			Name: "gitaly_authentications",
 			Help: "Counts of of Gitaly request authentication attempts",
 		},
-		[]string{"enforced", "status"},
+		[]string{"unenforced", "status"},
 	)
 )
 
@@ -35,6 +35,11 @@ func authUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 }
 
 func check(ctx context.Context) (context.Context, error) {
+	if len(config.Config.Auth.Token) == 0 {
+		countStatus("server disabled authentication").Inc()
+		return ctx, nil
+	}
+
 	encodedToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	if err != nil {
 		countStatus("unauthenticated").Inc()
@@ -49,36 +54,36 @@ func check(ctx context.Context) (context.Context, error) {
 		return ctx, ifEnforced(err)
 	}
 
-	if config.Config.Auth.Token.Equal(string(token)) {
-		countStatus(okLabel()).Inc()
-		return ctx, nil
+	if !config.Config.Auth.Token.Equal(string(token)) {
+		countStatus("denied").Inc()
+		err = grpc.Errorf(codes.PermissionDenied, "permission denied")
+		return ctx, ifEnforced(err)
 	}
 
-	countStatus("denied").Inc()
-	err = grpc.Errorf(codes.PermissionDenied, "permission denied")
-	return ctx, ifEnforced(err)
+	countStatus(okLabel()).Inc()
+	return ctx, nil
 }
 
 func ifEnforced(err error) error {
-	if config.Config.Auth.Enforced {
-		return err
+	if config.Config.Auth.Unenforced {
+		return nil
 	}
-	return nil
+	return err
 }
 
 func okLabel() string {
-	if config.Config.Auth.Enforced {
-		return "ok"
+	if config.Config.Auth.Unenforced {
+		// This special value is an extra warning sign to administrators that
+		// authentication is currently not enforced.
+		return "would be ok"
 	}
-	// This special value is an extra warning sign to administrators that
-	// authentication is currently not enforced.
-	return "would be ok"
+	return "ok"
 }
 
 func countStatus(status string) prometheus.Counter {
-	enforced := "false"
-	if config.Config.Auth.Enforced {
-		enforced = "true"
+	unenforced := "false"
+	if config.Config.Auth.Unenforced {
+		unenforced = "true"
 	}
-	return authCount.WithLabelValues(enforced, status)
+	return authCount.WithLabelValues(unenforced, status)
 }

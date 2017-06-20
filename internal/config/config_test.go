@@ -238,30 +238,3 @@ func TestStoragePath(t *testing.T) {
 		assert.Equal(t, tc.out, out, "%+v", tc)
 	}
 }
-
-func TestTokenValidation(t *testing.T) {
-	defer func(oldAuth Auth) {
-		Config.Auth = oldAuth
-	}(Config.Auth)
-
-	testCases := []struct {
-		token    Token
-		enforced bool
-		ok       bool
-	}{
-		{token: Token(""), ok: true},
-		{token: Token(""), enforced: true},
-		{token: Token("foobar"), ok: true},
-		{token: Token("foobar"), ok: true, enforced: true},
-	}
-	for _, tc := range testCases {
-		Config.Auth.Token = tc.token
-		Config.Auth.Enforced = tc.enforced
-		err := validateToken()
-		if tc.ok {
-			assert.NoError(t, err, "%+v", tc)
-		} else {
-			assert.Error(t, err, "%+v", tc)
-		}
-	}
-}

@@ -42,16 +42,15 @@ func TestAuthFailures(t *testing.T) {
 	defer func(oldAuth config.Auth) {
 		config.Config.Auth = oldAuth
 	}(config.Config.Auth)
-	config.Config.Auth.Enforced = true
+	config.Config.Auth.Token = config.Token("quxbaz")
 
 	srv := runServer(t)
 	defer srv.Stop()
 
 	testCases := []struct {
-		desc  string
-		opts  []grpc.DialOption
-		code  codes.Code
-		token config.Token
+		desc string
+		opts []grpc.DialOption
+		code codes.Code
 	}{
 		{desc: "no auth", opts: nil, code: codes.Unauthenticated},
 		{
@@ -60,20 +59,13 @@ func TestAuthFailures(t *testing.T) {
 			code: codes.Unauthenticated,
 		},
 		{
-			desc: "unknown token name",
+			desc: "wrong secret",
 			opts: []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
 			code: codes.PermissionDenied,
-		},
-		{
-			desc:  "wrong secret",
-			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
-			code:  codes.PermissionDenied,
-			token: config.Token("quxbaz"),
 		},
 	}
 	for _, tc := range testCases {
 		t.Log(tc.desc)
-		config.Config.Auth.Token = tc.token
 		connOpts := append(tc.opts, grpc.WithInsecure())
 		func() {
 			conn, err := dial(connOpts)
@@ -118,7 +110,7 @@ func TestAuthSuccess(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		config.Config.Auth.Token = tc.token
-		config.Config.Auth.Enforced = tc.required
+		config.Config.Auth.Unenforced = !tc.required
 		t.Logf("%+v", config.Config.Auth)
 		connOpts := append(tc.opts, grpc.WithInsecure())
 		func() {

@@ -24,7 +24,7 @@ listen_addr = ":8081"
 prometheus_listen_addr = ":9236"
 
 [auth]
-# enforced = true
+# unenforced = false
 # token = "abc123def456......."
 
 [[storage]]
@@ -50,26 +50,29 @@ Gitaly can be configured to reject requests that do not contain a
 specific bearer token in their headers. This is a security measure to
 be used when serving requests over TCP.
 
-The token has to be a non-empty string.
+Authentication is disabled when the token setting in config.toml is absent or the empty string.
+
+```toml
+[auth]
+# Non-empty token: this enables authentication.
+token = "the secret token"
+```
+
+It is possible to temporarily disable authentication with the 'unenforced'
+setting. This allows you to monitor (see below) if all clients are
+authenticating correctly without causing a service outage for clients
+that are not configured correctly yet.
+
+> **Warning:** Remember to disable 'unenforced' when you are done
+changing your token settings.
 
 ```toml
 [auth]
 token = "the secret token"
+unenforced = true
 ```
 
-By default, authentication is not required. To enable it set
-`enforced` to true.
-
-```toml
-[auth]
-token = "the secret token"
-enforced = true
-```
-
-It is possible to configure a token but leave `enforced` set to false.
-This way you can monitor if all your Gitaly clients are supplying a
-correct token before enforcing authentication. Successful and
-unsuccessful authentication attempts are counted in Prometheus under
+All authentication attempts are counted in Prometheus under
 the `gitaly_authentications` metric.
 
 ### Storage

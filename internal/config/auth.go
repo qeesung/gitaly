@@ -2,13 +2,14 @@ package config
 
 import (
 	"crypto/subtle"
-	"fmt"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Auth contains the authentication settings for this Gitaly process.
 type Auth struct {
-	Enforced bool  `toml:"enforced"`
-	Token    Token `toml:"token"`
+	Unenforced bool  `toml:"unenforced"`
+	Token      Token `toml:"token"`
 }
 
 // Token is a string of the form "name:secret". It specifies a Gitaly
@@ -21,13 +22,10 @@ func (t Token) Equal(other string) bool {
 }
 
 func validateToken() error {
-	if !Config.Auth.Enforced {
+	if !Config.Auth.Unenforced || len(Config.Auth.Token) == 0 {
 		return nil
 	}
 
-	if len(Config.Auth.Token) == 0 {
-		return fmt.Errorf("auth token may not be empty")
-	}
-
+	log.Warn("Authentication is enabled but not enforced. Gitaly will accept unauthenticated requests.")
 	return nil
 }
