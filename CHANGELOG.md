@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Added usage and version flags to the command line interface
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/193
+
 v0.12.0
 
 - Stop using deprecated field `path` in Repository messages
