@@ -24,15 +24,6 @@ var (
 )
 
 func loadConfig() {
-	if flag.NArg() != 1 || flag.Arg(0) == "" {
-		// TODO: the no-configuration, env-var only option is deprecated, remove it in future
-		log.Warn("no configuration file given")
-		if err := config.Load(nil); err != nil {
-			log.WithError(err).Warn("can not load configuration")
-			return
-		}
-	}
-
 	cfgFileName := flag.Arg(0)
 	cfgFile, err := os.Open(cfgFileName)
 	if err != nil {
@@ -88,6 +79,11 @@ func main() {
 	if *flagVersion {
 		fmt.Printf("Gitaly, version %v\n", version)
 		os.Exit(0)
+	}
+
+	if flag.NArg() != 1 || flag.Arg(0) == "" {
+		flag.Usage()
+		os.Exit(2)
 	}
 
 	log.WithField("version", version).Info("Starting Gitaly")
