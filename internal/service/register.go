@@ -19,9 +19,17 @@ import (
 func RegisterAll(grpcServer *grpc.Server) {
 	pb.RegisterNotificationsServer(grpcServer, notifications.NewServer())
 	pb.RegisterRefServer(grpcServer, ref.NewServer())
-	pb.RegisterSmartHTTPServer(grpcServer, smarthttp.NewServer())
+
+	smartHTTPService := smarthttp.NewServer()
+	pb.RegisterSmartHTTPServiceServer(grpcServer, smartHTTPService)
+	pb.RegisterSmartHTTPServer(grpcServer, smarthttp.NewRenameBridge(smartHTTPService))
+
 	pb.RegisterDiffServer(grpcServer, diff.NewServer())
 	pb.RegisterCommitServer(grpcServer, commit.NewServer())
-	pb.RegisterSSHServer(grpcServer, ssh.NewServer())
+
+	sshService := ssh.NewServer()
+	pb.RegisterSSHServiceServer(grpcServer, sshService)
+	pb.RegisterSSHServer(grpcServer, ssh.NewRenameBridge(sshService))
+
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 }

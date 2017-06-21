@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func (s *server) SSHReceivePack(stream pb.SSH_SSHReceivePackServer) error {
+func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error {
 	req, err := stream.Recv() // First request contains only Repository and GlId
 	if err != nil {
 		return err

@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTP_InfoRefsUploadPackServer) error {
+func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsUploadPackServer) error {
 	w := pbhelper.NewSendWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
 	return handleInfoRefs("upload-pack", in.Repository, w)
 }
 
-func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTP_InfoRefsReceivePackServer) error {
+func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsReceivePackServer) error {
 	w := pbhelper.NewSendWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})

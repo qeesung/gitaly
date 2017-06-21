@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func (s *server) SSHUploadPack(stream pb.SSH_SSHUploadPackServer) error {
+func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
 		return err

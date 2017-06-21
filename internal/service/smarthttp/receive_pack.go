@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func (s *server) PostReceivePack(stream pb.SmartHTTP_PostReceivePackServer) error {
+func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServer) error {
 	req, err := stream.Recv() // First request contains only Repository and GlId
 	if err != nil {
 		return err

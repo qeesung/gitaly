@@ -28,7 +28,7 @@ func init() {
 	prometheus.MustRegister(deepenCount)
 }
 
-func (s *server) PostUploadPack(stream pb.SmartHTTP_PostUploadPackServer) error {
+func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer) error {
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
 		return err
