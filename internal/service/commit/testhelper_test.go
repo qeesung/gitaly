@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
 const scratchDir = "testdata/scratch"
@@ -50,7 +51,7 @@ func runCommitServer(m *testing.M) *grpc.Server {
 		log.WithError(err).Fatal("failed to start server")
 	}
 
-	pb.RegisterCommitServer(server, NewServer())
+	pb.RegisterCommitServer(server, renameadapter.NewCommitAdapter(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)

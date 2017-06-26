@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
 const scratchDir = "testdata/scratch"
@@ -53,7 +54,7 @@ func runRefServer(t *testing.T) *grpc.Server {
 	}
 
 	// Use 100 bytes as the maximum message size to test that fragmenting the ref list works correctly
-	pb.RegisterRefServer(grpcServer, &server{MaxMsgSize: 100})
+	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(&server{MaxMsgSize: 100}))
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)

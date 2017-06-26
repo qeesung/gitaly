@@ -10,6 +10,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/diff"
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"golang.org/x/net/context"
@@ -650,7 +651,7 @@ func runDiffServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterDiffServer(server, NewServer())
+	pb.RegisterDiffServer(server, renameadapter.NewDiffAdapter(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)

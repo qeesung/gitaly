@@ -11,6 +11,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -41,7 +42,7 @@ func runSSHServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterSSHServer(server, NewRenameBridge(NewServer()))
+	pb.RegisterSSHServer(server, renameadapter.NewSSHAdapter(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)

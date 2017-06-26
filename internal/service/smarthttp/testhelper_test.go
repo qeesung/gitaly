@@ -13,6 +13,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -47,7 +48,7 @@ func runSmartHTTPServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterSmartHTTPServer(server, NewRenameBridge(NewServer()))
+	pb.RegisterSmartHTTPServer(server, renameadapter.NewSmartHTTPAdapter(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)
