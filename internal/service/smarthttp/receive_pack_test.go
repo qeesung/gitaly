@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -78,7 +78,7 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 
 	require.NoError(t, stream.Send(rpcRequest))
 
-	sw := pbhelper.NewSendWriter(func(p []byte) error {
+	sw := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.PostReceivePackRequest{Data: p})
 	})
 	_, err = io.Copy(sw, requestBuffer)
@@ -88,7 +88,7 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 
 	// Verify everything is going as planned
 	responseBuffer := bytes.Buffer{}
-	rr := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	rr := streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})

@@ -5,8 +5,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -20,14 +20,14 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 		return err
 	}
 
-	stdin := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	stdin := streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
 		return request.GetStdin(), err
 	})
-	stdout := pbhelper.NewSendWriter(func(p []byte) error {
+	stdout := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.SSHUploadPackResponse{Stdout: p})
 	})
-	stderr := pbhelper.NewSendWriter(func(p []byte) error {
+	stderr := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.SSHUploadPackResponse{Stderr: p})
 	})
 	repoPath, err := helper.GetRepoPath(req.Repository)

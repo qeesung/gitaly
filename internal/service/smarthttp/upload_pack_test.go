@@ -15,7 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +74,7 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 
 	require.NoError(t, stream.Send(rpcRequest))
 
-	sw := pbhelper.NewSendWriter(func(p []byte) error {
+	sw := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.PostUploadPackRequest{Data: p})
 	})
 	_, err = io.Copy(sw, requestBuffer)
@@ -82,7 +82,7 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	stream.CloseSend()
 
 	responseBuffer := &bytes.Buffer{}
-	rr := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	rr := streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})
@@ -118,7 +118,7 @@ func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
 	require.NoError(t, stream.Send(&pb.PostUploadPackRequest{Data: []byte(requestBody)}))
 	stream.CloseSend()
 
-	rr := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	rr := streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})

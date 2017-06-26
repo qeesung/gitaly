@@ -8,7 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -37,7 +37,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 		return err
 	}
 
-	stdinReader := pbhelper.NewReceiveReader(func() ([]byte, error) {
+	stdinReader := streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})
@@ -49,7 +49,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 		deepenCh <- scanDeepen(pr)
 	}()
 
-	stdout := pbhelper.NewSendWriter(func(p []byte) error {
+	stdout := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.PostUploadPackResponse{Data: p})
 	})
 	repoPath, err := helper.GetRepoPath(req.Repository)

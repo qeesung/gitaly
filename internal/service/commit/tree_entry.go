@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -132,7 +132,7 @@ func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_Tree
 		return helper.DecorateError(codes.Unavailable, stream.Send(response))
 	}
 
-	sw := pbhelper.NewSendWriter(func(p []byte) error {
+	sw := streamio.NewWriter(func(p []byte) error {
 		response.Data = p
 
 		if err := stream.Send(response); err != nil {

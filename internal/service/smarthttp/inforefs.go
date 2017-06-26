@@ -6,22 +6,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	pbhelper "gitlab.com/gitlab-org/gitaly-proto/go/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsUploadPackServer) error {
-	w := pbhelper.NewSendWriter(func(p []byte) error {
+	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
 	return handleInfoRefs("upload-pack", in.Repository, w)
 }
 
 func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsReceivePackServer) error {
-	w := pbhelper.NewSendWriter(func(p []byte) error {
+	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
 	return handleInfoRefs("receive-pack", in.Repository, w)
