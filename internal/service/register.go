@@ -37,7 +37,7 @@ func RegisterAll(grpcServer *grpc.Server) {
 	pb.RegisterSSHServiceServer(grpcServer, sshService)
 
 	// Deprecated Services
-	pb.RegisterNotificationServiceServer(grpcServer, renameadapter.NewNotificationAdapter(notificationsService))
+	pb.RegisterNotificationsServer(grpcServer, renameadapter.NewNotificationAdapter(notificationsService))
 	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(refService))
 	pb.RegisterSmartHTTPServer(grpcServer, renameadapter.NewSmartHTTPAdapter(smartHTTPService))
 	pb.RegisterDiffServer(grpcServer, renameadapter.NewDiffAdapter(diffService))
