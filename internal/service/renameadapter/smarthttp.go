@@ -7,7 +7,7 @@ type smartHTTPAdapter struct {
 }
 
 func (s *smartHTTPAdapter) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTP_InfoRefsUploadPackServer) error {
-	return s.upstream.InfoRefsReceivePack(in, stream)
+	return s.upstream.InfoRefsUploadPack(in, stream)
 }
 
 func (s *smartHTTPAdapter) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTP_InfoRefsReceivePackServer) error {
