@@ -47,7 +47,7 @@ func runSmartHTTPServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterSmartHTTPServer(server, NewServer())
+	pb.RegisterSmartHTTPServer(server, NewRenameBridge(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)

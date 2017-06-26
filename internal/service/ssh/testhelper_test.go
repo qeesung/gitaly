@@ -41,7 +41,7 @@ func runSSHServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterSSHServer(server, NewServer())
+	pb.RegisterSSHServer(server, NewRenameBridge(NewServer()))
 	reflection.Register(server)
 
 	go server.Serve(listener)
