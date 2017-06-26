@@ -1,13 +1,18 @@
 # Gitaly changelog
 
+v0.13.0
+
+- Added usage and version flags to the command line interface
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/193
+- Optional token authentication
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/191
+
 v0.12.0
 
 - Stop using deprecated field `path` in Repository messages
   https://gitlab.com/gitlab-org/gitaly/merge_requests/179
 - Implement TreeEntry RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/187
-- Optional token authentication
-  https://gitlab.com/gitlab-org/gitaly/merge_requests/191
 
 v0.11.2
 

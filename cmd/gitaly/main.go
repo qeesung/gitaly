@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,31 +19,29 @@ import (
 
 var version string
 
-func loadConfig() {
-	switch {
-	case len(os.Args) >= 2:
-		cfgFile, err := os.Open(os.Args[1])
-		if err != nil {
-			log.WithFields(log.Fields{
-				"filename": os.Args[1],
-				"error":    err,
-			}).Warn("can not open file for reading")
-			break
-		}
-		defer cfgFile.Close()
-		if err = config.Load(cfgFile); err != nil {
-			log.WithFields(log.Fields{
-				"filename": os.Args[1],
-				"error":    err,
-			}).Warn("can not load configuration")
-		}
+var (
+	flagVersion = flag.Bool("version", false, "Print version and exit")
+)
 
-	default:
-		log.Warn("no configuration file given")
-		if err := config.Load(nil); err != nil {
-			log.WithError(err).Warn("can not load configuration")
-		}
+func loadConfig() {
+	cfgFileName := flag.Arg(0)
+	cfgFile, err := os.Open(cfgFileName)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"filename": cfgFileName,
+			"error":    err,
+		}).Warn("can not open file for reading")
+		return
 	}
+	defer cfgFile.Close()
+
+	if err = config.Load(cfgFile); err != nil {
+		log.WithFields(log.Fields{
+			"filename": cfgFileName,
+			"error":    err,
+		}).Warn("can not load configuration")
+	}
+
 }
 
 func validateConfig() error {
@@ -66,7 +65,27 @@ func registerServerVersionPromGauge() {
 	gitlabBuildInfoGauge.Set(1)
 }
 
+func flagUsage() {
+	fmt.Printf("Gitaly, version %v\n", version)
+	fmt.Printf("Usage: %v [OPTIONS] configfile\n", os.Args[0])
+	flag.PrintDefaults()
+}
+
 func main() {
+	flag.Usage = flagUsage
+	flag.Parse()
+
+	// If invoked with -version
+	if *flagVersion {
+		fmt.Printf("Gitaly, version %v\n", version)
+		os.Exit(0)
+	}
+
+	if flag.NArg() != 1 || flag.Arg(0) == "" {
+		flag.Usage()
+		os.Exit(2)
+	}
+
 	log.WithField("version", version).Info("Starting Gitaly")
 	registerServerVersionPromGauge()
 
