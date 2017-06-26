@@ -6,6 +6,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/service/notifications"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
 
@@ -17,19 +18,31 @@ import (
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
 func RegisterAll(grpcServer *grpc.Server) {
-	pb.RegisterNotificationsServer(grpcServer, notifications.NewServer())
-	pb.RegisterRefServer(grpcServer, ref.NewServer())
+	notificationsService := notifications.NewServer()
+	pb.RegisterNotificationServiceServer(grpcServer, notificationsService)
+
+	refService := ref.NewServer()
+	pb.RegisterRefServiceServer(grpcServer, refService)
 
 	smartHTTPService := smarthttp.NewServer()
 	pb.RegisterSmartHTTPServiceServer(grpcServer, smartHTTPService)
-	pb.RegisterSmartHTTPServer(grpcServer, smarthttp.NewRenameBridge(smartHTTPService))
 
-	pb.RegisterDiffServer(grpcServer, diff.NewServer())
-	pb.RegisterCommitServer(grpcServer, commit.NewServer())
+	diffService := diff.NewServer()
+	pb.RegisterDiffServiceServer(grpcServer, diffService)
+
+	commitService := commit.NewServer()
+	pb.RegisterCommitServiceServer(grpcServer, commitService)
 
 	sshService := ssh.NewServer()
 	pb.RegisterSSHServiceServer(grpcServer, sshService)
-	pb.RegisterSSHServer(grpcServer, ssh.NewRenameBridge(sshService))
+
+	// Deprecated Services
+	pb.RegisterNotificationServiceServer(grpcServer, renameadapter.NewNotificationAdapter(notificationsService))
+	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(refService))
+	pb.RegisterSmartHTTPServer(grpcServer, renameadapter.NewSmartHTTPAdapter(smartHTTPService))
+	pb.RegisterDiffServer(grpcServer, renameadapter.NewDiffAdapter(diffService))
+	pb.RegisterCommitServer(grpcServer, renameadapter.NewCommitAdapter(commitService))
+	pb.RegisterSSHServer(grpcServer, renameadapter.NewSSHAdapter(sshService))
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 }

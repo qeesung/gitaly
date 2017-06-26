@@ -16,7 +16,7 @@ type requestWithLeftRightCommitIds interface {
 	GetRightCommitId() string
 }
 
-func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.Diff_CommitDiffServer) error {
+func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_CommitDiffServer) error {
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDiff: %v", err)
 	}
@@ -104,7 +104,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.Diff_CommitDiffS
 	return err
 }
 
-func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.Diff_CommitDeltaServer) error {
+func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_CommitDeltaServer) error {
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDelta: %v", err)
 	}

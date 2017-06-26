@@ -24,7 +24,7 @@ type InfoRefsRequest struct {
 func (m *InfoRefsRequest) Reset()                    { *m = InfoRefsRequest{} }
 func (m *InfoRefsRequest) String() string            { return proto.CompactTextString(m) }
 func (*InfoRefsRequest) ProtoMessage()               {}
-func (*InfoRefsRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
+func (*InfoRefsRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
 
 func (m *InfoRefsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -40,7 +40,7 @@ type InfoRefsResponse struct {
 func (m *InfoRefsResponse) Reset()                    { *m = InfoRefsResponse{} }
 func (m *InfoRefsResponse) String() string            { return proto.CompactTextString(m) }
 func (*InfoRefsResponse) ProtoMessage()               {}
-func (*InfoRefsResponse) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
+func (*InfoRefsResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
 
 func (m *InfoRefsResponse) GetData() []byte {
 	if m != nil {
@@ -59,7 +59,7 @@ type PostUploadPackRequest struct {
 func (m *PostUploadPackRequest) Reset()                    { *m = PostUploadPackRequest{} }
 func (m *PostUploadPackRequest) String() string            { return proto.CompactTextString(m) }
 func (*PostUploadPackRequest) ProtoMessage()               {}
-func (*PostUploadPackRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
+func (*PostUploadPackRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
 func (m *PostUploadPackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -83,7 +83,7 @@ type PostUploadPackResponse struct {
 func (m *PostUploadPackResponse) Reset()                    { *m = PostUploadPackResponse{} }
 func (m *PostUploadPackResponse) String() string            { return proto.CompactTextString(m) }
 func (*PostUploadPackResponse) ProtoMessage()               {}
-func (*PostUploadPackResponse) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{3} }
+func (*PostUploadPackResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
 
 func (m *PostUploadPackResponse) GetData() []byte {
 	if m != nil {
@@ -106,7 +106,7 @@ type PostReceivePackRequest struct {
 func (m *PostReceivePackRequest) Reset()                    { *m = PostReceivePackRequest{} }
 func (m *PostReceivePackRequest) String() string            { return proto.CompactTextString(m) }
 func (*PostReceivePackRequest) ProtoMessage()               {}
-func (*PostReceivePackRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{4} }
+func (*PostReceivePackRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
 
 func (m *PostReceivePackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -144,7 +144,7 @@ type PostReceivePackResponse struct {
 func (m *PostReceivePackResponse) Reset()                    { *m = PostReceivePackResponse{} }
 func (m *PostReceivePackResponse) String() string            { return proto.CompactTextString(m) }
 func (*PostReceivePackResponse) ProtoMessage()               {}
-func (*PostReceivePackResponse) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{5} }
+func (*PostReceivePackResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{5} }
 
 func (m *PostReceivePackResponse) GetData() []byte {
 	if m != nil {
@@ -169,295 +169,6 @@ var _ grpc.ClientConn
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
-
-// Client API for SmartHTTP service
-
-type SmartHTTPClient interface {
-	// The response body for GET /info/refs?service=git-upload-pack
-	InfoRefsUploadPack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTP_InfoRefsUploadPackClient, error)
-	// The response body for GET /info/refs?service=git-receive-pack
-	InfoRefsReceivePack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTP_InfoRefsReceivePackClient, error)
-	// Request and response body for POST /upload-pack
-	PostUploadPack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTP_PostUploadPackClient, error)
-	// Request and response body for POST /receive-pack
-	PostReceivePack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTP_PostReceivePackClient, error)
-}
-
-type smartHTTPClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewSmartHTTPClient(cc *grpc.ClientConn) SmartHTTPClient {
-	return &smartHTTPClient{cc}
-}
-
-func (c *smartHTTPClient) InfoRefsUploadPack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTP_InfoRefsUploadPackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTP_serviceDesc.Streams[0], c.cc, "/gitaly.SmartHTTP/InfoRefsUploadPack", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &smartHTTPInfoRefsUploadPackClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type SmartHTTP_InfoRefsUploadPackClient interface {
-	Recv() (*InfoRefsResponse, error)
-	grpc.ClientStream
-}
-
-type smartHTTPInfoRefsUploadPackClient struct {
-	grpc.ClientStream
-}
-
-func (x *smartHTTPInfoRefsUploadPackClient) Recv() (*InfoRefsResponse, error) {
-	m := new(InfoRefsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *smartHTTPClient) InfoRefsReceivePack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTP_InfoRefsReceivePackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTP_serviceDesc.Streams[1], c.cc, "/gitaly.SmartHTTP/InfoRefsReceivePack", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &smartHTTPInfoRefsReceivePackClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type SmartHTTP_InfoRefsReceivePackClient interface {
-	Recv() (*InfoRefsResponse, error)
-	grpc.ClientStream
-}
-
-type smartHTTPInfoRefsReceivePackClient struct {
-	grpc.ClientStream
-}
-
-func (x *smartHTTPInfoRefsReceivePackClient) Recv() (*InfoRefsResponse, error) {
-	m := new(InfoRefsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *smartHTTPClient) PostUploadPack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTP_PostUploadPackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTP_serviceDesc.Streams[2], c.cc, "/gitaly.SmartHTTP/PostUploadPack", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &smartHTTPPostUploadPackClient{stream}
-	return x, nil
-}
-
-type SmartHTTP_PostUploadPackClient interface {
-	Send(*PostUploadPackRequest) error
-	Recv() (*PostUploadPackResponse, error)
-	grpc.ClientStream
-}
-
-type smartHTTPPostUploadPackClient struct {
-	grpc.ClientStream
-}
-
-func (x *smartHTTPPostUploadPackClient) Send(m *PostUploadPackRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *smartHTTPPostUploadPackClient) Recv() (*PostUploadPackResponse, error) {
-	m := new(PostUploadPackResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *smartHTTPClient) PostReceivePack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTP_PostReceivePackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTP_serviceDesc.Streams[3], c.cc, "/gitaly.SmartHTTP/PostReceivePack", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &smartHTTPPostReceivePackClient{stream}
-	return x, nil
-}
-
-type SmartHTTP_PostReceivePackClient interface {
-	Send(*PostReceivePackRequest) error
-	Recv() (*PostReceivePackResponse, error)
-	grpc.ClientStream
-}
-
-type smartHTTPPostReceivePackClient struct {
-	grpc.ClientStream
-}
-
-func (x *smartHTTPPostReceivePackClient) Send(m *PostReceivePackRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *smartHTTPPostReceivePackClient) Recv() (*PostReceivePackResponse, error) {
-	m := new(PostReceivePackResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// Server API for SmartHTTP service
-
-type SmartHTTPServer interface {
-	// The response body for GET /info/refs?service=git-upload-pack
-	InfoRefsUploadPack(*InfoRefsRequest, SmartHTTP_InfoRefsUploadPackServer) error
-	// The response body for GET /info/refs?service=git-receive-pack
-	InfoRefsReceivePack(*InfoRefsRequest, SmartHTTP_InfoRefsReceivePackServer) error
-	// Request and response body for POST /upload-pack
-	PostUploadPack(SmartHTTP_PostUploadPackServer) error
-	// Request and response body for POST /receive-pack
-	PostReceivePack(SmartHTTP_PostReceivePackServer) error
-}
-
-func RegisterSmartHTTPServer(s *grpc.Server, srv SmartHTTPServer) {
-	s.RegisterService(&_SmartHTTP_serviceDesc, srv)
-}
-
-func _SmartHTTP_InfoRefsUploadPack_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(InfoRefsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(SmartHTTPServer).InfoRefsUploadPack(m, &smartHTTPInfoRefsUploadPackServer{stream})
-}
-
-type SmartHTTP_InfoRefsUploadPackServer interface {
-	Send(*InfoRefsResponse) error
-	grpc.ServerStream
-}
-
-type smartHTTPInfoRefsUploadPackServer struct {
-	grpc.ServerStream
-}
-
-func (x *smartHTTPInfoRefsUploadPackServer) Send(m *InfoRefsResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _SmartHTTP_InfoRefsReceivePack_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(InfoRefsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(SmartHTTPServer).InfoRefsReceivePack(m, &smartHTTPInfoRefsReceivePackServer{stream})
-}
-
-type SmartHTTP_InfoRefsReceivePackServer interface {
-	Send(*InfoRefsResponse) error
-	grpc.ServerStream
-}
-
-type smartHTTPInfoRefsReceivePackServer struct {
-	grpc.ServerStream
-}
-
-func (x *smartHTTPInfoRefsReceivePackServer) Send(m *InfoRefsResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _SmartHTTP_PostUploadPack_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(SmartHTTPServer).PostUploadPack(&smartHTTPPostUploadPackServer{stream})
-}
-
-type SmartHTTP_PostUploadPackServer interface {
-	Send(*PostUploadPackResponse) error
-	Recv() (*PostUploadPackRequest, error)
-	grpc.ServerStream
-}
-
-type smartHTTPPostUploadPackServer struct {
-	grpc.ServerStream
-}
-
-func (x *smartHTTPPostUploadPackServer) Send(m *PostUploadPackResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *smartHTTPPostUploadPackServer) Recv() (*PostUploadPackRequest, error) {
-	m := new(PostUploadPackRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _SmartHTTP_PostReceivePack_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(SmartHTTPServer).PostReceivePack(&smartHTTPPostReceivePackServer{stream})
-}
-
-type SmartHTTP_PostReceivePackServer interface {
-	Send(*PostReceivePackResponse) error
-	Recv() (*PostReceivePackRequest, error)
-	grpc.ServerStream
-}
-
-type smartHTTPPostReceivePackServer struct {
-	grpc.ServerStream
-}
-
-func (x *smartHTTPPostReceivePackServer) Send(m *PostReceivePackResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *smartHTTPPostReceivePackServer) Recv() (*PostReceivePackRequest, error) {
-	m := new(PostReceivePackRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _SmartHTTP_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "gitaly.SmartHTTP",
-	HandlerType: (*SmartHTTPServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "InfoRefsUploadPack",
-			Handler:       _SmartHTTP_InfoRefsUploadPack_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "InfoRefsReceivePack",
-			Handler:       _SmartHTTP_InfoRefsReceivePack_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "PostUploadPack",
-			Handler:       _SmartHTTP_PostUploadPack_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "PostReceivePack",
-			Handler:       _SmartHTTP_PostReceivePack_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "smarthttp.proto",
-}
 
 // Client API for SmartHTTPService service
 
@@ -748,30 +459,29 @@ var _SmartHTTPService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "smarthttp.proto",
 }
 
-func init() { proto.RegisterFile("smarthttp.proto", fileDescriptor5) }
+func init() { proto.RegisterFile("smarthttp.proto", fileDescriptor7) }
 
-var fileDescriptor5 = []byte{
-	// 342 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x54, 0xdd, 0x4a, 0x02, 0x41,
-	0x18, 0x6d, 0xcc, 0x04, 0xbf, 0x2c, 0xe5, 0x93, 0x52, 0x16, 0x2a, 0xd9, 0x20, 0xbc, 0x28, 0x91,
-	0xed, 0x19, 0x82, 0xa4, 0x2e, 0x64, 0x54, 0xe8, 0x4e, 0x26, 0x77, 0x5c, 0x97, 0x26, 0x67, 0x9b,
-	0x99, 0x04, 0x5f, 0xa5, 0x17, 0xeb, 0xae, 0x67, 0x89, 0x76, 0xd9, 0x1f, 0xb5, 0xed, 0xa2, 0x9f,
-	0xbb, 0xee, 0x96, 0x39, 0xdf, 0x9c, 0x73, 0xbe, 0x73, 0x96, 0x81, 0xaa, 0x7e, 0x64, 0xca, 0xcc,
-	0x8c, 0x09, 0x3a, 0x81, 0x92, 0x46, 0x62, 0xc9, 0xf3, 0x0d, 0x13, 0x4b, 0xab, 0xa2, 0x67, 0x4c,
-	0x71, 0x37, 0x3a, 0xb5, 0xaf, 0xa0, 0xda, 0x9b, 0x4f, 0x25, 0xe5, 0x53, 0x4d, 0xf9, 0xd3, 0x33,
-	0xd7, 0x06, 0x1d, 0x00, 0xc5, 0x03, 0xa9, 0x7d, 0x23, 0xd5, 0xb2, 0x49, 0x5a, 0xa4, 0xbd, 0xeb,
-	0x60, 0x27, 0xba, 0xdd, 0xa1, 0x09, 0x42, 0x33, 0x53, 0xf6, 0x19, 0xd4, 0x52, 0x1a, 0x1d, 0xc8,
-	0xb9, 0xe6, 0x88, 0x50, 0x74, 0x99, 0x61, 0x21, 0x43, 0x85, 0x86, 0xdf, 0xf6, 0x18, 0x0e, 0xfa,
-	0x52, 0x9b, 0x51, 0x20, 0x24, 0x73, 0xfb, 0x6c, 0xf2, 0xf0, 0x03, 0xd1, 0x44, 0xa0, 0x90, 0x11,
-	0x38, 0x87, 0xc3, 0x75, 0x81, 0x2f, 0xec, 0xbc, 0x90, 0x68, 0x9c, 0xf2, 0x09, 0xf7, 0x17, 0xfc,
-	0x0f, 0x0c, 0x61, 0x1d, 0x76, 0x3c, 0x31, 0xf6, 0xdd, 0xe6, 0x76, 0x8b, 0xb4, 0xcb, 0xb4, 0xe8,
-	0x89, 0x9e, 0x8b, 0xa7, 0xb0, 0xe7, 0x89, 0x71, 0x86, 0xbf, 0x18, 0x82, 0x15, 0x4f, 0xa4, 0xcc,
-	0xf6, 0x05, 0x34, 0x36, 0xbc, 0xe5, 0xef, 0xe2, 0xbc, 0x16, 0xa0, 0x3c, 0xf8, 0xe8, 0xfc, 0x7a,
-	0x38, 0xec, 0xe3, 0x0d, 0x60, 0x5c, 0x48, 0x9a, 0x05, 0x36, 0xe2, 0x05, 0xd6, 0x3a, 0xb7, 0x9a,
-	0x9b, 0x40, 0x24, 0x65, 0x6f, 0x75, 0x09, 0xde, 0x42, 0x3d, 0x3d, 0x4f, 0xdc, 0x7c, 0x97, 0x6d,
-	0x04, 0xfb, 0xab, 0x15, 0xe1, 0x51, 0x3c, 0xff, 0xe9, 0xbf, 0x61, 0x1d, 0xe7, 0xc1, 0x31, 0x69,
-	0x9b, 0x74, 0x09, 0xde, 0x41, 0x75, 0x2d, 0x2e, 0x5c, 0xb9, 0xb8, 0xd9, 0xb1, 0x75, 0x92, 0x8b,
-	0x67, 0x99, 0x9d, 0xb7, 0x02, 0xd4, 0x92, 0x64, 0x07, 0x5c, 0x2d, 0xfc, 0x09, 0xff, 0x0f, 0xf8,
-	0xf7, 0x02, 0xbe, 0x2f, 0x85, 0x6f, 0xd1, 0xe5, 0x7b, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf3, 0xfc,
-	0x01, 0xd1, 0xb4, 0x04, 0x00, 0x00,
+var fileDescriptor7 = []byte{
+	// 327 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x53, 0x4d, 0x4b, 0xc3, 0x40,
+	0x10, 0x75, 0x6b, 0x2d, 0x38, 0x56, 0x5b, 0xa6, 0x68, 0x4b, 0x40, 0x2d, 0x11, 0xa4, 0x07, 0x2d,
+	0xa5, 0xfe, 0x06, 0xc1, 0xa2, 0x87, 0xb2, 0x6d, 0xc1, 0x5b, 0x59, 0x93, 0x6d, 0x1a, 0x5c, 0xbb,
+	0x71, 0x77, 0x2d, 0xf4, 0xaf, 0xf8, 0xe3, 0xfc, 0x2d, 0x62, 0x42, 0x3e, 0x9a, 0x18, 0x0f, 0x8a,
+	0xb7, 0x30, 0x6f, 0xe6, 0xbd, 0x37, 0xf3, 0xb2, 0xd0, 0xd0, 0x2f, 0x4c, 0x99, 0xa5, 0x31, 0x41,
+	0x3f, 0x50, 0xd2, 0x48, 0xac, 0x79, 0xbe, 0x61, 0x62, 0x63, 0xd5, 0xf5, 0x92, 0x29, 0xee, 0x46,
+	0x55, 0xfb, 0x16, 0x1a, 0xa3, 0xd5, 0x42, 0x52, 0xbe, 0xd0, 0x94, 0xbf, 0xbe, 0x71, 0x6d, 0x70,
+	0x08, 0xa0, 0x78, 0x20, 0xb5, 0x6f, 0xa4, 0xda, 0x74, 0x48, 0x97, 0xf4, 0x0e, 0x86, 0xd8, 0x8f,
+	0xa6, 0xfb, 0x34, 0x41, 0x68, 0xa6, 0xcb, 0xbe, 0x84, 0x66, 0x4a, 0xa3, 0x03, 0xb9, 0xd2, 0x1c,
+	0x11, 0xaa, 0x2e, 0x33, 0x2c, 0x64, 0xa8, 0xd3, 0xf0, 0xdb, 0x9e, 0xc3, 0xf1, 0x58, 0x6a, 0x33,
+	0x0b, 0x84, 0x64, 0xee, 0x98, 0x39, 0xcf, 0x7f, 0x10, 0x4d, 0x04, 0x2a, 0x19, 0x81, 0x2b, 0x38,
+	0xc9, 0x0b, 0xfc, 0x60, 0xe7, 0x9d, 0x44, 0xed, 0x94, 0x3b, 0xdc, 0x5f, 0xf3, 0x7f, 0x30, 0x84,
+	0x2d, 0xd8, 0xf3, 0xc4, 0xdc, 0x77, 0x3b, 0xbb, 0x5d, 0xd2, 0xdb, 0xa7, 0x55, 0x4f, 0x8c, 0x5c,
+	0xbc, 0x80, 0x43, 0x4f, 0xcc, 0x33, 0xfc, 0xd5, 0x10, 0xac, 0x7b, 0x22, 0x65, 0xb6, 0xaf, 0xa1,
+	0x5d, 0xf0, 0x56, 0xbe, 0xcb, 0xf0, 0xa3, 0x02, 0xcd, 0xc9, 0x57, 0xe6, 0x77, 0xd3, 0xe9, 0x78,
+	0xc2, 0xd5, 0xda, 0x77, 0x38, 0xde, 0x03, 0xc6, 0xb9, 0xa4, 0x27, 0xc1, 0x76, 0xbc, 0x47, 0x2e,
+	0x7a, 0xab, 0x53, 0x04, 0x22, 0x45, 0x7b, 0x67, 0x40, 0xf0, 0x01, 0x5a, 0x69, 0x3d, 0x31, 0xf5,
+	0x5b, 0xb6, 0x19, 0x1c, 0x6d, 0x27, 0x85, 0xa7, 0x71, 0xff, 0xb7, 0xbf, 0x88, 0x75, 0x56, 0x06,
+	0xc7, 0xa4, 0x3d, 0x32, 0x20, 0xf8, 0x08, 0x8d, 0xdc, 0xd5, 0x70, 0x6b, 0xb0, 0x18, 0xb5, 0x75,
+	0x5e, 0x8a, 0x67, 0x99, 0x9f, 0x6a, 0xe1, 0x8b, 0xb9, 0xf9, 0x0c, 0x00, 0x00, 0xff, 0xff, 0xbe,
+	0x10, 0x08, 0x81, 0x5a, 0x03, 0x00, 0x00,
 }

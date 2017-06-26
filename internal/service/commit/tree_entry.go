@@ -25,7 +25,7 @@ type objectInfo struct {
 	mode       int32
 }
 
-func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.Commit_TreeEntryServer) error {
+func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_TreeEntryServer) error {
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
 	}

@@ -9,6 +9,6 @@ type server struct {
 }
 
 // NewServer creates a new instance of a grpc RefServer
-func NewServer() pb.RefServer {
+func NewServer() pb.RefServiceServer {
 	return &server{MaxMsgSize: maxMsgSize}
 }

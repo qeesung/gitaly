@@ -20,7 +20,7 @@ type Repository struct {
 func (m *Repository) Reset()                    { *m = Repository{} }
 func (m *Repository) String() string            { return proto.CompactTextString(m) }
 func (*Repository) ProtoMessage()               {}
-func (*Repository) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (*Repository) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 func (m *Repository) GetStorageName() string {
 	if m != nil {
@@ -43,7 +43,7 @@ type ExitStatus struct {
 func (m *ExitStatus) Reset()                    { *m = ExitStatus{} }
 func (m *ExitStatus) String() string            { return proto.CompactTextString(m) }
 func (*ExitStatus) ProtoMessage()               {}
-func (*ExitStatus) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (*ExitStatus) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
 
 func (m *ExitStatus) GetValue() int32 {
 	if m != nil {
@@ -57,9 +57,9 @@ func init() {
 	proto.RegisterType((*ExitStatus)(nil), "gitaly.ExitStatus")
 }
 
-func init() { proto.RegisterFile("shared.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("shared.proto", fileDescriptor6) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor6 = []byte{
 	// 164 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x34, 0xce, 0x31, 0x0f, 0x82, 0x30,
 	0x10, 0x05, 0xe0, 0x14, 0x81, 0xe8, 0x89, 0x89, 0x69, 0x1c, 0x18, 0x11, 0x17, 0x26, 0x17, 0x7f,

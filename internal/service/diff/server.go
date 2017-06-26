@@ -11,6 +11,6 @@ type server struct {
 }
 
 // NewServer creates a new instance of a gRPC DiffServer
-func NewServer() pb.DiffServer {
+func NewServer() pb.DiffServiceServer {
 	return &server{MsgSizeThreshold: msgSizeThreshold}
 }

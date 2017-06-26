@@ -69,12 +69,12 @@ func findRefs(writer refsWriter, repo *pb.Repository, pattern string, args ...st
 }
 
 // FindAllBranchNames creates a stream of ref names for all branches in the given repository
-func (s *server) FindAllBranchNames(in *pb.FindAllBranchNamesRequest, stream pb.Ref_FindAllBranchNamesServer) error {
+func (s *server) FindAllBranchNames(in *pb.FindAllBranchNamesRequest, stream pb.RefService_FindAllBranchNamesServer) error {
 	return findRefs(newFindAllBranchNamesWriter(stream, s.MaxMsgSize), in.Repository, "refs/heads")
 }
 
 // FindAllTagNames creates a stream of ref names for all tags in the given repository
-func (s *server) FindAllTagNames(in *pb.FindAllTagNamesRequest, stream pb.Ref_FindAllTagNamesServer) error {
+func (s *server) FindAllTagNames(in *pb.FindAllTagNamesRequest, stream pb.RefService_FindAllTagNamesServer) error {
 	return findRefs(newFindAllTagNamesWriter(stream, s.MaxMsgSize), in.Repository, "refs/tags")
 }
 
@@ -204,7 +204,7 @@ func parseSortKey(sortKey pb.FindLocalBranchesRequest_SortBy) string {
 }
 
 // FindLocalBranches creates a stream of branches for all local branches in the given repository
-func (s *server) FindLocalBranches(in *pb.FindLocalBranchesRequest, stream pb.Ref_FindLocalBranchesServer) error {
+func (s *server) FindLocalBranches(in *pb.FindLocalBranchesRequest, stream pb.RefService_FindLocalBranchesServer) error {
 	// %00 inserts the null character into the output (see for-each-ref docs)
 	formatFlag := "--format=" + strings.Join(localBranchFormatFields, "%00")
 	sortFlag := "--sort=" + parseSortKey(in.GetSortBy())

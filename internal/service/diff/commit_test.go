@@ -695,7 +695,7 @@ func drainCommitDeltaResponse(c pb.Diff_CommitDeltaClient) error {
 	return nil
 }
 
-func getDiffsFromCommitDiffClient(t *testing.T, client pb.Diff_CommitDiffClient) []*diff.Diff {
+func getDiffsFromCommitDiffClient(t *testing.T, client pb.DiffService_CommitDiffClient) []*diff.Diff {
 	var diffs []*diff.Diff
 	var currentDiff *diff.Diff
 
@@ -731,7 +731,7 @@ func getDiffsFromCommitDiffClient(t *testing.T, client pb.Diff_CommitDiffClient)
 	return diffs
 }
 
-func assertExactReceivedDiffs(t *testing.T, client pb.Diff_CommitDiffClient, expectedDiffs []diff.Diff) {
+func assertExactReceivedDiffs(t *testing.T, client pb.DiffService_CommitDiffClient, expectedDiffs []diff.Diff) {
 	fetchedDiffs := getDiffsFromCommitDiffClient(t, client)
 
 	var i int

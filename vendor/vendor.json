@@ -191,16 +191,20 @@
 			"revisionTime": "2017-01-30T11:31:45Z"
 		},
 		{
-			"checksumSHA1": "zGSXE91ijUmwNJI28+v8PbP3foY=",
+			"checksumSHA1": "/dGhR40Q/BR9nltIt0Gc607D3vw=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go",
-			"revision": "ad5be24f8de7579c077b837fbb2696a517ae2457",
-			"revisionTime": "2017-06-21T11:43:20Z"
+			"revision": "05af69b918d6f0129424a1ce1d9c70765ee8b449",
+			"revisionTime": "2017-06-26T08:53:21Z",
+			"version": "=rename-services",
+			"versionExact": "rename-services"
 		},
 		{
 			"checksumSHA1": "GkeSZfXVbtAkBZOrswot19GJZqQ=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/helper",
-			"revision": "ad5be24f8de7579c077b837fbb2696a517ae2457",
-			"revisionTime": "2017-06-21T11:43:20Z"
+			"revision": "05af69b918d6f0129424a1ce1d9c70765ee8b449",
+			"revisionTime": "2017-06-26T08:53:21Z",
+			"version": "=rename-services",
+			"versionExact": "rename-services"
 		},
 		{
 			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
