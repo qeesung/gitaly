@@ -9,6 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"google.golang.org/grpc"
@@ -27,7 +28,15 @@ var (
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
 
+	testhelper.ConfigureRuby()
+	ruby, err := rubyserver.Start()
+	if err != nil {
+		log.WithError(err).Fatal("ruby spawn failed")
+	}
+
 	os.Exit(func() int {
+		defer ruby.Stop()
+
 		os.Remove(serverSocketPath)
 		server := runCommitServer(m)
 		defer func() {

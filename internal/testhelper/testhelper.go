@@ -173,3 +173,18 @@ func GetTemporaryGitalySocketFileName() string {
 
 	return name
 }
+
+// ConfigureRuby configures Ruby settings for test purposes at run time.
+func ConfigureRuby() {
+	if dir := os.Getenv("GITALY_TEST_RUBY_DIR"); len(dir) > 0 {
+		// Sometimes runtime.Caller is unreliable. This environment variable provides a bypass.
+		config.Config.Ruby.Dir = dir
+		return
+	}
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatal("Could not get caller info")
+	}
+	config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
+}

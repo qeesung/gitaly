@@ -9,12 +9,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -119,6 +121,14 @@ func main() {
 
 		log.WithField("address", addr).Info("listening at tcp address")
 		listeners = append(listeners, connectioncounter.New("tcp", l))
+	}
+
+	ruby, err := rubyserver.Start()
+	if err != nil {
+		// TODO: this will be a fatal error in the future
+		log.Printf("failed to start ruby server: %v", err)
+	} else {
+		defer ruby.Stop()
 	}
 
 	server := server.New()

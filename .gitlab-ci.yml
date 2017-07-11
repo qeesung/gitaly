@@ -14,6 +14,10 @@ verify:
 .test_template: &test_definition
   stage: build_test
   script:
+    # TODO: use a Docker image with Ruby etc. pre-installed instead of 'apt-get'
+    - apt-get update -qq
+    - apt-get install -qq -y rubygems bundler cmake build-essential libicu-dev
+    - (cd ruby && bundle install)
     - go version
     - git version
     - make test
@@ -21,6 +25,9 @@ verify:
 .build_template: &build_definition
   stage: build_test
   script:
+    # TODO: use a Docker image with Ruby etc. pre-installed instead of 'apt-get'
+    - apt-get update -qq
+    - apt-get install -qq -y rubygems bundler cmake build-essential libicu-dev
     - make
 
 build:default:

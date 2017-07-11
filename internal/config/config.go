@@ -25,6 +25,7 @@ type config struct {
 	Logging              Logging    `toml:"logging" envconfig:"logging"`
 	Prometheus           Prometheus `toml:"prometheus"`
 	Auth                 Auth       `toml:"auth"`
+	Ruby                 Ruby       `toml:"gitaly-ruby"`
 }
 
 // Git contains the settings for the Git executable

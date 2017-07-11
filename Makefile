@@ -9,6 +9,7 @@ export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
+export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
 VERSION_PREFIXED = $(shell git describe)
@@ -44,6 +45,7 @@ $(TARGET_SETUP):
 
 .PHONY: build
 build: $(TARGET_SETUP) $(GOVENDOR)
+	cd ruby && bundle install
 	go install $(LDFLAGS) $(COMMAND_PACKAGES)
 	cp $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(BUILD_DIR)/
 

@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+require 'grpc'
+
+require_relative '../lib/gitaly_server.rb'
+
+def main
+  if ARGV.length != 1
+    abort "Usage: #{$0} /path/to/socket"
+  end
+
+  start_parent_watcher
+
+  socket_path = ARGV.first
+  FileUtils.rm_f(socket_path)
+  socket_dir = File.dirname(socket_path)
+  FileUtils.mkdir_p(socket_dir)
+  File.chmod(0700, socket_dir)
+
+  s = GRPC::RpcServer.new
+  port = 'unix:' + socket_path
+  s.add_http2_port(port, :this_port_is_insecure)
+  GRPC.logger.info("... running insecurely on #{port}")
+
+  GitalyServer.register_handlers(s)
+
+  s.run_till_terminated
+end
+
+def start_parent_watcher
+  Thread.new do
+    loop do
+      if Process.ppid == 1
+        # If our parent is PID 1, our original parent is gone. Self-terminate.
+        Process.kill(9, Process.pid)
+      end
+
+      sleep 1
+    end
+  end
+end
+
+main

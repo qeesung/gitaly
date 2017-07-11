@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Implement CommitService.CommitLanguages, add gitaly-ruby
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/210
+
 v0.24.0
 
 - Consume stdout during repack/gc
