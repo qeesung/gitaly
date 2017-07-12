@@ -9,4 +9,4 @@ for more information on the RPC Design stage of the process.
 - [ ] **`grpc-proto` RPC prototypes**: merged change
 
 
-/label ~"Client Implementation"
+/label ~"RPC Design"
