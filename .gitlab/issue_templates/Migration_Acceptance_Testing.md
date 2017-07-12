@@ -20,6 +20,5 @@ Feature Toggle Environment Variable: `XXXXXXXXXXXXXXX`
 - [ ] Have the changes been rolled back pending final review?
 - [ ] Runbook Added (link to MR)
 - [ ] Prometheus Alerts Added (link to MR)
-- 
 
 /label ~"Acceptance Testing"
