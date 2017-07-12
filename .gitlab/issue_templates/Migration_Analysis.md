@@ -14,3 +14,6 @@ for more information on the analysis stage of the process.
 - [ ] **Existing reusable RPC endpoints**. What have we already implemented?
 - [ ] **New RPC endpoints to be implemented**. Just names. Leave the full design to the ~"RPC Design" stage next.
 - [ ] **Effort - for each new and existing RPC endpoint**, roughly (small/medium/large) how much effort will be required to implement it?
+
+
+/label ~"Migration Analysis"
