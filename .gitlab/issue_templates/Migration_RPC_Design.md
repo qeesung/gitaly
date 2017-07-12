@@ -7,3 +7,6 @@ See the [Migration Process documentation](https://gitlab.com/gitlab-org/gitaly/b
 for more information on the RPC Design stage of the process.
 
 - [ ] **`grpc-proto` RPC prototypes**: merged change
+
+
+/label ~"Client Implementation"
