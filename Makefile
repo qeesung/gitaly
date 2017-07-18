@@ -1,7 +1,6 @@
 PREFIX=/usr/local
 PKG=gitlab.com/gitlab-org/gitaly
 BUILD_DIR=${CURDIR}
-TARGET_DIR := ${BUILD_DIR}/_build
 BIN_BUILD_DIR=${BUILD_DIR}/_build/bin
 PKG_BUILD_DIR:=${BUILD_DIR}/_build/src/${PKG}
 CMDS:=$(shell cd cmd && ls)
