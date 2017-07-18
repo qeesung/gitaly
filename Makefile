@@ -7,7 +7,8 @@ CMDS:=$(shell cd cmd && ls)
 TEST_REPO=internal/testhelper/testdata/data/gitlab-test.git
 
 BUILDTIME=$(shell date -u +%Y%m%d.%H%M%S)
-VERSION=$(shell git describe)
+VERSION_PREFIXED=$(shell git describe)
+VERSION=$(VERSION_PREFIXED:v%=%)
 LDFLAGS="-ldflags '-X ${PKG}/internal/version.version=${VERSION} -X ${PKG}/internal/version.buildtime=${BUILDTIME}'"
 
 export GOPATH=${BUILD_DIR}/_build
