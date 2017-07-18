@@ -52,7 +52,6 @@ package: build
 	./_support/package/package ${CMDS}
 
 notice:	${BUILD_DIR}/_build install-developer-tools
-	rm -f ${PKG_BUILD_DIR}/NOTICE # Avoid NOTICE-in-NOTICE
 	cd ${PKG_BUILD_DIR} && govendor license -template _support/notice.template -o ${BUILD_DIR}/NOTICE
 
 notice-up-to-date:	notice
