@@ -9,15 +9,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
 	"gitlab.com/gitlab-org/gitaly/internal/server"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gitlab.com/gitlab-org/gitaly/internal/version"
 )
-
-var version string
 
 var (
 	flagVersion = flag.Bool("version", false, "Print version and exit")
@@ -56,9 +54,12 @@ func validateConfig() error {
 // making it easy to see what versions of Gitaly are running across a cluster
 func registerServerVersionPromGauge() {
 	gitlabBuildInfoGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name:        "gitlab_build_info",
-		Help:        "Current build info for this GitLab Service",
-		ConstLabels: prometheus.Labels{"version": version},
+		Name: "gitlab_build_info",
+		Help: "Current build info for this GitLab Service",
+		ConstLabels: prometheus.Labels{
+			"version": version.GetVersion(),
+			"built":   version.GetBuildTime(),
+		},
 	})
 
 	prometheus.MustRegister(gitlabBuildInfoGauge)
@@ -66,7 +67,7 @@ func registerServerVersionPromGauge() {
 }
 
 func flagUsage() {
-	fmt.Printf("Gitaly, version %v\n", version)
+	fmt.Println(version.GetVersionString())
 	fmt.Printf("Usage: %v [OPTIONS] configfile\n", os.Args[0])
 	flag.PrintDefaults()
 }
@@ -77,7 +78,7 @@ func main() {
 
 	// If invoked with -version
 	if *flagVersion {
-		fmt.Printf("Gitaly, version %v\n", version)
+		fmt.Println(version.GetVersionString())
 		os.Exit(0)
 	}
 
@@ -86,7 +87,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	log.WithField("version", version).Info("Starting Gitaly")
+	log.WithField("version", version.GetVersionString()).Info("Starting Gitaly")
 	registerServerVersionPromGauge()
 
 	loadConfig()
@@ -96,7 +97,7 @@ func main() {
 	}
 
 	config.ConfigureLogging()
-	config.ConfigureSentry(version)
+	config.ConfigureSentry(version.GetVersion())
 	config.ConfigurePrometheus()
 
 	var listeners []net.Listener

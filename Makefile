@@ -6,7 +6,10 @@ BIN_BUILD_DIR=${BUILD_DIR}/_build/bin
 PKG_BUILD_DIR:=${BUILD_DIR}/_build/src/${PKG}
 CMDS:=$(shell cd cmd && ls)
 TEST_REPO=internal/testhelper/testdata/data/gitlab-test.git
-VERSION=$(shell git describe)-$(shell date -u +%Y%m%d.%H%M%S)
+
+BUILDTIME=$(shell date -u +%Y%m%d.%H%M%S)
+VERSION=$(shell git describe)
+LDFLAGS="-ldflags '-X ${PKG}/internal/version.version=${VERSION} -X ${PKG}/internal/version.buildtime=${BUILDTIME}'"
 
 export GOPATH=${BUILD_DIR}/_build
 export GO15VENDOREXPERIMENT=1
@@ -25,7 +28,7 @@ ${BUILD_DIR}/_build:
 
 build:	clean-build ${BUILD_DIR}/_build $(shell find . -name '*.go' -not -path './vendor/*' -not -path './_build/*')
 	rm -f -- "${BIN_BUILD_DIR}/*"
-	go install -ldflags "-X main.version=${VERSION}" ${PKG}/cmd/...
+	go install "${LDFLAGS}" ${PKG}/cmd/...
 	cp ${BIN_BUILD_DIR}/* ${BUILD_DIR}/
 
 install: build
