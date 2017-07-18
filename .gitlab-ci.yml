@@ -2,8 +2,14 @@ image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.7-git-2.8.4
 
 stages:
   - test
+  - build
   - package
   - publish
+
+verify:
+  stage: test
+  script:
+    - make verify
 
 .test_template: &test_definition
   stage: test
