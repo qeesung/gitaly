@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+UNRELEASED
+- Config: do not start Gitaly without at least one storage
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/227
+
 v0.21.1
 - Make sure stdout.Read has enough bytes buffered to read from
   https://gitlab.com/gitlab-org/gitaly/merge_requests/224
