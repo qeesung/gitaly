@@ -56,7 +56,7 @@ notice:	${BUILD_DIR}/_build install-developer-tools
 	cd ${PKG_BUILD_DIR} && govendor license -template _support/notice.template -o ${BUILD_DIR}/NOTICE
 
 .PHONY: notice-up-to-date
-notice-up-to-date:
+notice-up-to-date: ${BUILD_DIR}/_build install-developer-tools
 	@cd ${PKG_BUILD_DIR} && govendor license -template _support/notice.template -o ${TARGET_DIR}/nutd.temp
 	diff ${TARGET_DIR}/nutd.temp NOTICE
 	@rm -f ${TARGET_DIR}/nutd.temp
