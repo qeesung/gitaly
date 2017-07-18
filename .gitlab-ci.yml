@@ -2,7 +2,6 @@ image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.7-git-2.8.4
 
 stages:
   - test
-  - build
   - package
   - publish
 
