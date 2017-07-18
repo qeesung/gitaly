@@ -80,6 +80,10 @@ func Validate() error {
 }
 
 func validateStorages() error {
+	if len(Config.Storages) == 0 {
+		return fmt.Errorf("config: no storage configurations found. Is your gitaly.config correctly configured? https://gitlab.com/gitlab-org/gitaly/issues/397")
+	}
+
 	seenNames := make(map[string]bool)
 	for _, st := range Config.Storages {
 		if st.Name == "" {
