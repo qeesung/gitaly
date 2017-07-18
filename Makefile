@@ -1,7 +1,6 @@
 PREFIX=/usr/local
 PKG=gitlab.com/gitlab-org/gitaly
 BUILD_DIR=${CURDIR}
-TARGET_DIR := ${BUILD_DIR}/_build
 BIN_BUILD_DIR=${BUILD_DIR}/_build/bin
 PKG_BUILD_DIR:=${BUILD_DIR}/_build/src/${PKG}
 CMDS:=$(shell cd cmd && ls)
@@ -60,9 +59,7 @@ notice:	${BUILD_DIR}/_build install-developer-tools
 
 .PHONY: notice-up-to-date
 notice-up-to-date: ${BUILD_DIR}/_build install-developer-tools
-	@cd ${PKG_BUILD_DIR} && govendor license -template _support/notice.template -o ${TARGET_DIR}/nutd.temp
-	diff ${TARGET_DIR}/nutd.temp NOTICE
-	@rm -f ${TARGET_DIR}/nutd.temp
+	@(cd ${PKG_BUILD_DIR} && govendor license -template _support/notice.template | cmp - NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
 clean:	clean-build
 	rm -rf internal/testhelper/testdata
