@@ -24,9 +24,9 @@ func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 	return treeInfo, nil
 }
 
-func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
+func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
 	var entries []*pb.TreeEntry
-	var modeBytes, path []byte
+	var modeBytes, filename []byte
 	var err error
 
 	// Non-existing tree, return empty entry list
@@ -45,12 +45,12 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid strin
 		bytesLeft -= int64(len(modeBytes))
 		modeBytes = modeBytes[:len(modeBytes)-1]
 
-		path, err = stdout.ReadBytes('\x00')
-		if err != nil || len(path) <= 1 {
+		filename, err = stdout.ReadBytes('\x00')
+		if err != nil || len(filename) <= 1 {
 			return nil, fmt.Errorf("read entry path: %v", err)
 		}
-		bytesLeft -= int64(len(path))
-		path = path[:len(path)-1]
+		bytesLeft -= int64(len(filename))
+		filename = filename[:len(filename)-1]
 
 		// bufio.Reader.Read isn't guaranteed to read len(p) since bytes
 		// are taken from at most one Read on the underlying Reader.
@@ -64,7 +64,7 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid strin
 
 		bytesLeft -= int64(len(oidBytes))
 
-		treeEntry, err := newTreeEntry(commitOid, rootOid, path, oidBytes, modeBytes)
+		treeEntry, err := newTreeEntry(commitOid, rootOid, rootPath, filename, oidBytes, modeBytes)
 		if err != nil {
 			return nil, fmt.Errorf("new entry info: %v", err)
 		}
@@ -90,7 +90,7 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 	if err != nil {
 		return nil, err
 	}
-	entries, err := extractEntryInfoFromTreeData(stdout, revision, rootTreeInfo.Oid, rootTreeInfo)
+	entries, err := extractEntryInfoFromTreeData(stdout, revision, rootTreeInfo.Oid, "", rootTreeInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -104,5 +104,5 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 	if err != nil {
 		return nil, err
 	}
-	return extractEntryInfoFromTreeData(stdout, revision, rootTreeInfo.Oid, treeInfo)
+	return extractEntryInfoFromTreeData(stdout, revision, rootTreeInfo.Oid, path, treeInfo)
 }

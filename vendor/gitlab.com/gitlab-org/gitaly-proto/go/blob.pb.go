@@ -36,6 +36,8 @@ It has these top-level messages:
 	ListFilesResponse
 	FindCommitRequest
 	FindCommitResponse
+	FindAllCommitsRequest
+	FindAllCommitsResponse
 	CommitDiffRequest
 	CommitDiffResponse
 	CommitDeltaRequest
