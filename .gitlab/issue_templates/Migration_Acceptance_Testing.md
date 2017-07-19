@@ -13,7 +13,7 @@ Feature Toggle Name: `gitaly_xxxxx`
   - Please list a set of routes that are known to use this endpoint
 - [ ] **Sentry**:
   - [ ] Ensure that all `gitaly_migrate` issues in the `GitLab.com` tracker are either assigned or resolved: https://sentry.gitlap.com/gitlab/gitlabcom/?query=is%3Aunresolved+is%3Aunassigned+gitaly_migrate
-  - [ ] Ensure that all issues in the `` tracker are either assigned or resolved: https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+is%3Aunassigned
+  - [ ] Ensure that all issues in the `Gitaly Production` tracker are either assigned or resolved: https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+is%3Aunassigned
 - [ ] **Grafana**
   - [ ] Link to the Gitaly Feature Status dashboard (edit accordingly): https://performance.gitlab.net/dashboard/db/gitaly-feature-status?var-method=CommitStats&refresh=5m&orgId=1
 - [ ] **Kibana**
