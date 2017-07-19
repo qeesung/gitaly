@@ -11,7 +11,6 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -85,7 +84,7 @@ func runSSHServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterSSHServer(server, renameadapter.NewSSHAdapter(NewServer()))
+	pb.RegisterSSHServiceServer(server, NewServer())
 	reflection.Register(server)
 
 	go server.Serve(listener)
@@ -93,7 +92,7 @@ func runSSHServer(t *testing.T) *grpc.Server {
 	return server
 }
 
-func newSSHClient(t *testing.T) pb.SSHClient {
+func newSSHClient(t *testing.T) pb.SSHServiceClient {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
@@ -105,5 +104,5 @@ func newSSHClient(t *testing.T) pb.SSHClient {
 		t.Fatal(err)
 	}
 
-	return pb.NewSSHClient(conn)
+	return pb.NewSSHServiceClient(conn)
 }

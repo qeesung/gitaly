@@ -133,7 +133,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "60d7a906c2fd9e4509aeb1187b98d0ea7ce827c9",
 			RootOid:   rootOid,
-			Path:      []byte(".DS_Store"),
+			Path:      []byte("files/.DS_Store"),
 			Type:      pb.TreeEntry_BLOB,
 			Mode:      0100644,
 			CommitOid: commitID,
@@ -141,7 +141,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "a1e8f8d745cc87e3a9248358d9352bb7f9a0aeba",
 			RootOid:   rootOid,
-			Path:      []byte("html"),
+			Path:      []byte("files/html"),
 			Type:      pb.TreeEntry_TREE,
 			Mode:      040000,
 			CommitOid: commitID,
@@ -149,7 +149,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "5e147e3af6740ee83103ec2ecdf846cae696edd1",
 			RootOid:   rootOid,
-			Path:      []byte("images"),
+			Path:      []byte("files/images"),
 			Type:      pb.TreeEntry_TREE,
 			Mode:      040000,
 			CommitOid: commitID,
@@ -157,7 +157,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "7853101769f3421725ddc41439c2cd4610e37ad9",
 			RootOid:   rootOid,
-			Path:      []byte("js"),
+			Path:      []byte("files/js"),
 			Type:      pb.TreeEntry_TREE,
 			Mode:      040000,
 			CommitOid: commitID,
@@ -165,7 +165,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "fd581c619bf59cfdfa9c8282377bb09c2f897520",
 			RootOid:   rootOid,
-			Path:      []byte("markdown"),
+			Path:      []byte("files/markdown"),
 			Type:      pb.TreeEntry_TREE,
 			Mode:      040000,
 			CommitOid: commitID,
@@ -173,7 +173,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 		{
 			Oid:       "b59dbe4a27371d53e61bf3cb8bef66be53572db0",
 			RootOid:   rootOid,
-			Path:      []byte("ruby"),
+			Path:      []byte("files/ruby"),
 			Type:      pb.TreeEntry_TREE,
 			Mode:      040000,
 			CommitOid: commitID,

@@ -5,6 +5,11 @@ stages:
   - package
   - publish
 
+verify:
+  stage: test
+  script:
+    - make verify
+
 .test_template: &test_definition
   stage: test
   script:

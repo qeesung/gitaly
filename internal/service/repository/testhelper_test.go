@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
@@ -16,7 +17,11 @@ import (
 
 const scratchDir = "testdata/scratch"
 
+// Stamp taken from https://golang.org/pkg/time/#pkg-constants
+const testTimeString = "200601021504.05"
+
 var (
+	testTime         = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
 	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
 	testRepo         *pb.Repository
 )
@@ -61,4 +66,19 @@ func runRepoServer(t *testing.T) *grpc.Server {
 	go server.Serve(listener)
 
 	return server
+}
+
+func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool {
+	// NOTE: Since some filesystems don't have sub-second precision on `mtime`
+	//       we're rounding the times to seconds
+	afterTime = afterTime.Round(time.Second)
+	for _, path := range paths {
+		s, err := os.Stat(path)
+		assert.NoError(t, err)
+
+		if !s.ModTime().Round(time.Second).After(afterTime) {
+			t.Errorf("ModTime is not after afterTime: %q < %q", s.ModTime().Round(time.Second).String(), afterTime.String())
+		}
+	}
+	return t.Failed()
 }

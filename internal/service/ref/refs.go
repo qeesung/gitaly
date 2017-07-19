@@ -18,9 +18,11 @@ import (
 
 var (
 	master = []byte("refs/heads/master")
+
 	// We declare the following functions in variables so that we can override them in our tests
-	findBranchNames = _findBranchNames
-	headReference   = _headReference
+	headReference = _headReference
+	// FindBranchNames is exported to be used in other packages
+	FindBranchNames = _findBranchNames
 )
 
 func findRefs(writer lines.Sender, repo *pb.Repository, pattern string, args ...string) error {
@@ -119,7 +121,7 @@ func _headReference(repoPath string) ([]byte, error) {
 }
 
 func defaultBranchName(repoPath string) ([]byte, error) {
-	branches, err := findBranchNames(repoPath)
+	branches, err := FindBranchNames(repoPath)
 
 	if err != nil {
 		return nil, err

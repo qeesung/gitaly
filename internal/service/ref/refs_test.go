@@ -204,7 +204,7 @@ func TestHeadReferenceWithNonExistingHead(t *testing.T) {
 func TestDefaultBranchName(t *testing.T) {
 	// We are going to override these functions during this test. Restore them after we're done
 	defer func() {
-		findBranchNames = _findBranchNames
+		FindBranchNames = _findBranchNames
 		headReference = _headReference
 	}()
 
@@ -255,7 +255,7 @@ func TestDefaultBranchName(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		findBranchNames = testCase.findBranchNames
+		FindBranchNames = testCase.findBranchNames
 		headReference = testCase.headReference
 
 		defaultBranch, err := defaultBranchName("")

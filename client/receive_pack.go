@@ -16,7 +16,7 @@ func ReceivePack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, st
 	ctx2, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ssh := pb.NewSSHClient(conn)
+	ssh := pb.NewSSHServiceClient(conn)
 	stream, err := ssh.SSHReceivePack(ctx2)
 	if err != nil {
 		return 0, err

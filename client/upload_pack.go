@@ -16,7 +16,7 @@ func UploadPack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, std
 	ctx2, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ssh := pb.NewSSHClient(conn)
+	ssh := pb.NewSSHServiceClient(conn)
 	stream, err := ssh.SSHUploadPack(ctx2)
 	if err != nil {
 		return 0, err

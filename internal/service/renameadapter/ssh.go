@@ -14,7 +14,7 @@ func (s *sshAdapter) SSHReceivePack(stream pb.SSH_SSHReceivePackServer) error {
 	return s.upstream.SSHReceivePack(stream)
 }
 
-// NewSSHAdapter creates a sshAdapter between SmartHTTPServiceServer and SmartHTTPServer
+// NewSSHAdapter creates a sshAdapter between SSHServiceServer and SSHServer
 func NewSSHAdapter(upstream pb.SSHServiceServer) pb.SSHServer {
 	return &sshAdapter{upstream}
 }

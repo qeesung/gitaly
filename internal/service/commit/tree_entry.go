@@ -123,7 +123,7 @@ func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_Tree
 	}
 
 	requestPath := string(in.GetPath())
-	handler := treeEntryHandler(stream, string(in.GetRevision()), path.Dir(requestPath), path.Base(requestPath), in.GetLimit())
+	handler := treeEntryHandler(stream, string(in.GetRevision()), path.Dir(requestPath), requestPath, in.GetLimit())
 	return catfile.CatFile(repoPath, handler)
 }
 
