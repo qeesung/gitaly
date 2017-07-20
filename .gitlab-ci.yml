@@ -25,6 +25,9 @@ cover:
   stage: test
   script:
     - make cover
+  artifacts:
+    paths:
+      - _build/cover/all.html
 
 package:
   stage: package
@@ -39,7 +42,6 @@ package:
     - cat DEBIAN/control
     - cat DEBIAN/md5sums
     - rm -rf DEBIAN
-  allow_failure: true
   artifacts:
     paths:
       - ./*.deb
@@ -57,3 +59,4 @@ publish:
     - ls -lh *.deb
     - shasum -a256 *.deb
     - package_cloud push $PACKAGECLOUD_REPO *.deb --url=https://packages.gitlab.com
+  allow_failure: true
