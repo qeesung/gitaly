@@ -17,6 +17,8 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
+	"path/filepath"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -36,6 +38,17 @@ func MustReadFile(t *testing.T, filename string) []byte {
 
 // GitlabTestStoragePath returns the storage path to the gitlab-test repo.
 func GitlabTestStoragePath() string {
+	// If TEST_REPO_LOCATION has been set (by the Makefile) then use that
+	testRepoPath := os.Getenv("TEST_REPO_LOCATION")
+	if testRepoPath != "" {
+		testRepoPathAbs, err := filepath.Abs(testRepoPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return testRepoPathAbs
+	}
+
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		log.Fatal("Could not get caller info")

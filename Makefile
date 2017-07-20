@@ -5,8 +5,10 @@ TARGET_DIR := $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
-TEST_REPO=internal/testhelper/testdata/data/gitlab-test.git
+export TEST_REPO_LOCATION := $(TARGET_DIR)/testdata/data
+TEST_REPO := $(TEST_REPO_LOCATION)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
+COVERAGE_DIR := $(TARGET_DIR)/cover
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
 VERSION_PREFIXED = $(shell git describe)
@@ -24,6 +26,7 @@ COMMANDS = $(subst $(PKG)/cmd/,,$(COMMAND_PACKAGES))
 # Developer Tools
 GOVENDOR = $(BIN_BUILD_DIR)/govendor
 GOLINT = $(BIN_BUILD_DIR)/golint
+GOCOVMERGE = $(BIN_BUILD_DIR)/gocovmerge
 
 .NOTPARALLEL:
 
@@ -89,6 +92,23 @@ clean:
 format:
 	@go run _support/gofmt-all.go -f
 
+.PHONY: cover
+cover: $(TARGET_SETUP) $(TEST_REPO) $(GOCOVMERGE)
+	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
+	mkdir -p "$(COVERAGE_DIR)"
+	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
+	@for MOD in $(LOCAL_PACKAGES); do \
+		go test -coverpkg=`echo $(LOCAL_PACKAGES)|tr " " ","` \
+			-coverprofile=$(COVERAGE_DIR)/unit-`echo $$MOD|tr "/" "_"`.out \
+			$$MOD 2>&1 | grep -v "no packages being tested depend on"; \
+	done
+	$(GOCOVMERGE) $(COVERAGE_DIR)/*.out > "$(COVERAGE_DIR)/all.merged"
+	go tool cover -html  "$(COVERAGE_DIR)/all.merged" -o "$(COVERAGE_DIR)/all.html"
+	@echo ""
+	@echo "=====> Total test coverage: <====="
+	@echo ""
+	@go tool cover -func "$(COVERAGE_DIR)/all.merged"
+
 # Install govendor
 $(GOVENDOR): $(TARGET_SETUP)
 	@go run _support/go-get-if-missing.go govendor github.com/kardianos/govendor
@@ -96,3 +116,7 @@ $(GOVENDOR): $(TARGET_SETUP)
 # Install golint
 $(GOLINT): $(TARGET_SETUP)
 	@go run _support/go-get-if-missing.go golint github.com/golang/lint/golint
+
+# Install gocovmerge
+$(GOCOVMERGE): $(TARGET_SETUP)
+	@go run _support/go-get-if-missing.go gocovmerge github.com/wadey/gocovmerge

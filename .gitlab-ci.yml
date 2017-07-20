@@ -15,22 +15,20 @@ verify:
   script:
     - go version
     - git version
-    - make
     - make test
 
 test:go1.8:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.8-git-2.8.4
 
-verify:
+cover:
   stage: test
   script:
-    - make notice-up-to-date
-    - make verify
+    - make cover
 
 package:
   stage: package
-  only: 
+  only:
     - tags
   script:
     - apt-get update -qq
