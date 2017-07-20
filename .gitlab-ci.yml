@@ -61,6 +61,7 @@ publish:
     - package_cloud push $PACKAGECLOUD_REPO *.deb --url=https://packages.gitlab.com
   allow_failure: true
 
+# Create a code quality report
 codeclimate:
   image: docker:latest
   stage: test
