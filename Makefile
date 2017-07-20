@@ -93,7 +93,7 @@ format:
 	@go run _support/gofmt-all.go -f
 
 .PHONY: cover
-cover: $(TARGET_SETUP) $(TEST_REPO) $(GOCOVMERGE)
+cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "$(COVERAGE_DIR)"
 	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
