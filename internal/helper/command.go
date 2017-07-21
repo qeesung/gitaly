@@ -50,8 +50,8 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	command := &Command{Cmd: cmd}
 
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"filename": cmd.Path,
-		"args":     cmd.Args,
+		"path": cmd.Path,
+		"args": cmd.Args,
 	}).Info("Spawn")
 
 	// Explicitly set the environment for the command
