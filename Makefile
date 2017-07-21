@@ -20,6 +20,7 @@ export PATH := $(GOPATH)/bin:$(PATH)
 
 # Returns a list of all non-vendored (local packages)
 LOCAL_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) PATH=$(PATH) govendor list -no-status +local)
+LOCAL_GO_FILES = $(shell find -L $(PKG_BUILD_DIR)  -name "*.go" -not -path "$(PKG_BUILD_DIR)/vendor/*" -not -path "$(PKG_BUILD_DIR)/_build/*")
 COMMAND_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) PATH=$(PATH) govendor list -no-status +local +p ./cmd/...)
 COMMANDS = $(subst $(PKG)/cmd/,,$(COMMAND_PACKAGES))
 
@@ -27,6 +28,7 @@ COMMANDS = $(subst $(PKG)/cmd/,,$(COMMAND_PACKAGES))
 GOVENDOR = $(BIN_BUILD_DIR)/govendor
 GOLINT = $(BIN_BUILD_DIR)/golint
 GOCOVMERGE = $(BIN_BUILD_DIR)/gocovmerge
+GOIMPORTS = $(BIN_BUILD_DIR)/goimports
 
 .NOTPARALLEL:
 
@@ -51,7 +53,7 @@ install: $(GOVENDOR) build
 	cd $(BIN_BUILD_DIR) && install $(COMMANDS) $(INSTALL_DEST_DIR)
 
 .PHONY: verify
-verify: lint check-formatting govendor-status notice-up-to-date
+verify: check-imports lint check-formatting govendor-status notice-up-to-date
 
 .PHONY: check-formatting
 check-formatting:
@@ -71,6 +73,14 @@ test: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR)
 .PHONY: lint
 lint: $(GOLINT)
 	go run _support/lint.go
+
+.PHONY: check-imports
+check-imports: $(TARGET_SETUP) $(GOIMPORTS)
+	@test -z "$$($(GOIMPORTS) -e -l $(LOCAL_GO_FILES))" || (echo >&2 "Imports need fixing" && $(GOIMPORTS) -e -l $(LOCAL_GO_FILES) && false)
+
+.PHONY: fix-imports
+fix-imports: $(TARGET_SETUP) $(GOIMPORTS)
+	@$(GOIMPORTS) -w -l $(LOCAL_GO_FILES)
 
 .PHONY: package
 package: build
@@ -121,3 +131,7 @@ $(GOLINT): $(TARGET_SETUP)
 # Install gocovmerge
 $(GOCOVMERGE): $(TARGET_SETUP)
 	@go run _support/go-get-if-missing.go gocovmerge github.com/wadey/gocovmerge
+
+# Install goimports
+$(GOIMPORTS): $(TARGET_SETUP)
+	@go run _support/go-get-if-missing.go goimports golang.org/x/tools/cmd/goimports
