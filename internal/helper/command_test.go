@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 func TestNewCommand_Env(t *testing.T) {
@@ -14,7 +16,7 @@ func TestNewCommand_Env(t *testing.T) {
 	os.Setenv("TZ", "foobar")
 
 	buff := &bytes.Buffer{}
-	cmd, err := NewCommand(exec.Command("env"), nil, buff, nil)
+	cmd, err := NewCommand(context.Background(), exec.Command("env"), nil, buff, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

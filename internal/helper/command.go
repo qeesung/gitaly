@@ -1,12 +1,14 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"syscall"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
 	log "github.com/Sirupsen/logrus"
@@ -39,13 +41,18 @@ func (c *Command) Kill() {
 }
 
 // GitCommandReader creates a git Command with the given args
-func GitCommandReader(args ...string) (*Command, error) {
-	return NewCommand(exec.Command(GitPath(), args...), nil, nil, nil)
+func GitCommandReader(ctx context.Context, args ...string) (*Command, error) {
+	return NewCommand(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
 }
 
 // NewCommand creates a Command from an exec.Cmd
-func NewCommand(cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
+func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	command := &Command{Cmd: cmd}
+
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"filename": cmd.Path,
+		"args":     cmd.Args,
+	}).Info("Spawn")
 
 	// Explicitly set the environment for the command
 	cmd.Env = []string{

@@ -2,6 +2,8 @@ package repository
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,8 +18,7 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath":     repoPath,
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"WriteBitmaps": in.GetCreateBitmap(),
 	}).Debug("GarbageCollect")
 
@@ -28,7 +29,7 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		args = append(args, "repack.writeBitmaps=false")
 	}
 	args = append(args, "gc")
-	cmd, err := helper.GitCommandReader(args...)
+	cmd, err := helper.GitCommandReader(ctx, args...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}

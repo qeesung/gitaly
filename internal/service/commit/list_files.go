@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -23,22 +24,21 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 
 	revision := in.GetRevision()
 	if len(revision) == 0 {
-		revision, err = defaultBranchName(repoPath)
+		revision, err = defaultBranchName(stream.Context(), repoPath)
 		if err != nil {
 			return grpc.Errorf(codes.NotFound, "Revision not found %q", in.GetRevision())
 		}
 	}
-	if !helper.IsValidRef(repoPath, string(revision)) {
+	if !helper.IsValidRef(stream.Context(), repoPath, string(revision)) {
 		return stream.Send(&pb.ListFilesResponse{})
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath":       repoPath,
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
 		"Revision":       in.Revision,
 		"LookupRevision": revision,
 	}).Debug("GitLog")
 
-	cmd, err := helper.GitCommandReader("--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
+	cmd, err := helper.GitCommandReader(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
