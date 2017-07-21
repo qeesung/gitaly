@@ -52,7 +52,7 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"path": cmd.Path,
 		"args": cmd.Args,
-	}).Info("Spawn")
+	}).Info("spawn")
 
 	// Explicitly set the environment for the command
 	cmd.Env = []string{
