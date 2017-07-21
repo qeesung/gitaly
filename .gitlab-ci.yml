@@ -1,28 +1,45 @@
-image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.7-git-2.8.4
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.8-git-2.8.4
 
 stages:
-  - test
+  - build_test
   - package
   - publish
 
 verify:
-  stage: test
+  stage: build_test
   script:
     - make verify
 
 .test_template: &test_definition
-  stage: test
+  stage: build_test
   script:
     - go version
     - git version
     - make test
 
-test:go1.8:
+.build_template: &build_definition
+  stage: build_test
+  script:
+    - make
+
+build:default:
+  <<: *build_definition
+
+test:default:
   <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.8-git-2.8.4
+
+# If we want to build and test on other golang version in future....
+#
+# build:go1.9:
+#  <<: *build_definition
+#  image: ...
+#
+# test:go1.9:
+#  <<: *test_definition
+#  image: ...
 
 cover:
-  stage: test
+  stage: build_test
   script:
     - make cover
   artifacts:

@@ -5,8 +5,8 @@ TARGET_DIR := $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
-export TEST_REPO_LOCATION := $(TARGET_DIR)/testdata/data
-TEST_REPO := $(TEST_REPO_LOCATION)/gitlab-test.git
+export TEST_REPO_STORAGE_PATH := $(TARGET_DIR)/testdata/data
+TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
 
