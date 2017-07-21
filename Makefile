@@ -5,8 +5,8 @@ TARGET_DIR := $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
-export TEST_REPO_LOCATION := $(TARGET_DIR)/testdata/data
-TEST_REPO := $(TEST_REPO_LOCATION)/gitlab-test.git
+export TEST_REPO_STORAGE_PATH := $(TARGET_DIR)/testdata/data
+TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
 
@@ -97,8 +97,9 @@ cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "$(COVERAGE_DIR)"
 	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
-	@for MOD in $(LOCAL_PACKAGES); do \
-		go test -coverpkg=`echo $(LOCAL_PACKAGES)|tr " " ","` \
+	echo $(LOCAL_PACKAGES) > $(TARGET_DIR)/local_packages
+	for MOD in `cat $(TARGET_DIR)/local_packages`; do \
+		go test -coverpkg=`cat $(TARGET_DIR)/local_packages |tr " " "," ` \
 			-coverprofile=$(COVERAGE_DIR)/unit-`echo $$MOD|tr "/" "_"`.out \
 			$$MOD 2>&1 | grep -v "no packages being tested depend on"; \
 	done
