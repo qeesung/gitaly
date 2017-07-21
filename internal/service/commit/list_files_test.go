@@ -2,10 +2,9 @@ package commit
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"google.golang.org/grpc/codes"
 

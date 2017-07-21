@@ -2,11 +2,10 @@ package helper
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"testing"
-
-	"golang.org/x/net/context"
 )
 
 func TestNewCommand_Env(t *testing.T) {

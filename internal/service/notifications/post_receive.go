@@ -3,7 +3,6 @@ package notifications
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-
 	"golang.org/x/net/context"
 )
 

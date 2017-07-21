@@ -9,7 +9,6 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
