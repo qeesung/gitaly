@@ -29,8 +29,8 @@ def main(version)
   abort unless $stdin.gets.chomp == 'Yes'
 
   %w[
-    https://gitlab.com/gitlab-org/gitaly.git
-    https://dev.gitlab.org/gitlab/gitaly.git
+    git@gitlab.com:gitlab-org/gitaly.git
+    git@dev.gitlab.org:gitlab/gitaly.git
   ].each do |remote|
     run!(%W[git push #{remote} HEAD #{tag_name}])
   end
