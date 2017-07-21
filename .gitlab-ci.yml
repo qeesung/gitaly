@@ -76,4 +76,3 @@ publish:
     - ls -lh *.deb
     - shasum -a256 *.deb
     - package_cloud push $PACKAGECLOUD_REPO *.deb --url=https://packages.gitlab.com
-  allow_failure: true
