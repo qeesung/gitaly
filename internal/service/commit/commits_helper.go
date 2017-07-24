@@ -40,14 +40,14 @@ const (
 )
 
 func gitLog(ctx context.Context, writer lines.Sender, repo *pb.Repository, revisionRange [][]byte, extraArgs ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"Revision Range": revisionRange,
+	}).Debug("GitLog")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"Revision Range": revisionRange,
-	}).Debug("GitLog")
 
 	formatFlag := "--pretty=format:" + strings.Join(commitLogFormatFields, fieldDelimiterGitFormatString)
 

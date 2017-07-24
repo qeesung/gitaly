@@ -27,14 +27,14 @@ var (
 )
 
 func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pattern string, args ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"Pattern": pattern,
+	}).Debug("FindRefs")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"Pattern": pattern,
-	}).Debug("FindRefs")
 
 	baseArgs := []string{"--git-dir", repoPath, "for-each-ref", pattern}
 
@@ -163,12 +163,12 @@ func DefaultBranchName(ctx context.Context, repoPath string) ([]byte, error) {
 
 // FindDefaultBranchName returns the default branch name for the given repository
 func (s *server) FindDefaultBranchName(ctx context.Context, in *pb.FindDefaultBranchNameRequest) (*pb.FindDefaultBranchNameResponse, error) {
+	grpc_logrus.Extract(ctx).Debug("FindDefaultBranchName")
+
 	repoPath, err := helper.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return nil, err
 	}
-
-	grpc_logrus.Extract(ctx).Debug("FindDefaultBranchName")
 
 	defaultBranchName, err := DefaultBranchName(ctx, repoPath)
 	if err != nil {

@@ -19,6 +19,13 @@ type requestWithLeftRightCommitIds interface {
 }
 
 func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_CommitDiffServer) error {
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"LeftCommitId":           in.LeftCommitId,
+		"RightCommitId":          in.RightCommitId,
+		"IgnoreWhitespaceChange": in.IgnoreWhitespaceChange,
+		"Paths":                  in.Paths,
+	}).Debug("CommitDiff")
+
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDiff: %v", err)
 	}
@@ -31,13 +38,6 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 	rightSha := in.RightCommitId
 	ignoreWhitespaceChange := in.GetIgnoreWhitespaceChange()
 	paths := in.GetPaths()
-
-	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
-		"LeftCommitId":           leftSha,
-		"RightCommitId":          rightSha,
-		"IgnoreWhitespaceChange": ignoreWhitespaceChange,
-		"Paths":                  paths,
-	}).Debug("CommitDiff")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,
@@ -120,6 +120,12 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 }
 
 func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_CommitDeltaServer) error {
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"LeftCommitId":  in.LeftCommitId,
+		"RightCommitId": in.RightCommitId,
+		"Paths":         in.Paths,
+	}).Debug("CommitDelta")
+
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDelta: %v", err)
 	}
@@ -131,12 +137,6 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 	leftSha := in.LeftCommitId
 	rightSha := in.RightCommitId
 	paths := in.GetPaths()
-
-	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
-		"LeftCommitId":  leftSha,
-		"RightCommitId": rightSha,
-		"Paths":         paths,
-	}).Debug("CommitDelta")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,

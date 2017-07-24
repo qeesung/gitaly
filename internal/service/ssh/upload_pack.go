@@ -12,6 +12,8 @@ import (
 )
 
 func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
+	grpc_logrus.Extract(stream.Context()).Debug("SSHUploadPack")
+
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
 		return err
@@ -34,8 +36,6 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(stream.Context()).Debug("SSHUploadPack")
 
 	osCommand := exec.Command(helper.GitPath(), "upload-pack", repoPath)
 	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr)

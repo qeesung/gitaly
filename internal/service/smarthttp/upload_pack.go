@@ -29,6 +29,8 @@ func init() {
 }
 
 func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer) error {
+	grpc_logrus.Extract(stream.Context()).Debug("PostUploadPack")
+
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
 		return err
@@ -56,8 +58,6 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(stream.Context()).Debug("PostUploadPack")
 
 	osCommand := exec.Command(helper.GitPath(), "upload-pack", "--stateless-rpc", repoPath)
 	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, nil)

@@ -30,6 +30,10 @@ func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTP
 }
 
 func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w io.Writer) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"service": service,
+	}).Debug("handleInfoRefs")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
@@ -40,10 +44,6 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 	defer cmd.Kill()
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"service": service,
-	}).Debug("handleInfoRefs")
 
 	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)

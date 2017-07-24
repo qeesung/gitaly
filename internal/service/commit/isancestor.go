@@ -34,17 +34,17 @@ func (s *server) CommitIsAncestor(ctx context.Context, in *pb.CommitIsAncestorRe
 
 // Assumes that `path`, `ancestorID` and `childID` are populated :trollface:
 func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string) (bool, error) {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"ancestorSha": ancestorID,
+		"childSha":    childID,
+	}).Debug("commitIsAncestor")
+
 	osCommand := exec.Command(helper.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
 	cmd, err := helper.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
 	defer cmd.Kill()
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"ancestorSha": ancestorID,
-		"childSha":    childID,
-	}).Debug("commitIsAncestor")
 
 	return cmd.Wait() == nil, nil
 }

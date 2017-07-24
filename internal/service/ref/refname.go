@@ -36,16 +36,16 @@ func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*p
 
 // We assume `path` and `commitID` and `prefix` are non-empty
 func findRefName(ctx context.Context, path, commitID, prefix string) (string, error) {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"commitSha": commitID,
+		"prefix":    prefix,
+	}).Debug("findRefName")
+
 	cmd, err := helper.GitCommandReader(ctx, "--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
 	if err != nil {
 		return "", err
 	}
 	defer cmd.Kill()
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"commitSha": commitID,
-		"prefix":    prefix,
-	}).Debug("findRefName")
 
 	scanner := bufio.NewScanner(cmd)
 	scanner.Scan()

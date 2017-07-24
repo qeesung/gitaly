@@ -47,12 +47,12 @@ func GitCommandReader(ctx context.Context, args ...string) (*Command, error) {
 
 // NewCommand creates a Command from an exec.Cmd
 func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
-	command := &Command{Cmd: cmd}
-
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"path": cmd.Path,
 		"args": cmd.Args,
 	}).Info("spawn")
+
+	command := &Command{Cmd: cmd}
 
 	// Explicitly set the environment for the command
 	cmd.Env = []string{

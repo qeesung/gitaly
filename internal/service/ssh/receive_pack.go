@@ -19,6 +19,12 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	if err != nil {
 		return err
 	}
+
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"GlID":         req.GlId,
+		"GlRepository": req.GlRepository,
+	}).Debug("SSHReceivePack")
+
 	if err = validateFirstReceivePackRequest(req); err != nil {
 		return err
 	}
@@ -45,11 +51,6 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
-		"GlID":         req.GlId,
-		"GlRepository": req.GlRepository,
-	}).Debug("SSHReceivePack")
 
 	osCommand := exec.Command(helper.GitPath(), "receive-pack", repoPath)
 	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr, env...)

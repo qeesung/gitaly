@@ -26,14 +26,14 @@ func (server) RepackIncremental(ctx context.Context, in *pb.RepackIncrementalReq
 }
 
 func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bitmap bool, args ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"WriteBitmaps": bitmap,
+	}).Debug(rpcName)
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"WriteBitmaps": bitmap,
-	}).Debug(rpcName)
 
 	var cmdArgs []string
 	if bitmap {

@@ -12,14 +12,14 @@ import (
 )
 
 func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) (*pb.GarbageCollectResponse, error) {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"WriteBitmaps": in.GetCreateBitmap(),
+	}).Debug("GarbageCollect")
+
 	repoPath, err := helper.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return nil, err
 	}
-
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"WriteBitmaps": in.GetCreateBitmap(),
-	}).Debug("GarbageCollect")
 
 	args := []string{"-C", repoPath, "-c"}
 	if in.GetCreateBitmap() {
