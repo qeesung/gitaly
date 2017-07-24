@@ -158,3 +158,18 @@ func FindLocalBranchResponsesEqual(a *pb.FindLocalBranchResponse, b *pb.FindLoca
 		FindLocalBranchCommitAuthorsEqual(a.CommitAuthor, b.CommitAuthor) &&
 		FindLocalBranchCommitAuthorsEqual(a.CommitCommitter, b.CommitCommitter)
 }
+
+// GetTemporaryGitalySocketFileName will return a unique, useable socket file name
+func GetTemporaryGitalySocketFileName() string {
+	tmpfile, err := ioutil.TempFile("", "gitaly.socket.")
+	if err != nil {
+		// No point in handling this error, panic
+		panic(err)
+	}
+
+	name := tmpfile.Name()
+	tmpfile.Close()
+	os.Remove(name)
+
+	return name
+}

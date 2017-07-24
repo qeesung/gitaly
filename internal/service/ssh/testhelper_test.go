@@ -18,12 +18,11 @@ import (
 
 const (
 	testPath     = "testdata"
-	scratchDir   = testPath + "/scratch"
 	testRepoRoot = testPath + "/data"
 )
 
 var (
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	workDir          string
 	testRepo         *pb.Repository
 
@@ -42,16 +41,6 @@ func TestMain(m *testing.M) {
 	}
 
 	testRepo = testhelper.TestRepository()
-
-	if err := os.MkdirAll(testRepoRoot, 0755); err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(testRepoRoot)
-
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(scratchDir)
 
 	// Build the test-binary that we need
 	os.Remove("gitaly-upload-pack")

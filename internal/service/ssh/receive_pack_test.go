@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -113,15 +112,9 @@ func testCloneAndPush(t *testing.T, storageName, glID string) (string, string, e
 
 	makeCommit(t, localRepoPath)
 
-	socketPath, err := filepath.Rel(localRepoPath, path.Join(cwd, serverSocketPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("socketPath: %q", socketPath)
-
 	cmd := exec.Command("git", "-C", localRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
 	cmd.Env = []string{
-		fmt.Sprintf("GITALY_SOCKET=unix://%s", socketPath),
+		fmt.Sprintf("GITALY_SOCKET=unix://%s", serverSocketPath),
 		fmt.Sprintf("GL_STORAGENAME=%s", storageName),
 		fmt.Sprintf("GL_RELATIVEPATH=%s", tempRepo),
 		fmt.Sprintf("GL_REPOSITORY=%s", testRepo.GetRelativePath()),

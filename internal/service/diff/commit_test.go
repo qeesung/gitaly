@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"net"
-	"path"
 	"testing"
 	"time"
 
@@ -20,7 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+var serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 
 func TestSuccessfulCommitDiffRequest(t *testing.T) {
 	server := runDiffServer(t)

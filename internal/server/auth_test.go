@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"net"
-	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	netctx "golang.org/x/net/context"
@@ -21,9 +18,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-const scratchDir = "testdata"
-
-var serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+var serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 
 func TestSanity(t *testing.T) {
 	srv := runServer(t)
@@ -144,12 +139,7 @@ func healthCheck(conn *grpc.ClientConn) error {
 
 func runServer(t *testing.T) *grpc.Server {
 	srv := New()
-	if err := os.Remove(serverSocketPath); err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.Fatal(err)
-	}
+
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
 	go srv.Serve(listener)

@@ -3,7 +3,6 @@ package repository
 import (
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -22,7 +21,7 @@ const testTimeString = "200601021504.05"
 
 var (
 	testTime         = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 )
 

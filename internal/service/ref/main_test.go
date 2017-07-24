@@ -3,7 +3,6 @@ package ref
 import (
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -20,10 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
-const scratchDir = "testdata/scratch"
-
 var (
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 	testRepoPath     string
 )
@@ -34,10 +31,6 @@ func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
 	testRepoPath, err = helper.GetRepoPath(testRepo)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err = os.MkdirAll(scratchDir, 0755); err != nil {
 		log.Fatal(err)
 	}
 

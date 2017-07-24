@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -19,20 +18,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
-const scratchDir = "testdata/scratch"
-
 var (
-	serverSocketPath  = path.Join(scratchDir, "gitaly.sock")
-	serviceSocketPath = path.Join(scratchDir, "service.sock")
+	serverSocketPath  = testhelper.GetTemporaryGitalySocketFileName()
+	serviceSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo          *pb.Repository
 )
 
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
-
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.WithError(err).Fatal("mkdirall failed")
-	}
 
 	os.Exit(func() int {
 		os.Remove(serverSocketPath)

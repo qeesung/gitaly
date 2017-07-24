@@ -3,11 +3,8 @@ package smarthttp
 import (
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -19,22 +16,17 @@ import (
 )
 
 const (
-	scratchDir   = "testdata/scratch"
 	testRepoRoot = "testdata/data"
 	pktFlushStr  = "0000"
 )
 
 var (
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 )
 
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
-
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.Fatal(err)
-	}
 
 	os.Exit(func() int {
 		return m.Run()
