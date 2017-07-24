@@ -53,11 +53,7 @@ install: $(GOVENDOR) build
 	cd $(BIN_BUILD_DIR) && install $(COMMANDS) $(INSTALL_DEST_DIR)
 
 .PHONY: verify
-verify: check-imports lint check-formatting govendor-status notice-up-to-date
-
-.PHONY: check-formatting
-check-formatting: $(TARGET_SETUP)
-	@test -z "$$(gofmt -l $(LOCAL_GO_FILES))" || (echo >&2 "Formatting needs fixing: 'make format'" && gofmt -l $(LOCAL_GO_FILES) && false)
+verify: lint check-formatting govendor-status notice-up-to-date
 
 .PHONY: govendor-status
 govendor-status: $(TARGET_SETUP) $(GOVENDOR)
@@ -74,9 +70,9 @@ test: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR)
 lint: $(GOLINT)
 	go run _support/lint.go
 
-.PHONY: check-imports
-check-imports: $(TARGET_SETUP) $(GOIMPORTS)
-	@test -z "$$($(GOIMPORTS) -e -l $(LOCAL_GO_FILES))" || (echo >&2 "Imports need fixing: 'make format'" && $(GOIMPORTS) -e -l $(LOCAL_GO_FILES) && false)
+.PHONY: check-formatting
+check-formatting: $(TARGET_SETUP) $(GOIMPORTS)
+	@test -z "$$($(GOIMPORTS) -e -l $(LOCAL_GO_FILES))" || (echo >&2 "Formatting or imports need fixing: 'make format'" && $(GOIMPORTS) -e -l $(LOCAL_GO_FILES) && false)
 
 .PHONY: format
 format: $(TARGET_SETUP) $(GOIMPORTS)
