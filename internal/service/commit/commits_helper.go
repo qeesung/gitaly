@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bytes"
+	"context"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -11,6 +12,7 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -37,16 +39,15 @@ const (
 	fieldDelimiterGitFormatString = "%x1f"
 )
 
-func gitLog(writer lines.Sender, repo *pb.Repository, revisionRange [][]byte, extraArgs ...string) error {
+func gitLog(ctx context.Context, writer lines.Sender, repo *pb.Repository, revisionRange [][]byte, extraArgs ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"Revision Range": revisionRange,
+	}).Debug("GitLog")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	log.WithFields(log.Fields{
-		"RepoPath":       repoPath,
-		"Revision Range": revisionRange,
-	}).Debug("GitLog")
 
 	formatFlag := "--pretty=format:" + strings.Join(commitLogFormatFields, fieldDelimiterGitFormatString)
 
@@ -62,7 +63,7 @@ func gitLog(writer lines.Sender, repo *pb.Repository, revisionRange [][]byte, ex
 		args = append(args, string(revision))
 	}
 
-	cmd, err := helper.GitCommandReader(args...)
+	cmd, err := helper.GitCommandReader(ctx, args...)
 	if err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func gitLog(writer lines.Sender, repo *pb.Repository, revisionRange [][]byte, ex
 	if err := cmd.Wait(); err != nil {
 		// We expect this error to be caused by non-existing references. In that
 		// case, we just log the error and send no commits to the `writer`.
-		log.WithFields(log.Fields{"error": err}).Info("ignoring git-log error")
+		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring git-log error")
 	}
 
 	return nil

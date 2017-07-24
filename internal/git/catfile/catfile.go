@@ -2,6 +2,7 @@ package catfile
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -27,10 +28,10 @@ type Handler func(io.Writer, *bufio.Reader) error
 // CatFile fetches the tree entries information using git cat-file. It
 // calls the handler with the TreeEntry slice, and an stdin reader and a stdout
 // writer in case the handler wants to perform addition cat-file operations.
-func CatFile(repoPath string, handler Handler) error {
+func CatFile(ctx context.Context, repoPath string, handler Handler) error {
 	stdinReader, stdinWriter := io.Pipe()
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := helper.NewCommand(exec.Command(helper.GitPath(), cmdArgs...), stdinReader, nil, nil)
+	cmd, err := helper.NewCommand(ctx, exec.Command(helper.GitPath(), cmdArgs...), stdinReader, nil, nil)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}

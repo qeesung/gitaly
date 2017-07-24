@@ -2,9 +2,10 @@ package commit
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	"google.golang.org/grpc/codes"
 
@@ -41,7 +42,7 @@ var (
 )
 
 func TestListFilesSuccess(t *testing.T) {
-	defaultBranchName = func(_ string) ([]byte, error) {
+	defaultBranchName = func(ctx context.Context, _ string) ([]byte, error) {
 		return []byte("test-do-not-touch"), nil
 	}
 	defer func() {

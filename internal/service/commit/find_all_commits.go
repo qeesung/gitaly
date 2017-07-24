@@ -45,7 +45,7 @@ func (s *server) FindAllCommits(in *pb.FindAllCommitsRequest, stream pb.CommitSe
 			return grpc.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
 		}
 
-		branchNames, err := _findBranchNamesFunc(repoPath)
+		branchNames, err := _findBranchNamesFunc(stream.Context(), repoPath)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
 		}
@@ -55,7 +55,7 @@ func (s *server) FindAllCommits(in *pb.FindAllCommitsRequest, stream pb.CommitSe
 		revisionRange = [][]byte{in.GetRevision()}
 	}
 
-	return gitLog(writer, in.GetRepository(), revisionRange, gitLogExtraArgs...)
+	return gitLog(stream.Context(), writer, in.GetRepository(), revisionRange, gitLogExtraArgs...)
 }
 
 func (sender *findAllCommitsSender) Send(commits []*pb.GitCommit) error {

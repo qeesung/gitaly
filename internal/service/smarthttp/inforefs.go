@@ -1,10 +1,12 @@
 package smarthttp
 
 import (
+	"context"
 	"fmt"
 	"io"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -17,32 +19,31 @@ func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTPS
 	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
-	return handleInfoRefs("upload-pack", in.Repository, w)
+	return handleInfoRefs(stream.Context(), "upload-pack", in.Repository, w)
 }
 
 func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsReceivePackServer) error {
 	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
-	return handleInfoRefs("receive-pack", in.Repository, w)
+	return handleInfoRefs(stream.Context(), "receive-pack", in.Repository, w)
 }
 
-func handleInfoRefs(service string, repo *pb.Repository, w io.Writer) error {
+func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w io.Writer) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"service": service,
+	}).Debug("handleInfoRefs")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
 
-	cmd, err := helper.GitCommandReader(service, "--stateless-rpc", "--advertise-refs", repoPath)
+	cmd, err := helper.GitCommandReader(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 	defer cmd.Kill()
-
-	log.WithFields(log.Fields{
-		"service":  service,
-		"RepoPath": repoPath,
-	}).Debug("handleInfoRefs")
 
 	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)

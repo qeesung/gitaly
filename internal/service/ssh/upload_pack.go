@@ -3,7 +3,7 @@ package ssh
 import (
 	"os/exec"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -12,6 +12,8 @@ import (
 )
 
 func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
+	grpc_logrus.Extract(stream.Context()).Debug("SSHUploadPack")
+
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
 		return err
@@ -35,12 +37,8 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 		return err
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath": repoPath,
-	}).Debug("SSHUploadPack")
-
 	osCommand := exec.Command(helper.GitPath(), "upload-pack", repoPath)
-	cmd, err := helper.NewCommand(osCommand, stdin, stdout, stderr)
+	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)

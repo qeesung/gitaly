@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -18,6 +19,12 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	if err != nil {
 		return err
 	}
+
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"GlID":         req.GlId,
+		"GlRepository": req.GlRepository,
+	}).Debug("PostReceivePack")
+
 	if err := validateReceivePackRequest(req); err != nil {
 		return err
 	}
@@ -41,14 +48,8 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 		return err
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath":     repoPath,
-		"GlID":         req.GlId,
-		"GlRepository": req.GlRepository,
-	}).Debug("PostReceivePack")
-
 	osCommand := exec.Command(helper.GitPath(), "receive-pack", "--stateless-rpc", repoPath)
-	cmd, err := helper.NewCommand(osCommand, stdin, stdout, nil, env...)
+	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, nil, env...)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "PostReceivePack: cmd: %v", err)
