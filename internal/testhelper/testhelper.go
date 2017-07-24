@@ -79,7 +79,7 @@ func TestRepository() *pb.Repository {
 	repo := &pb.Repository{StorageName: "default", RelativePath: TestRelativePath}
 
 	if !testRepoValid(repo) {
-		log.Fatalf("Test repo not found, did you run `make test`?")
+		log.Fatalf("Test repo not found, did you run `make prepare-tests`?")
 	}
 
 	return repo
