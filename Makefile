@@ -78,8 +78,10 @@ lint: $(GOLINT)
 check-imports: $(TARGET_SETUP) $(GOIMPORTS)
 	@test -z "$$($(GOIMPORTS) -e -l $(LOCAL_GO_FILES))" || (echo >&2 "Imports need fixing" && $(GOIMPORTS) -e -l $(LOCAL_GO_FILES) && false)
 
-.PHONY: fix-imports
-fix-imports: $(TARGET_SETUP) $(GOIMPORTS)
+.PHONY: format
+format: $(TARGET_SETUP) $(GOIMPORTS)
+    # In addition to fixing imports, goimports also formats your code in the same style as gofmt
+	# so it can be used as a replacement.
 	@$(GOIMPORTS) -w -l $(LOCAL_GO_FILES)
 
 .PHONY: package
@@ -97,10 +99,6 @@ notice-up-to-date: $(TARGET_SETUP) $(GOVENDOR)
 .PHONY: clean
 clean:
 	rm -rf $(TARGET_DIR) $(TEST_REPO)
-
-.PHONY: format
-format:
-	@go run _support/gofmt-all.go -f
 
 .PHONY: cover
 cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)
