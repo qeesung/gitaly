@@ -65,5 +65,5 @@ func (s *server) GetTreeEntries(in *pb.GetTreeEntriesRequest, stream pb.CommitSe
 	path := string(in.GetPath())
 	handler := getTreeEntriesHandler(stream, revision, path)
 
-	return catfile.CatFile(repoPath, handler)
+	return catfile.CatFile(stream.Context(), repoPath, handler)
 }

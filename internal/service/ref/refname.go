@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
@@ -25,7 +26,7 @@ func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*p
 		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty commit sha)")
 	}
 
-	ref, err := findRefName(repoPath, in.CommitId, string(in.Prefix))
+	ref, err := findRefName(ctx, repoPath, in.CommitId, string(in.Prefix))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
@@ -34,18 +35,17 @@ func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*p
 }
 
 // We assume `path` and `commitID` and `prefix` are non-empty
-func findRefName(path, commitID, prefix string) (string, error) {
-	cmd, err := helper.GitCommandReader("--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
+func findRefName(ctx context.Context, path, commitID, prefix string) (string, error) {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"commitSha": commitID,
+		"prefix":    prefix,
+	}).Debug("findRefName")
+
+	cmd, err := helper.GitCommandReader(ctx, "--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
 	if err != nil {
 		return "", err
 	}
 	defer cmd.Kill()
-
-	log.WithFields(log.Fields{
-		"RepoPath":  path,
-		"commitSha": commitID,
-		"prefix":    prefix,
-	}).Debug("findRefName")
 
 	scanner := bufio.NewScanner(cmd)
 	scanner.Scan()

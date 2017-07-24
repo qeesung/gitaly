@@ -1,9 +1,11 @@
 package diff
 
 import (
+	"context"
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -17,6 +19,13 @@ type requestWithLeftRightCommitIds interface {
 }
 
 func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_CommitDiffServer) error {
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"LeftCommitId":           in.LeftCommitId,
+		"RightCommitId":          in.RightCommitId,
+		"IgnoreWhitespaceChange": in.IgnoreWhitespaceChange,
+		"Paths":                  in.Paths,
+	}).Debug("CommitDiff")
+
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDiff: %v", err)
 	}
@@ -29,14 +38,6 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 	rightSha := in.RightCommitId
 	ignoreWhitespaceChange := in.GetIgnoreWhitespaceChange()
 	paths := in.GetPaths()
-
-	log.WithFields(log.Fields{
-		"RepoPath":               repoPath,
-		"LeftCommitId":           leftSha,
-		"RightCommitId":          rightSha,
-		"IgnoreWhitespaceChange": ignoreWhitespaceChange,
-		"Paths":                  paths,
-	}).Debug("CommitDiff")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,
@@ -70,7 +71,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 	limits.SafeMaxLines = int(in.SafeMaxLines)
 	limits.SafeMaxBytes = int(in.SafeMaxBytes)
 
-	err = eachDiff("CommitDiff", cmdArgs, limits, func(diff *diff.Diff) error {
+	err = eachDiff(stream.Context(), "CommitDiff", cmdArgs, limits, func(diff *diff.Diff) error {
 		response := &pb.CommitDiffResponse{
 			FromPath:       diff.FromPath,
 			ToPath:         diff.ToPath,
@@ -119,6 +120,12 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 }
 
 func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_CommitDeltaServer) error {
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"LeftCommitId":  in.LeftCommitId,
+		"RightCommitId": in.RightCommitId,
+		"Paths":         in.Paths,
+	}).Debug("CommitDelta")
+
 	if err := validateRequest(in); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "CommitDelta: %v", err)
 	}
@@ -130,13 +137,6 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 	leftSha := in.LeftCommitId
 	rightSha := in.RightCommitId
 	paths := in.GetPaths()
-
-	log.WithFields(log.Fields{
-		"RepoPath":      repoPath,
-		"LeftCommitId":  leftSha,
-		"RightCommitId": rightSha,
-		"Paths":         paths,
-	}).Debug("CommitDelta")
 
 	cmdArgs := []string{
 		"--git-dir", repoPath,
@@ -170,7 +170,7 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 		return nil
 	}
 
-	err = eachDiff("CommitDelta", cmdArgs, diff.Limits{}, func(diff *diff.Diff) error {
+	err = eachDiff(stream.Context(), "CommitDelta", cmdArgs, diff.Limits{}, func(diff *diff.Diff) error {
 		delta := &pb.CommitDelta{
 			FromPath: diff.FromPath,
 			ToPath:   diff.ToPath,
@@ -213,8 +213,8 @@ func validateRequest(in requestWithLeftRightCommitIds) error {
 	return nil
 }
 
-func eachDiff(rpc string, cmdArgs []string, limits diff.Limits, callback func(*diff.Diff) error) error {
-	cmd, err := helper.GitCommandReader(cmdArgs...)
+func eachDiff(ctx context.Context, rpc string, cmdArgs []string, limits diff.Limits, callback func(*diff.Diff) error) error {
+	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
 	}

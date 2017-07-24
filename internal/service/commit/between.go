@@ -29,7 +29,7 @@ func (s *server) CommitsBetween(in *pb.CommitsBetweenRequest, stream pb.CommitSe
 
 	gitLogExtraArgs := []string{"--reverse"}
 
-	return gitLog(writer, in.GetRepository(), [][]byte{revisionRange}, gitLogExtraArgs...)
+	return gitLog(stream.Context(), writer, in.GetRepository(), [][]byte{revisionRange}, gitLogExtraArgs...)
 }
 
 func (sender *commitsBetweenSender) Send(commits []*pb.GitCommit) error {

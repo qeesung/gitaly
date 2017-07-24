@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -25,16 +26,15 @@ var (
 	FindBranchNames = _findBranchNames
 )
 
-func findRefs(writer lines.Sender, repo *pb.Repository, pattern string, args ...string) error {
+func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pattern string, args ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"Pattern": pattern,
+	}).Debug("FindRefs")
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	log.WithFields(log.Fields{
-		"RepoPath": repoPath,
-		"Pattern":  pattern,
-	}).Debug("FindRefs")
 
 	baseArgs := []string{"--git-dir", repoPath, "for-each-ref", pattern}
 
@@ -44,7 +44,7 @@ func findRefs(writer lines.Sender, repo *pb.Repository, pattern string, args ...
 		args = append(baseArgs, args...)
 	}
 
-	cmd, err := helper.GitCommandReader(args...)
+	cmd, err := helper.GitCommandReader(ctx, args...)
 	if err != nil {
 		return err
 	}
@@ -59,18 +59,18 @@ func findRefs(writer lines.Sender, repo *pb.Repository, pattern string, args ...
 
 // FindAllBranchNames creates a stream of ref names for all branches in the given repository
 func (s *server) FindAllBranchNames(in *pb.FindAllBranchNamesRequest, stream pb.RefService_FindAllBranchNamesServer) error {
-	return findRefs(newFindAllBranchNamesWriter(stream), in.Repository, "refs/heads")
+	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, "refs/heads")
 }
 
 // FindAllTagNames creates a stream of ref names for all tags in the given repository
 func (s *server) FindAllTagNames(in *pb.FindAllTagNamesRequest, stream pb.RefService_FindAllTagNamesServer) error {
-	return findRefs(newFindAllTagNamesWriter(stream), in.Repository, "refs/tags")
+	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, "refs/tags")
 }
 
-func _findBranchNames(repoPath string) ([][]byte, error) {
+func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
 	var names [][]byte
 
-	cmd, err := helper.GitCommandReader("--git-dir", repoPath, "for-each-ref", "refs/heads", "--format=%(refname)")
+	cmd, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "for-each-ref", "refs/heads", "--format=%(refname)")
 	if err != nil {
 		return nil, err
 	}
@@ -91,10 +91,10 @@ func _findBranchNames(repoPath string) ([][]byte, error) {
 	return names, nil
 }
 
-func _headReference(repoPath string) ([]byte, error) {
+func _headReference(ctx context.Context, repoPath string) ([]byte, error) {
 	var headRef []byte
 
-	cmd, err := helper.GitCommandReader("--git-dir", repoPath, "rev-parse", "--symbolic-full-name", "HEAD")
+	cmd, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-parse", "--symbolic-full-name", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +121,8 @@ func _headReference(repoPath string) ([]byte, error) {
 }
 
 // DefaultBranchName looks up the name of the default branch given a repoPath
-func DefaultBranchName(repoPath string) ([]byte, error) {
-	branches, err := FindBranchNames(repoPath)
+func DefaultBranchName(ctx context.Context, repoPath string) ([]byte, error) {
+	branches, err := FindBranchNames(ctx, repoPath)
 
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func DefaultBranchName(repoPath string) ([]byte, error) {
 	}
 
 	hasMaster := false
-	headRef, err := headReference(repoPath)
+	headRef, err := headReference(ctx, repoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -163,16 +163,14 @@ func DefaultBranchName(repoPath string) ([]byte, error) {
 
 // FindDefaultBranchName returns the default branch name for the given repository
 func (s *server) FindDefaultBranchName(ctx context.Context, in *pb.FindDefaultBranchNameRequest) (*pb.FindDefaultBranchNameResponse, error) {
+	grpc_logrus.Extract(ctx).Debug("FindDefaultBranchName")
+
 	repoPath, err := helper.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath": repoPath,
-	}).Debug("FindDefaultBranchName")
-
-	defaultBranchName, err := DefaultBranchName(repoPath)
+	defaultBranchName, err := DefaultBranchName(ctx, repoPath)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
@@ -200,5 +198,5 @@ func (s *server) FindLocalBranches(in *pb.FindLocalBranchesRequest, stream pb.Re
 	sortFlag := "--sort=" + parseSortKey(in.GetSortBy())
 	writer := newFindLocalBranchesWriter(stream)
 
-	return findRefs(writer, in.Repository, "refs/heads", formatFlag, sortFlag)
+	return findRefs(stream.Context(), writer, in.Repository, "refs/heads", formatFlag, sortFlag)
 }

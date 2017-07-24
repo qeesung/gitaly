@@ -8,7 +8,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -24,7 +24,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		return nil, err
 	}
 
-	cmd, err := helper.GitCommandReader("--git-dir", repoPath, "rev-list", string(in.GetRevision()))
+	cmd, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-list", string(in.GetRevision()))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}
@@ -37,12 +37,12 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.WithFields(log.Fields{"error": err}).Info("ignoring scanner error")
+		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring scanner error")
 		count = 0
 	}
 
 	if err := cmd.Wait(); err != nil {
-		log.WithFields(log.Fields{"error": err}).Info("ignoring git rev-list error")
+		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring git rev-list error")
 		count = 0
 	}
 

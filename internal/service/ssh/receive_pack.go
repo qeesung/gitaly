@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -18,6 +19,12 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	if err != nil {
 		return err
 	}
+
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"GlID":         req.GlId,
+		"GlRepository": req.GlRepository,
+	}).Debug("SSHReceivePack")
+
 	if err = validateFirstReceivePackRequest(req); err != nil {
 		return err
 	}
@@ -45,14 +52,8 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 		return err
 	}
 
-	log.WithFields(log.Fields{
-		"RepoPath":     repoPath,
-		"GlID":         req.GlId,
-		"GlRepository": req.GlRepository,
-	}).Debug("SSHReceivePack")
-
 	osCommand := exec.Command(helper.GitPath(), "receive-pack", repoPath)
-	cmd, err := helper.NewCommand(osCommand, stdin, stdout, stderr, env...)
+	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr, env...)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)
