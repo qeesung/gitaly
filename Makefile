@@ -89,7 +89,7 @@ notice-up-to-date: $(TARGET_SETUP) $(GOVENDOR)
 
 .PHONY: clean
 clean:
-	rm -rf $(TARGET_DIR) $(TEST_REPO) $(TEST_REPO_STORAGE_PATH)
+	rm -rf $(TARGET_DIR) $(TEST_REPO) $(TEST_REPO_STORAGE_PATH) /internal/service/ssh/gitaly-*-pack
 
 .PHONY: format
 format:
