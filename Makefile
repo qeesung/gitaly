@@ -19,8 +19,8 @@ export GOPATH := $(TARGET_DIR)
 export PATH := $(GOPATH)/bin:$(PATH)
 
 # Returns a list of all non-vendored (local packages)
-LOCAL_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) PATH=$(PATH) govendor list -no-status +local)
-COMMAND_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) PATH=$(PATH) govendor list -no-status +local +p ./cmd/...)
+LOCAL_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) $(GOVENDOR) list -no-status +local)
+COMMAND_PACKAGES = $(shell cd "$(PKG_BUILD_DIR)" && GOPATH=$(GOPATH) $(GOVENDOR) list -no-status +local +p ./cmd/...)
 COMMANDS = $(subst $(PKG)/cmd/,,$(COMMAND_PACKAGES))
 
 # Developer Tools
@@ -112,12 +112,12 @@ cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)
 
 # Install govendor
 $(GOVENDOR): $(TARGET_SETUP)
-	@go run _support/go-get-if-missing.go govendor github.com/kardianos/govendor
+	go get -v github.com/kardianos/govendor
 
 # Install golint
 $(GOLINT): $(TARGET_SETUP)
-	@go run _support/go-get-if-missing.go golint github.com/golang/lint/golint
+	go get -v github.com/golang/lint/golint
 
 # Install gocovmerge
 $(GOCOVMERGE): $(TARGET_SETUP)
-	@go run _support/go-get-if-missing.go gocovmerge github.com/wadey/gocovmerge
+	go get -v github.com/wadey/gocovmerge
