@@ -76,3 +76,18 @@ publish:
     - ls -lh *.deb
     - shasum -a256 *.deb
     - package_cloud push $PACKAGECLOUD_REPO *.deb --url=https://packages.gitlab.com
+  allow_failure: true
+
+# Create a code quality report
+codeclimate:
+  image: docker:latest
+  stage: build_test
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json > codeclimate.json
+  artifacts:
+    paths: [codeclimate.json]
+  allow_failure: true
