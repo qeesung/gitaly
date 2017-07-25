@@ -2,6 +2,7 @@ package repository
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -11,29 +12,28 @@ import (
 )
 
 func (server) RepackFull(ctx context.Context, in *pb.RepackFullRequest) (*pb.RepackFullResponse, error) {
-	if err := repackCommand("RepackFull", in.GetRepository(), in.GetCreateBitmap(), "-A", "--pack-kept-objects"); err != nil {
+	if err := repackCommand(ctx, "RepackFull", in.GetRepository(), in.GetCreateBitmap(), "-A", "--pack-kept-objects"); err != nil {
 		return nil, err
 	}
 	return &pb.RepackFullResponse{}, nil
 }
 
 func (server) RepackIncremental(ctx context.Context, in *pb.RepackIncrementalRequest) (*pb.RepackIncrementalResponse, error) {
-	if err := repackCommand("RepackIncremental", in.GetRepository(), false); err != nil {
+	if err := repackCommand(ctx, "RepackIncremental", in.GetRepository(), false); err != nil {
 		return nil, err
 	}
 	return &pb.RepackIncrementalResponse{}, nil
 }
 
-func repackCommand(rpcName string, repo *pb.Repository, bitmap bool, args ...string) error {
+func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bitmap bool, args ...string) error {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"WriteBitmaps": bitmap,
+	}).Debug(rpcName)
+
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}
-
-	log.WithFields(log.Fields{
-		"RepoPath":     repoPath,
-		"WriteBitmaps": bitmap,
-	}).Debug(rpcName)
 
 	var cmdArgs []string
 	if bitmap {
@@ -43,7 +43,7 @@ func repackCommand(rpcName string, repo *pb.Repository, bitmap bool, args ...str
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	cmd, err := helper.GitCommandReader(cmdArgs...)
+	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}

@@ -1,20 +1,19 @@
 package notifications
 
 import (
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-
-	log "github.com/Sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
 )
 
 func (s *server) PostReceive(ctx context.Context, in *pb.PostReceiveRequest) (*pb.PostReceiveResponse, error) {
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	_, err := helper.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return nil, err
 	}
 
-	log.WithField("RepoPath", repoPath).Debug("PostReceive")
+	grpc_logrus.Extract(ctx).Debug("PostReceive")
 
 	return &pb.PostReceiveResponse{}, nil
 }

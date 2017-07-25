@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"context"
 	"net"
 	"os"
 	"path"
@@ -12,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"

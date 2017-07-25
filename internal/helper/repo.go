@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
@@ -73,12 +74,12 @@ func IsGitDirectory(dir string) bool {
 }
 
 // IsValidRef checks if a ref in a repo is valid
-func IsValidRef(path, ref string) bool {
+func IsValidRef(ctx context.Context, path, ref string) bool {
 	if path == "" || ref == "" {
 		return false
 	}
 
-	cmd, err := GitCommandReader("--git-dir", path, "log", "-1", ref)
+	cmd, err := GitCommandReader(ctx, "--git-dir", path, "log", "-1", ref)
 	if err != nil {
 		return false
 	}

@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
@@ -27,24 +28,23 @@ func (s *server) CommitIsAncestor(ctx context.Context, in *pb.CommitIsAncestorRe
 		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty child sha)")
 	}
 
-	ret, err := commitIsAncestorName(repoPath, in.AncestorId, in.ChildId)
+	ret, err := commitIsAncestorName(ctx, repoPath, in.AncestorId, in.ChildId)
 	return &pb.CommitIsAncestorResponse{Value: ret}, err
 }
 
 // Assumes that `path`, `ancestorID` and `childID` are populated :trollface:
-func commitIsAncestorName(path, ancestorID, childID string) (bool, error) {
+func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string) (bool, error) {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"ancestorSha": ancestorID,
+		"childSha":    childID,
+	}).Debug("commitIsAncestor")
+
 	osCommand := exec.Command(helper.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
-	cmd, err := helper.NewCommand(osCommand, nil, ioutil.Discard, nil)
+	cmd, err := helper.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
 	defer cmd.Kill()
-
-	log.WithFields(log.Fields{
-		"RepoPath":    path,
-		"ancestorSha": ancestorID,
-		"childSha":    childID,
-	}).Debug("commitIsAncestor")
 
 	return cmd.Wait() == nil, nil
 }
