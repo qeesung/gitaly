@@ -1,6 +1,7 @@
 # Gitaly changelog
 
 v0.23.0
+
 - Version without Build Time
   https://gitlab.com/gitlab-org/gitaly/merge_requests/231
 - Implement CommitService.ListFiles
@@ -15,6 +16,7 @@ v0.23.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/234
 
 v0.22.0
+
 - Various build file improvements
   https://gitlab.com/gitlab-org/gitaly/merge_requests/229
 - Implement FindAllCommits RPC
@@ -23,20 +25,24 @@ v0.22.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/232
 
 v0.21.2
+
 - Config: do not start Gitaly without at least one storage
   https://gitlab.com/gitlab-org/gitaly/merge_requests/227
 - Implement CommitService.GarbageCollect/Repack{Incremental,Full}
   https://gitlab.com/gitlab-org/gitaly/merge_requests/218
 
 v0.21.1
+
 - Make sure stdout.Read has enough bytes buffered to read from
   https://gitlab.com/gitlab-org/gitaly/merge_requests/224
 
 v0.21.0
+
 - Send an empty response for TreeEntry instead of nil
   https://gitlab.com/gitlab-org/gitaly/merge_requests/223
 
 v0.20.0
+
 - Implement commit diff limiting logic
   https://gitlab.com/gitlab-org/gitaly/merge_requests/211
 - Increase message size to 5 KB for Diff service

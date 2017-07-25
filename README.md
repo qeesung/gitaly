@@ -3,6 +3,7 @@
 [![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) [![coverage report](https://gitlab.com/gitlab-org/gitaly/badges/master/coverage.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master)
 
 **Quick Links**:
+  [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration) |
   [Open Conversations](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=Conversation) |
   [Unassigned Conversations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=To%20Do&assignee_id=0) |
   [Migrations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=Migration) |
@@ -48,22 +49,9 @@ If you're interested in seeing how well Gitaly is performing on GitLab.com, we h
 
  [![image](https://gitlab.com/gitlab-org/gitaly/uploads/5b3825e01c48975c2a64e01ae37b4a3d/image.png)](http://monitor.gitlab.net/dashboard/db/gitaly-features?orgId=1&var-job=gitaly-production&from=now-7d&to=now)
 
-## Current Features
+## Migrations
 
-|**Controller**|**~"Migration Analysis"**|**~"RPC Design"**|**~"Server Implementation"**|**~"Client Implementation"**|**~"Acceptance Testing"**|**Optim 1**|**Optim 2**|
-|--------------|-------------------------|-----------------|----------------------------|----------------------------|-------------------------|-----------|-----------|
-| [`SmartHTTP::InfoRefsUploadPack` and `SmartHTTP::InfoRefsReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/223) | #36 | - | | | | | |
-| [`Diff::CommitDiff`](https://gitlab.com/gitlab-org/gitaly/issues/222) | #64 | #80 | #88 | #89| #209 | | |
-| [`Ref::FindRefName` and `Commit::CommitIsAncestor`](https://gitlab.com/gitlab-org/gitaly/issues/221) | #66 | #81 | #86 | #87 | #210 | | |
-| [`Ref::FindDefaultBranchName`, `Ref::FindAllBranchNames`, `Ref::FindAllTagNames`](https://gitlab.com/gitlab-org/gitaly/issues/220) | #65 | #82 | #84 | #85 | #211 | | |
-| [`SmartHTTP::PostUploadPack` and `SmartHTTP::PostReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/219) | #92 | gitlab-org/gitaly-proto!4 | #122 | #125 | #184 | | |
-| [`SSH:SSHUploadPack` and `SSH::SSHReceivePack`](https://gitlab.com/gitlab-org/gitaly/issues/218) | #91 | gitlab-org/gitaly-proto!5 | #123 | #124 | | | |
-| [`Ref::FindLocalBranches`](https://gitlab.com/gitlab-org/gitaly/issues/217) | #127 | #128 | !103 | gitlab-org/gitlab-ce!10059 | | | |
-| [`Ref::count_branch_names` and `Ref::count_tag_names`](https://gitlab.com/gitlab-org/gitaly/issues/214) | #157 | -- | -- | gitlab-org/gitlab-ce!10780 | #215 | | |
-| `Projects::GraphsController#charts` (shelved for now) | #158 |  | | | | | |
-| [`Commit::GetAuthor`](https://gitlab.com/gitlab-org/gitaly/issues/216) | #159 | | | | | | |
-| `Projects::RawController#show` | #160 | #195 | | | | | |
-| [`CatFile::Blob`](https://gitlab.com/gitlab-org/gitaly/issues/212) | #194 |  | | | | | |
+The progress of Gitaly's endpoint migrations is tracked via the [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration)
 
 ## Installation
 
