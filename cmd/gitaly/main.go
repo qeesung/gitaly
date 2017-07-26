@@ -123,10 +123,33 @@ func main() {
 		listeners = append(listeners, connectioncounter.New("tcp", l))
 	}
 
+	if config.Config.PrometheusListenAddr != "" {
+		log.WithField("address", config.Config.PrometheusListenAddr).Info("Starting prometheus listener")
+		promMux := http.NewServeMux()
+		promMux.Handle("/metrics", promhttp.Handler())
+		go func() {
+			http.ListenAndServe(config.Config.PrometheusListenAddr, promMux)
+		}()
+	}
+
+	log.WithError(run(listeners)).Fatal("shutting down")
+}
+
+func createUnixListener(socketPath string) (net.Listener, error) {
+	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	l, err := net.Listen("unix", socketPath)
+	return connectioncounter.New("unix", l), err
+}
+
+// Inside here we can use deferred functions. This is needed because
+// log.Fatal bypasses deferred functions.
+func run(listeners []net.Listener) error {
 	ruby, err := rubyserver.Start()
 	if err != nil {
 		// TODO: this will be a fatal error in the future
-		log.Printf("failed to start ruby server: %v", err)
+		log.WithError(err).Warn("failed to start ruby service")
 	} else {
 		defer ruby.Stop()
 	}
@@ -142,22 +165,5 @@ func main() {
 		}(listener)
 	}
 
-	if config.Config.PrometheusListenAddr != "" {
-		log.WithField("address", config.Config.PrometheusListenAddr).Info("Starting prometheus listener")
-		promMux := http.NewServeMux()
-		promMux.Handle("/metrics", promhttp.Handler())
-		go func() {
-			http.ListenAndServe(config.Config.PrometheusListenAddr, promMux)
-		}()
-	}
-
-	log.Fatal(<-serverError)
-}
-
-func createUnixListener(socketPath string) (net.Listener, error) {
-	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	l, err := net.Listen("unix", socketPath)
-	return connectioncounter.New("unix", l), err
+	return <-serverError
 }
