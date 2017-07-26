@@ -94,7 +94,7 @@ codeclimate:
   allow_failure: true
 
 
-build-image:
+build-images:
   variables:
     DOCKER_DRIVER: overlay
   stage: package
@@ -105,6 +105,6 @@ build-image:
   - docker:dind
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
-    - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-image:latest _support/build-image/
-    - docker push registry.gitlab.com/gitlab-org/gitaly/build-image:latest
+    - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest _support/build-images/golang-1.8-git-2.8.4/
+    - docker push registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest
 
