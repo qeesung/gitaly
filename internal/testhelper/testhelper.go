@@ -79,7 +79,7 @@ func TestRepository() *pb.Repository {
 	repo := &pb.Repository{StorageName: "default", RelativePath: TestRelativePath}
 
 	if !testRepoValid(repo) {
-		log.Fatalf("Test repo not found, did you run `make test`?")
+		log.Fatalf("Test repo not found, did you run `make prepare-tests`?")
 	}
 
 	return repo
@@ -157,4 +157,19 @@ func FindLocalBranchResponsesEqual(a *pb.FindLocalBranchResponse, b *pb.FindLoca
 		bytes.Equal(a.CommitSubject, b.CommitSubject) &&
 		FindLocalBranchCommitAuthorsEqual(a.CommitAuthor, b.CommitAuthor) &&
 		FindLocalBranchCommitAuthorsEqual(a.CommitCommitter, b.CommitCommitter)
+}
+
+// GetTemporaryGitalySocketFileName will return a unique, useable socket file name
+func GetTemporaryGitalySocketFileName() string {
+	tmpfile, err := ioutil.TempFile("", "gitaly.socket.")
+	if err != nil {
+		// No point in handling this error, panic
+		panic(err)
+	}
+
+	name := tmpfile.Name()
+	tmpfile.Close()
+	os.Remove(name)
+
+	return name
 }

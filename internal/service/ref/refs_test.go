@@ -314,68 +314,6 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 	}
 }
 
-func localBranches() []*pb.FindLocalBranchResponse {
-	return []*pb.FindLocalBranchResponse{
-		{
-			Name:          []byte("refs/heads/100%branch"),
-			CommitId:      "1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
-			CommitSubject: []byte("Merge branch 'add-directory-with-space' into 'master'\r \r Add a directory containing a space in its name\r \r needed for verifying the fix of `https://gitlab.com/gitlab-com/support-forum/issues/952` \r \r See merge request !11"),
-			CommitAuthor: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Stan Hu"),
-				Email: []byte("<stanhu@gmail.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1471558878},
-			},
-			CommitCommitter: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Stan Hu"),
-				Email: []byte("<stanhu@gmail.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1471558878},
-			},
-		},
-		{
-			Name:          []byte("refs/heads/improve/awesome"),
-			CommitId:      "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
-			CommitSubject: []byte("Add submodule from gitlab.com"),
-			CommitAuthor: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Dmitriy Zaporozhets"),
-				Email: []byte("<dmitriy.zaporozhets@gmail.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1393491698},
-			},
-			CommitCommitter: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Dmitriy Zaporozhets"),
-				Email: []byte("<dmitriy.zaporozhets@gmail.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1393491698},
-			},
-		},
-		{
-			Name:          []byte("refs/heads/'test'"),
-			CommitId:      "e56497bb5f03a90a51293fc6d516788730953899",
-			CommitSubject: []byte("Merge branch 'tree_helper_spec' into 'master'"),
-			CommitAuthor: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Sytse Sijbrandij"),
-				Email: []byte("<sytse@gitlab.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1420925009},
-			},
-			CommitCommitter: &pb.FindLocalBranchCommitAuthor{
-				Name:  []byte("Sytse Sijbrandij"),
-				Email: []byte("<sytse@gitlab.com>"),
-				Date:  &timestamp.Timestamp{Seconds: 1420925009},
-			},
-		},
-	}
-}
-
-func validateContainsBranch(t *testing.T, branches []*pb.FindLocalBranchResponse, branch *pb.FindLocalBranchResponse) {
-	for _, b := range branches {
-		if bytes.Equal(branch.Name, b.Name) {
-			if !testhelper.FindLocalBranchResponsesEqual(branch, b) {
-				t.Fatalf("Expected branch\n%v\ngot\n%v", branch, b)
-			}
-			return // Found the branch and it maches. Success!
-		}
-	}
-	t.Fatalf("Expected to find branch %q in local branches", branch.Name)
-}
-
 func TestSuccessfulFindLocalBranches(t *testing.T) {
 	server := runRefServer(t)
 	defer server.Stop()
@@ -400,8 +338,23 @@ func TestSuccessfulFindLocalBranches(t *testing.T) {
 		branches = append(branches, r.GetBranches()...)
 	}
 
-	for _, branch := range localBranches() {
-		validateContainsBranch(t, branches, branch)
+	for name, target := range localBranches {
+		localBranch := &pb.FindLocalBranchResponse{
+			Name:          []byte(name),
+			CommitId:      target.Id,
+			CommitSubject: target.Subject,
+			CommitAuthor: &pb.FindLocalBranchCommitAuthor{
+				Name:  target.Author.Name,
+				Email: target.Author.Email,
+				Date:  target.Author.Date,
+			},
+			CommitCommitter: &pb.FindLocalBranchCommitAuthor{
+				Name:  target.Committer.Name,
+				Email: target.Committer.Email,
+				Date:  target.Committer.Date,
+			},
+		}
+		assertContainsLocalBranch(t, branches, localBranch)
 	}
 }
 
@@ -498,5 +451,114 @@ func TestEmptyFindLocalBranchesRequest(t *testing.T) {
 
 	if grpc.Code(recvError) != codes.InvalidArgument {
 		t.Fatal(recvError)
+	}
+}
+
+func deleteRemoteBranch(t *testing.T, repoPath, remoteName, branchName string) {
+	testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref", "-d",
+		"refs/remotes/"+remoteName+"/"+branchName)
+}
+
+func createRemoteBranch(t *testing.T, repoPath, remoteName, branchName, ref string) {
+	testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref",
+		"refs/remotes/"+remoteName+"/"+branchName, ref)
+}
+
+func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
+	server := runRefServiceServer(t)
+	defer server.Stop()
+
+	remoteBranch := &pb.FindAllBranchesResponse_Branch{
+		Name: []byte("refs/remotes/origin/fake-remote-branch"),
+		Target: &pb.GitCommit{
+			Id:      "913c66a37b4a45b9769037c55c2d238bd0942d2e",
+			Subject: []byte("Files, encoding and much more"),
+			Author: &pb.CommitAuthor{
+				Name:  []byte("Dmitriy Zaporozhets"),
+				Email: []byte("<dmitriy.zaporozhets@gmail.com>"),
+				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+			},
+			Committer: &pb.CommitAuthor{
+				Name:  []byte("Dmitriy Zaporozhets"),
+				Email: []byte("<dmitriy.zaporozhets@gmail.com>"),
+				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+			},
+		},
+	}
+
+	createRemoteBranch(t, testRepoPath, "origin", "fake-remote-branch",
+		remoteBranch.Target.Id)
+	defer deleteRemoteBranch(t, testRepoPath, "origin", "fake-remote-branch")
+
+	request := &pb.FindAllBranchesRequest{Repository: testRepo}
+	client := newRefServiceClient(t)
+	c, err := client.FindAllBranches(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var branches []*pb.FindAllBranchesResponse_Branch
+	for {
+		r, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		branches = append(branches, r.GetBranches()...)
+	}
+
+	// It contains local branches
+	for name, target := range localBranches {
+		branch := &pb.FindAllBranchesResponse_Branch{
+			Name:   []byte(name),
+			Target: target,
+		}
+		assertContainsBranch(t, branches, branch)
+	}
+
+	// It contains our fake remote branch
+	assertContainsBranch(t, branches, remoteBranch)
+}
+
+func TestInvalidFindAllBranchesRequest(t *testing.T) {
+	server := runRefServiceServer(t)
+	defer server.Stop()
+
+	client := newRefServiceClient(t)
+	testCases := []struct {
+		description string
+		request     pb.FindAllBranchesRequest
+	}{
+		{
+			description: "Empty request",
+			request:     pb.FindAllBranchesRequest{},
+		},
+		{
+			description: "Invalid repo",
+			request: pb.FindAllBranchesRequest{
+				Repository: &pb.Repository{
+					StorageName:  "fake",
+					RelativePath: "repo",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Logf("test case: %v", tc.description)
+
+		c, err := client.FindAllBranches(context.Background(), &tc.request)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var recvError error
+		for recvError == nil {
+			_, recvError = c.Recv()
+		}
+
+		testhelper.AssertGrpcError(t, recvError, codes.InvalidArgument, "")
 	}
 }

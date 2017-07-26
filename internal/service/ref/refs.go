@@ -26,9 +26,9 @@ var (
 	FindBranchNames = _findBranchNames
 )
 
-func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pattern string, args ...string) error {
+func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, patterns []string, args ...string) error {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"Pattern": pattern,
+		"Patterns": patterns,
 	}).Debug("FindRefs")
 
 	repoPath, err := helper.GetRepoPath(repo)
@@ -36,7 +36,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 		return err
 	}
 
-	baseArgs := []string{"--git-dir", repoPath, "for-each-ref", pattern}
+	baseArgs := []string{"--git-dir", repoPath, "for-each-ref"}
 
 	if len(args) == 0 {
 		args = append(baseArgs, "--format=%(refname)") // Default format
@@ -44,6 +44,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 		args = append(baseArgs, args...)
 	}
 
+	args = append(args, patterns...)
 	cmd, err := helper.GitCommandReader(ctx, args...)
 	if err != nil {
 		return err
@@ -59,12 +60,12 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 
 // FindAllBranchNames creates a stream of ref names for all branches in the given repository
 func (s *server) FindAllBranchNames(in *pb.FindAllBranchNamesRequest, stream pb.RefService_FindAllBranchNamesServer) error {
-	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, "refs/heads")
+	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, []string{"refs/heads"})
 }
 
 // FindAllTagNames creates a stream of ref names for all tags in the given repository
 func (s *server) FindAllTagNames(in *pb.FindAllTagNamesRequest, stream pb.RefService_FindAllTagNamesServer) error {
-	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, "refs/tags")
+	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, []string{"refs/tags"})
 }
 
 func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
@@ -198,5 +199,12 @@ func (s *server) FindLocalBranches(in *pb.FindLocalBranchesRequest, stream pb.Re
 	sortFlag := "--sort=" + parseSortKey(in.GetSortBy())
 	writer := newFindLocalBranchesWriter(stream)
 
-	return findRefs(stream.Context(), writer, in.Repository, "refs/heads", formatFlag, sortFlag)
+	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads"}, formatFlag, sortFlag)
+}
+
+func (s *server) FindAllBranches(in *pb.FindAllBranchesRequest, stream pb.RefService_FindAllBranchesServer) error {
+	formatFlag := "--format=" + strings.Join(localBranchFormatFields, "%00")
+	writer := newFindAllBranchesWriter(stream)
+
+	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads", "refs/remotes"}, formatFlag)
 }

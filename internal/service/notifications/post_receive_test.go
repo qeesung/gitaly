@@ -4,11 +4,8 @@ import (
 	"context"
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -18,19 +15,13 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-const scratchDir = "testdata/scratch"
-
 var (
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 )
 
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
-
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.WithError(err).Fatal("mkdirall failed")
-	}
 
 	os.Exit(func() int {
 		return m.Run()

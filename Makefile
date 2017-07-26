@@ -5,7 +5,7 @@ TARGET_DIR := $(BUILD_DIR)/_build
 TARGET_SETUP := $(TARGET_DIR)/.ok
 BIN_BUILD_DIR := $(TARGET_DIR)/bin
 PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
-export TEST_REPO_STORAGE_PATH := $(TARGET_DIR)/testdata/data
+export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
@@ -63,8 +63,11 @@ $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@
 
 .PHONY: test
-test: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR)
-	go test $(LOCAL_PACKAGES)
+test: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) prepare-tests
+	@go test $(LOCAL_PACKAGES)
+
+.PHONY: prepare-tests
+prepare-tests: $(TARGET_SETUP) $(GOVENDOR) $(TEST_REPO)
 
 .PHONY: lint
 lint: $(GOLINT)
@@ -94,7 +97,7 @@ notice-up-to-date: $(TARGET_SETUP) $(GOVENDOR)
 
 .PHONY: clean
 clean:
-	rm -rf $(TARGET_DIR) $(TEST_REPO)
+	rm -rf $(TARGET_DIR) $(TEST_REPO) $(TEST_REPO_STORAGE_PATH) ./internal/service/ssh/gitaly-*-pack
 
 .PHONY: cover
 cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)

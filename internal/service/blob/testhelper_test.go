@@ -3,7 +3,6 @@ package blob
 import (
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -17,21 +16,14 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 )
 
-const scratchDir = "testdata/scratch"
-
 var (
-	serverSocketPath = path.Join(scratchDir, "gitaly.sock")
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 )
 
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
 
-	if err := os.MkdirAll(scratchDir, 0755); err != nil {
-		log.WithError(err).Fatal("mkdirall failed")
-	}
-
-	os.Remove(serverSocketPath)
 	server := runBlobServer(m)
 	os.Exit(func() int {
 		defer func() {
