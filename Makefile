@@ -113,6 +113,12 @@ cover: $(TARGET_SETUP) $(TEST_REPO) $(GOVENDOR) $(GOCOVMERGE)
 	@echo ""
 	@go tool cover -func "$(COVERAGE_DIR)/all.merged"
 
+.PHONY: build-image
+build-image:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-image:latest _support/build-image/
+    - docker push registry.gitlab.com/gitlab-org/gitaly/build-image:latest
+
 # Install govendor
 $(GOVENDOR): $(TARGET_SETUP)
 	go get -v github.com/kardianos/govendor

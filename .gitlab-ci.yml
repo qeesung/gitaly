@@ -4,6 +4,7 @@ stages:
   - build_test
   - package
   - publish
+  - package
 
 verify:
   stage: build_test
@@ -91,3 +92,16 @@ codeclimate:
   artifacts:
     paths: [codeclimate.json]
   allow_failure: true
+
+
+build-image:
+  variables:
+    DOCKER_DRIVER: overlay
+  stage: package
+  # only:
+  # - schedules
+  image: docker:latest
+  services:
+  - docker:dind
+  script:
+    - make build-image
