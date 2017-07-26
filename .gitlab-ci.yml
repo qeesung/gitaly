@@ -1,10 +1,10 @@
-image: registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.8-git-2.8.4
+image: registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest
 
 stages:
+  - build_images
   - build_test
   - package
   - publish
-  - package
 
 verify:
   stage: build_test
@@ -52,8 +52,6 @@ package:
   only:
     - tags
   script:
-    - apt-get update -qq
-    - apt-get install -qq -y rubygems bundler
     - GOOS=linux GOARCH=amd64 make clean package
     - ls -l # Want to see permissions as they went into the .deb
     - dpkg -e *.deb
@@ -71,8 +69,6 @@ publish:
   variables:
     GIT_STRATEGY: none
   script:
-    - apt-get update -qq
-    - apt-get install -y rubygems
     - gem install package_cloud
     - ls -lh *.deb
     - shasum -a256 *.deb
@@ -94,12 +90,12 @@ codeclimate:
   allow_failure: true
 
 
-build-images:
+build_images:
   variables:
     DOCKER_DRIVER: overlay
-  stage: package
-  # only:
-  # - schedules
+  stage: build_images
+  only:
+  - schedules
   image: docker:latest
   services:
   - docker:dind
