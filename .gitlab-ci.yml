@@ -95,12 +95,13 @@ build_images:
   variables:
     DOCKER_DRIVER: overlay
   stage: build_images
-  only:
-  - schedules
+  # only:
+  # - schedules
   image: docker:latest
   services:
   - docker:dind
   script:
+    - cp ruby/Gemfile ruby/Gemfile.lock _support/build-images/golang-1.8-git-2.8.4/
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
     - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest _support/build-images/golang-1.8-git-2.8.4/
     - docker push registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest
