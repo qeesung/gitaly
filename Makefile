@@ -67,7 +67,7 @@ $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@
 
 .PHONY: test
-test: $(TARGET_SETUP) $(TEST_REPO) prepare-tests
+test: $(TARGET_SETUP) $(TEST_REPO) prepare-tests .ruby-bundle
 	@go test $(LOCAL_PACKAGES)
 
 .PHONY: prepare-tests
