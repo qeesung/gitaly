@@ -1,8 +1,10 @@
 package commit
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strconv"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
@@ -24,26 +26,31 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		return nil, err
 	}
 
-	cmd, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-list", string(in.GetRevision()))
+	cmdArgs := []string{"--git-dir", repoPath, "rev-list", "--count", string(in.GetRevision())}
+
+	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}
 	defer cmd.Kill()
 
-	count := 0
-	scanner := bufio.NewScanner(cmd)
-	for scanner.Scan() {
-		count++
-	}
-
-	if err := scanner.Err(); err != nil {
-		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring scanner error")
-		count = 0
+	var count int64
+	countStr, readAllErr := ioutil.ReadAll(cmd)
+	if readAllErr != nil {
+		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring git rev-list error")
 	}
 
 	if err := cmd.Wait(); err != nil {
 		grpc_logrus.Extract(ctx).WithError(err).Info("ignoring git rev-list error")
 		count = 0
+	} else if readAllErr == nil {
+		var err error
+		countStr = bytes.TrimSpace(countStr)
+		count, err = strconv.ParseInt(string(countStr), 10, 0)
+
+		if err != nil {
+			return nil, grpc.Errorf(codes.Internal, "CountCommits: parse count: %v", err)
+		}
 	}
 
 	return &pb.CountCommitsResponse{Count: int32(count)}, nil
