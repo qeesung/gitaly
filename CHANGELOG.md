@@ -4,6 +4,8 @@ UNRELEASED
 
 - Implement CommitService.CommitLanguages, add gitaly-ruby
   https://gitlab.com/gitlab-org/gitaly/merge_requests/210
+- Extend CountCommits RPC to support before/after/path arguments
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/252
 
 v0.25.0
 

@@ -2,11 +2,13 @@ package commit
 
 import (
 	"testing"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -16,33 +18,79 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 	client := newCommitServiceClient(t)
 
 	testCases := []struct {
-		revision []byte
-		count    int32
+		revision, path      []byte
+		before, after, desc string
+		count               int32
 	}{
 		{
+			desc:     "revision only #1",
 			revision: []byte("1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"),
 			count:    1,
 		},
 		{
+			desc:     "revision only #2",
 			revision: []byte("6d394385cf567f80a8fd85055db1ab4c5295806f"),
 			count:    2,
 		},
 		{
+			desc:     "revision only #3",
 			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
 			count:    39,
 		},
 		{
+			desc:     "non-existing revision",
 			revision: []byte("deadfacedeadfacedeadfacedeadfacedeadface"),
 			count:    0,
+		},
+		{
+			desc:     "revision + before",
+			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			before:   "2015-12-07T11:54:28+01:00",
+			count:    26,
+		},
+		{
+			desc:     "revision + before + after",
+			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			before:   "2015-12-07T11:54:28+01:00",
+			after:    "2014-02-27T10:14:56+02:00",
+			count:    23,
+		},
+		{
+			desc:     "revision + before + after + path",
+			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			before:   "2015-12-07T11:54:28+01:00",
+			after:    "2014-02-27T10:14:56+02:00",
+			path:     []byte("files"),
+			count:    12,
 		},
 	}
 
 	for _, testCase := range testCases {
-		t.Logf("test case: revision=%q count=%d", testCase.revision, testCase.count)
+		t.Logf("test case: %q", testCase.desc)
 
 		request := &pb.CountCommitsRequest{
 			Repository: testRepo,
 			Revision:   testCase.revision,
+		}
+
+		if testCase.before != "" {
+			before, err := time.Parse(time.RFC3339, testCase.before)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.Before = &timestamp.Timestamp{Seconds: before.Unix()}
+		}
+
+		if testCase.after != "" {
+			after, err := time.Parse(time.RFC3339, testCase.after)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.After = &timestamp.Timestamp{Seconds: after.Unix()}
+		}
+
+		if testCase.path != nil {
+			request.Path = testCase.path
 		}
 
 		response, err := client.CountCommits(context.Background(), request)

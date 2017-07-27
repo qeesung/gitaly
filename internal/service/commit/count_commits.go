@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
@@ -27,6 +28,16 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 	}
 
 	cmdArgs := []string{"--git-dir", repoPath, "rev-list", "--count", string(in.GetRevision())}
+
+	if before := in.GetBefore(); before != nil {
+		cmdArgs = append(cmdArgs, "--before="+timestampToRFC3339(before.Seconds))
+	}
+	if after := in.GetAfter(); after != nil {
+		cmdArgs = append(cmdArgs, "--after="+timestampToRFC3339(after.Seconds))
+	}
+	if path := in.GetPath(); path != nil {
+		cmdArgs = append(cmdArgs, "--", string(path))
+	}
 
 	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
 	if err != nil {
@@ -62,4 +73,8 @@ func validateCountCommitsRequest(in *pb.CountCommitsRequest) error {
 	}
 
 	return nil
+}
+
+func timestampToRFC3339(ts int64) string {
+	return time.Unix(ts, 0).Format(time.RFC3339)
 }
