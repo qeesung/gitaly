@@ -92,7 +92,10 @@ func newCommitsWriter(sender commitsSender) lines.Sender {
 			if len(elements) != 10 {
 				return grpc.Errorf(codes.Internal, "error parsing ref %q", ref)
 			}
-			parentIds := strings.Split(string(elements[9]), " ")
+			var parentIds []string
+			if len(elements[9]) > 0 { // Any parents?
+				parentIds = strings.Split(string(elements[9]), " ")
+			}
 
 			commit, err := git.NewCommit(elements[0], elements[1], elements[2],
 				elements[3], elements[4], elements[5], elements[6], elements[7],

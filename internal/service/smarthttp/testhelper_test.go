@@ -62,3 +62,18 @@ func newSmartHTTPClient(t *testing.T) pb.SmartHTTPClient {
 
 	return pb.NewSmartHTTPClient(conn)
 }
+
+func newRefServiceClient(t *testing.T) pb.RefServiceClient {
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
+			return net.Dial("unix", addr)
+		}),
+	}
+	conn, err := grpc.Dial(serverSocketPath, connOpts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return pb.NewRefServiceClient(conn)
+}

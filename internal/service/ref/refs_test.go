@@ -2,11 +2,15 @@ package ref
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/stretchr/testify/require"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"golang.org/x/net/context"
@@ -311,6 +315,183 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 
 	if grpc.Code(err) != codes.NotFound {
 		t.Fatal(err)
+	}
+}
+
+func TestSuccessfulFindAllTagsRequest(t *testing.T) {
+	server := runRefServiceServer(t)
+	defer server.Stop()
+
+	storagePath := testhelper.GitlabTestStoragePath()
+	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
+	testRepoCopyName := "gitlab-test-for-tags"
+	testRepoCopyPath := path.Join(storagePath, testRepoCopyName)
+	testhelper.MustRunCommand(t, nil, "git", "clone", "--bare", testRepoPath, testRepoCopyPath)
+	defer os.RemoveAll(testRepoCopyPath)
+
+	committerName := "Scrooge McDuck"
+	committerEmail := "scrooge@mcduck.com"
+	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath,
+		"-c", fmt.Sprintf("user.name=%s", committerName),
+		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"tag", "-m", "Blob tag", "v1.2.0", blobID)
+	annotatedTagID := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "tag", "-l", "--format=%(objectname)", "v1.2.0")
+	annotatedTagID = bytes.TrimSpace(annotatedTagID)
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath,
+		"-c", fmt.Sprintf("user.name=%s", committerName),
+		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"tag", "v1.3.0", "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9")
+	lightweightTagID := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "tag", "-l", "--format=%(objectname)", "v1.3.0")
+	lightweightTagID = bytes.TrimSpace(lightweightTagID)
+
+	client := newRefServiceClient(t)
+	rpcRequest := &pb.FindAllTagsRequest{
+		Repository: &pb.Repository{
+			StorageName:  testRepo.StorageName,
+			RelativePath: testRepoCopyName,
+		},
+	}
+
+	c, err := client.FindAllTags(context.Background(), rpcRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var receivedTags []*pb.FindAllTagsResponse_Tag
+	for {
+		r, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		receivedTags = append(receivedTags, r.GetTags()...)
+	}
+
+	expectedTags := []*pb.FindAllTagsResponse_Tag{
+		{
+			Name: []byte("v1.0.0"),
+			Id:   "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			TargetCommit: &pb.GitCommit{
+				Id:      "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9",
+				Subject: []byte("More submodules"),
+				Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491261},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491261},
+				},
+				ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
+			},
+			Message: []byte("Release\n"),
+		},
+		{
+			Name: []byte("v1.1.0"),
+			Id:   "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+			TargetCommit: &pb.GitCommit{
+				Id:      "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
+				Subject: []byte("Add submodule from gitlab.com"),
+				Body:    []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				},
+				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
+			},
+			Message: []byte("Version 1.1.0\n"),
+		},
+		{
+			Name:    []byte("v1.2.0"),
+			Id:      string(annotatedTagID),
+			Message: []byte("Blob tag\n"),
+		},
+		{
+			Name: []byte("v1.3.0"),
+			Id:   string(lightweightTagID),
+			TargetCommit: &pb.GitCommit{
+				Id:      "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9",
+				Subject: []byte("More submodules"),
+				Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491261},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491261},
+				},
+				ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
+			},
+		},
+	}
+
+	require.Len(t, expectedTags, len(receivedTags))
+
+	for i, receivedTag := range receivedTags {
+		t.Logf("test case: %q", expectedTags[i].Name)
+
+		require.Equal(t, expectedTags[i].Name, receivedTag.Name, "mismatched tag name")
+		require.Equal(t, expectedTags[i].Id, receivedTag.Id, "mismatched target ID")
+		require.Equal(t, expectedTags[i].Message, receivedTag.Message, "mismatched message")
+		require.Equal(t, expectedTags[i].TargetCommit, receivedTag.TargetCommit)
+	}
+}
+
+func TestInvalidFindAllTagsRequest(t *testing.T) {
+	server := runRefServiceServer(t)
+	defer server.Stop()
+
+	client := newRefServiceClient(t)
+	testCases := []struct {
+		desc    string
+		request *pb.FindAllTagsRequest
+	}{
+		{
+			desc:    "empty request",
+			request: &pb.FindAllTagsRequest{},
+		},
+		{
+			desc: "invalid repo",
+			request: &pb.FindAllTagsRequest{
+				Repository: &pb.Repository{
+					StorageName:  "fake",
+					RelativePath: "repo",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Logf("test case: %v", tc.desc)
+
+		c, err := client.FindAllTags(context.Background(), tc.request)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var recvError error
+		for recvError == nil {
+			_, recvError = c.Recv()
+		}
+
+		testhelper.AssertGrpcError(t, recvError, codes.InvalidArgument, "")
 	}
 }
 

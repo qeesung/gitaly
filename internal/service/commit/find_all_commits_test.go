@@ -150,7 +150,7 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393488198},
 			},
-			ParentIds: []string{""},
+			ParentIds: nil,
 		},
 	}
 

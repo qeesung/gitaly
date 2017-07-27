@@ -111,11 +111,14 @@ func MustRunCommand(t *testing.T, stdin io.Reader, name string, args ...string) 
 
 	output, err := cmd.Output()
 	if err != nil {
+		stderr := err.(*exec.ExitError).Stderr
 		if t == nil {
 			log.Print(name, args)
+			log.Printf("%s", stderr)
 			log.Fatal(err)
 		} else {
 			t.Log(name, args)
+			t.Logf("%s", stderr)
 			t.Fatal(err)
 		}
 	}

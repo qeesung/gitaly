@@ -14,7 +14,7 @@ func ScanWithDelimiter(delim []byte) bufio.SplitFunc {
 		}
 		if i := bytes.Index(data, delim); i >= 0 {
 			// We have a full delim-terminated line.
-			return i + 1, data[0:i], nil
+			return i + len(delim), data[0:i], nil
 		}
 		// If we're at EOF, we have a final, non-terminated line. Return it.
 		if atEOF {

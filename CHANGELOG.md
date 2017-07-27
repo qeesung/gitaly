@@ -5,6 +5,16 @@ UNRELEASED
 - Implement CommitService.CommitLanguages, add gitaly-ruby
   https://gitlab.com/gitlab-org/gitaly/merge_requests/210
 
+v0.25.0
+
+- Implement FindAllTags RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/246
+
+v0.24.1
+
+- Return an empty array on field `ParentIds` of `GitCommit`s if it has none
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/237
+
 v0.24.0
 
 - Consume stdout during repack/gc

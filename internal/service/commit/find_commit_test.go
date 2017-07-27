@@ -82,6 +82,28 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			},
 		},
 		{
+			description: "With an initial commit",
+			revision:    "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
+			commit: &pb.GitCommit{
+				Id:      "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
+				Subject: []byte("Initial commit"),
+				Body:    []byte("Initial commit\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393488198},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393488198},
+				},
+				// In practice, same as `[]string{}`... but not for `DeepEquals`
+				// (which is used to check the ParentIds in `CommitsEqual`)
+				ParentIds: nil,
+			},
+		},
+		{
 			description: "With a non-existing ref name",
 			revision:    "this-doesnt-exists",
 			commit:      nil,
@@ -106,7 +128,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !testhelper.CommitsEqual(response.Commit, testCase.commit) {
+		if !testhelper.CommitsEqual(testCase.commit, response.Commit) {
 			t.Fatalf("Expected commit %v, got %v", testCase.commit, response.Commit)
 		}
 	}

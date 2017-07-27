@@ -26,7 +26,12 @@ var (
 	FindBranchNames = _findBranchNames
 )
 
-func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, patterns []string, args ...string) error {
+type findRefsOpts struct {
+	cmdArgs  []string
+	splitter bufio.SplitFunc
+}
+
+func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, patterns []string, opts *findRefsOpts) error {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"Patterns": patterns,
 	}).Debug("FindRefs")
@@ -38,10 +43,11 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 
 	baseArgs := []string{"--git-dir", repoPath, "for-each-ref"}
 
-	if len(args) == 0 {
+	var args []string
+	if len(opts.cmdArgs) == 0 {
 		args = append(baseArgs, "--format=%(refname)") // Default format
 	} else {
-		args = append(baseArgs, args...)
+		args = append(baseArgs, opts.cmdArgs...)
 	}
 
 	args = append(args, patterns...)
@@ -51,7 +57,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 	}
 	defer cmd.Kill()
 
-	if err := lines.Send(cmd, writer, nil); err != nil {
+	if err := lines.Send(cmd, writer, opts.splitter); err != nil {
 		return err
 	}
 
@@ -60,12 +66,22 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 
 // FindAllBranchNames creates a stream of ref names for all branches in the given repository
 func (s *server) FindAllBranchNames(in *pb.FindAllBranchNamesRequest, stream pb.RefService_FindAllBranchNamesServer) error {
-	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, []string{"refs/heads"})
+	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, []string{"refs/heads"}, &findRefsOpts{})
 }
 
 // FindAllTagNames creates a stream of ref names for all tags in the given repository
 func (s *server) FindAllTagNames(in *pb.FindAllTagNamesRequest, stream pb.RefService_FindAllTagNamesServer) error {
-	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, []string{"refs/tags"})
+	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, []string{"refs/tags"}, &findRefsOpts{})
+}
+
+func (s *server) FindAllTags(in *pb.FindAllTagsRequest, stream pb.RefService_FindAllTagsServer) error {
+	opts := &findRefsOpts{
+		cmdArgs:  []string{"--format=" + strings.Join(tagsFormatFields, "%1f") + "%00"},
+		splitter: lines.ScanWithDelimiter([]byte{'\x00', '\n'}),
+	}
+
+	repo := in.GetRepository()
+	return findRefs(stream.Context(), newFindAllTagsWriter(repo, stream), repo, []string{"refs/tags"}, opts)
 }
 
 func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
@@ -194,17 +210,26 @@ func parseSortKey(sortKey pb.FindLocalBranchesRequest_SortBy) string {
 
 // FindLocalBranches creates a stream of branches for all local branches in the given repository
 func (s *server) FindLocalBranches(in *pb.FindLocalBranchesRequest, stream pb.RefService_FindLocalBranchesServer) error {
-	// %00 inserts the null character into the output (see for-each-ref docs)
-	formatFlag := "--format=" + strings.Join(localBranchFormatFields, "%00")
-	sortFlag := "--sort=" + parseSortKey(in.GetSortBy())
 	writer := newFindLocalBranchesWriter(stream)
+	opts := &findRefsOpts{
+		cmdArgs: []string{
+			// %00 inserts the null character into the output (see for-each-ref docs)
+			"--format=" + strings.Join(localBranchFormatFields, "%00"),
+			"--sort=" + parseSortKey(in.GetSortBy()),
+		},
+	}
 
-	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads"}, formatFlag, sortFlag)
+	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads"}, opts)
 }
 
 func (s *server) FindAllBranches(in *pb.FindAllBranchesRequest, stream pb.RefService_FindAllBranchesServer) error {
-	formatFlag := "--format=" + strings.Join(localBranchFormatFields, "%00")
+	opts := &findRefsOpts{
+		cmdArgs: []string{
+			// %00 inserts the null character into the output (see for-each-ref docs)
+			"--format=" + strings.Join(localBranchFormatFields, "%00"),
+		},
+	}
 	writer := newFindAllBranchesWriter(stream)
 
-	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads", "refs/remotes"}, formatFlag)
+	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads", "refs/remotes"}, opts)
 }
