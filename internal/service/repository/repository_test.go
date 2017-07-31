@@ -23,6 +23,7 @@ func TestRepositoryExists(t *testing.T) {
 	testStorages := []config.Storage{
 		{Name: "default", Path: testhelper.GitlabTestStoragePath()},
 		{Name: "other", Path: "/home/git/repositories2"},
+		{Name: "broken: directory does not exist", Path: "/does/not/exist"},
 	}
 
 	defer func(oldStorages []config.Storage) {
@@ -76,6 +77,15 @@ func TestRepositoryExists(t *testing.T) {
 				},
 			},
 			Exists: false,
+		},
+		{
+			Request: &pb.RepositoryExistsRequest{
+				Repository: &pb.Repository{
+					StorageName:  "broken: directory does not exist",
+					RelativePath: "foobar.git",
+				},
+			},
+			ErrorCode: codes.NotFound,
 		},
 	}
 
