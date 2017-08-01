@@ -103,13 +103,16 @@ func TestRepositoryExists(t *testing.T) {
 	}
 
 	for _, tc := range queries {
+		t.Log(tc.desc)
 		response, err := client.Exists(context.Background(), tc.request)
-		if tc.errorCode != codes.OK {
-			require.Equal(t, tc.errorCode, grpc.Code(err), tc.desc)
+
+		require.Equal(t, tc.errorCode, grpc.Code(err))
+
+		if err != nil {
+			// Ignore the response message if there was an error
 			continue
 		}
 
-		require.NoError(t, err, tc.desc)
-		require.Equal(t, tc.exists, response.Exists, tc.desc)
+		require.Equal(t, tc.exists, response.Exists)
 	}
 }
