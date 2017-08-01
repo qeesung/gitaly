@@ -41,10 +41,18 @@ func GetRepoPath(repo *pb.Repository) (string, error) {
 func GetPath(repo *pb.Repository) (string, error) {
 	storagePath, ok := config.StoragePath(repo.GetStorageName())
 	if !ok {
-		return "", grpc.Errorf(codes.InvalidArgument, "GetRepoPath: invalid storage name '%s'", repo.GetStorageName())
+		return "", grpc.Errorf(codes.InvalidArgument, "GetPath: invalid storage name '%s'", repo.GetStorageName())
+	}
+
+	if _, err := os.Stat(storagePath); err != nil {
+		return "", grpc.Errorf(codes.Internal, "GetPath: storage path: %v", err)
 	}
 
 	relativePath := repo.GetRelativePath()
+	if len(relativePath) == 0 {
+		err := grpc.Errorf(codes.InvalidArgument, "GetPath: relative path missing from %+v", repo)
+		return "", err
+	}
 
 	// Disallow directory traversal for security
 	separator := string(os.PathSeparator)

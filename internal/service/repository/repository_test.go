@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -17,12 +19,16 @@ func TestRepositoryExists(t *testing.T) {
 	server := runRepoServer(t)
 	defer server.Stop()
 
+	storageOtherDir, err := ioutil.TempDir("", "gitaly-repository-exists-test")
+	require.NoError(t, err, "tempdir")
+	defer os.Remove(storageOtherDir)
+
 	client := newRepositoryClient(t)
 
 	// Setup storage paths
 	testStorages := []config.Storage{
 		{Name: "default", Path: testhelper.GitlabTestStoragePath()},
-		{Name: "other", Path: "/home/git/repositories2"},
+		{Name: "other", Path: storageOtherDir},
 		{Name: "broken", Path: "/does/not/exist"},
 	}
 
@@ -92,7 +98,7 @@ func TestRepositoryExists(t *testing.T) {
 					RelativePath: "foobar.git",
 				},
 			},
-			errorCode: codes.NotFound,
+			errorCode: codes.Internal,
 		},
 	}
 

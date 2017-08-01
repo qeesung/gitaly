@@ -80,7 +80,7 @@ func TestGetRepoPath(t *testing.T) {
 			desc:     "storage defined but storage dir does not exist",
 			storages: []config.Storage{{Name: "default", Path: "/does/not/exist"}},
 			repo:     &pb.Repository{StorageName: "default", RelativePath: "foobar.git"},
-			err:      codes.NotFound,
+			err:      codes.Internal,
 		},
 		{
 			desc:     "relative path with directory traversal",
