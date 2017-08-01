@@ -25,29 +25,34 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 	client := newSSHClient(t)
 
 	tests := []struct {
+		Desc string
 		Req  *pb.SSHReceivePackRequest
 		Code codes.Code
 	}{
-		{ // Repository.RelativePath is empty
+		{
+			Desc: "Repository.RelativePath is empty",
 			Req:  &pb.SSHReceivePackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: ""}, GlId: "user-123"},
-			Code: codes.NotFound,
+			Code: codes.InvalidArgument,
 		},
-		{ // Repository is nil
+		{
+			Desc: "Repository is nil",
 			Req:  &pb.SSHReceivePackRequest{Repository: nil, GlId: "user-123"},
 			Code: codes.InvalidArgument,
 		},
-		{ // Empty GlId
-			Req:  &pb.SSHReceivePackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: "path/to/repo"}, GlId: ""},
+		{
+			Desc: "Empty GlId",
+			Req:  &pb.SSHReceivePackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: testRepo.GetRelativePath()}, GlId: ""},
 			Code: codes.InvalidArgument,
 		},
-		{ // Data exists on first request
-			Req:  &pb.SSHReceivePackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: "path/to/repo"}, GlId: "user-123", Stdin: []byte("Fail")},
+		{
+			Desc: "Data exists on first request",
+			Req:  &pb.SSHReceivePackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: testRepo.GetRelativePath()}, GlId: "user-123", Stdin: []byte("Fail")},
 			Code: codes.InvalidArgument,
 		},
 	}
 
 	for _, test := range tests {
-		t.Logf("test case: %v", test.Req)
+		t.Logf("test case: %v", test.Desc)
 		stream, err := client.SSHReceivePack(context.Background())
 		if err != nil {
 			t.Fatal(err)

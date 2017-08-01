@@ -24,25 +24,29 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 	client := newSSHClient(t)
 
 	tests := []struct {
+		Desc string
 		Req  *pb.SSHUploadPackRequest
 		Code codes.Code
 	}{
-		{ // Repository.RelativePath is empty
+		{
+			Desc: "Repository.RelativePath is empty",
 			Req:  &pb.SSHUploadPackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: ""}},
-			Code: codes.NotFound,
+			Code: codes.InvalidArgument,
 		},
-		{ // Repository is nil
+		{
+			Desc: "Repository is nil",
 			Req:  &pb.SSHUploadPackRequest{Repository: nil},
 			Code: codes.InvalidArgument,
 		},
-		{ // Data exists on first request
+		{
+			Desc: "Data exists on first request",
 			Req:  &pb.SSHUploadPackRequest{Repository: &pb.Repository{StorageName: "default", RelativePath: "path/to/repo"}, Stdin: []byte("Fail")},
 			Code: codes.InvalidArgument,
 		},
 	}
 
 	for _, test := range tests {
-		t.Logf("test case: %v", test.Req)
+		t.Logf("test case: %s", test.Desc)
 		stream, err := client.SSHUploadPack(context.Background())
 		if err != nil {
 			t.Fatal(err)
