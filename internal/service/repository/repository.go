@@ -13,9 +13,5 @@ func (s *server) Exists(ctx context.Context, in *pb.RepositoryExistsRequest) (*p
 		return nil, err
 	}
 
-	if helper.IsGitDirectory(path) {
-		return &pb.RepositoryExistsResponse{Exists: true}, nil
-	}
-
-	return &pb.RepositoryExistsResponse{Exists: false}, nil
+	return &pb.RepositoryExistsResponse{Exists: helper.IsGitDirectory(path)}, nil
 }
