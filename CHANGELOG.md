@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Add storage dir existence check to repo lookup
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/259
+
 v0.26.0
 
 - Implement CommitService.CommitLanguages, add gitaly-ruby
