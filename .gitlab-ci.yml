@@ -6,10 +6,6 @@ stages:
   - package
   - publish
 
-cache:
-  paths:
-    - ruby/vendor/bundle
-
 verify:
   stage: build_test
   script:
@@ -17,6 +13,10 @@ verify:
 
 .test_template: &test_definition
   stage: build_test
+  cache:
+    key: gems
+    paths:
+      - ruby/vendor/bundle
   script:
     - go version
     - git version
@@ -24,6 +24,11 @@ verify:
 
 .build_template: &build_definition
   stage: build_test
+  cache:
+    key: gems
+    policy: pull
+    paths:
+      - ruby/vendor/bundle
   script:
     - make
 
@@ -45,6 +50,11 @@ test:default:
 
 cover:
   stage: build_test
+  cache:
+    key: gems
+    policy: pull
+    paths:
+      - ruby/vendor/bundle
   script:
     - make cover
   artifacts:
