@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+LOCAL_FETCH_DIR = 'ruby/vendor/gitlab_git'
+FILE_LIST = %w[lib/gitlab/git.rb lib/gitlab/git lib/gitlab/encoding_helper.rb]
+REMOTE = 'https://gitlab.com/gitlab-org/gitlab-ce'
+REVISION_FILE = 'ruby/vendor/gitlab_git/REVISION'
+
+require_relative 'run.rb'
+require 'tempfile'
+
+def main
+  if ARGV.count != 1
+    abort "usage: #{$0} COMMIT_ID"
+  end
+  ref = ARGV.first
+
+  Dir.mktmpdir do |dir|
+    run!(%W[curl -o archive.tar.gz #{REMOTE}/repository/archive.tar.gz?ref=#{ref}], dir)
+
+    archive_base = "gitlab-ce-#{ref}-#{ref}"
+    extract_path = File.join(dir, archive_base)
+    run!(%W[tar -xzf archive.tar.gz --] + FILE_LIST.map { |f| File.join(archive_base, f) }, dir)
+
+    FileUtils.rm_rf(LOCAL_FETCH_DIR)
+    FileUtils.mkdir_p(LOCAL_FETCH_DIR)
+    run!(%W[rsync -av #{extract_path}/. #{LOCAL_FETCH_DIR}/])
+  end
+
+  File.write(REVISION_FILE, "#{ref}\n")
+end
+
+main
