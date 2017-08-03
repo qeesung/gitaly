@@ -48,7 +48,7 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	cp $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(BUILD_DIR)/
 
 .ruby-bundle:	ruby/Gemfile.lock
-	cd ruby && bundle install
+	cd ruby && bundle install --path vendor/bundle
 	touch $@
 
 .PHONY: install

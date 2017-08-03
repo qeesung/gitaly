@@ -8,3 +8,4 @@
 /config.toml
 /internal/service/ssh/gitaly-*-pack
 /.ruby-bundle
+/ruby/vendor/bundle
