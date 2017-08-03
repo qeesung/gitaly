@@ -12,6 +12,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/260
 - Deprecate Exists RPC in favor of RepositoryExists
   https://gitlab.com/gitlab-org/gitaly/merge_requests/260
+- Install gems into vendor/bundle
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/264
 
 v0.26.0
 
