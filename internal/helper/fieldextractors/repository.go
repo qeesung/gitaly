@@ -28,7 +28,7 @@ func formatRepoRequest(repo *pb.Repository) map[string]interface{} {
 // - "gitlab-org/gitter/webapp.git" returns "gitlab-org"
 // - "x.git" returns ""
 func getTopLevelGroupFromRepoPath(repoPath string) string {
-	parts := strings.SplitN(repoPath, ",", 2)
+	parts := strings.SplitN(repoPath, "/", 2)
 	if len(parts) != 2 {
 		return ""
 	}
