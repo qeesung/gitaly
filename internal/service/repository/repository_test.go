@@ -98,7 +98,7 @@ func TestRepositoryExists(t *testing.T) {
 					RelativePath: "foobar.git",
 				},
 			},
-			errorCode: codes.OK,
+			errorCode: codes.Internal,
 		},
 	}
 
