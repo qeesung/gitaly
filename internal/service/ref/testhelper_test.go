@@ -10,15 +10,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/ptypes/timestamp"
 
+	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-
-	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
 var (
@@ -89,22 +86,6 @@ func TestMain(m *testing.M) {
 	}())
 }
 
-func runRefServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
-	grpcServer := grpc.NewServer()
-	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(&server{}))
-	reflection.Register(grpcServer)
-
-	go grpcServer.Serve(listener)
-
-	return grpcServer
-}
-
 func runRefServiceServer(t *testing.T) *grpc.Server {
 	os.Remove(serverSocketPath)
 	grpcServer := testhelper.NewTestGrpcServer(t)
@@ -120,21 +101,6 @@ func runRefServiceServer(t *testing.T) *grpc.Server {
 	go grpcServer.Serve(listener)
 
 	return grpcServer
-}
-
-func newRefClient(t *testing.T) pb.RefClient {
-	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-			return net.Dial("unix", addr)
-		}),
-	}
-	conn, err := grpc.Dial(serverSocketPath, connOpts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return pb.NewRefClient(conn)
 }
 
 func newRefServiceClient(t *testing.T) pb.RefServiceClient {

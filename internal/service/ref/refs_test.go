@@ -28,10 +28,10 @@ func containsRef(refs [][]byte, ref string) bool {
 }
 
 func TestSuccessfulFindAllBranchNames(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindAllBranchNamesRequest{Repository: testRepo}
 
 	c, err := client.FindAllBranchNames(context.Background(), rpcRequest)
@@ -58,10 +58,10 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 }
 
 func TestEmptyFindAllBranchNamesRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindAllBranchNamesRequest{}
 
 	c, err := client.FindAllBranchNames(context.Background(), rpcRequest)
@@ -80,10 +80,10 @@ func TestEmptyFindAllBranchNamesRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindAllBranchNamesRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	repo := &pb.Repository{StorageName: "default", RelativePath: "made/up/path"}
 	rpcRequest := &pb.FindAllBranchNamesRequest{Repository: repo}
 
@@ -103,10 +103,10 @@ func TestInvalidRepoFindAllBranchNamesRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindAllTagNames(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindAllTagNamesRequest{Repository: testRepo}
 
 	c, err := client.FindAllTagNames(context.Background(), rpcRequest)
@@ -134,10 +134,10 @@ func TestSuccessfulFindAllTagNames(t *testing.T) {
 }
 
 func TestEmptyFindAllTagNamesRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindAllTagNamesRequest{}
 
 	c, err := client.FindAllTagNames(context.Background(), rpcRequest)
@@ -156,10 +156,10 @@ func TestEmptyFindAllTagNamesRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindAllTagNamesRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	repo := &pb.Repository{StorageName: "default", RelativePath: "made/up/path"}
 	rpcRequest := &pb.FindAllTagNamesRequest{Repository: repo}
 
@@ -273,10 +273,10 @@ func TestDefaultBranchName(t *testing.T) {
 }
 
 func TestSuccessfulFindDefaultBranchName(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindDefaultBranchNameRequest{Repository: testRepo}
 
 	r, err := client.FindDefaultBranchName(context.Background(), rpcRequest)
@@ -290,10 +290,10 @@ func TestSuccessfulFindDefaultBranchName(t *testing.T) {
 }
 
 func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindDefaultBranchNameRequest{}
 
 	_, err := client.FindDefaultBranchName(context.Background(), rpcRequest)
@@ -304,10 +304,10 @@ func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	repo := &pb.Repository{StorageName: "default", RelativePath: "/made/up/path"}
 	rpcRequest := &pb.FindDefaultBranchNameRequest{Repository: repo}
 
@@ -504,10 +504,10 @@ func TestInvalidFindAllTagsRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindLocalBranches(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindLocalBranchesRequest{Repository: testRepo}
 
 	c, err := client.FindLocalBranches(context.Background(), rpcRequest)
@@ -588,10 +588,10 @@ func TestFindLocalBranchesSort(t *testing.T) {
 		},
 	}
 
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 
 	for _, testCase := range testCases {
 		rpcRequest := &pb.FindLocalBranchesRequest{Repository: testRepo, SortBy: testCase.sortBy}
@@ -622,10 +622,10 @@ func TestFindLocalBranchesSort(t *testing.T) {
 }
 
 func TestEmptyFindLocalBranchesRequest(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindLocalBranchesRequest{}
 
 	c, err := client.FindLocalBranches(context.Background(), rpcRequest)

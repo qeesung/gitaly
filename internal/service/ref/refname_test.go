@@ -12,10 +12,10 @@ import (
 )
 
 func TestFindRefNameSuccess(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
 		CommitId:   "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
@@ -35,10 +35,10 @@ func TestFindRefNameSuccess(t *testing.T) {
 }
 
 func TestFindRefNameEmptyCommit(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
 		CommitId:   "",
@@ -60,10 +60,10 @@ func TestFindRefNameEmptyCommit(t *testing.T) {
 }
 
 func TestFindRefNameInvalidRepo(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	repo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: repo,
@@ -86,10 +86,10 @@ func TestFindRefNameInvalidRepo(t *testing.T) {
 }
 
 func TestFindRefNameInvalidPrefix(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
 		CommitId:   "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
@@ -106,10 +106,10 @@ func TestFindRefNameInvalidPrefix(t *testing.T) {
 }
 
 func TestFindRefNameInvalidObject(t *testing.T) {
-	server := runRefServer(t)
+	server := runRefServiceServer(t)
 	defer server.Stop()
 
-	client := newRefClient(t)
+	client := newRefServiceClient(t)
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
 		CommitId:   "dead1234dead1234dead1234dead1234dead1234",
