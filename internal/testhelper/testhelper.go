@@ -15,6 +15,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
@@ -190,4 +192,15 @@ func ConfigureRuby() {
 		log.Fatal("Could not get caller info")
 	}
 	config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
+}
+
+// NewTestGrpcServer creates a GRPC Server for testing purposes
+func NewTestGrpcServer(t *testing.T) *grpc.Server {
+	logger := NewTestLogger(t)
+	logrusEntry := log.NewEntry(logger).WithField("test", t.Name())
+
+	return grpc.NewServer(
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_logrus.StreamServerInterceptor(logrusEntry))),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_logrus.UnaryServerInterceptor(logrusEntry))),
+	)
 }

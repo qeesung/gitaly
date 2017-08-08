@@ -53,7 +53,7 @@ func newRepositoryClient(t *testing.T) pb.RepositoryServiceClient {
 }
 
 func runRepoServer(t *testing.T) *grpc.Server {
-	server := grpc.NewServer()
+	server := testhelper.NewTestGrpcServer(t)
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
 		t.Fatal(err)

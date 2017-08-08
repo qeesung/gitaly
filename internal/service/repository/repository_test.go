@@ -98,21 +98,22 @@ func TestRepositoryExists(t *testing.T) {
 					RelativePath: "foobar.git",
 				},
 			},
-			errorCode: codes.Internal,
+			errorCode: codes.OK,
 		},
 	}
 
 	for _, tc := range queries {
-		t.Log(tc.desc)
-		response, err := client.Exists(context.Background(), tc.request)
+		t.Run(tc.desc, func(t *testing.T) {
+			response, err := client.Exists(context.Background(), tc.request)
 
-		require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, grpc.Code(err))
 
-		if err != nil {
-			// Ignore the response message if there was an error
-			continue
-		}
+			if err != nil {
+				// Ignore the response message if there was an error
+				return
+			}
 
-		require.Equal(t, tc.exists, response.Exists)
+			require.Equal(t, tc.exists, response.Exists)
+		})
 	}
 }

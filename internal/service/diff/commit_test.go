@@ -834,7 +834,7 @@ func TestFailedCommitDeltaRequestWithNonExistentCommit(t *testing.T) {
 }
 
 func runDiffServer(t *testing.T) *grpc.Server {
-	server := grpc.NewServer()
+	server := testhelper.NewTestGrpcServer(t)
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
 		t.Fatal(err)
