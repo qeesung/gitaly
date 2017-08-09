@@ -1,4 +1,4 @@
-image: registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest
+image: registry.gitlab.com/gitlab-org/gitaly/build-ruby-2.3-golang-1.8-git-2.13:latest
 
 stages:
   - build_images
@@ -108,14 +108,14 @@ build_images:
   variables:
     DOCKER_DRIVER: overlay
   stage: build_images
-  only:
-  - schedules
+  # only:
+  # - schedules
   image: docker:latest
   services:
   - docker:dind
   script:
-    - cp ruby/Gemfile ruby/Gemfile.lock _support/build-images/golang-1.8-git-2.8.4/
+    - cp ruby/Gemfile ruby/Gemfile.lock _support/build-images/ruby-2.3-golang-1.8-git-2.13/
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
-    - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest _support/build-images/golang-1.8-git-2.8.4/
-    - docker push registry.gitlab.com/gitlab-org/gitaly/build-golang-1.8-git-2.8.4:latest
+    - docker build -t registry.gitlab.com/gitlab-org/gitaly/build-ruby-2.3-golang-1.8-git-2.13:latest _support/build-images/ruby-2.3-golang-1.8-git-2.13/
+    - docker push registry.gitlab.com/gitlab-org/gitaly/build-ruby-2.3-golang-1.8-git-2.13:latest
 

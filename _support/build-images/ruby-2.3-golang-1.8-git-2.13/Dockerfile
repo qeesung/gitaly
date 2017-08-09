@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/gitlab-org/gitlab-build-images:golang-1.8-git-2.8.4
+FROM registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.8-git-2.8
 
 RUN mkdir -p /bundle-cache
 
