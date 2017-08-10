@@ -31,18 +31,6 @@ func startTestServices(t *testing.T) (service *grpc.Server, ruby *supervisor.Pro
 	}
 
 	service, serverSocketPath = runCommitServiceServer(t)
-	// os.Exit(func() int {
-	// 	defer ruby.Stop()
-
-	// 	os.Remove(serviceSocketPath)
-
-	// 	defer func() {
-	// 		service.Stop()
-	// 		os.Remove(serviceSocketPath)
-	// 	}()
-
-	// 	return m.Run()
-	// }())
 	return
 }
 

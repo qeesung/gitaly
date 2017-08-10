@@ -14,21 +14,11 @@ import (
 )
 
 var (
-	// serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo *pb.Repository
 )
 
 func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
-
-	// server := runBlobServer(m)
-	// os.Exit(func() int {
-	// 	defer func() {
-	// 		server.Stop()
-	// 	}()
-
-	// 	return m.Run()
-	// }())
 }
 
 func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) {
