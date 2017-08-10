@@ -8,6 +8,8 @@ v0.29.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/267
 - Don't count on PID 1 to be the reaper
   https://gitlab.com/gitlab-org/gitaly/merge_requests/270
+- Log top level project group for easier analysis
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/272
 
 v0.28.0
 
