@@ -1,6 +1,6 @@
 # Gitaly changelog
 
-UNRELEASED
+v0.29.0
 
 - Use BUNDLE_PATH instead of --path for gitaly-ruby
   https://gitlab.com/gitlab-org/gitaly/merge_requests/271
