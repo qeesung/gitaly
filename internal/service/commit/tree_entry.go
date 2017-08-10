@@ -61,7 +61,7 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 			return grpc.Errorf(
 				codes.Internal,
 				"TreeEntry: mismatched object type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
-				treeEntry.Oid, objectInfo.Oid, treeEntry.Type.String, objectInfo.Type,
+				treeEntry.Oid, objectInfo.Oid, treeEntry.Type.String(), objectInfo.Type,
 			)
 		}
 

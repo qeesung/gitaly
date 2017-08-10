@@ -22,7 +22,10 @@ type treeEntry struct {
 }
 
 func TestSuccessfulTreeEntry(t *testing.T) {
-	client := newCommitClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	testCases := []struct {
 		revision          []byte
@@ -137,7 +140,11 @@ func TestSuccessfulTreeEntry(t *testing.T) {
 }
 
 func TestFailedTreeEntryRequestDueToValidationError(t *testing.T) {
-	client := newCommitClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
 	path := []byte("a/b/c")
 

@@ -11,7 +11,10 @@ import (
 )
 
 func TestCommitIsAncestorFailure(t *testing.T) {
-	client := newCommitClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	queries := []struct {
 		Request   *pb.CommitIsAncestorRequest
@@ -66,7 +69,10 @@ func TestCommitIsAncestorFailure(t *testing.T) {
 }
 
 func TestCommitIsAncestorSuccess(t *testing.T) {
-	client := newCommitClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	queries := []struct {
 		Request  *pb.CommitIsAncestorRequest

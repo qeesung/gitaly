@@ -15,7 +15,10 @@ import (
 )
 
 func TestSuccessfulGetBlob(t *testing.T) {
-	client := newBlobClient(t)
+	server, serverSocketPath := runBlobServer(t)
+	defer server.Stop()
+
+	client := newBlobClient(t, serverSocketPath)
 	maintenanceMdBlobData := testhelper.MustReadFile(t, "testdata/maintenance-md-blob.txt")
 	testCases := []struct {
 		desc     string
@@ -81,7 +84,10 @@ func TestSuccessfulGetBlob(t *testing.T) {
 }
 
 func TestGetBlobNotFound(t *testing.T) {
-	client := newBlobClient(t)
+	server, serverSocketPath := runBlobServer(t)
+	defer server.Stop()
+
+	client := newBlobClient(t, serverSocketPath)
 
 	request := &pb.GetBlobRequest{
 		Repository: testRepo,
@@ -127,7 +133,10 @@ func getBlob(stream pb.BlobService_GetBlobClient) (int64, string, []byte, error)
 }
 
 func TestFailedGetBlobRequestDueToValidationError(t *testing.T) {
-	client := newBlobClient(t)
+	server, serverSocketPath := runBlobServer(t)
+	defer server.Stop()
+
+	client := newBlobClient(t, serverSocketPath)
 	oid := "d42783470dc29fde2cf459eb3199ee1d7e3f3a72"
 
 	rpcRequests := []pb.GetBlobRequest{

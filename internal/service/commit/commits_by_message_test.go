@@ -15,7 +15,10 @@ import (
 )
 
 func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	commits := []*pb.GitCommit{
 		{
@@ -142,7 +145,11 @@ func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
 }
 
 func TestFailedCommitsByMessageRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
 	testCases := []struct {

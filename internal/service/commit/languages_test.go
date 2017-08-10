@@ -10,7 +10,10 @@ import (
 )
 
 func TestLanguages(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 	request := &pb.CommitLanguagesRequest{
 		Repository: testRepo,
 		Revision:   []byte("cb19058ecc02d01f8e4290b7e79cafd16a8839b6"),
@@ -53,7 +56,10 @@ func languageEqual(expected, actual *pb.CommitLanguagesResponse_Language) bool {
 }
 
 func TestLanguagesEmptyRevision(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 	request := &pb.CommitLanguagesRequest{
 		Repository: testRepo,
 	}

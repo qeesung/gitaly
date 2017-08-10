@@ -15,7 +15,10 @@ import (
 )
 
 func TestSuccessfulRawBlameRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	testCases := []struct {
 		revision, path, data []byte
@@ -66,7 +69,11 @@ func TestSuccessfulRawBlameRequest(t *testing.T) {
 }
 
 func TestFailedRawBlameRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
 	testCases := []struct {

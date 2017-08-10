@@ -11,7 +11,10 @@ import (
 )
 
 func TestCommitStatsUnimplemented(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	_, err := client.CommitStats(context.Background(), &pb.CommitStatsRequest{Repository: testRepo, Revision: []byte("master")})
 	testhelper.AssertGrpcError(t, err, codes.Unimplemented, "not implemented")
