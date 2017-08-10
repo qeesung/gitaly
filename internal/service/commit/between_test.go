@@ -13,7 +13,10 @@ import (
 )
 
 func TestSuccessfulCommitsBetween(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 	from := []byte("498214de67004b1da3d820901307bed2a68a8ef6") // branch-merged
 	to := []byte("e63f41fe459e62e1228fcef60d7189127aeba95a")   // master
 	fakeHash := []byte("f63f41fe459e62e1228fcef60d7189127aeba95a")
@@ -160,7 +163,11 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 }
 
 func TestFailedCommitsBetweenRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 	from := []byte("498214de67004b1da3d820901307bed2a68a8ef6")
 	to := []byte("e63f41fe459e62e1228fcef60d7189127aeba95a")

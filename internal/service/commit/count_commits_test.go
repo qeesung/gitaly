@@ -15,7 +15,10 @@ import (
 )
 
 func TestSuccessfulCountCommitsRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	testCases := []struct {
 		revision, path      []byte
@@ -103,7 +106,11 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 }
 
 func TestFailedCountCommitsRequestDueToValidationError(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
 
 	rpcRequests := []pb.CountCommitsRequest{

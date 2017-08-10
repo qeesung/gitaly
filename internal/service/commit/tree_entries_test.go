@@ -22,7 +22,12 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 
 	commitID := "913c66a37b4a45b9769037c55c2d238bd0942d2e"
 	rootOid := "faafbe7fe23fb83c664c78aaded9566c8f934412"
-	client := newCommitServiceClient(t)
+
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	rootEntries := []*pb.TreeEntry{
 		{
 			Oid:       "fd90a3d2d21d6b4f9bec2c33fb7f49780c55f0d2",
@@ -260,7 +265,11 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client pb.CommitService_Get
 }
 
 func TestFailedGetTreeEntriesRequestDueToValidationError(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
 	path := []byte("a/b/c")
 

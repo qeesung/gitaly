@@ -2,7 +2,6 @@ package smarthttp
 
 import (
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -22,16 +21,8 @@ const (
 
 var (
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         *pb.Repository
+	testRepo         = testhelper.TestRepository()
 )
-
-func TestMain(m *testing.M) {
-	testRepo = testhelper.TestRepository()
-
-	os.Exit(func() int {
-		return m.Run()
-	}())
-}
 
 func runSmartHTTPServer(t *testing.T) *grpc.Server {
 	server := testhelper.NewTestGrpcServer(t)

@@ -14,7 +14,11 @@ import (
 )
 
 func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	commit := &pb.GitCommit{
 		Id:      "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
 		Subject: []byte("Change some files"),
@@ -75,7 +79,11 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 }
 
 func TestFailedLastCommitForPathRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
 	testCases := []struct {

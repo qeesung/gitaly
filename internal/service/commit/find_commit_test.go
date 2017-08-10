@@ -11,7 +11,10 @@ import (
 )
 
 func TestSuccessfulFindCommitRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	testCases := []struct {
 		description string
@@ -135,7 +138,10 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 }
 
 func TestFailedFindCommitRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
 	testCases := []struct {

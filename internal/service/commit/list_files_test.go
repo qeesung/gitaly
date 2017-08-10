@@ -49,7 +49,11 @@ func TestListFilesSuccess(t *testing.T) {
 		defaultBranchName = ref.DefaultBranchName
 	}()
 
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	tests := []struct {
 		revision string
 		files    [][]byte
@@ -125,7 +129,11 @@ func TestListFilesSuccess(t *testing.T) {
 }
 
 func TestListFilesFailure(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	tests := []struct {
 		repo     *pb.Repository
 		revision string

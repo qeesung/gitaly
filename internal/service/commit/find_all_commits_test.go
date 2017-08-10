@@ -27,7 +27,10 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 		}, nil
 	}
 
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	// Commits made on another branch in parallel to the normal commits below.
 	// Will be used to test topology ordering.
@@ -273,7 +276,11 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 }
 
 func TestFailedFindAllCommitsRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
 	testCases := []struct {

@@ -3,7 +3,6 @@ package notifications
 import (
 	"context"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -17,16 +16,8 @@ import (
 
 var (
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         *pb.Repository
+	testRepo         = testhelper.TestRepository()
 )
-
-func TestMain(m *testing.M) {
-	testRepo = testhelper.TestRepository()
-
-	os.Exit(func() int {
-		return m.Run()
-	}())
-}
 
 func TestSuccessfulPostReceive(t *testing.T) {
 	server := runNotificationsServer(t)

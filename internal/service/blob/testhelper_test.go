@@ -2,11 +2,8 @@ package blob
 
 import (
 	"net"
-	"os"
 	"testing"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -17,29 +14,16 @@ import (
 )
 
 var (
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         *pb.Repository
+	testRepo = testhelper.TestRepository()
 )
 
-func TestMain(m *testing.M) {
-	testRepo = testhelper.TestRepository()
-
-	server := runBlobServer(m)
-	os.Exit(func() int {
-		defer func() {
-			server.Stop()
-			os.Remove(serverSocketPath)
-		}()
-
-		return m.Run()
-	}())
-}
-
-func runBlobServer(m *testing.M) *grpc.Server {
-	server := grpc.NewServer()
+func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) {
+	server = testhelper.NewTestGrpcServer(t)
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	listener, err := net.Listen("unix", serverSocketPath)
+
 	if err != nil {
-		log.WithError(err).Fatal("failed to start server")
+		t.Fatal(err)
 	}
 
 	pb.RegisterBlobServiceServer(server, NewServer())
@@ -47,10 +31,10 @@ func runBlobServer(m *testing.M) *grpc.Server {
 
 	go server.Serve(listener)
 
-	return server
+	return
 }
 
-func newBlobClient(t *testing.T) pb.BlobServiceClient {
+func newBlobClient(t *testing.T, serverSocketPath string) pb.BlobServiceClient {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {

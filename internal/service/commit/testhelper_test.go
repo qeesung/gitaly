@@ -3,13 +3,11 @@ package commit
 import (
 	"bytes"
 	"net"
-	"os"
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/supervisor"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -17,83 +15,54 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 )
 
 var (
-	serverSocketPath  = testhelper.GetTemporaryGitalySocketFileName()
-	serviceSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo          *pb.Repository
+	testRepo *pb.Repository
 )
 
-func TestMain(m *testing.M) {
+func startTestServices(t *testing.T) (service *grpc.Server, ruby *supervisor.Process, serverSocketPath string) {
 	testRepo = testhelper.TestRepository()
 
 	testhelper.ConfigureRuby()
 	ruby, err := rubyserver.Start()
 	if err != nil {
-		log.WithError(err).Fatal("ruby spawn failed")
+		t.Fatal("ruby spawn failed")
 	}
 
-	os.Exit(func() int {
-		defer ruby.Stop()
-
-		os.Remove(serverSocketPath)
-		server := runCommitServer(m)
-		defer func() {
-			server.Stop()
-			os.Remove(serverSocketPath)
-		}()
-
-		os.Remove(serviceSocketPath)
-		service := runCommitServiceServer(m)
-		defer func() {
-			service.Stop()
-			os.Remove(serviceSocketPath)
-		}()
-
-		return m.Run()
-	}())
+	service, serverSocketPath = runCommitServiceServer(t)
+	return
 }
 
-func runCommitServer(m *testing.M) *grpc.Server {
-	server := grpc.NewServer()
-	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		log.WithError(err).Fatal("failed to start server")
-	}
-
-	pb.RegisterCommitServer(server, renameadapter.NewCommitAdapter(NewServer()))
-	reflection.Register(server)
-
-	go server.Serve(listener)
-
-	return server
+func stopTestServices(service *grpc.Server, ruby *supervisor.Process) {
+	ruby.Stop()
+	service.Stop()
 }
 
-func runCommitServiceServer(m *testing.M) *grpc.Server {
-	server := grpc.NewServer()
+func runCommitServiceServer(t *testing.T) (server *grpc.Server, serviceSocketPath string) {
+	server = grpc.NewServer()
+	serviceSocketPath = testhelper.GetTemporaryGitalySocketFileName()
+
 	listener, err := net.Listen("unix", serviceSocketPath)
 	if err != nil {
-		log.WithError(err).Fatal("failed to start server")
+		t.Fatal("failed to start server")
 	}
 
 	pb.RegisterCommitServiceServer(server, NewServer())
 	reflection.Register(server)
 
 	go server.Serve(listener)
-
-	return server
+	return
 }
 
-func newCommitClient(t *testing.T) pb.CommitClient {
+func newCommitClient(t *testing.T, serviceSocketPath string) pb.CommitClient {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
 			return net.Dial("unix", addr)
 		}),
 	}
-	conn, err := grpc.Dial(serverSocketPath, connOpts...)
+	conn, err := grpc.Dial(serviceSocketPath, connOpts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +70,7 @@ func newCommitClient(t *testing.T) pb.CommitClient {
 	return pb.NewCommitClient(conn)
 }
 
-func newCommitServiceClient(t *testing.T) pb.CommitServiceClient {
+func newCommitServiceClient(t *testing.T, serviceSocketPath string) pb.CommitServiceClient {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
