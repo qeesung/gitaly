@@ -179,28 +179,29 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("test case: %s", tc.desc)
-		stream, err := client.FindCommits(context.Background(), tc.request)
-		require.NoError(t, err)
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.FindCommits(context.Background(), tc.request)
+			require.NoError(t, err)
 
-		var ids []string
-		for err == nil {
-			var resp *pb.FindCommitsResponse
-			resp, err = stream.Recv()
-			for _, c := range resp.GetCommits() {
-				ids = append(ids, c.Id)
+			var ids []string
+			for err == nil {
+				var resp *pb.FindCommitsResponse
+				resp, err = stream.Recv()
+				for _, c := range resp.GetCommits() {
+					ids = append(ids, c.Id)
+				}
 			}
-		}
-		require.Equal(t, io.EOF, err)
+			require.Equal(t, io.EOF, err)
 
-		if tc.minCommits > 0 {
-			require.True(t, len(ids) >= tc.minCommits, "expected at least %d commits, got %d", tc.minCommits, len(ids))
-			continue
-		}
+			if tc.minCommits > 0 {
+				require.True(t, len(ids) >= tc.minCommits, "expected at least %d commits, got %d", tc.minCommits, len(ids))
+				return
+			}
 
-		require.Equal(t, len(tc.ids), len(ids))
-		for i, id := range tc.ids {
-			require.Equal(t, id, ids[i])
-		}
+			require.Equal(t, len(tc.ids), len(ids))
+			for i, id := range tc.ids {
+				require.Equal(t, id, ids[i])
+			}
+		})
 	}
 }
