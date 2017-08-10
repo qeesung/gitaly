@@ -7,4 +7,4 @@ COPY Gemfile.lock /bundle-cache
 
 RUN apt-get update -qq && \
     apt-get install -qq -y rubygems bundler cmake build-essential libicu-dev && \
-    cd /bundle-cache && bundle install
+    cd /bundle-cache && bundle install --path vendor/bundle
