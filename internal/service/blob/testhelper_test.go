@@ -14,12 +14,8 @@ import (
 )
 
 var (
-	testRepo *pb.Repository
-)
-
-func TestMain(m *testing.M) {
 	testRepo = testhelper.TestRepository()
-}
+)
 
 func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) {
 	server = testhelper.NewTestGrpcServer(t)

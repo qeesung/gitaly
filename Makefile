@@ -73,7 +73,7 @@ $(TEST_REPO):
 test: $(TARGET_SETUP) $(TEST_REPO) prepare-tests .ruby-bundle
 	@go test $(LOCAL_PACKAGES)
 
-.PHONY: test-changed
+.PHONY: test-changes
 test-changes: $(TARGET_SETUP) $(TEST_REPO) prepare-tests .ruby-bundle
 	cd $(PKG_BUILD_DIR) && go test $(CHANGED_LOCAL_GO_PACKAGES)
 
