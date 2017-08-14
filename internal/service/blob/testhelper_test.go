@@ -15,11 +15,11 @@ import (
 
 var (
 	testRepo = testhelper.TestRepository()
+serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 )
 
-func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) {
-	server = testhelper.NewTestGrpcServer(t, nil, nil)
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
+func runBlobServer(t *testing.T)   *grpc.Server  {
+	server := testhelper.NewTestGrpcServer(t, nil, nil)
 	listener, err := net.Listen("unix", serverSocketPath)
 
 	if err != nil {
@@ -31,7 +31,7 @@ func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) 
 
 	go server.Serve(listener)
 
-	return
+	return server
 }
 
 func newBlobClient(t *testing.T, serverSocketPath string) (pb.BlobServiceClient, *grpc.ClientConn) {

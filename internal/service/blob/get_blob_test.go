@@ -15,7 +15,7 @@ import (
 )
 
 func TestSuccessfulGetBlob(t *testing.T) {
-	server, serverSocketPath := runBlobServer(t)
+	server  := runBlobServer(t)
 	defer server.Stop()
 
 	client, conn := newBlobClient(t, serverSocketPath)
@@ -86,7 +86,7 @@ func TestSuccessfulGetBlob(t *testing.T) {
 }
 
 func TestGetBlobNotFound(t *testing.T) {
-	server, serverSocketPath := runBlobServer(t)
+	server  := runBlobServer(t)
 	defer server.Stop()
 
 	client, conn := newBlobClient(t, serverSocketPath)
@@ -136,7 +136,7 @@ func getBlob(stream pb.BlobService_GetBlobClient) (int64, string, []byte, error)
 }
 
 func TestFailedGetBlobRequestDueToValidationError(t *testing.T) {
-	server, serverSocketPath := runBlobServer(t)
+	server := runBlobServer(t)
 	defer server.Stop()
 
 	client, conn := newBlobClient(t, serverSocketPath)
