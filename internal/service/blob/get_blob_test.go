@@ -15,7 +15,7 @@ import (
 )
 
 func TestSuccessfulGetBlob(t *testing.T) {
-	server  := runBlobServer(t)
+	server := runBlobServer(t)
 	defer server.Stop()
 
 	client, conn := newBlobClient(t, serverSocketPath)
@@ -86,7 +86,7 @@ func TestSuccessfulGetBlob(t *testing.T) {
 }
 
 func TestGetBlobNotFound(t *testing.T) {
-	server  := runBlobServer(t)
+	server := runBlobServer(t)
 	defer server.Stop()
 
 	client, conn := newBlobClient(t, serverSocketPath)

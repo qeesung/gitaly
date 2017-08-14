@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	testRepo = testhelper.TestRepository()
-serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
+	testRepo         = testhelper.TestRepository()
+	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 )
 
-func runBlobServer(t *testing.T)   *grpc.Server  {
+func runBlobServer(t *testing.T) *grpc.Server {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
 	listener, err := net.Listen("unix", serverSocketPath)
 
