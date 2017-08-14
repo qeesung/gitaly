@@ -6,10 +6,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -62,6 +65,13 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
 	}
 	cmd.Env = append(cmd.Env, env...)
+	if dir, ok := objectdirhandler.ObjectDir(ctx); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", dir))
+	}
+	if dirs, ok := objectdirhandler.AltObjectDirs(ctx); ok {
+		dirsList := strings.Join(dirs, ":")
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_ALTERNATE_OBJECT_DIRECTORIES=%s", dirsList))
+	}
 
 	// Start the command in its own process group (nice for signalling)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

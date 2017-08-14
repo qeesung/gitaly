@@ -45,13 +45,35 @@ time.
 
 ### Table-driven tests
 
-We like table-driven tests ([Cheney blog post], [Golang wiki]).
+We like table-driven tests ([Table-driven tests using subtests](https://blog.golang.org/subtests#TOC_4.), [Cheney blog post], [Golang wiki]).
 
--   It should be clear from error messages which test case in the table
-    is failing. Consider giving test cases a `name` attribute and
-    including that name in every error message inside the loop.
--   Use `t.Errorf` inside a table test loop, not `t.Fatalf`: this
-    provides more feedback when fixing failing tests.
+-   Use [subtests](https://blog.golang.org/subtests#TOC_4.) with your table-driven tests, using `t.Run`:
+
+```
+func TestTime(t *testing.T) {
+    testCases := []struct {
+        gmt  string
+        loc  string
+        want string
+    }{
+        {"12:31", "Europe/Zuri", "13:31"},
+        {"12:31", "America/New_York", "7:31"},
+        {"08:08", "Australia/Sydney", "18:08"},
+    }
+    for _, tc := range testCases {
+        t.Run(fmt.Sprintf("%s in %s", tc.gmt, tc.loc), func(t *testing.T) {
+            loc, err := time.LoadLocation(tc.loc)
+            if err != nil {
+                t.Fatal("could not load location")
+            }
+            gmt, _ := time.Parse("15:04", tc.gmt)
+            if got := gmt.In(loc).Format("15:04"); got != tc.want {
+                t.Errorf("got %s; want %s", got, tc.want)
+            }
+        })
+    }
+}
+```
 
   [Cheney blog post]: https://dave.cheney.net/2013/06/09/writing-table-driven-tests-in-go
   [Golang wiki]: https://github.com/golang/go/wiki/TableDrivenTests

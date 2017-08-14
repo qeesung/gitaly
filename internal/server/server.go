@@ -5,6 +5,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/cancelhandler"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/service"
@@ -29,6 +30,7 @@ func New() *grpc.Server {
 
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			objectdirhandler.Stream,
 			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
 			grpc_prometheus.StreamServerInterceptor,
 			grpc_logrus.StreamServerInterceptor(logrusEntry),
@@ -40,6 +42,7 @@ func New() *grpc.Server {
 			panichandler.StreamPanicHandler,
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			objectdirhandler.Unary,
 			grpc_ctxtags.UnaryServerInterceptor(ctxTagOpts...),
 			grpc_prometheus.UnaryServerInterceptor,
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),

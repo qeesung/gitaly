@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/supervisor"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -40,7 +42,14 @@ func stopTestServices(service *grpc.Server, ruby *supervisor.Process) {
 }
 
 func runCommitServiceServer(t *testing.T) (server *grpc.Server, serviceSocketPath string) {
-	server = grpc.NewServer()
+	server = grpc.NewServer(
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			objectdirhandler.Stream,
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			objectdirhandler.Unary,
+		)),
+	)
 	serviceSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serviceSocketPath)

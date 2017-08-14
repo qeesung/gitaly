@@ -1,7 +1,11 @@
 package commit
 
 import (
+	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"path"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
@@ -253,17 +257,7 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		receivedCommits := []*pb.GitCommit{}
-		for {
-			resp, err := c.Recv()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				t.Fatal(err)
-			}
-
-			receivedCommits = append(receivedCommits, resp.GetCommits()...)
-		}
+		receivedCommits := collectCommtsFromFindAllCommitsClient(t, c)
 
 		require.Equal(t, len(testCase.expectedCommits), len(receivedCommits), "number of commits received")
 
@@ -272,6 +266,89 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 				t.Fatalf("Expected commit\n%v\ngot\n%v", testCase.expectedCommits[i], receivedCommit)
 			}
 		}
+	}
+}
+
+func TestSuccessfulFindAllCommitsRequestWithAltGitObjectDirs(t *testing.T) {
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
+	committerName := "Scrooge McDuck"
+	committerEmail := "scrooge@mcduck.com"
+
+	storagePath := testhelper.GitlabTestStoragePath()
+	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
+	testRepoCopyPath := path.Join(storagePath, "is-ancestor-alt-test-repo")
+	altObjectsPath := path.Join(testRepoCopyPath, ".git/alt-objects")
+	gitObjectEnv := []string{
+		fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", altObjectsPath),
+		fmt.Sprintf("GIT_ALTERNATE_OBJECT_DIRECTORIES=%s", path.Join(testRepoCopyPath, ".git/objects")),
+	}
+
+	testhelper.MustRunCommand(t, nil, "git", "clone", testRepoPath, testRepoCopyPath)
+	defer os.RemoveAll(testRepoCopyPath)
+
+	if err := os.Mkdir(altObjectsPath, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("git", "-C", testRepoCopyPath,
+		"-c", fmt.Sprintf("user.name=%s", committerName),
+		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"commit", "--allow-empty", "-m", "An empty commit")
+	cmd.Env = gitObjectEnv
+	if _, err := cmd.Output(); err != nil {
+		stderr := err.(*exec.ExitError).Stderr // XXX
+		t.Fatalf("%s", stderr)
+	}
+
+	cmd = exec.Command("git", "-C", testRepoCopyPath, "show", "--format=format:%H", "--no-patch", "HEAD")
+	cmd.Env = gitObjectEnv
+	currentHead, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testCases := []struct {
+		desc          string
+		altDirs       []string
+		expectedCount int
+	}{
+		{
+			desc:          "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			altDirs:       []string{altObjectsPath},
+			expectedCount: 1,
+		},
+		{
+			desc:          "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			altDirs:       []string{},
+			expectedCount: 0,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Logf("test case: %q", testCase.desc)
+
+		request := &pb.FindAllCommitsRequest{
+			Repository: &pb.Repository{
+				StorageName:                   testRepo.StorageName,
+				RelativePath:                  testRepo.RelativePath,
+				GitAlternateObjectDirectories: testCase.altDirs,
+			},
+			Revision: currentHead,
+			MaxCount: 1,
+		}
+
+		c, err := client.FindAllCommits(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		receivedCommits := collectCommtsFromFindAllCommitsClient(t, c)
+
+		require.Equal(t, testCase.expectedCount, len(receivedCommits), "number of commits received")
 	}
 }
 
@@ -311,6 +388,23 @@ func TestFailedFindAllCommitsRequest(t *testing.T) {
 		err = drainFindAllCommitsResponse(c)
 		testhelper.AssertGrpcError(t, err, testCase.code, "")
 	}
+}
+
+func collectCommtsFromFindAllCommitsClient(t *testing.T, c pb.CommitService_FindAllCommitsClient) []*pb.GitCommit {
+	receivedCommits := []*pb.GitCommit{}
+
+	for {
+		resp, err := c.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+
+		receivedCommits = append(receivedCommits, resp.GetCommits()...)
+	}
+
+	return receivedCommits
 }
 
 func drainFindAllCommitsResponse(c pb.CommitService_FindAllCommitsClient) error {

@@ -14,3 +14,7 @@ var defaultBranchName = ref.DefaultBranchName
 func NewServer() pb.CommitServiceServer {
 	return &server{}
 }
+
+func (s *server) FindCommits(in *pb.FindCommitsRequest, stream pb.CommitService_FindCommitsServer) error {
+	return nil
+}

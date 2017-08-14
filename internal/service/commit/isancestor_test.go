@@ -1,8 +1,15 @@
 package commit
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
 	"testing"
 
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -154,5 +161,87 @@ func TestCommitIsAncestorSuccess(t *testing.T) {
 		if response != v.Response {
 			t.Errorf(v.ErrMsg)
 		}
+	}
+}
+
+func TestSuccessfulIsAncestorRequestWithAltGitObjectDirs(t *testing.T) {
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
+
+	committerName := "Scrooge McDuck"
+	committerEmail := "scrooge@mcduck.com"
+
+	storagePath := testhelper.GitlabTestStoragePath()
+	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
+	testRepoCopyPath := path.Join(storagePath, "is-ancestor-alt-test-repo")
+	altObjectsPath := path.Join(testRepoCopyPath, ".git/alt-objects")
+	gitObjectEnv := []string{
+		fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", altObjectsPath),
+		fmt.Sprintf("GIT_ALTERNATE_OBJECT_DIRECTORIES=%s", path.Join(testRepoCopyPath, ".git/objects")),
+	}
+
+	testhelper.MustRunCommand(t, nil, "git", "clone", testRepoPath, testRepoCopyPath)
+	defer os.RemoveAll(testRepoCopyPath)
+
+	if err := os.Mkdir(altObjectsPath, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	previousHead := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "show", "--format=format:%H", "--no-patch", "HEAD")
+
+	cmd := exec.Command("git", "-C", testRepoCopyPath,
+		"-c", fmt.Sprintf("user.name=%s", committerName),
+		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"commit", "--allow-empty", "-m", "An empty commit")
+	cmd.Env = gitObjectEnv
+	if _, err := cmd.Output(); err != nil {
+		stderr := err.(*exec.ExitError).Stderr // XXX
+		t.Fatalf("%s", stderr)
+	}
+
+	cmd = exec.Command("git", "-C", testRepoCopyPath, "show", "--format=format:%H", "--no-patch", "HEAD")
+	cmd.Env = gitObjectEnv
+	currentHead, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testCases := []struct {
+		desc    string
+		altDirs []string
+		result  bool
+	}{
+		{
+			desc:    "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			altDirs: []string{altObjectsPath},
+			result:  true,
+		},
+		{
+			desc:    "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			altDirs: []string{},
+			result:  false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Logf("test case: %q", testCase.desc)
+		request := &pb.CommitIsAncestorRequest{
+			Repository: &pb.Repository{
+				StorageName:                   testRepo.StorageName,
+				RelativePath:                  testRepo.RelativePath,
+				GitAlternateObjectDirectories: testCase.altDirs,
+			},
+			AncestorId: string(previousHead),
+			ChildId:    string(currentHead),
+		}
+
+		response, err := client.CommitIsAncestor(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		require.Equal(t, testCase.result, response.Value)
 	}
 }

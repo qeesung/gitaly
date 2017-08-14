@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+v0.30.0
+
+- Add a middleware for handling Git object dir attributes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/273
+
 v0.29.0
 
 - Use BUNDLE_PATH instead of --path for gitaly-ruby

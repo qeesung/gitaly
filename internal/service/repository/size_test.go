@@ -16,9 +16,10 @@ import (
 )
 
 func TestSuccessfulRepositorySizeRequest(t *testing.T) {
-	client := newRepositoryClient(t)
 	server := runRepoServer(t)
 	defer server.Stop()
+
+	client := newRepositoryClient(t)
 
 	storageName := "default"
 	storagePath, found := config.StoragePath(storageName)
@@ -45,9 +46,10 @@ func TestSuccessfulRepositorySizeRequest(t *testing.T) {
 }
 
 func TestFailedRepositorySizeRequest(t *testing.T) {
-	client := newRepositoryClient(t)
 	server := runRepoServer(t)
 	defer server.Stop()
+
+	client := newRepositoryClient(t)
 
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 
