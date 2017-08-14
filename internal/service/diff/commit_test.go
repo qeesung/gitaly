@@ -912,8 +912,6 @@ func drainCommitDiffResponse(c pb.Diff_CommitDiffClient) error {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func drainCommitDeltaResponse(c pb.Diff_CommitDeltaClient) error {
@@ -923,8 +921,6 @@ func drainCommitDeltaResponse(c pb.Diff_CommitDeltaClient) error {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func getDiffsFromCommitDiffClient(t *testing.T, client pb.DiffService_CommitDiffClient) []*diff.Diff {

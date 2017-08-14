@@ -19,7 +19,7 @@ func TestSuccessfulScanDeepen(t *testing.T) {
 	}
 
 	for _, example := range examples {
-		t.Run(fmt.Sprintf(".30s", example.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf(".30%s", example.input), func(t *testing.T) {
 			reader := bytes.NewReader([]byte(example.input))
 			hasDeepen := scanDeepen(reader)
 			if n := reader.Len(); n != 0 {
