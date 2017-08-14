@@ -18,7 +18,7 @@ var (
 )
 
 func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) {
-	server = testhelper.NewTestGrpcServer(t)
+	server = testhelper.NewTestGrpcServer(t, nil, nil)
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	listener, err := net.Listen("unix", serverSocketPath)
 
@@ -34,7 +34,7 @@ func runBlobServer(t *testing.T) (server *grpc.Server, serverSocketPath string) 
 	return
 }
 
-func newBlobClient(t *testing.T, serverSocketPath string) pb.BlobServiceClient {
+func newBlobClient(t *testing.T, serverSocketPath string) (pb.BlobServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
@@ -46,5 +46,5 @@ func newBlobClient(t *testing.T, serverSocketPath string) pb.BlobServiceClient {
 		t.Fatal(err)
 	}
 
-	return pb.NewBlobServiceClient(conn)
+	return pb.NewBlobServiceClient(conn), conn
 }
