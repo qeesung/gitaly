@@ -14,7 +14,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
@@ -144,7 +144,7 @@ func TestFailedFindCommitRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 

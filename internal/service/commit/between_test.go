@@ -16,7 +16,7 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	from := []byte("498214de67004b1da3d820901307bed2a68a8ef6") // branch-merged
 	to := []byte("e63f41fe459e62e1228fcef60d7189127aeba95a")   // master
@@ -170,7 +170,7 @@ func TestFailedCommitsBetweenRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}

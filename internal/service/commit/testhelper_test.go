@@ -28,18 +28,6 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
-type testServer struct {
-	*grpc.Server
-	socketPath string
-}
-
-func (ts *testServer) Stop() {
-	if ts == nil {
-		return
-	}
-	ts.Server.Stop()
-}
-
 func testMain(m *testing.M) int {
 	testhelper.ConfigureRuby()
 	ruby, err := rubyserver.Start()
@@ -50,20 +38,18 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func startTestServices(t *testing.T) *testServer {
+func startTestServices(t *testing.T) *grpc.Server {
 	server := testhelper.NewTestGrpcServer(
 		t,
 		[]grpc.StreamServerInterceptor{objectdirhandler.Stream},
 		[]grpc.UnaryServerInterceptor{objectdirhandler.Unary},
 	)
 
-	//	socketPath := testhelper.GetTemporaryGitalySocketFileName()
-	socketPath := serverSocketPath
-	if err := os.RemoveAll(socketPath); err != nil {
+	if err := os.RemoveAll(serverSocketPath); err != nil {
 		t.Fatal(err)
 	}
 
-	listener, err := net.Listen("unix", socketPath)
+	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
 		t.Fatal("failed to start server")
 	}
@@ -72,10 +58,7 @@ func startTestServices(t *testing.T) *testServer {
 	reflection.Register(server)
 
 	go server.Serve(listener)
-	return &testServer{
-		Server:     server,
-		socketPath: socketPath,
-	}
+	return server
 }
 
 func newCommitClient(t *testing.T, serviceSocketPath string) pb.CommitClient {

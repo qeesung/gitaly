@@ -13,7 +13,7 @@ func TestLanguages(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	request := &pb.CommitLanguagesRequest{
 		Repository: testRepo,
@@ -62,7 +62,7 @@ func TestLanguagesEmptyRevision(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	request := &pb.CommitLanguagesRequest{
 		Repository: testRepo,

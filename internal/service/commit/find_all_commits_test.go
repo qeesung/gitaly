@@ -34,7 +34,7 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	// Commits made on another branch in parallel to the normal commits below.
@@ -277,7 +277,7 @@ func TestSuccessfulFindAllCommitsRequestWithAltGitObjectDirs(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	committerName := "Scrooge McDuck"
@@ -364,7 +364,7 @@ func TestFailedFindAllCommitsRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}

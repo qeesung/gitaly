@@ -17,7 +17,7 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	commit := &pb.GitCommit{
@@ -85,7 +85,7 @@ func TestFailedLastCommitForPathRequest(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	invalidRepo := &pb.Repository{StorageName: "fake", RelativePath: "path"}

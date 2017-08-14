@@ -26,7 +26,7 @@ func TestSuccessfulTreeEntry(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
@@ -148,7 +148,7 @@ func TestFailedTreeEntryRequestDueToValidationError(t *testing.T) {
 	server := startTestServices(t)
 	defer server.Stop()
 
-	client, conn := newCommitServiceClient(t, server.socketPath)
+	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
