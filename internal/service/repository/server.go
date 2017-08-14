@@ -16,3 +16,7 @@ func NewServer() pb.RepositoryServiceServer {
 func (s *server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesRequest) (*pb.ApplyGitattributesResponse, error) {
 	return nil, nil
 }
+
+func (server) FetchRemote(ctx context.Context, in *pb.FetchRemoteRequest) (*pb.FetchRemoteResponse, error) {
+	return nil, nil
+}
