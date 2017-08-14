@@ -4,11 +4,35 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
+	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/kelseyhightower/envconfig"
 )
+
+type Config struct {
+	CrashThreshold int           `split_words:"true" default:"5"`
+	CrashWaitTime  time.Duration `split_words:"true" default:"1m"`
+	CrashResetTime time.Duration `split_words:"true" default:"1m"`
+}
+
+var config Config
+
+func init() {
+	envconfig.MustProcess("gitaly_supervisor", &config)
+}
 
 // Process represents a running process.
 type Process struct {
-	cmd *exec.Cmd
+	// Information to start the process
+	env  []string
+	args []string
+	dir  string
+
+	// Shutdown
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 // New creates a new proces instance.
@@ -17,23 +41,83 @@ func New(env []string, args []string, dir string) (*Process, error) {
 		return nil, fmt.Errorf("need at least one argument")
 	}
 
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = env
-	cmd.Dir = dir
+	p := &Process{
+		env:  env,
+		args: args,
+		dir:  dir,
+		done: make(chan struct{}),
+	}
+
+	go watch(p)
+	return p, nil
+}
+
+func (p *Process) start() (*exec.Cmd, error) {
+	cmd := exec.Command(p.args[0], p.args[1:]...)
+	cmd.Env = p.env
+	cmd.Dir = p.dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// TODO: spawn goroutine that watches (restarts) this process.
-	return &Process{cmd: cmd}, cmd.Start()
+	return cmd, cmd.Start()
+}
+
+func watch(p *Process) {
+	// Count crashes to prevent a tight respawn loop. This is a 'circuit breaker'.
+	crashes := 0
+
+	logger := log.WithField("supervisor.args", p.args)
+
+	for {
+		if crashes >= config.CrashThreshold {
+			logger.Warn("opening circuit breaker")
+			select {
+			case <-p.done:
+				return
+			case <-time.After(config.CrashWaitTime):
+				logger.Warn("closing circuit breaker")
+				crashes = 0
+			}
+		}
+
+		cmd, err := p.start()
+		if err != nil {
+			crashes++
+			logger.WithError(err).Error("start failed")
+			continue
+		}
+
+		waitCh := make(chan struct{})
+		go func() {
+			logger.WithError(cmd.Wait()).Warn("exited")
+			close(waitCh)
+		}()
+
+	waitLoop:
+		for {
+			select {
+			case <-time.After(config.CrashResetTime):
+				crashes = 0
+			case <-waitCh:
+				crashes++
+				break waitLoop
+			case <-p.done:
+				if cmd.Process != nil {
+					cmd.Process.Kill()
+				}
+				return
+			}
+		}
+	}
 }
 
 // Stop terminates the process.
 func (p *Process) Stop() {
-	if p == nil || p.cmd == nil || p.cmd.Process == nil {
+	if p == nil {
 		return
 	}
 
-	process := p.cmd.Process
-	process.Kill()
-	process.Wait()
+	p.stopOnce.Do(func() {
+		close(p.done)
+	})
 }

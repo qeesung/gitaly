@@ -4,6 +4,8 @@ UNRELEASED
 
 - Fix bugs in RepositoryService.FetchRemote
   https://gitlab.com/gitlab-org/gitaly/merge_requests/300
+- Respawn gitaly-ruby when it crashes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/293
 
 v0.33.0
 
