@@ -14,7 +14,10 @@ import (
 )
 
 func TestFindCommitsFields(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	expectedCommit := &pb.GitCommit{
 		Id:      "b83d6e391c22777fca1ed3012fce84f633d7fed0",
@@ -56,7 +59,10 @@ func TestFindCommitsFields(t *testing.T) {
 }
 
 func TestSuccessfulFindCommitsRequest(t *testing.T) {
-	client := newCommitServiceClient(t)
+	service, ruby, serverSocketPath := startTestServices(t)
+	defer stopTestServices(service, ruby)
+
+	client := newCommitServiceClient(t, serverSocketPath)
 
 	testCases := []struct {
 		desc    string
