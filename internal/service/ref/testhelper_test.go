@@ -120,7 +120,7 @@ func runRefServiceServer(t *testing.T) *grpc.Server {
 	return grpcServer
 }
 
-func newRefClient(t *testing.T) (pb.RefClient, *grpc.ClientConn) {
+func newRefClient(t *testing.T) (pb.RefServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
@@ -132,7 +132,7 @@ func newRefClient(t *testing.T) (pb.RefClient, *grpc.ClientConn) {
 		t.Fatal(err)
 	}
 
-	return pb.NewRefClient(conn), conn
+	return pb.NewRefServiceClient(conn), conn
 }
 
 func newRefServiceClient(t *testing.T) (pb.RefServiceClient, *grpc.ClientConn) {
