@@ -36,7 +36,8 @@ func TestRefExists(t *testing.T) {
 			server := runRefServiceServer(t)
 			defer server.Stop()
 
-			client := newRefServiceClient(t)
+			client, conn := newRefClient(t)
+			defer conn.Close()
 
 			req := &pb.RefExistsRequest{Repository: testRepo, Ref: []byte(tt.ref)}
 

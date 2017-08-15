@@ -1,5 +1,12 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Implement CommitService.FindCommits
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/266
+- Log spawned process metrics
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/284
+
 v0.30.0
 
 - Add a middleware for handling Git object dir attributes

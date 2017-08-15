@@ -47,7 +47,7 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.Kill()
+	defer cmd.Close()
 
 	err = cmd.Wait()
 

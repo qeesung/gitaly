@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 
@@ -21,6 +22,8 @@ import (
 type Command struct {
 	io.Reader
 	*exec.Cmd
+	context   context.Context
+	startTime time.Time
 }
 
 // GitPath returns the path to the `git` binary. See `SetGitPath` for details
@@ -37,12 +40,6 @@ func GitPath() string {
 	return config.Config.Git.BinPath
 }
 
-// Kill cleans the subprocess group of the command. Callers should defer a call
-// to kill after they get the command from NewCommand
-func (c *Command) Kill() {
-	CleanUpProcessGroup(c.Cmd)
-}
-
 // GitCommandReader creates a git Command with the given args
 func GitCommandReader(ctx context.Context, args ...string) (*Command, error) {
 	return NewCommand(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
@@ -55,7 +52,7 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 		"args": cmd.Args,
 	}).Info("spawn")
 
-	command := &Command{Cmd: cmd}
+	command := &Command{Cmd: cmd, startTime: time.Now(), context: ctx}
 
 	// Explicitly set the environment for the command
 	cmd.Env = []string{
@@ -106,12 +103,11 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	return command, nil
 }
 
-// CleanUpProcessGroup will send a SIGTERM signal to the process group
+// Close will send a SIGTERM signal to the process group
 // belonging to the `cmd` process
-func CleanUpProcessGroup(cmd *exec.Cmd) {
-	if cmd == nil {
-		return
-	}
+func (c *Command) Close() error {
+	cmd := c.Cmd
+	ctx := c.context
 
 	process := cmd.Process
 	if process != nil && process.Pid > 0 {
@@ -120,7 +116,18 @@ func CleanUpProcessGroup(cmd *exec.Cmd) {
 	}
 
 	// reap our child process
-	cmd.Wait()
+	err := cmd.Wait()
+
+	exitCode := 0
+	if err != nil {
+		if exitStatus, ok := ExitStatus(err); ok {
+			exitCode = exitStatus
+		}
+	}
+
+	c.logProcessComplete(ctx, exitCode)
+
+	return err
 }
 
 // ExitStatus will return the exit-code from an error
@@ -136,4 +143,31 @@ func ExitStatus(err error) (int, bool) {
 	}
 
 	return waitStatus.ExitStatus(), true
+}
+
+func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
+	cmd := c.Cmd
+
+	systemTime := cmd.ProcessState.SystemTime()
+	userTime := cmd.ProcessState.UserTime()
+	realTime := time.Now().Sub(c.startTime)
+
+	entry := grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"path":                   cmd.Path,
+		"args":                   cmd.Args,
+		"command.exitCode":       exitCode,
+		"command.system_time_ms": systemTime.Seconds() * 1000,
+		"command.user_time_ms":   userTime.Seconds() * 1000,
+		"command.real_time_ms":   realTime.Seconds() * 1000,
+	})
+
+	if rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
+		entry = entry.WithFields(log.Fields{
+			"command.maxrss":  rusage.Maxrss,
+			"command.inblock": rusage.Inblock,
+			"command.oublock": rusage.Oublock,
+		})
+	}
+
+	entry.Info("spawn complete")
 }

@@ -13,6 +13,7 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
+	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -86,9 +87,25 @@ func TestMain(m *testing.M) {
 	}())
 }
 
+func runRefServer(t *testing.T) *grpc.Server {
+	os.Remove(serverSocketPath)
+	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
+	listener, err := net.Listen("unix", serverSocketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(&server{}))
+	reflection.Register(grpcServer)
+
+	go grpcServer.Serve(listener)
+
+	return grpcServer
+}
+
 func runRefServiceServer(t *testing.T) *grpc.Server {
 	os.Remove(serverSocketPath)
-	grpcServer := testhelper.NewTestGrpcServer(t)
+	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
@@ -103,7 +120,7 @@ func runRefServiceServer(t *testing.T) *grpc.Server {
 	return grpcServer
 }
 
-func newRefServiceClient(t *testing.T) pb.RefServiceClient {
+func newRefClient(t *testing.T) (pb.RefClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
@@ -115,7 +132,22 @@ func newRefServiceClient(t *testing.T) pb.RefServiceClient {
 		t.Fatal(err)
 	}
 
-	return pb.NewRefServiceClient(conn)
+	return pb.NewRefClient(conn), conn
+}
+
+func newRefServiceClient(t *testing.T) (pb.RefServiceClient, *grpc.ClientConn) {
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
+			return net.Dial("unix", addr)
+		}),
+	}
+	conn, err := grpc.Dial(serverSocketPath, connOpts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return pb.NewRefServiceClient(conn), conn
 }
 
 func assertContainsLocalBranch(t *testing.T, branches []*pb.FindLocalBranchResponse, branch *pb.FindLocalBranchResponse) {

@@ -38,7 +38,7 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.Kill()
+	defer cmd.Close()
 
 	scanner := lines.ScanWithDelimiter([]byte{'\x00'})
 
