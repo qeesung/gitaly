@@ -91,7 +91,7 @@ func IsValidRef(ctx context.Context, path, ref string) bool {
 	if err != nil {
 		return false
 	}
-	defer cmd.CleanUpProcessGroup(ctx)
+	defer cmd.Cleanup()
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = nil, nil, nil
 
 	return cmd.Wait() == nil

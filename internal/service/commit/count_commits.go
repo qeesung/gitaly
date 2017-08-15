@@ -43,7 +43,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}
-	defer cmd.CleanUpProcessGroup(ctx)
+	defer cmd.Cleanup()
 
 	var count int64
 	countStr, readAllErr := ioutil.ReadAll(cmd)

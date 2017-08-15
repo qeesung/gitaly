@@ -218,7 +218,7 @@ func eachDiff(ctx context.Context, rpc string, cmdArgs []string, limits diff.Lim
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
 	}
-	defer cmd.CleanUpProcessGroup(ctx)
+	defer cmd.Cleanup()
 
 	diffParser := diff.NewDiffParser(cmd, limits)
 

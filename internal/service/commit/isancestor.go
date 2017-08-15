@@ -44,7 +44,7 @@ func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.CleanUpProcessGroup(ctx)
+	defer cmd.Cleanup()
 
 	return cmd.Wait() == nil, nil
 }

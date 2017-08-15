@@ -33,7 +33,7 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetBlob: cmd: %v", err)
 	}
-	defer cmd.CleanUpProcessGroup(stream.Context())
+	defer cmd.Cleanup()
 	defer stdinWriter.Close()
 	defer stdinReader.Close()
 

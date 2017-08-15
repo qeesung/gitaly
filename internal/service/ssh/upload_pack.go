@@ -52,7 +52,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)
 	}
-	defer cmd.CleanUpProcessGroup(stream.Context())
+	defer cmd.Cleanup()
 
 	if err := cmd.Wait(); err != nil {
 		if status, ok := helper.ExitStatus(err); ok {

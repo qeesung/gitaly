@@ -22,6 +22,7 @@ import (
 type Command struct {
 	io.Reader
 	*exec.Cmd
+	context   context.Context
 	startTime time.Time
 }
 
@@ -51,7 +52,7 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 		"args": cmd.Args,
 	}).Info("spawn")
 
-	command := &Command{Cmd: cmd, startTime: time.Now()}
+	command := &Command{Cmd: cmd, startTime: time.Now(), context: ctx}
 
 	// Explicitly set the environment for the command
 	cmd.Env = []string{
@@ -102,10 +103,12 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	return command, nil
 }
 
-// CleanUpProcessGroup will send a SIGTERM signal to the process group
+// Cleanup will send a SIGTERM signal to the process group
 // belonging to the `cmd` process
-func (c *Command) CleanUpProcessGroup(ctx context.Context) {
+func (c *Command) Cleanup() {
 	cmd := c.Cmd
+	ctx := c.context
+
 	if cmd == nil {
 		return
 	}
