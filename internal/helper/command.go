@@ -103,15 +103,11 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	return command, nil
 }
 
-// Cleanup will send a SIGTERM signal to the process group
+// Close will send a SIGTERM signal to the process group
 // belonging to the `cmd` process
-func (c *Command) Cleanup() {
+func (c *Command) Close() error {
 	cmd := c.Cmd
 	ctx := c.context
-
-	if cmd == nil {
-		return
-	}
 
 	process := cmd.Process
 	if process != nil && process.Pid > 0 {
@@ -131,6 +127,7 @@ func (c *Command) Cleanup() {
 
 	c.logProcessComplete(ctx, exitCode)
 
+	return err
 }
 
 // ExitStatus will return the exit-code from an error
