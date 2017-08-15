@@ -166,6 +166,7 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 
 	if rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
 		entry = entry.WithFields(log.Fields{
+			"command.maxrss":  rusage.Maxrss,
 			"command.inblock": rusage.Inblock,
 			"command.oublock": rusage.Oublock,
 		})
