@@ -26,7 +26,7 @@ Required GitLab Version: `vX.X`
 
 ## 2. Development Trial
 
-- [ ] **Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
+- [ ] **Check Dev Server Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
   - [ ] Gitaly: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-dev
   - [ ] GitLab: https://dev.gitlab.org/help
 
@@ -36,14 +36,14 @@ Required GitLab Version: `vX.X`
 
 ## 3. Staging Trial
 
-- [ ] **Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
+- [ ] **Check Staging Server Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
   - [ ] Gitaly: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-staging
   - [ ] GitLab: https://staging.gitlab.com/help
 
 - [ ] Enable on `staging.gitlab.com` in [`#development`](https://gitlab.slack.com/messages/C02PF508L/)
   - [ ] Perform some testing and leave the feature enabled
 
-## 4. Production Version Check
+## 4. Production Server Version Check
 
 - [ ] Gitaly: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-production
 - [ ] GitLab: https://gitlab.com/help
