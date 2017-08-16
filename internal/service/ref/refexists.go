@@ -16,7 +16,7 @@ import (
 )
 
 // RefExists returns true if the given reference exists. The ref must start with the string `ref/`
-func (*server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefExistsResponse, error) {
+func (server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefExistsResponse, error) {
 	repoPath, err := helper.GetRepoPath(in.Repository)
 	if err != nil {
 		return nil, err
