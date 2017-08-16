@@ -16,14 +16,13 @@ import (
 )
 
 // RefExists returns true if the given reference exists. The ref must start with the string `ref/`
-func (s *server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefExistsResponse, error) {
+func (*server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefExistsResponse, error) {
 	repoPath, err := helper.GetRepoPath(in.Repository)
 	if err != nil {
 		return nil, err
 	}
 
 	ref := string(in.Ref)
-
 	exists, err := refExists(ctx, repoPath, ref)
 
 	if err != nil {
@@ -34,13 +33,13 @@ func (s *server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.Re
 }
 
 func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
-	if !isValidRefName(ref) {
-		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
-	}
-
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"ref": ref,
 	}).Debug("refExists")
+
+	if !isValidRefName(ref) {
+		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
+	}
 
 	osCommand := exec.Command(helper.GitPath(), "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
 	cmd, err := helper.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
@@ -50,21 +49,15 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 	defer cmd.Close()
 
 	err = cmd.Wait()
-
 	if err == nil {
 		return true, nil
 	}
 
-	if code, ok := helper.ExitStatus(err); ok {
-		switch code {
-		case 1:
-			return code == 0, nil
-		default:
-			return false, grpc.Errorf(codes.Internal, err.Error())
-		}
-
+	if code, ok := helper.ExitStatus(err); ok && code == 1 {
+		return false, nil
 	}
 
+	// This will normally occur when exit code > 1
 	return false, grpc.Errorf(codes.Internal, err.Error())
 }
 
