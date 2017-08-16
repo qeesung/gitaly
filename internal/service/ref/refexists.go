@@ -24,7 +24,6 @@ func (*server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefE
 
 	ref := string(in.Ref)
 	exists, err := refExists(ctx, repoPath, ref)
-
 	if err != nil {
 		return nil, err
 	}
