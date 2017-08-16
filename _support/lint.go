@@ -35,7 +35,7 @@ func lint() (err error) {
 	offenses := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "vendor/") {
+		if strings.HasPrefix(line, "vendor/") || strings.HasPrefix(line, "ruby/vendor/") {
 			// We cannot and should not "fix" vendored code.
 			continue
 		}

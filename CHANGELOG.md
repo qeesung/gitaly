@@ -1,6 +1,6 @@
 # Gitaly changelog
 
-UNRELEASED
+v0.31.0
 
 - Implement CommitService.FindCommits
   https://gitlab.com/gitlab-org/gitaly/merge_requests/266
