@@ -5,19 +5,23 @@ for more information on the Acceptance Testing stage of the process.
 
 Feature Toggle Name: `gitaly_xxxxx`
 
+Required Gitaly Version: `vX.X.X`
+
+Required GitLab Version: `vX.X`
+
 --------------------------------------------------------------------------------
 
 ## 1. Preparation
 
-- [ ] *Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
-  - [ ] Gitaly: REPLACE_ME with the required version
-    - [ ] Dev: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-dev
-    - [ ] Staging: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-staging
-    - [ ] Production: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-production
-  - [ ] GitLab Rails: REPLACE_ME with the required version
-    - [ ] Dev: https://dev.gitlab.org/help
-    - [ ] Staging: https://staging.gitlab.com/help
-    - [ ] Production: https://gitlab.com/help
+- [ ] **Versions**: Ensure that the environments have the correct Gitaly and GitLab versions running
+  - [ ] Gitaly: 
+      - [ ] Dev: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-dev
+      - [ ] Staging: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-staging
+      - [ ] Production: https://performance.gitlab.net/dashboard/db/gitaly-version-tracker?orgId=1&var-job=gitaly-production
+  - [ ] GitLab 
+      - [ ] Dev: https://dev.gitlab.org/help
+      - [ ] Staging: https://staging.gitlab.com/help
+      - [ ] Production: https://gitlab.com/help
 - [ ] **Routes**: what routes use this migration?
   - Please list a set of routes that are known to use this endpoint
 - [ ] **Sentry**:
@@ -29,8 +33,16 @@ Feature Toggle Name: `gitaly_xxxxx`
   - [ ] Based on routes listed above, provide a Kibana short-url link to incoming requests to that route. Use this example (for `/:group/:project/commits`) as a template: https://log.gitlap.com/goto/e789c1efc8bafaba6a4a4289093529a8
   - [ ] Provide a Kibana short-url link to Gitaly logs related to this endpoint
 
-## 1. Development and Staging Trial
+## 1. Development Trial
 
+- 
+- [ ] Enable on `dev.gitlab.org`:
+  - [ ] ssh into `dev.gitlab.org` and enable the feature running by running `Feature.get('gitaly_FEATURE_NAME').enable` on a rails console.
+  - [ ] Perform some testing and leave the feature enabled
+
+## 1. Staging Trial
+
+- 
 - [ ] Enable on `dev.gitlab.org`:
   - [ ] ssh into `dev.gitlab.org` and enable the feature running by running `Feature.get('gitaly_FEATURE_NAME').enable` on a rails console.
   - [ ] Perform some testing and leave the feature enabled
