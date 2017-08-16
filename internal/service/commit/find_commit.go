@@ -2,6 +2,7 @@ package commit
 
 import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -12,7 +13,7 @@ type findCommitSender struct {
 }
 
 func (s *server) FindCommit(ctx context.Context, in *pb.FindCommitRequest) (*pb.FindCommitResponse, error) {
-	if err := validateRevision(in.GetRevision()); err != nil {
+	if err := git.ValidateRevision(in.GetRevision()); err != nil {
 		return nil, grpc.Errorf(codes.InvalidArgument, "FindCommit: revision: %v", err)
 	}
 

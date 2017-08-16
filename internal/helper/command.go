@@ -45,6 +45,15 @@ func GitCommandReader(ctx context.Context, args ...string) (*Command, error) {
 	return NewCommand(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
 }
 
+// GitlabShellCommandReader creates a gitlab-shell Command with the given args
+func GitlabShellCommandReader(ctx context.Context, envs []string, args ...string) (*Command, error) {
+	shellPath, ok := config.GitlabShellPath()
+	if !ok {
+		return nil, fmt.Errorf("path to `gitlab-shell` not set")
+	}
+	return NewCommand(ctx, exec.Command(shellPath, args...), nil, nil, nil, envs...)
+}
+
 // NewCommand creates a Command from an exec.Cmd
 func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{

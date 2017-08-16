@@ -1,11 +1,25 @@
 package git
 
 import (
+	"bytes"
+	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 )
+
+// ValidateRevision checks if a revision looks valid
+func ValidateRevision(revision []byte) error {
+	if len(revision) == 0 {
+		return fmt.Errorf("empty revision")
+	}
+	if bytes.HasPrefix(revision, []byte("-")) {
+		return fmt.Errorf("revision can't start with '-'")
+	}
+
+	return nil
+}
 
 // NewCommit creates a commit based on the given elements
 func NewCommit(id, subject, body, authorName, authorEmail, authorDate,
