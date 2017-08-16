@@ -50,10 +50,12 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 
 	err = cmd.Wait()
 	if err == nil {
+		// Exit code 0: the ref exists
 		return true, nil
 	}
 
 	if code, ok := helper.ExitStatus(err); ok && code == 1 {
+		// Exit code 1: the ref does not exist
 		return false, nil
 	}
 

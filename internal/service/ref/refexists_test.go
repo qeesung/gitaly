@@ -3,11 +3,12 @@ package ref
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"golang.org/x/net/context"
 )
 
 func TestRefExists(t *testing.T) {
