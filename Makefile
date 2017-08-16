@@ -10,7 +10,6 @@ TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
-export BUNDLE_PATH := vendor/bundle
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
 VERSION_PREFIXED = $(shell git describe)
@@ -51,6 +50,7 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	cp $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(BUILD_DIR)/
 
 .ruby-bundle:	ruby/Gemfile.lock
+	test -z "${BUNDLE_PATH}" && cd ruby && bundle config --local path vendor/bundle
 	cd ruby && bundle install
 	touch $@
 
