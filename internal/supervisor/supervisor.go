@@ -11,6 +11,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Config holds configuration for the circuit breaker of the respawn loop.
 type Config struct {
 	CrashThreshold int           `split_words:"true" default:"5"`
 	CrashWaitTime  time.Duration `split_words:"true" default:"1m"`
