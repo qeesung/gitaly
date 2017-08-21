@@ -13,8 +13,11 @@ import (
 
 // Config holds configuration for the circuit breaker of the respawn loop.
 type Config struct {
-	CrashThreshold int           `split_words:"true" default:"5"`
-	CrashWaitTime  time.Duration `split_words:"true" default:"1m"`
+	// GITALY_SUPERVISOR_CRASH_THRESHOLD
+	CrashThreshold int `split_words:"true" default:"5"`
+	// GITALY_SUPERVISOR_CRASH_WAIT_TIME
+	CrashWaitTime time.Duration `split_words:"true" default:"1m"`
+	// GITALY_SUPERVISOR_CRASH_RESET_TIME
 	CrashResetTime time.Duration `split_words:"true" default:"1m"`
 }
 
