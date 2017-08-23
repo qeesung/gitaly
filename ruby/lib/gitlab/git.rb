@@ -20,7 +20,7 @@ require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
 
 # Require all .rb files we can find in the vendored gitlab/git directory
 dir = File.expand_path(File.join('..', vendor_gitlab_git, 'lib/gitlab/'), __FILE__)
-Dir["#{dir}/git/**/*.rb"].each do |ruby_file|
+Dir["#{dir}/git/**/*.rb"].sort.each do |ruby_file|
   require_relative ruby_file.sub(dir, File.join(vendor_gitlab_git, 'lib/gitlab/')).sub(%r{^/*}, '')
 end
 
