@@ -66,10 +66,12 @@ func socketPath() string {
 	return path.Join(filepath.Clean(socketDir), "socket")
 }
 
+// RubyServer represents a gitaly-ruby helper process.
 type RubyServer struct {
 	*supervisor.Process
 }
 
+// Stop shuts down the gitaly-ruby helper process and cleans up resources.
 func (rs *RubyServer) Stop() {
 	rs.Process.Stop()
 	if socketDir != "" {

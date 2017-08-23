@@ -49,7 +49,7 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	go install $(LDFLAGS) $(COMMAND_PACKAGES)
 	cp $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(BUILD_DIR)/
 
-.ruby-bundle:	ruby/Gemfile.lock
+.ruby-bundle:	ruby/Gemfile.lock ruby/Gemfile
 	if test -z "${BUNDLE_PATH}" ; then cd ruby && bundle config --local path vendor/bundle; fi
 	cd ruby && bundle install
 	touch $@
