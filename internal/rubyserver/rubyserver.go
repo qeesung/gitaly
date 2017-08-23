@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	socketPath string
+	socketDir string
 
 	lazyInit sync.Once
 
@@ -51,21 +51,41 @@ func prepareSocketPath() {
 	// that is not too deep. We need a directory, not a tempfile, because we
 	// will later want to set its permissions to 0700. The permission change
 	// is done in the Ruby child process.
-	socketDir, err := ioutil.TempDir("", "gitaly-ruby")
+	var err error
+	socketDir, err = ioutil.TempDir("", "gitaly-ruby")
 	if err != nil {
 		log.Fatalf("create ruby server socket directory: %v", err)
 	}
-	socketPath = path.Join(filepath.Clean(socketDir), "socket")
+}
+
+func socketPath() string {
+	if socketDir == "" {
+		panic("socketDir is not set")
+	}
+
+	return path.Join(filepath.Clean(socketDir), "socket")
+}
+
+type RubyServer struct {
+	*supervisor.Process
+}
+
+func (rs *RubyServer) Stop() {
+	rs.Process.Stop()
+	if socketDir != "" {
+		os.RemoveAll(socketDir)
+	}
 }
 
 // Start spawns the Ruby server.
-func Start() (*supervisor.Process, error) {
+func Start() (*RubyServer, error) {
 	lazyInit.Do(prepareSocketPath)
 
-	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath}
+	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
 	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+helper.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
-	return supervisor.New(env, args, config.Config.Ruby.Dir)
+	p, err := supervisor.New(env, args, config.Config.Ruby.Dir)
+	return &RubyServer{Process: p}, err
 }
 
 // CommitServiceClient returns a CommitServiceClient instance that is
@@ -87,7 +107,7 @@ func DiffServiceClient(ctx context.Context) (pb.DiffServiceClient, error) {
 func newConnection(ctx context.Context) (*grpc.ClientConn, error) {
 	dialCtx, cancel := context.WithTimeout(ctx, ConnectTimeout)
 	defer cancel()
-	return grpc.DialContext(dialCtx, socketPath, dialOptions()...)
+	return grpc.DialContext(dialCtx, socketPath(), dialOptions()...)
 }
 
 func dialOptions() []grpc.DialOption {

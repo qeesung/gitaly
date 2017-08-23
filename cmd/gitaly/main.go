@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -146,6 +148,16 @@ func createUnixListener(socketPath string) (net.Listener, error) {
 // Inside here we can use deferred functions. This is needed because
 // log.Fatal bypasses deferred functions.
 func run(listeners []net.Listener) error {
+	signals := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
+	termCh := make(chan os.Signal, len(signals))
+	signal.Notify(termCh, signals...)
+
+	server := server.New()
+	go func() {
+		<-termCh
+		server.Stop()
+	}()
+
 	ruby, err := rubyserver.Start()
 	if err != nil {
 		// TODO: this will be a fatal error in the future
@@ -153,8 +165,6 @@ func run(listeners []net.Listener) error {
 	} else {
 		defer ruby.Stop()
 	}
-
-	server := server.New()
 
 	serverError := make(chan error, len(listeners))
 	for _, listener := range listeners {
