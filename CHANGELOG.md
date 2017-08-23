@@ -6,6 +6,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/300
 - Respawn gitaly-ruby when it crashes
   https://gitlab.com/gitlab-org/gitaly/merge_requests/293
+- Use a fixed order when auto-loading Ruby files
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/302
 
 v0.33.0
 
