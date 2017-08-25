@@ -29,6 +29,8 @@ func init() {
 
 // Process represents a running process.
 type Process struct {
+	Name string
+
 	// Information to start the process
 	env  []string
 	args []string
@@ -40,12 +42,13 @@ type Process struct {
 }
 
 // New creates a new proces instance.
-func New(env []string, args []string, dir string) (*Process, error) {
+func New(name string, env []string, args []string, dir string) (*Process, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("need at least one argument")
 	}
 
 	p := &Process{
+		Name: name,
 		env:  env,
 		args: args,
 		dir:  dir,
@@ -70,7 +73,7 @@ func watch(p *Process) {
 	// Count crashes to prevent a tight respawn loop. This is a 'circuit breaker'.
 	crashes := 0
 
-	logger := log.WithField("supervisor.args", p.args)
+	logger := log.WithField("supervisor.args", p.args).WithField("supervisor.name", p.Name)
 
 	for {
 		if crashes >= config.CrashThreshold {

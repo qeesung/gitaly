@@ -91,7 +91,7 @@ func Start() (*Server, error) {
 	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
 	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+helper.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
-	p, err := supervisor.New(env, args, config.Config.Ruby.Dir)
+	p, err := supervisor.New("gitaly-ruby", env, args, config.Config.Ruby.Dir)
 	return &Server{Process: p}, err
 }
 
