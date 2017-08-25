@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Config holds configuration for the circuit breaker of the respawn loop.
@@ -21,10 +24,21 @@ type Config struct {
 	CrashResetTime time.Duration `split_words:"true" default:"1m"`
 }
 
-var config Config
+var (
+	config Config
+
+	rssGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gitaly_supervisor_rss",
+			Help: "Resident set size of supervised processes, in kilobytes.",
+		},
+		[]string{"name"},
+	)
+)
 
 func init() {
 	envconfig.MustProcess("gitaly_supervisor", &config)
+	prometheus.MustRegister(rssGauge)
 }
 
 // Process represents a running process.
@@ -100,6 +114,8 @@ func watch(p *Process) {
 			close(waitCh)
 		}()
 
+		go monitorRss(p.Name, cmd.Process.Pid, waitCh)
+
 	waitLoop:
 		for {
 			select {
@@ -116,6 +132,35 @@ func watch(p *Process) {
 			}
 		}
 	}
+}
+
+func monitorRss(name string, pid int, done <-chan struct{}) {
+	t := time.NewTicker(15 * time.Second)
+	defer t.Stop()
+
+	for {
+		rssGauge.WithLabelValues(name).Set(float64(getRss(pid)))
+
+		select {
+		case <-done:
+			return
+		case <-t.C:
+		}
+	}
+}
+
+func getRss(pid int) int {
+	psRss, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return 0
+	}
+
+	rss, err := strconv.Atoi(strings.TrimSpace(string(psRss)))
+	if err != nil {
+		return 0
+	}
+
+	return rss
 }
 
 // Stop terminates the process.

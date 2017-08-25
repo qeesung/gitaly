@@ -12,6 +12,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/304
 - Use grpc 1.4.5 in gitaly-ruby
   https://gitlab.com/gitlab-org/gitaly/merge_requests/308
+- Monitor gitaly-ruby RSS via Prometheus
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/310
 
 v0.33.0
 
