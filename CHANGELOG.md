@@ -8,6 +8,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/293
 - Use a fixed order when auto-loading Ruby files
   https://gitlab.com/gitlab-org/gitaly/merge_requests/302
+- Use grpc 1.4.5 in gitaly-ruby
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/308
 
 v0.33.0
 
