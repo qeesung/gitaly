@@ -93,6 +93,7 @@ It has these top-level messages:
 	GitCommit
 	CommitAuthor
 	ExitStatus
+	Branch
 	InfoRefsRequest
 	InfoRefsResponse
 	PostUploadPackRequest
