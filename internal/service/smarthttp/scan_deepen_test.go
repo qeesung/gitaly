@@ -15,6 +15,7 @@ func TestSuccessfulScanDeepen(t *testing.T) {
 		{"000dsomething000cdeepen 10000", true},
 		{"000dsomething0000000cdeepen 1", true},
 		{"000dsomething0000000cdeepen 1" + strings.Repeat("garbage", 1000000), true},
+		{"ffff" + strings.Repeat("x", 65531) + "000cdeepen 1", true},
 		{"000dsomething0000", false},
 	}
 
