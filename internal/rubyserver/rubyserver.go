@@ -66,16 +66,16 @@ func socketPath() string {
 	return path.Join(filepath.Clean(socketDir), "socket")
 }
 
-// RubyServer represents a gitaly-ruby helper process.
-type RubyServer struct {
+// Server represents a gitaly-ruby helper process.
+type Server struct {
 	*supervisor.Process
 }
 
 // Stop shuts down the gitaly-ruby helper process and cleans up resources.
-func (rs *RubyServer) Stop() {
-	if rs != nil {
-		if rs.Process != nil {
-			rs.Process.Stop()
+func (s *Server) Stop() {
+	if s != nil {
+		if s.Process != nil {
+			s.Process.Stop()
 		}
 	}
 
@@ -85,14 +85,14 @@ func (rs *RubyServer) Stop() {
 }
 
 // Start spawns the Ruby server.
-func Start() (*RubyServer, error) {
+func Start() (*Server, error) {
 	lazyInit.Do(prepareSocketPath)
 
 	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
 	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+helper.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
 	p, err := supervisor.New(env, args, config.Config.Ruby.Dir)
-	return &RubyServer{Process: p}, err
+	return &Server{Process: p}, err
 }
 
 // CommitServiceClient returns a CommitServiceClient instance that is
