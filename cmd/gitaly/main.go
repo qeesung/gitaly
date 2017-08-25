@@ -152,28 +152,30 @@ func run(listeners []net.Listener) error {
 	termCh := make(chan os.Signal, len(signals))
 	signal.Notify(termCh, signals...)
 
-	server := server.New()
-	go func() {
-		<-termCh
-		server.Stop()
-	}()
-
 	ruby, err := rubyserver.Start()
 	if err != nil {
 		// TODO: this will be a fatal error in the future
 		log.WithError(err).Warn("failed to start ruby service")
-	} else {
-		defer ruby.Stop()
 	}
+	defer ruby.Stop()
 
-	serverError := make(chan error, len(listeners))
+	server := server.New()
+	defer server.Stop()
+
+	serverErrors := make(chan error, len(listeners))
 	for _, listener := range listeners {
 		// Must pass the listener as a function argument because there is a race
 		// between 'go' and 'for'.
 		go func(l net.Listener) {
-			serverError <- server.Serve(l)
+			serverErrors <- server.Serve(l)
 		}(listener)
 	}
 
-	return <-serverError
+	select {
+	case s := <-termCh:
+		err = fmt.Errorf("received signal %q", s)
+	case err = <-serverErrors:
+	}
+
+	return err
 }

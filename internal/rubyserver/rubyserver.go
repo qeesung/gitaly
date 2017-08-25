@@ -73,7 +73,12 @@ type RubyServer struct {
 
 // Stop shuts down the gitaly-ruby helper process and cleans up resources.
 func (rs *RubyServer) Stop() {
-	rs.Process.Stop()
+	if rs != nil {
+		if rs.Process != nil {
+			rs.Process.Stop()
+		}
+	}
+
 	if socketDir != "" {
 		os.RemoveAll(socketDir)
 	}
