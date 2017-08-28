@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
+	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
@@ -44,6 +45,12 @@ func loadConfig() {
 		}).Warn("can not load configuration")
 	}
 
+	if err := linguist.LoadColors(); err != nil {
+		log.WithFields(log.Fields{
+			"ruby.dir": config.Config.Ruby.Dir,
+			"error":    err,
+		}).Warn("can not load linguist languages")
+	}
 }
 
 func validateConfig() error {

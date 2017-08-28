@@ -1,6 +1,6 @@
 # External dependencies of Gitlab::Git
 require 'rugged'
-require 'linguist'
+require 'linguist/blob_helper'
 
 # Ruby on Rails mix-ins that GitLab::Git code relies on
 require 'active_support/core_ext/object/blank'

@@ -2,21 +2,6 @@ module GitalyServer
   class CommitService < Gitaly::CommitService::Service
     include Utils
 
-    def commit_languages(request, _call)
-      repo = Gitlab::Git::Repository.from_call(_call)
-      revision = request.revision unless request.revision.empty?
-
-      language_messages = repo.languages(revision).map do |language|
-        Gitaly::CommitLanguagesResponse::Language.new(
-          name: language[:label],
-          share: language[:value],
-          color: language[:color]
-        )
-      end
-
-      Gitaly::CommitLanguagesResponse.new(languages: language_messages)
-    end
-
     def commit_stats(request, _call)
       repo = Gitlab::Git::Repository.from_call(_call)
       revision = request.revision unless request.revision.empty?

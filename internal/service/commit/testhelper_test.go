@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -30,6 +31,10 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	testhelper.ConfigureRuby()
+	if err := linguist.LoadColors(); err != nil {
+		log.Fatal(err)
+	}
+
 	ruby, err := rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)

@@ -1,7 +1,16 @@
 package commit
 
 import (
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"io/ioutil"
+	"sort"
+	"strings"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/linguist"
+	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
@@ -9,15 +18,85 @@ import (
 )
 
 func (*server) CommitLanguages(ctx context.Context, req *pb.CommitLanguagesRequest) (*pb.CommitLanguagesResponse, error) {
-	client, err := rubyserver.CommitServiceClient(ctx)
+	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {
 		return nil, err
 	}
 
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
+	revision := string(req.Revision)
+	if revision == "" {
+		defaultBranch, err := ref.DefaultBranchName(ctx, repoPath)
+		if err != nil {
+			return nil, err
+		}
+		revision = string(defaultBranch)
+	}
+
+	commitID, err := lookupRevision(ctx, repoPath, revision)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.CommitLanguages(clientCtx, req)
+	stats, err := linguist.Stats(ctx, repoPath, commitID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &pb.CommitLanguagesResponse{}
+	if len(stats) == 0 {
+		return resp, nil
+	}
+
+	total := 0
+	for _, count := range stats {
+		total += count
+	}
+
+	if total == 0 {
+		return nil, grpc.Errorf(codes.Internal, "linguist stats added up to zero: %v", stats)
+	}
+
+	for lang, count := range stats {
+		l := &pb.CommitLanguagesResponse_Language{
+			Name:  lang,
+			Share: float32(100*count) / float32(total),
+			Color: linguist.Color(lang),
+		}
+		resp.Languages = append(resp.Languages, l)
+	}
+
+	sort.Sort(&languageSorter{resp})
+
+	return resp, nil
+}
+
+type languageSorter struct {
+	*pb.CommitLanguagesResponse
+}
+
+func (ls *languageSorter) Len() int { return len(ls.CommitLanguagesResponse.Languages) }
+
+func (ls *languageSorter) Swap(i, j int) {
+	languages := ls.CommitLanguagesResponse.Languages
+	languages[i], languages[j] = languages[j], languages[i]
+}
+
+func (ls *languageSorter) Less(i, j int) bool {
+	languages := ls.CommitLanguagesResponse.Languages
+	return languages[i].Share > languages[j].Share
+}
+
+func lookupRevision(ctx context.Context, repoPath string, revision string) (string, error) {
+	revParse, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-parse", revision)
+	if err != nil {
+		return "", err
+	}
+	defer revParse.Close()
+
+	revParseBytes, err := ioutil.ReadAll(revParse)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(revParseBytes)), nil
 }
