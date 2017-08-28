@@ -29,8 +29,8 @@ var (
 
 	rssGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "gitaly_supervisor_rss",
-			Help: "Resident set size of supervised processes, in kilobytes.",
+			Name: "gitaly_supervisor_rss_bytes",
+			Help: "Resident set size of supervised processes, in bytes.",
 		},
 		[]string{"name"},
 	)
@@ -139,7 +139,7 @@ func monitorRss(name string, pid int, done <-chan struct{}) {
 	defer t.Stop()
 
 	for {
-		rssGauge.WithLabelValues(name).Set(float64(getRss(pid)))
+		rssGauge.WithLabelValues(name).Set(float64(1024 * getRss(pid)))
 
 		select {
 		case <-done:
@@ -149,7 +149,10 @@ func monitorRss(name string, pid int, done <-chan struct{}) {
 	}
 }
 
+// getRss returns RSS in kilobytes.
 func getRss(pid int) int {
+	// I tried adding a library to do this but it seemed like overkill
+	// and YAGNI compared to doing this one 'ps' call.
 	psRss, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return 0
