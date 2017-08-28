@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
-
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kelseyhightower/envconfig"
@@ -29,8 +29,8 @@ var (
 
 	rssGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "gitaly_supervisor_rss_bytes",
-			Help: "Resident set size of supervised processes, in bytes.",
+			Name: "gitaly_supervisor_rss",
+			Help: "Resident set size of supervised processes, in kilobytes.",
 		},
 		[]string{"name"},
 	)
@@ -149,19 +149,18 @@ func monitorRss(name string, pid int, done <-chan struct{}) {
 	}
 }
 
-// getRss returns RSS in bytes.
-func getRss(pid int) uint64 {
-	p, err := helper.PsUtil(pid)
+func getRss(pid int) int {
+	psRss, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return 0
 	}
 
-	memInfo, err := p.MemoryInfo()
+	rss, err := strconv.Atoi(strings.TrimSpace(string(psRss)))
 	if err != nil {
 		return 0
 	}
 
-	return memInfo.RSS
+	return rss
 }
 
 // Stop terminates the process.
