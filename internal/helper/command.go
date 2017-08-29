@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -41,6 +42,9 @@ type Command struct {
 	*exec.Cmd
 	context   context.Context
 	startTime time.Time
+	done      chan struct{}
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // GitPath returns the path to the `git` binary. See `SetGitPath` for details
@@ -79,7 +83,12 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 		"args": cmd.Args,
 	}).Info("spawn")
 
-	command := &Command{Cmd: cmd, startTime: time.Now(), context: ctx}
+	command := &Command{
+		Cmd:       cmd,
+		startTime: time.Now(),
+		context:   ctx,
+		done:      make(chan struct{}),
+	}
 
 	// Explicitly set the environment for the command
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
@@ -125,6 +134,18 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 		return nil, fmt.Errorf("GitCommand: start %v: %v", cmd.Args, err)
 	}
 
+	go func() {
+		select {
+		case <-command.done:
+		case <-ctx.Done():
+		}
+
+		if process := cmd.Process; process != nil && process.Pid > 0 {
+			// Send SIGTERM to the process group of cmd
+			syscall.Kill(-process.Pid, syscall.SIGTERM)
+		}
+	}()
+
 	return command, nil
 }
 
@@ -141,28 +162,22 @@ func exportEnvironment(env []string) []string {
 // Close will send a SIGTERM signal to the process group
 // belonging to the `cmd` process
 func (c *Command) Close() error {
-	cmd := c.Cmd
-	ctx := c.context
+	c.closeOnce.Do(c.close)
+	return c.closeErr
+}
 
-	process := cmd.Process
-	if process != nil && process.Pid > 0 {
-		// Send SIGTERM to the process group of cmd
-		syscall.Kill(-process.Pid, syscall.SIGTERM)
-	}
-
-	// reap our child process
-	err := cmd.Wait()
+func (c *Command) close() {
+	close(c.done)
+	c.closeErr = c.Cmd.Wait()
 
 	exitCode := 0
-	if err != nil {
-		if exitStatus, ok := ExitStatus(err); ok {
+	if c.closeErr != nil {
+		if exitStatus, ok := ExitStatus(c.closeErr); ok {
 			exitCode = exitStatus
 		}
 	}
 
-	c.logProcessComplete(ctx, exitCode)
-
-	return err
+	c.logProcessComplete(c.context, exitCode)
 }
 
 // ExitStatus will return the exit-code from an error
