@@ -43,8 +43,8 @@ type Command struct {
 	context   context.Context
 	startTime time.Time
 	done      chan struct{}
-	waitOnce  sync.Once
-	waitErr   error
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // GitPath returns the path to the `git` binary. See `SetGitPath` for details
@@ -162,17 +162,17 @@ func exportEnvironment(env []string) []string {
 // Close will send a SIGTERM signal to the process group
 // belonging to the `cmd` process
 func (c *Command) Close() error {
-	c.waitOnce.Do(c.wait)
-	return c.waitErr
+	c.closeOnce.Do(c.close)
+	return c.closeErr
 }
 
-func (c *Command) wait() {
+func (c *Command) close() {
 	close(c.done)
-	c.waitErr = c.Cmd.Wait()
+	c.closeErr = c.Cmd.Wait()
 
 	exitCode := 0
-	if c.waitErr != nil {
-		if exitStatus, ok := ExitStatus(c.waitErr); ok {
+	if c.closeErr != nil {
+		if exitStatus, ok := ExitStatus(c.closeErr); ok {
 			exitCode = exitStatus
 		}
 	}
