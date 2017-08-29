@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Terminate commands when their context cancels
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/318
+
 v0.35.0
 
 - Implement CommitService.CommitStats
