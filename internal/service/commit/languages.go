@@ -65,26 +65,16 @@ func (*server) CommitLanguages(ctx context.Context, req *pb.CommitLanguagesReque
 		resp.Languages = append(resp.Languages, l)
 	}
 
-	sort.Sort(&languageSorter{resp})
+	sort.Sort(languageSorter(resp.Languages))
 
 	return resp, nil
 }
 
-type languageSorter struct {
-	*pb.CommitLanguagesResponse
-}
+type languageSorter []*pb.CommitLanguagesResponse_Language
 
-func (ls *languageSorter) Len() int { return len(ls.CommitLanguagesResponse.Languages) }
-
-func (ls *languageSorter) Swap(i, j int) {
-	languages := ls.CommitLanguagesResponse.Languages
-	languages[i], languages[j] = languages[j], languages[i]
-}
-
-func (ls *languageSorter) Less(i, j int) bool {
-	languages := ls.CommitLanguagesResponse.Languages
-	return languages[i].Share > languages[j].Share
-}
+func (ls languageSorter) Len() int           { return len(ls) }
+func (ls languageSorter) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
+func (ls languageSorter) Less(i, j int) bool { return ls[i].Share > ls[j].Share }
 
 func lookupRevision(ctx context.Context, repoPath string, revision string) (string, error) {
 	revParse, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-parse", revision)
