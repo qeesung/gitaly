@@ -5,10 +5,13 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewCommand_Env(t *testing.T) {
+func TestNewCommandTZEnv(t *testing.T) {
 	oldTZ := os.Getenv("TZ")
 	defer os.Setenv("TZ", oldTZ)
 
@@ -16,21 +19,19 @@ func TestNewCommand_Env(t *testing.T) {
 
 	buff := &bytes.Buffer{}
 	cmd, err := NewCommand(context.Background(), exec.Command("env"), nil, buff, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = cmd.Wait(); err != nil {
-		t.Fatal(err)
-	}
 
-	found := false
-	split := bytes.Split(buff.Bytes(), []byte("\n"))
-	for _, line := range split {
-		if bytes.Compare(line, []byte("TZ=foobar")) == 0 {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("TZ not set to `foobar`")
-	}
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	require.Contains(t, strings.Split(buff.String(), "\n"), "TZ=foobar")
+}
+
+func TestNewCommandExtraEnv(t *testing.T) {
+	extraVar := "FOOBAR=123456"
+	buff := &bytes.Buffer{}
+	cmd, err := NewCommand(context.Background(), exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	require.Contains(t, strings.Split(buff.String(), "\n"), extraVar)
 }
