@@ -6,6 +6,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/312
 - Use bufio.Reader instead of bufio.Scanner for lines.Send
   https://gitlab.com/gitlab-org/gitaly/merge_requests/303
+- Restore support for custom environment variables
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/319
 
 v0.34.0
 
