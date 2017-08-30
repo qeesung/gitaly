@@ -82,10 +82,10 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	command := &Command{Cmd: cmd, startTime: time.Now(), context: ctx}
 
 	// Explicitly set the environment for the command
-	cmd.Env = append(env, "GIT_TERMINAL_PROMPT=0")
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
 
 	// Export env vars
-	cmd.Env = exportEnvironment(cmd.Env)
+	cmd.Env = exportEnvironment(env)
 
 	if dir, ok := objectdirhandler.ObjectDir(ctx); ok {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", dir))
