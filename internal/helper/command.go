@@ -82,9 +82,7 @@ func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, std
 	command := &Command{Cmd: cmd, startTime: time.Now(), context: ctx}
 
 	// Explicitly set the environment for the command
-	cmd.Env = []string{
-		"GIT_TERMINAL_PROMPT=0",
-	}
+	cmd.Env = append(env, "GIT_TERMINAL_PROMPT=0")
 
 	// Export env vars
 	cmd.Env = exportEnvironment(cmd.Env)
