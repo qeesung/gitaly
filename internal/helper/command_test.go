@@ -30,6 +30,7 @@ func TestNewCommandExtraEnv(t *testing.T) {
 	extraVar := "FOOBAR=123456"
 	buff := &bytes.Buffer{}
 	cmd, err := NewCommand(context.Background(), exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
+
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
 
