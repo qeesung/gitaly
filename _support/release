@@ -3,7 +3,16 @@ require 'erb'
 
 require_relative 'run.rb'
 
+# This regex will match both 'git@gitlab.com:gitlab-org/gitaly.git'
+# and 'https://gitlab.com/gitlab-org/gitaly.git'.
+REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
+
 def main(version)
+  remote = capture!(%w[git remote get-url --push origin])
+  unless REMOTE_REGEX.match(remote)
+    abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
+  end
+
   run!(%w[make verify])
   run!(%w[make test])
 
@@ -28,12 +37,7 @@ def main(version)
   $stdout.flush
   abort unless $stdin.gets.chomp == 'Yes'
 
-  %w[
-    git@gitlab.com:gitlab-org/gitaly.git
-    git@dev.gitlab.org:gitlab/gitaly.git
-  ].each do |remote|
-    run!(%W[git push #{remote} HEAD #{tag_name}])
-  end
+  run!(%W[echo git push origin HEAD #{tag_name}])
 end
 
 def write_version_file(version)
