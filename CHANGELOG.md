@@ -6,6 +6,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/318
 - Implement {Create,Delete}Branch RPCs
   https://gitlab.com/gitlab-org/gitaly/merge_requests/311
+- Use git-linguist to implement CommitLanguages
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/316
 
 v0.35.0
 
