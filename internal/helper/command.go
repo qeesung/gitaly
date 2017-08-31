@@ -200,7 +200,7 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 
 	systemTime := cmd.ProcessState.SystemTime()
 	userTime := cmd.ProcessState.UserTime()
-	realTime := time.Now().Sub(c.startTime)
+	realTime := time.Since(c.startTime)
 
 	entry := grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"path":                   cmd.Path,

@@ -335,8 +335,6 @@ func (parser *Parser) consumeChunkLine() {
 	parser.currentDiff.lineCount++
 	parser.linesProcessed++
 	parser.bytesProcessed += len(line)
-
-	return
 }
 
 func (parser *Parser) consumeBinaryNotice() {
@@ -347,8 +345,6 @@ func (parser *Parser) consumeBinaryNotice() {
 	}
 
 	parser.currentDiff.Binary = true
-
-	return
 }
 
 func (parser *Parser) consumeLine(updateStats bool) {
@@ -363,8 +359,6 @@ func (parser *Parser) consumeLine(updateStats bool) {
 		parser.linesProcessed++
 		parser.bytesProcessed += len(line)
 	}
-
-	return
 }
 
 // unescape unescapes the escape codes used by 'git diff'

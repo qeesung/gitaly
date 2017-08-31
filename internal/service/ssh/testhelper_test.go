@@ -23,7 +23,6 @@ const (
 
 var (
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	workDir          string
 	testRepo         *pb.Repository
 
 	uploadPackPath  string

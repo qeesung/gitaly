@@ -66,21 +66,6 @@ func startTestServices(t *testing.T) *grpc.Server {
 	return server
 }
 
-func newCommitClient(t *testing.T, serviceSocketPath string) pb.CommitClient {
-	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-			return net.Dial("unix", addr)
-		}),
-	}
-	conn, err := grpc.Dial(serviceSocketPath, connOpts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return pb.NewCommitClient(conn)
-}
-
 func newCommitServiceClient(t *testing.T, serviceSocketPath string) (pb.CommitServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),

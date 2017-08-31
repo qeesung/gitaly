@@ -12,11 +12,6 @@ import (
 )
 
 func TestRefExists(t *testing.T) {
-	type args struct {
-		ctx context.Context
-		in  *pb.RefExistsRequest
-	}
-
 	badRepo := &pb.Repository{StorageName: "invalid", RelativePath: "/etc/"}
 
 	tests := []struct {

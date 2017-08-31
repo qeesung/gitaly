@@ -32,6 +32,7 @@ GOVENDOR = $(BIN_BUILD_DIR)/govendor
 GOLINT = $(BIN_BUILD_DIR)/golint
 GOCOVMERGE = $(BIN_BUILD_DIR)/gocovmerge
 GOIMPORTS = $(BIN_BUILD_DIR)/goimports
+MEGACHECK = $(BIN_BUILD_DIR)/megacheck
 
 .NOTPARALLEL:
 
@@ -60,7 +61,7 @@ install: build
 	cd $(BIN_BUILD_DIR) && install $(COMMANDS) $(INSTALL_DEST_DIR)
 
 .PHONY: verify
-verify: lint check-formatting govendor-status notice-up-to-date
+verify: lint check-formatting megacheck govendor-status notice-up-to-date
 
 .PHONY: govendor-status
 govendor-status: $(TARGET_SETUP) $(GOVENDOR)
@@ -83,6 +84,10 @@ prepare-tests: $(TARGET_SETUP) $(TEST_REPO)
 .PHONY: lint
 lint: $(GOLINT)
 	go run _support/lint.go
+
+.PHONY: megacheck
+megacheck: $(MEGACHECK)
+	@$(MEGACHECK) $(LOCAL_PACKAGES)
 
 .PHONY: check-formatting
 check-formatting: $(TARGET_SETUP) $(GOIMPORTS)
@@ -147,3 +152,7 @@ $(GOCOVMERGE): $(TARGET_SETUP)
 # Install goimports
 $(GOIMPORTS): $(TARGET_SETUP)
 	go get -v golang.org/x/tools/cmd/goimports
+
+# Install goimports
+$(MEGACHECK): $(TARGET_SETUP)
+	go get -v honnef.co/go/tools/cmd/megacheck

@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -94,22 +93,6 @@ func TestMain(m *testing.M) {
 	os.Exit(func() int {
 		return m.Run()
 	}())
-}
-
-func runRefServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
-	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
-	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(&server{}))
-	reflection.Register(grpcServer)
-
-	go grpcServer.Serve(listener)
-
-	return grpcServer
 }
 
 func runRefServiceServer(t *testing.T) *grpc.Server {
