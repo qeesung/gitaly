@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Update vendor/gitlab_git to b58c4f436abaf646703bdd80f266fa4c0bab2dd2
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/324
+
 v0.37.0
 
 - Implement FindBranch RPC
