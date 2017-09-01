@@ -104,3 +104,12 @@ codeclimate:
 
 ruby-2.3-golang-1.8-git-2.8: *build_image
 ruby-2.3-golang-1.8-git-2.13: *build_image
+
+# Create a MR in GitLab-CE when releasing a Gitaly version
+update-downstream-server-version:
+  stage: publish
+  only:
+    - tags
+  script:
+    - ruby _support/update-downstream-server-version.rb
+  allow_failure: true
