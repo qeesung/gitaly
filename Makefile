@@ -153,6 +153,6 @@ $(GOCOVMERGE): $(TARGET_SETUP)
 $(GOIMPORTS): $(TARGET_SETUP)
 	go get -v golang.org/x/tools/cmd/goimports
 
-# Install goimports
+# Install megacheck
 $(MEGACHECK): $(TARGET_SETUP)
 	go get -v honnef.co/go/tools/cmd/megacheck
