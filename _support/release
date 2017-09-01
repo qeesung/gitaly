@@ -3,9 +3,16 @@ require 'erb'
 
 require_relative 'run.rb'
 
-# This regex will match both 'git@gitlab.com:gitlab-org/gitaly.git'
-# and 'https://gitlab.com/gitlab-org/gitaly.git'.
 REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
+
+# Sanity check
+%w[
+  git@gitlab.com:gitlab-org/gitaly.git
+  https://gitlab.com/gitlab-org/gitaly.git
+  https://janedoe@gitlab.com/gitlab-org/gitaly.git
+].each do |remote|
+  abort "regex check failed failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
+end
 
 def main(version)
   remote = capture!(%w[git remote get-url --push origin])
