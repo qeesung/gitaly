@@ -26,7 +26,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	code := testMain(m)
+	testhelper.MustHaveNoChildProcess()
+	os.Exit(code)
 }
 
 func testMain(m *testing.M) int {

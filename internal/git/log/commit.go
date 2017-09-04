@@ -38,6 +38,7 @@ func GetCommit(ctx context.Context, repo *pb.Repository, revision string, path s
 	if err != nil {
 		return nil, err
 	}
+	defer cmd.Close()
 
 	logParser := NewLogParser(cmd)
 	if ok := logParser.Parse(); !ok {

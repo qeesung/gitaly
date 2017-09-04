@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -190,4 +192,14 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
 	)
+}
+
+func MustHaveNoChildProcess() {
+	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
+	if err != nil {
+		panic(fmt.Errorf("wait4 failed: %v", err))
+	}
+	if wpid > 0 {
+		panic(fmt.Errorf("expected no child processes, found %d", wpid))
+	}
 }
