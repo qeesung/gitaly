@@ -194,11 +194,19 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 	)
 }
 
+// MustHaveNoChildProcess tries to get any child process
+// status,non-blocking. Panics if it finds a child status.
 func MustHaveNoChildProcess() {
+	// Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error)
+	//
+	// We use pid -1 to wait for any child. We don't care about wstatus or
+	// rusage. Use WNOHANG to return immediately if there is no child waiting
+	// to be reaped.
 	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
 	if err != nil {
 		panic(fmt.Errorf("wait4 failed: %v", err))
 	}
+
 	if wpid > 0 {
 		panic(fmt.Errorf("expected no child processes, found %d", wpid))
 	}
