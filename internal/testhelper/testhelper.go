@@ -195,7 +195,7 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 }
 
 // MustHaveNoChildProcess tries to get any child process
-// status,non-blocking. Panics if it finds a child status.
+// status, non-blocking. Panics if it finds a child status.
 func MustHaveNoChildProcess() {
 	// Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error)
 	//
