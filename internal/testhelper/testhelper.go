@@ -224,7 +224,9 @@ func mustFindNoRunningChildProcess() {
 
 	out, err := pgrep.Output()
 	if err == nil {
-		panic(fmt.Sprintf("%s returned %q: child processes found", desc, out))
+		pidsComma := strings.Replace(strings.TrimSpace(string(out)), ",", "\n", -1)
+		psOut, _ := exec.Command("ps", "-o", "pid,args", "-p", pidsComma).Output()
+		panic(fmt.Sprintf("found running child processes %s:\n%s", pidsComma, psOut))
 	}
 
 	if status, ok := command.ExitStatus(err); ok && status == 1 {
