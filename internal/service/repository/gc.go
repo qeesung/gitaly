@@ -32,7 +32,7 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		args = append(args, "repack.writeBitmaps=false")
 	}
 	args = append(args, "gc")
-	cmd, err := command.GitCommandReader(ctx, args...)
+	cmd, err := command.Git(ctx, args...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}

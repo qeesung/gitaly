@@ -52,7 +52,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 	}
 
 	args = append(args, patterns...)
-	cmd, err := command.GitCommandReader(ctx, args...)
+	cmd, err := command.Git(ctx, args...)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (s *server) FindAllTags(in *pb.FindAllTagsRequest, stream pb.RefService_Fin
 func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
 	var names [][]byte
 
-	cmd, err := command.GitCommandReader(ctx, "--git-dir", repoPath, "for-each-ref", "refs/heads", "--format=%(refname)")
+	cmd, err := command.Git(ctx, "--git-dir", repoPath, "for-each-ref", "refs/heads", "--format=%(refname)")
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
 func _headReference(ctx context.Context, repoPath string) ([]byte, error) {
 	var headRef []byte
 
-	cmd, err := command.GitCommandReader(ctx, "--git-dir", repoPath, "rev-parse", "--symbolic-full-name", "HEAD")
+	cmd, err := command.Git(ctx, "--git-dir", repoPath, "rev-parse", "--symbolic-full-name", "HEAD")
 	if err != nil {
 		return nil, err
 	}

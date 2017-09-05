@@ -42,7 +42,7 @@ func findRefName(ctx context.Context, path, commitID, prefix string) (string, er
 		"prefix":    prefix,
 	}).Debug("findRefName")
 
-	cmd, err := command.GitCommandReader(ctx, "--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
+	cmd, err := command.Git(ctx, "--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
 	if err != nil {
 		return "", err
 	}

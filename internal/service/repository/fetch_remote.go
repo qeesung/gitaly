@@ -31,7 +31,7 @@ func (server) FetchRemote(ctx context.Context, in *pb.FetchRemoteRequest) (*pb.F
 		return nil, err
 	}
 
-	cmd, err := command.GitlabShellCommandReader(ctx, envs, "gitlab-projects", args...)
+	cmd, err := command.GitlabShell(ctx, envs, "gitlab-projects", args...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}

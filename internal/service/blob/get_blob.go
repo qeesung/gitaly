@@ -30,7 +30,7 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 	stdinReader, stdinWriter := io.Pipe()
 
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := command.NewCommand(stream.Context(), exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
+	cmd, err := command.New(stream.Context(), exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetBlob: cmd: %v", err)
 	}

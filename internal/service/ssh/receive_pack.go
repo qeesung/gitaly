@@ -54,7 +54,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	}
 
 	osCommand := exec.Command(command.GitPath(), "receive-pack", repoPath)
-	cmd, err := command.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr, env...)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr, env...)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)

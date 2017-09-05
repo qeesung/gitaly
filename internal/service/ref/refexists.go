@@ -42,7 +42,7 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 	}
 
 	osCommand := exec.Command(command.GitPath(), "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
-	cmd, err := command.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
+	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}

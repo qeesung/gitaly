@@ -47,7 +47,7 @@ func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bit
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	cmd, err := command.GitCommandReader(ctx, cmdArgs...)
+	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}

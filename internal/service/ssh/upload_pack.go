@@ -48,7 +48,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 
 	osCommand := exec.Command(command.GitPath(), args...)
 
-	cmd, err := command.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)

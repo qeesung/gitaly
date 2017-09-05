@@ -40,7 +40,7 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 		return err
 	}
 
-	cmd, err := command.GitCommandReader(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
+	cmd, err := command.Git(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}

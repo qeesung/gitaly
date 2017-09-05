@@ -50,7 +50,7 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	}
 
 	osCommand := exec.Command(command.GitPath(), "receive-pack", "--stateless-rpc", repoPath)
-	cmd, err := command.NewCommand(stream.Context(), osCommand, stdin, stdout, nil, env...)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil, env...)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "PostReceivePack: cmd: %v", err)

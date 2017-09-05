@@ -41,7 +41,7 @@ func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string)
 	}).Debug("commitIsAncestor")
 
 	osCommand := exec.Command(command.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
-	cmd, err := command.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
+	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}

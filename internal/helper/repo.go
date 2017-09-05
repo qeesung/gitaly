@@ -88,7 +88,7 @@ func IsValidRef(ctx context.Context, path, ref string) bool {
 		return false
 	}
 
-	cmd, err := command.GitCommandReader(ctx, "--git-dir", path, "log", "--max-count=1", ref)
+	cmd, err := command.Git(ctx, "--git-dir", path, "log", "--max-count=1", ref)
 	if err != nil {
 		return false
 	}

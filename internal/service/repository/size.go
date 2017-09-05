@@ -21,7 +21,7 @@ func (s *server) RepositorySize(ctx context.Context, in *pb.RepositorySizeReques
 		return nil, err
 	}
 
-	cmd, err := command.NewCommand(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
 	if err != nil {
 		grpc_logrus.Extract(ctx).WithError(err).Warn("ignoring du command error")
 		return repositorySizeResponse(0), nil

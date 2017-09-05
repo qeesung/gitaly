@@ -40,7 +40,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		cmdArgs = append(cmdArgs, "--", string(path))
 	}
 
-	cmd, err := command.GitCommandReader(ctx, cmdArgs...)
+	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}

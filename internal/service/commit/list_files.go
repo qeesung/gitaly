@@ -35,7 +35,7 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 		return stream.Send(&pb.ListFilesResponse{})
 	}
 
-	cmd, err := command.GitCommandReader(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
+	cmd, err := command.Git(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}

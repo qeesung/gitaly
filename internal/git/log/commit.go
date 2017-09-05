@@ -74,7 +74,7 @@ func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string,
 	args = append(args, "--")
 	args = append(args, paths...)
 
-	cmd, err := command.GitCommandReader(ctx, args...)
+	cmd, err := command.Git(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
