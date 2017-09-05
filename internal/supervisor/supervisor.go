@@ -50,6 +50,7 @@ type Process struct {
 	dir  string
 
 	// Shutdown
+	shutdown chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
 }
@@ -61,11 +62,12 @@ func New(name string, env []string, args []string, dir string) (*Process, error)
 	}
 
 	p := &Process{
-		Name: name,
-		env:  env,
-		args: args,
-		dir:  dir,
-		done: make(chan struct{}),
+		Name:     name,
+		env:      env,
+		args:     args,
+		dir:      dir,
+		shutdown: make(chan struct{}),
+		done:     make(chan struct{}),
 	}
 
 	go watch(p)
@@ -122,10 +124,12 @@ func watch(p *Process) {
 			case <-waitCh:
 				crashes++
 				break waitLoop
-			case <-p.done:
+			case <-p.shutdown:
 				if cmd.Process != nil {
 					cmd.Process.Kill()
 				}
+				<-waitCh
+				close(p.done)
 				return
 			}
 		}
@@ -171,6 +175,12 @@ func (p *Process) Stop() {
 	}
 
 	p.stopOnce.Do(func() {
-		close(p.done)
+		close(p.shutdown)
 	})
+
+	select {
+	case <-p.done:
+	case <-time.After(1 * time.Second):
+		// Don't wait for shutdown forever
+	}
 }
