@@ -1,4 +1,4 @@
-package helper
+package command
 
 import (
 	"bytes"

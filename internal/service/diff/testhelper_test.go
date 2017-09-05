@@ -22,6 +22,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
 	testRepo = testhelper.TestRepository()
 
 	testhelper.ConfigureRuby()
@@ -29,12 +35,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer ruby.Stop()
 
-	os.Exit(func() int {
-		defer ruby.Stop()
-
-		return m.Run()
-	}())
+	return m.Run()
 }
 
 func runDiffServer(t *testing.T) *grpc.Server {

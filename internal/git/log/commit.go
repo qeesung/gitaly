@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -49,7 +50,7 @@ func GetCommit(ctx context.Context, repo *pb.Repository, revision string, path s
 }
 
 // GitLogCommand returns a Command that executes git log with the given the arguments
-func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string, paths []string, extraArgs ...string) (*helper.Command, error) {
+func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string, paths []string, extraArgs ...string) (*command.Command, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"Revisions": revisions,
 	}).Debug("GitLog")
@@ -73,7 +74,7 @@ func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string,
 	args = append(args, "--")
 	args = append(args, paths...)
 
-	cmd, err := helper.GitCommandReader(ctx, args...)
+	cmd, err := command.GitCommandReader(ctx, args...)
 	if err != nil {
 		return nil, err
 	}

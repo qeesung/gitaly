@@ -16,11 +16,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -194,9 +195,14 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 	)
 }
 
-// MustHaveNoChildProcess tries to get any child process
-// status, non-blocking. Panics if it finds a child status.
+// MustHaveNoChildProcess panics if it finds a running or finished child
+// process.
 func MustHaveNoChildProcess() {
+	mustFindNoFinishedChildProcess()
+	mustFindNoRunningChildProcess()
+}
+
+func mustFindNoFinishedChildProcess() {
 	// Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error)
 	//
 	// We use pid -1 to wait for any child. We don't care about wstatus or
@@ -204,10 +210,27 @@ func MustHaveNoChildProcess() {
 	// to be reaped.
 	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
 	if err != nil {
-		panic(fmt.Errorf("wait4 failed: %v", err))
+		return
 	}
 
 	if wpid > 0 {
-		panic(fmt.Errorf("expected no child processes, found %d", wpid))
+		panic(fmt.Errorf("wait4 found child process %d", wpid))
 	}
+}
+
+func mustFindNoRunningChildProcess() {
+	pgrep := exec.Command("pgrep", "-P", fmt.Sprintf("%d", os.Getpid()))
+	desc := fmt.Sprintf("%q", strings.Join(pgrep.Args, " "))
+
+	out, err := pgrep.Output()
+	if err == nil {
+		panic(fmt.Sprintf("%s returned %q: child processes found", desc, out))
+	}
+
+	if status, ok := command.ExitStatus(err); ok && status == 1 {
+		// Exit status 1 means no processes were found
+		return
+	}
+
+	panic(fmt.Sprintf("%s: %v", desc, err))
 }

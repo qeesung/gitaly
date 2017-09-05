@@ -71,9 +71,15 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	var err error
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
 
 	testRepo = testhelper.TestRepository()
+
+	var err error
 	testRepoPath, err = helper.GetRepoPath(testRepo)
 	if err != nil {
 		log.Fatal(err)
@@ -90,9 +96,7 @@ func TestMain(m *testing.M) {
 	// ref list works correctly
 	lines.MaxMsgSize = 100
 
-	os.Exit(func() int {
-		return m.Run()
-	}())
+	return m.Run()
 }
 
 func runRefServiceServer(t *testing.T) *grpc.Server {

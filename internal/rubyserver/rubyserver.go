@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/supervisor"
@@ -89,7 +90,7 @@ func Start() (*Server, error) {
 	lazyInit.Do(prepareSocketPath)
 
 	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
-	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+helper.GitPath(),
+	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+command.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
 	p, err := supervisor.New("gitaly-ruby", env, args, config.Config.Ruby.Dir)
 	return &Server{Process: p}, err
