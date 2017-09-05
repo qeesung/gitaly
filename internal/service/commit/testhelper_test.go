@@ -26,12 +26,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	code := testMain(m)
-	testhelper.MustHaveNoChildProcess()
-	os.Exit(code)
+	os.Exit(testMain(m))
 }
 
 func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
 	testhelper.ConfigureRuby()
 	if err := linguist.LoadColors(); err != nil {
 		log.Fatal(err)
