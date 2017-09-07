@@ -2,7 +2,6 @@ package blob
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -71,7 +70,10 @@ func TestSuccessfulGetBlob(t *testing.T) {
 				Limit:      int64(tc.limit),
 			}
 
-			stream, err := client.GetBlob(context.Background(), request)
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			stream, err := client.GetBlob(ctx, request)
 			require.NoError(t, err, "initiate RPC")
 
 			reportedSize, reportedOid, data, err := getBlob(stream)
@@ -97,7 +99,10 @@ func TestGetBlobNotFound(t *testing.T) {
 		Oid:        "doesnotexist",
 	}
 
-	stream, err := client.GetBlob(context.Background(), request)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	stream, err := client.GetBlob(ctx, request)
 	require.NoError(t, err)
 
 	reportedSize, reportedOid, data, err := getBlob(stream)
@@ -150,7 +155,10 @@ func TestFailedGetBlobRequestDueToValidationError(t *testing.T) {
 	}
 
 	for _, rpcRequest := range rpcRequests {
-		stream, err := client.GetBlob(context.Background(), &rpcRequest)
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		stream, err := client.GetBlob(ctx, &rpcRequest)
 		require.NoError(t, err, rpcRequest)
 		_, err = stream.Recv()
 		require.NotEqual(t, io.EOF, err, rpcRequest)

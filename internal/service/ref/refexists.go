@@ -1,8 +1,6 @@
 package ref
 
 import (
-	"io/ioutil"
-	"os/exec"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -41,12 +39,10 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
 	}
 
-	osCommand := exec.Command(command.GitPath(), "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
-	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
+	cmd, err := command.Git(ctx, "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.Close()
 
 	err = cmd.Wait()
 	if err == nil {

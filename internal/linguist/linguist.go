@@ -32,7 +32,6 @@ func Stats(ctx context.Context, repoPath string, commitID string) (map[string]in
 	if err != nil {
 		return nil, err
 	}
-	defer reader.Close()
 
 	data, err := ioutil.ReadAll(reader)
 	if err != nil {

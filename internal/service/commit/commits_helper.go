@@ -19,7 +19,6 @@ func sendCommits(ctx context.Context, sender commitsSender, repo *pb.Repository,
 	if err != nil {
 		return err
 	}
-	defer cmd.Close()
 
 	logParser := log.NewLogParser(cmd)
 

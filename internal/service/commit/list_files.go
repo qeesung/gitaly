@@ -39,7 +39,6 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.Close()
 
 	return lines.Send(cmd, listFilesWriter(stream), []byte{'\x00'})
 }

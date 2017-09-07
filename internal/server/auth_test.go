@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net"
 	"testing"
 	"time"
@@ -130,8 +129,11 @@ func dial(opts []grpc.DialOption) (*grpc.ClientConn, error) {
 }
 
 func healthCheck(conn *grpc.ClientConn) error {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	client := healthpb.NewHealthClient(conn)
-	_, err := client.Check(context.Background(), &healthpb.HealthCheckRequest{})
+	_, err := client.Check(ctx, &healthpb.HealthCheckRequest{})
 	return err
 }
 

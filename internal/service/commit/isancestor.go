@@ -1,9 +1,6 @@
 package commit
 
 import (
-	"io/ioutil"
-	"os/exec"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,12 +37,10 @@ func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string)
 		"childSha":    childID,
 	}).Debug("commitIsAncestor")
 
-	osCommand := exec.Command(command.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
-	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
+	cmd, err := command.Git(ctx, "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
-	defer cmd.Close()
 
 	return cmd.Wait() == nil, nil
 }

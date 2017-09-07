@@ -46,7 +46,6 @@ func findRefName(ctx context.Context, path, commitID, prefix string) (string, er
 	if err != nil {
 		return "", err
 	}
-	defer cmd.Close()
 
 	scanner := bufio.NewScanner(cmd)
 	scanner.Scan()

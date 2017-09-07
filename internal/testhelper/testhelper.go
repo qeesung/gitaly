@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -196,8 +198,20 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 }
 
 // MustHaveNoChildProcess panics if it finds a running or finished child
-// process.
+// process. It waits for 2 seconds for processes to be cleaned up by other
+// goroutines.
 func MustHaveNoChildProcess() {
+	waitDone := make(chan struct{})
+	go func() {
+		command.WaitAllDone()
+		close(waitDone)
+	}()
+
+	select {
+	case <-waitDone:
+	case <-time.After(2 * time.Second):
+	}
+
 	mustFindNoFinishedChildProcess()
 	mustFindNoRunningChildProcess()
 }
@@ -209,11 +223,7 @@ func mustFindNoFinishedChildProcess() {
 	// rusage. Use WNOHANG to return immediately if there is no child waiting
 	// to be reaped.
 	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
-	if err != nil {
-		return
-	}
-
-	if wpid > 0 {
+	if err == nil && wpid > 0 {
 		panic(fmt.Errorf("wait4 found child process %d", wpid))
 	}
 }
@@ -226,7 +236,7 @@ func mustFindNoRunningChildProcess() {
 	if err == nil {
 		pidsComma := strings.Replace(strings.TrimSpace(string(out)), ",", "\n", -1)
 		psOut, _ := exec.Command("ps", "-o", "pid,args", "-p", pidsComma).Output()
-		panic(fmt.Sprintf("found running child processes %s:\n%s", pidsComma, psOut))
+		panic(fmt.Errorf("found running child processes %s:\n%s", pidsComma, psOut))
 	}
 
 	if status, ok := command.ExitStatus(err); ok && status == 1 {
@@ -234,5 +244,10 @@ func mustFindNoRunningChildProcess() {
 		return
 	}
 
-	panic(fmt.Sprintf("%s: %v", desc, err))
+	panic(fmt.Errorf("%s: %v", desc, err))
+}
+
+// Context returns a cancellable context.
+func Context() (context.Context, func()) {
+	return context.WithCancel(context.Background())
 }

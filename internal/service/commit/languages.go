@@ -82,7 +82,6 @@ func lookupRevision(ctx context.Context, repoPath string, revision string) (stri
 	if err != nil {
 		return "", err
 	}
-	defer revParse.Close()
 
 	revParseBytes, err := ioutil.ReadAll(revParse)
 	if err != nil {

@@ -44,7 +44,6 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
-	defer cmd.Close()
 
 	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)
@@ -55,11 +54,11 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 	}
 
 	if _, err := io.Copy(w, cmd); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: copy output of %v: %v", cmd.Args, err)
+		return grpc.Errorf(codes.Internal, "GetInfoRefs: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: wait for %v: %v", cmd.Args, err)
+		return grpc.Errorf(codes.Internal, "GetInfoRefs: %v", err)
 	}
 
 	return nil

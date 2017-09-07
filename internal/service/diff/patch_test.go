@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"golang.org/x/net/context"
-
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
@@ -37,30 +35,33 @@ func TestSuccessfulCommitPatchRequest(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		t.Log(testCase.desc)
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
 
-		request := &pb.CommitPatchRequest{
-			Repository: testRepo,
-			Revision:   testCase.revision,
-		}
+			request := &pb.CommitPatchRequest{
+				Repository: testRepo,
+				Revision:   testCase.revision,
+			}
 
-		c, err := client.CommitPatch(context.Background(), request)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		data := []byte{}
-		for {
-			r, err := c.Recv()
-			if err == io.EOF {
-				break
-			} else if err != nil {
+			c, err := client.CommitPatch(ctx, request)
+			if err != nil {
 				t.Fatal(err)
 			}
 
-			data = append(data, r.GetData()...)
-		}
+			data := []byte{}
+			for {
+				r, err := c.Recv()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					t.Fatal(err)
+				}
 
-		assert.Equal(t, testCase.diff, data)
+				data = append(data, r.GetData()...)
+			}
+
+			assert.Equal(t, testCase.diff, data)
+		})
 	}
 }

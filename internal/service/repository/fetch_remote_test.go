@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -108,6 +107,9 @@ func TestFetchRemoteArgsBuilder(t *testing.T) {
 
 // NOTE: Only tests that `gitlab-shell` is being called, not what it does.
 func TestFetchRemoteSuccess(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	dir, err := ioutil.TempDir("", "gitlab-shell.")
 	require.NoError(t, err)
 	defer func(dir string) {
@@ -135,7 +137,7 @@ func TestFetchRemoteSuccess(t *testing.T) {
 		os.RemoveAll(path)
 	}(cloneRepo)
 
-	resp, err := client.FetchRemote(context.Background(), &pb.FetchRemoteRequest{
+	resp, err := client.FetchRemote(ctx, &pb.FetchRemoteRequest{
 		Repository: cloneRepo,
 		Remote:     "my-remote",
 	})
@@ -172,6 +174,9 @@ func TestFetchRemoteFailure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
 			if len(tc.shellPath) == 0 {
 				defer func(oldPath string) {
 					config.Config.GitlabShell.Dir = oldPath
@@ -179,7 +184,7 @@ func TestFetchRemoteFailure(t *testing.T) {
 				config.Config.GitlabShell.Dir = ""
 			}
 
-			resp, err := client.FetchRemote(context.Background(), tc.req)
+			resp, err := client.FetchRemote(ctx, tc.req)
 			testhelper.AssertGrpcError(t, err, tc.code, tc.err)
 			assert.Error(t, err)
 			assert.Nil(t, resp)

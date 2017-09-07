@@ -219,7 +219,6 @@ func eachDiff(ctx context.Context, rpc string, cmdArgs []string, limits diff.Lim
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
 	}
-	defer cmd.Close()
 
 	diffParser := diff.NewDiffParser(cmd, limits)
 
@@ -234,7 +233,7 @@ func eachDiff(ctx context.Context, rpc string, cmdArgs []string, limits diff.Lim
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Unavailable, "%s: cmd wait for %v: %v", rpc, cmd.Args, err)
+		return grpc.Errorf(codes.Unavailable, "%s: %v", rpc, err)
 	}
 
 	return nil

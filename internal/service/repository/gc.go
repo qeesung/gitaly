@@ -1,9 +1,6 @@
 package repository
 
 import (
-	"io"
-	"io/ioutil"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
@@ -34,10 +31,6 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 	args = append(args, "gc")
 	cmd, err := command.Git(ctx, args...)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, err.Error())
-	}
-
-	if _, err := io.Copy(ioutil.Discard, cmd); err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
 

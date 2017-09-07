@@ -1,9 +1,6 @@
 package repository
 
 import (
-	"io"
-	"io/ioutil"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
@@ -49,10 +46,6 @@ func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bit
 
 	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
-		return grpc.Errorf(codes.Internal, err.Error())
-	}
-
-	if _, err := io.Copy(ioutil.Discard, cmd); err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
 

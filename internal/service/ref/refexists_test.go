@@ -3,12 +3,11 @@ package ref
 import (
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestRefExists(t *testing.T) {
@@ -37,6 +36,9 @@ func TestRefExists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
 			server := runRefServiceServer(t)
 			defer server.Stop()
 
@@ -45,7 +47,7 @@ func TestRefExists(t *testing.T) {
 
 			req := &pb.RefExistsRequest{Repository: tt.repo, Ref: []byte(tt.ref)}
 
-			got, err := client.RefExists(context.Background(), req)
+			got, err := client.RefExists(ctx, req)
 
 			if grpc.Code(err) != tt.wantErr {
 				t.Errorf("server.RefExists() error = %v, wantErr %v", err, tt.wantErr)

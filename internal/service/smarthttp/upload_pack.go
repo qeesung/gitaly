@@ -66,7 +66,6 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)
 	}
-	defer cmd.Close()
 
 	if err := cmd.Wait(); err != nil {
 		pw.Close() // ensure scanDeepen returns
@@ -77,7 +76,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 			deepenCount.Inc()
 			return nil
 		}
-		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd wait for %v: %v", cmd.Args, err)
+		return grpc.Errorf(codes.Unavailable, "PostUploadPack: %v", err)
 	}
 
 	return nil

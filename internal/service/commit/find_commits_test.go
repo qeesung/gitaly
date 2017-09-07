@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
@@ -186,7 +187,10 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			stream, err := client.FindCommits(context.Background(), tc.request)
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			stream, err := client.FindCommits(ctx, tc.request)
 			require.NoError(t, err)
 
 			var ids []string

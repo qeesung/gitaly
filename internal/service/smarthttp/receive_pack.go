@@ -53,12 +53,11 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil, env...)
 
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "PostReceivePack: cmd: %v", err)
+		return grpc.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
 	}
-	defer cmd.Close()
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Unavailable, "PostReceivePack: cmd wait for %v: %v", cmd.Args, err)
+		return grpc.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
 	}
 
 	return nil

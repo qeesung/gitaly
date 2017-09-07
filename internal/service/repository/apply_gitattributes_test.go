@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"golang.org/x/net/context"
 )
 
 func TestApplyGitattributesSuccess(t *testing.T) {
@@ -108,16 +108,23 @@ func TestApplyGitattributesFailure(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		req := &pb.ApplyGitattributesRequest{Repository: test.repo, Revision: test.revision}
-		_, err := client.ApplyGitattributes(context.Background(), req)
-		testhelper.AssertGrpcError(t, err, test.code, "")
-	}
+		t.Run(fmt.Sprintf("%+v", test), func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
 
+			req := &pb.ApplyGitattributesRequest{Repository: test.repo, Revision: test.revision}
+			_, err := client.ApplyGitattributes(ctx, req)
+			testhelper.AssertGrpcError(t, err, test.code, "")
+		})
+	}
 }
 
 func assertGitattributesApplied(t *testing.T, client pb.RepositoryServiceClient, attributesPath string, revision, expectedContents []byte) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	req := &pb.ApplyGitattributesRequest{Repository: testRepo, Revision: revision}
-	c, err := client.ApplyGitattributes(context.Background(), req)
+	c, err := client.ApplyGitattributes(ctx, req)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, c)

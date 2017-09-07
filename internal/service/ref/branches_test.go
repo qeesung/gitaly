@@ -1,6 +1,7 @@
 package ref
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 
@@ -10,22 +11,24 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulCreateBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	server := runRefServiceServer(t)
 	defer server.Stop()
 
 	client, conn := newRefClient(t)
 	defer conn.Close()
 
-	headCommit, err := log.GetCommit(context.Background(), testRepo, "HEAD", "")
+	headCommit, err := log.GetCommit(ctx, testRepo, "HEAD", "")
 	require.NoError(t, err)
 
 	startPoint := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
-	startPointCommit, err := log.GetCommit(context.Background(), testRepo, startPoint, "")
+	startPointCommit, err := log.GetCommit(ctx, testRepo, startPoint, "")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -210,6 +213,9 @@ func TestFailedDeleteBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	server := runRefServiceServer(t)
 	defer server.Stop()
 
@@ -217,7 +223,7 @@ func TestSuccessfulFindBranchRequest(t *testing.T) {
 	defer conn.Close()
 
 	branchNameInput := "master"
-	branchTarget, err := log.GetCommit(context.Background(), testRepo, branchNameInput, "")
+	branchTarget, err := log.GetCommit(ctx, testRepo, branchNameInput, "")
 	require.NoError(t, err)
 
 	branch := &pb.Branch{

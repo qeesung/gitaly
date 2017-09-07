@@ -57,7 +57,6 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 	if err != nil {
 		return err
 	}
-	defer cmd.Close()
 
 	if err := lines.Send(cmd, writer, opts.delim); err != nil {
 		return err
@@ -110,7 +109,6 @@ func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cmd.Close()
 
 	scanner := bufio.NewScanner(cmd)
 	for scanner.Scan() {
@@ -134,7 +132,6 @@ func _headReference(ctx context.Context, repoPath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cmd.Close()
 
 	scanner := bufio.NewScanner(cmd)
 	scanner.Scan()

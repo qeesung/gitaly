@@ -1,7 +1,6 @@
 package rubyserver
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,13 +44,17 @@ func TestSetHeaders(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		ctx, err := SetHeaders(context.Background(), tc.repo)
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		clientCtx, err := SetHeaders(ctx, tc.repo)
+
 		if tc.errType != codes.OK {
 			testhelper.AssertGrpcError(t, err, tc.errType, "")
-			assert.Nil(t, ctx)
+			assert.Nil(t, clientCtx)
 		} else {
 			assert.NoError(t, err)
-			assert.NotNil(t, ctx)
+			assert.NotNil(t, clientCtx)
 		}
 	}
 }

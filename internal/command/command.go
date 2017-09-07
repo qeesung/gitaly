@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -38,13 +39,32 @@ var exportedEnvVars = []string{
 
 // Command encapsulates operations with commands creates with NewCommand
 type Command struct {
-	io.Reader
-	*exec.Cmd
+	reader    io.Reader
+	cmd       *exec.Cmd
 	context   context.Context
 	startTime time.Time
-	done      chan struct{}
-	closeOnce sync.Once
-	closeErr  error
+
+	waitError error
+	waitOnce  sync.Once
+}
+
+// Read calls Read() on the stdout pipe of the command.
+func (c *Command) Read(p []byte) (int, error) {
+	if c.reader == nil {
+		panic("command has no reader")
+	}
+
+	return c.reader.Read(p)
+}
+
+// Wait calls Wait() on the exec.Cmd instance inside the command. This
+// blocks until the command has finished and reports the command exit
+// status via the error return value. Use ExitStatus to get the integer
+// exit status from the error returned by Wait().
+func (c *Command) Wait() error {
+	c.waitOnce.Do(c.wait)
+
+	return c.waitError
 }
 
 // GitPath returns the path to the `git` binary. See `SetGitPath` for details
@@ -76,18 +96,30 @@ func GitlabShell(ctx context.Context, envs []string, executable string, args ...
 	return New(ctx, exec.Command(path.Join(shellPath, executable), args...), nil, nil, nil, envs...)
 }
 
+var wg = &sync.WaitGroup{}
+
+// WaitAllDone waits for all commands started by the command package to
+// finish. This can only be called once in the lifecycle of the current
+// Go process.
+func WaitAllDone() {
+	wg.Wait()
+}
+
 // New creates a Command from an exec.Cmd
 func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"path": cmd.Path,
-		"args": cmd.Args,
-	}).Info("spawn")
+	logPid := -1
+	defer func() {
+		grpc_logrus.Extract(ctx).WithFields(log.Fields{
+			"pid":  logPid,
+			"path": cmd.Path,
+			"args": cmd.Args,
+		}).Info("spawn")
+	}()
 
 	command := &Command{
-		Cmd:       cmd,
+		cmd:       cmd,
 		startTime: time.Now(),
 		context:   ctx,
-		done:      make(chan struct{}),
 	}
 
 	// Explicitly set the environment for the command
@@ -120,7 +152,7 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		if err != nil {
 			return nil, fmt.Errorf("GitCommand: stdout: %v", err)
 		}
-		command.Reader = pipe
+		command.reader = pipe
 	}
 
 	if stderr != nil {
@@ -134,17 +166,19 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		return nil, fmt.Errorf("GitCommand: start %v: %v", cmd.Args, err)
 	}
 
+	wg.Add(1)
 	go func() {
-		select {
-		case <-command.done:
-		case <-ctx.Done():
-		}
+		<-ctx.Done()
 
 		if process := cmd.Process; process != nil && process.Pid > 0 {
 			// Send SIGTERM to the process group of cmd
 			syscall.Kill(-process.Pid, syscall.SIGTERM)
 		}
+		command.Wait()
+		wg.Done()
 	}()
+
+	logPid = cmd.Process.Pid
 
 	return command, nil
 }
@@ -159,20 +193,18 @@ func exportEnvironment(env []string) []string {
 	return env
 }
 
-// Close will send a SIGTERM signal to the process group
-// belonging to the `cmd` process
-func (c *Command) Close() error {
-	c.closeOnce.Do(c.close)
-	return c.closeErr
-}
+// This function should never be called directly, use Wait().
+func (c *Command) wait() {
+	if c.reader != nil {
+		// Prevent the command from blocking on writing to its stdout.
+		io.Copy(ioutil.Discard, c.reader)
+	}
 
-func (c *Command) close() {
-	close(c.done)
-	c.closeErr = c.Cmd.Wait()
+	c.waitError = c.cmd.Wait()
 
 	exitCode := 0
-	if c.closeErr != nil {
-		if exitStatus, ok := ExitStatus(c.closeErr); ok {
+	if c.waitError != nil {
+		if exitStatus, ok := ExitStatus(c.waitError); ok {
 			exitCode = exitStatus
 		}
 	}
@@ -180,7 +212,7 @@ func (c *Command) close() {
 	c.logProcessComplete(c.context, exitCode)
 }
 
-// ExitStatus will return the exit-code from an error
+// ExitStatus will return the exit-code from an error returned by Wait().
 func ExitStatus(err error) (int, bool) {
 	exitError, ok := err.(*exec.ExitError)
 	if !ok {
@@ -196,7 +228,7 @@ func ExitStatus(err error) (int, bool) {
 }
 
 func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
-	cmd := c.Cmd
+	cmd := c.cmd
 
 	systemTime := cmd.ProcessState.SystemTime()
 	userTime := cmd.ProcessState.UserTime()
