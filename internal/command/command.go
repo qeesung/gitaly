@@ -37,7 +37,9 @@ var exportedEnvVars = []string{
 	"GIT_TRACE_SETUP",
 }
 
-// Command encapsulates operations with commands creates with NewCommand
+// Command encapsulates a running exec.Cmd. The embedded exec.Cmd is
+// terminated and reaped automatically when the context.Context that
+// created it is canceled.
 type Command struct {
 	reader    io.Reader
 	cmd       *exec.Cmd
@@ -105,7 +107,9 @@ func WaitAllDone() {
 	wg.Wait()
 }
 
-// New creates a Command from an exec.Cmd
+// New creates a Command from an exec.Cmd. On success, the Command
+// contains a running subprocess. When ctx is canceled the embedded
+// process will be terminated and reaped automatically.
 func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	logPid := -1
 	defer func() {
@@ -166,6 +170,8 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		return nil, fmt.Errorf("GitCommand: start %v: %v", cmd.Args, err)
 	}
 
+	// 	The goroutine below is responsible for terminating and reaping
+	// 	the process when ctx is canceled.
 	wg.Add(1)
 	go func() {
 		<-ctx.Done()
