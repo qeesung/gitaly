@@ -89,16 +89,23 @@ func watch(p *Process) {
 
 	logger := log.WithField("supervisor.args", p.args).WithField("supervisor.name", p.Name)
 
+spawnLoop:
 	for {
 		if crashes >= config.CrashThreshold {
 			logger.Warn("opening circuit breaker")
 			select {
-			case <-p.done:
-				return
+			case <-p.shutdown:
+				break spawnLoop
 			case <-time.After(config.CrashWaitTime):
 				logger.Warn("closing circuit breaker")
 				crashes = 0
 			}
+		}
+
+		select {
+		case <-p.shutdown:
+			break spawnLoop
+		default:
 		}
 
 		cmd, err := p.start(logger)
@@ -129,11 +136,12 @@ func watch(p *Process) {
 					cmd.Process.Kill()
 				}
 				<-waitCh
-				close(p.done)
-				return
+				break spawnLoop
 			}
 		}
 	}
+
+	close(p.done)
 }
 
 func monitorRss(name string, pid int, done <-chan struct{}) {
