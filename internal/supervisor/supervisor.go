@@ -114,6 +114,7 @@ spawnLoop:
 			logger.WithError(err).Error("start failed")
 			continue
 		}
+		logger.WithField("supervisor.pid", cmd.Process.Pid).Warn("spawned")
 
 		waitCh := make(chan struct{})
 		go func() {
