@@ -22,19 +22,25 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+var rubyServer *rubyserver.Server
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
 	testRepo = testhelper.TestRepository()
 
 	testhelper.ConfigureRuby()
-	ruby, err := rubyserver.Start()
+	var err error
+	rubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rubyServer.Stop()
 
-	os.Exit(func() int {
-		defer ruby.Stop()
-
-		return m.Run()
-	}())
+	return m.Run()
 }
 
 func runDiffServer(t *testing.T) *grpc.Server {
@@ -44,7 +50,7 @@ func runDiffServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterDiffServiceServer(server, NewServer())
+	pb.RegisterDiffServiceServer(server, NewServer(rubyServer))
 	reflection.Register(server)
 
 	go server.Serve(listener)

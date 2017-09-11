@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
@@ -46,7 +47,7 @@ func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bit
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
+	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}

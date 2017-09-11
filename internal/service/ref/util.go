@@ -2,7 +2,6 @@ package ref
 
 import (
 	"bytes"
-	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -17,39 +16,6 @@ var localBranchFormatFields = []string{
 	"%(committeremail)", "%(committerdate:iso-strict)",
 }
 
-// The duplication of commit info fields can be avoided by using %(if)...%(then)...%(else),
-// however, it's only supported in git 2.13.0+, so we workaround by duplication.
-var tagsFormatFields = []string{
-	// tag info
-	"%(refname:strip=2)",
-	"%(objectname)",
-	"%(objecttype)",
-	"%(*objecttype)",
-	"%(contents)",
-	// commit info, present for annotated tag
-	"%(*objectname)",
-	"%(*contents:subject)",
-	"%(*contents)",
-	"%(*authorname)",
-	"%(*authoremail)",
-	"%(*authordate:iso-strict)",
-	"%(*committername)",
-	"%(*committeremail)",
-	"%(*committerdate:iso-strict)",
-	"%(*parent)",
-	// commit info, present for lightweight tag
-	"%(objectname)",
-	"%(contents:subject)",
-	"%(contents)",
-	"%(authorname)",
-	"%(authoremail)",
-	"%(authordate:iso-strict)",
-	"%(committername)",
-	"%(committeremail)",
-	"%(committerdate:iso-strict)",
-	"%(parent)",
-}
-
 func parseRef(ref []byte) ([][]byte, error) {
 	elements := bytes.Split(ref, []byte("\x00"))
 	if len(elements) != 9 {
@@ -61,21 +27,6 @@ func parseRef(ref []byte) ([][]byte, error) {
 func buildCommitFromBranchInfo(elements [][]byte) (*pb.GitCommit, error) {
 	return git.NewCommit(elements[0], elements[1], nil, elements[2],
 		elements[3], elements[4], elements[5], elements[6], elements[7])
-}
-
-func buildCommitFromTagInfo(elements [][]byte) (*pb.GitCommit, error) {
-	parentIds := strings.Split(string(elements[9]), " ")
-	return git.NewCommit(
-		elements[0],
-		elements[1],
-		elements[2],
-		elements[3],
-		bytes.Trim(elements[4], "<>"),
-		elements[5],
-		elements[6],
-		bytes.Trim(elements[7], "<>"),
-		elements[8],
-		parentIds...)
 }
 
 func buildLocalBranch(elements [][]byte) (*pb.FindLocalBranchResponse, error) {
@@ -124,53 +75,6 @@ func newFindAllBranchNamesWriter(stream pb.Ref_FindAllBranchNamesServer) lines.S
 func newFindAllTagNamesWriter(stream pb.Ref_FindAllTagNamesServer) lines.Sender {
 	return func(refs [][]byte) error {
 		return stream.Send(&pb.FindAllTagNamesResponse{Names: refs})
-	}
-}
-
-func newFindAllTagsWriter(repo *pb.Repository, stream pb.RefService_FindAllTagsServer) lines.Sender {
-	return func(refs [][]byte) error {
-		var tags []*pb.FindAllTagsResponse_Tag
-
-		for _, ref := range refs {
-			elements := bytes.Split(ref, []byte("\x1f"))
-			if len(elements) != 25 {
-				return grpc.Errorf(codes.Internal, "FindAllTags: error parsing ref %q", ref)
-			}
-
-			var message []byte
-			var commitInfo [][]byte
-			var commit *pb.GitCommit
-
-			tagType := string(elements[2])
-			dereferencedTagType := string(elements[3])
-			if tagType == "tag" { // annotated tag
-				message = elements[4]
-				if dereferencedTagType == "commit" {
-					commitInfo = elements[5:15]
-				}
-			} else if tagType == "commit" { // lightweight tag
-				commitInfo = elements[15:25]
-			}
-
-			if len(commitInfo) > 0 {
-				var err error
-				commit, err = buildCommitFromTagInfo(commitInfo)
-				if err != nil {
-					return grpc.Errorf(codes.Internal, "FindAllTags: error parsing commit: %v", err)
-				}
-			}
-
-			tag := &pb.FindAllTagsResponse_Tag{
-				Name:         elements[0],
-				Id:           string(elements[1]),
-				Message:      message,
-				TargetCommit: commit,
-			}
-
-			tags = append(tags, tag)
-		}
-
-		return stream.Send(&pb.FindAllTagsResponse{Tags: tags})
 	}
 }
 

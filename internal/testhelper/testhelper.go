@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,15 +11,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -190,4 +193,46 @@ func NewTestGrpcServer(t *testing.T, streamInterceptors []grpc.StreamServerInter
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
 	)
+}
+
+// MustHaveNoChildProcess panics if it finds a running or finished child
+// process.
+func MustHaveNoChildProcess() {
+	mustFindNoFinishedChildProcess()
+	mustFindNoRunningChildProcess()
+}
+
+func mustFindNoFinishedChildProcess() {
+	// Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error)
+	//
+	// We use pid -1 to wait for any child. We don't care about wstatus or
+	// rusage. Use WNOHANG to return immediately if there is no child waiting
+	// to be reaped.
+	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
+	if err != nil {
+		return
+	}
+
+	if wpid > 0 {
+		panic(fmt.Errorf("wait4 found child process %d", wpid))
+	}
+}
+
+func mustFindNoRunningChildProcess() {
+	pgrep := exec.Command("pgrep", "-P", fmt.Sprintf("%d", os.Getpid()))
+	desc := fmt.Sprintf("%q", strings.Join(pgrep.Args, " "))
+
+	out, err := pgrep.Output()
+	if err == nil {
+		pidsComma := strings.Replace(strings.TrimSpace(string(out)), ",", "\n", -1)
+		psOut, _ := exec.Command("ps", "-o", "pid,args", "-p", pidsComma).Output()
+		panic(fmt.Sprintf("found running child processes %s:\n%s", pidsComma, psOut))
+	}
+
+	if status, ok := command.ExitStatus(err); ok && status == 1 {
+		// Exit status 1 means no processes were found
+		return
+	}
+
+	panic(fmt.Sprintf("%s: %v", desc, err))
 }

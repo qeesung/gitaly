@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
 )
@@ -40,8 +41,8 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
 	}
 
-	osCommand := exec.Command(helper.GitPath(), "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
-	cmd, err := helper.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
+	osCommand := exec.Command(command.GitPath(), "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
+	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
@@ -53,7 +54,7 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 		return true, nil
 	}
 
-	if code, ok := helper.ExitStatus(err); ok && code == 1 {
+	if code, ok := command.ExitStatus(err); ok && code == 1 {
 		// Exit code 1: the ref does not exist
 		return false, nil
 	}

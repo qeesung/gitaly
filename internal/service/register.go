@@ -2,6 +2,7 @@ package service
 
 import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service/blob"
 	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
 	"gitlab.com/gitlab-org/gitaly/internal/service/diff"
@@ -19,20 +20,20 @@ import (
 
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
-func RegisterAll(grpcServer *grpc.Server) {
+func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	notificationsService := notifications.NewServer()
 	pb.RegisterNotificationServiceServer(grpcServer, notificationsService)
 
-	refService := ref.NewServer()
+	refService := ref.NewServer(rubyServer)
 	pb.RegisterRefServiceServer(grpcServer, refService)
 
 	smartHTTPService := smarthttp.NewServer()
 	pb.RegisterSmartHTTPServiceServer(grpcServer, smartHTTPService)
 
-	diffService := diff.NewServer()
+	diffService := diff.NewServer(rubyServer)
 	pb.RegisterDiffServiceServer(grpcServer, diffService)
 
-	commitService := commit.NewServer()
+	commitService := commit.NewServer(rubyServer)
 	pb.RegisterCommitServiceServer(grpcServer, commitService)
 
 	sshService := ssh.NewServer()

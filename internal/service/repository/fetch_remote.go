@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
 func (server) FetchRemote(ctx context.Context, in *pb.FetchRemoteRequest) (*pb.FetchRemoteResponse, error) {
@@ -31,7 +31,7 @@ func (server) FetchRemote(ctx context.Context, in *pb.FetchRemoteRequest) (*pb.F
 		return nil, err
 	}
 
-	cmd, err := helper.GitlabShellCommandReader(ctx, envs, "gitlab-projects", args...)
+	cmd, err := command.GitlabShell(ctx, envs, "gitlab-projects", args...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}

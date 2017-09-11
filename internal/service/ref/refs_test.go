@@ -366,6 +366,22 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 	committerEmail := "scrooge@mcduck.com"
 	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
 	commitID := "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"
+	gitCommit := &pb.GitCommit{
+		Id:      commitID,
+		Subject: []byte("More submodules"),
+		Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+		Author: &pb.CommitAuthor{
+			Name:  []byte("Dmitriy Zaporozhets"),
+			Email: []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+		},
+		Committer: &pb.CommitAuthor{
+			Name:  []byte("Dmitriy Zaporozhets"),
+			Email: []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+		},
+		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
+	}
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath,
 		"-c", fmt.Sprintf("user.name=%s", committerName),
@@ -383,6 +399,12 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		"-c", fmt.Sprintf("user.name=%s", committerName),
 		"-c", fmt.Sprintf("user.email=%s", committerEmail),
 		"tag", "v1.4.0", blobID)
+
+	// To test recursive resolving to a commit
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath,
+		"-c", fmt.Sprintf("user.name=%s", committerName),
+		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"tag", "v1.5.0", "v1.3.0")
 
 	client, conn := newRefServiceClient(t)
 	defer conn.Close()
@@ -414,25 +436,10 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 
 	expectedTags := []*pb.FindAllTagsResponse_Tag{
 		{
-			Name: []byte("v1.0.0"),
-			Id:   "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
-			TargetCommit: &pb.GitCommit{
-				Id:      "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9",
-				Subject: []byte("More submodules"),
-				Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
-				Author: &pb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491261},
-				},
-				Committer: &pb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491261},
-				},
-				ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
-			},
-			Message: []byte("Release\n"),
+			Name:         []byte("v1.0.0"),
+			Id:           "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			TargetCommit: gitCommit,
+			Message:      []byte("Release"),
 		},
 		{
 			Name: []byte("v1.1.0"),
@@ -453,36 +460,26 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				},
 				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
 			},
-			Message: []byte("Version 1.1.0\n"),
+			Message: []byte("Version 1.1.0"),
 		},
 		{
 			Name:    []byte("v1.2.0"),
 			Id:      string(annotatedTagID),
-			Message: []byte("Blob tag\n"),
+			Message: []byte("Blob tag"),
 		},
 		{
-			Name: []byte("v1.3.0"),
-			Id:   string(commitID),
-			TargetCommit: &pb.GitCommit{
-				Id:      "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9",
-				Subject: []byte("More submodules"),
-				Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
-				Author: &pb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491261},
-				},
-				Committer: &pb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491261},
-				},
-				ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
-			},
+			Name:         []byte("v1.3.0"),
+			Id:           string(commitID),
+			TargetCommit: gitCommit,
 		},
 		{
 			Name: []byte("v1.4.0"),
 			Id:   string(blobID),
+		},
+		{
+			Name:         []byte("v1.5.0"),
+			Id:           string(commitID),
+			TargetCommit: gitCommit,
 		},
 	}
 

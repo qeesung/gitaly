@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -20,7 +21,7 @@ func (s *server) RepositorySize(ctx context.Context, in *pb.RepositorySizeReques
 		return nil, err
 	}
 
-	cmd, err := helper.NewCommand(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
 	if err != nil {
 		grpc_logrus.Extract(ctx).WithError(err).Warn("ignoring du command error")
 		return repositorySizeResponse(0), nil

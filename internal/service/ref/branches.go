@@ -9,7 +9,7 @@ import (
 )
 
 func (s *server) CreateBranch(ctx context.Context, req *pb.CreateBranchRequest) (*pb.CreateBranchResponse, error) {
-	client, err := rubyserver.RefServiceClient(ctx)
+	client, err := s.RefServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func (s *server) CreateBranch(ctx context.Context, req *pb.CreateBranchRequest) 
 }
 
 func (s *server) DeleteBranch(ctx context.Context, req *pb.DeleteBranchRequest) (*pb.DeleteBranchResponse, error) {
-	client, err := rubyserver.RefServiceClient(ctx)
+	client, err := s.RefServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (s *server) DeleteBranch(ctx context.Context, req *pb.DeleteBranchRequest) 
 }
 
 func (s *server) FindBranch(ctx context.Context, req *pb.FindBranchRequest) (*pb.FindBranchResponse, error) {
-	client, err := rubyserver.RefServiceClient(ctx)
+	client, err := s.RefServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

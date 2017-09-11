@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+require 'tempfile'
+require 'socket'
+
+ADDR = 'socket'
+
+def main(gitaly_dir)
+  gitaly_dir = File.realpath(gitaly_dir)
+  
+  Dir.mktmpdir do |dir|
+    Dir.chdir(dir)
+  
+    File.write('config.toml', <<EOS
+socket_path = "#{ADDR}"
+
+[[storage]]
+name = "default"
+path = "#{dir}"
+
+[gitaly-ruby]
+dir = "#{gitaly_dir}/ruby"
+EOS
+)
+
+    pid = nil
+
+    begin
+      start = Time.now
+      pid = spawn(File.join(gitaly_dir, 'gitaly'), 'config.toml', out: '/dev/null')
+      wait_connect
+      puts
+      puts Time.now - start
+    ensure
+      if pid
+        Process.kill("KILL", pid)
+        Process.wait(pid)
+      end
+    end
+  end
+end
+
+def wait_connect
+  loop do
+    begin
+      Socket.unix(ADDR)
+      return
+    rescue
+      print '.'
+      sleep(0.1)
+    end
+  end
+end
+
+unless ARGV.count == 1
+  abort "Usage: #{$PROGRAM_NAME} GITALY_DIR"
+end
+
+main(ARGV.first)

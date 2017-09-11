@@ -1,4 +1,4 @@
-package helper
+package command
 
 import (
 	"context"
@@ -61,23 +61,23 @@ func GitPath() string {
 	return config.Config.Git.BinPath
 }
 
-// GitCommandReader creates a git Command with the given args
-func GitCommandReader(ctx context.Context, args ...string) (*Command, error) {
-	return NewCommand(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
+// Git creates a git Command with the given args
+func Git(ctx context.Context, args ...string) (*Command, error) {
+	return New(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
 }
 
-// GitlabShellCommandReader creates a gitlab-shell Command with the given args
-func GitlabShellCommandReader(ctx context.Context, envs []string, executable string, args ...string) (*Command, error) {
+// GitlabShell creates a gitlab-shell Command with the given args
+func GitlabShell(ctx context.Context, envs []string, executable string, args ...string) (*Command, error) {
 	shellPath, ok := config.GitlabShellPath()
 	if !ok {
 		return nil, fmt.Errorf("path to gitlab-shell not set")
 	}
 	// Don't allow any git-command to ask (interactively) for credentials
-	return NewCommand(ctx, exec.Command(path.Join(shellPath, executable), args...), nil, nil, nil, envs...)
+	return New(ctx, exec.Command(path.Join(shellPath, executable), args...), nil, nil, nil, envs...)
 }
 
-// NewCommand creates a Command from an exec.Cmd
-func NewCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
+// New creates a Command from an exec.Cmd
+func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"path": cmd.Path,
 		"args": cmd.Args,
@@ -200,7 +200,7 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 
 	systemTime := cmd.ProcessState.SystemTime()
 	userTime := cmd.ProcessState.UserTime()
-	realTime := time.Now().Sub(c.startTime)
+	realTime := time.Since(c.startTime)
 
 	entry := grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"path":                   cmd.Path,

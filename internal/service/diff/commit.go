@@ -7,6 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"google.golang.org/grpc"
@@ -214,7 +215,7 @@ func validateRequest(in requestWithLeftRightCommitIds) error {
 }
 
 func eachDiff(ctx context.Context, rpc string, cmdArgs []string, limits diff.Limits, callback func(*diff.Diff) error) error {
-	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
+	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
 	}

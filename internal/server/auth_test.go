@@ -136,7 +136,7 @@ func healthCheck(conn *grpc.ClientConn) error {
 }
 
 func runServer(t *testing.T) *grpc.Server {
-	srv := New()
+	srv := New(nil)
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)

@@ -166,7 +166,7 @@ func run(listeners []net.Listener) error {
 	}
 	defer ruby.Stop()
 
-	server := server.New()
+	server := server.New(ruby)
 	defer server.Stop()
 
 	serverErrors := make(chan error, len(listeners))

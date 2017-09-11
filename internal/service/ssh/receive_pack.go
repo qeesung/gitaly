@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -52,8 +53,8 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 		return err
 	}
 
-	osCommand := exec.Command(helper.GitPath(), "receive-pack", repoPath)
-	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr, env...)
+	osCommand := exec.Command(command.GitPath(), "receive-pack", repoPath)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr, env...)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)
@@ -61,7 +62,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	defer cmd.Close()
 
 	if err := cmd.Wait(); err != nil {
-		if status, ok := helper.ExitStatus(err); ok {
+		if status, ok := command.ExitStatus(err); ok {
 			return helper.DecorateError(
 				codes.Internal,
 				stream.Send(&pb.SSHReceivePackResponse{ExitStatus: &pb.ExitStatus{Value: int32(status)}}),

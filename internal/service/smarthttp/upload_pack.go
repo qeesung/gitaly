@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -59,8 +60,8 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 		return err
 	}
 
-	osCommand := exec.Command(helper.GitPath(), "upload-pack", "--stateless-rpc", repoPath)
-	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, nil)
+	osCommand := exec.Command(command.GitPath(), "upload-pack", "--stateless-rpc", repoPath)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)
@@ -69,7 +70,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 
 	if err := cmd.Wait(); err != nil {
 		pw.Close() // ensure scanDeepen returns
-		if _, ok := helper.ExitStatus(err); ok && <-deepenCh {
+		if _, ok := command.ExitStatus(err); ok && <-deepenCh {
 			// We have seen a 'deepen' message in the request. It is expected that
 			// git-upload-pack has a non-zero exit status: don't treat this as an
 			// error.

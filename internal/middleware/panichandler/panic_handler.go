@@ -52,10 +52,8 @@ func handleCrash(grpcMethodName string, handler PanicHandler) {
 
 		handler(grpcMethodName, r)
 
-		if additionalHandlers != nil {
-			for _, fn := range additionalHandlers {
-				fn(grpcMethodName, r)
-			}
+		for _, fn := range additionalHandlers {
+			fn(grpcMethodName, r)
 		}
 	}
 }

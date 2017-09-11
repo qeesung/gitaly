@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func (*server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService_FindCommitsServer) error {
+func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService_FindCommitsServer) error {
 	ctx := stream.Context()
 
 	// Use Gitaly's default branch lookup function because that is already
@@ -27,7 +27,7 @@ func (*server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService_F
 		}
 	}
 
-	client, err := rubyserver.CommitServiceClient(ctx)
+	client, err := s.CommitServiceClient(ctx)
 	if err != nil {
 		return err
 	}

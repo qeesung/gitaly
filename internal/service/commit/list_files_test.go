@@ -141,10 +141,9 @@ func TestListFilesFailure(t *testing.T) {
 	defer conn.Close()
 
 	tests := []struct {
-		repo     *pb.Repository
-		revision string
-		code     codes.Code
-		desc     string
+		repo *pb.Repository
+		code codes.Code
+		desc string
 	}{
 		// Nil Repo
 		{repo: nil, code: codes.InvalidArgument, desc: "nil repo"},

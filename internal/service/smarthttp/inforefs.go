@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
@@ -39,7 +40,7 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 		return err
 	}
 
-	cmd, err := helper.GitCommandReader(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
+	cmd, err := command.Git(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}

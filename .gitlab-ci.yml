@@ -25,6 +25,7 @@ verify:
   stage: build_test
   script:
     - make
+    - _support/test-boot-time .
 
 build:default:
   <<: *build_definition

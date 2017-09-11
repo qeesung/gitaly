@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "pPH/BoINXxzYDObljpsGZbysMrw=",
+			"checksumSHA1": "Pc2ORQp+VY3Un/dkh4QwLC7R6lE=",
 			"path": "github.com/BurntSushi/toml",
-			"revision": "b26d9c308763d68093482582cea63d69be07a0f0",
-			"revisionTime": "2017-03-28T06:15:53Z"
+			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
+			"revisionTime": "2017-06-26T11:06:00Z"
 		},
 		{
 			"checksumSHA1": "Ksl4kXr4ty0HwjrLRLZOrNz05Bw=",
@@ -191,12 +191,12 @@
 			"revisionTime": "2017-01-30T11:31:45Z"
 		},
 		{
-			"checksumSHA1": "h9qIl7zL7oDn97SjEQJhqNoMT5k=",
+			"checksumSHA1": "6RQuk3nBbkefQZ8WVmUmEZUrZGc=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go",
-			"revision": "8f90115d335d7914708491e81c94b535f982594c",
-			"revisionTime": "2017-08-30T07:53:26Z",
-			"version": "v0.32.0",
-			"versionExact": "v0.32.0"
+			"revision": "6cee456783f4da52e57062c253e82583d13eb55e",
+			"revisionTime": "2017-09-05T19:26:28Z",
+			"version": "v0.33.0",
+			"versionExact": "v0.33.0"
 		},
 		{
 			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",

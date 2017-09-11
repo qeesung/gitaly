@@ -23,7 +23,6 @@ const (
 
 var (
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	workDir          string
 	testRepo         *pb.Repository
 
 	uploadPackPath  string
@@ -33,6 +32,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
 	cwd = mustGetCwd()
 
 	err := os.RemoveAll(testPath)
@@ -53,9 +58,7 @@ func TestMain(m *testing.M) {
 	defer os.Remove("gitaly-receive-pack")
 	receivePackPath = path.Join(cwd, "gitaly-receive-pack")
 
-	os.Exit(func() int {
-		return m.Run()
-	}())
+	return m.Run()
 }
 
 func mustGetCwd() string {

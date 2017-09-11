@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
@@ -28,7 +29,7 @@ func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBla
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
 
-	cmd, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "blame", "-p", revision, "--", path)
+	cmd, err := command.Git(ctx, "--git-dir", repoPath, "blame", "-p", revision, "--", path)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "RawBlame: cmd: %v", err)
 	}

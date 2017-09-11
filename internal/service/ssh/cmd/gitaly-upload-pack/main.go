@@ -42,9 +42,7 @@ func main() {
 	if len(gitConfig) > 0 {
 		configs := strings.Split(gitConfig, " ")
 
-		for _, c := range configs {
-			req.GitConfigOptions = append(req.GitConfigOptions, c)
-		}
+		req.GitConfigOptions = append(req.GitConfigOptions, configs...)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

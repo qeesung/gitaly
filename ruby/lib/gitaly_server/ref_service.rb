@@ -2,6 +2,8 @@ module GitalyServer
   class RefService < Gitaly::RefService::Service
     include Utils
 
+    TAGS_PER_MESSAGE = 100
+
     def create_branch(request, _call)
       start_point = request.start_point
       start_point = 'HEAD' if start_point.empty?
@@ -54,6 +56,28 @@ module GitalyServer
       ) unless rugged_branch.nil?
 
       Gitaly::FindBranchResponse.new(branch: gitaly_branch)
+    end
+
+    def find_all_tags(request, _call)
+      repo = Gitlab::Git::Repository.from_call(_call)
+
+      Enumerator.new do |y|
+        repo.tags.each_slice(TAGS_PER_MESSAGE) do |gitlab_tags|
+          tags = gitlab_tags.map do |gitlab_tag|
+            rugged_commit = gitlab_tag.dereferenced_target&.raw_commit
+            gitaly_commit = gitaly_commit_from_rugged(rugged_commit) if rugged_commit
+
+            Gitaly::FindAllTagsResponse::Tag.new(
+              name: gitlab_tag.name.b,
+              id: gitlab_tag.target,
+              message: gitlab_tag.message.to_s.b,
+              target_commit: gitaly_commit,
+            )
+          end
+
+          y.yield Gitaly::FindAllTagsResponse.new(tags: tags)
+        end
+      end
     end
   end
 end

@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -20,7 +21,7 @@ import (
 )
 
 // New returns a GRPC server with all Gitaly services and interceptors set up.
-func New() *grpc.Server {
+func New(rubyServer *rubyserver.Server) *grpc.Server {
 	logrusEntry := log.NewEntry(log.StandardLogger())
 	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
 
@@ -55,7 +56,7 @@ func New() *grpc.Server {
 		)),
 	)
 
-	service.RegisterAll(server)
+	service.RegisterAll(server, rubyServer)
 	reflection.Register(server)
 
 	grpc_prometheus.Register(server)

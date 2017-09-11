@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
@@ -31,7 +32,7 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		args = append(args, "repack.writeBitmaps=false")
 	}
 	args = append(args, "gc")
-	cmd, err := helper.GitCommandReader(ctx, args...)
+	cmd, err := command.Git(ctx, args...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}

@@ -13,6 +13,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
@@ -39,8 +40,8 @@ func commitIsAncestorName(ctx context.Context, path, ancestorID, childID string)
 		"childSha":    childID,
 	}).Debug("commitIsAncestor")
 
-	osCommand := exec.Command(helper.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
-	cmd, err := helper.NewCommand(ctx, osCommand, nil, ioutil.Discard, nil)
+	osCommand := exec.Command(command.GitPath(), "--git-dir", path, "merge-base", "--is-ancestor", ancestorID, childID)
+	cmd, err := command.New(ctx, osCommand, nil, ioutil.Discard, nil)
 	if err != nil {
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}

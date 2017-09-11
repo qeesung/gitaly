@@ -29,17 +29,22 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
+var rubyServer *rubyserver.Server
+
 func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
 	testhelper.ConfigureRuby()
 	if err := linguist.LoadColors(); err != nil {
 		log.Fatal(err)
 	}
 
-	ruby, err := rubyserver.Start()
+	var err error
+	rubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer ruby.Stop()
+	defer rubyServer.Stop()
 	return m.Run()
 }
 
@@ -59,26 +64,11 @@ func startTestServices(t *testing.T) *grpc.Server {
 		t.Fatal("failed to start server")
 	}
 
-	pb.RegisterCommitServiceServer(server, NewServer())
+	pb.RegisterCommitServiceServer(server, NewServer(rubyServer))
 	reflection.Register(server)
 
 	go server.Serve(listener)
 	return server
-}
-
-func newCommitClient(t *testing.T, serviceSocketPath string) pb.CommitClient {
-	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-			return net.Dial("unix", addr)
-		}),
-	}
-	conn, err := grpc.Dial(serviceSocketPath, connOpts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return pb.NewCommitClient(conn)
 }
 
 func newCommitServiceClient(t *testing.T, serviceSocketPath string) (pb.CommitServiceClient, *grpc.ClientConn) {
@@ -98,7 +88,8 @@ func newCommitServiceClient(t *testing.T, serviceSocketPath string) (pb.CommitSe
 
 func treeEntriesEqual(a, b *pb.TreeEntry) bool {
 	return a.CommitOid == b.CommitOid && a.Oid == b.Oid && a.Mode == b.Mode &&
-		bytes.Equal(a.Path, b.Path) && a.RootOid == b.RootOid && a.Type == b.Type
+		bytes.Equal(a.Path, b.Path) && bytes.Equal(a.FlatPath, b.FlatPath) &&
+		a.RootOid == b.RootOid && a.Type == b.Type
 }
 
 func dummyCommitAuthor(ts int64) *pb.CommitAuthor {

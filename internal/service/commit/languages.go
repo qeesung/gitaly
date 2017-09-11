@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
@@ -77,7 +78,7 @@ func (ls languageSorter) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
 func (ls languageSorter) Less(i, j int) bool { return ls[i].Share > ls[j].Share }
 
 func lookupRevision(ctx context.Context, repoPath string, revision string) (string, error) {
-	revParse, err := helper.GitCommandReader(ctx, "--git-dir", repoPath, "rev-parse", revision)
+	revParse, err := command.Git(ctx, "--git-dir", repoPath, "rev-parse", revision)
 	if err != nil {
 		return "", err
 	}

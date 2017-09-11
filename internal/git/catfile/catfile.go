@@ -9,7 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -31,7 +32,7 @@ type Handler func(io.Writer, *bufio.Reader) error
 func CatFile(ctx context.Context, repoPath string, handler Handler) error {
 	stdinReader, stdinWriter := io.Pipe()
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := helper.NewCommand(ctx, exec.Command(helper.GitPath(), cmdArgs...), stdinReader, nil, nil)
+	cmd, err := command.New(ctx, exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}

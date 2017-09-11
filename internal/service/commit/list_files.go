@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 )
@@ -34,7 +35,7 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 		return stream.Send(&pb.ListFilesResponse{})
 	}
 
-	cmd, err := helper.GitCommandReader(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
+	cmd, err := command.Git(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
 	if err != nil {
 		return grpc.Errorf(codes.Internal, err.Error())
 	}

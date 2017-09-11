@@ -6,10 +6,10 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 )
 
-func (server) CommitPatch(in *pb.CommitPatchRequest, stream pb.DiffService_CommitPatchServer) error {
+func (s *server) CommitPatch(in *pb.CommitPatchRequest, stream pb.DiffService_CommitPatchServer) error {
 	ctx := stream.Context()
 
-	client, err := rubyserver.DiffServiceClient(ctx)
+	client, err := s.DiffServiceClient(ctx)
 	if err != nil {
 		return err
 	}

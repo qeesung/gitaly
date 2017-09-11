@@ -5,6 +5,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc"
@@ -45,9 +46,9 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 
 	args = append(args, "upload-pack", repoPath)
 
-	osCommand := exec.Command(helper.GitPath(), args...)
+	osCommand := exec.Command(command.GitPath(), args...)
 
-	cmd, err := helper.NewCommand(stream.Context(), osCommand, stdin, stdout, stderr)
+	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr)
 
 	if err != nil {
 		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)
@@ -55,7 +56,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 	defer cmd.Close()
 
 	if err := cmd.Wait(); err != nil {
-		if status, ok := helper.ExitStatus(err); ok {
+		if status, ok := command.ExitStatus(err); ok {
 			return helper.DecorateError(
 				codes.Internal,
 				stream.Send(&pb.SSHUploadPackResponse{ExitStatus: &pb.ExitStatus{Value: int32(status)}}),

@@ -11,8 +11,8 @@ import (
 	"path"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
 var (
@@ -28,7 +28,7 @@ type Language struct {
 func Stats(ctx context.Context, repoPath string, commitID string) (map[string]int, error) {
 	cmd := exec.Command("bundle", "exec", "bin/ruby-cd", repoPath, "git-linguist", "--commit="+commitID, "stats")
 	cmd.Dir = config.Config.Ruby.Dir
-	reader, err := helper.NewCommand(ctx, cmd, nil, nil, nil, os.Environ()...)
+	reader, err := command.New(ctx, cmd, nil, nil, nil, os.Environ()...)
 	if err != nil {
 		return nil, err
 	}

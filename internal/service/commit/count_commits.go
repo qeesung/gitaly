@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -39,7 +40,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		cmdArgs = append(cmdArgs, "--", string(path))
 	}
 
-	cmd, err := helper.GitCommandReader(ctx, cmdArgs...)
+	cmd, err := command.Git(ctx, cmdArgs...)
 	if err != nil {
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}

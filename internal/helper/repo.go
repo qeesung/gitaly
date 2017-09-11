@@ -6,6 +6,7 @@ import (
 	"path"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -87,7 +88,7 @@ func IsValidRef(ctx context.Context, path, ref string) bool {
 		return false
 	}
 
-	cmd, err := GitCommandReader(ctx, "--git-dir", path, "log", "--max-count=1", ref)
+	cmd, err := command.Git(ctx, "--git-dir", path, "log", "--max-count=1", ref)
 	if err != nil {
 		return false
 	}

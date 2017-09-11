@@ -1,11 +1,32 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Reimplement FindAllTags RPC in Ruby
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/334
+- Re-use gitaly-ruby client connection
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/330
+- Fix encoding-bug in GitalyServer#gitaly_commit_from_rugged
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/337
+
+v0.38.0
+
+- Update vendor/gitlab_git to b58c4f436abaf646703bdd80f266fa4c0bab2dd2
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/324
+- Add missing cmd.Close in log.GetCommit
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/326
+- Populate `flat_path` field of `TreeEntry`s
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/328
+
+v0.37.0
+
+- Implement FindBranch RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/315
+
 v0.36.0
 
 - Terminate commands when their context cancels
   https://gitlab.com/gitlab-org/gitaly/merge_requests/318
-- Implement FindBranch RPC
-  https://gitlab.com/gitlab-org/gitaly/merge_requests/315
 - Implement {Create,Delete}Branch RPCs
   https://gitlab.com/gitlab-org/gitaly/merge_requests/311
 - Use git-linguist to implement CommitLanguages

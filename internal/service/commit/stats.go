@@ -7,8 +7,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 )
 
-func (server) CommitStats(ctx context.Context, in *pb.CommitStatsRequest) (*pb.CommitStatsResponse, error) {
-	client, err := rubyserver.CommitServiceClient(ctx)
+func (s *server) CommitStats(ctx context.Context, in *pb.CommitStatsRequest) (*pb.CommitStatsResponse, error) {
+	client, err := s.CommitServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -26,10 +26,39 @@ func validateGetTreeEntriesRequest(in *pb.GetTreeEntriesRequest) error {
 	return nil
 }
 
+func populateFlatPath(entries []*pb.TreeEntry, stdin io.Writer, stdout *bufio.Reader) error {
+	for _, entry := range entries {
+		entry.FlatPath = entry.Path
+
+		if entry.Type != pb.TreeEntry_TREE {
+			continue
+		}
+
+		for {
+			subentries, err := treeEntries(entry.CommitOid, string(entry.FlatPath), stdin, stdout)
+
+			if err != nil {
+				return err
+			}
+			if len(subentries) != 1 || subentries[0].Type != pb.TreeEntry_TREE {
+				break
+			}
+
+			entry.FlatPath = subentries[0].Path
+		}
+	}
+
+	return nil
+}
+
 func getTreeEntriesHandler(stream pb.CommitService_GetTreeEntriesServer, revision, path string) catfile.Handler {
 	return func(stdin io.Writer, stdout *bufio.Reader) error {
 		entries, err := treeEntries(revision, path, stdin, stdout)
 		if err != nil {
+			return err
+		}
+
+		if err := populateFlatPath(entries, stdin, stdout); err != nil {
 			return err
 		}
 

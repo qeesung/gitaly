@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/service/renameadapter"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -72,44 +71,34 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	var err error
+	os.Exit(testMain(m))
+}
+
+var rubyServer *rubyserver.Server
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
 
 	testRepo = testhelper.TestRepository()
+
+	var err error
 	testRepoPath, err = helper.GetRepoPath(testRepo)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	testhelper.ConfigureRuby()
-	ruby, err := rubyserver.Start()
+	rubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer ruby.Stop()
+	defer rubyServer.Stop()
 
 	// Use 100 bytes as the maximum message size to test that fragmenting the
 	// ref list works correctly
 	lines.MaxMsgSize = 100
 
-	os.Exit(func() int {
-		return m.Run()
-	}())
-}
-
-func runRefServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
-	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
-	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pb.RegisterRefServer(grpcServer, renameadapter.NewRefAdapter(&server{}))
-	reflection.Register(grpcServer)
-
-	go grpcServer.Serve(listener)
-
-	return grpcServer
+	return m.Run()
 }
 
 func runRefServiceServer(t *testing.T) *grpc.Server {
@@ -121,7 +110,7 @@ func runRefServiceServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterRefServiceServer(grpcServer, &server{})
+	pb.RegisterRefServiceServer(grpcServer, &server{rubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)
