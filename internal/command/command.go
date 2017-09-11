@@ -170,8 +170,8 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		return nil, fmt.Errorf("GitCommand: start %v: %v", cmd.Args, err)
 	}
 
-	// 	The goroutine below is responsible for terminating and reaping
-	// 	the process when ctx is canceled.
+	// The goroutine below is responsible for terminating and reaping the
+	// process when ctx is canceled.
 	wg.Add(1)
 	go func() {
 		<-ctx.Done()
