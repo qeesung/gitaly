@@ -557,6 +557,9 @@ Style/WhileUntilModifier:
 Style/WordArray:
   Enabled: true
 
+Style/PercentLiteralDelimiters:
+  Enabled: true
+
 # Use `proc` instead of `Proc.new`.
 Style/Proc:
   Enabled: true
