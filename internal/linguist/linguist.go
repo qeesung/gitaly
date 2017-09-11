@@ -63,11 +63,10 @@ func LoadColors() error {
 		return err
 	}
 
-	// We can't use stdout to communicate because Bundler sometimes writes
-	// warnings to stdout. So we write the information we need into a
-	// tempfile instead.
-	rubyScript := `IO.write(ARGV.first, Bundler.rubygems.find_name('github-linguist').first.full_gem_path)`
-	cmd := exec.Command("bundle", "exec", "ruby", "-e", rubyScript, tempFile.Name())
+	// Replace the tempfile with a symlink to the directory where
+	// github-linguist is installed.
+	rubyScript := `FileUtils.ln_sf(Bundler.rubygems.find_name('github-linguist').first.full_gem_path, ARGV.first)`
+	cmd := exec.Command("bundle", "exec", "ruby", "-r", "fileutils", "-e", rubyScript, tempFile.Name())
 	cmd.Dir = config.Config.Ruby.Dir
 
 	if err := cmd.Run(); err != nil {
@@ -77,12 +76,7 @@ func LoadColors() error {
 		return err
 	}
 
-	linguistPath, err := ioutil.ReadFile(tempFile.Name())
-	if err != nil {
-		return err
-	}
-
-	languageJSON, err := ioutil.ReadFile(path.Join(string(linguistPath), "lib/linguist/languages.json"))
+	languageJSON, err := ioutil.ReadFile(path.Join(tempFile.Name(), "lib/linguist/languages.json"))
 	if err != nil {
 		return err
 	}
