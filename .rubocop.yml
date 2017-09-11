@@ -1,6 +1,8 @@
 require:
   - rubocop-rspec
 
+inherit_from: .rubocop_todo.yml
+
 AllCops:
   TargetRubyVersion: 2.3
   # Cop names are not d§splayed in offense messages by default. Change behavior
@@ -11,6 +13,10 @@ AllCops:
   # behavior by overriding DisplayStyleGuide, or by giving the
   # -S/--display-style-guide option.
   DisplayStyleGuide: false
+  Exclude:
+    - 'vendor/**/*'
+    - 'ruby/vendor/**/*'
+    - '_build/**/*'
 
 # Gems in consecutive lines should be alphabetically sorted
 Bundler/OrderedGems:
@@ -1070,10 +1076,6 @@ RSpec/NotToNot:
 # Check for repeated description strings in example groups.
 RSpec/RepeatedDescription:
   Enabled: false
-
-# Ensure RSpec hook blocks are always multi-line.
-RSpec/SingleLineHook:
-  Enabled: true
 
 # Checks for stubbed test subjects.
 RSpec/SubjectStub:
