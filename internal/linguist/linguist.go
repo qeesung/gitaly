@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -54,17 +53,36 @@ func Color(language string) string {
 
 // LoadColors loads the name->color map from the Linguist gem.
 func LoadColors() error {
-	cmd := exec.Command("bundle", "show", "linguist")
-	cmd.Dir = config.Config.Ruby.Dir
-	linguistPath, err := cmd.Output()
+	tempFile, err := ioutil.TempFile("", "gitaly-linguist")
 	if err != nil {
+		return err
+	}
+	defer os.Remove(tempFile.Name())
+
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+
+	// We can't use stdout to communicate because Bundler sometimes writes
+	// warnings to stdout. So we write the information we need into a
+	// tempfile instead.
+	rubyScript := `IO.write(ARGV.first, Bundler.rubygems.find_name('github-linguist').first.full_gem_path)`
+	cmd := exec.Command("bundle", "exec", "ruby", "-e", rubyScript, tempFile.Name())
+	cmd.Dir = config.Config.Ruby.Dir
+
+	if err := cmd.Run(); err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			err = fmt.Errorf("%v; stderr: %q", exitError, exitError.Stderr)
 		}
 		return err
 	}
 
-	languageJSON, err := ioutil.ReadFile(path.Join(strings.TrimSpace(string(linguistPath)), "lib/linguist/languages.json"))
+	linguistPath, err := ioutil.ReadFile(tempFile.Name())
+	if err != nil {
+		return err
+	}
+
+	languageJSON, err := ioutil.ReadFile(path.Join(string(linguistPath), "lib/linguist/languages.json"))
 	if err != nil {
 		return err
 	}
