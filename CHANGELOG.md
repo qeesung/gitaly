@@ -3,6 +3,8 @@
 UNRELEASED
 - Use context cancellation instead of command.Close
   https://gitlab.com/gitlab-org/gitaly/merge_requests/332
+- Don't use 'bundle show' to find Linguist
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/339
 
 v0.39.0
 - Reimplement FindAllTags RPC in Ruby
