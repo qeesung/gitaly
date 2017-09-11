@@ -8,8 +8,8 @@ def gitlab_api(url, body)
   uri = URI.parse(url)
 
   header = {
-      'Content-Type': 'application/json',
-      'PRIVATE-TOKEN': ENV['PRIVATE_TOKEN']
+    'Content-Type': 'application/json',
+    'PRIVATE-TOKEN': ENV['PRIVATE_TOKEN']
   }
 
   # Create the HTTP objects
@@ -29,9 +29,9 @@ def update_tag(project_id, tag_version)
     "start_branch": "master",
     "commit_message": "Update Gitaly version to #{tag_version}",
     "actions": [{
-        "action": "update",
-        "file_path": "GITALY_SERVER_VERSION",
-        "content": "#{tag_version}"
+      "action": "update",
+      "file_path": "GITALY_SERVER_VERSION",
+      "content": "#{tag_version}"
     }]
   }
 
