@@ -14,3 +14,6 @@ git_data_dirs({
   'default' => {'path' => '/mnt/data1', 'gitaly_address' => 'tcp://gitaly1:6666'},
   'gitaly2' => {'path' => '/mnt/data2', 'gitaly_address' => 'tcp://gitaly2:6666'},
 })
+
+# We have to use the same token in all hosts for internal API authentication
+gitlab_shell['secret_token'] = 'f4kef1xedt0ken'
