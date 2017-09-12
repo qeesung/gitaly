@@ -35,7 +35,7 @@ Then leave running while monitoring and performing some testing through web, api
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20hostname:dev'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20hostname:dev%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Dev Sentry](https://sentry.gitlap.com/gitlab/devgitlaborg-gitaly/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Dev Sentry](https://sentry.gitlap.com/gitlab/devgitlaborg-gitaly/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Dev Sentry](https://sentry.gitlap.com/gitlab/devgitlaborg/?query=is%3Aunresolved+gitaly)
 
 #### Continue?
@@ -59,7 +59,7 @@ Then leave running while monitoring for at least **15 minutes** while performing
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20hostname:nfs5'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20hostname:nfs5%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Staging Sentry](https://sentry.gitlap.com/gitlab/staginggitlabcom-gitaly/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Staging Sentry](https://sentry.gitlap.com/gitlab/staginggitlabcom-gitaly/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Staging Sentry](https://sentry.gitlap.com/gitlab/staginggitlabcom/?query=is%3Aunresolved+gitaly)
 
 #### Continue?
@@ -83,7 +83,7 @@ Then leave running while monitoring for at least **15 minutes** while performing
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last hour](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-1h,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Sentry](https://sentry.gitlap.com/gitlab/gitlabcom/?query=is%3Aunresolved+gitaly)
 
 #### Continue?
@@ -101,7 +101,7 @@ Then leave running while monitoring for at least **2 hours**.
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last 2 hours](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-2h,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last 2 hours](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-2h,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Sentry](https://sentry.gitlap.com/gitlab/gitlabcom/?query=is%3Aunresolved+gitaly)
 
 #### Continue?
@@ -119,7 +119,7 @@ Then leave running while monitoring for at least **24 hours**.
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last 24 hours](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-24h,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last 24 hours](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-24h,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Sentry](https://sentry.gitlap.com/gitlab/gitlabcom/?query=is%3Aunresolved+gitaly)
 
 #### Continue?
@@ -137,7 +137,7 @@ Then leave running while monitoring for at least **1 week**.
 - [ ] **Inspect logs** in ELK:
   - [GRPC_METHOD_NAME invocations, last 7 days](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-7d,mode:quick,to:now%29%29) for unusual activity
   - [GRPC_METHOD_NAME errors, last 7 days](https://log.gitlap.com/app/kibana#/discover?_a=%28index%3A'gitaly-*'%2Cquery%3A%28query_string%3A%28query%3A'grpc.method:GRPC_METHOD_NAME%20AND%20NOT%20hostname:dev%20AND%20NOT%20grpc.code:OK%20AND%20message:finished'%29%29%29&_g=%28refreshInterval:%28display:Off,pause:!f,value:0%29,time:%28from:now-7d,mode:quick,to:now%29%29) for unusual activity
-- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.SERVICE_NAME%2FGRPC_METHOD_NAME)
+- [ ] **Check for errors** in [Gitaly Sentry](https://sentry.gitlap.com/gitlab/gitaly-production/?query=is%3Aunresolved+grpc.method%3A%2Fgitaly.GRPC_SERVICE_NAME%2FGRPC_METHOD_NAME)
 - [ ] **Check for errors** in [GitLab Sentry](https://sentry.gitlap.com/gitlab/gitlabcom/?query=is%3Aunresolved+gitaly)
 
 #### Success?

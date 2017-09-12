@@ -40,7 +40,7 @@ file = File.open(template_file)
 file.each do |line|
   unless line.nil?
     options.each do |key, value|
-      line = line.gsub(Regexp.new("\\b#{key}\\b"), value.to_s)
+      line = line.sub(key, value.to_s)
     end
   end
 
