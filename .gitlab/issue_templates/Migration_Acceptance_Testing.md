@@ -1,4 +1,4 @@
-~Conversation: #XXX (*complete this*)
+~Conversation: #CONVERSATION_NUMBER
 
 See the [Migration Process documentation](https://gitlab.com/gitlab-org/gitaly/blob/master/doc/MIGRATION_PROCESS.md#acceptance-testing-acceptance-testing)
 for more information on the Acceptance Testing stage of the process.
@@ -31,7 +31,7 @@ Required GitLab Version: `vX.X`
   - [ ] GitLab: https://dev.gitlab.org/help
 
 - [ ] Enable on `dev.gitlab.org`:
-  - [ ] ssh into `dev.gitlab.org` and enable the feature running by running `Feature.get('gitaly_FEATURE_NAME').enable` on a rails console. 
+  - [ ] ssh into `dev.gitlab.org` and enable the feature running by running `Feature.get('gitaly_FEATURE_NAME').enable` on a rails console.
   - [ ] Perform some testing and leave the feature enabled
 
 ## 3. Staging Trial
