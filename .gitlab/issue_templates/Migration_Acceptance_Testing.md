@@ -4,7 +4,7 @@ See the [Migration Process documentation](https://gitlab.com/gitlab-org/gitaly/b
 for more information on the Acceptance Testing stage of the process.
 
 ## Details
-- **Feature Toggle Name**: `gitaly_FEATURE_NAME`
+- **Feature Toggle Name**: `GITALY_FEATURE_NAME`
 - **GRPC Service**: `GRPC_SERVICE_NAME::GRPC_METHOD_NAME`
 - **Required Gitaly Version**: `vX.X.X`
 - **Required GitLab Version**: `vX.X`
@@ -25,7 +25,7 @@ for more information on the Acceptance Testing stage of the process.
 - [ ] GitLab: https://dev.gitlab.org/help
 
 #### Enable on `dev.gitlab.org`:
-- [ ] `!feature-set gitaly_FEATURE_NAME true` in [`#dev-gitlab`](https://gitlab.slack.com/messages/C6WQ87MU3)
+- [ ] `!feature-set GITALY_FEATURE_NAME true` in [`#dev-gitlab`](https://gitlab.slack.com/messages/C6WQ87MU3)
 
 Then leave running while monitoring and performing some testing through web, api or SSH.
 
@@ -40,7 +40,7 @@ Then leave running while monitoring and performing some testing through web, api
 
 #### Continue?
 
-- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set gitaly_FEATURE_NAME false` in [`#dev-gitlab`](https://gitlab.slack.com/messages/C6WQ87MU3) otherwise leave running and proceed proceed to next stage.
+- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set GITALY_FEATURE_NAME false` in [`#dev-gitlab`](https://gitlab.slack.com/messages/C6WQ87MU3) otherwise leave running and proceed proceed to next stage.
 
 ## 3. Staging Trial
 
@@ -49,7 +49,7 @@ Then leave running while monitoring and performing some testing through web, api
 - [ ] GitLab: https://staging.gitlab.com/help
 
 #### Enable on `staging.gitlab.com`
-- [ ] `!feature-set gitaly_FEATURE_NAME true` in [`#development`](https://gitlab.slack.com/messages/C02PF508L/)
+- [ ] `!feature-set GITALY_FEATURE_NAME true` in [`#development`](https://gitlab.slack.com/messages/C02PF508L/)
 
 Then leave running while monitoring for at least **15 minutes** while performing some testing through web, api or SSH.
 
@@ -64,7 +64,7 @@ Then leave running while monitoring for at least **15 minutes** while performing
 
 #### Continue?
 
-- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately using `!feature-set gitaly_FEATURE_NAME false` in [`#development`](https://gitlab.slack.com/messages/C02PF508L/) otherwise leave running and proceed to next stage.
+- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately using `!feature-set GITALY_FEATURE_NAME false` in [`#development`](https://gitlab.slack.com/messages/C02PF508L/) otherwise leave running and proceed to next stage.
 
 ## 4. Production Server Version Check
 
@@ -73,8 +73,8 @@ Then leave running while monitoring for at least **15 minutes** while performing
 
 ## 5. Initial Impact Check
 
-- [ ] Create an issue in the infrastructure tracker: [Create issue now](https://gitlab.com/gitlab-com/infrastructure/issues/new?issue[title]=Testing%20of%20Gitaly%20Feature%20gitaly_FEATURE_NAME&issue[description]=https%3A%2F%2Fgitlab.com%2Fgitlab-org%2Fgitaly%2Fissues%2FACCEPTANCE_TEST_ISSUE_NUMBER%0A%0A%2Flabel%20~gitaly%20~change)
-- [ ] Set Gitaly to 1% using the command `!feature-set gitaly_FEATURE_NAME 1` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
+- [ ] Create an issue in the infrastructure tracker: [Create issue now](https://gitlab.com/gitlab-com/infrastructure/issues/new?issue[title]=Testing%20of%20Gitaly%20Feature%20GITALY_FEATURE_NAME&issue[description]=https%3A%2F%2Fgitlab.com%2Fgitlab-org%2Fgitaly%2Fissues%2FACCEPTANCE_TEST_ISSUE_NUMBER%0A%0A%2Flabel%20~gitaly%20~change)
+- [ ] Set Gitaly to 1% using the command `!feature-set GITALY_FEATURE_NAME 1` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
 
 Then leave running while monitoring for at least **15 minutes** while performing some testing through web, api or SSH.
 
@@ -88,11 +88,11 @@ Then leave running while monitoring for at least **15 minutes** while performing
 
 #### Continue?
 
-- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set gitaly_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
+- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set GITALY_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
 
 ## 6. Low Impact Trial
 
-- [ ] Set Gitaly to 5% using the command `!feature-set gitaly_FEATURE_NAME 5` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
+- [ ] Set Gitaly to 5% using the command `!feature-set GITALY_FEATURE_NAME 5` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
 
 Then leave running while monitoring for at least **2 hours**.
 
@@ -106,11 +106,11 @@ Then leave running while monitoring for at least **2 hours**.
 
 #### Continue?
 
-- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set gitaly_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
+- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set GITALY_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
 
 ## 7. Mid Impact Trial
 
-- [ ] Set Gitaly to 50% using the command `!feature-set gitaly_FEATURE_NAME 50` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
+- [ ] Set Gitaly to 50% using the command `!feature-set GITALY_FEATURE_NAME 50` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
 
 Then leave running while monitoring for at least **24 hours**.
 
@@ -124,11 +124,11 @@ Then leave running while monitoring for at least **24 hours**.
 
 #### Continue?
 
-- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set gitaly_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
+- [ ] On unexpectedly high calls rates, error rates, CPU activity, etc, disable trial immediately with `!feature-set GITALY_FEATURE_NAME false` in [`#production`](https://gitlab.slack.com/messages/C101F3796/) otherwise leave running and proceed to next stage.
 
 ## 8. Full Impact Trial
 
-- [ ] Set Gitaly to 100% using the command `!feature-set gitaly_FEATURE_NAME 100` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
+- [ ] Set Gitaly to 100% using the command `!feature-set GITALY_FEATURE_NAME 100` in [`#production`](https://gitlab.slack.com/messages/C101F3796/)
 
 Then leave running while monitoring for at least **1 week**.
 

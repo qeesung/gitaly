@@ -12,7 +12,7 @@ OptionParser.new do |opts|
 
   opts.on("-f", "--feature-flag FEATURE_FLAG_NAME", "Feature Flag Name") do |feature_flag_name|
     feature_flag_name = feature_flag_name.gsub(/^gitaly_/, "")
-    options['gitaly_FEATURE_NAME'] = "gitaly_#{feature_flag_name}"
+    options['GITALY_FEATURE_NAME'] = "gitaly_#{feature_flag_name}"
   end
 
   opts.on("-s", "--service-name GRPC_SERVICE_NAME", "GRPC Service Name") do |service_name|
@@ -32,17 +32,16 @@ end
 template_file = File.join(File.dirname(__FILE__), "..", ".gitlab", "issue_templates", "Migration_Acceptance_Testing.md")
 
 options['CONVERSATION_NUMBER'] = prompt("Conversation Issue Number?") unless options['CONVERSATION_NUMBER']
-options['gitaly_FEATURE_NAME'] = prompt("Feature Flag Name? (prefix with gitaly_)") unless options['gitaly_FEATURE_NAME']
+options['GITALY_FEATURE_NAME'] = prompt("Feature Flag Name? (prefix with gitaly_)") unless options['GITALY_FEATURE_NAME']
 options['GRPC_SERVICE_NAME'] = prompt("GRPC Service Name?") unless options['GRPC_SERVICE_NAME']
 options['GRPC_METHOD_NAME'] = prompt("GRPC Method Name?") unless options['GRPC_METHOD_NAME']
 
-file = File.open(template_file)
-file.each do |line|
-  unless line.nil?
+File.open(template_file) do |file|
+  file.each do |line|
     options.each do |key, value|
       line = line.gsub(key, value.to_s)
     end
-  end
 
-  puts line
+    puts line
+  end
 end
