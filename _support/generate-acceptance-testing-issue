@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
+
+  opts.on("-c", "--conversation CONVERSATION_NUMBER", OptionParser::DecimalInteger, "Conversation Issue Number") do |conversation_issue_number|
+    options['CONVERSATION_NUMBER'] = conversation_issue_number
+  end
+
+  opts.on("-f", "--feature-flag FEATURE_FLAG_NAME", "Feature Flag Name") do |feature_flag_name|
+    feature_flag_name = feature_flag_name.gsub(/^gitaly_/, "")
+    options['gitaly_FEATURE_NAME'] = "gitaly_#{feature_flag_name}"
+  end
+
+  opts.on("-s", "--service-name GRPC_SERVICE_NAME", "GRPC Service Name") do |service_name|
+    options['GRPC_SERVICE_NAME'] = service_name
+  end
+
+  opts.on("-m", "--method-name GRPC_METHOD_NAME", "GRPC Method Name") do |method_name|
+    options['GRPC_METHOD_NAME'] = method_name
+  end
+end.parse!
+
+def prompt(text)
+  puts text
+  gets
+end
+
+template_file = File.join(File.dirname(__FILE__), "..", ".gitlab", "issue_templates", "Migration_Acceptance_Testing.md")
+
+options['CONVERSATION_NUMBER'] = prompt("Conversation Issue Number?") unless options['CONVERSATION_NUMBER']
+options['gitaly_FEATURE_NAME'] = prompt("Feature Flag Name? (prefix with gitaly_)") unless options['gitaly_FEATURE_NAME']
+options['GRPC_SERVICE_NAME'] = prompt("GRPC Service Name?") unless options['GRPC_SERVICE_NAME']
+options['GRPC_METHOD_NAME'] = prompt("GRPC Method Name?") unless options['GRPC_METHOD_NAME']
+
+file = File.open(template_file)
+file.each do |line|
+  unless line.nil?
+    options.each do |key, value|
+      line = line.gsub(Regexp.new("\\b#{key}\\b"), value.to_s)
+    end
+  end
+
+  puts line
+end
