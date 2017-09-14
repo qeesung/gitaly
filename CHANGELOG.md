@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Wait for monitor goroutine to return during supervisor shutdown
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/341
+
 v0.40.0
 - Use context cancellation instead of command.Close
   https://gitlab.com/gitlab-org/gitaly/merge_requests/332
