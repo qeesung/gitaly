@@ -6,7 +6,7 @@ engines:
     enabled: true
   gofmt:
     enabled: true
-  rubocop:
+  rubocop-gitlab:
     enabled: true
 ratings:
   paths:
