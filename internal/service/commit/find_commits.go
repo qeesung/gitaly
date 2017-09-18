@@ -45,6 +45,8 @@ func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService
 	return rubyserver.Proxy(func() error {
 		resp, err := rubyStream.Recv()
 		if err != nil {
+			md := rubyStream.Trailer()
+			stream.SetTrailer(md)
 			return err
 		}
 		return stream.Send(resp)

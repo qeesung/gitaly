@@ -96,6 +96,8 @@ func (s *server) FindAllTags(in *pb.FindAllTagsRequest, stream pb.RefService_Fin
 	return rubyserver.Proxy(func() error {
 		resp, err := rubyStream.Recv()
 		if err != nil {
+			md := rubyStream.Trailer()
+			stream.SetTrailer(md)
 			return err
 		}
 		return stream.Send(resp)

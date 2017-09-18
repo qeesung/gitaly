@@ -27,6 +27,8 @@ func (s *server) CommitPatch(in *pb.CommitPatchRequest, stream pb.DiffService_Co
 	return rubyserver.Proxy(func() error {
 		resp, err := rubyStream.Recv()
 		if err != nil {
+			md := rubyStream.Trailer()
+			stream.SetTrailer(md)
 			return err
 		}
 		return stream.Send(resp)
