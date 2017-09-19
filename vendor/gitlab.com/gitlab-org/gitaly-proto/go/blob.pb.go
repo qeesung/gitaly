@@ -107,6 +107,8 @@ It has these top-level messages:
 	ApplyGitattributesResponse
 	FetchRemoteRequest
 	FetchRemoteResponse
+	CreateRepositoryRequest
+	CreateRepositoryResponse
 	Repository
 	GitCommit
 	CommitAuthor
