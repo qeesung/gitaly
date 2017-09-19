@@ -38,8 +38,22 @@ module Gitlab
       end
     end
 
+    class GitlabShell
+      def path
+        ENV['GITALY_RUBY_GITLAB_SHELL_PATH']
+      end
+
+      def hooks_path
+        File.join(path, 'hooks')
+      end
+    end
+
     def git
       Git.new
+    end
+
+    def gitlab_shell
+      GitlabShell.new
     end
   end
 

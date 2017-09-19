@@ -1,19 +1,16 @@
 package repository
 
 import (
-	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 
-	"golang.org/x/net/context"
+	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 )
 
-type server struct{}
-
-// NewServer creates a new instance of a gRPC repo server
-func NewServer() pb.RepositoryServiceServer {
-	return &server{}
+type server struct {
+	*rubyserver.Server
 }
 
-func (*server) CreateRepository(context.Context, *pb.CreateRepositoryRequest) (*pb.CreateRepositoryResponse, error) {
-	return nil, helper.Unimplemented
+// NewServer creates a new instance of a gRPC repo server
+func NewServer(rs *rubyserver.Server) pb.RepositoryServiceServer {
+	return &server{rs}
 }

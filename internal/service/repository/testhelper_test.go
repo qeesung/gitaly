@@ -1,13 +1,17 @@
 package repository
 
 import (
+	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -20,6 +24,7 @@ var (
 	testTime         = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         = testhelper.TestRepository()
+	rubyServer       *rubyserver.Server
 )
 
 func newRepositoryClient(t *testing.T) (pb.RepositoryServiceClient, *grpc.ClientConn) {
@@ -44,7 +49,7 @@ func runRepoServer(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 
-	pb.RegisterRepositoryServiceServer(server, NewServer())
+	pb.RegisterRepositoryServiceServer(server, NewServer(rubyServer))
 	reflection.Register(server)
 
 	go server.Serve(listener)
@@ -65,4 +70,28 @@ func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool
 		}
 	}
 	return t.Failed()
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	defer testhelper.MustHaveNoChildProcess()
+
+	testhelper.ConfigureRuby()
+
+	var err error
+	config.Config.GitlabShell.Dir, err = filepath.Abs("testdata/gitlab-shell")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rubyServer, err = rubyserver.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rubyServer.Stop()
+
+	return m.Run()
 }

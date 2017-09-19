@@ -44,8 +44,7 @@ func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	blobService := blob.NewServer()
 	pb.RegisterBlobServiceServer(grpcServer, blobService)
 
-	repositoryService := repository.NewServer()
-	pb.RegisterRepositoryServiceServer(grpcServer, repositoryService)
+	pb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(rubyServer))
 
 	namespaceService := namespace.NewServer()
 	pb.RegisterNamespaceServiceServer(grpcServer, namespaceService)
