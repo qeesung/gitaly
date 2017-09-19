@@ -40,7 +40,7 @@ module GitalyServer
       repo.delete_branch(branch_name)
 
       Gitaly::DeleteBranchResponse.new
-    rescue Rugged::ReferenceError => e
+    rescue Gitlab::Git::Repository::DeleteBranchError => e
       raise GRPC::Internal.new(e.to_s)
     end
 

@@ -1,5 +1,9 @@
 module Gitlab
   module GitalyClient
+    module MigrationStatus
+      OPT_IN = :fake_constant
+    end
+
     class << self
       # In case we hit a method that tries to do a Gitaly RPC, prevent this.
       # We also don't want to instrument the block.
