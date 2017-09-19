@@ -82,12 +82,7 @@ func applyGitattributesHandler(ctx context.Context, repoPath string, revision []
 			return err
 		}
 
-		// Rename temp file
-		if err := os.Rename(tempFile.Name(), attributesPath); err != nil {
-			return err
-		}
-
-		return nil
+		return os.Rename(tempFile.Name(), attributesPath)
 	}
 }
 
