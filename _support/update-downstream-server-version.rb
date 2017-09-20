@@ -31,7 +31,7 @@ def update_tag(project_id, tag_version)
     "actions": [{
       "action": "update",
       "file_path": "GITALY_SERVER_VERSION",
-      "content": "#{tag_version}"
+      "content": tag_version.to_s
     }]
   }
 

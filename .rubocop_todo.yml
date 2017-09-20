@@ -63,35 +63,6 @@ Layout/SpaceAroundOperators:
     - '_support/test-cluster/gitaly1/etc-gitlab/gitlab.rb'
     - '_support/test-cluster/gitaly2/etc-gitlab/gitlab.rb'
 
-# Offense count: 4
-# Cop supports --auto-correct.
-# Configuration parameters: SupportedStyles, EnforcedStyleForEmptyBraces, SupportedStylesForEmptyBraces.
-# SupportedStyles: space, no_space, compact
-# SupportedStylesForEmptyBraces: space, no_space
-Layout/SpaceInsideHashLiteralBraces:
-  EnforcedStyle: no_space
-
-# Offense count: 2
-# Cop supports --auto-correct.
-Layout/Tab:
-  Exclude:
-    - 'ruby/lib/gitaly_server/utils.rb'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-Layout/TrailingWhitespace:
-  Exclude:
-    - '_support/test-boot-time'
-
-# Offense count: 9
-Lint/UnderscorePrefixedVariableName:
-  Exclude:
-    - 'ruby/lib/gitaly_server.rb'
-    - 'ruby/lib/gitaly_server/commit_service.rb'
-    - 'ruby/lib/gitaly_server/diff_service.rb'
-    - 'ruby/lib/gitaly_server/ref_service.rb'
-    - 'ruby/lib/gitlab/git.rb'
-
 # Offense count: 2
 # Configuration parameters: MinBodyLength.
 Style/GuardClause:
@@ -115,23 +86,6 @@ Style/IfUnlessModifier:
 Style/MultilineIfModifier:
   Exclude:
     - 'ruby/lib/gitaly_server/ref_service.rb'
-
-# Offense count: 11
-# Cop supports --auto-correct.
-Style/MutableConstant:
-  Exclude:
-    - '_support/package/package'
-    - '_support/test-boot-time'
-    - '_support/vendor-gitlab-git'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle, SupportedStyles.
-# SupportedStyles: both, prefix, postfix
-Style/NegatedIf:
-  Exclude:
-    - '_support/package/package'
-    - '_support/run.rb'
 
 # Offense count: 3
 # Cop supports --auto-correct.
@@ -193,24 +147,6 @@ Style/SymbolProc:
     - '_support/package/package'
     - '_support/run.rb'
 
-# Offense count: 5
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyleForMultiline, SupportedStylesForMultiline.
-# SupportedStylesForMultiline: comma, consistent_comma, no_comma
-Style/TrailingCommaInArguments:
-  Exclude:
-    - 'ruby/lib/gitaly_server/ref_service.rb'
-    - 'ruby/lib/gitaly_server/utils.rb'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyleForMultiline, SupportedStylesForMultiline.
-# SupportedStylesForMultiline: comma, consistent_comma, no_comma
-Style/TrailingCommaInLiteral:
-  Exclude:
-    - '_support/test-cluster/app1/etc-gitlab/gitlab.rb'
-    - 'ruby/lib/gitaly_server/commit_service.rb'
-
 # Offense count: 1
 # Cop supports --auto-correct.
 # Configuration parameters: ExactNameMatch, AllowPredicates, AllowDSLWriters, IgnoreClassMethods, Whitelist.
@@ -218,9 +154,3 @@ Style/TrailingCommaInLiteral:
 Style/TrivialAccessors:
   Exclude:
     - 'ruby/lib/gitlab/git.rb'
-
-# Offense count: 2
-# Cop supports --auto-correct.
-Style/UnneededCapitalW:
-  Exclude:
-    - '_support/vendor-gitlab-git'

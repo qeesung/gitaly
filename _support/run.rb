@@ -1,6 +1,6 @@
 def run!(cmd, chdir='.')
   GitalySupport.print_cmd(cmd)
-  if !system(*cmd, chdir: chdir)
+  unless system(*cmd, chdir: chdir)
     GitalySupport.fail_cmd!(cmd)
   end
 end

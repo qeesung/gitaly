@@ -50,8 +50,8 @@ end
 module Gitlab
   module Git
     class Repository
-      def self.from_call(_call)
-        new(GitalyServer.repo_path(_call))
+      def self.from_call(call)
+        new(GitalyServer.repo_path(call))
       end
 
       def initialize(path)
