@@ -96,13 +96,16 @@ func (s *Server) Stop() {
 // Start spawns the Ruby server.
 func Start() (*Server, error) {
 	lazyInit.Do(prepareSocketPath)
+
 	cfg := config.Config
-	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
 	env := []string{
 		"GITALY_RUBY_GIT_BIN_PATH=" + command.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize),
 		"GITALY_RUBY_GITLAB_SHELL_PATH=" + cfg.GitlabShell.Dir,
 	}
+
+	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
+
 	p, err := supervisor.New("gitaly-ruby", append(os.Environ(), env...), args, cfg.Ruby.Dir)
 	return &Server{Process: p}, err
 }
