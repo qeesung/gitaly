@@ -16,7 +16,7 @@ VERSION_PREFIXED = $(shell git describe)
 VERSION = $(VERSION_PREFIXED:v%=%)
 GO_LDFLAGS = -ldflags '-X $(PKG)/internal/version.version=$(VERSION) -X $(PKG)/internal/version.buildtime=$(BUILDTIME)'
 
-unexport GOPATH
+unexport GOROOT
 unexport GOBIN
 
 export GOPATH := $(TARGET_DIR)
