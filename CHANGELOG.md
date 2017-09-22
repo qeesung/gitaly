@@ -10,6 +10,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/360
 - Implement UserDeleteTag RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/366
+- Implement RepositoryService::CreateRepository
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/361
 
 v0.40.0
 - Use context cancellation instead of command.Close
