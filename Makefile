@@ -9,6 +9,7 @@ export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
+GITALY_GDK_ROOT := $(TARGET_DIR)/gitaly-gdk
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
@@ -55,10 +56,18 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	cd ruby && bundle install
 	touch $@
 
+# TODO: confirm what references this target? Omnibus? Source installs?
 .PHONY: install
 install: build
 	mkdir -p $(INSTALL_DEST_DIR)
 	cd $(BIN_BUILD_DIR) && install $(COMMANDS) $(INSTALL_DEST_DIR)
+
+# Used by the GDK: run `make install-gdk GITALY_GDK_ROOT=.../gitaly`
+.PHONY: install-gdk
+install-gdk: build
+	rm -rf $(GITALY_GDK_ROOT)/bin $(GITALY_GDK_ROOT)/gitaly-ruby
+	mkdir -p $(GITALY_GDK_ROOT)/bin $(GITALY_GDK_ROOT)/gitaly-ruby
+	install $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(GITALY_GDK_ROOT)/bin
 
 .PHONY: verify
 verify: lint check-formatting megacheck govendor-status notice-up-to-date
