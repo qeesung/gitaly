@@ -65,8 +65,9 @@ install: build
 # Used by the GDK: run `make install-gdk GITALY_GDK_ROOT=.../gitaly`
 .PHONY: install-gdk
 install-gdk: build
-	rm -rf $(GITALY_GDK_ROOT)/bin $(GITALY_GDK_ROOT)/gitaly-ruby
-	mkdir -p $(GITALY_GDK_ROOT)/bin $(GITALY_GDK_ROOT)/gitaly-ruby
+	rm -rf $(GITALY_GDK_ROOT)/bin $(GITALY_GDK_ROOT)/ruby
+	mkdir -p $(GITALY_GDK_ROOT)/bin
+	cp -r ruby $(GITALY_GDK_ROOT)/ruby
 	install $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(GITALY_GDK_ROOT)/bin
 
 .PHONY: verify
