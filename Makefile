@@ -9,7 +9,7 @@ export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
-ASSEMBLY_ROOT := $(TARGET_DIR)/gitaly-gdk
+ASSEMBLY_ROOT := $(TARGET_DIR)/assembly
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
