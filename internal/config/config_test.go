@@ -354,7 +354,6 @@ func TestValidateRuby(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	tmpFile := path.Join(tmpDir, "file")
-
 	require.NoError(t, ioutil.WriteFile(tmpFile, nil, 0644))
 
 	testCases := []struct {

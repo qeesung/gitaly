@@ -18,6 +18,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/363
 - Implement RepositoryService.UserCreateBranch
   https://gitlab.com/gitlab-org/gitaly/merge_requests/344
+- Make gitaly-ruby config mandatory
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/373
 
 v0.40.0
 - Use context cancellation instead of command.Close
