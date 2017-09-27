@@ -38,7 +38,7 @@ func TestLimiter(t *testing.T) {
 	tests := []struct {
 		name           string
 		concurrency    int
-		maxConcurrency int64
+		maxConcurrency int
 		iterations     int
 		buckets        int
 		wantMax        int
@@ -92,7 +92,7 @@ func TestLimiter(t *testing.T) {
 						limiter.Limit(context.Background(), lockKey, tt.maxConcurrency, func() (interface{}, error) {
 							gauge.up()
 
-							assert.True(t, int64(len(limiter.v)) <= tt.maxConcurrency)
+							assert.True(t, len(limiter.v) <= tt.maxConcurrency)
 							assert.True(t, len(limiter.v) <= tt.buckets)
 							time.Sleep(1 * time.Millisecond)
 							gauge.down()

@@ -11,18 +11,19 @@ import (
 type LimitedFunc func() (resp interface{}, err error)
 
 type weightedWithSize struct {
+	// https://godoc.org/golang.org/x/sync/semaphore
 	w *semaphore.Weighted
 	n int64
 }
 
 // ConcurrencyLimiter contains rate limiter state
 type ConcurrencyLimiter struct {
-	v   map[string]*weightedWithSize
-	mux sync.Mutex
+	v   map[interface{}]*weightedWithSize
+	mux *sync.Mutex
 }
 
 // Lazy create a semaphore for the given key
-func (c *ConcurrencyLimiter) getSemaphore(lockKey string, max int64) *semaphore.Weighted {
+func (c *ConcurrencyLimiter) getSemaphore(lockKey interface{}, max int64) *semaphore.Weighted {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -36,7 +37,7 @@ func (c *ConcurrencyLimiter) getSemaphore(lockKey string, max int64) *semaphore.
 	return w
 }
 
-func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
+func (c *ConcurrencyLimiter) attemptCollection(lockKey interface{}) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -52,18 +53,22 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
 		return
 	}
 
+	// By releasing, we prevent a lockup of goroutines that have already
+	// acquired the semaphore, but have yet to acquire on it
+	w.Release(max)
+
 	// If we managed to acquire all the locks, we can remove the semaphore for this key
 	delete(c.v, lockKey)
 
 }
 
 // Limit will limit the concurrency of f
-func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, maxConcurrency int64, f LimitedFunc) (interface{}, error) {
+func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, maxConcurrency int, f LimitedFunc) (interface{}, error) {
 	if maxConcurrency <= 0 {
 		return f()
 	}
 
-	w := c.getSemaphore(lockKey, maxConcurrency)
+	w := c.getSemaphore(lockKey, int64(maxConcurrency))
 	// Attempt to cleanup the semaphore it's no longer being used
 	defer c.attemptCollection(lockKey)
 
@@ -82,5 +87,8 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, maxConcu
 
 // NewLimiter creates a new rate limiter
 func NewLimiter() ConcurrencyLimiter {
-	return ConcurrencyLimiter{v: make(map[string]*weightedWithSize)}
+	return ConcurrencyLimiter{
+		v:   make(map[interface{}]*weightedWithSize),
+		mux: &sync.Mutex{},
+	}
 }

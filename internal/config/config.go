@@ -62,7 +62,7 @@ type Prometheus struct {
 // Concurrency allows endpoints to be limited to a maximum concurrency per repo
 type Concurrency struct {
 	RPC        string `toml:"rpc"`
-	MaxPerRepo int64  `toml:"max_per_repo"`
+	MaxPerRepo int    `toml:"max_per_repo"`
 }
 
 // Load initializes the Config variable from file and the environment.
