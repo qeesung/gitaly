@@ -1,6 +1,8 @@
 package limithandler
 
 import (
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -40,8 +42,11 @@ func (c *LimiterMiddleware) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		}
 
 		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+		start := time.Now()
 
 		return c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
+			emitRateLimitMetrics(ctx, "unary", info.FullMethod, start)
+
 			return handler(ctx, req)
 		})
 	}
@@ -58,8 +63,11 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+		start := time.Now()
 
 		_, err := c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
+			emitStreamRateLimitMetrics(ctx, info, start)
+
 			err := handler(srv, stream)
 			return nil, err
 		})

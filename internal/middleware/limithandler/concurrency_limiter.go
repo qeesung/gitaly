@@ -59,6 +59,7 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
 // Limit will limit the concurrency of f
 func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, maxConcurrency int64, f LimitedFunc) (interface{}, error) {
 	w := c.getSemaphore(lockKey, maxConcurrency)
+
 	err := w.Acquire(ctx, 1)
 
 	if err != nil {
