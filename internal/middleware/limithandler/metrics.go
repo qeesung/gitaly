@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-const acquireDurationLogThreshold = 10
+const acquireDurationLogThreshold = 10 * time.Millisecond
 
 var (
 	histogramEnabled = false

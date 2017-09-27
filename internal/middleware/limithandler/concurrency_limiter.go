@@ -54,11 +54,18 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
 
 	// If we managed to acquire all the locks, we can remove the semaphore for this key
 	delete(c.v, lockKey)
+
 }
 
 // Limit will limit the concurrency of f
 func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, maxConcurrency int64, f LimitedFunc) (interface{}, error) {
+	if maxConcurrency <= 0 {
+		return f()
+	}
+
 	w := c.getSemaphore(lockKey, maxConcurrency)
+	// Attempt to cleanup the semaphore it's no longer being used
+	defer c.attemptCollection(lockKey)
 
 	err := w.Acquire(ctx, 1)
 
@@ -67,9 +74,6 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, maxConcu
 	}
 
 	defer w.Release(1)
-
-	// Attempt to cleanup the semaphore it's no longer being used
-	c.attemptCollection(lockKey)
 
 	resp, err := f()
 
