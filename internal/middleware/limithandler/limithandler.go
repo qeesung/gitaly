@@ -1,64 +1,14 @@
 package limithandler
 
 import (
-	"sync"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"golang.org/x/net/context"
-	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 )
 
-const perRepoConcurrencyLimit = 50
-
-type limitedFunc func() (resp interface{}, err error)
-
-// Limiter contains rate limiter state
-type Limiter struct {
-	v   map[string]*semaphore.Weighted
-	mux sync.Mutex
-}
-
-func (c *Limiter) getSemaphoreForRepoPath(repoPath string, max int64) *semaphore.Weighted {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	s := c.v[repoPath]
-	if s != nil {
-		return s
-	}
-
-	s = semaphore.NewWeighted(max)
-	c.v[repoPath] = s
-	return s
-}
-
-func (c *Limiter) attemptCollect(repoPath string, w *semaphore.Weighted, max int64) {
-	if !w.TryAcquire(max) {
-		return
-	}
-
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	delete(c.v, repoPath)
-}
-
-func (c *Limiter) limit(ctx context.Context, repoPath string, f limitedFunc) (interface{}, error) {
-	w := c.getSemaphoreForRepoPath(repoPath, perRepoConcurrencyLimit)
-	err := w.Acquire(ctx, 1)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer w.Release(1)
-
-	c.attemptCollect(repoPath, w, perRepoConcurrencyLimit)
-
-	i, err := f()
-
-	return i, err
+// LimiterMiddleware contains rate limiter state
+type LimiterMiddleware struct {
+	limiter ConcurrencyLimiter
 }
 
 func getRepoPath(ctx context.Context) string {
@@ -76,22 +26,29 @@ func getRepoPath(ctx context.Context) string {
 	return ""
 }
 
+func getMaxConcurrency(fullMethod string, repoPath string) int64 {
+	// TODO: lookup the max concurrency here
+	return 100
+}
+
 // UnaryInterceptor returns a Unary Interceptor
-func (c *Limiter) UnaryInterceptor() grpc.UnaryServerInterceptor {
+func (c *LimiterMiddleware) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		repoPath := getRepoPath(ctx)
 		if repoPath == "" {
 			return handler(ctx, req)
 		}
 
-		return c.limit(ctx, repoPath, func() (interface{}, error) {
+		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+
+		return c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
 			return handler(ctx, req)
 		})
 	}
 }
 
 // StreamInterceptor returns a Stream Interceptor
-func (c *Limiter) StreamInterceptor() grpc.StreamServerInterceptor {
+func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ctx := stream.Context()
 
@@ -100,7 +57,9 @@ func (c *Limiter) StreamInterceptor() grpc.StreamServerInterceptor {
 			return handler(srv, stream)
 		}
 
-		_, err := c.limit(ctx, repoPath, func() (interface{}, error) {
+		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+
+		_, err := c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
 			err := handler(srv, stream)
 			return nil, err
 		})
@@ -110,6 +69,6 @@ func (c *Limiter) StreamInterceptor() grpc.StreamServerInterceptor {
 }
 
 // New creates a new rate limiter
-func New() Limiter {
-	return Limiter{v: make(map[string]*semaphore.Weighted)}
+func New() LimiterMiddleware {
+	return LimiterMiddleware{limiter: NewLimiter()}
 }
