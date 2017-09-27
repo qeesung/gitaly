@@ -16,7 +16,7 @@ import (
 )
 
 func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error {
-	req, err := stream.Recv() // First request contains only Repository and GlId
+	req, err := stream.Recv() // First request contains only Repository, GlId, and GlUsername
 	if err != nil {
 		return err
 	}
@@ -24,6 +24,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
 		"GlID":         req.GlId,
 		"GlRepository": req.GlRepository,
+		"GlUsername":   req.GlUsername,
 	}).Debug("SSHReceivePack")
 
 	if err = validateFirstReceivePackRequest(req); err != nil {
@@ -42,6 +43,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	})
 	env := []string{
 		fmt.Sprintf("GL_ID=%s", req.GlId),
+		fmt.Sprintf("GL_USERNAME=%s", req.GlUsername),
 		"GL_PROTOCOL=ssh",
 	}
 	if req.GlRepository != "" {

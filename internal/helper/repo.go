@@ -1,12 +1,10 @@
 package helper
 
 import (
-	"context"
 	"os"
 	"path"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -91,18 +89,4 @@ func IsGitDirectory(dir string) bool {
 	}
 
 	return true
-}
-
-// IsValidRef checks if a ref in a repo is valid
-func IsValidRef(ctx context.Context, path, ref string) bool {
-	if path == "" || ref == "" {
-		return false
-	}
-
-	cmd, err := command.Git(ctx, "--git-dir", path, "log", "--max-count=1", ref)
-	if err != nil {
-		return false
-	}
-
-	return cmd.Wait() == nil
 }

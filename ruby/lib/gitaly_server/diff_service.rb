@@ -1,7 +1,7 @@
 module GitalyServer
   class DiffService < Gitaly::DiffService::Service
     def commit_patch(request, _call)
-      GitalyServer::Utils.safe_call_wrapper do                
+      GitalyServer::Utils.safe_call_wrapper do
         repo = Gitlab::Git::Repository.from_call(_call)
         commit = Gitlab::Git::Commit.find(repo, request.revision)
 

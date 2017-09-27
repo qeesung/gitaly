@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -16,12 +15,8 @@ func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService
 	// Use Gitaly's default branch lookup function because that is already
 	// migrated.
 	if revision := req.Revision; len(revision) == 0 {
-		repoPath, err := helper.GetRepoPath(req.Repository)
-		if err != nil {
-			return err
-		}
-
-		req.Revision, err = defaultBranchName(ctx, repoPath)
+		var err error
+		req.Revision, err = defaultBranchName(ctx, req.Repository)
 		if err != nil {
 			return grpc.Errorf(codes.Internal, "defaultBranchName: %v", err)
 		}

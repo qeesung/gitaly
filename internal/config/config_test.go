@@ -297,6 +297,7 @@ func TestValidateShellPath(t *testing.T) {
 
 	tmpDir, err := ioutil.TempDir("", "gitaly-tests-")
 	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(path.Join(tmpDir, "bin"), 0755))
 	tmpFile := path.Join(tmpDir, "my-file")
 	defer os.RemoveAll(tmpDir)
 	fp, err := os.Create(tmpFile)
@@ -311,7 +312,7 @@ func TestValidateShellPath(t *testing.T) {
 		{
 			desc:      "When no Shell Path set",
 			path:      "",
-			shouldErr: false,
+			shouldErr: true,
 		},
 		{
 			desc:      "When Shell Path set to non-existing path",
@@ -340,5 +341,42 @@ func TestValidateShellPath(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
+	}
+}
+
+func TestValidateRuby(t *testing.T) {
+	defer func(oldRuby Ruby) {
+		Config.Ruby = oldRuby
+	}(Config.Ruby)
+
+	tmpDir, err := ioutil.TempDir("", "gitaly-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := path.Join(tmpDir, "file")
+	require.NoError(t, ioutil.WriteFile(tmpFile, nil, 0644))
+
+	testCases := []struct {
+		dir  string
+		ok   bool
+		desc string
+	}{
+		{dir: "", desc: "empty"},
+		{dir: "/does/not/exist", desc: "does not exist"},
+		{dir: tmpFile, desc: "exists but is not a directory"},
+		{dir: tmpDir, ok: true, desc: "ok"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			Config.Ruby = Ruby{Dir: tc.dir}
+
+			err := validateRuby()
+			if tc.ok {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -83,19 +81,10 @@ func GitPath() string {
 	return config.Config.Git.BinPath
 }
 
-// Git creates a git Command with the given args
-func Git(ctx context.Context, args ...string) (*Command, error) {
-	return New(ctx, exec.Command(GitPath(), args...), nil, nil, nil)
-}
-
 // GitlabShell creates a gitlab-shell Command with the given args
 func GitlabShell(ctx context.Context, envs []string, executable string, args ...string) (*Command, error) {
-	shellPath, ok := config.GitlabShellPath()
-	if !ok {
-		return nil, fmt.Errorf("path to gitlab-shell not set")
-	}
 	// Don't allow any git-command to ask (interactively) for credentials
-	return New(ctx, exec.Command(path.Join(shellPath, executable), args...), nil, nil, nil, envs...)
+	return New(ctx, exec.Command(path.Join(config.GitlabShellBinPath(), executable), args...), nil, nil, nil, envs...)
 }
 
 var wg = &sync.WaitGroup{}
@@ -131,14 +120,6 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 
 	// Export env vars
 	cmd.Env = exportEnvironment(env)
-
-	if dir, ok := objectdirhandler.ObjectDir(ctx); ok {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", dir))
-	}
-	if dirs, ok := objectdirhandler.AltObjectDirs(ctx); ok {
-		dirsList := strings.Join(dirs, ":")
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_ALTERNATE_OBJECT_DIRECTORIES=%s", dirsList))
-	}
 
 	// Start the command in its own process group (nice for signalling)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

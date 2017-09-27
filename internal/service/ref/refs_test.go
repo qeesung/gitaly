@@ -199,7 +199,7 @@ func TestInvalidRepoFindAllTagNamesRequest(t *testing.T) {
 func TestHeadReference(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	headRef, err := headReference(ctx, testRepoPath)
+	headRef, err := headReference(ctx, testRepo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestHeadReferenceWithNonExistingHead(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	headRef, err := headReference(ctx, testRepoPath)
+	headRef, err := headReference(ctx, testRepo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,47 +236,47 @@ func TestDefaultBranchName(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		findBranchNames func(context.Context, string) ([][]byte, error)
-		headReference   func(context.Context, string) ([]byte, error)
+		findBranchNames func(context.Context, *pb.Repository) ([][]byte, error)
+		headReference   func(context.Context, *pb.Repository) ([]byte, error)
 		expected        []byte
 	}{
 		{
 			desc:     "Get first branch when only one branch exists",
 			expected: []byte("refs/heads/foo"),
-			findBranchNames: func(context.Context, string) ([][]byte, error) {
+			findBranchNames: func(context.Context, *pb.Repository) ([][]byte, error) {
 				return [][]byte{[]byte("refs/heads/foo")}, nil
 			},
-			headReference: func(context.Context, string) ([]byte, error) { return nil, nil },
+			headReference: func(context.Context, *pb.Repository) ([]byte, error) { return nil, nil },
 		},
 		{
 			desc:            "Get empy ref if no branches exists",
 			expected:        nil,
-			findBranchNames: func(context.Context, string) ([][]byte, error) { return [][]byte{}, nil },
-			headReference:   func(context.Context, string) ([]byte, error) { return nil, nil },
+			findBranchNames: func(context.Context, *pb.Repository) ([][]byte, error) { return [][]byte{}, nil },
+			headReference:   func(context.Context, *pb.Repository) ([]byte, error) { return nil, nil },
 		},
 		{
 			desc:     "Get the name of the head reference when more than one branch exists",
 			expected: []byte("refs/heads/bar"),
-			findBranchNames: func(context.Context, string) ([][]byte, error) {
+			findBranchNames: func(context.Context, *pb.Repository) ([][]byte, error) {
 				return [][]byte{[]byte("refs/heads/foo"), []byte("refs/heads/bar")}, nil
 			},
-			headReference: func(context.Context, string) ([]byte, error) { return []byte("refs/heads/bar"), nil },
+			headReference: func(context.Context, *pb.Repository) ([]byte, error) { return []byte("refs/heads/bar"), nil },
 		},
 		{
 			desc:     "Get `ref/heads/master` when several branches exist",
 			expected: []byte("refs/heads/master"),
-			findBranchNames: func(context.Context, string) ([][]byte, error) {
+			findBranchNames: func(context.Context, *pb.Repository) ([][]byte, error) {
 				return [][]byte{[]byte("refs/heads/foo"), []byte("refs/heads/master"), []byte("refs/heads/bar")}, nil
 			},
-			headReference: func(context.Context, string) ([]byte, error) { return nil, nil },
+			headReference: func(context.Context, *pb.Repository) ([]byte, error) { return nil, nil },
 		},
 		{
 			desc:     "Get the name of the first branch when several branches exists and no other conditions are met",
 			expected: []byte("refs/heads/foo"),
-			findBranchNames: func(context.Context, string) ([][]byte, error) {
+			findBranchNames: func(context.Context, *pb.Repository) ([][]byte, error) {
 				return [][]byte{[]byte("refs/heads/foo"), []byte("refs/heads/bar"), []byte("refs/heads/baz")}, nil
 			},
-			headReference: func(context.Context, string) ([]byte, error) { return nil, nil },
+			headReference: func(context.Context, *pb.Repository) ([]byte, error) { return nil, nil },
 		},
 	}
 
@@ -286,7 +286,7 @@ func TestDefaultBranchName(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		defaultBranch, err := DefaultBranchName(ctx, "")
+		defaultBranch, err := DefaultBranchName(ctx, testRepo)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -422,7 +422,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var receivedTags []*pb.FindAllTagsResponse_Tag
+	var receivedTags []*pb.Tag
 	for {
 		r, err := c.Recv()
 		if err == io.EOF {
@@ -434,7 +434,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		receivedTags = append(receivedTags, r.GetTags()...)
 	}
 
-	expectedTags := []*pb.FindAllTagsResponse_Tag{
+	expectedTags := []*pb.Tag{
 		{
 			Name:         []byte("v1.0.0"),
 			Id:           "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",

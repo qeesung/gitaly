@@ -43,7 +43,7 @@ var (
 )
 
 func TestListFilesSuccess(t *testing.T) {
-	defaultBranchName = func(ctx context.Context, _ string) ([]byte, error) {
+	defaultBranchName = func(ctx context.Context, _ *pb.Repository) ([]byte, error) {
 		return []byte("test-do-not-touch"), nil
 	}
 	defer func() {

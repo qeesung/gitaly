@@ -9,12 +9,16 @@ export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
+ASSEMBLY_ROOT := $(TARGET_DIR)/assembly
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
 VERSION_PREFIXED = $(shell git describe)
 VERSION = $(VERSION_PREFIXED:v%=%)
 GO_LDFLAGS = -ldflags '-X $(PKG)/internal/version.version=$(VERSION) -X $(PKG)/internal/version.buildtime=$(BUILDTIME)'
+
+unexport GOROOT
+unexport GOBIN
 
 export GOPATH := $(TARGET_DIR)
 export PATH := $(GOPATH)/bin:$(PATH)
@@ -55,10 +59,20 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	cd ruby && bundle install
 	touch $@
 
+# TODO: confirm what references this target? Omnibus? Source installs?
 .PHONY: install
 install: build
 	mkdir -p $(INSTALL_DEST_DIR)
 	cd $(BIN_BUILD_DIR) && install $(COMMANDS) $(INSTALL_DEST_DIR)
+
+# Assembles all runtime components into a directory
+# Used by the GDK: run `make assemble ASSEMBLY_ROOT=.../gitaly`
+.PHONY: assemble
+assemble: build
+	rm -rf $(ASSEMBLY_ROOT)/bin $(ASSEMBLY_ROOT)/ruby
+	mkdir -p $(ASSEMBLY_ROOT)/bin
+	cp -r ruby $(ASSEMBLY_ROOT)/ruby
+	install $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(ASSEMBLY_ROOT)/bin
 
 .PHONY: verify
 verify: lint check-formatting megacheck govendor-status notice-up-to-date

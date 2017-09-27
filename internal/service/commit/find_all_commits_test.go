@@ -24,7 +24,7 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 		_findBranchNamesFunc = ref.FindBranchNames
 	}()
 
-	_findBranchNamesFunc = func(ctx context.Context, repoPath string) ([][]byte, error) {
+	_findBranchNamesFunc = func(ctx context.Context, repo *pb.Repository) ([][]byte, error) {
 		return [][]byte{
 			[]byte("few-commits"),
 			[]byte("two-commits"),

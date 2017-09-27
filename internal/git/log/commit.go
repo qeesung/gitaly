@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
@@ -54,16 +54,9 @@ func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string,
 		"Revisions": revisions,
 	}).Debug("GitLog")
 
-	repoPath, err := helper.GetRepoPath(repo)
-	if err != nil {
-		return nil, err
-	}
-
 	formatFlag := "--pretty=format:" + strings.Join(commitLogFormatFields, fieldDelimiterGitFormatString)
 
 	args := []string{
-		"--git-dir",
-		repoPath,
 		"log",
 		"-z", // use 0x00 as the entry terminator (instead of \n)
 		formatFlag,
@@ -73,7 +66,7 @@ func GitLogCommand(ctx context.Context, repo *pb.Repository, revisions []string,
 	args = append(args, "--")
 	args = append(args, paths...)
 
-	cmd, err := command.Git(ctx, args...)
+	cmd, err := git.Command(ctx, repo, args...)
 	if err != nil {
 		return nil, err
 	}

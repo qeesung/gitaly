@@ -34,10 +34,6 @@ func TestSetHeaders(t *testing.T) {
 			errType: codes.InvalidArgument,
 		},
 		{
-			repo:    &pb.Repository{StorageName: testRepo.GetStorageName(), RelativePath: "bar.git"},
-			errType: codes.NotFound,
-		},
-		{
 			repo:    testRepo,
 			errType: codes.OK,
 		},

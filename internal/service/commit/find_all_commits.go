@@ -3,7 +3,6 @@ package commit
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -40,12 +39,7 @@ func (s *server) FindAllCommits(in *pb.FindAllCommitsRequest, stream pb.CommitSe
 
 	var revisions []string
 	if len(in.GetRevision()) == 0 {
-		repoPath, err := helper.GetRepoPath(in.GetRepository())
-		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
-		}
-
-		branchNames, err := _findBranchNamesFunc(stream.Context(), repoPath)
+		branchNames, err := _findBranchNamesFunc(stream.Context(), in.Repository)
 		if err != nil {
 			return grpc.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
 		}

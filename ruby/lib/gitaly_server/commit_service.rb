@@ -3,7 +3,7 @@ module GitalyServer
     include Utils
 
     def commit_stats(request, _call)
-      GitalyServer::Utils.safe_call_wrapper do        
+      GitalyServer::Utils.safe_call_wrapper do
         repo = Gitlab::Git::Repository.from_call(_call)
         revision = request.revision unless request.revision.empty?
 
@@ -14,14 +14,14 @@ module GitalyServer
         # expect this to actually happen, just guarding against future code change
         raise GRPC::Internal.new("commit not found for revision '#{revision}'") unless commit
 
-        stats = Gitlab::Git::CommitStats.new(commit)
+        stats = Gitlab::Git::CommitStats.new(repo, commit)
 
         Gitaly::CommitStatsResponse.new(oid: stats.id, additions: stats.additions, deletions: stats.deletions)
       end
     end
 
     def find_commits(request, _call)
-      GitalyServer::Utils.safe_call_wrapper do                
+      GitalyServer::Utils.safe_call_wrapper do
         repository = Gitlab::Git::Repository.from_call(_call)
         options = {
           ref: request.revision,

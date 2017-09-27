@@ -8,12 +8,13 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsUploadPackServer) error {
@@ -40,8 +41,11 @@ func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w 
 		return err
 	}
 
-	cmd, err := command.Git(ctx, service, "--stateless-rpc", "--advertise-refs", repoPath)
+	cmd, err := git.Command(ctx, repo, service, "--stateless-rpc", "--advertise-refs", repoPath)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
 		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 

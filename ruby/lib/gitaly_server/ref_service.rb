@@ -46,7 +46,7 @@ module GitalyServer
           repo.delete_branch(branch_name)
 
           Gitaly::DeleteBranchResponse.new
-        rescue Rugged::ReferenceError => e
+        rescue Gitlab::Git::Repository::DeleteBranchError => e
           raise GRPC::Internal.new(e.to_s)
         end
       end
@@ -78,11 +78,11 @@ module GitalyServer
               rugged_commit = gitlab_tag.dereferenced_target&.raw_commit
               gitaly_commit = gitaly_commit_from_rugged(rugged_commit) if rugged_commit
 
-              Gitaly::FindAllTagsResponse::Tag.new(
+              Gitaly::Tag.new(
                 name: gitlab_tag.name.b,
                 id: gitlab_tag.target,
                 message: gitlab_tag.message.to_s.b,
-                target_commit: gitaly_commit
+                target_commit: gitaly_commit,
               )
             end
 

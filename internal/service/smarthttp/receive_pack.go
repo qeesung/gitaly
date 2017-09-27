@@ -24,6 +24,7 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
 		"GlID":         req.GlId,
 		"GlRepository": req.GlRepository,
+		"GlUsername":   req.GlUsername,
 	}).Debug("PostReceivePack")
 
 	if err := validateReceivePackRequest(req); err != nil {
@@ -43,6 +44,9 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	}
 	if req.GlRepository != "" {
 		env = append(env, fmt.Sprintf("GL_REPOSITORY=%s", req.GlRepository))
+	}
+	if req.GlUsername != "" {
+		env = append(env, fmt.Sprintf("GL_USERNAME=%s", req.GlUsername))
 	}
 	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {
