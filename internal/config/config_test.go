@@ -19,7 +19,7 @@ func configFileReader(content string) io.Reader {
 
 func TestLoadClearPrevConfig(t *testing.T) {
 	Config = config{SocketPath: "/tmp"}
-	err := Load(nil)
+	err := Load(&bytes.Buffer{})
 	assert.NoError(t, err)
 
 	assert.Empty(t, Config.SocketPath)
@@ -144,7 +144,7 @@ func TestLoadOnlyEnvironment(t *testing.T) {
 	os.Setenv("GITALY_LISTEN_ADDR", ":8081")
 	os.Setenv("GITALY_PROMETHEUS_LISTEN_ADDR", ":9237")
 
-	err := Load(nil)
+	err := Load(&bytes.Buffer{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, ":9237", Config.PrometheusListenAddr)
