@@ -23,13 +23,13 @@ module GitalyServer
           )
         rescue Rugged::ReferenceError => e
           status = case e.to_s
-                  when /'refs\/heads\/#{branch_name}' is not valid/
-                    :ERR_INVALID
-                  when /a reference with that name already exists/
-                    :ERR_EXISTS
-                  else
-                    :ERR_INVALID_START_POINT
-                  end
+                   when /'refs\/heads\/#{branch_name}' is not valid/
+                     :ERR_INVALID
+                   when /a reference with that name already exists/
+                     :ERR_EXISTS
+                   else
+                     :ERR_INVALID_START_POINT
+                   end
 
           Gitaly::CreateBranchResponse.new(status: status)
         end
