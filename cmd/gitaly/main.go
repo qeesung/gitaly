@@ -110,6 +110,7 @@ func main() {
 	config.ConfigureLogging()
 	config.ConfigureSentry(version.GetVersion())
 	config.ConfigurePrometheus()
+	config.ConfigureConcurrencyLimits()
 
 	var listeners []net.Listener
 

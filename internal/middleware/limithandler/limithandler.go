@@ -13,6 +13,8 @@ type LimiterMiddleware struct {
 	limiter ConcurrencyLimiter
 }
 
+var maxConcurrencyPerRepoPerRPC map[string]int64
+
 func getRepoPath(ctx context.Context) string {
 	tags := grpc_ctxtags.Extract(ctx)
 	ctxValue := tags.Values()["grpc.request.repoPath"]
@@ -29,8 +31,7 @@ func getRepoPath(ctx context.Context) string {
 }
 
 func getMaxConcurrency(fullMethod string, repoPath string) int64 {
-	// TODO: lookup the max concurrency here
-	return 100
+	return maxConcurrencyPerRepoPerRPC[fullMethod]
 }
 
 // UnaryInterceptor returns a Unary Interceptor
@@ -42,6 +43,10 @@ func (c *LimiterMiddleware) UnaryInterceptor() grpc.UnaryServerInterceptor {
 		}
 
 		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+		if maxConcurrency <= 0 {
+			// No concurrency limiting
+			return handler(ctx, req)
+		}
 		start := time.Now()
 
 		return c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
@@ -63,6 +68,11 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		maxConcurrency := getMaxConcurrency(info.FullMethod, repoPath)
+		if maxConcurrency <= 0 {
+			// No concurrency limiting
+			return handler(srv, stream)
+		}
+
 		start := time.Now()
 
 		_, err := c.limiter.Limit(ctx, repoPath, maxConcurrency, func() (interface{}, error) {
@@ -79,4 +89,9 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 // New creates a new rate limiter
 func New() LimiterMiddleware {
 	return LimiterMiddleware{limiter: NewLimiter()}
+}
+
+// SetMaxRepoConcurrency Configures the max concurrency per repo per RPC
+func SetMaxRepoConcurrency(v map[string]int64) {
+	maxConcurrencyPerRepoPerRPC = v
 }
