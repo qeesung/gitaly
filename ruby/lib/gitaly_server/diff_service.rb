@@ -2,9 +2,9 @@ module GitalyServer
   class DiffService < Gitaly::DiffService::Service
     include Utils
 
-    def commit_patch(request, _call)
+    def commit_patch(request, call)
       bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_call(_call)
+        repo = Gitlab::Git::Repository.from_call(call)
         commit = Gitlab::Git::Commit.find(repo, request.revision)
 
         Enumerator.new do |y|

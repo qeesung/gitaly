@@ -61,7 +61,7 @@ module GitalyServer
         rugged_branch = repo.find_branch(branch_name)
         gitaly_branch = Gitaly::Branch.new(
           name: rugged_branch.name.b,
-          target_commit: gitaly_commit_from_rugged(rugged_branch.dereferenced_target.raw_commit),
+          target_commit: gitaly_commit_from_rugged(rugged_branch.dereferenced_target.raw_commit)
         ) unless rugged_branch.nil?
 
         Gitaly::FindBranchResponse.new(branch: gitaly_branch)
@@ -82,7 +82,7 @@ module GitalyServer
                 name: gitlab_tag.name.b,
                 id: gitlab_tag.target,
                 message: gitlab_tag.message.to_s.b,
-                target_commit: gitaly_commit,
+                target_commit: gitaly_commit
               )
             end
 

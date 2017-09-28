@@ -2,9 +2,9 @@ module GitalyServer
   class CommitService < Gitaly::CommitService::Service
     include Utils
 
-    def commit_stats(request, _call)
+    def commit_stats(request, call)
       bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_call(_call)
+        repo = Gitlab::Git::Repository.from_call(call)
         revision = request.revision unless request.revision.empty?
 
         commit = Gitlab::Git::Commit.find(repo, revision)
@@ -20,16 +20,16 @@ module GitalyServer
       end
     end
 
-    def find_commits(request, _call)
+    def find_commits(request, call)
       bridge_exceptions do
-        repository = Gitlab::Git::Repository.from_call(_call)
+        repository = Gitlab::Git::Repository.from_call(call)
         options = {
           ref: request.revision,
           limit: request.limit,
           follow: request.follow,
           skip_merges: request.skip_merges,
           disable_walk: request.disable_walk,
-          offset: request.offset,
+          offset: request.offset
         }
         options[:path] = request.paths unless request.paths.empty?
 
