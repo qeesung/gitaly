@@ -2,7 +2,7 @@
 
 ## Gitaly Version 1.0
 
-_Timeframe_: around the end of 2017
+_Timeframe_: Q4 2017
 
 **GitLab.com running with 100% of Git operations going through Gitaly**: no rugged operations or git process spawns from the Ruby monolith. NFS operations/sec to git file servers down to zero.
 
