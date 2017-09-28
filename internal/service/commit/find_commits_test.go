@@ -5,6 +5,8 @@ import (
 	"io"
 	"testing"
 
+	"google.golang.org/grpc/codes"
+
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -212,6 +214,45 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 			for i, id := range tc.ids {
 				require.Equal(t, id, ids[i])
 			}
+		})
+	}
+}
+
+func TestFailureFindCommitsRequest(t *testing.T) {
+	server := startTestServices(t)
+	defer server.Stop()
+
+	client, conn := newCommitServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testCases := []struct {
+		desc    string
+		request *pb.FindCommitsRequest
+		code    codes.Code
+	}{
+		{
+			desc: "empty path string",
+			request: &pb.FindCommitsRequest{
+				Repository: testRepo,
+				Paths:      [][]byte{[]byte("")},
+			},
+			code: codes.InvalidArgument,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			stream, err := client.FindCommits(ctx, tc.request)
+			require.NoError(t, err)
+
+			for err == nil {
+				_, err = stream.Recv()
+			}
+
+			testhelper.AssertGrpcError(t, err, tc.code, "")
 		})
 	}
 }

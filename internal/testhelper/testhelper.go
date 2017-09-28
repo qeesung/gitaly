@@ -82,7 +82,11 @@ func testRepoValid(repo *pb.Repository) bool {
 // via the `Repository` returned from this function.
 func TestRepository() *pb.Repository {
 	configureTestStorage()
-	repo := &pb.Repository{StorageName: "default", RelativePath: TestRelativePath}
+	repo := &pb.Repository{
+		StorageName:  "default",
+		RelativePath: TestRelativePath,
+		GlRepository: "project-1",
+	}
 
 	if !testRepoValid(repo) {
 		log.Fatalf("Test repo not found, did you run `make prepare-tests`?")

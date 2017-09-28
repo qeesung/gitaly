@@ -7,9 +7,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 )
@@ -19,24 +20,32 @@ func (s *server) ListFiles(in *pb.ListFilesRequest, stream pb.CommitService_List
 		"Revision": in.GetRevision(),
 	}).Debug("ListFiles")
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
+	repo := in.Repository
+	if _, err := helper.GetRepoPath(repo); err != nil {
 		return err
 	}
 
 	revision := in.GetRevision()
 	if len(revision) == 0 {
-		revision, err = defaultBranchName(stream.Context(), repoPath)
+		var err error
+
+		revision, err = defaultBranchName(stream.Context(), repo)
 		if err != nil {
+			if _, ok := status.FromError(err); ok {
+				return err
+			}
 			return grpc.Errorf(codes.NotFound, "Revision not found %q", in.GetRevision())
 		}
 	}
-	if !helper.IsValidRef(stream.Context(), repoPath, string(revision)) {
+	if !git.IsValidRef(stream.Context(), repo, string(revision)) {
 		return stream.Send(&pb.ListFilesResponse{})
 	}
 
-	cmd, err := command.Git(stream.Context(), "--git-dir", repoPath, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
+	cmd, err := git.Command(stream.Context(), repo, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
 

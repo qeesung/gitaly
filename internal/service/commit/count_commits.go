@@ -7,8 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (*pb.CountCommitsResponse, error) {
@@ -23,12 +23,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		return nil, grpc.Errorf(codes.InvalidArgument, "CountCommits: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return nil, err
-	}
-
-	cmdArgs := []string{"--git-dir", repoPath, "rev-list", "--count", string(in.GetRevision())}
+	cmdArgs := []string{"rev-list", "--count", string(in.GetRevision())}
 
 	if before := in.GetBefore(); before != nil {
 		cmdArgs = append(cmdArgs, "--before="+timestampToRFC3339(before.Seconds))
@@ -40,8 +35,11 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		cmdArgs = append(cmdArgs, "--", string(path))
 	}
 
-	cmd, err := command.Git(ctx, cmdArgs...)
+	cmd, err := git.Command(ctx, in.Repository, cmdArgs...)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
 		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}
 

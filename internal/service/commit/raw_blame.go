@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -13,6 +12,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBlameServer) error {
@@ -20,17 +20,15 @@ func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBla
 		return grpc.Errorf(codes.InvalidArgument, "RawBlame: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return err
-	}
-
 	ctx := stream.Context()
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
 
-	cmd, err := command.Git(ctx, "--git-dir", repoPath, "blame", "-p", revision, "--", path)
+	cmd, err := git.Command(ctx, in.Repository, "blame", "-p", revision, "--", path)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
 		return grpc.Errorf(codes.Internal, "RawBlame: cmd: %v", err)
 	}
 

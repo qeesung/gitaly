@@ -69,6 +69,12 @@ It has these top-level messages:
 	PostReceiveResponse
 	UserCreateBranchRequest
 	UserCreateBranchResponse
+	UserDeleteBranchRequest
+	UserDeleteBranchResponse
+	UserDeleteTagRequest
+	UserDeleteTagResponse
+	UserCreateTagRequest
+	UserCreateTagResponse
 	FindDefaultBranchNameRequest
 	FindDefaultBranchNameResponse
 	FindAllBranchNamesRequest
@@ -107,11 +113,14 @@ It has these top-level messages:
 	ApplyGitattributesResponse
 	FetchRemoteRequest
 	FetchRemoteResponse
+	CreateRepositoryRequest
+	CreateRepositoryResponse
 	Repository
 	GitCommit
 	CommitAuthor
 	ExitStatus
 	Branch
+	Tag
 	User
 	InfoRefsRequest
 	InfoRefsResponse

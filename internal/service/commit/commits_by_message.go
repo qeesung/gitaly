@@ -3,12 +3,11 @@ package commit
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type commitsByMessageSender struct {
@@ -38,13 +37,11 @@ func (s *server) CommitsByMessage(in *pb.CommitsByMessageRequest, stream pb.Comm
 	if len(revision) == 0 {
 		var err error
 
-		repoPath, err := helper.GetRepoPath(in.GetRepository())
+		revision, err = defaultBranchName(ctx, in.Repository)
 		if err != nil {
-			return err
-		}
-
-		revision, err = defaultBranchName(ctx, repoPath)
-		if err != nil {
+			if _, ok := status.FromError(err); ok {
+				return err
+			}
 			return grpc.Errorf(codes.Internal, "CommitsByMessage: defaultBranchName: %v", err)
 		}
 	}

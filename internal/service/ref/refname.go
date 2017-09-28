@@ -6,12 +6,12 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"golang.org/x/net/context"
 )
 
@@ -19,30 +19,29 @@ import (
 //  If there is more than one such ref there is no guarantee which one is
 //  returned or that the same one is returned on each call.
 func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*pb.FindRefNameResponse, error) {
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return nil, err
-	}
 	if in.CommitId == "" {
 		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty commit sha)")
 	}
 
-	ref, err := findRefName(ctx, repoPath, in.CommitId, string(in.Prefix))
+	ref, err := findRefName(ctx, in.Repository, in.CommitId, string(in.Prefix))
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
 
 	return &pb.FindRefNameResponse{Name: []byte(ref)}, nil
 }
 
-// We assume `path` and `commitID` and `prefix` are non-empty
-func findRefName(ctx context.Context, path, commitID, prefix string) (string, error) {
+// We assume `repo` and `commitID` and `prefix` are non-empty
+func findRefName(ctx context.Context, repo *pb.Repository, commitID, prefix string) (string, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"commitSha": commitID,
 		"prefix":    prefix,
 	}).Debug("findRefName")
 
-	cmd, err := command.Git(ctx, "--git-dir", path, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
+	cmd, err := git.Command(ctx, repo, "for-each-ref", "--format=%(refname)", "--count=1", prefix, "--contains", commitID)
 	if err != nil {
 		return "", err
 	}

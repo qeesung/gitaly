@@ -20,17 +20,20 @@ def main(gitaly_dir)
 
       [gitaly-ruby]
       dir = "#{gitaly_dir}/ruby"
+
+      [gitlab-shell]
+      dir = "#{gitaly_dir}"
       CONFIG
-    )
+              )
 
     pid = nil
 
     begin
       start = Time.now
-      pid = spawn(File.join(gitaly_dir, 'gitaly'), 'config.toml', out: '/dev/null')
+      pid = spawn(File.join(gitaly_dir, 'gitaly'), 'config.toml')
       wait_connect
       puts
-      puts Time.now - start
+      puts "\n\nconnection established after #{Time.now - start} seconds\n\n"
     ensure
       if pid
         Process.kill("KILL", pid)

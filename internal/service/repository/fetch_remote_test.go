@@ -112,10 +112,11 @@ func TestFetchRemoteSuccess(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "gitlab-shell.")
 	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(path.Join(dir, "bin"), 0755))
 	defer func(dir string) {
 		os.RemoveAll(dir)
 	}(dir)
-	testhelper.MustRunCommand(t, nil, "go", "build", "-o", path.Join(dir, "gitlab-projects"), "gitlab.com/gitlab-org/gitaly/internal/testhelper/gitlab-projects")
+	testhelper.MustRunCommand(t, nil, "go", "build", "-o", path.Join(dir, "bin", "gitlab-projects"), "gitlab.com/gitlab-org/gitaly/internal/testhelper/gitlab-projects")
 
 	// We need to know about gitlab-shell...
 	defer func(oldPath string) {
@@ -152,11 +153,10 @@ func TestFetchRemoteFailure(t *testing.T) {
 	client, _ := newRepositoryClient(t)
 
 	tests := []struct {
-		desc      string
-		req       *pb.FetchRemoteRequest
-		shellPath string
-		code      codes.Code
-		err       string
+		desc string
+		req  *pb.FetchRemoteRequest
+		code codes.Code
+		err  string
 	}{
 		{
 			desc: "invalid storage",
@@ -164,25 +164,12 @@ func TestFetchRemoteFailure(t *testing.T) {
 			code: codes.NotFound,
 			err:  "Storage not found",
 		},
-		{
-			desc: "no shell-path",
-			req:  &pb.FetchRemoteRequest{Repository: testRepo, Remote: "origin"},
-			code: codes.Internal,
-			err:  "gitlab-shell",
-		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
-
-			if len(tc.shellPath) == 0 {
-				defer func(oldPath string) {
-					config.Config.GitlabShell.Dir = oldPath
-				}(config.Config.GitlabShell.Dir)
-				config.Config.GitlabShell.Dir = ""
-			}
 
 			resp, err := client.FetchRemote(ctx, tc.req)
 			testhelper.AssertGrpcError(t, err, tc.code, tc.err)

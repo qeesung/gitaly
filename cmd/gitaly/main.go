@@ -26,39 +26,22 @@ var (
 	flagVersion = flag.Bool("version", false, "Print version and exit")
 )
 
-func loadConfig() {
-	cfgFileName := flag.Arg(0)
-	cfgFile, err := os.Open(cfgFileName)
+func loadConfig(configPath string) error {
+	cfgFile, err := os.Open(configPath)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"filename": cfgFileName,
-			"error":    err,
-		}).Warn("can not open file for reading")
-		return
+		return err
 	}
 	defer cfgFile.Close()
 
 	if err = config.Load(cfgFile); err != nil {
-		log.WithFields(log.Fields{
-			"filename": cfgFileName,
-			"error":    err,
-		}).Warn("can not load configuration")
+		return err
 	}
 
-	if err := linguist.LoadColors(); err != nil {
-		log.WithFields(log.Fields{
-			"ruby.dir": config.Config.Ruby.Dir,
-			"error":    err,
-		}).Warn("can not load linguist languages")
-	}
-}
-
-func validateConfig() error {
-	if config.Config.SocketPath == "" && config.Config.ListenAddr == "" {
-		return fmt.Errorf("Must set $GITALY_SOCKET_PATH or $GITALY_LISTEN_ADDR")
+	if err := config.Validate(); err != nil {
+		return err
 	}
 
-	return config.Validate()
+	return linguist.LoadColors()
 }
 
 // registerServerVersionPromGauge registers a label with the current server version
@@ -101,10 +84,9 @@ func main() {
 	log.WithField("version", version.GetVersionString()).Info("Starting Gitaly")
 	registerServerVersionPromGauge()
 
-	loadConfig()
-
-	if err := validateConfig(); err != nil {
-		log.Fatal(err)
+	configPath := flag.Arg(0)
+	if err := loadConfig(configPath); err != nil {
+		log.WithError(err).WithField("config_path", configPath).Fatal("load config")
 	}
 
 	config.ConfigureLogging()

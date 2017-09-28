@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
@@ -19,25 +19,26 @@ import (
 )
 
 func (*server) CommitLanguages(ctx context.Context, req *pb.CommitLanguagesRequest) (*pb.CommitLanguagesResponse, error) {
-	repoPath, err := helper.GetRepoPath(req.Repository)
-	if err != nil {
-		return nil, err
-	}
+	repo := req.Repository
 
 	revision := string(req.Revision)
 	if revision == "" {
-		defaultBranch, err := ref.DefaultBranchName(ctx, repoPath)
+		defaultBranch, err := ref.DefaultBranchName(ctx, req.Repository)
 		if err != nil {
 			return nil, err
 		}
 		revision = string(defaultBranch)
 	}
 
-	commitID, err := lookupRevision(ctx, repoPath, revision)
+	commitID, err := lookupRevision(ctx, repo, revision)
 	if err != nil {
 		return nil, err
 	}
 
+	repoPath, err := helper.GetRepoPath(repo)
+	if err != nil {
+		return nil, err
+	}
 	stats, err := linguist.Stats(ctx, repoPath, commitID)
 	if err != nil {
 		return nil, err
@@ -77,8 +78,8 @@ func (ls languageSorter) Len() int           { return len(ls) }
 func (ls languageSorter) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
 func (ls languageSorter) Less(i, j int) bool { return ls[i].Share > ls[j].Share }
 
-func lookupRevision(ctx context.Context, repoPath string, revision string) (string, error) {
-	revParse, err := command.Git(ctx, "--git-dir", repoPath, "rev-parse", revision)
+func lookupRevision(ctx context.Context, repo *pb.Repository, revision string) (string, error) {
+	revParse, err := git.Command(ctx, repo, "rev-parse", revision)
 	if err != nil {
 		return "", err
 	}

@@ -2,12 +2,40 @@
 
 UNRELEASED
 
+- Fix path bug in CommitService::FindCommits
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/364
+- Fail harder during startup, fix version string
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/379
+
+v0.42.0
+
+- Implement UserCreateTag RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/374
+- Return pre-receive errors in UserDeleteTag response
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/378
+- Check if we don't overwrite a namespace moved to gitaly
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/375
+
+v0.41.0
+
 - Wait for monitor goroutine to return during supervisor shutdown
   https://gitlab.com/gitlab-org/gitaly/merge_requests/341
 - Use grpc 1.6.0 and update all the things
   https://gitlab.com/gitlab-org/gitaly/merge_requests/354
 - Update vendored gitlab_git to 4c6c105909ea610eac7
   https://gitlab.com/gitlab-org/gitaly/merge_requests/360
+- Implement UserDeleteTag RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/366
+- Implement RepositoryService::CreateRepository
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/361
+- Fix path bug for gitlab-shell. gitlab-shell path is now required
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/365
+- Remove support for legacy services not ending in 'Service'
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/363
+- Implement RepositoryService.UserCreateBranch
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/344
+- Make gitaly-ruby config mandatory
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/373
 
 v0.40.0
 - Use context cancellation instead of command.Close

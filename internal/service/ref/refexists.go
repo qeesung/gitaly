@@ -7,22 +7,18 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"golang.org/x/net/context"
 )
 
 // RefExists returns true if the given reference exists. The ref must start with the string `ref/`
 func (server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefExistsResponse, error) {
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return nil, err
-	}
-
 	ref := string(in.Ref)
-	exists, err := refExists(ctx, repoPath, ref)
+	exists, err := refExists(ctx, in.Repository, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +26,7 @@ func (server) RefExists(ctx context.Context, in *pb.RefExistsRequest) (*pb.RefEx
 	return &pb.RefExistsResponse{Value: exists}, nil
 }
 
-func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
+func refExists(ctx context.Context, repo *pb.Repository, ref string) (bool, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"ref": ref,
 	}).Debug("refExists")
@@ -39,8 +35,11 @@ func refExists(ctx context.Context, repoPath string, ref string) (bool, error) {
 		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
 	}
 
-	cmd, err := command.Git(ctx, "--git-dir", repoPath, "show-ref", "--verify", "--quiet", ref)
+	cmd, err := git.Command(ctx, repo, "show-ref", "--verify", "--quiet", ref)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return false, err
+		}
 		return false, grpc.Errorf(codes.Internal, err.Error())
 	}
 

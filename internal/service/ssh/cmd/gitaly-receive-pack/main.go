@@ -35,6 +35,7 @@ func main() {
 		},
 		GlRepository: os.Getenv("GL_REPOSITORY"),
 		GlId:         os.Getenv("GL_ID"),
+		GlUsername:   os.Getenv("GL_USERNAME"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

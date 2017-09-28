@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	repoPathHeader = "gitaly-repo-path"
+	repoPathHeader     = "gitaly-repo-path"
+	glRepositoryHeader = "gitaly-gl-repository"
 )
 
 var (
@@ -97,10 +98,16 @@ func (s *Server) Stop() {
 func Start() (*Server, error) {
 	lazyInit.Do(prepareSocketPath)
 
+	cfg := config.Config
+	env := []string{
+		"GITALY_RUBY_GIT_BIN_PATH=" + command.GitPath(),
+		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize),
+		"GITALY_RUBY_GITLAB_SHELL_PATH=" + cfg.GitlabShell.Dir,
+	}
+
 	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
-	env := append(os.Environ(), "GITALY_RUBY_GIT_BIN_PATH="+command.GitPath(),
-		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
-	p, err := supervisor.New("gitaly-ruby", env, args, config.Config.Ruby.Dir)
+
+	p, err := supervisor.New("gitaly-ruby", append(os.Environ(), env...), args, cfg.Ruby.Dir)
 	return &Server{Process: p}, err
 }
 
@@ -126,6 +133,22 @@ func (s *Server) DiffServiceClient(ctx context.Context) (pb.DiffServiceClient, e
 func (s *Server) RefServiceClient(ctx context.Context) (pb.RefServiceClient, error) {
 	conn, err := s.getConnection(ctx)
 	return pb.NewRefServiceClient(conn), err
+}
+
+// OperationServiceClient returns a OperationServiceClient instance that is
+// configured to connect to the running Ruby server. This assumes Start()
+// has been called already.
+func (s *Server) OperationServiceClient(ctx context.Context) (pb.OperationServiceClient, error) {
+	conn, err := s.getConnection(ctx)
+	return pb.NewOperationServiceClient(conn), err
+}
+
+// RepositoryServiceClient returns a RefServiceClient instance that is
+// configured to connect to the running Ruby server. This assumes Start()
+// has been called already.
+func (s *Server) RepositoryServiceClient(ctx context.Context) (pb.RepositoryServiceClient, error) {
+	conn, err := s.getConnection(ctx)
+	return pb.NewRepositoryServiceClient(conn), err
 }
 
 func (s *Server) getConnection(ctx context.Context) (*grpc.ClientConn, error) {
@@ -172,12 +195,13 @@ func dialOptions() []grpc.DialOption {
 
 // SetHeaders adds headers that tell gitaly-ruby the full path to the repository.
 func SetHeaders(ctx context.Context, repo *pb.Repository) (context.Context, error) {
-	repoPath, err := helper.GetRepoPath(repo)
+	repoPath, err := helper.GetPath(repo)
 	if err != nil {
 		return nil, err
 	}
 
-	newCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs(repoPathHeader, repoPath))
+	md := metadata.Pairs(repoPathHeader, repoPath, glRepositoryHeader, repo.GlRepository)
+	newCtx := metadata.NewOutgoingContext(ctx, md)
 	return newCtx, nil
 }
 

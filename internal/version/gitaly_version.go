@@ -9,7 +9,7 @@ var buildtime string
 
 // GetVersionString returns a standard version header
 func GetVersionString() string {
-	return fmt.Sprintf("Gitaly, version %v, built %v\n", version, buildtime)
+	return fmt.Sprintf("Gitaly, version %v, built %v", version, buildtime)
 }
 
 // GetVersion returns the semver compatible version number

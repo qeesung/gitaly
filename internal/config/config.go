@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 
 	log "github.com/sirupsen/logrus"
 
@@ -60,26 +61,29 @@ type Prometheus struct {
 // Load initializes the Config variable from file and the environment.
 //  Environment variables take precedence over the file.
 func Load(file io.Reader) error {
-	var fileErr error
 	Config = config{}
 
-	if file != nil {
-		if _, err := toml.DecodeReader(file, &Config); err != nil {
-			fileErr = fmt.Errorf("decode config: %v", err)
-		}
+	if _, err := toml.DecodeReader(file, &Config); err != nil {
+		return fmt.Errorf("load toml: %v", err)
 	}
 
-	err := envconfig.Process("gitaly", &Config)
-	if err != nil {
-		log.WithError(err).Fatal("process environment variables")
+	if err := envconfig.Process("gitaly", &Config); err != nil {
+		return fmt.Errorf("envconfig: %v", err)
 	}
 
-	return fileErr
+	return nil
 }
 
 // Validate checks the current Config for sanity.
 func Validate() error {
-	for _, err := range []error{validateStorages(), validateToken(), SetGitPath(), validateShell()} {
+	for _, err := range []error{
+		validateListeners(),
+		validateStorages(),
+		validateToken(),
+		SetGitPath(),
+		validateShell(),
+		validateRuby(),
+	} {
 		if err != nil {
 			return err
 		}
@@ -87,48 +91,62 @@ func Validate() error {
 	return nil
 }
 
+func validateListeners() error {
+	if len(Config.SocketPath) == 0 && len(Config.ListenAddr) == 0 {
+		return fmt.Errorf("invalid listener config: at least one of socket_path and listen_addr must be set")
+	}
+	return nil
+}
+
 func validateShell() error {
 	if len(Config.GitlabShell.Dir) == 0 {
-		log.WithField("dir", Config.GitlabShell.Dir).
-			Warn("gitlab-shell.dir not set")
-		return nil
+		return fmt.Errorf("gitlab-shell.dir is not set")
 	}
 
-	if s, err := os.Stat(Config.GitlabShell.Dir); err != nil {
-		log.WithField("dir", Config.GitlabShell.Dir).
-			WithError(err).
-			Warn("gitlab-shell.dir set but not found")
+	return validateIsDirectory(Config.GitlabShell.Dir, "gitlab-shell.dir")
+}
+
+func validateRuby() error {
+	if len(Config.Ruby.Dir) == 0 {
+		return fmt.Errorf("gitaly-ruby.dir is not set")
+	}
+
+	return validateIsDirectory(Config.Ruby.Dir, "gitaly-ruby.dir")
+}
+
+func validateIsDirectory(path, name string) error {
+	s, err := os.Stat(path)
+	if err != nil {
 		return err
-	} else if !s.IsDir() {
-		log.WithField("dir", Config.GitlabShell.Dir).
-			Warn("gitlab-shell.dir set but not a directory")
-		return fmt.Errorf("not a directory: %q", Config.GitlabShell.Dir)
+	}
+	if !s.IsDir() {
+		return fmt.Errorf("not a directory: %q", path)
 	}
 
-	log.WithField("dir", Config.GitlabShell.Dir).
-		Debug("gitlab-shell.dir set")
+	log.WithField("dir", path).
+		Debugf("%s set", name)
 
 	return nil
 }
 
 func validateStorages() error {
 	if len(Config.Storages) == 0 {
-		return fmt.Errorf("config: no storage configurations found. Is your gitaly.config correctly configured? https://gitlab.com/gitlab-org/gitaly/issues/397")
+		return fmt.Errorf("no storage configurations found. Are you using the right format? https://gitlab.com/gitlab-org/gitaly/issues/397")
 	}
 
 	seenNames := make(map[string]bool)
 	for _, st := range Config.Storages {
 		if st.Name == "" {
-			return fmt.Errorf("config: empty storage name in %v", st)
+			return fmt.Errorf("empty storage name in %v", st)
 		}
 
 		if st.Path == "" {
-			return fmt.Errorf("config: empty storage path in %v", st)
+			return fmt.Errorf("empty storage path in %v", st)
 		}
 
 		name := st.Name
 		if seenNames[name] {
-			return fmt.Errorf("config: storage %q is defined more than once", name)
+			return fmt.Errorf("storage %q is defined more than once", name)
 		}
 		seenNames[name] = true
 	}
@@ -168,11 +186,8 @@ func StoragePath(storageName string) (string, bool) {
 	return "", false
 }
 
-// GitlabShellPath returns the full path to gitlab-shell.
+// GitlabShellBinPath returns the full path to gitlab-shell.
 // The second boolean return value indicates if it's found
-func GitlabShellPath() (string, bool) {
-	if len(Config.GitlabShell.Dir) == 0 {
-		return "", false
-	}
-	return Config.GitlabShell.Dir, true
+func GitlabShellBinPath() string {
+	return path.Join(Config.GitlabShell.Dir, "bin")
 }

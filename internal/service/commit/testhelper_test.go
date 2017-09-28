@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/objectdirhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -49,11 +48,7 @@ func testMain(m *testing.M) int {
 }
 
 func startTestServices(t *testing.T) *grpc.Server {
-	server := testhelper.NewTestGrpcServer(
-		t,
-		[]grpc.StreamServerInterceptor{objectdirhandler.Stream},
-		[]grpc.UnaryServerInterceptor{objectdirhandler.Unary},
-	)
+	server := testhelper.NewTestGrpcServer(t, nil, nil)
 
 	if err := os.RemoveAll(serverSocketPath); err != nil {
 		t.Fatal(err)

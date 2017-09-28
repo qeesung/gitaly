@@ -6,10 +6,10 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 )
 
 func (server) RepackFull(ctx context.Context, in *pb.RepackFullRequest) (*pb.RepackFullResponse, error) {
@@ -31,21 +31,19 @@ func repackCommand(ctx context.Context, rpcName string, repo *pb.Repository, bit
 		"WriteBitmaps": bitmap,
 	}).Debug(rpcName)
 
-	repoPath, err := helper.GetRepoPath(repo)
-	if err != nil {
-		return err
-	}
-
 	var cmdArgs []string
 	if bitmap {
-		cmdArgs = []string{"-C", repoPath, "-c", "repack.writeBitmaps=true", "repack", "-d"}
+		cmdArgs = []string{"-c", "repack.writeBitmaps=true", "repack", "-d"}
 	} else {
-		cmdArgs = []string{"-C", repoPath, "-c", "repack.writeBitmaps=false", "repack", "-d"}
+		cmdArgs = []string{"-c", "repack.writeBitmaps=false", "repack", "-d"}
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	cmd, err := command.Git(ctx, cmdArgs...)
+	cmd, err := git.Command(ctx, repo, cmdArgs...)
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
 		return grpc.Errorf(codes.Internal, err.Error())
 	}
 

@@ -16,6 +16,7 @@ vendor_gitlab_git = '../../vendor/gitlab_git/'
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/encoding_helper.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git.rb')
+require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/popen.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
 
 # Require all .rb files we can find in the vendored gitlab/git directory
@@ -37,8 +38,22 @@ module Gitlab
       end
     end
 
+    class GitlabShell
+      def path
+        ENV['GITALY_RUBY_GITLAB_SHELL_PATH']
+      end
+
+      def hooks_path
+        File.join(path, 'hooks')
+      end
+    end
+
     def git
       Git.new
+    end
+
+    def gitlab_shell
+      GitlabShell.new
     end
   end
 
@@ -51,11 +66,12 @@ module Gitlab
   module Git
     class Repository
       def self.from_call(call)
-        new(GitalyServer.repo_path(call))
+        new(GitalyServer.repo_path(call), GitalyServer.gl_repository(call))
       end
 
-      def initialize(path)
+      def initialize(path, gl_repository)
         @path = path
+        @gl_repository = gl_repository
         @rugged = Rugged::Repository.new(path)
         @attributes = Gitlab::Git::Attributes.new(path)
       end

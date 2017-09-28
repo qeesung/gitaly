@@ -10,10 +10,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"golang.org/x/net/context"
@@ -38,12 +38,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 		"Patterns": patterns,
 	}).Debug("FindRefs")
 
-	repoPath, err := helper.GetRepoPath(repo)
-	if err != nil {
-		return err
-	}
-
-	baseArgs := []string{"--git-dir", repoPath, "for-each-ref"}
+	baseArgs := []string{"for-each-ref"}
 
 	var args []string
 	if len(opts.cmdArgs) == 0 {
@@ -53,7 +48,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *pb.Repository, pat
 	}
 
 	args = append(args, patterns...)
-	cmd, err := command.Git(ctx, args...)
+	cmd, err := git.Command(ctx, repo, args...)
 	if err != nil {
 		return err
 	}
@@ -102,10 +97,10 @@ func (s *server) FindAllTags(in *pb.FindAllTagsRequest, stream pb.RefService_Fin
 	})
 }
 
-func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
+func _findBranchNames(ctx context.Context, repo *pb.Repository) ([][]byte, error) {
 	var names [][]byte
 
-	cmd, err := command.Git(ctx, "--git-dir", repoPath, "for-each-ref", "refs/heads", "--format=%(refname)")
+	cmd, err := git.Command(ctx, repo, "for-each-ref", "refs/heads", "--format=%(refname)")
 	if err != nil {
 		return nil, err
 	}
@@ -125,10 +120,10 @@ func _findBranchNames(ctx context.Context, repoPath string) ([][]byte, error) {
 	return names, nil
 }
 
-func _headReference(ctx context.Context, repoPath string) ([]byte, error) {
+func _headReference(ctx context.Context, repo *pb.Repository) ([]byte, error) {
 	var headRef []byte
 
-	cmd, err := command.Git(ctx, "--git-dir", repoPath, "rev-parse", "--symbolic-full-name", "HEAD")
+	cmd, err := git.Command(ctx, repo, "rev-parse", "--symbolic-full-name", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +149,8 @@ func _headReference(ctx context.Context, repoPath string) ([]byte, error) {
 }
 
 // DefaultBranchName looks up the name of the default branch given a repoPath
-func DefaultBranchName(ctx context.Context, repoPath string) ([]byte, error) {
-	branches, err := FindBranchNames(ctx, repoPath)
+func DefaultBranchName(ctx context.Context, repo *pb.Repository) ([]byte, error) {
+	branches, err := FindBranchNames(ctx, repo)
 
 	if err != nil {
 		return nil, err
@@ -172,7 +167,7 @@ func DefaultBranchName(ctx context.Context, repoPath string) ([]byte, error) {
 	}
 
 	hasMaster := false
-	headRef, err := headReference(ctx, repoPath)
+	headRef, err := headReference(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -198,13 +193,11 @@ func DefaultBranchName(ctx context.Context, repoPath string) ([]byte, error) {
 func (s *server) FindDefaultBranchName(ctx context.Context, in *pb.FindDefaultBranchNameRequest) (*pb.FindDefaultBranchNameResponse, error) {
 	grpc_logrus.Extract(ctx).Debug("FindDefaultBranchName")
 
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	defaultBranchName, err := DefaultBranchName(ctx, in.Repository)
 	if err != nil {
-		return nil, err
-	}
-
-	defaultBranchName, err := DefaultBranchName(ctx, repoPath)
-	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
 		return nil, grpc.Errorf(codes.Internal, err.Error())
 	}
 
