@@ -19,7 +19,7 @@ func configFileReader(content string) io.Reader {
 
 func TestLoadClearPrevConfig(t *testing.T) {
 	Config = config{SocketPath: "/tmp"}
-	err := Load(nil)
+	err := Load(&bytes.Buffer{})
 	assert.NoError(t, err)
 
 	assert.Empty(t, Config.SocketPath)
@@ -144,7 +144,7 @@ func TestLoadOnlyEnvironment(t *testing.T) {
 	os.Setenv("GITALY_LISTEN_ADDR", ":8081")
 	os.Setenv("GITALY_PROMETHEUS_LISTEN_ADDR", ":9237")
 
-	err := Load(nil)
+	err := Load(&bytes.Buffer{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, ":9237", Config.PrometheusListenAddr)
@@ -372,6 +372,35 @@ func TestValidateRuby(t *testing.T) {
 			Config.Ruby = Ruby{Dir: tc.dir}
 
 			err := validateRuby()
+			if tc.ok {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateListeners(t *testing.T) {
+	defer func(cfg config) {
+		Config = cfg
+	}(Config)
+
+	testCases := []struct {
+		desc string
+		config
+		ok bool
+	}{
+		{desc: "empty"},
+		{desc: "socket only", config: config{SocketPath: "/foo/bar"}, ok: true},
+		{desc: "tcp only", config: config{ListenAddr: "a.b.c.d:1234"}, ok: true},
+		{desc: "both socket and tcp", config: config{SocketPath: "/foo/bar", ListenAddr: "a.b.c.d:1234"}, ok: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			Config = tc.config
+			err := validateListeners()
 			if tc.ok {
 				require.NoError(t, err)
 			} else {

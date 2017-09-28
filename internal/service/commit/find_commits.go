@@ -22,6 +22,13 @@ func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService
 		}
 	}
 
+	// Clients might send empty paths. That is an error
+	for _, path := range req.Paths {
+		if len(path) == 0 {
+			return grpc.Errorf(codes.InvalidArgument, "path is empty string")
+		}
+	}
+
 	client, err := s.CommitServiceClient(ctx)
 	if err != nil {
 		return err
