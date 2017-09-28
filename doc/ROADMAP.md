@@ -26,7 +26,7 @@ This milestone will focus on optimizing the Gitaly endpoints through caching, mo
 
 Once Gitaly is complete and fast, many new features can be added, but have yet to undergo prioritization:
 
-In no particular order. None of these are
+In no particular order. 
 
 * **Multiple replicas** of Git data, for high-availability
 * **Repository repair**: fix missing refs, remove old tmp files etc
