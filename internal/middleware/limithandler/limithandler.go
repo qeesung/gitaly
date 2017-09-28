@@ -70,8 +70,7 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		_, err := config.limiter.Limit(ctx, repoPath, config.max, func() (interface{}, error) {
-			err := handler(srv, stream)
-			return nil, err
+			return nil, handler(srv, stream)
 		})
 
 		return err

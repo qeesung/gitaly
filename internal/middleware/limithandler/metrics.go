@@ -73,15 +73,15 @@ func EnableAcquireTimeHistogram(buckets []float64) {
 	prom.Register(histogramVec)
 }
 
-func (c promMonitor) Queued(ctx context.Context) {
+func (c *promMonitor) Queued(ctx context.Context) {
 	c.queuedGauge.Inc()
 }
 
-func (c promMonitor) Dequeued(ctx context.Context) {
+func (c *promMonitor) Dequeued(ctx context.Context) {
 	c.queuedGauge.Dec()
 }
 
-func (c promMonitor) Enter(ctx context.Context, acquireTime time.Duration) {
+func (c *promMonitor) Enter(ctx context.Context, acquireTime time.Duration) {
 	c.inprogressGauge.Inc()
 
 	if acquireTime > acquireDurationLogThreshold {
@@ -94,7 +94,7 @@ func (c promMonitor) Enter(ctx context.Context, acquireTime time.Duration) {
 	}
 }
 
-func (c promMonitor) Exit(ctx context.Context) {
+func (c *promMonitor) Exit(ctx context.Context) {
 	c.inprogressGauge.Dec()
 }
 

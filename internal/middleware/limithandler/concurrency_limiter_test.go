@@ -12,14 +12,14 @@ import (
 )
 
 type counter struct {
-	m       *sync.Mutex
+	sync.Mutex
 	max     int
 	current int
 }
 
 func (c *counter) up() {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.current = c.current + 1
 	if c.current > c.max {
@@ -28,8 +28,8 @@ func (c *counter) up() {
 }
 
 func (c *counter) down() {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.current = c.current - 1
 }
@@ -40,6 +40,7 @@ func TestLimiter(t *testing.T) {
 		concurrency    int
 		maxConcurrency int
 		iterations     int
+		delay          time.Duration
 		buckets        int
 		wantMax        int
 	}{
@@ -48,32 +49,36 @@ func TestLimiter(t *testing.T) {
 			concurrency:    1,
 			maxConcurrency: 1,
 			iterations:     1,
+			delay:          1 * time.Millisecond,
 			buckets:        1,
 			wantMax:        1,
 		},
 		{
 			name:           "two-at-a-time",
-			concurrency:    10,
+			concurrency:    100,
 			maxConcurrency: 2,
-			iterations:     1,
+			iterations:     10,
+			delay:          1 * time.Millisecond,
 			buckets:        1,
 			wantMax:        2,
 		},
 		{
 			name:           "two-by-two",
-			concurrency:    10,
+			concurrency:    100,
 			maxConcurrency: 2,
+			delay:          1 * time.Nanosecond,
 			iterations:     4,
 			buckets:        2,
 			wantMax:        4,
 		},
 		{
 			name:           "no-limit",
-			concurrency:    2,
+			concurrency:    10,
 			maxConcurrency: 0,
-			iterations:     2,
+			iterations:     200,
+			delay:          1 * time.Nanosecond,
 			buckets:        1,
-			wantMax:        2,
+			wantMax:        10,
 		},
 	}
 	for _, tt := range tests {
@@ -82,7 +87,7 @@ func TestLimiter(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(tt.concurrency)
 
-			gauge := &counter{m: &sync.Mutex{}}
+			gauge := &counter{}
 			for c := 0; c < tt.concurrency; c++ {
 				go func() {
 
@@ -94,7 +99,8 @@ func TestLimiter(t *testing.T) {
 
 							assert.True(t, len(limiter.v) <= tt.maxConcurrency)
 							assert.True(t, len(limiter.v) <= tt.buckets)
-							time.Sleep(1 * time.Millisecond)
+							time.Sleep(tt.delay)
+
 							gauge.down()
 							return nil, nil
 						})

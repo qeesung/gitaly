@@ -72,7 +72,6 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey interface{}) {
 
 	// If we managed to acquire all the locks, we can remove the semaphore for this key
 	delete(c.v, lockKey)
-
 }
 
 // Limit will limit the concurrency of f
@@ -81,12 +80,8 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 		return f()
 	}
 
-	var start time.Time
-
-	if c.monitor != nil {
-		start = time.Now()
-		c.monitor.Queued(ctx)
-	}
+	start := time.Now()
+	c.monitor.Queued(ctx)
 
 	w := c.getSemaphore(lockKey, int64(maxConcurrency))
 
@@ -94,19 +89,14 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 	defer c.attemptCollection(lockKey)
 
 	err := w.Acquire(ctx, 1)
-
-	if c.monitor != nil {
-		c.monitor.Dequeued(ctx)
-	}
+	c.monitor.Dequeued(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if c.monitor != nil {
-		c.monitor.Enter(ctx, time.Since(start))
-		defer c.monitor.Exit(ctx)
-	}
+	c.monitor.Enter(ctx, time.Since(start))
+	defer c.monitor.Exit(ctx)
 
 	defer w.Release(1)
 
@@ -117,9 +107,20 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 
 // NewLimiter creates a new rate limiter
 func NewLimiter(monitor ConcurrencyMonitor) ConcurrencyLimiter {
+	if monitor == nil {
+		monitor = &nullConcurrencyMonitor{}
+	}
+
 	return ConcurrencyLimiter{
 		v:       make(map[interface{}]*weightedWithSize),
 		mux:     &sync.Mutex{},
 		monitor: monitor,
 	}
 }
+
+type nullConcurrencyMonitor struct{}
+
+func (c *nullConcurrencyMonitor) Queued(ctx context.Context)                           {}
+func (c *nullConcurrencyMonitor) Dequeued(ctx context.Context)                         {}
+func (c *nullConcurrencyMonitor) Enter(ctx context.Context, acquireTime time.Duration) {}
+func (c *nullConcurrencyMonitor) Exit(ctx context.Context)                             {}
