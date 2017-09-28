@@ -11,15 +11,6 @@ import (
 // LimitedFunc represents a function that will be limited
 type LimitedFunc func() (resp interface{}, err error)
 
-type weightedWithSize struct {
-	// A weighted semaphore is like a mutex, but with a number of 'slots'.
-	// When locking the locker requests 1 or more slots to be locked.
-	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
-	// https://godoc.org/golang.org/x/sync/semaphore
-	w *semaphore.Weighted
-	n int64
-}
-
 // ConcurrencyMonitor allows the concurrency monitor to be observed
 type ConcurrencyMonitor interface {
 	Queued(ctx context.Context)
@@ -30,23 +21,28 @@ type ConcurrencyMonitor interface {
 
 // ConcurrencyLimiter contains rate limiter state
 type ConcurrencyLimiter struct {
-	v       map[interface{}]*weightedWithSize
-	mux     *sync.Mutex
-	monitor ConcurrencyMonitor
+	// A weighted semaphore is like a mutex, but with a number of 'slots'.
+	// When locking the locker requests 1 or more slots to be locked.
+	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
+	// https://godoc.org/golang.org/x/sync/semaphore
+	semaphores map[interface{}]*semaphore.Weighted
+	max        int64
+	mux        *sync.Mutex
+	monitor    ConcurrencyMonitor
 }
 
 // Lazy create a semaphore for the given key
-func (c *ConcurrencyLimiter) getSemaphore(lockKey interface{}, max int64) *semaphore.Weighted {
+func (c *ConcurrencyLimiter) getSemaphore(lockKey interface{}) *semaphore.Weighted {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	ws := c.v[lockKey]
+	ws := c.semaphores[lockKey]
 	if ws != nil {
-		return ws.w
+		return ws
 	}
 
-	w := semaphore.NewWeighted(max)
-	c.v[lockKey] = &weightedWithSize{w: w, n: max}
+	w := semaphore.NewWeighted(c.max)
+	c.semaphores[lockKey] = w
 	return w
 }
 
@@ -54,36 +50,33 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey interface{}) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	ws := c.v[lockKey]
+	ws := c.semaphores[lockKey]
 	if ws == nil {
 		return
 	}
 
-	max := ws.n
-	w := ws.w
-
-	if !w.TryAcquire(max) {
+	if !ws.TryAcquire(c.max) {
 		return
 	}
 
 	// By releasing, we prevent a lockup of goroutines that have already
 	// acquired the semaphore, but have yet to acquire on it
-	w.Release(max)
+	ws.Release(c.max)
 
 	// If we managed to acquire all the locks, we can remove the semaphore for this key
-	delete(c.v, lockKey)
+	delete(c.semaphores, lockKey)
 }
 
 // Limit will limit the concurrency of f
-func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, maxConcurrency int, f LimitedFunc) (interface{}, error) {
-	if maxConcurrency <= 0 {
+func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, f LimitedFunc) (interface{}, error) {
+	if c.max <= 0 {
 		return f()
 	}
 
 	start := time.Now()
 	c.monitor.Queued(ctx)
 
-	w := c.getSemaphore(lockKey, int64(maxConcurrency))
+	w := c.getSemaphore(lockKey)
 
 	// Attempt to cleanup the semaphore it's no longer being used
 	defer c.attemptCollection(lockKey)
@@ -106,15 +99,16 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 }
 
 // NewLimiter creates a new rate limiter
-func NewLimiter(monitor ConcurrencyMonitor) ConcurrencyLimiter {
+func NewLimiter(max int, monitor ConcurrencyMonitor) *ConcurrencyLimiter {
 	if monitor == nil {
 		monitor = &nullConcurrencyMonitor{}
 	}
 
-	return ConcurrencyLimiter{
-		v:       make(map[interface{}]*weightedWithSize),
-		mux:     &sync.Mutex{},
-		monitor: monitor,
+	return &ConcurrencyLimiter{
+		semaphores: make(map[interface{}]*semaphore.Weighted),
+		max:        int64(max),
+		mux:        &sync.Mutex{},
+		monitor:    monitor,
 	}
 }
 

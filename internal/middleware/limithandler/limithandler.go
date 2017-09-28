@@ -8,12 +8,7 @@ import (
 
 // LimiterMiddleware contains rate limiter state
 type LimiterMiddleware struct {
-	rpcLimiterConfigs map[string]*rpcLimiterConfig
-}
-
-type rpcLimiterConfig struct {
-	limiter ConcurrencyLimiter
-	max     int
+	methodLimiters map[string]*ConcurrencyLimiter
 }
 
 var maxConcurrencyPerRepoPerRPC map[string]int
@@ -41,13 +36,13 @@ func (c *LimiterMiddleware) UnaryInterceptor() grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		config := c.rpcLimiterConfigs[info.FullMethod]
-		if config == nil {
+		limiter := c.methodLimiters[info.FullMethod]
+		if limiter == nil {
 			// No concurrency limiting
 			return handler(ctx, req)
 		}
 
-		return config.limiter.Limit(ctx, repoPath, config.max, func() (interface{}, error) {
+		return limiter.Limit(ctx, repoPath, func() (interface{}, error) {
 			return handler(ctx, req)
 		})
 	}
@@ -63,13 +58,13 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 			return handler(srv, stream)
 		}
 
-		config := c.rpcLimiterConfigs[info.FullMethod]
-		if config == nil {
+		limiter := c.methodLimiters[info.FullMethod]
+		if limiter == nil {
 			// No concurrency limiting
 			return handler(srv, stream)
 		}
 
-		_, err := config.limiter.Limit(ctx, repoPath, config.max, func() (interface{}, error) {
+		_, err := limiter.Limit(ctx, repoPath, func() (interface{}, error) {
 			return nil, handler(srv, stream)
 		})
 
@@ -80,17 +75,18 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 // New creates a new rate limiter
 func New() LimiterMiddleware {
 	return LimiterMiddleware{
-		rpcLimiterConfigs: createLimiterConfig(),
+		methodLimiters: createLimiterConfig(),
 	}
 }
 
-func createLimiterConfig() map[string]*rpcLimiterConfig {
-	m := make(map[string]*rpcLimiterConfig)
-	for k, v := range maxConcurrencyPerRepoPerRPC {
-		m[k] = &rpcLimiterConfig{limiter: NewLimiter(newPromMonitor(k)), max: v}
+func createLimiterConfig() map[string]*ConcurrencyLimiter {
+	result := make(map[string]*ConcurrencyLimiter)
+
+	for fullMethodName, max := range maxConcurrencyPerRepoPerRPC {
+		result[fullMethodName] = NewLimiter(max, newPromMonitor(fullMethodName))
 	}
 
-	return m
+	return result
 }
 
 // SetMaxRepoConcurrency Configures the max concurrency per repo per RPC
