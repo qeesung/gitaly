@@ -5,7 +5,7 @@ module GitalyServer
     TAGS_PER_MESSAGE = 100
 
     def create_branch(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         begin
           start_point = request.start_point
           start_point = 'HEAD' if start_point.empty?
@@ -37,7 +37,7 @@ module GitalyServer
     end
 
     def delete_branch(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         begin
           branch_name = request.name
           raise GRPC::InvalidArgument.new("empty Name") if branch_name.empty?
@@ -53,7 +53,7 @@ module GitalyServer
     end
 
     def find_branch(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         branch_name = request.name
         raise GRPC::InvalidArgument.new("empty Name") if branch_name.empty?
 
@@ -69,7 +69,7 @@ module GitalyServer
     end
 
     def find_all_tags(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         repo = Gitlab::Git::Repository.from_call(call)
 
         Enumerator.new do |y|

@@ -3,7 +3,7 @@ module GitalyServer
     include Utils
 
     def commit_stats(request, _call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         repo = Gitlab::Git::Repository.from_call(_call)
         revision = request.revision unless request.revision.empty?
 
@@ -21,7 +21,7 @@ module GitalyServer
     end
 
     def find_commits(request, _call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         repository = Gitlab::Git::Repository.from_call(_call)
         options = {
           ref: request.revision,

@@ -3,7 +3,7 @@ module GitalyServer
     include Utils
 
     def user_create_tag(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         begin
           repo = Gitlab::Git::Repository.from_call(call)
 
@@ -41,7 +41,7 @@ module GitalyServer
     end
 
     def user_delete_tag(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         begin
           repo = Gitlab::Git::Repository.from_call(call)
 
@@ -62,7 +62,7 @@ module GitalyServer
     end
 
     def user_create_branch(request, call)
-      GitalyServer::Utils.safe_call_wrapper do
+      bridge_exceptions do
         begin
           repo = Gitlab::Git::Repository.from_call(call)
           target = request.start_point

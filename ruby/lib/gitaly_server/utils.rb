@@ -19,7 +19,7 @@ module GitalyServer
       )
     end
 
-    def self.safe_call_wrapper
+    def self.bridge_exceptions
       yield
     rescue GRPC::BadStatus => e
       # Pass GRPC back without wrapping
