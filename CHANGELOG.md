@@ -2,6 +2,9 @@
 
 UNRELEASED
 
+- Pass details of Gitaly-Ruby's Ruby exceptions back to
+  callers in the request trailers
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/358
 - Fix path bug in CommitService::FindCommits
   https://gitlab.com/gitlab-org/gitaly/merge_requests/364
 - Fail harder during startup, fix version string
