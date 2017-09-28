@@ -6,7 +6,7 @@ _Timeframe_: Q4 2017
 
 **GitLab.com running with 100% of Git operations going through Gitaly**: no rugged operations or git process spawns from the Ruby monolith. NFS operations/sec to git file servers down to zero.
 
-At the point, the GitLab Kubernetes Helm Charts can move towards running Gitaly as one-or-more StatefulSets. Since some features will be opt-in, these setup will be experimental.
+At this point, the GitLab Kubernetes Helm Charts can move towards running Gitaly as one-or-more StatefulSets. Since some features will be opt-in, these setup will be experimental.
 
 ## Gitaly Version 1.1
 
