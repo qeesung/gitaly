@@ -70,7 +70,7 @@ func TestLimiter(t *testing.T) {
 		iterations       int
 		delay            time.Duration
 		buckets          int
-		wantMax          int
+		wantMaxRange     []int
 		wantMonitorCalls int
 	}{
 		{
@@ -80,7 +80,7 @@ func TestLimiter(t *testing.T) {
 			iterations:       1,
 			delay:            1 * time.Millisecond,
 			buckets:          1,
-			wantMax:          1,
+			wantMaxRange:     []int{1, 1},
 			wantMonitorCalls: 1,
 		},
 		{
@@ -90,7 +90,7 @@ func TestLimiter(t *testing.T) {
 			iterations:       10,
 			delay:            1 * time.Millisecond,
 			buckets:          1,
-			wantMax:          2,
+			wantMaxRange:     []int{2, 4},
 			wantMonitorCalls: 100 * 10,
 		},
 		{
@@ -100,7 +100,7 @@ func TestLimiter(t *testing.T) {
 			delay:            1000 * time.Nanosecond,
 			iterations:       4,
 			buckets:          2,
-			wantMax:          4,
+			wantMaxRange:     []int{4, 6},
 			wantMonitorCalls: 100 * 4,
 		},
 		{
@@ -110,8 +110,18 @@ func TestLimiter(t *testing.T) {
 			iterations:       200,
 			delay:            1000 * time.Nanosecond,
 			buckets:          1,
-			wantMax:          10,
+			wantMaxRange:     []int{10, 10},
 			wantMonitorCalls: 0,
+		},
+		{
+			name:             "wide-spread",
+			concurrency:      100,
+			maxConcurrency:   2,
+			delay:            100 * time.Nanosecond,
+			iterations:       40,
+			buckets:          50,
+			wantMaxRange:     []int{30, 100},
+			wantMonitorCalls: 100 * 40,
 		},
 	}
 	for _, tt := range tests {
@@ -125,8 +135,6 @@ func TestLimiter(t *testing.T) {
 			// We know of an edge case that can lead to the rate limiter
 			// occassionally letting one or two extra goroutines run
 			// concurrently.
-			wantMaxUpperBound := tt.wantMax + 2
-
 			for c := 0; c < tt.concurrency; c++ {
 				go func() {
 
@@ -136,15 +144,14 @@ func TestLimiter(t *testing.T) {
 						limiter.Limit(context.Background(), lockKey, func() (interface{}, error) {
 							gauge.up()
 
-							assert.True(t, gauge.current <= wantMaxUpperBound)
-							assert.True(t, len(limiter.semaphores) <= tt.buckets)
+							assert.True(t, gauge.current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", gauge.current, tt.wantMaxRange[1])
+							assert.True(t, len(limiter.semaphores) <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", len(limiter.semaphores), tt.buckets)
 							time.Sleep(tt.delay)
 
 							gauge.down()
 							return nil, nil
 						})
 
-						// Add
 						time.Sleep(tt.delay)
 					}
 
@@ -153,7 +160,7 @@ func TestLimiter(t *testing.T) {
 			}
 
 			wg.Wait()
-			assert.True(t, tt.wantMax <= gauge.max && gauge.max <= wantMaxUpperBound)
+			assert.True(t, tt.wantMaxRange[0] <= gauge.max && gauge.max <= tt.wantMaxRange[1], "Expected maximum concurrency to be in the range [%v,%v] but got %v", tt.wantMaxRange[0], tt.wantMaxRange[1], gauge.max)
 			assert.Equal(t, 0, gauge.current)
 			assert.Equal(t, 0, len(limiter.semaphores))
 
