@@ -1,5 +1,19 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Fix path bug in CommitService::FindCommits
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/364
+
+v0.42.0
+
+- Implement UserCreateTag RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/374
+- Return pre-receive errors in UserDeleteTag response
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/378
+- Check if we don't overwrite a namespace moved to gitaly
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/375
+
 v0.41.0
 
 - Wait for monitor goroutine to return during supervisor shutdown

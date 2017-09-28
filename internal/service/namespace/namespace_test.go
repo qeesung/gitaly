@@ -265,6 +265,15 @@ func TestRenameNamespace(t *testing.T) {
 			},
 			errorCode: codes.InvalidArgument,
 		},
+		{
+			desc: "existing destination namespace",
+			request: &pb.RenameNamespaceRequest{
+				From:        "existing",
+				To:          "existing",
+				StorageName: "default",
+			},
+			errorCode: codes.InvalidArgument,
+		},
 	}
 
 	_, err := client.AddNamespace(ctx, &pb.AddNamespaceRequest{"default", "existing"})

@@ -422,7 +422,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var receivedTags []*pb.FindAllTagsResponse_Tag
+	var receivedTags []*pb.Tag
 	for {
 		r, err := c.Recv()
 		if err == io.EOF {
@@ -434,7 +434,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		receivedTags = append(receivedTags, r.GetTags()...)
 	}
 
-	expectedTags := []*pb.FindAllTagsResponse_Tag{
+	expectedTags := []*pb.Tag{
 		{
 			Name:         []byte("v1.0.0"),
 			Id:           "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",

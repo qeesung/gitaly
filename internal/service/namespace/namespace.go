@@ -66,6 +66,15 @@ func (s *server) RenameNamespace(ctx context.Context, in *pb.RenameNamespaceRequ
 		return nil, grpc.Errorf(codes.InvalidArgument, "from and to cannot be empty")
 	}
 
+	// No need to check if the from path exists, if it doesn't, we'd later get an
+	// os.LinkError
+	toExistsCheck := &pb.NamespaceExistsRequest{StorageName: in.StorageName, Name: in.GetTo()}
+	if exists, err := s.NamespaceExists(ctx, toExistsCheck); err != nil {
+		return nil, err
+	} else if exists.Exists {
+		return nil, grpc.Errorf(codes.InvalidArgument, "to directory %s already exists", in.GetTo())
+	}
+
 	err = os.Rename(namespacePath(storagePath, in.GetFrom()), namespacePath(storagePath, in.GetTo()))
 	if _, ok := err.(*os.LinkError); ok {
 		return nil, grpc.Errorf(codes.InvalidArgument, "from directory not found")

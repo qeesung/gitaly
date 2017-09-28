@@ -2,6 +2,40 @@ module GitalyServer
   class OperationsService < Gitaly::OperationService::Service
     include Utils
 
+    def user_create_tag(request, call)
+      repo = Gitlab::Git::Repository.from_call(call)
+
+      gitaly_user = request.user
+      raise GRPC::InvalidArgument.new('empty user') unless gitaly_user
+      user = Gitlab::Git::User.from_gitaly(gitaly_user)
+
+      tag_name = request.tag_name
+      raise GRPC::InvalidArgument.new('empty tag name') unless tag_name.present?
+
+      target_revision = request.target_revision
+      raise GRPC::InvalidArgument.new('empty target revision') unless target_revision.present?
+
+      created_tag = repo.add_tag(tag_name, user: user, target: target_revision, message: request.message.presence)
+      return Gitaly::UserCreateTagResponse.new unless created_tag
+
+      rugged_commit = created_tag.dereferenced_target.rugged_commit
+      commit = gitaly_commit_from_rugged(rugged_commit)
+      tag = Gitaly::Tag.new(
+        name: tag_name.b,
+        id: created_tag.target,
+        target_commit: commit,
+        message: created_tag.message.to_s.b
+      )
+
+      Gitaly::UserCreateTagResponse.new(tag: tag)
+    rescue Gitlab::Git::Repository::InvalidRef => e
+      raise GRPC::FailedPrecondition.new(e.message)
+    rescue Rugged::TagError
+      return Gitaly::UserCreateTagResponse.new(exists: true)
+    rescue Gitlab::Git::HooksService::PreReceiveError => e
+      return Gitaly::UserCreateTagResponse.new(pre_receive_error: e.message)
+    end
+
     def user_delete_tag(request, call)
       repo = Gitlab::Git::Repository.from_call(call)
 
@@ -16,7 +50,7 @@ module GitalyServer
 
       Gitaly::UserDeleteTagResponse.new
     rescue Gitlab::Git::HooksService::PreReceiveError => e
-      raise GRPC::FailedPrecondition.new(e.to_s)
+      Gitaly::UserDeleteTagResponse.new(pre_receive_error: e.message)
     end
 
     def user_create_branch(request, call)

@@ -73,6 +73,8 @@ It has these top-level messages:
 	UserDeleteBranchResponse
 	UserDeleteTagRequest
 	UserDeleteTagResponse
+	UserCreateTagRequest
+	UserCreateTagResponse
 	FindDefaultBranchNameRequest
 	FindDefaultBranchNameResponse
 	FindAllBranchNamesRequest
@@ -118,6 +120,7 @@ It has these top-level messages:
 	CommitAuthor
 	ExitStatus
 	Branch
+	Tag
 	User
 	InfoRefsRequest
 	InfoRefsResponse
