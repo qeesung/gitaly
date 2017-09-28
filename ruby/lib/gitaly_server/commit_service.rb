@@ -2,8 +2,8 @@ module GitalyServer
   class CommitService < Gitaly::CommitService::Service
     include Utils
 
-    def commit_stats(request, _call)
-      repo = Gitlab::Git::Repository.from_call(_call)
+    def commit_stats(request, call)
+      repo = Gitlab::Git::Repository.from_call(call)
       revision = request.revision unless request.revision.empty?
 
       commit = Gitlab::Git::Commit.find(repo, revision)
@@ -18,15 +18,15 @@ module GitalyServer
       Gitaly::CommitStatsResponse.new(oid: stats.id, additions: stats.additions, deletions: stats.deletions)
     end
 
-    def find_commits(request, _call)
-      repository = Gitlab::Git::Repository.from_call(_call)
+    def find_commits(request, call)
+      repository = Gitlab::Git::Repository.from_call(call)
       options = {
         ref: request.revision,
         limit: request.limit,
         follow: request.follow,
         skip_merges: request.skip_merges,
         disable_walk: request.disable_walk,
-        offset: request.offset,
+        offset: request.offset
       }
       options[:path] = request.paths unless request.paths.empty?
 

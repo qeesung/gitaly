@@ -3,28 +3,28 @@
 require 'tempfile'
 require 'socket'
 
-ADDR = 'socket'
+ADDR = 'socket'.freeze
 
 def main(gitaly_dir)
   gitaly_dir = File.realpath(gitaly_dir)
-  
+
   Dir.mktmpdir do |dir|
     Dir.chdir(dir)
-  
-    File.write('config.toml', <<EOS
-socket_path = "#{ADDR}"
 
-[[storage]]
-name = "default"
-path = "#{dir}"
+    File.write('config.toml', <<~CONFIG
+      socket_path = "#{ADDR}"
 
-[gitaly-ruby]
-dir = "#{gitaly_dir}/ruby"
+      [[storage]]
+      name = "default"
+      path = "#{dir}"
 
-[gitlab-shell]
-dir = "#{gitaly_dir}"
-EOS
-)
+      [gitaly-ruby]
+      dir = "#{gitaly_dir}/ruby"
+
+      [gitlab-shell]
+      dir = "#{gitaly_dir}"
+      CONFIG
+              )
 
     pid = nil
 
@@ -48,7 +48,7 @@ def wait_connect
     begin
       Socket.unix(ADDR)
       return
-    rescue
+    rescue # rubocop:disable Lint/RescueWithoutErrorClass
       print '.'
       sleep(0.1)
     end
