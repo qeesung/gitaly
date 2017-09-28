@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Allow individual endpoints to be rate-limited per-repository
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/376
 - Fix path bug in CommitService::FindCommits
   https://gitlab.com/gitlab-org/gitaly/merge_requests/364
 - Fail harder during startup, fix version string
