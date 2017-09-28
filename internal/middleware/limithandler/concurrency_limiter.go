@@ -11,6 +11,9 @@ import (
 type LimitedFunc func() (resp interface{}, err error)
 
 type weightedWithSize struct {
+	// A weighted semaphore is like a mutex, but with a number of 'slots'.
+	// When locking the locker requests 1 or more slots to be locked.
+	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
 	// https://godoc.org/golang.org/x/sync/semaphore
 	w *semaphore.Weighted
 	n int64
