@@ -40,7 +40,7 @@ This will be achieved by focusing on two areas (in this order):
 
 Gitaly has been shipped as part of GitLab since 9.0. We are migrating git operations from in-process Rugged implementations to Gitaly service endpoints.
 
-[The roadmap is available here](doc/ROADMAP.md)
+[The roadmap is available here](doc/ROADMAP.md).
 
 The migration process is [documented](/doc/MIGRATION_PROCESS.md).
 
