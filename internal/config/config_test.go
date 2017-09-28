@@ -380,3 +380,32 @@ func TestValidateRuby(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateListeners(t *testing.T) {
+	defer func(cfg config) {
+		Config = cfg
+	}(Config)
+
+	testCases := []struct {
+		desc string
+		config
+		ok bool
+	}{
+		{desc: "empty"},
+		{desc: "socket only", config: config{SocketPath: "/foo/bar"}, ok: true},
+		{desc: "tcp only", config: config{ListenAddr: "a.b.c.d:1234"}, ok: true},
+		{desc: "both socket and tcp", config: config{SocketPath: "/foo/bar", ListenAddr: "a.b.c.d:1234"}, ok: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			Config = tc.config
+			err := validateListeners()
+			if tc.ok {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}

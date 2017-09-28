@@ -68,7 +68,7 @@ func Load(file io.Reader) error {
 	}
 
 	if err := envconfig.Process("gitaly", &Config); err != nil {
-		return fmt.Errorf("envconfig: %v")
+		return fmt.Errorf("envconfig: %v", err)
 	}
 
 	return nil
@@ -77,6 +77,7 @@ func Load(file io.Reader) error {
 // Validate checks the current Config for sanity.
 func Validate() error {
 	for _, err := range []error{
+		validateListeners(),
 		validateStorages(),
 		validateToken(),
 		SetGitPath(),
@@ -86,6 +87,13 @@ func Validate() error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateListeners() error {
+	if len(Config.SocketPath) == 0 && len(Config.ListenAddr) == 0 {
+		return fmt.Errorf("invalid listener config: at least one of socket_path and listen_addr must be set")
 	}
 	return nil
 }
