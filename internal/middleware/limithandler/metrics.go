@@ -5,7 +5,6 @@ import (
 	"time"
 
 	prom "github.com/prometheus/client_golang/prometheus"
-	"google.golang.org/grpc"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
@@ -14,27 +13,37 @@ import (
 const acquireDurationLogThreshold = 10 * time.Millisecond
 
 var (
-	histogramEnabled = false
-	histogram        *prom.HistogramVec
+	histogramEnabled   = false
+	histogramVec       *prom.HistogramVec
+	inprogressGaugeVec = prom.NewGaugeVec(
+		prom.GaugeOpts{
+			Namespace: "gitaly",
+			Subsystem: "rate_limiting",
+			Name:      "in_progress",
+			Help:      "Gauge of number of number of concurrent invocations currently in progress for this endpoint",
+		},
+		[]string{"grpc_service", "grpc_method"},
+	)
+
+	queuedGaugeVec = prom.NewGaugeVec(
+		prom.GaugeOpts{
+			Namespace: "gitaly",
+			Subsystem: "rate_limiting",
+			Name:      "queued",
+			Help:      "Gauge of number of number of invocations currently queued for this endpoint",
+		},
+		[]string{"grpc_service", "grpc_method"},
+	)
 )
 
-func emitStreamRateLimitMetrics(ctx context.Context, info *grpc.StreamServerInfo, start time.Time) {
-	rpcType := getRPCType(info)
-	emitRateLimitMetrics(ctx, rpcType, info.FullMethod, start)
+type promMonitor struct {
+	queuedGauge     prom.Gauge
+	inprogressGauge prom.Gauge
+	histogram       prom.Histogram
 }
 
-func emitRateLimitMetrics(ctx context.Context, rpcType string, fullMethod string, start time.Time) {
-	acquireDuration := time.Since(start)
-
-	if acquireDuration > acquireDurationLogThreshold {
-		logger := grpc_logrus.Extract(ctx)
-		logger.WithField("acquire_ms", acquireDuration.Seconds()*1000).Info("Rate limit acquire wait")
-	}
-
-	if histogramEnabled {
-		serviceName, methodName := splitMethodName(fullMethod)
-		histogram.WithLabelValues(rpcType, serviceName, methodName).Observe(acquireDuration.Seconds())
-	}
+func init() {
+	prom.MustRegister(inprogressGaugeVec, queuedGaugeVec)
 }
 
 func splitMethodName(fullMethodName string) (string, string) {
@@ -43,22 +52,6 @@ func splitMethodName(fullMethodName string) (string, string) {
 		return fullMethodName[:i], fullMethodName[i+1:]
 	}
 	return "unknown", "unknown"
-}
-
-func getRPCType(info *grpc.StreamServerInfo) string {
-	if !info.IsClientStream && !info.IsServerStream {
-		return "unary"
-	}
-
-	if info.IsClientStream && !info.IsServerStream {
-		return "client_stream"
-	}
-
-	if !info.IsClientStream && info.IsServerStream {
-		return "server_stream"
-	}
-
-	return "bidi_stream"
 }
 
 // EnableAcquireTimeHistogram enables histograms for acquisition times
@@ -72,10 +65,49 @@ func EnableAcquireTimeHistogram(buckets []float64) {
 		Buckets:   buckets,
 	}
 
-	histogram = prom.NewHistogramVec(
+	histogramVec = prom.NewHistogramVec(
 		histogramOpts,
-		[]string{"grpc_type", "grpc_service", "grpc_method"},
+		[]string{"grpc_service", "grpc_method"},
 	)
 
-	prom.Register(histogram)
+	prom.Register(histogramVec)
+}
+
+func (c promMonitor) Queued(ctx context.Context) {
+	c.queuedGauge.Inc()
+}
+
+func (c promMonitor) Dequeued(ctx context.Context) {
+	c.queuedGauge.Dec()
+}
+
+func (c promMonitor) Enter(ctx context.Context, acquireTime time.Duration) {
+	c.inprogressGauge.Inc()
+
+	if acquireTime > acquireDurationLogThreshold {
+		logger := grpc_logrus.Extract(ctx)
+		logger.WithField("acquire_ms", acquireTime.Seconds()*1000).Info("Rate limit acquire wait")
+	}
+
+	if c.histogram != nil {
+		c.histogram.Observe(acquireTime.Seconds())
+	}
+}
+
+func (c promMonitor) Exit(ctx context.Context) {
+	c.inprogressGauge.Dec()
+}
+
+func newPromMonitor(fullMethod string) ConcurrencyMonitor {
+	serviceName, methodName := splitMethodName(fullMethod)
+
+	queuedGauge := queuedGaugeVec.WithLabelValues(serviceName, methodName)
+	inprogressGauge := inprogressGaugeVec.WithLabelValues(serviceName, methodName)
+
+	var histogram prom.Histogram
+	if histogramVec != nil {
+		histogram = histogramVec.WithLabelValues(serviceName, methodName)
+	}
+
+	return &promMonitor{queuedGauge, inprogressGauge, histogram}
 }

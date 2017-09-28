@@ -2,6 +2,7 @@ package limithandler
 
 import (
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
@@ -19,10 +20,19 @@ type weightedWithSize struct {
 	n int64
 }
 
+// ConcurrencyMonitor allows the concurrency monitor to be observed
+type ConcurrencyMonitor interface {
+	Queued(ctx context.Context)
+	Dequeued(ctx context.Context)
+	Enter(ctx context.Context, acquireTime time.Duration)
+	Exit(ctx context.Context)
+}
+
 // ConcurrencyLimiter contains rate limiter state
 type ConcurrencyLimiter struct {
-	v   map[interface{}]*weightedWithSize
-	mux *sync.Mutex
+	v       map[interface{}]*weightedWithSize
+	mux     *sync.Mutex
+	monitor ConcurrencyMonitor
 }
 
 // Lazy create a semaphore for the given key
@@ -71,14 +81,31 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 		return f()
 	}
 
+	var start time.Time
+
+	if c.monitor != nil {
+		start = time.Now()
+		c.monitor.Queued(ctx)
+	}
+
 	w := c.getSemaphore(lockKey, int64(maxConcurrency))
+
 	// Attempt to cleanup the semaphore it's no longer being used
 	defer c.attemptCollection(lockKey)
 
 	err := w.Acquire(ctx, 1)
 
+	if c.monitor != nil {
+		c.monitor.Dequeued(ctx)
+	}
+
 	if err != nil {
 		return nil, err
+	}
+
+	if c.monitor != nil {
+		c.monitor.Enter(ctx, time.Since(start))
+		defer c.monitor.Exit(ctx)
 	}
 
 	defer w.Release(1)
@@ -89,9 +116,10 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, max
 }
 
 // NewLimiter creates a new rate limiter
-func NewLimiter() ConcurrencyLimiter {
+func NewLimiter(monitor ConcurrencyMonitor) ConcurrencyLimiter {
 	return ConcurrencyLimiter{
-		v:   make(map[interface{}]*weightedWithSize),
-		mux: &sync.Mutex{},
+		v:       make(map[interface{}]*weightedWithSize),
+		mux:     &sync.Mutex{},
+		monitor: monitor,
 	}
 }

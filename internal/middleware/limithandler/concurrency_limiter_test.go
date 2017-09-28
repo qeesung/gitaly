@@ -78,7 +78,7 @@ func TestLimiter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			limiter := NewLimiter()
+			limiter := NewLimiter(nil)
 			wg := sync.WaitGroup{}
 			wg.Add(tt.concurrency)
 
