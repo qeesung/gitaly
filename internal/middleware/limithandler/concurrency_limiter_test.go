@@ -1,7 +1,6 @@
 package limithandler
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -115,13 +114,13 @@ func TestLimiter(t *testing.T) {
 		},
 		{
 			name:             "wide-spread",
-			concurrency:      100,
+			concurrency:      1000,
 			maxConcurrency:   2,
 			delay:            100 * time.Nanosecond,
 			iterations:       40,
 			buckets:          50,
-			wantMaxRange:     []int{30, 100},
-			wantMonitorCalls: 100 * 40,
+			wantMaxRange:     []int{80, 120},
+			wantMonitorCalls: 1000 * 40,
 		},
 	}
 	for _, tt := range tests {
@@ -136,10 +135,9 @@ func TestLimiter(t *testing.T) {
 			// occassionally letting one or two extra goroutines run
 			// concurrently.
 			for c := 0; c < tt.concurrency; c++ {
-				go func() {
-
+				go func(counter int) {
 					for i := 0; i < tt.iterations; i++ {
-						lockKey := fmt.Sprintf("key:%v", i%tt.buckets)
+						lockKey := (i ^ counter) % tt.buckets
 
 						limiter.Limit(context.Background(), lockKey, func() (interface{}, error) {
 							gauge.up()
@@ -156,7 +154,7 @@ func TestLimiter(t *testing.T) {
 					}
 
 					wg.Done()
-				}()
+				}(c)
 			}
 
 			wg.Wait()
