@@ -4,10 +4,14 @@ UNRELEASED
 
 - Allow individual endpoints to be rate-limited per-repository
   https://gitlab.com/gitlab-org/gitaly/merge_requests/376
+- Implement OperationService.UserDeleteBranch RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/377
 - Fix path bug in CommitService::FindCommits
   https://gitlab.com/gitlab-org/gitaly/merge_requests/364
 - Fail harder during startup, fix version string
   https://gitlab.com/gitlab-org/gitaly/merge_requests/379
+- Implement RepositoryService.GetArchive RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/370
 
 v0.42.0
 

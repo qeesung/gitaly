@@ -74,5 +74,16 @@ module GitalyServer
     rescue Gitlab::Git::HooksService::PreReceiveError => ex
       return Gitaly::UserCreateBranchResponse.new(pre_receive_error: ex.message)
     end
+
+    def user_delete_branch(request, call)
+      repo = Gitlab::Git::Repository.from_call(call)
+      user = Gitlab::Git::User.from_gitaly(request.user)
+
+      repo.rm_branch(request.branch_name, user: user)
+
+      Gitaly::UserDeleteBranchResponse.new
+    rescue Gitlab::Git::HooksService::PreReceiveError => e
+      Gitaly::UserDeleteTagResponse.new(pre_receive_error: e.message)
+    end
   end
 end
