@@ -67,6 +67,13 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
 	delete(c.semaphores, lockKey)
 }
 
+func (c *ConcurrencyLimiter) countSemaphores() int {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	return len(c.semaphores)
+}
+
 // Limit will limit the concurrency of f
 func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) (interface{}, error) {
 	if c.max <= 0 {

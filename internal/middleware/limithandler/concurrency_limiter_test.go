@@ -90,7 +90,7 @@ func TestLimiter(t *testing.T) {
 			iterations:       10,
 			delay:            1 * time.Millisecond,
 			buckets:          1,
-			wantMaxRange:     []int{2, 4},
+			wantMaxRange:     []int{2, 3},
 			wantMonitorCalls: 100 * 10,
 		},
 		{
@@ -100,7 +100,7 @@ func TestLimiter(t *testing.T) {
 			delay:            1000 * time.Nanosecond,
 			iterations:       4,
 			buckets:          2,
-			wantMaxRange:     []int{4, 6},
+			wantMaxRange:     []int{4, 5},
 			wantMonitorCalls: 100 * 4,
 		},
 		{
@@ -114,13 +114,15 @@ func TestLimiter(t *testing.T) {
 			wantMonitorCalls: 0,
 		},
 		{
-			name:             "wide-spread",
-			concurrency:      1000,
-			maxConcurrency:   2,
-			delay:            100 * time.Nanosecond,
-			iterations:       40,
-			buckets:          50,
-			wantMaxRange:     []int{80, 120},
+			name:           "wide-spread",
+			concurrency:    1000,
+			maxConcurrency: 2,
+			delay:          100 * time.Nanosecond,
+			iterations:     40,
+			buckets:        50,
+			// Intentionally leaving the max low because CI runners
+			// may struggle to do 80 things in parallel
+			wantMaxRange:     []int{80, 102},
 			wantMonitorCalls: 1000 * 40,
 		},
 	}
@@ -144,7 +146,7 @@ func TestLimiter(t *testing.T) {
 							gauge.up()
 
 							assert.True(t, gauge.current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", gauge.current, tt.wantMaxRange[1])
-							assert.True(t, len(limiter.semaphores) <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", len(limiter.semaphores), tt.buckets)
+							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", len(limiter.semaphores), tt.buckets)
 							time.Sleep(tt.delay)
 
 							gauge.down()
@@ -161,7 +163,7 @@ func TestLimiter(t *testing.T) {
 			wg.Wait()
 			assert.True(t, tt.wantMaxRange[0] <= gauge.max && gauge.max <= tt.wantMaxRange[1], "Expected maximum concurrency to be in the range [%v,%v] but got %v", tt.wantMaxRange[0], tt.wantMaxRange[1], gauge.max)
 			assert.Equal(t, 0, gauge.current)
-			assert.Equal(t, 0, len(limiter.semaphores))
+			assert.Equal(t, 0, limiter.countSemaphores())
 
 			assert.Equal(t, tt.wantMonitorCalls, gauge.enter)
 			assert.Equal(t, tt.wantMonitorCalls, gauge.exit)
