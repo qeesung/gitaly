@@ -1,6 +1,7 @@
 package limithandler
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -137,7 +138,7 @@ func TestLimiter(t *testing.T) {
 			for c := 0; c < tt.concurrency; c++ {
 				go func(counter int) {
 					for i := 0; i < tt.iterations; i++ {
-						lockKey := (i ^ counter) % tt.buckets
+						lockKey := strconv.Itoa((i ^ counter) % tt.buckets)
 
 						limiter.Limit(context.Background(), lockKey, func() (interface{}, error) {
 							gauge.up()

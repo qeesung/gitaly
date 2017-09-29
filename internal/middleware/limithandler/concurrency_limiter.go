@@ -25,14 +25,14 @@ type ConcurrencyLimiter struct {
 	// When locking the locker requests 1 or more slots to be locked.
 	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
 	// https://godoc.org/golang.org/x/sync/semaphore
-	semaphores map[interface{}]*semaphore.Weighted
+	semaphores map[string]*semaphore.Weighted
 	max        int64
 	mux        *sync.Mutex
 	monitor    ConcurrencyMonitor
 }
 
 // Lazy create a semaphore for the given key
-func (c *ConcurrencyLimiter) getSemaphore(lockKey interface{}) *semaphore.Weighted {
+func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphore.Weighted {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -46,7 +46,7 @@ func (c *ConcurrencyLimiter) getSemaphore(lockKey interface{}) *semaphore.Weight
 	return w
 }
 
-func (c *ConcurrencyLimiter) attemptCollection(lockKey interface{}) {
+func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -68,7 +68,7 @@ func (c *ConcurrencyLimiter) attemptCollection(lockKey interface{}) {
 }
 
 // Limit will limit the concurrency of f
-func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey interface{}, f LimitedFunc) (interface{}, error) {
+func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) (interface{}, error) {
 	if c.max <= 0 {
 		return f()
 	}
@@ -105,7 +105,7 @@ func NewLimiter(max int, monitor ConcurrencyMonitor) *ConcurrencyLimiter {
 	}
 
 	return &ConcurrencyLimiter{
-		semaphores: make(map[interface{}]*semaphore.Weighted),
+		semaphores: make(map[string]*semaphore.Weighted),
 		max:        int64(max),
 		mux:        &sync.Mutex{},
 		monitor:    monitor,
