@@ -71,7 +71,7 @@ func TestLimiter(t *testing.T) {
 		delay            time.Duration
 		buckets          int
 		wantMaxRange     []int
-		wantMonitorCalls int
+		wantMonitorCalls bool
 	}{
 		{
 			name:             "single",
@@ -81,7 +81,7 @@ func TestLimiter(t *testing.T) {
 			delay:            1 * time.Millisecond,
 			buckets:          1,
 			wantMaxRange:     []int{1, 1},
-			wantMonitorCalls: 1,
+			wantMonitorCalls: true,
 		},
 		{
 			name:             "two-at-a-time",
@@ -91,7 +91,7 @@ func TestLimiter(t *testing.T) {
 			delay:            1 * time.Millisecond,
 			buckets:          1,
 			wantMaxRange:     []int{2, 3},
-			wantMonitorCalls: 100 * 10,
+			wantMonitorCalls: true,
 		},
 		{
 			name:             "two-by-two",
@@ -101,7 +101,7 @@ func TestLimiter(t *testing.T) {
 			iterations:       4,
 			buckets:          2,
 			wantMaxRange:     []int{4, 5},
-			wantMonitorCalls: 100 * 4,
+			wantMonitorCalls: true,
 		},
 		{
 			name:             "no-limit",
@@ -111,7 +111,7 @@ func TestLimiter(t *testing.T) {
 			delay:            1000 * time.Nanosecond,
 			buckets:          1,
 			wantMaxRange:     []int{10, 10},
-			wantMonitorCalls: 0,
+			wantMonitorCalls: false,
 		},
 		{
 			name:           "wide-spread",
@@ -123,7 +123,7 @@ func TestLimiter(t *testing.T) {
 			// Intentionally leaving the max low because CI runners
 			// may struggle to do 80 things in parallel
 			wantMaxRange:     []int{80, 102},
-			wantMonitorCalls: 1000 * 40,
+			wantMonitorCalls: true,
 		},
 	}
 	for _, tt := range tests {
@@ -165,10 +165,17 @@ func TestLimiter(t *testing.T) {
 			assert.Equal(t, 0, gauge.current)
 			assert.Equal(t, 0, limiter.countSemaphores())
 
-			assert.Equal(t, tt.wantMonitorCalls, gauge.enter)
-			assert.Equal(t, tt.wantMonitorCalls, gauge.exit)
-			assert.Equal(t, tt.wantMonitorCalls, gauge.queued)
-			assert.Equal(t, tt.wantMonitorCalls, gauge.dequeued)
+			var wantMonitorCallCount int
+			if tt.wantMonitorCalls {
+				wantMonitorCallCount = tt.concurrency * tt.iterations
+			} else {
+				wantMonitorCallCount = 0
+			}
+
+			assert.Equal(t, wantMonitorCallCount, gauge.enter)
+			assert.Equal(t, wantMonitorCallCount, gauge.exit)
+			assert.Equal(t, wantMonitorCallCount, gauge.queued)
+			assert.Equal(t, wantMonitorCallCount, gauge.dequeued)
 		})
 	}
 }
