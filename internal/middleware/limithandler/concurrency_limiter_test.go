@@ -146,7 +146,7 @@ func TestLimiter(t *testing.T) {
 							gauge.up()
 
 							assert.True(t, gauge.current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", gauge.current, tt.wantMaxRange[1])
-							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", len(limiter.semaphores), tt.buckets)
+							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", limiter.countSemaphores(), tt.buckets)
 							time.Sleep(tt.delay)
 
 							gauge.down()
