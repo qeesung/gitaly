@@ -5,6 +5,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/cancelhandler"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
@@ -28,6 +29,8 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 		grpc_ctxtags.WithFieldExtractor(fieldextractors.RepositoryFieldExtractor),
 	}
 
+	lh := limithandler.New()
+
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
@@ -35,6 +38,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			grpc_logrus.StreamServerInterceptor(logrusEntry),
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
+			lh.StreamInterceptor(),
 			authStreamServerInterceptor(),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
@@ -46,6 +50,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
+			lh.UnaryInterceptor(),
 			authUnaryServerInterceptor(),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged

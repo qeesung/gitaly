@@ -6,7 +6,7 @@
 /internal/service/smarthttp/testdata
 /internal/testhelper/testdata
 /config.toml
-/internal/service/ssh/gitaly-*-pack
+/internal/service/ssh/gitaly-ssh
 /.ruby-bundle
 /ruby/vendor/bundle
 /ruby/.bundle

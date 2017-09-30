@@ -9,6 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/stretchr/testify/require"
+
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -72,19 +75,26 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
 
-	tests := []*exec.Cmd{
-		exec.Command("git", "clone", "--depth", "1", "git@localhost:test/test.git", localRepoPath),
-		exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath),
+	tests := []struct {
+		cmd  *exec.Cmd
+		desc string
+	}{
+		{
+			cmd:  exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath),
+			desc: "full clone",
+		},
+		{
+			cmd:  exec.Command("git", "clone", "--depth", "1", "git@localhost:test/test.git", localRepoPath),
+			desc: "shallow clone",
+		},
 	}
 
-	for _, cmd := range tests {
-		lHead, rHead, _, _, err := testClone(t, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", cmd)
-		if err != nil {
-			t.Fatalf("clone failed: %v", err)
-		}
-		if strings.Compare(lHead, rHead) != 0 {
-			t.Fatalf("local and remote head not equal. clone failed: %q != %q", lHead, rHead)
-		}
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			lHead, rHead, _, _, err := testClone(t, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", tc.cmd)
+			require.NoError(t, err, "clone failed")
+			require.Equal(t, lHead, rHead, "local and remote head not equal")
+		})
 	}
 }
 
@@ -92,7 +102,7 @@ func TestUploadPackCloneHideTags(t *testing.T) {
 	server := runSSHServer(t)
 	defer server.Stop()
 
-	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
+	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-hide-tags")
 
 	cmd := exec.Command("git", "clone", "--mirror", "git@localhost:test/test.git", localRepoPath)
 
@@ -113,7 +123,7 @@ func TestUploadPackCloneFailure(t *testing.T) {
 	server := runSSHServer(t)
 	defer server.Stop()
 
-	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
+	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-failure")
 
 	cmd := exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath)
 
@@ -125,15 +135,24 @@ func TestUploadPackCloneFailure(t *testing.T) {
 
 func testClone(t *testing.T, storageName, relativePath, localRepoPath string, gitConfig string, cmd *exec.Cmd) (string, string, string, string, error) {
 	defer os.RemoveAll(localRepoPath)
+
+	pbTempRepo := &pb.Repository{StorageName: storageName, RelativePath: relativePath}
+	req := &pb.SSHUploadPackRequest{
+		Repository: pbTempRepo,
+	}
+	if gitConfig != "" {
+		req.GitConfigOptions = strings.Split(gitConfig, " ")
+	}
+	pbMarshaler := &jsonpb.Marshaler{}
+	payload, err := pbMarshaler.MarshalToString(req)
+
+	require.NoError(t, err)
+
 	cmd.Env = []string{
-		fmt.Sprintf("GITALY_SOCKET=unix://%s", serverSocketPath),
-		fmt.Sprintf("GL_STORAGENAME=%s", storageName),
-		fmt.Sprintf("GL_RELATIVEPATH=%s", relativePath),
-		fmt.Sprintf("GL_REPOSITORY=%s", testRepo.GetRelativePath()),
-		fmt.Sprintf("GOPATH=%s", os.Getenv("GOPATH")),
+		fmt.Sprintf("GITALY_ADDRESS=unix:%s", serverSocketPath),
+		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("PATH=%s", ".:"+os.Getenv("PATH")),
-		fmt.Sprintf("GL_CONFIG_OPTIONS=%s", gitConfig),
-		"GIT_SSH_COMMAND=gitaly-upload-pack",
+		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, gitalySSHPath),
 	}
 
 	out, err := cmd.CombinedOutput()

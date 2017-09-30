@@ -19,16 +19,17 @@ var (
 )
 
 type config struct {
-	SocketPath           string      `toml:"socket_path" split_words:"true"`
-	ListenAddr           string      `toml:"listen_addr" split_words:"true"`
-	PrometheusListenAddr string      `toml:"prometheus_listen_addr" split_words:"true"`
-	Git                  Git         `toml:"git" envconfig:"git"`
-	Storages             []Storage   `toml:"storage" envconfig:"storage"`
-	Logging              Logging     `toml:"logging" envconfig:"logging"`
-	Prometheus           Prometheus  `toml:"prometheus"`
-	Auth                 Auth        `toml:"auth"`
-	Ruby                 Ruby        `toml:"gitaly-ruby"`
-	GitlabShell          GitlabShell `toml:"gitlab-shell"`
+	SocketPath           string        `toml:"socket_path" split_words:"true"`
+	ListenAddr           string        `toml:"listen_addr" split_words:"true"`
+	PrometheusListenAddr string        `toml:"prometheus_listen_addr" split_words:"true"`
+	Git                  Git           `toml:"git" envconfig:"git"`
+	Storages             []Storage     `toml:"storage" envconfig:"storage"`
+	Logging              Logging       `toml:"logging" envconfig:"logging"`
+	Prometheus           Prometheus    `toml:"prometheus"`
+	Auth                 Auth          `toml:"auth"`
+	Ruby                 Ruby          `toml:"gitaly-ruby"`
+	GitlabShell          GitlabShell   `toml:"gitlab-shell"`
+	Concurrency          []Concurrency `toml:"concurrency"`
 }
 
 // GitlabShell contains the settings required for executing `gitlab-shell`
@@ -56,6 +57,12 @@ type Logging struct {
 // Prometheus contains additional configuration data for prometheus
 type Prometheus struct {
 	GRPCLatencyBuckets []float64 `toml:"grpc_latency_buckets"`
+}
+
+// Concurrency allows endpoints to be limited to a maximum concurrency per repo
+type Concurrency struct {
+	RPC        string `toml:"rpc"`
+	MaxPerRepo int    `toml:"max_per_repo"`
 }
 
 // Load initializes the Config variable from file and the environment.

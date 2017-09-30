@@ -226,3 +226,179 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestSuccessfulUserDeleteBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	server := runOperationServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newOperationClient(t)
+	defer conn.Close()
+
+	branchNameInput := "to-be-deleted-soon-branch"
+
+	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
+
+	user := &pb.User{
+		Name:  []byte("Alejandro Rodríguez"),
+		Email: []byte("alejandro@gitlab.com"),
+		GlId:  "user-123",
+	}
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
+
+	request := &pb.UserDeleteBranchRequest{
+		Repository: testRepo,
+		BranchName: []byte(branchNameInput),
+		User:       user,
+	}
+
+	_, err := client.UserDeleteBranch(ctx, request)
+	require.NoError(t, err)
+
+	branches := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch")
+	require.NotContains(t, string(branches), branchNameInput, "branch name still exists in branches list")
+}
+
+func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
+	server := runOperationServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newOperationClient(t)
+	defer conn.Close()
+
+	branchNameInput := "to-be-deleted-soon-branch"
+	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
+
+	user := &pb.User{
+		Name:  []byte("Alejandro Rodríguez"),
+		Email: []byte("alejandro@gitlab.com"),
+		GlId:  "user-123",
+	}
+
+	request := &pb.UserDeleteBranchRequest{
+		Repository: testRepo,
+		BranchName: []byte(branchNameInput),
+		User:       user,
+	}
+
+	for _, hookName := range []string{"pre-receive", "update", "post-receive"} {
+		t.Run(hookName, func(t *testing.T) {
+			testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
+
+			hookPath, hookOutputTempPath := writeEnvToHook(t, hookName)
+			defer os.Remove(hookPath)
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			_, err := client.UserDeleteBranch(ctx, request)
+			require.NoError(t, err)
+
+			output := testhelper.MustReadFile(t, hookOutputTempPath)
+			require.Contains(t, string(output), "GL_ID=user-123")
+		})
+	}
+}
+
+func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
+	server := runOperationServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newOperationClient(t)
+	defer conn.Close()
+
+	user := &pb.User{
+		Name:  []byte("Alejandro Rodríguez"),
+		Email: []byte("alejandro@gitlab.com"),
+		GlId:  "user-123",
+	}
+
+	testCases := []struct {
+		desc    string
+		request *pb.UserDeleteBranchRequest
+		code    codes.Code
+	}{
+		{
+			desc: "empty user",
+			request: &pb.UserDeleteBranchRequest{
+				Repository: testRepo,
+				BranchName: []byte("does-matter-the-name-if-user-is-empty"),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty branch name",
+			request: &pb.UserDeleteBranchRequest{
+				Repository: testRepo,
+				User:       user,
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "non-existent branch name",
+			request: &pb.UserDeleteBranchRequest{
+				Repository: testRepo,
+				User:       user,
+				BranchName: []byte("i-do-not-exist"),
+			},
+			code: codes.Unknown,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			_, err := client.UserDeleteBranch(ctx, testCase.request)
+			testhelper.AssertGrpcError(t, err, testCase.code, "")
+		})
+	}
+}
+
+func TestFailedUserDeleteBranchDueToHooks(t *testing.T) {
+	server := runOperationServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newOperationClient(t)
+	defer conn.Close()
+
+	branchNameInput := "to-be-deleted-soon-branch"
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
+	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
+
+	user := &pb.User{
+		Name:  []byte("Alejandro Rodríguez"),
+		Email: []byte("alejandro@gitlab.com"),
+		GlId:  "user-123",
+	}
+
+	request := &pb.UserDeleteBranchRequest{
+		Repository: testRepo,
+		BranchName: []byte(branchNameInput),
+		User:       user,
+	}
+
+	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
+
+	for _, hookName := range []string{"pre-receive", "update"} {
+		t.Run(hookName, func(t *testing.T) {
+			hookPath := path.Join(testRepoPath, "hooks", hookName)
+			ioutil.WriteFile(hookPath, hookContent, 0755)
+			defer os.Remove(hookPath)
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			response, err := client.UserDeleteBranch(ctx, request)
+			require.Nil(t, err)
+			require.Contains(t, response.PreReceiveError, "GL_ID="+user.GlId)
+
+			branches := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch")
+			require.Contains(t, string(branches), branchNameInput, "branch name does not exist in branches list")
+		})
+	}
+}

@@ -25,8 +25,7 @@ var (
 	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
 	testRepo         *pb.Repository
 
-	uploadPackPath  string
-	receivePackPath string
+	gitalySSHPath string
 
 	cwd string
 )
@@ -48,15 +47,10 @@ func testMain(m *testing.M) int {
 	testRepo = testhelper.TestRepository()
 
 	// Build the test-binary that we need
-	os.Remove("gitaly-upload-pack")
-	testhelper.MustRunCommand(nil, nil, "go", "build", "gitlab.com/gitlab-org/gitaly/internal/service/ssh/cmd/gitaly-upload-pack")
-	defer os.Remove("gitaly-upload-pack")
-	uploadPackPath = path.Join(cwd, "gitaly-upload-pack")
-
-	os.Remove("gitaly-receive-pack")
-	testhelper.MustRunCommand(nil, nil, "go", "build", "gitlab.com/gitlab-org/gitaly/internal/service/ssh/cmd/gitaly-receive-pack")
-	defer os.Remove("gitaly-receive-pack")
-	receivePackPath = path.Join(cwd, "gitaly-receive-pack")
+	os.Remove("gitaly-ssh")
+	testhelper.MustRunCommand(nil, nil, "go", "build", "gitlab.com/gitlab-org/gitaly/cmd/gitaly-ssh")
+	defer os.Remove("gitaly-ssh")
+	gitalySSHPath = path.Join(cwd, "gitaly-ssh")
 
 	return m.Run()
 }

@@ -4,6 +4,7 @@
 
 **Quick Links**:
   [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration) |
+  [**Roadmap**](doc/ROADMAP.md) |
   [Open Conversations](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=Conversation) |
   [Unassigned Conversations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=To%20Do&assignee_id=0) |
   [Migrations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=Migration) |
@@ -37,7 +38,11 @@ This will be achieved by focusing on two areas (in this order):
 
 ## Current Status
 
-Gitaly has been shipped as part of GitLab since 9.0. We are migrating git operations from in-process Rugged implementations to Gitaly service endpoints. The migration process is [documented](/doc/MIGRATION_PROCESS.md).
+Gitaly has been shipped as part of GitLab since 9.0. We are migrating git operations from in-process Rugged implementations to Gitaly service endpoints.
+
+[The roadmap is available here](doc/ROADMAP.md).
+
+The migration process is [documented](/doc/MIGRATION_PROCESS.md).
 
 If you're interested in seeing how well Gitaly is performing on GitLab.com, we have dashboards!
 

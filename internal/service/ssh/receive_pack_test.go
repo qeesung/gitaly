@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/stretchr/testify/require"
+
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -121,16 +124,21 @@ func testCloneAndPush(t *testing.T, storageName, glID string) (string, string, e
 
 	makeCommit(t, localRepoPath)
 
+	pbTempRepo := &pb.Repository{StorageName: storageName, RelativePath: tempRepo}
+	pbMarshaler := &jsonpb.Marshaler{}
+	payload, err := pbMarshaler.MarshalToString(&pb.SSHReceivePackRequest{
+		Repository:   pbTempRepo,
+		GlRepository: pbTempRepo.GetRelativePath(),
+		GlId:         glID,
+	})
+	require.NoError(t, err)
+
 	cmd := exec.Command("git", "-C", localRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
 	cmd.Env = []string{
-		fmt.Sprintf("GITALY_SOCKET=unix://%s", serverSocketPath),
-		fmt.Sprintf("GL_STORAGENAME=%s", storageName),
-		fmt.Sprintf("GL_RELATIVEPATH=%s", tempRepo),
-		fmt.Sprintf("GL_REPOSITORY=%s", testRepo.GetRelativePath()),
-		fmt.Sprintf("GOPATH=%s", os.Getenv("GOPATH")),
+		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
+		fmt.Sprintf("GITALY_ADDRESS=unix:%s", serverSocketPath),
 		fmt.Sprintf("PATH=%s", ".:"+os.Getenv("PATH")),
-		fmt.Sprintf("GIT_SSH_COMMAND=%s", receivePackPath),
-		fmt.Sprintf("GL_ID=%s", glID),
+		fmt.Sprintf(`GIT_SSH_COMMAND=%s receive-pack`, gitalySSHPath),
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
