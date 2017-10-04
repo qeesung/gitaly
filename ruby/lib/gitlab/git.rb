@@ -10,6 +10,7 @@ require 'active_support/core_ext/enumerable'
 
 # We split our mock implementation of Gitlab::GitalyClient into a separate file
 require_relative 'gitaly_client.rb'
+require_relative 'git_logger.rb'
 
 vendor_gitlab_git = '../../vendor/gitlab_git/'
 
@@ -81,5 +82,12 @@ module Gitlab
         @rugged
       end
     end
+  end
+end
+
+class String
+  # Because we are not rendering HTML, this is a no-op in gitaly-ruby.
+  def html_safe
+    self
   end
 end

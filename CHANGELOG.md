@@ -2,7 +2,7 @@
 
 UNRELEASED
 
-- Update gitlab_git to 69b39192fd0186
+- Update gitlab_git to 4a4f809353a2e7007f8
   https://gitlab.com/gitlab-org/gitaly/merge_requests/389
 - Fix incorrect parsing of diff chunks starting with ++ or --
   https://gitlab.com/gitlab-org/gitaly/merge_requests/385
