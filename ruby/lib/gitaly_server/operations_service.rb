@@ -32,7 +32,7 @@ module GitalyServer
           Gitaly::UserCreateTagResponse.new(tag: tag)
         rescue Gitlab::Git::Repository::InvalidRef => e
           raise GRPC::FailedPrecondition.new(e.message)
-        rescue Rugged::TagError
+        rescue Gitlab::Git::Repository::TagExistsError
           return Gitaly::UserCreateTagResponse.new(exists: true)
         rescue Gitlab::Git::HooksService::PreReceiveError => e
           return Gitaly::UserCreateTagResponse.new(pre_receive_error: e.message)
