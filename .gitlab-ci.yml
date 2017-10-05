@@ -120,6 +120,8 @@ test-vendor-gitaly-ruby:
   stage: build_test
   # only:
   #  - schedules
+  before_script:
+    - DEBIAN_FRONTEND=noninteractive apt-get -q -y install rsync
   script:
     - _support/vendor-gitlab-git master
     - make test
