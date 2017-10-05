@@ -115,7 +115,7 @@ update-downstream-server-version:
     - ruby _support/update-downstream-server-version.rb
   allow_failure: true
 
-# Create a MR in GitLab-CE when releasing a Gitaly version
+# Ensure that gitlab-git vendoring from gitlab-ce is functioning
 test-vendor-gitaly-ruby:
   stage: build_test
   only:
