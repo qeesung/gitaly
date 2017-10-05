@@ -30,6 +30,9 @@ const ClientFeatureKey = "grpc.meta.client_feature"
 // ClientNameKey is the key used in ctx_tags to store the client name
 const ClientNameKey = "grpc.meta.client_name"
 
+// Unknown client and feature. Matches the prometheus grpc unknown value
+const unknownValue = "unknown"
+
 func getFromMD(md metadata.MD, header string) string {
 	values := md[header]
 	if len(values) != 1 {
@@ -39,22 +42,30 @@ func getFromMD(md metadata.MD, header string) string {
 	return values[0]
 }
 
+// addMetadataTags extracts metadata from the connection headers and add it to the
+// ctx_tags, if it is set. Returns values appropriate for use with prometheus labels,
+// using `unknown` if a value is not set
 func addMetadataTags(ctx context.Context) (clientFeature string, clientName string) {
+	clientFeature = unknownValue
+	clientName = unknownValue
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "unknown", "unknown"
+		return clientFeature, clientName
 	}
 
 	tags := grpc_ctxtags.Extract(ctx)
 
-	clientFeature = getFromMD(md, "client_feature")
-	if clientFeature != "" {
-		tags.Set(ClientFeatureKey, clientFeature)
+	metadata := getFromMD(md, "client_feature")
+	if metadata != "" {
+		clientFeature = metadata
+		tags.Set(ClientFeatureKey, metadata)
 	}
 
-	clientName = getFromMD(md, "client_name")
-	if clientFeature != "" {
-		tags.Set(ClientNameKey, clientName)
+	metadata = getFromMD(md, "client_name")
+	if metadata != "" {
+		clientName = metadata
+		tags.Set(ClientNameKey, metadata)
 	}
 
 	return clientFeature, clientName
