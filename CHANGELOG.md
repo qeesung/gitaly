@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Update gitlab_git to 4a0f720a502ac02423
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/389
 - Fix incorrect parsing of diff chunks starting with ++ or --
   https://gitlab.com/gitlab-org/gitaly/merge_requests/385
 - Implement Raw{Diff,Patch} RPCs
