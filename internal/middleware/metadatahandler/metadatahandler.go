@@ -42,7 +42,7 @@ func getFromMD(md metadata.MD, header string) string {
 func addMetadataTags(ctx context.Context) (clientFeature string, clientName string) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", ""
+		return "unknown", "unknown"
 	}
 
 	tags := grpc_ctxtags.Extract(ctx)
