@@ -118,8 +118,8 @@ update-downstream-server-version:
 # Create a MR in GitLab-CE when releasing a Gitaly version
 test-vendor-gitaly-ruby:
   stage: build_test
-  # only:
-  #  - schedules
+  only:
+   - schedules
   before_script:
     - DEBIAN_FRONTEND=noninteractive apt-get -q -y install rsync
   script:
