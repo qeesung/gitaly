@@ -6,3 +6,5 @@ ignore:
 
 comment:
   layout: "diff, flags, files"
+  require_changes: fale
+  behavior: default

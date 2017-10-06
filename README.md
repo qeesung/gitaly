@@ -1,6 +1,6 @@
 # ![Gitaly](https://gitlab.com/gitlab-org/gitaly/uploads/509123ed56bd51247996038c858db006/gitaly-wordmark-small.png)
 
-[![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) [![coverage report](https://gitlab.com/gitlab-org/gitaly/badges/master/coverage.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master)
+[![build status](https://gitlab.com/gitlab-org/gitaly/badges/master/build.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![Gem Version](https://badge.fury.io/rb/gitaly.svg)](https://badge.fury.io/rb/gitaly) [![coverage report](https://gitlab.com/gitlab-org/gitaly/badges/master/coverage.svg)](https://codecov.io/gl/gitlab-org/gitaly)
 
 **Quick Links**:
   [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration) |
