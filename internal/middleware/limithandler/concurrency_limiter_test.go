@@ -110,7 +110,7 @@ func TestLimiter(t *testing.T) {
 			iterations:       200,
 			delay:            1000 * time.Nanosecond,
 			buckets:          1,
-			wantMaxRange:     []int{10, 10},
+			wantMaxRange:     []int{8, 10},
 			wantMonitorCalls: false,
 		},
 		{
