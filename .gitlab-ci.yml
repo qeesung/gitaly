@@ -41,6 +41,8 @@ cover:
   stage: build_test
   script:
     - make cover
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -t "${CODECOV_TOKEN}" -f _build/cover/all.merged
   artifacts:
     paths:
       - _build/cover/all.html
