@@ -84,16 +84,16 @@ govendor-status: $(TARGET_SETUP) $(GOVENDOR)
 $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@
 
+.PHONY: prepare-tests
+prepare-tests: $(TARGET_SETUP) $(TEST_REPO) .ruby-bundle
+
 .PHONY: test
-test: $(TARGET_SETUP) $(TEST_REPO) prepare-tests .ruby-bundle
+test: prepare-tests
 	@go test $(LOCAL_PACKAGES)
 
 .PHONY: test-changes
-test-changes: $(TARGET_SETUP) $(TEST_REPO) prepare-tests .ruby-bundle
+test-changes: prepare-tests
 	cd $(PKG_BUILD_DIR) && go test $(CHANGED_LOCAL_GO_PACKAGES)
-
-.PHONY: prepare-tests
-prepare-tests: $(TARGET_SETUP) $(TEST_REPO)
 
 .PHONY: lint
 lint: $(GOLINT)
@@ -134,7 +134,7 @@ clean:
 	rm -rf $(TARGET_DIR) $(TEST_REPO) $(TEST_REPO_STORAGE_PATH) ./internal/service/ssh/gitaly-*-pack .ruby-bundle
 
 .PHONY: cover
-cover: $(TARGET_SETUP) $(TEST_REPO) $(GOCOVMERGE)
+cover: prepare-tests $(GOCOVMERGE)
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "$(COVERAGE_DIR)"
 	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
