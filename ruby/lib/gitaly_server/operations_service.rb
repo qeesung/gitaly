@@ -113,9 +113,7 @@ module GitalyServer
           target_branch = first_request.branch.dup
           message = first_request.message.dup
 
-          merge_commit_id = nil
-          repository.merge(user, source_sha, target_branch, message) do |commit_id|
-            merge_commit_id = commit_id
+          result = repository.merge(user, source_sha, target_branch, message) do |commit_id|
             y << Gitaly::UserMergeBranchResponse.new(commit_id: commit_id)
 
             second_request = session.next
@@ -124,7 +122,13 @@ module GitalyServer
             end
           end
 
-          y << Gitaly::UserMergeBranchResponse.new(branch_update: Gitaly::OperationBranchUpdate.new(commit_id: merge_commit_id))
+          branch_update = Gitaly::OperationBranchUpdate.new(
+            commit_id: result.newrev,
+            repo_created: result.repo_created,
+            branch_created: result.branch_created
+          )
+
+          y << Gitaly::UserMergeBranchResponse.new(branch_update: branch_update)
         end
       end
     end
