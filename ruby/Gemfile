@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'github-linguist', '~> 4.7.0', require: 'linguist'
-gem 'gitaly-proto', '~> 0.41.0', require: 'gitaly'
+gem 'gitaly-proto', '~> 0.42.0', require: 'gitaly'
 gem 'activesupport'
 
 group :development, :test do

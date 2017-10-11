@@ -75,7 +75,7 @@ func TestSuccessfulMerge(t *testing.T) {
 
 	secondResponse, err := mergeBidi.Recv()
 	require.NoError(t, err, "receive second response")
-	require.Equal(t, pb.UserMergeBranchResponse{Applied: true}, *secondResponse)
+	require.NotEqual(t, pb.UserMergeBranchResponse{}, *secondResponse, "second response should not be empty")
 
 	err = consumeEOF(func() error {
 		_, err = mergeBidi.Recv()
@@ -158,7 +158,9 @@ func TestAbortedMerge(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			require.Equal(t, false, secondResponse.GetApplied(), "merge should not have been applied")
+			if secondResponse != nil {
+				require.NotEqual(t, pb.UserMergeBranchResponse{}, *secondResponse, "second response should be empty")
+			}
 			require.Error(t, err)
 
 			commit, err := gitlog.GetCommit(ctx, testRepo, mergeBranchName, "")
