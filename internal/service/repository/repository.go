@@ -8,8 +8,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 )
 
+// Deprecated
 func (s *server) Exists(ctx context.Context, in *pb.RepositoryExistsRequest) (*pb.RepositoryExistsResponse, error) {
-	return s.RepositoryExists(ctx, in)
+	return nil, helper.Unimplemented
 }
 
 func (s *server) RepositoryExists(ctx context.Context, in *pb.RepositoryExistsRequest) (*pb.RepositoryExistsResponse, error) {
