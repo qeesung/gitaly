@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Pass full BranchUpdate result on successful merge
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/406
 - Use gitaly-proto 0.42.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/407
 
