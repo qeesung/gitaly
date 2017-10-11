@@ -108,7 +108,7 @@ func TestRepositoryExists(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			response, err := client.Exists(ctx, tc.request)
+			response, err := client.RepositoryExists(ctx, tc.request)
 
 			require.Equal(t, tc.errorCode, grpc.Code(err))
 
