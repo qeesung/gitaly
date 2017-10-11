@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Use gitaly-proto 0.42.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/407
+
 v0.46.0
 
 - Add a Rails logger to ruby-git
