@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Deprecate implementation of RepositoryService.Exists
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/408
+
 v0.46.0
 
 - Add a Rails logger to ruby-git
