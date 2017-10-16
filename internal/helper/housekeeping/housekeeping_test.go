@@ -118,58 +118,58 @@ func TestPerformHousekeeping(t *testing.T) {
 		{
 			name: "clean",
 			directoryIn: `
-				a		 f 0700   24h 	keep
-				b    f 0700   24h 	keep
-				c    f 0700   24h		keep
+				a     f 0700   24h   keep
+				b    f 0700   24h    keep
+				c    f 0700   24h    keep
 			`,
 			wantErr: false,
 		},
 		{
 			name: "emptyperms",
 			directoryIn: `
-				tmp_a f 0000   24h		delete
-				b     f 0700   24h		keep
+				tmp_a f 0000   24h    delete
+				b     f 0700   24h    keep
 			`,
 			wantErr: false,
 		},
 		{
 			name: "oldtempfile",
 			directoryIn: `
-				tmp_b	f 0770   240h  delete
-				b    	f 0700   24h		keep
+				tmp_b  f 0770   240h  delete
+				b      f 0700   24h   keep
 			`,
 			wantErr: false,
 		},
 		{
 			name: "oldtempfile",
 			directoryIn: `
-				tmp_b	f 0770   240h  delete
-				b    	f 0700   24h		keep
+				tmp_b  f 0770   240h  delete
+				b      f 0700   24h   keep
 			`,
 			wantErr: false,
 		},
 		{
 			name: "subdir temp file",
 			directoryIn: `
-				a					d 0770   240h  	keep
-				a/tmp_b   f 0700   240h		delete
+				a         d 0770   240h  keep
+				a/tmp_b   f 0700   240h  delete
 			`,
 			wantErr: false,
 		},
 		{
 			name: "inaccessible tmp directory",
 			directoryIn: `
-				tmp_a					d 0000   240h  	delete
-				tmp_a/tmp_b   f 0700   240h		delete
+				tmp_a         d 0000   240h  delete
+				tmp_a/tmp_b   f 0700   240h  delete
 			`,
 			wantErr: false,
 		},
 		{
 			name: "deeply nested inaccessible tmp directory",
 			directoryIn: `
-				tmp_a					d 0000   240h  	delete
-				tmp_a/b   		d 0000   24h		delete
-				tmp_a/b/c   	f 0000   24h		delete
+				tmp_a       d 0000   240h    delete
+				tmp_a/b     d 0000   24h     delete
+				tmp_a/b/c   f 0000   24h     delete
 			`,
 			wantErr: false,
 		},
