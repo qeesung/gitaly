@@ -5,192 +5,189 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
-var whiteSpaceRegExp = regexp.MustCompile("^([\\w\\/]+)\\s+(f|d)\\s+(\\d+)\\s+(\\w+)\\s+(keep|delete)$")
+const delete = true
+const keep = false
 
-type op func() error
-
-type fixture struct {
-	rootPath      string
-	deleteEntries []string
+type entry interface {
+	create(t *testing.T, parent string)
+	validate(t *testing.T, parent string)
 }
 
-func (f *fixture) check(t *testing.T) {
-	for _, entry := range f.deleteEntries {
-		_, err := os.Stat(entry)
-		if err == nil {
-			t.Errorf("Expected %v to have been deleted.", entry)
-		}
+// fileEntry is an entry implementation for a file
+type fileEntry struct {
+	name    string
+	mode    os.FileMode
+	age     time.Duration
+	deleted bool
+}
+
+func (f *fileEntry) create(t *testing.T, parent string) {
+	filename := filepath.Join(parent, f.name)
+	ff, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0700)
+	assert.NoError(t, err, "file creation failed: %v", filename)
+	ff.Close()
+
+	f.chmod(t, filename)
+	f.chtimes(t, filename)
+}
+
+func (f *fileEntry) validate(t *testing.T, parent string) {
+	filename := filepath.Join(parent, f.name)
+	f.checkExistence(t, filename)
+}
+
+func (f *fileEntry) chmod(t *testing.T, filename string) {
+	fmt.Printf("chmod %v,%v", filename, f.mode)
+	err := os.Chmod(filename, f.mode)
+	assert.NoError(t, err, "chmod failed")
+}
+
+func (f *fileEntry) chtimes(t *testing.T, filename string) {
+	filetime := time.Now().Add(-f.age)
+	err := os.Chtimes(filename, filetime, filetime)
+	assert.NoError(t, err, "chtimes failed")
+}
+
+func (f *fileEntry) checkExistence(t *testing.T, filename string) {
+	_, err := os.Stat(filename)
+	if err == nil && f.deleted {
+		t.Errorf("Expected %v to have been deleted.", filename)
+	} else if err != nil && !f.deleted {
+		t.Errorf("Expected %v to not have been deleted.", filename)
 	}
 }
 
-func parse(directoryStructure string) (*fixture, error) {
-	tmpDir, err := ioutil.TempDir("", "test")
-	if err != nil {
-		return nil, err
+// dirEntry is an entry implementation for a directory. A file with entries
+type dirEntry struct {
+	fileEntry
+	entries []entry
+}
+
+func (d *dirEntry) create(t *testing.T, parent string) {
+	dirname := filepath.Join(parent, d.name)
+	err := os.Mkdir(dirname, 0700)
+	assert.NoError(t, err, "mkdir failed: %v", dirname)
+
+	for _, e := range d.entries {
+		e.create(t, dirname)
 	}
 
-	result := &fixture{rootPath: tmpDir}
-	lines := strings.Split(directoryStructure, "\n")
+	// Apply permissions and times after the children have been created
+	d.chmod(t, dirname)
+	d.chtimes(t, dirname)
+}
 
-	// Sequenced operations
-	ops := []op{}
+func (d *dirEntry) validate(t *testing.T, parent string) {
+	dirname := filepath.Join(parent, d.name)
+	d.checkExistence(t, dirname)
 
-	// First pass
-	for _, line := range lines {
-		line := strings.Trim(line, " \t")
-		if line == "" {
-			continue
-		}
-
-		matches := whiteSpaceRegExp.FindStringSubmatch(string(line))
-		if len(matches) < 2 {
-			return result, fmt.Errorf("Invalid line %v, %v", line, matches)
-		}
-
-		filename := filepath.Join(tmpDir, matches[1])
-		isDirectory := matches[2] == "d"
-
-		if isDirectory {
-			err := os.Mkdir(filename, 0700)
-			if err != nil {
-				return result, err
-			}
-		}
-
-		f, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0700)
-		f.Close()
-		if err != nil {
-			return result, err
-		}
-
-		// Perform chmod and chtimes in reverse order
-		mod := func() error {
-			mode, err := strconv.ParseInt(matches[3], 0, 32)
-			if err != nil {
-				return err
-			}
-
-			err = os.Chmod(filename, os.FileMode(mode))
-			if err != nil {
-				return err
-			}
-
-			duration, err := time.ParseDuration(matches[4])
-			if err != nil {
-				return err
-			}
-
-			filetime := time.Now().Add(-duration)
-			return os.Chtimes(filename, filetime, filetime)
-		}
-		ops = append([]op{mod}, ops...)
-
-		if matches[5] == "delete" {
-			result.deleteEntries = append(result.deleteEntries, filename)
-		}
+	for _, e := range d.entries {
+		e.validate(t, dirname)
 	}
+}
 
-	for _, op := range ops {
-		err := op()
-		if err != nil {
-			return result, err
-		}
-	}
+func f(name string, mode os.FileMode, age time.Duration, deleted bool) entry {
+	return &fileEntry{name, mode, age, deleted}
+}
 
-	return result, nil
+func d(name string, mode os.FileMode, age time.Duration, deleted bool, entries []entry) entry {
+	return &dirEntry{fileEntry{name, mode, age, deleted}, entries}
 }
 
 func TestPerformHousekeeping(t *testing.T) {
 	tests := []struct {
-		name        string
-		directoryIn string
-		wantErr     bool
+		name    string
+		entries []entry
+		wantErr bool
 	}{
 		{
 			name: "clean",
-			directoryIn: `
-				a     f 0700   24h   keep
-				b    f 0700   24h    keep
-				c    f 0700   24h    keep
-			`,
+			entries: []entry{
+				f("a", os.FileMode(0700), 24*time.Hour, keep),
+				f("b", os.FileMode(0700), 24*time.Hour, keep),
+				f("c", os.FileMode(0700), 24*time.Hour, keep),
+			},
 			wantErr: false,
 		},
 		{
 			name: "emptyperms",
-			directoryIn: `
-				tmp_a f 0000   24h    delete
-				b     f 0700   24h    keep
-			`,
+			entries: []entry{
+				f("b", os.FileMode(0700), 24*time.Hour, keep),
+				f("tmp_a", os.FileMode(0000), 2*time.Hour, delete),
+			},
+			wantErr: false,
+		},
+		{
+			name: "emptytempdir",
+			entries: []entry{
+				d("tmp_d", os.FileMode(0000), 24*time.Hour, delete, []entry{}),
+				f("b", os.FileMode(0700), 24*time.Hour, keep),
+			},
 			wantErr: false,
 		},
 		{
 			name: "oldtempfile",
-			directoryIn: `
-				tmp_b  f 0770   240h  delete
-				b      f 0700   24h   keep
-			`,
-			wantErr: false,
-		},
-		{
-			name: "oldtempfile",
-			directoryIn: `
-				tmp_b  f 0770   240h  delete
-				b      f 0700   24h   keep
-			`,
+			entries: []entry{
+				f("tmp_a", os.FileMode(0770), 240*time.Hour, delete),
+				f("b", os.FileMode(0700), 24*time.Hour, keep),
+			},
 			wantErr: false,
 		},
 		{
 			name: "subdir temp file",
-			directoryIn: `
-				a         d 0770   240h  keep
-				a/tmp_b   f 0700   240h  delete
-			`,
+			entries: []entry{
+				d("a", os.FileMode(0770), 240*time.Hour, keep, []entry{
+					f("tmp_b", os.FileMode(0700), 240*time.Hour, delete),
+				}),
+			},
 			wantErr: false,
 		},
 		{
 			name: "inaccessible tmp directory",
-			directoryIn: `
-				tmp_a         d 0000   240h  delete
-				tmp_a/tmp_b   f 0700   240h  delete
-			`,
+			entries: []entry{
+				d("tmp_a", os.FileMode(0000), 240*time.Hour, delete, []entry{
+					f("tmp_b", os.FileMode(0700), 240*time.Hour, delete),
+				}),
+			},
 			wantErr: false,
 		},
 		{
 			name: "deeply nested inaccessible tmp directory",
-			directoryIn: `
-				tmp_a       d 0000   240h    delete
-				tmp_a/b     d 0000   24h     delete
-				tmp_a/b/c   f 0000   24h     delete
-			`,
+			entries: []entry{
+				d("tmp_a", os.FileMode(0000), 240*time.Hour, delete, []entry{
+					d("tmp_a", os.FileMode(0000), 24*time.Hour, delete, []entry{
+						f("tmp_b", os.FileMode(0000), 24*time.Hour, delete),
+					}),
+				}),
+			},
 			wantErr: false,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, err := parse(tt.directoryIn)
+			rootPath, err := ioutil.TempDir("", "test")
+			assert.NoError(t, err, "TempDir creation failed")
+			defer os.RemoveAll(rootPath)
 
-			if f != nil {
-				defer os.RemoveAll(f.rootPath)
+			for _, e := range tt.entries {
+				e.create(t, rootPath)
 			}
 
-			if err != nil {
-				t.Errorf("Setup failed: %v", err)
-			}
-
-			if err = PerformHousekeeping(context.Background(), f.rootPath); (err != nil) != tt.wantErr {
+			if err = PerformHousekeeping(context.Background(), rootPath); (err != nil) != tt.wantErr {
 				t.Errorf("PerformHousekeeping() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			f.check(t)
+			for _, e := range tt.entries {
+				e.validate(t, rootPath)
+			}
 		})
 	}
 }

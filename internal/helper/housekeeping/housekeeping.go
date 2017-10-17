@@ -17,6 +17,11 @@ func PerformHousekeeping(ctx context.Context, repoPath string) error {
 	log := grpc_logrus.Extract(ctx)
 
 	return filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+		if repoPath == path {
+			// Never consider the root path
+			return nil
+		}
+
 		if info == nil || !shouldUnlink(path, info.ModTime(), info.Mode(), err) {
 			return nil
 		}
@@ -27,10 +32,11 @@ func PerformHousekeeping(ctx context.Context, repoPath string) error {
 		}
 
 		if info.IsDir() {
+			// Do not walk removed directories
 			return filepath.SkipDir
 		}
 
-		return err
+		return nil
 	})
 }
 
