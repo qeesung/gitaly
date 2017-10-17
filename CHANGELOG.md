@@ -4,6 +4,8 @@ UNRELEASED
 
 - Use sentry fingerprinting to group exceptions
   https://gitlab.com/gitlab-org/gitaly/merge_requests/417
+- Use gitlab_git c23c09366db610c1
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/415
 
 v0.48.0
 
