@@ -52,19 +52,16 @@ func methodToCulprit(methodName string) string {
 	return methodName
 }
 
-func logErrorToSentry(err error) (code codes.Code, ok bool) {
-	grpcErrorCode := grpc.Code(err)
+func logErrorToSentry(err error) (code codes.Code, bypass bool) {
+	code = grpc.Code(err)
 
-	if grpcErrorCode == codes.OK || grpcErrorCode == codes.Canceled {
-		return grpcErrorCode, false
-	}
-
-	return grpcErrorCode, true
+	bypass = code == codes.OK || code == codes.Canceled
+	return code, bypass
 }
 
 func generateRavenPacket(ctx context.Context, method string, start time.Time, err error) (*raven.Packet, map[string]string) {
-	grpcErrorCode, ok := logErrorToSentry(err)
-	if !ok {
+	grpcErrorCode, bypass := logErrorToSentry(err)
+	if bypass {
 		return nil, nil
 	}
 
