@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Use sentry fingerprinting to group exceptions
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/417
+
 v0.48.0
 
 - Implement WikiWritePage RPC
