@@ -12,8 +12,8 @@ import (
 
 const deleteTempFilesOlderThanDuration = 7 * 24 * time.Hour
 
-// PerformHousekeeping will perform housekeeping duties on a repository
-func PerformHousekeeping(ctx context.Context, repoPath string) error {
+// Perform will perform housekeeping duties on a repository
+func Perform(ctx context.Context, repoPath string) error {
 	log := grpc_logrus.Extract(ctx)
 
 	return filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {

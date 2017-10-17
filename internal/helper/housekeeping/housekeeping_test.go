@@ -181,7 +181,7 @@ func TestPerformHousekeeping(t *testing.T) {
 				e.create(t, rootPath)
 			}
 
-			if err = PerformHousekeeping(context.Background(), rootPath); (err != nil) != tt.wantErr {
+			if err = Perform(context.Background(), rootPath); (err != nil) != tt.wantErr {
 				t.Errorf("PerformHousekeeping() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

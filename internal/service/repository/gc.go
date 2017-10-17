@@ -45,7 +45,7 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		return nil, err
 	}
 
-	err = housekeeping.PerformHousekeeping(ctx, repoPath)
+	err = housekeeping.Perform(ctx, repoPath)
 	if err != nil {
 		ctxlogger.WithError(err).Warn("Post gc housekeeping failed")
 	}
