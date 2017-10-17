@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Remove old temporary files from repositories after GC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/411
+
 v0.48.0
 
 - Implement WikiWritePage RPC
