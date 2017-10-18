@@ -5,6 +5,7 @@ require 'linguist/blob_helper'
 # Ruby on Rails mix-ins that GitLab::Git code relies on
 require 'active_support/core_ext/object/blank'
 require 'active_support/core_ext/numeric/bytes'
+require 'active_support/core_ext/numeric/time'
 require 'active_support/core_ext/module/delegation'
 require 'active_support/core_ext/enumerable'
 
@@ -25,6 +26,8 @@ require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
 # Require all .rb files we can find in the vendored gitlab/git directory
 dir = File.expand_path(File.join('..', vendor_gitlab_git, 'lib/gitlab/'), __FILE__)
 Dir["#{dir}/git/**/*.rb"].sort.each do |ruby_file|
+  next if ruby_file.include?('circuit_breaker')
+
   require_relative ruby_file.sub(dir, File.join(vendor_gitlab_git, 'lib/gitlab/')).sub(%r{^/*}, '')
 end
 
