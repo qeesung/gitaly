@@ -36,7 +36,8 @@ func (f *fileEntry) create(t *testing.T, parent string) {
 	filename := filepath.Join(parent, f.name)
 	ff, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0700)
 	assert.NoError(t, err, "file creation failed: %v", filename)
-	ff.Close()
+	err = ff.Close()
+	assert.NoError(t, err, "file close failed: %v", filename)
 
 	f.chmod(t, filename)
 	f.chtimes(t, filename)
@@ -123,14 +124,14 @@ func TestPerform(t *testing.T) {
 			name: "emptyperms",
 			entries: []entry{
 				f("b", os.FileMode(0700), 24*time.Hour, Keep),
-				f("tmp_a", os.FileMode(0000), 2*time.Hour, Delete),
+				f("tmp_a", os.FileMode(0000), 2*time.Hour, Keep),
 			},
 			wantErr: false,
 		},
 		{
 			name: "emptytempdir",
 			entries: []entry{
-				d("tmp_d", os.FileMode(0000), 24*time.Hour, Delete, []entry{}),
+				d("tmp_d", os.FileMode(0000), 240*time.Hour, Delete, []entry{}),
 				f("b", os.FileMode(0700), 24*time.Hour, Keep),
 			},
 			wantErr: false,
@@ -208,7 +209,7 @@ func TestShouldUnlink(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "regular file",
+			name: "regular_file",
 			args: args{
 				path:    "/tmp/objects",
 				modTime: time.Now().Add(-1 * time.Hour),
@@ -228,7 +229,7 @@ func TestShouldUnlink(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "recent time file",
+			name: "recent_time_file",
 			args: args{
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
@@ -248,24 +249,24 @@ func TestShouldUnlink(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "old temp file",
+			name: "old_temp_file",
 			args: args{
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0000,
 				err:     nil,
 			},
-			want: true,
+			want: false,
 		},
 		{
-			name: "inaccessible file",
+			name: "inaccessible_recent_file",
 			args: args{
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0000,
 				err:     fmt.Errorf("file inaccessible"),
 			},
-			want: true,
+			want: false,
 		},
 	}
 

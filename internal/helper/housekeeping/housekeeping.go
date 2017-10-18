@@ -57,7 +57,7 @@ func forceRemove(path string) error {
 		return nil
 	}
 
-	// Delete failed. Try again after chmod and chowning recursively
+	// Delete failed. Try again after chmod'ing directories recursively
 	fixPermissions(path)
 
 	return os.RemoveAll(path)
@@ -66,25 +66,6 @@ func forceRemove(path string) error {
 func shouldRemove(path string, modTime time.Time, mode os.FileMode, err error) bool {
 	base := filepath.Base(path)
 
-	// Only tmp_ prefixed files will every be deleted
-	if !strings.HasPrefix(base, "tmp_") {
-		return false
-	}
-
-	// Unable to access the file AND it starts with `tmp_`? Try delete it
-	if err != nil {
-		return true
-	}
-
-	// Delete anything older than...
-	if time.Since(modTime) >= deleteTempFilesOlderThanDuration {
-		return true
-	}
-
-	// Delete anything with zero permissions
-	if mode.Perm() == 0 {
-		return true
-	}
-
-	return false
+	// Only delete entries starting with `tmp_` and older than a week
+	return strings.HasPrefix(base, "tmp_") && time.Since(modTime) >= deleteTempFilesOlderThanDuration
 }
