@@ -41,6 +41,8 @@ It has these top-level messages:
 	ListFilesResponse
 	FindCommitRequest
 	FindCommitResponse
+	ListCommitsByOidRequest
+	ListCommitsByOidResponse
 	FindAllCommitsRequest
 	FindAllCommitsResponse
 	FindCommitsRequest
@@ -129,6 +131,8 @@ It has these top-level messages:
 	GetArchiveResponse
 	HasLocalBranchesRequest
 	HasLocalBranchesResponse
+	ChangeStorageRequest
+	ChangeStorageResponse
 	Repository
 	GitCommit
 	CommitAuthor
@@ -152,6 +156,10 @@ It has these top-level messages:
 	WikiGetPageVersionsResponse
 	WikiWritePageRequest
 	WikiWritePageResponse
+	WikiUpdatePageRequest
+	WikiUpdatePageResponse
+	WikiDeletePageRequest
+	WikiDeletePageResponse
 */
 package gitaly
 

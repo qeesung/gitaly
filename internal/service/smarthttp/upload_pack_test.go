@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -23,6 +22,14 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+const (
+	clientCapabilities = `multi_ack_detailed no-done side-band-64k thin-pack include-tag ofs-delta deepen-since deepen-not agent=git/2.12.2`
+)
+
+var (
+	testRepoPath = path.Join(testhelper.GitlabTestStoragePath(), testRepo.RelativePath)
+)
+
 func TestSuccessfulUploadPackRequest(t *testing.T) {
 	server := runSmartHTTPServer(t)
 	defer server.Stop()
@@ -30,7 +37,6 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	storagePath := testhelper.GitlabTestStoragePath()
 	remoteRepoRelativePath := "gitlab-test-remote"
 	localRepoRelativePath := "gitlab-test-local"
-	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
 	remoteRepoPath := path.Join(storagePath, remoteRepoRelativePath)
 	localRepoPath := path.Join(storagePath, localRepoRelativePath)
 	// Make a non-bare clone of the test repo to act as a remote one
@@ -43,7 +49,6 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	commitMsg := fmt.Sprintf("Testing UploadPack RPC around %d", time.Now().Unix())
 	committerName := "Scrooge McDuck"
 	committerEmail := "scrooge@mcduck.com"
-	clientCapabilities := "multi_ack_detailed no-done side-band-64k thin-pack include-tag ofs-delta deepen-since deepen-not agent=git/2.12.0"
 
 	// The latest commit ID on the local repo
 	oldHead := bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", remoteRepoPath, "rev-parse", "master"))
@@ -58,38 +63,19 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 
 	// UploadPack request is a "want" packet line followed by a packet flush, then many "have" packets followed by a packet flush.
 	// This is explained a bit in https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols#_downloading_data
-	wantPkt := fmt.Sprintf("want %s %s\n", newHead, clientCapabilities)
-	havePkt := fmt.Sprintf("have %s\n", oldHead)
-
-	// We don't check for errors because per bytes.Buffer docs, Buffer.Write will always return a nil error.
 	requestBuffer := &bytes.Buffer{}
-	fmt.Fprintf(requestBuffer, "%04x%s%s", len(wantPkt)+4, wantPkt, pktFlushStr)
-	fmt.Fprintf(requestBuffer, "%04x%s%s", len(havePkt)+4, havePkt, pktFlushStr)
+	pktLine(requestBuffer, fmt.Sprintf("want %s %s\n", newHead, clientCapabilities))
+	pktFlush(requestBuffer)
+	pktLine(requestBuffer, fmt.Sprintf("have %s\n", oldHead))
+	pktFlush(requestBuffer)
 
-	client, conn := newSmartHTTPClient(t)
-	defer conn.Close()
-	repo := &pb.Repository{StorageName: "default", RelativePath: path.Join(remoteRepoRelativePath, ".git")}
-	rpcRequest := &pb.PostUploadPackRequest{Repository: repo}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	stream, err := client.PostUploadPack(ctx)
-	require.NoError(t, err)
-
-	require.NoError(t, stream.Send(rpcRequest))
-
-	sw := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&pb.PostUploadPackRequest{Data: p})
-	})
-	_, err = io.Copy(sw, requestBuffer)
-	require.NoError(t, err)
-	stream.CloseSend()
-
-	responseBuffer := &bytes.Buffer{}
-	rr := streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetData(), err
-	})
-	_, err = io.Copy(responseBuffer, rr)
+	req := &pb.PostUploadPackRequest{
+		Repository: &pb.Repository{
+			StorageName:  "default",
+			RelativePath: path.Join(remoteRepoRelativePath, ".git"),
+		},
+	}
+	responseBuffer, err := makePostUploadPackRequest(t, req, requestBuffer)
 	require.NoError(t, err)
 
 	// There's no git command we can pass it this response and do the work for us (extracting pack file, ...),
@@ -103,6 +89,59 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "show", string(newHead))
 }
 
+func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
+	server := runSmartHTTPServer(t)
+	defer server.Stop()
+
+	storagePath := testhelper.GitlabTestStoragePath()
+	ourRepoRelativePath := "gitlab-test-remote"
+	ourRepoPath := path.Join(storagePath, ourRepoRelativePath)
+
+	// Make a clone of the test repo to modify
+	testhelper.MustRunCommand(t, nil, "git", "clone", "--bare", testRepoPath, ourRepoPath)
+	defer os.RemoveAll(ourRepoPath)
+
+	// Remove remote-tracking branches that get in the way for this test
+	testhelper.MustRunCommand(t, nil, "git", "-C", ourRepoPath, "remote", "remove", "origin")
+
+	// Turn the csv branch into a hidden ref
+	want := string(bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", ourRepoPath, "rev-parse", "refs/heads/csv")))
+	testhelper.MustRunCommand(t, nil, "git", "-C", ourRepoPath, "update-ref", "refs/hidden/csv", want)
+	testhelper.MustRunCommand(t, nil, "git", "-C", ourRepoPath, "update-ref", "-d", "refs/heads/csv")
+
+	have := string(bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", ourRepoPath, "rev-parse", want+"~1")))
+
+	requestBody := &bytes.Buffer{}
+	requestBodyCopy := &bytes.Buffer{}
+	tee := io.MultiWriter(requestBody, requestBodyCopy)
+
+	pktLine(tee, fmt.Sprintf("want %s %s\n", want, clientCapabilities))
+	pktFlush(tee)
+	pktLine(tee, fmt.Sprintf("have %s\n", have))
+	pktFlush(tee)
+
+	rpcRequest := &pb.PostUploadPackRequest{
+		Repository: &pb.Repository{
+			StorageName:  "default",
+			RelativePath: ourRepoRelativePath,
+		},
+	}
+
+	// The ref is successfully requested as it is not hidden
+	response, err := makePostUploadPackRequest(t, rpcRequest, requestBody)
+	require.NoError(t, err)
+	_, _, count := extractPackDataFromResponse(t, response)
+	assert.Equal(t, 5, count, "pack should have 5 entries")
+
+	// Now the ref is hidden, no packfile will be received. The git process
+	// dies with an error message: `git upload-pack: not our ref ...` but the
+	// client just sees a grpc unavailable error
+	rpcRequest.GitConfigOptions = []string{"uploadpack.hideRefs=refs/hidden"}
+	response, err = makePostUploadPackRequest(t, rpcRequest, requestBodyCopy)
+	testhelper.AssertGrpcError(t, err, codes.Unavailable, "")
+	assert.Equal(t, response.String(), "", "Ref is hidden so no response should be received")
+}
+
 // This test is here because git-upload-pack returns a non-zero exit code
 // on 'deepen' requests even though the request is being handled just
 // fine from the client perspective.
@@ -110,37 +149,22 @@ func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
 	server := runSmartHTTPServer(t)
 	defer server.Stop()
 
-	client, conn := newSmartHTTPClient(t)
-	defer conn.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	stream, err := client.PostUploadPack(ctx)
-	require.NoError(t, err)
+	requestBody := &bytes.Buffer{}
+	pktLine(requestBody, fmt.Sprintf("want e63f41fe459e62e1228fcef60d7189127aeba95a %s\n", clientCapabilities))
+	pktLine(requestBody, "deepen 1")
+	pktFlush(requestBody)
 
-	require.NoError(t, stream.Send(&pb.PostUploadPackRequest{Repository: testRepo}))
+	rpcRequest := &pb.PostUploadPackRequest{Repository: testRepo}
+	response, err := makePostUploadPackRequest(t, rpcRequest, requestBody)
 
-	requestBody := `00a4want e63f41fe459e62e1228fcef60d7189127aeba95a multi_ack_detailed no-done side-band-64k thin-pack include-tag ofs-delta deepen-since deepen-not agent=git/2.12.2
-000cdeepen 10000`
-	require.NoError(t, stream.Send(&pb.PostUploadPackRequest{Data: []byte(requestBody)}))
-	stream.CloseSend()
-
-	rr := streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetData(), err
-	})
-
-	response, err := ioutil.ReadAll(rr)
 	// This assertion is the main reason this test exists.
 	assert.NoError(t, err)
-	assert.Equal(t, `0034shallow e63f41fe459e62e1228fcef60d7189127aeba95a0000`, string(response))
+	assert.Equal(t, `0034shallow e63f41fe459e62e1228fcef60d7189127aeba95a0000`, response.String())
 }
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 	server := runSmartHTTPServer(t)
 	defer server.Stop()
-
-	client, conn := newSmartHTTPClient(t)
-	defer conn.Close()
 
 	rpcRequests := []pb.PostUploadPackRequest{
 		{Repository: &pb.Repository{StorageName: "fake", RelativePath: "path"}}, // Repository doesn't exist
@@ -150,26 +174,40 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 
 	for _, rpcRequest := range rpcRequests {
 		t.Run(fmt.Sprintf("%v", rpcRequest), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			stream, err := client.PostUploadPack(ctx)
-			require.NoError(t, err)
-
-			require.NoError(t, stream.Send(&rpcRequest))
-			stream.CloseSend()
-
-			err = drainPostUploadPackResponse(stream)
+			_, err := makePostUploadPackRequest(t, &rpcRequest, bytes.NewBuffer(nil))
 			testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
 		})
 	}
 }
 
-func drainPostUploadPackResponse(stream pb.SmartHTTP_PostUploadPackClient) error {
-	var err error
-	for err == nil {
-		_, err = stream.Recv()
+func makePostUploadPackRequest(t *testing.T, in *pb.PostUploadPackRequest, body io.Reader) (*bytes.Buffer, error) {
+	client, conn := newSmartHTTPClient(t)
+	defer conn.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.PostUploadPack(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, stream.Send(in))
+
+	if body != nil {
+		sw := streamio.NewWriter(func(p []byte) error {
+			return stream.Send(&pb.PostUploadPackRequest{Data: p})
+		})
+
+		_, err = io.Copy(sw, body)
+		require.NoError(t, err)
+		stream.CloseSend()
 	}
-	return err
+
+	responseBuffer := &bytes.Buffer{}
+	rr := streamio.NewReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetData(), err
+	})
+	_, err = io.Copy(responseBuffer, rr)
+
+	return responseBuffer, err
 }
 
 // The response contains bunch of things; metadata, progress messages, and a pack file. We're only

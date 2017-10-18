@@ -21,27 +21,34 @@ func (s *server) InfoRefsUploadPack(in *pb.InfoRefsRequest, stream pb.SmartHTTPS
 	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
-	return handleInfoRefs(stream.Context(), "upload-pack", in.Repository, w)
+	return handleInfoRefs(stream.Context(), "upload-pack", in, w)
 }
 
 func (s *server) InfoRefsReceivePack(in *pb.InfoRefsRequest, stream pb.SmartHTTPService_InfoRefsReceivePackServer) error {
 	w := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&pb.InfoRefsResponse{Data: p})
 	})
-	return handleInfoRefs(stream.Context(), "receive-pack", in.Repository, w)
+	return handleInfoRefs(stream.Context(), "receive-pack", in, w)
 }
 
-func handleInfoRefs(ctx context.Context, service string, repo *pb.Repository, w io.Writer) error {
+func handleInfoRefs(ctx context.Context, service string, req *pb.InfoRefsRequest, w io.Writer) error {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"service": service,
 	}).Debug("handleInfoRefs")
 
-	repoPath, err := helper.GetRepoPath(repo)
+	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {
 		return err
 	}
 
-	cmd, err := git.Command(ctx, repo, service, "--stateless-rpc", "--advertise-refs", repoPath)
+	args := []string{}
+	for _, params := range req.GitConfigOptions {
+		args = append(args, "-c", params)
+	}
+
+	args = append(args, service, "--stateless-rpc", "--advertise-refs", repoPath)
+
+	cmd, err := git.Command(ctx, req.Repository, args...)
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err

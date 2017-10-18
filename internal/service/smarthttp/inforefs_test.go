@@ -10,6 +10,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 )
@@ -18,29 +19,47 @@ func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
 	server := runSmartHTTPServer(t)
 	defer server.Stop()
 
+	rpcRequest := &pb.InfoRefsRequest{Repository: testRepo}
+
+	response, err := makeInfoRefsUploadPackRequest(t, rpcRequest)
+	require.NoError(t, err)
+	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{
+		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
+		"00416f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9 refs/tags/v1.0.0^{}",
+	})
+}
+
+func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
+	server := runSmartHTTPServer(t)
+	defer server.Stop()
+
+	// transfer.hideRefs=refs will hide every ref that info-refs would normally
+	// output, allowing us to test that the custom configuration is respected
+	rpcRequest := &pb.InfoRefsRequest{
+		Repository:       testRepo,
+		GitConfigOptions: []string{"transfer.hideRefs=refs"},
+	}
+
+	response, err := makeInfoRefsUploadPackRequest(t, rpcRequest)
+	require.NoError(t, err)
+	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{})
+}
+
+func makeInfoRefsUploadPackRequest(t *testing.T, rpcRequest *pb.InfoRefsRequest) ([]byte, error) {
 	client, conn := newSmartHTTPClient(t)
 	defer conn.Close()
-	rpcRequest := &pb.InfoRefsRequest{Repository: testRepo}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c, err := client.InfoRefsUploadPack(ctx, rpcRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	response, err := ioutil.ReadAll(streamio.NewReader(func() ([]byte, error) {
 		resp, err := c.Recv()
 		return resp.GetData(), err
 	}))
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{
-		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
-		"00416f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9 refs/tags/v1.0.0^{}",
-	})
+	return response, err
 }
 
 func TestSuccessfulInfoRefsReceivePack(t *testing.T) {

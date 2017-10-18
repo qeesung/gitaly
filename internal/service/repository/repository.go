@@ -35,3 +35,7 @@ func (s *server) HasLocalBranches(ctx context.Context, in *pb.HasLocalBranchesRe
 
 	return client.HasLocalBranches(clientCtx, in)
 }
+
+func (*server) ChangeStorage(ctx context.Context, in *pb.ChangeStorageRequest) (*pb.ChangeStorageResponse, error) {
+	return nil, helper.Unimplemented
+}
