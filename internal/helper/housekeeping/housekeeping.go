@@ -22,7 +22,7 @@ func Perform(ctx context.Context, repoPath string) error {
 			return nil
 		}
 
-		if info == nil || !shouldUnlink(path, info.ModTime(), info.Mode(), err) {
+		if info == nil || !shouldRemove(path, info.ModTime(), info.Mode(), err) {
 			return nil
 		}
 
@@ -40,7 +40,7 @@ func Perform(ctx context.Context, repoPath string) error {
 	})
 }
 
-func forceOwnership(path string) {
+func forceOwnershipAndPermissions(path string) {
 	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		os.Chown(path, os.Getuid(), os.Getgid())
 
@@ -62,12 +62,12 @@ func forceRemove(path string) error {
 	}
 
 	// Delete failed. Try again after chmod and chowning recursively
-	forceOwnership(path)
+	forceOwnershipAndPermissions(path)
 
 	return os.RemoveAll(path)
 }
 
-func shouldUnlink(path string, modTime time.Time, mode os.FileMode, err error) bool {
+func shouldRemove(path string, modTime time.Time, mode os.FileMode, err error) bool {
 	base := filepath.Base(path)
 
 	// Only tmp_ prefixed files will every be deleted

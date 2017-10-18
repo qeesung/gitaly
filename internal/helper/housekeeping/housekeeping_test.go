@@ -12,8 +12,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-const delete = true
-const keep = false
+type entryFinalState int
+
+const (
+	Delete entryFinalState = iota
+	Keep
+)
 
 type entry interface {
 	create(t *testing.T, parent string)
@@ -22,10 +26,10 @@ type entry interface {
 
 // fileEntry is an entry implementation for a file
 type fileEntry struct {
-	name    string
-	mode    os.FileMode
-	age     time.Duration
-	deleted bool
+	name       string
+	mode       os.FileMode
+	age        time.Duration
+	finalState entryFinalState
 }
 
 func (f *fileEntry) create(t *testing.T, parent string) {
@@ -44,7 +48,6 @@ func (f *fileEntry) validate(t *testing.T, parent string) {
 }
 
 func (f *fileEntry) chmod(t *testing.T, filename string) {
-	fmt.Printf("chmod %v,%v", filename, f.mode)
 	err := os.Chmod(filename, f.mode)
 	assert.NoError(t, err, "chmod failed")
 }
@@ -57,9 +60,9 @@ func (f *fileEntry) chtimes(t *testing.T, filename string) {
 
 func (f *fileEntry) checkExistence(t *testing.T, filename string) {
 	_, err := os.Stat(filename)
-	if err == nil && f.deleted {
+	if err == nil && f.finalState == Delete {
 		t.Errorf("Expected %v to have been deleted.", filename)
-	} else if err != nil && !f.deleted {
+	} else if err != nil && f.finalState == Keep {
 		t.Errorf("Expected %v to not have been deleted.", filename)
 	}
 }
@@ -93,15 +96,15 @@ func (d *dirEntry) validate(t *testing.T, parent string) {
 	}
 }
 
-func f(name string, mode os.FileMode, age time.Duration, deleted bool) entry {
-	return &fileEntry{name, mode, age, deleted}
+func f(name string, mode os.FileMode, age time.Duration, finalState entryFinalState) entry {
+	return &fileEntry{name, mode, age, finalState}
 }
 
-func d(name string, mode os.FileMode, age time.Duration, deleted bool, entries []entry) entry {
-	return &dirEntry{fileEntry{name, mode, age, deleted}, entries}
+func d(name string, mode os.FileMode, age time.Duration, finalState entryFinalState, entries []entry) entry {
+	return &dirEntry{fileEntry{name, mode, age, finalState}, entries}
 }
 
-func TestPerformHousekeeping(t *testing.T) {
+func TestPerform(t *testing.T) {
 	tests := []struct {
 		name    string
 		entries []entry
@@ -110,41 +113,41 @@ func TestPerformHousekeeping(t *testing.T) {
 		{
 			name: "clean",
 			entries: []entry{
-				f("a", os.FileMode(0700), 24*time.Hour, keep),
-				f("b", os.FileMode(0700), 24*time.Hour, keep),
-				f("c", os.FileMode(0700), 24*time.Hour, keep),
+				f("a", os.FileMode(0700), 24*time.Hour, Keep),
+				f("b", os.FileMode(0700), 24*time.Hour, Keep),
+				f("c", os.FileMode(0700), 24*time.Hour, Keep),
 			},
 			wantErr: false,
 		},
 		{
 			name: "emptyperms",
 			entries: []entry{
-				f("b", os.FileMode(0700), 24*time.Hour, keep),
-				f("tmp_a", os.FileMode(0000), 2*time.Hour, delete),
+				f("b", os.FileMode(0700), 24*time.Hour, Keep),
+				f("tmp_a", os.FileMode(0000), 2*time.Hour, Delete),
 			},
 			wantErr: false,
 		},
 		{
 			name: "emptytempdir",
 			entries: []entry{
-				d("tmp_d", os.FileMode(0000), 24*time.Hour, delete, []entry{}),
-				f("b", os.FileMode(0700), 24*time.Hour, keep),
+				d("tmp_d", os.FileMode(0000), 24*time.Hour, Delete, []entry{}),
+				f("b", os.FileMode(0700), 24*time.Hour, Keep),
 			},
 			wantErr: false,
 		},
 		{
 			name: "oldtempfile",
 			entries: []entry{
-				f("tmp_a", os.FileMode(0770), 240*time.Hour, delete),
-				f("b", os.FileMode(0700), 24*time.Hour, keep),
+				f("tmp_a", os.FileMode(0770), 240*time.Hour, Delete),
+				f("b", os.FileMode(0700), 24*time.Hour, Keep),
 			},
 			wantErr: false,
 		},
 		{
 			name: "subdir temp file",
 			entries: []entry{
-				d("a", os.FileMode(0770), 240*time.Hour, keep, []entry{
-					f("tmp_b", os.FileMode(0700), 240*time.Hour, delete),
+				d("a", os.FileMode(0770), 240*time.Hour, Keep, []entry{
+					f("tmp_b", os.FileMode(0700), 240*time.Hour, Delete),
 				}),
 			},
 			wantErr: false,
@@ -152,8 +155,8 @@ func TestPerformHousekeeping(t *testing.T) {
 		{
 			name: "inaccessible tmp directory",
 			entries: []entry{
-				d("tmp_a", os.FileMode(0000), 240*time.Hour, delete, []entry{
-					f("tmp_b", os.FileMode(0700), 240*time.Hour, delete),
+				d("tmp_a", os.FileMode(0000), 240*time.Hour, Delete, []entry{
+					f("tmp_b", os.FileMode(0700), 240*time.Hour, Delete),
 				}),
 			},
 			wantErr: false,
@@ -161,9 +164,9 @@ func TestPerformHousekeeping(t *testing.T) {
 		{
 			name: "deeply nested inaccessible tmp directory",
 			entries: []entry{
-				d("tmp_a", os.FileMode(0000), 240*time.Hour, delete, []entry{
-					d("tmp_a", os.FileMode(0000), 24*time.Hour, delete, []entry{
-						f("tmp_b", os.FileMode(0000), 24*time.Hour, delete),
+				d("tmp_a", os.FileMode(0000), 240*time.Hour, Delete, []entry{
+					d("tmp_a", os.FileMode(0000), 24*time.Hour, Delete, []entry{
+						f("tmp_b", os.FileMode(0000), 24*time.Hour, Delete),
 					}),
 				}),
 			},
@@ -182,7 +185,7 @@ func TestPerformHousekeeping(t *testing.T) {
 			}
 
 			if err = Perform(context.Background(), rootPath); (err != nil) != tt.wantErr {
-				t.Errorf("PerformHousekeeping() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Perform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			for _, e := range tt.entries {
@@ -192,7 +195,7 @@ func TestPerformHousekeeping(t *testing.T) {
 	}
 }
 
-func Test_shouldUnlink(t *testing.T) {
+func TestShouldUnlink(t *testing.T) {
 	type args struct {
 		path    string
 		modTime time.Time
@@ -265,9 +268,10 @@ func Test_shouldUnlink(t *testing.T) {
 			want: true,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := shouldUnlink(tt.args.path, tt.args.modTime, tt.args.mode, tt.args.err); got != tt.want {
+			if got := shouldRemove(tt.args.path, tt.args.modTime, tt.args.mode, tt.args.err); got != tt.want {
 				t.Errorf("shouldUnlink() = %v, want %v", got, tt.want)
 			}
 		})
