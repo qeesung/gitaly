@@ -40,14 +40,10 @@ func Perform(ctx context.Context, repoPath string) error {
 	})
 }
 
-func forceOwnershipAndPermissions(path string) {
+func fixPermissions(path string) {
 	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		os.Chown(path, os.Getuid(), os.Getgid())
-
 		if info.IsDir() {
 			os.Chmod(path, 0700)
-		} else {
-			os.Chmod(path, 0600)
 		}
 
 		return nil
@@ -62,7 +58,7 @@ func forceRemove(path string) error {
 	}
 
 	// Delete failed. Try again after chmod and chowning recursively
-	forceOwnershipAndPermissions(path)
+	fixPermissions(path)
 
 	return os.RemoveAll(path)
 }

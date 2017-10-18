@@ -277,3 +277,35 @@ func TestShouldUnlink(t *testing.T) {
 		})
 	}
 }
+
+// This test exists only ever for manual testing purposes.
+// Set it up as follows:
+/*
+export TEST_DELETE_ROOT_OWNER_DIR=$(mktemp -d)
+sudo mkdir "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR"
+sudo touch -t 1201010000.00 "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_FILE" "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR"
+sudo chmod 000 "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR" "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_FILE"
+sudo touch -t 1201010000.00 "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR"
+mkdir -p "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR2/a/b"
+touch "${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR2/a/b/c"
+chmod 000 $(find ${TEST_DELETE_ROOT_OWNER_DIR}/tmp_DIR2|sort -r)
+go test ./internal/helper/housekeeping/... -v -run 'TestDeleteRootOwnerObjects'
+*/
+func TestDeleteRootOwnerObjects(t *testing.T) {
+	rootPath := os.Getenv("TEST_DELETE_ROOT_OWNER_DIR")
+	if rootPath == "" {
+		t.Skip("skipping test; Only used for manual testing")
+	}
+
+	err := Perform(context.Background(), rootPath)
+	assert.NoError(t, err, "Housekeeping failed")
+
+	_, err = os.Stat(filepath.Join(rootPath, "tmp_FILE"))
+	assert.Error(t, err, "Expected tmp_FILE to be missing")
+
+	_, err = os.Stat(filepath.Join(rootPath, "tmp_DIR"))
+	assert.Error(t, err, "Expected tmp_DIR to be missing")
+
+	_, err = os.Stat(filepath.Join(rootPath, "tmp_DIR2"))
+	assert.Error(t, err, "Expected tmp_DIR2 to be missing")
+}
