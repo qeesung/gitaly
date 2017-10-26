@@ -81,40 +81,40 @@
 			"revisionTime": "2017-03-07T00:15:33Z"
 		},
 		{
-			"checksumSHA1": "a5pGpTP8bSNLEFDUmQU8XsOrYt4=",
+			"checksumSHA1": "ThM4ahoRKh7k2b0YqRrxRk7KlEU=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
 			"checksumSHA1": "zsl4yCXK72d8UIEpczA1vPf7RFg=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/auth",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
 			"checksumSHA1": "S3ewTxb4DObPxnizenAS0qq1QvE=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/logging",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
 			"checksumSHA1": "797n3ROaKPn+F3WbjmBZdvQDGUY=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
-			"checksumSHA1": "ajCG0vV10Aj13kh6lQaveMyyOdY=",
+			"checksumSHA1": "3vb2ftEAl6BEmsi3grb7fIVLdDU=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tags",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
 			"checksumSHA1": "kozQMhxjHOOj3RCE6uKWABiJ4TA=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/util/metautils",
-			"revision": "645b33ed7ba8739747bf2df55d0349d4bba2e7f6",
-			"revisionTime": "2017-08-25T07:58:17Z"
+			"revision": "82921fcf811d228d2fa202bc31238b356bf9f8d5",
+			"revisionTime": "2017-10-20T06:37:31Z"
 		},
 		{
 			"checksumSHA1": "OJPSJ4GBgH/XOFtYu2VM1g7rtjk=",
