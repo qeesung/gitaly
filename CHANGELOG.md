@@ -5,6 +5,8 @@ UNRELEASED
 - Update gitlab_git to b3ba3996e0bd329eaa574ff53c69673efaca6eef and set
   `GL_USERNAME` env variable for hook excecution
   https://gitlab.com/gitlab-org/gitaly/merge_requests/423
+- Enable logging in client-streamed and bidi GRPC requests
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/429
 
 v0.50.0
 
