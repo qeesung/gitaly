@@ -73,9 +73,6 @@ func TestAuthSuccess(t *testing.T) {
 		config.Config.Auth = oldAuth
 	}(config.Config.Auth)
 
-	srv, serverSocketPath := runServer(t)
-	defer srv.Stop()
-
 	testCases := []struct {
 		desc     string
 		opts     []grpc.DialOption
@@ -106,6 +103,9 @@ func TestAuthSuccess(t *testing.T) {
 				Transitioning: !tc.required,
 				Token:         tc.token,
 			}
+
+			srv, serverSocketPath := runServer(t)
+			defer srv.Stop()
 
 			connOpts := append(tc.opts, grpc.WithInsecure())
 			conn, err := dial(serverSocketPath, connOpts)
