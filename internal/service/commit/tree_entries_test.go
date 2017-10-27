@@ -24,7 +24,7 @@ func TestSuccessfulGetTreeEntries(t *testing.T) {
 	commitID := "ce369011c189f62c815f5971d096b26759bab0d1"
 	rootOid := "729bb692f55d49149609dd1ceaaf1febbdec7d0d"
 
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -297,7 +297,7 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client pb.CommitService_Get
 }
 
 func TestFailedGetTreeEntriesRequestDueToValidationError(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

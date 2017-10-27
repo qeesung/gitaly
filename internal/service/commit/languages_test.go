@@ -10,7 +10,7 @@ import (
 )
 
 func TestLanguages(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -59,7 +59,7 @@ func languageEqual(expected, actual *pb.CommitLanguagesResponse_Language) bool {
 }
 
 func TestLanguagesEmptyRevision(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

@@ -16,7 +16,7 @@ import (
 )
 
 func TestSuccessfulRawBlameRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -74,7 +74,7 @@ func TestSuccessfulRawBlameRequest(t *testing.T) {
 }
 
 func TestFailedRawBlameRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

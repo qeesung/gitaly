@@ -50,7 +50,7 @@ func TestListFilesSuccess(t *testing.T) {
 		defaultBranchName = ref.DefaultBranchName
 	}()
 
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -134,7 +134,7 @@ func TestListFilesSuccess(t *testing.T) {
 }
 
 func TestListFilesFailure(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

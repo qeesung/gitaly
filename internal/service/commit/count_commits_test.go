@@ -16,7 +16,7 @@ import (
 )
 
 func TestSuccessfulCountCommitsRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -111,7 +111,7 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 }
 
 func TestFailedCountCommitsRequestDueToValidationError(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

@@ -12,7 +12,7 @@ import (
 )
 
 func TestSuccessfulFindCommitRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -138,7 +138,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 }
 
 func TestFailedFindCommitRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

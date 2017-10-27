@@ -14,7 +14,7 @@ import (
 )
 
 func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -88,7 +88,7 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 }
 
 func TestFailedLastCommitForPathRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

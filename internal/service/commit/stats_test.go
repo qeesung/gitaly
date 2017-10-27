@@ -13,7 +13,7 @@ import (
 )
 
 func TestCommitStatsSuccess(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -51,7 +51,7 @@ func TestCommitStatsSuccess(t *testing.T) {
 }
 
 func TestCommitStatsFailure(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

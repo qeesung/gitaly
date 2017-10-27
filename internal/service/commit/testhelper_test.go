@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	testRepo         = testhelper.TestRepository()
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
+	testRepo = testhelper.TestRepository()
 )
 
 func TestMain(m *testing.M) {
@@ -47,8 +46,9 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func startTestServices(t *testing.T) *grpc.Server {
+func startTestServices(t *testing.T) (*grpc.Server, string) {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	if err := os.RemoveAll(serverSocketPath); err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func startTestServices(t *testing.T) *grpc.Server {
 	reflection.Register(server)
 
 	go server.Serve(listener)
-	return server
+	return server, serverSocketPath
 }
 
 func newCommitServiceClient(t *testing.T, serviceSocketPath string) (pb.CommitServiceClient, *grpc.ClientConn) {

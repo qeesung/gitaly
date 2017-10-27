@@ -18,7 +18,7 @@ import (
 )
 
 func TestCommitIsAncestorFailure(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -81,7 +81,7 @@ func TestCommitIsAncestorFailure(t *testing.T) {
 }
 
 func TestCommitIsAncestorSuccess(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -175,7 +175,7 @@ func TestCommitIsAncestorSuccess(t *testing.T) {
 }
 
 func TestSuccessfulIsAncestorRequestWithAltGitObjectDirs(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

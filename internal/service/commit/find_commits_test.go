@@ -19,7 +19,7 @@ import (
 )
 
 func TestFindCommitsFields(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -65,7 +65,7 @@ func TestFindCommitsFields(t *testing.T) {
 }
 
 func TestSuccessfulFindCommitsRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -223,7 +223,7 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindCommitsRequestWithAltGitObjectDirs(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
@@ -324,7 +324,7 @@ func TestSuccessfulFindCommitsRequestWithAltGitObjectDirs(t *testing.T) {
 }
 
 func TestFailureFindCommitsRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)

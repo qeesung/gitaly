@@ -15,7 +15,7 @@ import (
 )
 
 func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 	defer server.Stop()
 
@@ -150,7 +150,7 @@ func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
 }
 
 func TestFailedCommitsByMessageRequest(t *testing.T) {
-	server := startTestServices(t)
+	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
 	client, conn := newCommitServiceClient(t, serverSocketPath)
