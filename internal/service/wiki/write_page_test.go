@@ -17,10 +17,10 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runWikiServiceServer(t)
+	server, serverSocketPath := runWikiServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newWikiClient(t)
+	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
 	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
@@ -75,10 +75,10 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 }
 
 func TestFailedWikiWritePageDueToDuplicatePage(t *testing.T) {
-	server := runWikiServiceServer(t)
+	server, serverSocketPath := runWikiServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newWikiClient(t)
+	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
 	commitDetails := &pb.WikiCommitDetails{
@@ -122,10 +122,10 @@ func TestFailedWikiWritePageDueToDuplicatePage(t *testing.T) {
 }
 
 func TestFailedWikiWritePageDueToValidations(t *testing.T) {
-	server := runWikiServiceServer(t)
+	server, serverSocketPath := runWikiServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newWikiClient(t)
+	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
 	commitDetails := &pb.WikiCommitDetails{

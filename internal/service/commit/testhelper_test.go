@@ -50,10 +50,6 @@ func startTestServices(t *testing.T) (*grpc.Server, string) {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
-	if err := os.RemoveAll(serverSocketPath); err != nil {
-		t.Fatal(err)
-	}
-
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
 		t.Fatal("failed to start server")

@@ -22,12 +22,11 @@ import (
 )
 
 var (
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         *pb.Repository
-	testRepoPath     string
-	gitlabPreHooks   = []string{"pre-receive", "update"}
-	gitlabPostHooks  = []string{"post-receive"}
-	gitlabHooks      []string
+	testRepo        *pb.Repository
+	testRepoPath    string
+	gitlabPreHooks  = []string{"pre-receive", "update"}
+	gitlabPostHooks = []string{"post-receive"}
+	gitlabHooks     []string
 )
 
 func init() {
@@ -62,9 +61,9 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func runOperationServiceServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
+func runOperationServiceServer(t *testing.T) (*grpc.Server, string) {
 	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
@@ -76,10 +75,10 @@ func runOperationServiceServer(t *testing.T) *grpc.Server {
 
 	go grpcServer.Serve(listener)
 
-	return grpcServer
+	return grpcServer, serverSocketPath
 }
 
-func newOperationClient(t *testing.T) (pb.OperationServiceClient, *grpc.ClientConn) {
+func newOperationClient(t *testing.T, serverSocketPath string) (pb.OperationServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {

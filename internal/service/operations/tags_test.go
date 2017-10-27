@@ -21,10 +21,10 @@ func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tagNameInput := "to-be-deleted-soon-tag"
@@ -53,10 +53,10 @@ func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tagNameInput := "to-be-deleted-soon-tag"
@@ -97,10 +97,10 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	targetRevision := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
@@ -173,10 +173,10 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateTagRequest(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tagName := "new-tag"
@@ -213,10 +213,10 @@ func TestSuccessfulGitHooksForUserCreateTagRequest(t *testing.T) {
 }
 
 func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -269,10 +269,10 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 }
 
 func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tagNameInput := "to-be-deleted-soon-tag"
@@ -313,10 +313,10 @@ func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
 }
 
 func TestFailedUserCreateTagDueToHooks(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -348,10 +348,10 @@ func TestFailedUserCreateTagDueToHooks(t *testing.T) {
 }
 
 func TestFailedUserCreateTagRequestDueToTagExistence(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -386,10 +386,10 @@ func TestFailedUserCreateTagRequestDueToTagExistence(t *testing.T) {
 }
 
 func TestFailedUserCreateTagRequestDueToValidation(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{

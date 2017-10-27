@@ -21,10 +21,10 @@ func TestSuccessfulUserCreateBranchRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	startPoint := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
@@ -82,10 +82,10 @@ func TestSuccessfulUserCreateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchName := "new-branch"
@@ -122,10 +122,10 @@ func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -161,10 +161,10 @@ func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 }
 
 func TestFailedUserCreateBranchRequest(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -231,10 +231,10 @@ func TestSuccessfulUserDeleteBranchRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchNameInput := "to-be-deleted-soon-branch"
@@ -263,10 +263,10 @@ func TestSuccessfulUserDeleteBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchNameInput := "to-be-deleted-soon-branch"
@@ -304,10 +304,10 @@ func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	user := &pb.User{
@@ -360,10 +360,10 @@ func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
 }
 
 func TestFailedUserDeleteBranchDueToHooks(t *testing.T) {
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchNameInput := "to-be-deleted-soon-branch"

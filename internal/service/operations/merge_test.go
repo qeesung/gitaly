@@ -33,10 +33,10 @@ func TestSuccessfulMerge(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	mergeBidi, err := client.UserMergeBranch(ctx)
@@ -108,10 +108,10 @@ func TestAbortedMerge(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runOperationServiceServer(t)
+	server, serverSocketPath := runOperationServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newOperationClient(t)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	firstRequest := &pb.UserMergeBranchRequest{

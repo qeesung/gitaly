@@ -18,9 +18,8 @@ import (
 )
 
 var (
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	wikiRepo         *pb.Repository
-	wikiRepoPath     string
+	wikiRepo     *pb.Repository
+	wikiRepoPath string
 )
 
 func TestMain(m *testing.M) {
@@ -55,9 +54,9 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func runWikiServiceServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
+func runWikiServiceServer(t *testing.T) (*grpc.Server, string) {
 	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
@@ -69,10 +68,10 @@ func runWikiServiceServer(t *testing.T) *grpc.Server {
 
 	go grpcServer.Serve(listener)
 
-	return grpcServer
+	return grpcServer, serverSocketPath
 }
 
-func newWikiClient(t *testing.T) (pb.WikiServiceClient, *grpc.ClientConn) {
+func newWikiClient(t *testing.T, serverSocketPath string) (pb.WikiServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
