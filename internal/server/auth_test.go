@@ -83,17 +83,17 @@ func TestAuthSuccess(t *testing.T) {
 		required bool
 		token    config.Token
 	}{
-		{desc: "no auth, not required"},
-		{
-			desc:  "incorrect auth, not required",
-			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("incorrect"))},
-			token: config.Token("foobar"),
-		},
-		{
-			desc:  "correct auth, not required",
-			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
-			token: config.Token("foobar"),
-		},
+		// {desc: "no auth, not required"},
+		// {
+		// 	desc:  "incorrect auth, not required",
+		// 	opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("incorrect"))},
+		// 	token: config.Token("foobar"),
+		// },
+		// {
+		// 	desc:  "correct auth, not required",
+		// 	opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
+		// 	token: config.Token("foobar"),
+		// },
 		{
 			desc:     "correct auth, required",
 			opts:     []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
