@@ -16,10 +16,10 @@ import (
 )
 
 func TestSuccessfulRawDiffRequest(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
 	ctx, cancel := testhelper.Context()
@@ -59,10 +59,10 @@ func TestSuccessfulRawDiffRequest(t *testing.T) {
 }
 
 func TestFailedRawDiffRequestDueToValidations(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
@@ -111,10 +111,10 @@ func TestFailedRawDiffRequestDueToValidations(t *testing.T) {
 }
 
 func TestSuccessfulRawPatchRequest(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
 	ctx, cancel := testhelper.Context()
@@ -147,10 +147,10 @@ func TestSuccessfulRawPatchRequest(t *testing.T) {
 }
 
 func TestFailedRawPatchRequestDueToValidations(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {

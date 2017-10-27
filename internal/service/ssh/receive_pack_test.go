@@ -22,10 +22,10 @@ import (
 )
 
 func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
-	client, conn := newSSHClient(t)
+	client, conn := newSSHClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {
@@ -76,10 +76,10 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 }
 
 func TestReceivePackPushSuccess(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
-	lHead, rHead, err := testCloneAndPush(t, testRepo.GetStorageName(), "1")
+	lHead, rHead, err := testCloneAndPush(t, serverSocketPath, testRepo.GetStorageName(), "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,20 +89,20 @@ func TestReceivePackPushSuccess(t *testing.T) {
 }
 
 func TestReceivePackPushFailure(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
-	_, _, err := testCloneAndPush(t, "foobar", "1")
+	_, _, err := testCloneAndPush(t, serverSocketPath, "foobar", "1")
 	if err == nil {
 		t.Errorf("local and remote head equal. push did not fail")
 	}
-	_, _, err = testCloneAndPush(t, testRepo.GetStorageName(), "")
+	_, _, err = testCloneAndPush(t, serverSocketPath, testRepo.GetStorageName(), "")
 	if err == nil {
 		t.Errorf("local and remote head equal. push did not fail")
 	}
 }
 
-func testCloneAndPush(t *testing.T, storageName, glID string) (string, string, error) {
+func testCloneAndPush(t *testing.T, serverSocketPath string, storageName, glID string) (string, string, error) {
 	storagePath := testhelper.GitlabTestStoragePath()
 	tempRepo := "gitlab-test-ssh-receive-pack.git"
 	testRepoPath := path.Join(storagePath, testRepo.GetRelativePath())

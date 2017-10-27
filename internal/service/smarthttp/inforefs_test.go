@@ -16,12 +16,12 @@ import (
 )
 
 func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	rpcRequest := &pb.InfoRefsRequest{Repository: testRepo}
 
-	response, err := makeInfoRefsUploadPackRequest(t, rpcRequest)
+	response, err := makeInfoRefsUploadPackRequest(t, serverSocketPath, rpcRequest)
 	require.NoError(t, err)
 	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{
 		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
@@ -30,7 +30,7 @@ func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
 }
 
 func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	// transfer.hideRefs=refs will hide every ref that info-refs would normally
@@ -40,13 +40,13 @@ func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
 		GitConfigOptions: []string{"transfer.hideRefs=refs"},
 	}
 
-	response, err := makeInfoRefsUploadPackRequest(t, rpcRequest)
+	response, err := makeInfoRefsUploadPackRequest(t, serverSocketPath, rpcRequest)
 	require.NoError(t, err)
 	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{})
 }
 
-func makeInfoRefsUploadPackRequest(t *testing.T, rpcRequest *pb.InfoRefsRequest) ([]byte, error) {
-	client, conn := newSmartHTTPClient(t)
+func makeInfoRefsUploadPackRequest(t *testing.T, serverSocketPath string, rpcRequest *pb.InfoRefsRequest) ([]byte, error) {
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -63,10 +63,10 @@ func makeInfoRefsUploadPackRequest(t *testing.T, rpcRequest *pb.InfoRefsRequest)
 }
 
 func TestSuccessfulInfoRefsReceivePack(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
-	client, conn := newSmartHTTPClient(t)
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.InfoRefsRequest{Repository: testRepo}
 
@@ -92,10 +92,10 @@ func TestSuccessfulInfoRefsReceivePack(t *testing.T) {
 }
 
 func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
-	client, conn := newSmartHTTPClient(t)
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "default", RelativePath: "testdata/data/another_repo"}
 	rpcRequest := &pb.InfoRefsRequest{Repository: repo}
@@ -114,10 +114,10 @@ func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
 }
 
 func TestFailureRepoNotSetInfoRefsReceivePack(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
-	client, conn := newSmartHTTPClient(t)
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.InfoRefsRequest{}
 

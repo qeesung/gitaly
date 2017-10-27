@@ -21,10 +21,10 @@ import (
 )
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
-	client, conn := newSSHClient(t)
+	client, conn := newSSHClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {
@@ -70,7 +70,7 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 }
 
 func TestUploadPackCloneSuccess(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
@@ -91,7 +91,7 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			lHead, rHead, _, _, err := testClone(t, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", tc.cmd)
+			lHead, rHead, _, _, err := testClone(t, serverSocketPath, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", tc.cmd)
 			require.NoError(t, err, "clone failed")
 			require.Equal(t, lHead, rHead, "local and remote head not equal")
 		})
@@ -99,14 +99,14 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 }
 
 func TestUploadPackCloneHideTags(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-hide-tags")
 
 	cmd := exec.Command("git", "clone", "--mirror", "git@localhost:test/test.git", localRepoPath)
 
-	_, _, lTags, rTags, err := testClone(t, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "transfer.hideRefs=refs/tags", cmd)
+	_, _, lTags, rTags, err := testClone(t, serverSocketPath, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "transfer.hideRefs=refs/tags", cmd)
 
 	if err != nil {
 		t.Fatalf("clone failed: %v", err)
@@ -120,20 +120,20 @@ func TestUploadPackCloneHideTags(t *testing.T) {
 }
 
 func TestUploadPackCloneFailure(t *testing.T) {
-	server := runSSHServer(t)
+	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-failure")
 
 	cmd := exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath)
 
-	_, _, _, _, err := testClone(t, "foobar", testRepo.GetRelativePath(), localRepoPath, "", cmd)
+	_, _, _, _, err := testClone(t, serverSocketPath, "foobar", testRepo.GetRelativePath(), localRepoPath, "", cmd)
 	if err == nil {
 		t.Fatalf("clone didn't fail")
 	}
 }
 
-func testClone(t *testing.T, storageName, relativePath, localRepoPath string, gitConfig string, cmd *exec.Cmd) (string, string, string, string, error) {
+func testClone(t *testing.T, serverSocketPath, storageName, relativePath, localRepoPath string, gitConfig string, cmd *exec.Cmd) (string, string, string, string, error) {
 	defer os.RemoveAll(localRepoPath)
 
 	pbTempRepo := &pb.Repository{StorageName: storageName, RelativePath: relativePath}

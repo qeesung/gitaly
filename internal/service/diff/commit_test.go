@@ -16,10 +16,10 @@ import (
 )
 
 func TestSuccessfulCommitDiffRequest(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "ab2c9622c02288a2bbaaf35d96088cfdff31d9d9"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
@@ -176,10 +176,10 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 }
 
 func TestSuccessfulCommitDiffRequestWithPaths(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "e4003da16c1c2c3fc4567700121b17bf8e591c6c"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
@@ -250,10 +250,10 @@ func TestSuccessfulCommitDiffRequestWithPaths(t *testing.T) {
 }
 
 func TestSuccessfulCommitDiffRequestWithTypeChangeDiff(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "184a47d38677e2e439964859b877ae9bc424ab11"
 	leftCommit := "80d56eb72ba5d77fd8af857eced17a7d0640cb82"
@@ -297,10 +297,10 @@ func TestSuccessfulCommitDiffRequestWithTypeChangeDiff(t *testing.T) {
 }
 
 func TestSuccessfulCommitDiffRequestWithIgnoreWhitespaceChange(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "e4003da16c1c2c3fc4567700121b17bf8e591c6c"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
@@ -407,10 +407,10 @@ func TestSuccessfulCommitDiffRequestWithIgnoreWhitespaceChange(t *testing.T) {
 }
 
 func TestSuccessfulCommitDiffRequestWithLimits(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "899d3d27b04690ac1cd9ef4d8a74fde0667c57f1"
 	leftCommit := "184a47d38677e2e439964859b877ae9bc424ab11"
@@ -600,10 +600,10 @@ func TestSuccessfulCommitDiffRequestWithLimits(t *testing.T) {
 }
 
 func TestFailedCommitDiffRequestDueToValidationError(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "d42783470dc29fde2cf459eb3199ee1d7e3f3a72"
 	leftCommit := rightCommit + "~" // Parent of rightCommit
@@ -632,10 +632,10 @@ func TestFailedCommitDiffRequestDueToValidationError(t *testing.T) {
 }
 
 func TestFailedCommitDiffRequestWithNonExistentCommit(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	nonExistentCommitID := "deadfacedeadfacedeadfacedeadfacedeadface"
 	leftCommit := nonExistentCommitID + "~" // Parent of rightCommit
@@ -653,10 +653,10 @@ func TestFailedCommitDiffRequestWithNonExistentCommit(t *testing.T) {
 }
 
 func TestSuccessfulCommitDeltaRequest(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "742518b2be68fc750bb4c357c0df821a88113286"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
@@ -772,10 +772,10 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 }
 
 func TestSuccessfulCommitDeltaRequestWithPaths(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "e4003da16c1c2c3fc4567700121b17bf8e591c6c"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
@@ -837,10 +837,10 @@ func TestSuccessfulCommitDeltaRequestWithPaths(t *testing.T) {
 }
 
 func TestFailedCommitDeltaRequestDueToValidationError(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	rightCommit := "d42783470dc29fde2cf459eb3199ee1d7e3f3a72"
 	leftCommit := rightCommit + "~" // Parent of rightCommit
@@ -869,10 +869,10 @@ func TestFailedCommitDeltaRequestDueToValidationError(t *testing.T) {
 }
 
 func TestFailedCommitDeltaRequestWithNonExistentCommit(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 	nonExistentCommitID := "deadfacedeadfacedeadfacedeadfacedeadface"
 	leftCommit := nonExistentCommitID + "~" // Parent of rightCommit

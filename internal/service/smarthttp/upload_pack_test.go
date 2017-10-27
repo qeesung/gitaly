@@ -31,7 +31,7 @@ var (
 )
 
 func TestSuccessfulUploadPackRequest(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	storagePath := testhelper.GitlabTestStoragePath()
@@ -75,7 +75,7 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 			RelativePath: path.Join(remoteRepoRelativePath, ".git"),
 		},
 	}
-	responseBuffer, err := makePostUploadPackRequest(t, req, requestBuffer)
+	responseBuffer, err := makePostUploadPackRequest(t, serverSocketPath, req, requestBuffer)
 	require.NoError(t, err)
 
 	// There's no git command we can pass it this response and do the work for us (extracting pack file, ...),
@@ -90,7 +90,7 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 }
 
 func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	storagePath := testhelper.GitlabTestStoragePath()
@@ -128,7 +128,7 @@ func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
 	}
 
 	// The ref is successfully requested as it is not hidden
-	response, err := makePostUploadPackRequest(t, rpcRequest, requestBody)
+	response, err := makePostUploadPackRequest(t, serverSocketPath, rpcRequest, requestBody)
 	require.NoError(t, err)
 	_, _, count := extractPackDataFromResponse(t, response)
 	assert.Equal(t, 5, count, "pack should have 5 entries")
@@ -137,7 +137,7 @@ func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
 	// dies with an error message: `git upload-pack: not our ref ...` but the
 	// client just sees a grpc unavailable error
 	rpcRequest.GitConfigOptions = []string{"uploadpack.hideRefs=refs/hidden"}
-	response, err = makePostUploadPackRequest(t, rpcRequest, requestBodyCopy)
+	response, err = makePostUploadPackRequest(t, serverSocketPath, rpcRequest, requestBodyCopy)
 	testhelper.AssertGrpcError(t, err, codes.Unavailable, "")
 	assert.Equal(t, response.String(), "", "Ref is hidden so no response should be received")
 }
@@ -146,7 +146,7 @@ func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
 // on 'deepen' requests even though the request is being handled just
 // fine from the client perspective.
 func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	requestBody := &bytes.Buffer{}
@@ -155,7 +155,7 @@ func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
 	pktFlush(requestBody)
 
 	rpcRequest := &pb.PostUploadPackRequest{Repository: testRepo}
-	response, err := makePostUploadPackRequest(t, rpcRequest, requestBody)
+	response, err := makePostUploadPackRequest(t, serverSocketPath, rpcRequest, requestBody)
 
 	// This assertion is the main reason this test exists.
 	assert.NoError(t, err)
@@ -163,7 +163,7 @@ func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
 }
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	rpcRequests := []pb.PostUploadPackRequest{
@@ -174,14 +174,14 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 
 	for _, rpcRequest := range rpcRequests {
 		t.Run(fmt.Sprintf("%v", rpcRequest), func(t *testing.T) {
-			_, err := makePostUploadPackRequest(t, &rpcRequest, bytes.NewBuffer(nil))
+			_, err := makePostUploadPackRequest(t, serverSocketPath, &rpcRequest, bytes.NewBuffer(nil))
 			testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
 		})
 	}
 }
 
-func makePostUploadPackRequest(t *testing.T, in *pb.PostUploadPackRequest, body io.Reader) (*bytes.Buffer, error) {
-	client, conn := newSmartHTTPClient(t)
+func makePostUploadPackRequest(t *testing.T, serverSocketPath string, in *pb.PostUploadPackRequest, body io.Reader) (*bytes.Buffer, error) {
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

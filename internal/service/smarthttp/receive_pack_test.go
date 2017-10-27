@@ -20,7 +20,7 @@ import (
 )
 
 func TestSuccessfulReceivePackRequest(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
 	storagePath := testhelper.GitlabTestStoragePath()
@@ -70,7 +70,7 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 	fmt.Fprintf(requestBuffer, "%04x%s%s", len(pkt)+4, pkt, pktFlushStr)
 	requestBuffer.Write(pack)
 
-	client, conn := newSmartHTTPClient(t)
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "default", RelativePath: remoteRepoRelativePath}
 	rpcRequest := &pb.PostReceivePackRequest{Repository: repo, GlId: "user-123", GlRepository: "project-123"}
@@ -106,10 +106,10 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 }
 
 func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
-	server := runSmartHTTPServer(t)
+	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 
-	client, conn := newSmartHTTPClient(t)
+	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
 
 	rpcRequests := []pb.PostReceivePackRequest{

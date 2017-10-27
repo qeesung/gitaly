@@ -11,10 +11,10 @@ import (
 )
 
 func TestSuccessfulCommitPatchRequest(t *testing.T) {
-	server := runDiffServer(t)
+	server, serverSocketPath := runDiffServer(t)
 	defer server.Stop()
 
-	client, conn := newDiffClient(t)
+	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {

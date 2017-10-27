@@ -15,15 +15,14 @@ import (
 )
 
 var (
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         = testhelper.TestRepository()
+	testRepo = testhelper.TestRepository()
 )
 
 func TestSuccessfulPostReceive(t *testing.T) {
-	server := runNotificationsServer(t)
+	server, serverSocketPath := runNotificationsServer(t)
 	defer server.Stop()
 
-	client, conn := newNotificationsClient(t)
+	client, conn := newNotificationsClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.PostReceiveRequest{Repository: testRepo}
 
@@ -36,10 +35,10 @@ func TestSuccessfulPostReceive(t *testing.T) {
 }
 
 func TestEmptyPostReceiveRequest(t *testing.T) {
-	server := runNotificationsServer(t)
+	server, serverSocketPath := runNotificationsServer(t)
 	defer server.Stop()
 
-	client, conn := newNotificationsClient(t)
+	client, conn := newNotificationsClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.PostReceiveRequest{}
 
@@ -49,8 +48,10 @@ func TestEmptyPostReceiveRequest(t *testing.T) {
 	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
 }
 
-func runNotificationsServer(t *testing.T) *grpc.Server {
+func runNotificationsServer(t *testing.T) (*grpc.Server, string) {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
+
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 	listener, err := net.Listen("unix", serverSocketPath)
 	if err != nil {
 		t.Fatal(err)
@@ -61,10 +62,10 @@ func runNotificationsServer(t *testing.T) *grpc.Server {
 
 	go server.Serve(listener)
 
-	return server
+	return server, serverSocketPath
 }
 
-func newNotificationsClient(t *testing.T) (pb.NotificationsClient, *grpc.ClientConn) {
+func newNotificationsClient(t *testing.T, serverSocketPath string) (pb.NotificationsClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
