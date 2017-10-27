@@ -124,10 +124,10 @@ func TestFetchRemoteSuccess(t *testing.T) {
 	}(config.Config.GitlabShell.Dir)
 	config.Config.GitlabShell.Dir = dir
 
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, _ := newRepositoryClient(t)
+	client, _ := newRepositoryClient(t, serverSocketPath)
 
 	cloneRepo := copyRepoWithNewRemote(t, testRepo, "my-remote")
 	defer func(r *pb.Repository) {
@@ -147,10 +147,10 @@ func TestFetchRemoteSuccess(t *testing.T) {
 }
 
 func TestFetchRemoteFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, _ := newRepositoryClient(t)
+	client, _ := newRepositoryClient(t, serverSocketPath)
 
 	tests := []struct {
 		desc string

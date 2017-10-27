@@ -15,10 +15,10 @@ import (
 )
 
 func TestApplyGitattributesSuccess(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	infoPath := path.Join(testhelper.GitlabTestStoragePath(),
@@ -64,10 +64,10 @@ func TestApplyGitattributesSuccess(t *testing.T) {
 }
 
 func TestApplyGitattributesFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {

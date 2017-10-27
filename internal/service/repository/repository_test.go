@@ -17,14 +17,14 @@ import (
 )
 
 func TestRepositoryExists(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
 	storageOtherDir, err := ioutil.TempDir("", "gitaly-repository-exists-test")
 	require.NoError(t, err, "tempdir")
 	defer os.Remove(storageOtherDir)
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	// Setup storage paths
@@ -123,10 +123,10 @@ func TestRepositoryExists(t *testing.T) {
 }
 
 func TestSuccessfulHasLocalBranches(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	emptyRepoName := "empty-repo.git"
@@ -175,10 +175,10 @@ func TestSuccessfulHasLocalBranches(t *testing.T) {
 }
 
 func TestFailedHasLocalBranches(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {

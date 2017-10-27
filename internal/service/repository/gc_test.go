@@ -16,10 +16,10 @@ import (
 )
 
 func TestGarbageCollectSuccess(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {
@@ -71,10 +71,10 @@ func TestGarbageCollectSuccess(t *testing.T) {
 }
 
 func TestGarbageCollectFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {

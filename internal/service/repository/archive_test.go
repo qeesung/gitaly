@@ -16,10 +16,10 @@ import (
 )
 
 func TestGetArchiveSuccess(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	formats := []pb.GetArchiveRequest_Format{
@@ -84,10 +84,10 @@ func TestGetArchiveSuccess(t *testing.T) {
 }
 
 func TestGetArchiveFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	commitID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"

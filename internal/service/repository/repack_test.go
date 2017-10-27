@@ -16,10 +16,10 @@ import (
 )
 
 func TestRepackIncrementalSuccess(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	packPath := path.Join(testhelper.GitlabTestStoragePath(), testRepo.GetRelativePath(), "objects", "pack")
@@ -40,10 +40,10 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 }
 
 func TestRepackIncrementalFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {
@@ -68,10 +68,10 @@ func TestRepackIncrementalFailure(t *testing.T) {
 }
 
 func TestRepackFullSuccess(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {
@@ -117,10 +117,10 @@ func TestRepackFullSuccess(t *testing.T) {
 }
 
 func TestRepackFullFailure(t *testing.T) {
-	server := runRepoServer(t)
+	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
 
-	client, conn := newRepositoryClient(t)
+	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
 	tests := []struct {

@@ -33,10 +33,10 @@ func testMain(m *testing.M) int {
 }
 
 func TestNamespaceExists(t *testing.T) {
-	server := runNamespaceServer(t)
+	server, serverSocketPath := runNamespaceServer(t)
 	defer server.Stop()
 
-	client, conn := newNamespaceClient(t)
+	client, conn := newNamespaceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	// Create one namespace for testing it exists
@@ -106,10 +106,10 @@ func TestNamespaceExists(t *testing.T) {
 }
 
 func TestAddNamespace(t *testing.T) {
-	server := runNamespaceServer(t)
+	server, serverSocketPath := runNamespaceServer(t)
 	defer server.Stop()
 
-	client, conn := newNamespaceClient(t)
+	client, conn := newNamespaceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	queries := []struct {
@@ -172,10 +172,10 @@ func TestAddNamespace(t *testing.T) {
 }
 
 func TestRemoveNamespace(t *testing.T) {
-	server := runNamespaceServer(t)
+	server, serverSocketPath := runNamespaceServer(t)
 	defer server.Stop()
 
-	client, conn := newNamespaceClient(t)
+	client, conn := newNamespaceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -224,10 +224,10 @@ func TestRemoveNamespace(t *testing.T) {
 }
 
 func TestRenameNamespace(t *testing.T) {
-	server := runNamespaceServer(t)
+	server, serverSocketPath := runNamespaceServer(t)
 	defer server.Stop()
 
-	client, conn := newNamespaceClient(t)
+	client, conn := newNamespaceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -276,7 +276,10 @@ func TestRenameNamespace(t *testing.T) {
 		},
 	}
 
-	_, err := client.AddNamespace(ctx, &pb.AddNamespaceRequest{"default", "existing"})
+	_, err := client.AddNamespace(ctx, &pb.AddNamespaceRequest{
+		StorageName: "default",
+		Name:        "existing",
+	})
 	require.NoError(t, err)
 
 	for _, tc := range queries {
@@ -286,7 +289,10 @@ func TestRenameNamespace(t *testing.T) {
 			require.Equal(t, tc.errorCode, grpc.Code(err))
 
 			if tc.errorCode == codes.OK {
-				client.RemoveNamespace(ctx, &pb.RemoveNamespaceRequest{"default", "new-path"})
+				client.RemoveNamespace(ctx, &pb.RemoveNamespaceRequest{
+					StorageName: "default",
+					Name:        "new-path",
+				})
 			}
 		})
 	}
