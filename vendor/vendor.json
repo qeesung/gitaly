@@ -329,10 +329,10 @@
 			"revisionTime": "2017-05-18T06:42:59Z"
 		},
 		{
-			"checksumSHA1": "61oRC/n7DFqHNu6Z+4fAKY1FVCY=",
+			"checksumSHA1": "Tc3BU26zThLzcyqbVtiSEp7EpU8=",
 			"path": "google.golang.org/genproto/googleapis/rpc/status",
-			"revision": "d80a6e20e776b0b17a324d0ba1ab50a39c8e8944",
-			"revisionTime": "2017-05-23T04:36:04Z"
+			"revision": "f676e0f3ac6395ff1a529ae59a6670878a8371a6",
+			"revisionTime": "2017-10-02T23:26:14Z"
 		},
 		{
 			"checksumSHA1": "y6h+XSUljIi7QBgKWGNl9cRtdZA=",
