@@ -122,8 +122,8 @@ func (brokenAuth) GetRequestMetadata(netctx.Context, ...string) (map[string]stri
 }
 
 func dial(opts []grpc.DialOption) (*grpc.ClientConn, error) {
-	opts = append(opts, grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-		return net.Dial("unix", addr)
+	opts = append(opts, grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+		return net.DialTimeout("unix", addr, timeout)
 	}))
 	return grpc.Dial(serverSocketPath, opts...)
 }

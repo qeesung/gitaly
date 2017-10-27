@@ -37,8 +37,8 @@ func runBlobServer(t *testing.T) *grpc.Server {
 func newBlobClient(t *testing.T, serverSocketPath string) (pb.BlobServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-			return net.Dial("unix", addr)
+		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout("unix", addr, timeout)
 		}),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)

@@ -40,8 +40,8 @@ func runSmartHTTPServer(t *testing.T) *grpc.Server {
 func newSmartHTTPClient(t *testing.T) (pb.SmartHTTPServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, _ time.Duration) (net.Conn, error) {
-			return net.Dial("unix", addr)
+		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout("unix", addr, timeout)
 		}),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
