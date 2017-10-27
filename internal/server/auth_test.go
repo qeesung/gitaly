@@ -17,15 +17,14 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-var serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-
 func TestSanity(t *testing.T) {
-	srv := runServer(t)
+	srv, serverSocketPath := runServer(t)
 	defer srv.Stop()
+
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
-	conn, err := dial(connOpts)
+	conn, err := dial(serverSocketPath, connOpts)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -38,7 +37,7 @@ func TestAuthFailures(t *testing.T) {
 	}(config.Config.Auth)
 	config.Config.Auth.Token = config.Token("quxbaz")
 
-	srv := runServer(t)
+	srv, serverSocketPath := runServer(t)
 	defer srv.Stop()
 
 	testCases := []struct {
@@ -61,7 +60,7 @@ func TestAuthFailures(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			connOpts := append(tc.opts, grpc.WithInsecure())
-			conn, err := dial(connOpts)
+			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			defer conn.Close()
 			testhelper.AssertGrpcError(t, healthCheck(conn), tc.code, "")
@@ -74,7 +73,7 @@ func TestAuthSuccess(t *testing.T) {
 		config.Config.Auth = oldAuth
 	}(config.Config.Auth)
 
-	srv := runServer(t)
+	srv, serverSocketPath := runServer(t)
 	defer srv.Stop()
 
 	testCases := []struct {
@@ -83,17 +82,17 @@ func TestAuthSuccess(t *testing.T) {
 		required bool
 		token    config.Token
 	}{
-		// {desc: "no auth, not required"},
-		// {
-		// 	desc:  "incorrect auth, not required",
-		// 	opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("incorrect"))},
-		// 	token: config.Token("foobar"),
-		// },
-		// {
-		// 	desc:  "correct auth, not required",
-		// 	opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
-		// 	token: config.Token("foobar"),
-		// },
+		{desc: "no auth, not required"},
+		{
+			desc:  "incorrect auth, not required",
+			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("incorrect"))},
+			token: config.Token("foobar"),
+		},
+		{
+			desc:  "correct auth, not required",
+			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
+			token: config.Token("foobar"),
+		},
 		{
 			desc:     "correct auth, required",
 			opts:     []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
@@ -103,10 +102,13 @@ func TestAuthSuccess(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			config.Config.Auth.Token = tc.token
-			config.Config.Auth.Transitioning = !tc.required
+			config.Config.Auth = config.Auth{
+				Transitioning: !tc.required,
+				Token:         tc.token,
+			}
+
 			connOpts := append(tc.opts, grpc.WithInsecure())
-			conn, err := dial(connOpts)
+			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			defer conn.Close()
 			assert.NoError(t, healthCheck(conn), tc.desc)
@@ -121,10 +123,11 @@ func (brokenAuth) GetRequestMetadata(netctx.Context, ...string) (map[string]stri
 	return map[string]string{"authorization": "Bearer blablabla"}, nil
 }
 
-func dial(opts []grpc.DialOption) (*grpc.ClientConn, error) {
+func dial(serverSocketPath string, opts []grpc.DialOption) (*grpc.ClientConn, error) {
 	opts = append(opts, grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 		return net.DialTimeout("unix", addr, timeout)
 	}))
+
 	return grpc.Dial(serverSocketPath, opts...)
 }
 
@@ -137,11 +140,14 @@ func healthCheck(conn *grpc.ClientConn) error {
 	return err
 }
 
-func runServer(t *testing.T) *grpc.Server {
+func runServer(t *testing.T) (*grpc.Server, string) {
 	srv := New(nil)
+
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
 	go srv.Serve(listener)
-	return srv
+
+	return srv, serverSocketPath
 }
