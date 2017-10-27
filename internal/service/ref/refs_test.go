@@ -28,10 +28,10 @@ func containsRef(refs [][]byte, ref string) bool {
 }
 
 func TestSuccessfulFindAllBranchNames(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindAllBranchNamesRequest{Repository: testRepo}
 
@@ -61,10 +61,10 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 }
 
 func TestEmptyFindAllBranchNamesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindAllBranchNamesRequest{}
 
@@ -86,10 +86,10 @@ func TestEmptyFindAllBranchNamesRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindAllBranchNamesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "default", RelativePath: "made/up/path"}
 	rpcRequest := &pb.FindAllBranchNamesRequest{Repository: repo}
@@ -112,10 +112,10 @@ func TestInvalidRepoFindAllBranchNamesRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindAllTagNames(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindAllTagNamesRequest{Repository: testRepo}
 
@@ -146,10 +146,10 @@ func TestSuccessfulFindAllTagNames(t *testing.T) {
 }
 
 func TestEmptyFindAllTagNamesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindAllTagNamesRequest{}
 
@@ -171,10 +171,10 @@ func TestEmptyFindAllTagNamesRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindAllTagNamesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "default", RelativePath: "made/up/path"}
 	rpcRequest := &pb.FindAllTagNamesRequest{Repository: repo}
@@ -297,10 +297,10 @@ func TestDefaultBranchName(t *testing.T) {
 }
 
 func TestSuccessfulFindDefaultBranchName(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindDefaultBranchNameRequest{Repository: testRepo}
 
@@ -317,10 +317,10 @@ func TestSuccessfulFindDefaultBranchName(t *testing.T) {
 }
 
 func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindDefaultBranchNameRequest{}
 
@@ -334,10 +334,10 @@ func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
 }
 
 func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "default", RelativePath: "/made/up/path"}
 	rpcRequest := &pb.FindDefaultBranchNameRequest{Repository: repo}
@@ -352,7 +352,7 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindAllTagsRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
 	storagePath := testhelper.GitlabTestStoragePath()
@@ -406,7 +406,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		"-c", fmt.Sprintf("user.email=%s", committerEmail),
 		"tag", "v1.5.0", "v1.3.0")
 
-	client, conn := newRefServiceClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindAllTagsRequest{
 		Repository: &pb.Repository{
@@ -496,10 +496,10 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 }
 
 func TestInvalidFindAllTagsRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefServiceClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	testCases := []struct {
 		desc    string
@@ -540,10 +540,10 @@ func TestInvalidFindAllTagsRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindLocalBranches(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindLocalBranchesRequest{Repository: testRepo}
 
@@ -627,10 +627,10 @@ func TestFindLocalBranchesSort(t *testing.T) {
 		},
 	}
 
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	for _, testCase := range testCases {
@@ -666,10 +666,10 @@ func TestFindLocalBranchesSort(t *testing.T) {
 }
 
 func TestEmptyFindLocalBranchesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindLocalBranchesRequest{}
 
@@ -701,7 +701,7 @@ func createRemoteBranch(t *testing.T, repoPath, remoteName, branchName, ref stri
 }
 
 func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
 	remoteBranch := &pb.FindAllBranchesResponse_Branch{
@@ -727,7 +727,7 @@ func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
 	defer deleteRemoteBranch(t, testRepoPath, "origin", "fake-remote-branch")
 
 	request := &pb.FindAllBranchesRequest{Repository: testRepo}
-	client, conn := newRefServiceClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -762,10 +762,10 @@ func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
 }
 
 func TestInvalidFindAllBranchesRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefServiceClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	testCases := []struct {
 		description string

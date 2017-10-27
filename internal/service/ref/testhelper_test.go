@@ -21,10 +21,9 @@ import (
 )
 
 var (
-	serverSocketPath = testhelper.GetTemporaryGitalySocketFileName()
-	testRepo         *pb.Repository
-	testRepoPath     string
-	localBranches    = map[string]*pb.GitCommit{
+	testRepo      *pb.Repository
+	testRepoPath  string
+	localBranches = map[string]*pb.GitCommit{
 		"refs/heads/100%branch": {
 			Id:      "1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
 			Subject: []byte("Merge branch 'add-directory-with-space' into 'master'\r \r Add a directory containing a space in its name\r \r needed for verifying the fix of `https://gitlab.com/gitlab-com/support-forum/issues/952` \r \r See merge request !11"),
@@ -101,8 +100,8 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func runRefServiceServer(t *testing.T) *grpc.Server {
-	os.Remove(serverSocketPath)
+func runRefServiceServer(t *testing.T) (*grpc.Server, string) {
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -115,25 +114,10 @@ func runRefServiceServer(t *testing.T) *grpc.Server {
 
 	go grpcServer.Serve(listener)
 
-	return grpcServer
+	return grpcServer, serverSocketPath
 }
 
-func newRefClient(t *testing.T) (pb.RefServiceClient, *grpc.ClientConn) {
-	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
-			return net.DialTimeout("unix", addr, timeout)
-		}),
-	}
-	conn, err := grpc.Dial(serverSocketPath, connOpts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return pb.NewRefServiceClient(conn), conn
-}
-
-func newRefServiceClient(t *testing.T) (pb.RefServiceClient, *grpc.ClientConn) {
+func newRefServiceClient(t *testing.T, serverSocketPath string) (pb.RefServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {

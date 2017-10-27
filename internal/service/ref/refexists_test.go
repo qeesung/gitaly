@@ -39,10 +39,10 @@ func TestRefExists(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			server := runRefServiceServer(t)
+			server, serverSocketPath := runRefServiceServer(t)
 			defer server.Stop()
 
-			client, conn := newRefClient(t)
+			client, conn := newRefServiceClient(t, serverSocketPath)
 			defer conn.Close()
 
 			req := &pb.RefExistsRequest{Repository: tt.repo, Ref: []byte(tt.ref)}

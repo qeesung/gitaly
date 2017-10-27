@@ -12,10 +12,10 @@ import (
 )
 
 func TestFindRefNameSuccess(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
@@ -38,10 +38,10 @@ func TestFindRefNameSuccess(t *testing.T) {
 }
 
 func TestFindRefNameEmptyCommit(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
@@ -66,10 +66,10 @@ func TestFindRefNameEmptyCommit(t *testing.T) {
 }
 
 func TestFindRefNameInvalidRepo(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	repo := &pb.Repository{StorageName: "fake", RelativePath: "path"}
 	rpcRequest := &pb.FindRefNameRequest{
@@ -95,10 +95,10 @@ func TestFindRefNameInvalidRepo(t *testing.T) {
 }
 
 func TestFindRefNameInvalidPrefix(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,
@@ -118,10 +118,10 @@ func TestFindRefNameInvalidPrefix(t *testing.T) {
 }
 
 func TestFindRefNameInvalidObject(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 	rpcRequest := &pb.FindRefNameRequest{
 		Repository: testRepo,

@@ -18,10 +18,10 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	headCommit, err := log.GetCommit(ctx, testRepo, "HEAD", "")
@@ -77,10 +77,10 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 }
 
 func TestFailedCreateBranchRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
@@ -127,10 +127,10 @@ func TestFailedCreateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulDeleteBranchRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchNameInput := "to-be-deleted-soon"
@@ -173,10 +173,10 @@ func TestSuccessfulDeleteBranchRequest(t *testing.T) {
 }
 
 func TestFailedDeleteBranchRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
@@ -216,10 +216,10 @@ func TestSuccessfulFindBranchRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	branchNameInput := "master"
@@ -276,10 +276,10 @@ func TestSuccessfulFindBranchRequest(t *testing.T) {
 }
 
 func TestFailedFindBranchRequest(t *testing.T) {
-	server := runRefServiceServer(t)
+	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
 
-	client, conn := newRefClient(t)
+	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testCases := []struct {
