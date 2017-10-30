@@ -3,39 +3,67 @@
 require 'net/http'
 require 'uri'
 require 'json'
+require_relative 'run.rb'
 
-def gitlab_api(url, body)
+def gitlab_api(url, body = nil)
   uri = URI.parse(url)
 
   header = {
     'Content-Type': 'application/json',
-    'PRIVATE-TOKEN': ENV['PRIVATE_TOKEN']
+    'PRIVATE-TOKEN': ENV['GITLAB_TOKEN']
   }
 
   # Create the HTTP objects
   Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
-    request = Net::HTTP::Post.new(uri.request_uri, header)
-    request.body = body.to_json
+    if body
+      request = Net::HTTP::Post.new(uri.request_uri, header)
+      request.body = body.to_json
+    else
+      request = Net::HTTP::Get.new(uri.request_uri, header)
+    end
 
     response = http.request(request)
     raise "Request to #{url} failed: #{response.body}" unless Integer(response.code) < 400
-    response.body
+
+    JSON.parse(response.body)
   end
 end
 
-def update_tag(project_id, tag_version)
-  commit = {
+def find_user_id
+  return ENV["GITLAB_USER_ID"] if ENV["GITLAB_USER_ID"]
+
+  response = gitlab_api("https://gitlab.com/api/v4/user")
+  response['id']
+end
+
+def find_project_id(project_name)
+  encoded_project_name = URI.escape(project_name, "/")
+  response = gitlab_api("https://gitlab.com/api/v4/projects/#{encoded_project_name}")
+
+  response['id']
+end
+
+def find_tag
+  return ENV["CI_COMMIT_TAG"] if ENV["CI_COMMIT_TAG"]
+
+  capture!(%w[git tag --points-at HEAD]).chomp
+end
+
+def update_gitaly_version(project_id, tag_version)
+  version = tag_version.sub(/^v/,"")
+
+  server_version_commit = {
     "branch": "gitaly-version-#{tag_version}",
     "start_branch": "master",
     "commit_message": "Update Gitaly version to #{tag_version}",
     "actions": [{
       "action": "update",
       "file_path": "GITALY_SERVER_VERSION",
-      "content": tag_version.to_s
+      "content": "#{version}\n"
     }]
   }
 
-  gitlab_api("https://gitlab.com/api/v4/projects/#{project_id}/repository/commits", commit)
+  gitlab_api("https://gitlab.com/api/v4/projects/#{project_id}/repository/commits", server_version_commit)
 end
 
 def create_mr(project_id, tag_version, assignee_id)
@@ -53,9 +81,41 @@ def create_mr(project_id, tag_version, assignee_id)
   gitlab_api("https://gitlab.com/api/v4/projects/#{project_id}/merge_requests", merge_request)
 end
 
-project_id = ENV["GITLAB_CE_PROJECT_ID"]
-tag_version = ENV["CI_COMMIT_TAG"]
-assignee_id = ENV["GITLAB_USER_ID"]
+def add_changelog(project_id, tag_version, merge_request_number)
+  changelog_commit = {
+    "branch": "gitaly-version-#{tag_version}",
+    "start_branch": "gitaly-version-#{tag_version}",
+    "commit_message": "Add changelog [skip ci]",
+    "actions": [{
+      "action": "create",
+      "file_path": "changelogs/unreleased/gitaly-version-#{tag_version}.yml",
+      "content": <<~HEREDOC
+      ---
+      title: Upgrade to Gitaly #{tag_version}
+      merge_request: #{merge_request_number}
+      author:
+      type: changed
+      HEREDOC
+    }]
+  }
 
-update_tag(project_id, tag_version)
-create_mr(project_id, tag_version, assignee_id)
+  gitlab_api("https://gitlab.com/api/v4/projects/#{project_id}/repository/commits", changelog_commit)
+end
+
+if !ENV['GITLAB_TOKEN']
+  abort "Please set GITLAB_TOKEN env var"
+end
+
+project_id = find_project_id("gitlab-org/gitlab-ce")
+tag_version = find_tag
+assignee_id = find_user_id
+
+if !tag_version
+  abort "Unable to determine tag for current HEAD"
+end
+
+update_gitaly_version(project_id, tag_version)
+merge_request = create_mr(project_id, tag_version, assignee_id)
+add_changelog(project_id, tag_version, merge_request['iid'])
+
+puts "#{merge_request['web_url']}"
