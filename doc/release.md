@@ -6,6 +6,16 @@
 
 Where x.y.z is a semver-compliant version number.
 
+- To automatically create a merge-request in Gitlab CE to update that
+  project to the latest tag, run
+
+```shell
+GITLAB_TOKEN=$(cat /path/to/gitlab-token) _support/update-downstream-server-version.rb
+```
+
+- This will create a merge-request (with changelog) and assign it to you. Once the build has
+  completed successfully, assign it to a maintainer for review.
+
 ## Experimental builds
 
 Push the release tag to dev.gitlab.org/gitlab/gitaly. After the
