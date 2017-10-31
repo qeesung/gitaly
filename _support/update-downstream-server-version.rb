@@ -5,7 +5,7 @@ require 'uri'
 require 'json'
 require_relative 'run.rb'
 
-def gitlab_api(url, body = nil)
+def gitlab_api(url, body=nil)
   uri = URI.parse(url)
 
   header = {
@@ -37,7 +37,7 @@ def find_user_id
 end
 
 def find_project_id(project_name)
-  encoded_project_name = URI.escape(project_name, "/")
+  encoded_project_name = URI.encode_www_form_component(project_name)
   response = gitlab_api("https://gitlab.com/api/v4/projects/#{encoded_project_name}")
 
   response['id']
@@ -50,7 +50,7 @@ def find_tag
 end
 
 def update_gitaly_version(project_id, tag_version)
-  version = tag_version.sub(/^v/,"")
+  version = tag_version.sub(/^v/, "")
 
   server_version_commit = {
     "branch": "gitaly-version-#{tag_version}",
@@ -102,20 +102,16 @@ def add_changelog(project_id, tag_version, merge_request_number)
   gitlab_api("https://gitlab.com/api/v4/projects/#{project_id}/repository/commits", changelog_commit)
 end
 
-if !ENV['GITLAB_TOKEN']
-  abort "Please set GITLAB_TOKEN env var"
-end
+abort "Please set GITLAB_TOKEN env var" unless ENV['GITLAB_TOKEN']
 
 project_id = find_project_id("gitlab-org/gitlab-ce")
 tag_version = find_tag
 assignee_id = find_user_id
 
-if !tag_version
-  abort "Unable to determine tag for current HEAD"
-end
+abort "Unable to determine tag for current HEAD" unless tag_version
 
 update_gitaly_version(project_id, tag_version)
 merge_request = create_mr(project_id, tag_version, assignee_id)
 add_changelog(project_id, tag_version, merge_request['iid'])
 
-puts "#{merge_request['web_url']}"
+puts merge_request['web_url']
