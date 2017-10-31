@@ -114,7 +114,7 @@ update-downstream-server-version:
   only:
     - tags
   script:
-    - ruby _support/update-downstream-server-version.rb
+    - ruby _support/update-downstream-server-version
   allow_failure: true
 
 # Ensure that gitlab-git vendoring from gitlab-ce is functioning

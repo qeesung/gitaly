@@ -10,7 +10,7 @@ Where x.y.z is a semver-compliant version number.
   project to the latest tag, run
 
 ```shell
-GITLAB_TOKEN=$(cat /path/to/gitlab-token) _support/update-downstream-server-version.rb
+GITLAB_TOKEN=$(cat /path/to/gitlab-token) _support/update-downstream-server-version
 ```
 
 - This will create a merge-request (with changelog) and assign it to you. Once the build has
