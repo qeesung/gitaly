@@ -13,6 +13,7 @@ def main(gitaly_dir)
 
     File.write('config.toml', <<~CONFIG
       socket_path = "#{ADDR}"
+      bin_dir = "#{gitaly_dir}"
 
       [[storage]]
       name = "default"

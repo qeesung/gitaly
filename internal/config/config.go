@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 
@@ -22,6 +23,7 @@ type config struct {
 	SocketPath           string        `toml:"socket_path" split_words:"true"`
 	ListenAddr           string        `toml:"listen_addr" split_words:"true"`
 	PrometheusListenAddr string        `toml:"prometheus_listen_addr" split_words:"true"`
+	BinDir               string        `toml:"bin_dir"`
 	Git                  Git           `toml:"git" envconfig:"git"`
 	Storages             []Storage     `toml:"storage" envconfig:"storage"`
 	Logging              Logging       `toml:"logging" envconfig:"logging"`
@@ -90,6 +92,7 @@ func Validate() error {
 		SetGitPath(),
 		validateShell(),
 		validateRuby(),
+		validateBinDir(),
 	} {
 		if err != nil {
 			return err
@@ -197,4 +200,16 @@ func StoragePath(storageName string) (string, bool) {
 // The second boolean return value indicates if it's found
 func GitlabShellBinPath() string {
 	return path.Join(Config.GitlabShell.Dir, "bin")
+}
+
+func validateBinDir() error {
+	if err := validateIsDirectory(Config.BinDir, "bin_dir"); err != nil {
+		log.WithError(err).Warn("Gitaly bin directory is not configured")
+		// TODO this must become a fatal error
+		return nil
+	}
+
+	var err error
+	Config.BinDir, err = filepath.Abs(Config.BinDir)
+	return err
 }

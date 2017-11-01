@@ -12,6 +12,16 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// ProxyHeaderWhitelist is the list of http/2 headers that will be
+// forwarded as-is to gitaly-ruby.
+var ProxyHeaderWhitelist = []string{"gitaly-servers"}
+
+const (
+	repoPathHeader     = "gitaly-repo-path"
+	glRepositoryHeader = "gitaly-gl-repository"
+	repoAltDirsHeader  = "gitaly-repo-alt-dirs"
+)
+
 // SetHeaders adds headers that tell gitaly-ruby the full path to the repository.
 func SetHeaders(ctx context.Context, repo *pb.Repository) (context.Context, error) {
 	repoPath, err := helper.GetPath(repo)
@@ -28,6 +38,15 @@ func SetHeaders(ctx context.Context, repo *pb.Repository) (context.Context, erro
 		glRepositoryHeader, repo.GlRepository,
 		repoAltDirsHeader, repoAltDirsCombined,
 	)
+
+	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
+		for _, header := range ProxyHeaderWhitelist {
+			for _, v := range inMD[header] {
+				md = metadata.Join(md, metadata.Pairs(header, v))
+			}
+		}
+	}
+
 	newCtx := metadata.NewOutgoingContext(ctx, md)
 	return newCtx, nil
 }

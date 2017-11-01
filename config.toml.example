@@ -2,6 +2,9 @@
 
 socket_path = "/home/git/gitlab/tmp/sockets/private/gitaly.socket"
 
+# The directory where Gitaly's executables are stored
+bin_dir = "/home/git/gitaly"
+
 # # Optional: listen on a TCP socket. This is insecure (no authentication)
 # listen_addr = "localhost:9999"
 #

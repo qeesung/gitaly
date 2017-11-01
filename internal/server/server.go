@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/service"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -41,7 +42,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
 			lh.StreamInterceptor(),
-			authStreamServerInterceptor(),
+			auth.StreamServerInterceptor(),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.StreamPanicHandler,
@@ -54,7 +55,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
 			lh.UnaryInterceptor(),
-			authUnaryServerInterceptor(),
+			auth.UnaryServerInterceptor(),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.UnaryPanicHandler,

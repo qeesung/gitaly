@@ -1,4 +1,4 @@
-package server
+package auth
 
 import (
 	"encoding/base64"
@@ -26,11 +26,13 @@ func init() {
 	prometheus.MustRegister(authCount)
 }
 
-func authStreamServerInterceptor() grpc.StreamServerInterceptor {
+// StreamServerInterceptor checks for Gitaly bearer tokens.
+func StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return grpc_auth.StreamServerInterceptor(check)
 }
 
-func authUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+// UnaryServerInterceptor checks for Gitaly bearer tokens.
+func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return grpc_auth.UnaryServerInterceptor(check)
 }
 

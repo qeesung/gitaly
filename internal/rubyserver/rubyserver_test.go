@@ -23,8 +23,6 @@ func TestStopSafe(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
-	testRepo := testhelper.TestRepository()
-
 	testCases := []struct {
 		repo    *pb.Repository
 		errType codes.Code

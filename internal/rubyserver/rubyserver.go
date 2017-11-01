@@ -23,12 +23,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	repoPathHeader     = "gitaly-repo-path"
-	glRepositoryHeader = "gitaly-gl-repository"
-	repoAltDirsHeader  = "gitaly-repo-alt-dirs"
-)
-
 var (
 	socketDir string
 
@@ -101,6 +95,7 @@ func Start() (*Server, error) {
 		"GITALY_RUBY_GIT_BIN_PATH=" + command.GitPath(),
 		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize),
 		"GITALY_RUBY_GITLAB_SHELL_PATH=" + cfg.GitlabShell.Dir,
+		"GITALY_RUBY_GITALY_BIN_DIR=" + cfg.BinDir,
 	}
 
 	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}

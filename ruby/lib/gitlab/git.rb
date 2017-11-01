@@ -33,6 +33,8 @@ Dir["#{dir}/git/**/*.rb"].sort.each do |ruby_file|
   require_relative ruby_file.sub(dir, File.join(vendor_gitlab_git, 'lib/gitlab/')).sub(%r{^/*}, '')
 end
 
+require_relative 'git/gitaly_remote_repository.rb'
+
 module Gitlab
   # Config lets Gitlab::Git do mock config lookups.
   class Config
@@ -56,12 +58,22 @@ module Gitlab
       end
     end
 
+    class Gitaly
+      def client_path
+        ENV['GITALY_RUBY_GITALY_BIN_DIR']
+      end
+    end
+
     def git
       Git.new
     end
 
     def gitlab_shell
       GitlabShell.new
+    end
+
+    def gitaly
+      Gitaly.new
     end
   end
 

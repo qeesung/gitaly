@@ -4,15 +4,20 @@ import (
 	"log"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -21,9 +26,11 @@ import (
 const testTimeString = "200601021504.05"
 
 var (
-	testTime   = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
-	testRepo   = testhelper.TestRepository()
-	rubyServer *rubyserver.Server
+	testTime     = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
+	testRepo     = testhelper.TestRepository()
+	TestRepoPath string
+	RubyServer   *rubyserver.Server
+	AuthToken    = "the-secret-token"
 )
 
 func newRepositoryClient(t *testing.T, serverSocketPath string) (pb.RepositoryServiceClient, *grpc.ClientConn) {
@@ -32,6 +39,7 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (pb.RepositorySe
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)
 		}),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(AuthToken)),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {
@@ -41,8 +49,13 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (pb.RepositorySe
 	return pb.NewRepositoryServiceClient(conn), conn
 }
 
+var NewRepositoryClient = newRepositoryClient
+
 func runRepoServer(t *testing.T) (*grpc.Server, string) {
-	server := testhelper.NewTestGrpcServer(t, nil, nil)
+	streamInt := []grpc.StreamServerInterceptor{auth.StreamServerInterceptor()}
+	unaryInt := []grpc.UnaryServerInterceptor{auth.UnaryServerInterceptor()}
+
+	server := testhelper.NewTestGrpcServer(t, streamInt, unaryInt)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -50,7 +63,7 @@ func runRepoServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	pb.RegisterRepositoryServiceServer(server, NewServer(rubyServer))
+	pb.RegisterRepositoryServiceServer(server, NewServer(RubyServer))
 	reflection.Register(server)
 
 	go server.Serve(listener)
@@ -81,6 +94,7 @@ func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
 	testhelper.ConfigureRuby()
+	config.Config.Auth = config.Auth{Token: config.Token(AuthToken)}
 
 	var err error
 	config.Config.GitlabShell.Dir, err = filepath.Abs("testdata/gitlab-shell")
@@ -88,11 +102,29 @@ func testMain(m *testing.M) int {
 		log.Fatal(err)
 	}
 
-	rubyServer, err = rubyserver.Start()
+	config.Config.BinDir, err = filepath.Abs("testdata/gitaly-libexec")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rubyServer.Stop()
+
+	goBuildArgs := []string{
+		"build",
+		"-o",
+		path.Join(config.Config.BinDir, "gitaly-ssh"),
+		"gitlab.com/gitlab-org/gitaly/cmd/gitaly-ssh",
+	}
+	testhelper.MustRunCommand(nil, nil, "go", goBuildArgs...)
+
+	RubyServer, err = rubyserver.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer RubyServer.Stop()
+
+	TestRepoPath, err = helper.GetPath(testRepo)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return m.Run()
 }
