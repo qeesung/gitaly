@@ -2,8 +2,6 @@
 
 UNRELEASED
 
-- Use gitaly-proto 0.53.0
-  https://gitlab.com/gitlab-org/gitaly/merge_requests/447
 - Implement WikiGetPageVersions RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/430
 
