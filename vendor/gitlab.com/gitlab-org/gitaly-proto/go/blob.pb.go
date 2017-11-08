@@ -137,6 +137,8 @@ It has these top-level messages:
 	HasLocalBranchesResponse
 	ChangeStorageRequest
 	ChangeStorageResponse
+	FetchSourceBranchRequest
+	FetchSourceBranchResponse
 	Repository
 	GitCommit
 	CommitAuthor
