@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- More robust Linguist path discovery.
+
 v0.53.0
 
 - Update vendored gitlab_git to f7537ce03a29b

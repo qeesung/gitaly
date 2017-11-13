@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -59,15 +60,17 @@ func LoadColors() error {
 	cmd := exec.Command("bundle", "exec", "ruby", "-e", rubyScript)
 	cmd.Dir = config.Config.Ruby.Dir
 
-	linguistPath, err := cmd.Output()
+	output, err := cmd.Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			err = fmt.Errorf("%v; stderr: %q", exitError, exitError.Stderr)
 		}
 		return err
 	}
+	outputLines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	linguistPath := outputLines[len(outputLines)-1]
 
-	languageJSON, err := ioutil.ReadFile(path.Join(string(linguistPath), "lib/linguist/languages.json"))
+	languageJSON, err := ioutil.ReadFile(path.Join(linguistPath, "lib/linguist/languages.json"))
 	if err != nil {
 		return err
 	}
