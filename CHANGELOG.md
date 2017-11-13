@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Implement RepositoryService::FetchSourceBranch
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/434
+
 v0.53.0
 
 - Update vendored gitlab_git to f7537ce03a29b
