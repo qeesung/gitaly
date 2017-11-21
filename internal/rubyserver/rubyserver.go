@@ -106,7 +106,8 @@ func Start() (*Server, error) {
 	gitalyRuby := path.Join(cfg.Ruby.Dir, "bin/gitaly-ruby")
 
 	// Use 'ruby-cd' to make sure gitaly-ruby has the same working directory
-	// as the current process.
+	// as the current process. This is a hack to sort-of support relative
+	// Unix socket paths.
 	args := []string{"bundle", "exec", "bin/ruby-cd", wd, gitalyRuby, fmt.Sprintf("%d", os.Getpid()), socketPath()}
 
 	p, err := supervisor.New("gitaly-ruby", append(os.Environ(), env...), args, cfg.Ruby.Dir)
