@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Run gitaly-ruby in the same directory as gitaly
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/458
+
 v0.54.0
 
 - Implement RefService.DeleteRefs
