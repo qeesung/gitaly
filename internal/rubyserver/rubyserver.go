@@ -91,6 +91,11 @@ func (s *Server) Stop() {
 func Start() (*Server, error) {
 	lazyInit.Do(prepareSocketPath)
 
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := config.Config
 	env := []string{
 		"GITALY_RUBY_GIT_BIN_PATH=" + command.GitPath(),
@@ -98,8 +103,11 @@ func Start() (*Server, error) {
 		"GITALY_RUBY_GITLAB_SHELL_PATH=" + cfg.GitlabShell.Dir,
 		"GITALY_RUBY_GITALY_BIN_DIR=" + cfg.BinDir,
 	}
+	gitalyRuby := path.Join(cfg.Ruby.Dir, "bin/gitaly-ruby")
 
-	args := []string{"bundle", "exec", "bin/gitaly-ruby", fmt.Sprintf("%d", os.Getpid()), socketPath()}
+	// Use 'ruby-cd' to make sure gitaly-ruby has the same working directory
+	// as the current process.
+	args := []string{"bundle", "exec", "bin/ruby-cd", wd, gitalyRuby, fmt.Sprintf("%d", os.Getpid()), socketPath()}
 
 	p, err := supervisor.New("gitaly-ruby", append(os.Environ(), env...), args, cfg.Ruby.Dir)
 	return &Server{Process: p}, err
