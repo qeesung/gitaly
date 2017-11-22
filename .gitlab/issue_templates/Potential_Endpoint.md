@@ -5,6 +5,7 @@
 - GitLab-EE permalink **LINK**
 
 Conversation (if applicable): [Create Issue](https://gitlab.com/gitlab-org/gitaly/issues/new?issuable_template=Conversation_Migration)
+
 ------
 
 /label ~"Potential Endpoint"
