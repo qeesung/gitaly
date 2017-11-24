@@ -78,6 +78,19 @@ assemble: force-ruby-bundle build
 	cp -r ruby $(ASSEMBLY_ROOT)/ruby
 	install $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(ASSEMBLY_ROOT)/bin
 
+docker: $(TARGET_SETUP)
+	rm -rf $(TARGET_DIR)/docker/
+	mkdir -p $(TARGET_DIR)/docker/bin/
+	cp -r ruby $(TARGET_DIR)/docker/ruby/
+	rm -rf $(TARGET_DIR)/docker/ruby/vendor/bundle
+
+	for cmd in $(COMMAND_PACKAGES); do \
+		GOOS=linux GOARCH=amd64 go build $(GO_LDFLAGS) -o "$(TARGET_DIR)/docker/bin/$$(basename $$cmd)" $$cmd; \
+	done
+
+	cp Dockerfile $(TARGET_DIR)/docker/
+	docker build -t gitlab/gitaly:$(VERSION_PREFIXED) -t gitlab/gitaly:latest $(TARGET_DIR)/docker/
+
 .PHONY: verify
 verify: lint check-formatting megacheck govendor-status notice-up-to-date
 

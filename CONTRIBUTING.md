@@ -200,3 +200,42 @@ DEBU[0037] 13:04:31.074736 git.c:322               trace: built-in: git 'worktre
 DEBU[0037] 13:04:31.076135 run-command.c:626       trace: run_command: 'rerere' 'gc'  grpc.method=GarbageCollect grpc.request.repoPath="gitlab/gitlab-design.git" grpc.request.repoStorage=default grpc.request.topLevelGroup=gitlab grpc.service=gitaly.RepositoryService peer.address= span.kind=server system=grpc
 DEBU[0037] 13:04:31.079286 git.c:322               trace: built-in: git 'rerere' 'gc'  grpc.method=GarbageCollect grpc.request.repoPath="gitlab/gitlab-design.git" grpc.request.repoStorage=default grpc.request.topLevelGroup=gitlab grpc.service=gitaly.RepositoryService peer.address= span.kind=server system=grpc
 ```
+
+## Testing with Instrumentation
+
+If you would like to test with instrumentation and prometheus metrics, use the `instrumented-cluster` docker compose configuration in
+`_support/instrumented-cluster`. This cluster will create several services:
+
+|*Service*|*Port*|
+|---------|------|
+| Gitaly | 9999 |
+| Gitaly Metrics | 9236 |
+| Prometheus | 9090 |
+| cAdvisor | 8080 |
+| Grafana | 3000 |
+
+The gitaly service uses the `gitlab/gitaly:latest` image, which you need to build using `make docker` before starting the cluster.
+
+Once you have the `gitlab/gitaly:latest` image, start the cluster from the `_support/instrumented-cluster` directory using:
+
+```script
+instrumented-cluster $ docker-compose up --remove-orphans
+```
+
+Enter `^C` to kill the cluster.
+
+Note that the Gitaly service is intentionally limited to 50% CPU and 200MB of memory. This can be adjusted in the `docker-compose.yml` file.
+
+Once the cluster has started, it will clone the `gitlab-org/gitlab-ce` repository, for testing purposes.
+
+This can then be used for testing, using tools like [gitaly-bench](https://gitlab.com/gitlab-org/gitaly-bench):
+
+```shell
+gitaly-bench -concurrency 100 -repo gitlab-org/gitlab-ce.git find-all-branches
+```
+
+It can also be used with profiling tools, for example [go-torch](https://github.com/uber/go-torch) for generating flame graphs, as follows:
+
+```shell
+go-torch --url http://localhost:9236 -p > flamegraph.svg
+```

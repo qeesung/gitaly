@@ -1,0 +1,24 @@
+scrape_configs:
+  - job_name: 'hass'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: /api/prometheus
+    params:
+      api_password: ['PASSWORD']
+    scheme: http
+    static_configs:
+      - targets: ['hass:8123']
+  - job_name: 'cadvisor'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ['cadvisor:8080']
+  - job_name: 'gitaly1'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ['gitaly1:9236']
