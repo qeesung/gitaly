@@ -206,13 +206,13 @@ DEBU[0037] 13:04:31.079286 git.c:322               trace: built-in: git 'rerere'
 If you would like to test with instrumentation and prometheus metrics, use the `instrumented-cluster` docker compose configuration in
 `_support/instrumented-cluster`. This cluster will create several services:
 
-|*Service*|*Port*|
+|*Service*|*Endpoint*|
 |---------|------|
-| Gitaly | 9999 |
-| Gitaly Metrics | 9236 |
-| Prometheus | 9090 |
-| cAdvisor | 8080 |
-| Grafana | 3000 |
+| Gitaly | [http://localhost:9999](http://localhost:9999) |
+| Gitaly Metrics and pprof | [http://localhost:9236](http://localhost:9236) |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |
+| cAdvisor | [http://localhost:8080](http://localhost:8080) |
+| Grafana | [http://localhost:3000](http://localhost:3000) |
 
 The gitaly service uses the `gitlab/gitaly:latest` image, which you need to build using `make docker` before starting the cluster.
 
