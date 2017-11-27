@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Use grpc-go 1.8.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/466
 - Fix a panic in ListFiles RPC when git process is killed abruptly
   https://gitlab.com/gitlab-org/gitaly/merge_requests/460
 
