@@ -212,14 +212,14 @@ If you would like to test with instrumentation and prometheus metrics, use the `
 | Gitaly Metrics and pprof | [http://localhost:9236](http://localhost:9236) |
 | Prometheus | [http://localhost:9090](http://localhost:9090) |
 | cAdvisor | [http://localhost:8080](http://localhost:8080) |
-| Grafana | [http://localhost:3000](http://localhost:3000) |
+| Grafana | [http://localhost:3000](http://localhost:3000) use default login `admin`/`admin` |
 
 The gitaly service uses the `gitlab/gitaly:latest` image, which you need to build using `make docker` before starting the cluster.
 
 Once you have the `gitlab/gitaly:latest` image, start the cluster from the `_support/instrumented-cluster` directory using:
 
-```script
-instrumented-cluster $ docker-compose up --remove-orphans
+```shell
+docker-compose up --remove-orphans
 ```
 
 Enter `^C` to kill the cluster.
