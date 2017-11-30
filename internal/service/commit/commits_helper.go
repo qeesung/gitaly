@@ -20,7 +20,10 @@ func sendCommits(ctx context.Context, sender commitsSender, repo *pb.Repository,
 		return err
 	}
 
-	logParser := log.NewLogParser(cmd)
+	logParser, err := log.NewLogParser(ctx, repo, cmd)
+	if err != nil {
+		return err
+	}
 
 	var commits []*pb.GitCommit
 	commitsSize := 0

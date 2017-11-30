@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,10 +31,15 @@ type Handler func(io.Writer, *bufio.Reader) error
 // CatFile fetches the tree entries information using git cat-file. It
 // calls the handler with the TreeEntry slice, and an stdin reader and a stdout
 // writer in case the handler wants to perform addition cat-file operations.
-func CatFile(ctx context.Context, repoPath string, handler Handler) error {
+func CatFile(ctx context.Context, repo *pb.Repository, handler Handler) error {
+	repoPath, env, err := alternates.PathAndEnv(repo)
+	if err != nil {
+		return err
+	}
+
 	stdinReader, stdinWriter := io.Pipe()
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := command.New(ctx, exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
+	cmd, err := command.New(ctx, exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil, env...)
 	if err != nil {
 		return grpc.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}

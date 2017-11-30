@@ -15,8 +15,6 @@ import (
 
 var commitLogFormatFields = []string{
 	"%H",  // commit hash
-	"%s",  // subject
-	"%B",  // raw body (subject + body)
 	"%an", // author name
 	"%ae", // author email
 	"%aI", // author date, strict ISO 8601 format
@@ -40,7 +38,11 @@ func GetCommit(ctx context.Context, repo *pb.Repository, revision string, path s
 		return nil, err
 	}
 
-	logParser := NewLogParser(cmd)
+	logParser, err := NewLogParser(ctx, repo, cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	if ok := logParser.Parse(); !ok {
 		return nil, logParser.Err()
 	}

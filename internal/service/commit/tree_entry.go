@@ -117,14 +117,9 @@ func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_Tree
 		return grpc.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return err
-	}
-
 	requestPath := string(in.GetPath())
 	handler := treeEntryHandler(stream, string(in.GetRevision()), path.Dir(requestPath), requestPath, in.GetLimit())
-	return catfile.CatFile(stream.Context(), repoPath, handler)
+	return catfile.CatFile(stream.Context(), in.Repository, handler)
 }
 
 func validateRequest(in *pb.TreeEntryRequest) error {

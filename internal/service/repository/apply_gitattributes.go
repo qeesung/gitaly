@@ -88,7 +88,8 @@ func applyGitattributesHandler(ctx context.Context, repoPath string, revision []
 }
 
 func (server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesRequest) (*pb.ApplyGitattributesResponse, error) {
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	repo := in.GetRepository()
+	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func (server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesR
 
 	handler := applyGitattributesHandler(ctx, repoPath, in.GetRevision())
 
-	if err := catfile.CatFile(ctx, repoPath, handler); err != nil {
+	if err := catfile.CatFile(ctx, repo, handler); err != nil {
 		return nil, err
 	}
 

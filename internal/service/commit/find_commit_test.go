@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -12,6 +13,9 @@ import (
 )
 
 func TestSuccessfulFindCommitRequest(t *testing.T) {
+	windows1251Message, err := ioutil.ReadFile("testdata/commit-c809470461118b7bcab850f6e9a7ca97ac42f8ea-message.txt")
+	require.NoError(t, err)
+
 	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
@@ -107,6 +111,26 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 					Date:  &timestamp.Timestamp{Seconds: 1393488198},
 				},
 				ParentIds: nil,
+			},
+		},
+		{
+			description: "with non-utf8 message encoding",
+			revision:    "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
+			commit: &pb.GitCommit{
+				Id:      "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
+				Subject: windows1251Message[:len(windows1251Message)-1],
+				Body:    windows1251Message,
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1512132977},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1512132977},
+				},
+				ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
 			},
 		},
 		{

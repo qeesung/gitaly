@@ -10,7 +10,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -93,14 +92,9 @@ func (s *server) GetTreeEntries(in *pb.GetTreeEntriesRequest, stream pb.CommitSe
 		return grpc.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return err
-	}
-
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
 	handler := getTreeEntriesHandler(stream, revision, path)
 
-	return catfile.CatFile(stream.Context(), repoPath, handler)
+	return catfile.CatFile(stream.Context(), in.Repository, handler)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -19,6 +20,9 @@ import (
 )
 
 func TestFindCommitsFields(t *testing.T) {
+	windows1251Message, err := ioutil.ReadFile("testdata/commit-c809470461118b7bcab850f6e9a7ca97ac42f8ea-message.txt")
+	require.NoError(t, err)
+
 	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
@@ -28,43 +32,78 @@ func TestFindCommitsFields(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	expectedCommit := &pb.GitCommit{
-		Id:      "b83d6e391c22777fca1ed3012fce84f633d7fed0",
-		Subject: []byte("Merge branch 'branch-merged' into 'master'"),
-		Body:    []byte("Merge branch 'branch-merged' into 'master'\r\n\r\nadds bar folder and branch-test text file to check Repository merged_to_root_ref method\r\n\r\n\r\n\r\nSee merge request !12"),
-		Author: &pb.CommitAuthor{
-			Name:  []byte("Job van der Voort"),
-			Email: []byte("job@gitlab.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1474987066},
+	testCases := []struct {
+		id     string
+		commit *pb.GitCommit
+	}{
+		{
+			id: "b83d6e391c22777fca1ed3012fce84f633d7fed0",
+			commit: &pb.GitCommit{
+				Id:      "b83d6e391c22777fca1ed3012fce84f633d7fed0",
+				Subject: []byte("Merge branch 'branch-merged' into 'master'"),
+				Body:    []byte("Merge branch 'branch-merged' into 'master'\r\n\r\nadds bar folder and branch-test text file to check Repository merged_to_root_ref method\r\n\r\n\r\n\r\nSee merge request !12"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Job van der Voort"),
+					Email: []byte("job@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1474987066},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Job van der Voort"),
+					Email: []byte("job@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1474987066},
+				},
+				ParentIds: []string{
+					"1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
+					"498214de67004b1da3d820901307bed2a68a8ef6",
+				},
+			},
 		},
-		Committer: &pb.CommitAuthor{
-			Name:  []byte("Job van der Voort"),
-			Email: []byte("job@gitlab.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1474987066},
-		},
-		ParentIds: []string{
-			"1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
-			"498214de67004b1da3d820901307bed2a68a8ef6",
+		{
+			id: "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
+			commit: &pb.GitCommit{
+				Id:      "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
+				Subject: windows1251Message[:len(windows1251Message)-1],
+				Body:    windows1251Message,
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1512132977},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1512132977},
+				},
+				ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
+			},
 		},
 	}
-	request := &pb.FindCommitsRequest{
-		Repository: testRepo,
-		Revision:   []byte(expectedCommit.Id),
-		Limit:      1,
+
+	for _, tc := range testCases {
+		t.Run(tc.id, func(t *testing.T) {
+			request := &pb.FindCommitsRequest{
+				Repository: testRepo,
+				Revision:   []byte(tc.id),
+				Limit:      1,
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			stream, err := client.FindCommits(ctx, request)
+			require.NoError(t, err)
+
+			resp, err := stream.Recv()
+			require.NoError(t, err)
+
+			require.Equal(t, 1, len(resp.Commits), "expected exactly one commit in the first message")
+			firstCommit := resp.Commits[0]
+
+			require.Equal(t, tc.commit, firstCommit, "mismatched commits")
+
+			_, err = stream.Recv()
+			require.Equal(t, io.EOF, err, "there should be no further messages in the stream")
+		})
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	stream, err := client.FindCommits(ctx, request)
-	require.NoError(t, err)
-
-	resp, err := stream.Recv()
-	require.NoError(t, err)
-
-	require.Equal(t, 1, len(resp.Commits), "expected exactly one commit in the first message")
-	firstCommit := resp.Commits[0]
-
-	require.Equal(t, expectedCommit, firstCommit, "mismatched commits")
 }
 
 func TestSuccessfulFindCommitsRequest(t *testing.T) {
