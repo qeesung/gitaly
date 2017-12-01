@@ -1,7 +1,9 @@
 module Gitlab
   module GitalyClient
     module MigrationStatus
-      OPT_IN = :fake_constant
+      DISABLED = :fake_disabled
+      OPT_IN = :fake_opt_in
+      OPT_OUT = :fake_opt_out
     end
 
     class << self

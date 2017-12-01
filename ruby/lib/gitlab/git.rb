@@ -137,3 +137,9 @@ class FakeCircuitBreaker
     yield
   end
 end
+
+class RequestStore
+  def self.active?
+    false
+  end
+end
