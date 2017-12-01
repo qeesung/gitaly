@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Update vendored gitlab_git to c594659fea15c6dd17b
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/472
 - More logging in housekeeping
   https://gitlab.com/gitlab-org/gitaly/merge_requests/435
 
