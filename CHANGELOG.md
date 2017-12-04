@@ -4,6 +4,8 @@ UNRELEASED
 
 - Fix commit message encoding and support alternates in CatFile
   https://gitlab.com/gitlab-org/gitaly/merge_requests/469
+- Raise an exception when Git::Env.all is called
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/474
 - Update vendored gitlab_git to c594659fea15c6dd17b
   https://gitlab.com/gitlab-org/gitaly/merge_requests/473
 - More logging in housekeeping

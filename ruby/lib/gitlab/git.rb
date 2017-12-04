@@ -143,3 +143,15 @@ class RequestStore
     false
   end
 end
+
+module Gitlab
+  module Git
+    class Env
+      NotAvailableInGitalyRuby = Class.new(StandardError)
+
+      def self.all
+        raise NotAvailableInGitalyRuby
+      end
+    end
+  end
+end
