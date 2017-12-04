@@ -12,14 +12,14 @@ module Gollum
   end
 
   class Wiki
-    def pages(treeish = nil, limit: nil)
+    def pages(treeish=nil, limit: nil)
       tree_list((treeish || @ref), limit: limit)
     end
 
     def tree_list(ref, limit: nil)
       if (sha = @access.ref_to_sha(ref))
         commit = @access.commit(sha)
-        tree_map_for(sha).inject([]) do |list, entry|
+        tree_map_for(sha).each_with_object([]) do |entry, list|
           next list unless @page_class.valid_page_name?(entry.name)
 
           list << entry.page(self, commit)
