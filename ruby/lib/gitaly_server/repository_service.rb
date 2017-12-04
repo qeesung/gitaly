@@ -27,5 +27,17 @@ module GitalyServer
         Gitaly::FetchSourceBranchResponse.new(result: result)
       end
     end
+
+    def fsck(request, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+
+      repo.fsck
+
+      Gitaly::FsckResponse.new
+    rescue Gitlab::Git::Repository::GitError => ex
+      Gitaly::FsckResponse.new(error: ex.message.b)
+    rescue Rugged::RepositoryError => ex
+      Gitaly::FsckResponse.new(error: ex.message.b)
+    end
   end
 end
