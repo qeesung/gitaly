@@ -37,7 +37,7 @@ module GitalyServer
               commit.is_a?(Rugged::Commit) ? gitaly_commit_from_rugged(commit) : nil
             end.compact
 
-            y.yield  Gitaly::ListCommitsByOidResponse.new(commits: commits)
+            y.yield Gitaly::ListCommitsByOidResponse.new(commits: commits)
           end
         end
       end

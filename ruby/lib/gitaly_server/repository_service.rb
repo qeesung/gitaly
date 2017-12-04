@@ -2,9 +2,9 @@ module GitalyServer
   class RepositoryService < Gitaly::RepositoryService::Service
     include Utils
 
-    def create_repository(request, _call)
+    def create_repository(request, call)
       bridge_exceptions do
-        repo_path = GitalyServer.repo_path(_call)
+        repo_path = GitalyServer.repo_path(call)
 
         Gitlab::Git::Repository.create(repo_path, bare: true, symlink_hooks_to: Gitlab.config.gitlab_shell.hooks_path)
 
@@ -12,7 +12,7 @@ module GitalyServer
       end
     end
 
-    def has_local_branches(request, call)
+    def has_local_branches(request, call) # rubocop:disable Naming/PredicateName
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
       Gitaly::HasLocalBranchesResponse.new(value: repo.has_local_branches?)

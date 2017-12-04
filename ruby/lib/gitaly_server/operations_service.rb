@@ -118,7 +118,7 @@ module GitalyServer
 
             second_request = session.next
             unless second_request.apply
-              raise GRPC::FailedPrecondition, 'merge aborted by client'
+              raise GRPC::FailedPrecondition.new('merge aborted by client')
             end
           end
 
