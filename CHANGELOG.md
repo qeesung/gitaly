@@ -4,6 +4,8 @@ UNRELEASED
 
 - Implement RepostoryService::Fsck
   https://gitlab.com/gitlab-org/gitaly/merge_requests/475
+- Increase default gitaly-ruby connection timeout to 40s
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/476
 - Update vendored gitlab_git to f3a3bd50eafdcfcaeea21d6cfa0b8bbae7720fec
   https://gitlab.com/gitlab-org/gitaly/merge_requests/478
 
