@@ -26,7 +26,7 @@ func (d *duration) UnmarshalText(text []byte) error {
 	return err
 }
 
-func validateRuby() error {
+func ValidateRuby() error {
 	Config.Ruby.GracefulRestartTimeout = Config.Ruby.GracefulRestartTimeoutToml.Duration
 	if Config.Ruby.GracefulRestartTimeout == 0 {
 		Config.Ruby.GracefulRestartTimeout = 10 * time.Minute

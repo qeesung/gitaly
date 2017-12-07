@@ -253,6 +253,10 @@ func ConfigureRuby() {
 		log.Fatal("Could not get caller info")
 	}
 	config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
+
+	if err := config.ValidateRuby(); err != nil {
+		log.Fatal("validate ruby config: %v", err)
+	}
 }
 
 // NewTestGrpcServer creates a GRPC Server for testing purposes
