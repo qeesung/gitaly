@@ -91,7 +91,7 @@ func Validate() error {
 		validateToken(),
 		SetGitPath(),
 		validateShell(),
-		ValidateRuby(),
+		ConfigureRuby(),
 		validateBinDir(),
 	} {
 		if err != nil {

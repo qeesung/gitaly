@@ -254,7 +254,7 @@ func ConfigureRuby() {
 	}
 	config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
 
-	if err := config.ValidateRuby(); err != nil {
+	if err := config.ConfigureRuby(); err != nil {
 		log.Fatal("validate ruby config: %v", err)
 	}
 }

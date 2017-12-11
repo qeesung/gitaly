@@ -26,7 +26,8 @@ func (d *duration) UnmarshalText(text []byte) error {
 	return err
 }
 
-func ValidateRuby() error {
+// ConfigureRuby validates the gitaly-ruby configuration and sets default values.
+func ConfigureRuby() error {
 	Config.Ruby.GracefulRestartTimeout = Config.Ruby.GracefulRestartTimeoutToml.Duration
 	if Config.Ruby.GracefulRestartTimeout == 0 {
 		Config.Ruby.GracefulRestartTimeout = 10 * time.Minute

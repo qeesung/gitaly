@@ -344,7 +344,7 @@ func TestValidateShellPath(t *testing.T) {
 	}
 }
 
-func TestValidateRuby(t *testing.T) {
+func TestConfigureRuby(t *testing.T) {
 	defer func(oldRuby Ruby) {
 		Config.Ruby = oldRuby
 	}(Config.Ruby)
@@ -371,7 +371,7 @@ func TestValidateRuby(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			Config.Ruby = Ruby{Dir: tc.dir}
 
-			err := validateRuby()
+			err := ConfigureRuby()
 			if tc.ok {
 				require.NoError(t, err)
 			} else {
