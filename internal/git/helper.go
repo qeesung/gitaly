@@ -71,8 +71,11 @@ func NewCommit(id, subject, body, authorName, authorEmail, authorDate,
 
 // Version returns the used git version.
 func Version() (string, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var buf bytes.Buffer
-	cmd, err := command.New(context.Background(), exec.Command(command.GitPath(), "version"), nil, &buf, nil)
+	cmd, err := command.New(ctx, exec.Command(command.GitPath(), "version"), nil, &buf, nil)
 	if err != nil {
 		return "", err
 	}

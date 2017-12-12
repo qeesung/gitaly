@@ -100,6 +100,10 @@ func WaitAllDone() {
 // contains a running subprocess. When ctx is canceled the embedded
 // process will be terminated and reaped automatically.
 func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
+	if ctx.Done() == nil {
+		panic("command spawned with context without Done() channel")
+	}
+
 	logPid := -1
 	defer func() {
 		grpc_logrus.Extract(ctx).WithFields(log.Fields{
