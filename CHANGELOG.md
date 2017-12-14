@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Eagerly close logrus writer pipes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/489
 - Panic if a command has no Done() channel
   https://gitlab.com/gitlab-org/gitaly/merge_requests/485
 - Update vendored gitlab_git to 31fa9313991881258b4697cb507cfc8ab205b7dc
