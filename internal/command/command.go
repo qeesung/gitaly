@@ -39,10 +39,11 @@ var exportedEnvVars = []string{
 // terminated and reaped automatically when the context.Context that
 // created it is canceled.
 type Command struct {
-	reader    io.Reader
-	cmd       *exec.Cmd
-	context   context.Context
-	startTime time.Time
+	reader       io.Reader
+	logrusWriter io.WriteCloser
+	cmd          *exec.Cmd
+	context      context.Context
+	startTime    time.Time
 
 	waitError error
 	waitOnce  sync.Once
@@ -150,7 +151,8 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		cmd.Stderr = stderr
 	} else {
 		// If we don't do something with cmd.Stderr, Git errors will be lost
-		cmd.Stderr = grpc_logrus.Extract(ctx).WriterLevel(log.InfoLevel)
+		command.logrusWriter = grpc_logrus.Extract(ctx).WriterLevel(log.InfoLevel)
+		cmd.Stderr = command.logrusWriter
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -203,6 +205,11 @@ func (c *Command) wait() {
 	}
 
 	c.logProcessComplete(c.context, exitCode)
+
+	if w := c.logrusWriter; w != nil {
+		// Closing this writer lets a logrus goroutine finish early
+		w.Close()
+	}
 }
 
 // ExitStatus will return the exit-code from an error returned by Wait().
