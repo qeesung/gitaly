@@ -143,13 +143,8 @@ spawnLoop:
 			err := cmd.Wait()
 			close(waitCh)
 
-			for _, w := range []io.Writer{cmd.Stdout, cmd.Stderr} {
-				if wc, ok := w.(io.WriteCloser); ok {
-					// Stop logrus goroutines
-					wc.Close()
-				}
-			}
-
+			cmd.Stdout.(io.WriteCloser).Close()
+			cmd.Stderr.(io.WriteCloser).Close()
 			logger.WithError(err).Warn("exited")
 		}(cmd, waitCh)
 
