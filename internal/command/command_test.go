@@ -42,3 +42,19 @@ func TestNewCommandExtraEnv(t *testing.T) {
 
 	require.Contains(t, strings.Split(buff.String(), "\n"), extraVar)
 }
+
+func TestRejectEmptyContextDone(t *testing.T) {
+	defer func() {
+		p := recover()
+		if p == nil {
+			t.Error("expected panic, got none")
+			return
+		}
+
+		if _, ok := p.(contextWithoutDonePanic); !ok {
+			panic(p)
+		}
+	}()
+
+	New(context.Background(), exec.Command("true"), nil, nil, nil)
+}
