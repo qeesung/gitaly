@@ -66,13 +66,14 @@ func TestNewCommandTimeout(t *testing.T) {
 
 	defer func(ch chan struct{}, t time.Duration) {
 		spawnTokens = ch
-		spawnTimeout = t
-	}(spawnTokens, spawnTimeout)
+		spawnConfig.Timeout = t
+	}(spawnTokens, spawnConfig.Timeout)
 
 	// This unbuffered channel will behave like a full/blocked buffered channel.
 	spawnTokens = make(chan struct{})
 	// Speed up the test by lowering the timeout
-	spawnTimeout = 200 * time.Millisecond
+	spawnTimeout := 200 * time.Millisecond
+	spawnConfig.Timeout = spawnTimeout
 
 	testDeadline := time.After(1 * time.Second)
 	tick := time.After(spawnTimeout / 2)
