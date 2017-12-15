@@ -23,6 +23,10 @@ type SpawnConfig struct {
 	// process at the same time. These parallel spawns will contend for a
 	// single lock (syscall.ForkLock) in exec.Cmd.Start(). Can be modified at
 	// runtime with the GITALY_COMMAND_SPAWN_MAX_PARALLEL variable.
+	//
+	// Note that this does not limit the total number of child processes that
+	// can be attached to Gitaly at the same time. It only limits the rate at
+	// which we can create new child processes.
 	MaxParallel int `split_words:"true" default:"100"`
 }
 
