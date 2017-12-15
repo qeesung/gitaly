@@ -27,6 +27,6 @@ type SpawnConfig struct {
 }
 
 func init() {
-	envconfig.MustProcess("gitaly_command", &spawnConfig)
+	envconfig.MustProcess("gitaly_command_spawn", &spawnConfig)
 	spawnTokens = make(chan struct{}, spawnConfig.MaxParallel)
 }
