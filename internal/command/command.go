@@ -105,8 +105,8 @@ var (
 	spawnTimeout = 10 * time.Second
 
 	// maxSpawnParallel limits the number of goroutines that can spawn a
-	// process at the same time. Note that this is not a limit on the total
-	// number of running processes.
+	// process at the same time. These parallel spawns will contend for a
+	// single lock (syscall.ForkLock) in exec.Cmd.Start().
 	maxSpawnParallel = 100
 )
 
