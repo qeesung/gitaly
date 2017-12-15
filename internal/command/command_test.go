@@ -12,13 +12,16 @@ import (
 )
 
 func TestNewCommandTZEnv(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	oldTZ := os.Getenv("TZ")
 	defer os.Setenv("TZ", oldTZ)
 
 	os.Setenv("TZ", "foobar")
 
 	buff := &bytes.Buffer{}
-	cmd, err := New(context.Background(), exec.Command("env"), nil, buff, nil)
+	cmd, err := New(ctx, exec.Command("env"), nil, buff, nil)
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
@@ -27,9 +30,12 @@ func TestNewCommandTZEnv(t *testing.T) {
 }
 
 func TestNewCommandExtraEnv(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	extraVar := "FOOBAR=123456"
 	buff := &bytes.Buffer{}
-	cmd, err := New(context.Background(), exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
+	cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
