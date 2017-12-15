@@ -12,9 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
 // exportedEnvVars contains a list of environment variables
