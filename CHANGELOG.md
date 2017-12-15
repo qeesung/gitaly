@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Limit the number of concurrent process spawns
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/492
 - Update vendored gitlab_git to 858edadf781c0cc54b15832239c19fca378518ad
   https://gitlab.com/gitlab-org/gitaly/merge_requests/493
 - Eagerly close logrus writer pipes

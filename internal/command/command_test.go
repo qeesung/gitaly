@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -57,4 +58,49 @@ func TestRejectEmptyContextDone(t *testing.T) {
 	}()
 
 	New(context.Background(), exec.Command("true"), nil, nil, nil)
+}
+
+func TestNewCommandTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	defer func(ch chan struct{}, t time.Duration) {
+		spawnTokens = ch
+		spawnTimeout = t
+	}(spawnTokens, spawnTimeout)
+
+	// This unbuffered channel will behave like a full/blocked buffered channel.
+	spawnTokens = make(chan struct{})
+	// Speed up the test by lowering the timeout
+	spawnTimeout = 200 * time.Millisecond
+
+	testDeadline := time.After(1 * time.Second)
+	tick := time.After(spawnTimeout / 2)
+
+	errCh := make(chan error)
+	go func() {
+		_, err := New(ctx, exec.Command("true"), nil, nil, nil)
+		errCh <- err
+	}()
+
+	var err error
+	timePassed := false
+
+wait:
+	for {
+		select {
+		case err = <-errCh:
+			break wait
+		case <-tick:
+			timePassed = true
+		case <-testDeadline:
+			t.Fatal("test timed out")
+		}
+	}
+
+	require.True(t, timePassed, "time must have passed")
+	require.Error(t, err)
+
+	_, ok := err.(spawnTimeoutError)
+	require.True(t, ok, "type of error should be spawnTimeoutError")
 }

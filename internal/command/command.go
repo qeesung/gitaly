@@ -12,10 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -97,6 +96,21 @@ func WaitAllDone() {
 	wg.Wait()
 }
 
+var (
+	spawnTokens = make(chan struct{}, maxSpawnParallel)
+
+	// This number (10 seconds) is very high. Spawning should take
+	// milliseconds or less. If we hit 10 seconds, something is wrong, and
+	// failing the request will create breathing room.
+	spawnTimeout = 10 * time.Second
+
+	// maxSpawnParallel limits the number of goroutines that can spawn a
+	// process at the same time. Note that this is not a limit on the total
+	// number of running processes.
+	maxSpawnParallel = 100
+)
+
+type spawnTimeoutError error
 type contextWithoutDonePanic string
 
 // New creates a Command from an exec.Cmd. On success, the Command
@@ -107,6 +121,28 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		panic(contextWithoutDonePanic("command spawned with context without Done() channel"))
 	}
 
+	// Go has a global lock (syscall.ForkLock) for spawning new processes.
+	// This select statement is a safety valve to prevent lots of Gitaly
+	// requests from piling up behind the ForkLock if forking for some reason
+	// slows down. This has happened in real life, see
+	// https://gitlab.com/gitlab-org/gitaly/issues/823.
+	select {
+	case spawnTokens <- struct{}{}:
+		defer func() {
+			// This function is deferred so that it runs even if 'newCommand' panics.
+			<-spawnTokens
+		}()
+
+		return newCommand(ctx, cmd, stdin, stdout, stderr, env...)
+	case <-time.After(spawnTimeout):
+		return nil, spawnTimeoutError(fmt.Errorf("process spawn timed out after %v", spawnTimeout))
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// Don't call 'newCommand', use 'New'.
+func newCommand(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	logPid := -1
 	defer func() {
 		grpc_logrus.Extract(ctx).WithFields(log.Fields{
