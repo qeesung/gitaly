@@ -9,4 +9,5 @@ gem 'gollum-rugged_adapter', '~> 0.4.4', require: false
 
 group :development, :test do
   gem 'gitlab-styles', '~> 2.0.0', require: false
+  gem 'rspec', require: false
 end

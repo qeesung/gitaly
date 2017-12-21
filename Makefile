@@ -110,6 +110,7 @@ prepare-tests: $(TARGET_SETUP) $(TEST_REPO) .ruby-bundle
 
 .PHONY: test
 test: prepare-tests
+	cd ruby && bundle exec rspec
 	@go test $(LOCAL_PACKAGES)
 
 .PHONY: test-changes
