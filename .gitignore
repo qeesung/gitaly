@@ -11,3 +11,6 @@
 /.ruby-bundle
 /ruby/vendor/bundle
 /ruby/.bundle
+/ruby/*.log
+/ruby/tmp
+gitaly.socket

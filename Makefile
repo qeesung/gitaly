@@ -75,7 +75,9 @@ force-ruby-bundle:
 assemble: force-ruby-bundle build
 	rm -rf $(ASSEMBLY_ROOT)/bin $(ASSEMBLY_ROOT)/ruby
 	mkdir -p $(ASSEMBLY_ROOT)/bin
+	rm -rf ruby/tmp
 	cp -r ruby $(ASSEMBLY_ROOT)/ruby
+	rm -rf $(ASSEMBLY_ROOT)/ruby/spec
 	install $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(ASSEMBLY_ROOT)/bin
 
 binaries: assemble
@@ -106,7 +108,7 @@ $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@
 
 .PHONY: prepare-tests
-prepare-tests: $(TARGET_SETUP) $(TEST_REPO) .ruby-bundle
+prepare-tests: $(TARGET_SETUP) $(TEST_REPO) assemble
 
 .PHONY: test
 test: prepare-tests
