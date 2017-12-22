@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Handle failed merge when branch gets updated
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/505
+
 v0.62.0
 
 - Implement ConflictsService.ResolveConflicts RPC
