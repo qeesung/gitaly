@@ -3,7 +3,6 @@ package repository_test
 import (
 	"net"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +37,7 @@ func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
 	sourceRepo, sourcePath := newTestRepo(t, "fetch-source-source.git")
 
 	sourceBranch := "fetch-source-branch-test-branch"
-	newCommitID := createCommit(t, sourcePath, sourceBranch)
+	newCommitID := testhelper.CreateCommit(t, sourcePath, sourceBranch)
 
 	targetRef := "refs/tmp/fetch-source-branch-test"
 	req := &pb.FetchSourceBranchRequest{
@@ -73,7 +72,7 @@ func TestFetchSourceBranchSameRepositorySuccess(t *testing.T) {
 	repo, repoPath := newTestRepo(t, "fetch-source-source.git")
 
 	sourceBranch := "fetch-source-branch-test-branch"
-	newCommitID := createCommit(t, repoPath, sourceBranch)
+	newCommitID := testhelper.CreateCommit(t, repoPath, sourceBranch)
 
 	targetRef := "refs/tmp/fetch-source-branch-test"
 	req := &pb.FetchSourceBranchRequest{
@@ -171,21 +170,6 @@ func TestFetchFullServerRequiresAuthentication(t *testing.T) {
 	client := healthpb.NewHealthClient(conn)
 	_, err = client.Check(ctx, &healthpb.HealthCheckRequest{})
 	testhelper.AssertGrpcError(t, err, codes.Unauthenticated, "")
-}
-
-func createCommit(t *testing.T, repoPath string, branchName string) string {
-	// The ID of an arbitrary commit known to exist in the test repository.
-	parentID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
-
-	// Use 'commit-tree' instead of 'commit' because we are in a bare
-	// repository. What we do here is the same as "commit -m message
-	// --allow-empty".
-	commitArgs := []string{"-C", repoPath, "commit-tree", "-m", "message", "-p", parentID, parentID + "^{tree}"}
-	newCommit := testhelper.MustRunCommand(t, nil, "git", commitArgs...)
-	newCommitID := strings.TrimSpace(string(newCommit))
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref", "refs/heads/"+branchName, newCommitID)
-	return newCommitID
 }
 
 func newTestRepo(t *testing.T, relativePath string) (*pb.Repository, string) {

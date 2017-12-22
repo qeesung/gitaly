@@ -122,9 +122,10 @@ module GitalyServer
             end
           end
 
-          branch_update = branch_update_result(result)
-
-          y << Gitaly::UserMergeBranchResponse.new(branch_update: branch_update)
+          final_response = Gitaly::UserMergeBranchResponse.new
+          # 'result' may be nil if we failed to apply the merge
+          final_response.branch_update = branch_update_result(result) if result
+          y << final_response
         end
       end
     end
