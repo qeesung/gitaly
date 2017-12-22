@@ -218,6 +218,10 @@ func TestFailedMergeConcurrentUpdate(t *testing.T) {
 	secondResponse, err := mergeBidi.Recv()
 	require.NoError(t, err, "receive second response")
 	require.Equal(t, *secondResponse, pb.UserMergeBranchResponse{}, "response should be empty")
+
+	commit, err := gitlog.GetCommit(ctx, testRepo, mergeBranchName, "")
+	require.NoError(t, err, "get commit after RPC finished")
+	require.Equal(t, commit.Id, concurrentCommitId, "RPC should not have trampled concurrent update")
 }
 
 func TestSuccessfulUserFFBranchRequest(t *testing.T) {
