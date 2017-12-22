@@ -22,11 +22,18 @@ mode 0700. It runs as the same user as the Gitaly parent process.
 
 ## Testing
 
-All tests for code in Gitaly-ruby go through the parent Gitaly process
-for two reasons. Firstly, testing through the parent proves that the
-Ruby code under test is reachable. Secondly, testing through the
-parent will make it easier to create a Go implementation in the parent
-if we ever want to do that.
+There are three sets of test that exercise gitaly-ruby:
+
+- top-level Go integration tests
+- Rspec integration tests (`spec/gitaly`)
+- Rspec unit tests (`spec/lib`)
+
+If you are working on the Ruby code and you want to run the Rspec
+tests only, without recompiling the Go parts then do the following:
+
+- run `make rspec` at the top level at least once;
+- edit code in `/ruby` (the directory this README is in);
+- run `bundle exec rspec` in `/ruby`.
 
 ## Vendored copy of Gitlab::Git
 
