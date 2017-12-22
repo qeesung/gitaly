@@ -72,7 +72,11 @@ force-ruby-bundle:
 # Assembles all runtime components into a directory
 # Used by the GDK: run `make assemble ASSEMBLY_ROOT=.../gitaly`
 .PHONY: assemble
-assemble: force-ruby-bundle build
+assemble: force-ruby-bundle build assemble-internal
+
+# assemble-internal does not force 'bundle install' to run again
+.PHONY: assemble-internal
+assemble-internal: build
 	rm -rf $(ASSEMBLY_ROOT)/bin $(ASSEMBLY_ROOT)/ruby
 	mkdir -p $(ASSEMBLY_ROOT)/bin
 	rm -rf ruby/tmp
@@ -108,12 +112,18 @@ $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@
 
 .PHONY: prepare-tests
-prepare-tests: $(TARGET_SETUP) $(TEST_REPO) assemble
+prepare-tests: $(TARGET_SETUP) $(TEST_REPO) .ruby-bundle
 
 .PHONY: test
-test: prepare-tests
-	cd ruby && bundle exec rspec
+test: test-go rspec
+
+.PHONY: test-go
+test-go: prepare-tests
 	@go test $(LOCAL_PACKAGES)
+
+.PHONY: rspec
+rspec: assemble-internal prepare-tests
+	cd ruby && bundle exec rspec
 
 .PHONY: test-changes
 test-changes: prepare-tests

@@ -28,7 +28,7 @@ EOS
   config_path = File.join(tmp_dir, 'gitaly-rspec-config.toml')
   File.write(config_path, config_toml)
   
-  test_log = 'gitaly-rspec-test.log'
+  test_log = File.join(tmp_dir, 'gitaly-rspec-test.log')
   options = { out: test_log, err: test_log, chdir: tmp_dir }
   gitaly_pid = spawn(File.join(build_dir, 'bin/gitaly'), config_path, options)
   at_exit { Process.kill('KILL', gitaly_pid) }
