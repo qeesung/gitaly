@@ -9,7 +9,7 @@ describe Gitaly::RefService do
 
   describe 'CreateBranch' do
     it 'can create a branch' do
-      repo = test_repo_mutable
+      repo = new_mutable_test_repo
       branch_name = 'branch-' + SecureRandom.hex(10)
       request = Gitaly::CreateBranchRequest.new(
         repository: repo,

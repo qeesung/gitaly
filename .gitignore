@@ -12,4 +12,4 @@
 /ruby/vendor/bundle
 /ruby/.bundle
 /ruby/tmp
-gitaly.socket
+*.socket

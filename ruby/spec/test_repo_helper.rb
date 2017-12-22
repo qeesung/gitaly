@@ -21,7 +21,7 @@ module TestRepo
     Gitaly::Repository.new(storage_name: DEFAULT_STORAGE_NAME, relative_path: File.basename(TEST_REPO_PATH))
   end
 
-  def test_repo_mutable
+  def new_mutable_test_repo
     relative_path = "mutable-#{SecureRandom.hex(6)}.git"
     TestRepo.clone_new_repo!(File.join(DEFAULT_STORAGE_DIR, relative_path))
     Gitaly::Repository.new(storage_name: DEFAULT_STORAGE_NAME, relative_path: relative_path)
