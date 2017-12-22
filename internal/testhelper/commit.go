@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// CreateCommit makes a new empty commit and updates the named branch to point to it.
 func CreateCommit(t *testing.T, repoPath string, branchName string) string {
 	// The ID of an arbitrary commit known to exist in the test repository.
 	parentID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"

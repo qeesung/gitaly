@@ -209,8 +209,8 @@ func TestFailedMergeConcurrentUpdate(t *testing.T) {
 	require.NoError(t, err, "receive first response")
 
 	// This concurrent update of the branch we are merging into should make the merge fail.
-	concurrentCommitId := testhelper.CreateCommit(t, testRepoPath, mergeBranchName)
-	require.NotEqual(t, firstResponse.CommitId, concurrentCommitId)
+	concurrentCommitID := testhelper.CreateCommit(t, testRepoPath, mergeBranchName)
+	require.NotEqual(t, firstResponse.CommitId, concurrentCommitID)
 
 	require.NoError(t, mergeBidi.Send(&pb.UserMergeBranchRequest{Apply: true}), "apply merge")
 	require.NoError(t, mergeBidi.CloseSend(), "close send")
@@ -221,7 +221,7 @@ func TestFailedMergeConcurrentUpdate(t *testing.T) {
 
 	commit, err := gitlog.GetCommit(ctx, testRepo, mergeBranchName, "")
 	require.NoError(t, err, "get commit after RPC finished")
-	require.Equal(t, commit.Id, concurrentCommitId, "RPC should not have trampled concurrent update")
+	require.Equal(t, commit.Id, concurrentCommitID, "RPC should not have trampled concurrent update")
 }
 
 func TestSuccessfulUserFFBranchRequest(t *testing.T) {
