@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'securerandom'
 require 'gitaly'
+require 'rugged'
 
 DEFAULT_STORAGE_DIR = File.expand_path('../../tmp/repositories', __FILE__)
 DEFAULT_STORAGE_NAME = 'default'.freeze
@@ -24,6 +25,16 @@ module TestRepo
     relative_path = "mutable-#{SecureRandom.hex(6)}.git"
     TestRepo.clone_new_repo!(File.join(DEFAULT_STORAGE_DIR, relative_path))
     Gitaly::Repository.new(storage_name: DEFAULT_STORAGE_NAME, relative_path: relative_path)
+  end
+
+  def rugged_from_gitaly(gitaly_repo)
+    Rugged::Repository.new(repo_path_from_gitaly(gitaly_repo))
+  end
+
+  def repo_path_from_gitaly(gitaly_repo)
+    storage_name = gitaly_repo.storage_name
+    raise "this helper does not know storage #{storage_name.inspect}" unless storage_name == DEFAULT_STORAGE_NAME
+    File.join(DEFAULT_STORAGE_DIR, gitaly_repo.relative_path)
   end
 
   def self.clone_new_repo!(destination)
