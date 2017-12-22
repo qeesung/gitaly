@@ -14,7 +14,7 @@ describe Gitaly::RepositoryService do
     end
 
     it 'returns true if the repository exists' do
-      request = Gitaly::RepositoryExistsRequest.new(repository: test_repo_gitaly)
+      request = Gitaly::RepositoryExistsRequest.new(repository: test_repo_read_only)
       response = service_stub.repository_exists(request)
       expect(response.exists).to eq(true)
     end
