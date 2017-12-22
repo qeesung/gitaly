@@ -24,14 +24,14 @@ mode 0700. It runs as the same user as the Gitaly parent process.
 
 There are three sets of test that exercise gitaly-ruby:
 
-- top-level Go integration tests
+- Top-level Go integration tests
 - Rspec integration tests (`spec/gitaly`)
 - Rspec unit tests (`spec/lib`)
 
 If you are working on the Ruby code and you want to run the Rspec
 tests only, without recompiling the Go parts then do the following:
 
-- run `make rspec` at the top level at least once;
+- run `make rspec` at the top level at least once, to compile Go binaries and get the test repo;
 - edit code under the current directory (`/ruby`);
 - run `bundle exec rspec` in the current directory.
 
