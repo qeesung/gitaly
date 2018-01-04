@@ -32,7 +32,7 @@ If you are working on the Ruby code and you want to run the Rspec
 tests only, without recompiling the Go parts then do the following:
 
 - run `make rspec` at the top level at least once, to compile Go binaries and get the test repo;
-- edit code under the current directory (`/ruby`);
+- edit code under the current directory (`ruby`);
 - run `bundle exec rspec` in the current directory.
 
 ## Vendored copy of Gitlab::Git
