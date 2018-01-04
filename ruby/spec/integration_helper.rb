@@ -21,20 +21,20 @@ def start_gitaly
 
   FileUtils.mkdir_p([TMP_DIR, File.join(gitlab_shell_dir, 'hooks')])
 
-  config_toml = <<CONFIG
-socket_path = "#{SOCKET_PATH}"
-bin_dir = "#{build_dir}/bin"
-
-[gitlab-shell]
-dir = "#{gitlab_shell_dir}"
-
-[gitaly-ruby]
-dir = "#{build_dir}/assembly/ruby"
-
-[[storage]]
-name = "#{DEFAULT_STORAGE_NAME}"
-path = "#{DEFAULT_STORAGE_DIR}"
-CONFIG
+  config_toml = <<~CONFIG
+    socket_path = "#{SOCKET_PATH}"
+    bin_dir = "#{build_dir}/bin"
+    
+    [gitlab-shell]
+    dir = "#{gitlab_shell_dir}"
+    
+    [gitaly-ruby]
+    dir = "#{build_dir}/assembly/ruby"
+    
+    [[storage]]
+    name = "#{DEFAULT_STORAGE_NAME}"
+    path = "#{DEFAULT_STORAGE_DIR}"
+  CONFIG
   config_path = File.join(TMP_DIR, 'gitaly-rspec-config.toml')
   File.write(config_path, config_toml)
 
