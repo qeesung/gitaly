@@ -16,11 +16,15 @@ describe Gitaly::RefService do
         name: branch_name,
         start_point: 'master'
       )
+
       response = service_stub.create_branch(request)
 
       expect(response.status).to eq(:OK)
 
+      # Intentionally instatiate this Rugged::Repository after we performed
+      # the RPC, to ensure we don't see stale repository state.
       rugged = rugged_from_gitaly(repo)
+
       expect(response.branch.target_commit.id).to eq(rugged.branches[branch_name].target_id)
     end
   end
