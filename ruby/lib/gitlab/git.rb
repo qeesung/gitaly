@@ -15,11 +15,13 @@ require_relative 'gitaly_client.rb'
 require_relative 'git_logger.rb'
 require_relative 'rails_logger.rb'
 require_relative 'gollum.rb'
+require_relative 'config.rb'
 
 vendor_gitlab_git = '../../vendor/gitlab_git/'
 
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/encoding_helper.rb')
+require_relative File.join(vendor_gitlab_git, 'lib/gitlab/utils/strong_memoize.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/popen.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
@@ -35,53 +37,6 @@ Dir["#{dir}/git/**/*.rb"].sort.each do |ruby_file|
 end
 
 require_relative 'git/gitaly_remote_repository.rb'
-
-module Gitlab
-  # Config lets Gitlab::Git do mock config lookups.
-  class Config
-    class Git
-      def bin_path
-        ENV['GITALY_RUBY_GIT_BIN_PATH']
-      end
-
-      def write_buffer_size
-        @write_buffer_size ||= ENV['GITALY_RUBY_WRITE_BUFFER_SIZE'].to_i
-      end
-    end
-
-    class GitlabShell
-      def path
-        ENV['GITALY_RUBY_GITLAB_SHELL_PATH']
-      end
-
-      def hooks_path
-        File.join(path, 'hooks')
-      end
-    end
-
-    class Gitaly
-      def client_path
-        ENV['GITALY_RUBY_GITALY_BIN_DIR']
-      end
-    end
-
-    def git
-      Git.new
-    end
-
-    def gitlab_shell
-      GitlabShell.new
-    end
-
-    def gitaly
-      Gitaly.new
-    end
-  end
-
-  def self.config
-    Config.new
-  end
-end
 
 module Gitlab
   module Git

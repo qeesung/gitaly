@@ -63,12 +63,12 @@ module GitalyServer
         files = JSON.parse(files_json).map(&:with_indifferent_access)
 
         begin
+          resolution = Gitlab::Git::Conflict::Resolution.new(user, files, header.commit_message.dup)
           params = {
             source_branch: header.source_branch,
-            target_branch: header.target_branch,
-            commit_message: header.commit_message.dup
+            target_branch: header.target_branch
           }
-          resolver.resolve_conflicts(repo, user, files, params)
+          resolver.resolve_conflicts(repo, resolution, params)
 
           Gitaly::ResolveConflictsResponse.new
         rescue Gitlab::Git::Conflict::Resolver::ResolutionError => e
