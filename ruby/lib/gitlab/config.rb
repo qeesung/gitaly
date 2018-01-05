@@ -21,7 +21,7 @@ module Gitlab
       end
 
       def git_timeout
-        10800 # TODO make this configurable
+        10800 # TODO make this configurable or eliminate otherwise https://gitlab.com/gitlab-org/gitaly/issues/885
       end
     end
 
