@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Update vendored gitlab_git to 6eeb69fc9a2
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/514
 - Add support for MergedBranches in FindAllBranches RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/510
 
