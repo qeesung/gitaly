@@ -1,6 +1,7 @@
 module GitalyServer
   class CommitService < Gitaly::CommitService::Service
     include Utils
+    include Gitlab::EncodingHelper
 
     def commit_stats(request, call)
       bridge_exceptions do
@@ -82,6 +83,37 @@ module GitalyServer
             end
 
             y << Gitaly::FilterShasWithSignaturesResponse.new(shas: Gitlab::Git::Commit.shas_with_signatures(repository, request.shas))
+          end
+        end
+      end
+    end
+
+    def extract_commit_signature(request, call)
+      bridge_exceptions do
+        repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+
+        begin
+          signature, signed_text = Rugged::Commit.extract_signature(repository.rugged, request.commit_id)
+        rescue Rugged::InvalidError
+          raise GRPC::InvalidArgument.new("commit lookup failed for #{request.commit_id.inspect}")
+        end
+
+        chunk_size = 128*1024
+        Enumerator.new do |y|
+          signature_io = binary_stringio(signature)
+          loop do
+            chunk = signature_io.read(chunk_size)
+            break if chunk.nil?
+
+            y.yield Gitaly::ExtractCommitSignatureResponse.new(signature: chunk)
+          end
+
+          signed_text_io =  binary_stringio(signed_text)
+          loop do
+            chunk = signed_text_io.read(chunk_size)
+            break if chunk.nil?
+
+            y.yield Gitaly::ExtractCommitSignatureResponse.new(signed_text: chunk)
           end
         end
       end

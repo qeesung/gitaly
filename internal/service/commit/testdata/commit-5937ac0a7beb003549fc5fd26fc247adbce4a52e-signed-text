@@ -1,0 +1,8 @@
+tree a6973545d42361b28bfba5ced3b75dba5848b955
+parent 570e7b2abdd848b95f2f578043fc23bd6f6fd24d
+author Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com> 1393491698 +0200
+committer Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com> 1393491698 +0200
+
+Add submodule from gitlab.com
+
+Signed-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>
