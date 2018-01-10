@@ -59,6 +59,8 @@ It has these top-level messages:
 	CommitsByMessageResponse
 	FilterShasWithSignaturesRequest
 	FilterShasWithSignaturesResponse
+	ExtractCommitSignatureRequest
+	ExtractCommitSignatureResponse
 	ListConflictFilesRequest
 	ConflictFileHeader
 	ConflictFile
