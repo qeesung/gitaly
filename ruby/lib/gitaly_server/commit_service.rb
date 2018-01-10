@@ -107,7 +107,7 @@ module GitalyServer
             y.yield Gitaly::ExtractCommitSignatureResponse.new(signature: chunk)
           end
 
-          signed_text_io =  binary_stringio(signed_text)
+          signed_text_io = binary_stringio(signed_text)
           loop do
             chunk = signed_text_io.read(Gitlab.config.git.write_buffer_size)
             break if chunk.nil?
