@@ -13,10 +13,10 @@ import (
 )
 
 func TestExtractCommitSignatureSuccess(t *testing.T) {
-	signature5937ac0a7beb003549fc5fd26fc247adbce4a52e, err := ioutil.ReadFile("testdata/commit-5937ac0a7beb003549fc5fd26fc247adbce4a52e-signature")
+	exampleSignature, err := ioutil.ReadFile("testdata/commit-5937ac0a7beb003549fc5fd26fc247adbce4a52e-signature")
 	require.NoError(t, err)
 
-	signedText5937ac0a7beb003549fc5fd26fc247adbce4a52e, err := ioutil.ReadFile("testdata/commit-5937ac0a7beb003549fc5fd26fc247adbce4a52e-signed-text")
+	exampleSignedText, err := ioutil.ReadFile("testdata/commit-5937ac0a7beb003549fc5fd26fc247adbce4a52e-signed-text")
 	require.NoError(t, err)
 
 	ctx, cancel := testhelper.Context()
@@ -43,8 +43,8 @@ func TestExtractCommitSignatureSuccess(t *testing.T) {
 				Repository: testRepo,
 				CommitId:   "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
 			},
-			signature:  signature5937ac0a7beb003549fc5fd26fc247adbce4a52e,
-			signedText: signedText5937ac0a7beb003549fc5fd26fc247adbce4a52e,
+			signature:  exampleSignature,
+			signedText: exampleSignedText,
 		},
 		{
 			desc: "commit without signature",
