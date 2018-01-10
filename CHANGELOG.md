@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Use gitaly-proto 0.70.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/522
+
 v0.67.0
 
 - Implement UserRebase RPC
