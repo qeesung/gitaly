@@ -13,7 +13,7 @@ func (s *server) CreateRepository(ctx context.Context, req *pb.CreateRepositoryR
 		return nil, err
 	}
 
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
+	clientCtx, err := rubyserver.SetHeadersWithoutRepoCheck(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}

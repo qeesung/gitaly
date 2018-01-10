@@ -23,14 +23,31 @@ const (
 	repoAltDirsHeader  = "gitaly-repo-alt-dirs"
 )
 
+// SetHeadersWithoutRepoCheck adds headers that tell gitaly-ruby the full
+// path to the repository. It is not an error if the repository does not
+// yet exist. This can be used on RPC calls that will create a
+// repository.
+func SetHeadersWithoutRepoCheck(ctx context.Context, repo *pb.Repository) (context.Context, error) {
+	return setHeaders(ctx, repo, false)
+}
+
 // SetHeaders adds headers that tell gitaly-ruby the full path to the repository.
 func SetHeaders(ctx context.Context, repo *pb.Repository) (context.Context, error) {
+	return setHeaders(ctx, repo, true)
+}
+
+func setHeaders(ctx context.Context, repo *pb.Repository, mustExist bool) (context.Context, error) {
 	storagePath, err := helper.GetStorageByName(repo.GetStorageName())
 	if err != nil {
 		return nil, err
 	}
 
-	repoPath, err := helper.GetPath(repo)
+	var repoPath string
+	if mustExist {
+		repoPath, err = helper.GetRepoPath(repo)
+	} else {
+		repoPath, err = helper.GetPath(repo)
+	}
 	if err != nil {
 		return nil, err
 	}
