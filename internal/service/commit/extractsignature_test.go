@@ -122,7 +122,16 @@ func TestExtractCommitSignatureFail(t *testing.T) {
 				CommitId:   "",
 			},
 			code: codes.InvalidArgument,
-		}}
+		},
+		{
+			desc: "empty repo field",
+			req: &pb.ExtractCommitSignatureRequest{
+				Repository: testRepo,
+				CommitId:   "e63f41fe459e62e1228fcef60d7189127aeba95a",
+			},
+			code: codes.NotFound,
+		},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
