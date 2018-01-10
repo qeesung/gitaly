@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Implement ExtractCommitSignature RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/521
 - Use gitaly-proto 0.70.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/522
 
