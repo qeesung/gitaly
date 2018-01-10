@@ -98,11 +98,10 @@ module GitalyServer
           raise GRPC::InvalidArgument.new("commit lookup failed for #{request.commit_id.inspect}")
         end
 
-        chunk_size = 128*1024
         Enumerator.new do |y|
           signature_io = binary_stringio(signature)
           loop do
-            chunk = signature_io.read(chunk_size)
+            chunk = signature_io.read(Gitlab.config.git.write_buffer_size)
             break if chunk.nil?
 
             y.yield Gitaly::ExtractCommitSignatureResponse.new(signature: chunk)
@@ -110,7 +109,7 @@ module GitalyServer
 
           signed_text_io =  binary_stringio(signed_text)
           loop do
-            chunk = signed_text_io.read(chunk_size)
+            chunk = signed_text_io.read(Gitlab.config.git.write_buffer_size)
             break if chunk.nil?
 
             y.yield Gitaly::ExtractCommitSignatureResponse.new(signed_text: chunk)
