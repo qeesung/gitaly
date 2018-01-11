@@ -2,6 +2,7 @@ package wiki
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -97,6 +98,86 @@ func TestWikiGetPageVersionsRequest(t *testing.T) {
 				v2 := tc.versions[i]
 				assertWikiPageVersionEqual(t, version, v2, "%d blew up", i)
 			}
+		})
+	}
+}
+
+func TestWikiGetPageVersionsPaginationParams(t *testing.T) {
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	pageTitle := "WikiGetPageVersions"
+	content := []byte("page content")
+	writeWikiPage(t, client, wikiRepo, pageTitle, content)
+
+	for i := 0; i < 25; i++ {
+		updateWikiPage(t, client, wikiRepo, pageTitle, []byte(string(i)))
+	}
+
+	testCases := []struct {
+		desc        string
+		perPage     int32
+		page        int32
+		nrOfResults int
+	}{
+		{
+			desc:        "default to page 1 with 20 items",
+			nrOfResults: 20,
+		},
+		{
+			desc:        "oversized perPage param",
+			perPage:     100,
+			nrOfResults: 26,
+		},
+		{
+			desc:        "allows later pages",
+			page:        2,
+			nrOfResults: 6,
+		},
+		{
+			desc:        "returns nothing of no versions can be found",
+			page:        100,
+			nrOfResults: 0,
+		},
+		{
+			// https://github.com/gollum/gollum-lib/blob/be6409315f6af5a6d90eb012a1154b485579db67/lib/gollum-lib/pagination.rb#L34
+			desc:        "per page is minimal 20",
+			perPage:     1,
+			nrOfResults: 20,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.WikiGetPageVersions(ctx, &pb.WikiGetPageVersionsRequest{
+				Repository: wikiRepo,
+				PagePath:   []byte(pageTitle),
+				PerPage:    tc.perPage,
+				Page:       tc.page})
+			require.NoError(t, err)
+
+			nrFoundVersions := 0
+			for {
+				resp, err := stream.Recv()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					t.Fatal(err)
+				}
+
+				nrFoundVersions += len(resp.GetVersions())
+			}
+
+			require.Equal(t, tc.nrOfResults, nrFoundVersions)
 		})
 	}
 }

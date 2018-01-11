@@ -171,7 +171,7 @@ module GitalyServer
         end
 
         Enumerator.new do |y|
-          page.versions.each_slice(20) do |slice|
+          page.versions(per_page: request.per_page, page: request.page).each_slice(20) do |slice|
             versions =
               slice.map do |commit|
                 gollum_page = wiki.page(page.title, commit.id)
