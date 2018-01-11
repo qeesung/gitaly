@@ -126,10 +126,10 @@ func TestExtractCommitSignatureFail(t *testing.T) {
 		{
 			desc: "empty repo field",
 			req: &pb.ExtractCommitSignatureRequest{
-				Repository: testRepo,
+				Repository: nil,
 				CommitId:   "e63f41fe459e62e1228fcef60d7189127aeba95a",
 			},
-			code: codes.NotFound,
+			code: codes.InvalidArgument,
 		},
 	}
 
