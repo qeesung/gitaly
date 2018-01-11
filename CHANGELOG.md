@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Check repo existence before passing to gitaly-ruby
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/528
 - Implement ExtractCommitSignature RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/521
 - Update Gitlab::Git vendoring to b10ea6e386a025759aca5e9ef0d23931e77d1012
