@@ -497,16 +497,31 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		},
 	}
 
-	require.Len(t, receivedTags, len(expectedTags))
-
-	for i, receivedTag := range receivedTags {
-		t.Logf("test case: %q", expectedTags[i].Name)
-
-		require.Equal(t, expectedTags[i].Name, receivedTag.Name, "mismatched tag name")
-		require.Equal(t, expectedTags[i].Id, receivedTag.Id, "mismatched ID")
-		require.Equal(t, expectedTags[i].Message, receivedTag.Message, "mismatched message")
-		require.Equal(t, expectedTags[i].TargetCommit, receivedTag.TargetCommit)
+	if len(receivedTags) < len(expectedTags) {
+		t.Fatalf("expected at least %d tags, got %d", len(expectedTags), len(receivedTags))
 	}
+
+	for _, expectedTag := range expectedTags {
+		t.Run(string(expectedTag.Name), func(t *testing.T) {
+
+			receivedTag := findTag(receivedTags, expectedTag.Name)
+			require.NotNil(t, receivedTag, "tag not found")
+
+			require.Equal(t, expectedTag.Name, receivedTag.Name, "mismatched tag name")
+			require.Equal(t, expectedTag.Id, receivedTag.Id, "mismatched ID")
+			require.Equal(t, expectedTag.Message, receivedTag.Message, "mismatched message")
+			require.Equal(t, expectedTag.TargetCommit, receivedTag.TargetCommit)
+		})
+	}
+}
+
+func findTag(tags []*pb.Tag, tagName []byte) *pb.Tag {
+	for _, t := range tags {
+		if bytes.Equal(t.Name, tagName) {
+			return t
+		}
+	}
+	return nil
 }
 
 func TestInvalidFindAllTagsRequest(t *testing.T) {
