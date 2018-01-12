@@ -115,7 +115,7 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 		{
 			description:     "From hash to ref",
 			from:            from,
-			to:              []byte("master"),
+			to:              []byte("gitaly-test-ref"),
 			expectedCommits: expectedCommits,
 		},
 		{
@@ -127,7 +127,7 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 		{
 			description:     "From ref to ref",
 			from:            []byte("branch-merged"),
-			to:              []byte("master"),
+			to:              []byte("gitaly-test-ref"),
 			expectedCommits: expectedCommits,
 		},
 		{
