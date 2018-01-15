@@ -2,6 +2,8 @@
 
 v0.69.0
 
+- Handle non-existent commits in ExtractCommitSignature
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/535
 - Fix handling of paths ending with slashes in TreeEntry
   https://gitlab.com/gitlab-org/gitaly/merge_requests/532
 - Implement CreateRepositoryFromURL RPC
