@@ -3,6 +3,8 @@
 Use the Grafana web interface to make changes to dashboards if
 necessary.
 
+**Remember to hit the 'Save' button at the top of the Grafana screen when making changes.**
+
 ## Tiled (repeated) dashboards
 
 If you want to make a change across a tiled Grafana dashboard such as
