@@ -131,6 +131,14 @@ func TestExtractCommitSignatureFail(t *testing.T) {
 			},
 			code: codes.InvalidArgument,
 		},
+		{
+			desc: "commit ID unknown",
+			req: &pb.ExtractCommitSignatureRequest{
+				Repository: testRepo,
+				CommitId:   "0000000000000000000000000000000000000000",
+			},
+			code: codes.OK,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -138,11 +146,20 @@ func TestExtractCommitSignatureFail(t *testing.T) {
 			stream, err := client.ExtractCommitSignature(ctx, tc.req)
 			require.NoError(t, err)
 
+			var resp *pb.ExtractCommitSignatureResponse
 			for err == nil {
-				_, err = stream.Recv()
+				resp, err = stream.Recv()
+				if resp != nil {
+					require.Empty(t, resp.Signature, "signature must be empty")
+					require.Empty(t, resp.SignedText, "signed text must be empty")
+				}
 			}
 
-			testhelper.AssertGrpcError(t, err, tc.code, "")
+			if tc.code == codes.OK {
+				require.Equal(t, io.EOF, err, "expect EOF when there is no error")
+			} else {
+				testhelper.AssertGrpcError(t, err, tc.code, "")
+			}
 		})
 	}
 }

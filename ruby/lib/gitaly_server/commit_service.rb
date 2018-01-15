@@ -96,6 +96,9 @@ module GitalyServer
           signature, signed_text = Rugged::Commit.extract_signature(repository.rugged, request.commit_id)
         rescue Rugged::InvalidError
           raise GRPC::InvalidArgument.new("commit lookup failed for #{request.commit_id.inspect}")
+        rescue Rugged::OdbError
+          # The client does not care if the commit does not exist
+          return []
         end
 
         Enumerator.new do |y|
