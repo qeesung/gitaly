@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Add tempdir package
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/538
 
 v0.70.0
 
