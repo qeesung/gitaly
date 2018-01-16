@@ -10,6 +10,9 @@ import (
 )
 
 const (
+	// We need to be careful that this path does not clash with any
+	// directory name that could be provided by a user. The '+' character is
+	// not allowed in GitLab namespaces or repositories.
 	tmpRoot = "+gitaly/tmp"
 )
 
