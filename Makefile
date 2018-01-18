@@ -11,7 +11,7 @@ INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 COVERAGE_DIR := $(TARGET_DIR)/cover
 ASSEMBLY_ROOT := $(TARGET_DIR)/assembly
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
-BUNDLE_FLAGS ?= --deployment
+BUNDLE_FLAGS ?= --deployment --jobs 4 --gemfile=$(BUILD_DIR)/ruby/Gemfile
 
 BUILDTIME = $(shell date -u +%Y%m%d.%H%M%S)
 VERSION_PREFIXED = $(shell git describe)
