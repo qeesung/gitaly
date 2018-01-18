@@ -24,6 +24,7 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -131,7 +132,7 @@ func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, containsT
 	}
 
 	// Check that the code matches
-	if code := grpc.Code(err); code != expectedCode {
+	if code := helper.GrpcCode(err); code != expectedCode {
 		t.Fatalf("Expected an error with code %v, got %v. The error was %v", expectedCode, code, err)
 	}
 

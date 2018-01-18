@@ -3,10 +3,10 @@ package ref
 import (
 	"testing"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -52,7 +52,7 @@ func TestRefExists(t *testing.T) {
 
 			got, err := client.RefExists(ctx, req)
 
-			if grpc.Code(err) != tt.wantErr {
+			if helper.GrpcCode(err) != tt.wantErr {
 				t.Errorf("server.RefExists() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

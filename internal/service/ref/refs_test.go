@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -84,7 +84,7 @@ func TestEmptyFindAllBranchNamesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if grpc.Code(recvError) != codes.InvalidArgument {
+	if helper.GrpcCode(recvError) != codes.InvalidArgument {
 		t.Fatal(recvError)
 	}
 }
@@ -110,7 +110,7 @@ func TestInvalidRepoFindAllBranchNamesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if grpc.Code(recvError) != codes.NotFound {
+	if helper.GrpcCode(recvError) != codes.NotFound {
 		t.Fatal(recvError)
 	}
 }
@@ -173,7 +173,7 @@ func TestEmptyFindAllTagNamesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if grpc.Code(recvError) != codes.InvalidArgument {
+	if helper.GrpcCode(recvError) != codes.InvalidArgument {
 		t.Fatal(recvError)
 	}
 }
@@ -199,7 +199,7 @@ func TestInvalidRepoFindAllTagNamesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if grpc.Code(recvError) != codes.NotFound {
+	if helper.GrpcCode(recvError) != codes.NotFound {
 		t.Fatal(recvError)
 	}
 }
@@ -350,7 +350,7 @@ func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
 	defer cancel()
 	_, err := client.FindDefaultBranchName(ctx, rpcRequest)
 
-	if grpc.Code(err) != codes.InvalidArgument {
+	if helper.GrpcCode(err) != codes.InvalidArgument {
 		t.Fatal(err)
 	}
 }
@@ -368,7 +368,7 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 	defer cancel()
 	_, err := client.FindDefaultBranchName(ctx, rpcRequest)
 
-	if grpc.Code(err) != codes.NotFound {
+	if helper.GrpcCode(err) != codes.NotFound {
 		t.Fatal(err)
 	}
 }
@@ -721,7 +721,7 @@ func TestEmptyFindLocalBranchesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if grpc.Code(recvError) != codes.InvalidArgument {
+	if helper.GrpcCode(recvError) != codes.InvalidArgument {
 		t.Fatal(recvError)
 	}
 }

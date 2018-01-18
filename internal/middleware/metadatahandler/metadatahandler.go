@@ -3,6 +3,7 @@ package metadatahandler
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -77,7 +78,7 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 
 	res, err := handler(ctx, req)
 
-	grpcCode := grpc.Code(err)
+	grpcCode := helper.GrpcCode(err)
 	requests.WithLabelValues(clientName, callSite, grpcCode.String()).Inc()
 
 	return res, err
@@ -90,7 +91,7 @@ func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.Str
 
 	err := handler(srv, stream)
 
-	grpcCode := grpc.Code(err)
+	grpcCode := helper.GrpcCode(err)
 	requests.WithLabelValues(clientName, callSite, grpcCode.String()).Inc()
 
 	return err

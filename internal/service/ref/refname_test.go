@@ -3,12 +3,12 @@ package ref
 import (
 	"testing"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	"golang.org/x/net/context"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -64,7 +64,7 @@ func TestFindRefNameEmptyCommit(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected FindRefName to throw an error")
 	}
-	if grpc.Code(err) != codes.InvalidArgument {
+	if helper.GrpcCode(err) != codes.InvalidArgument {
 		t.Errorf("Expected FindRefName to throw InvalidArgument, got %v", err)
 	}
 
@@ -93,7 +93,7 @@ func TestFindRefNameInvalidRepo(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected FindRefName to throw an error")
 	}
-	if grpc.Code(err) != codes.InvalidArgument {
+	if helper.GrpcCode(err) != codes.InvalidArgument {
 		t.Errorf("Expected FindRefName to throw InvalidArgument, got %v", err)
 	}
 

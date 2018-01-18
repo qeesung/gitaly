@@ -8,11 +8,11 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -110,7 +110,7 @@ func TestRepositoryExists(t *testing.T) {
 			defer cancel()
 			response, err := client.RepositoryExists(ctx, tc.request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 
 			if err != nil {
 				// Ignore the response message if there was an error
@@ -167,7 +167,7 @@ func TestSuccessfulHasLocalBranches(t *testing.T) {
 
 			response, err := client.HasLocalBranches(ctx, tc.request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 			if err != nil {
 				return
 			}
@@ -209,7 +209,7 @@ func TestFailedHasLocalBranches(t *testing.T) {
 			request := &pb.HasLocalBranchesRequest{Repository: tc.repository}
 			_, err := client.HasLocalBranches(ctx, request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 		})
 	}
 }

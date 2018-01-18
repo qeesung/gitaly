@@ -6,6 +6,7 @@ import (
 
 	raven "github.com/getsentry/raven-go"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	"fmt"
 
@@ -53,7 +54,7 @@ func methodToCulprit(methodName string) string {
 }
 
 func logErrorToSentry(err error) (code codes.Code, bypass bool) {
-	code = grpc.Code(err)
+	code = helper.GrpcCode(err)
 
 	bypass = code == codes.OK || code == codes.Canceled
 	return code, bypass

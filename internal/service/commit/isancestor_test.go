@@ -7,11 +7,11 @@ import (
 	"path"
 	"testing"
 
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -76,7 +76,7 @@ func TestCommitIsAncestorFailure(t *testing.T) {
 			defer cancel()
 			if _, err := client.CommitIsAncestor(ctx, v.Request); err == nil {
 				t.Error("Expected to throw an error")
-			} else if grpc.Code(err) != v.ErrorCode {
+			} else if helper.GrpcCode(err) != v.ErrorCode {
 				t.Errorf(v.ErrMsg, err)
 			}
 		})

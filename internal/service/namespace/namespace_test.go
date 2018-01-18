@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -96,7 +96,7 @@ func TestNamespaceExists(t *testing.T) {
 			defer cancel()
 			response, err := client.NamespaceExists(ctx, tc.request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 
 			if tc.errorCode == codes.OK {
 				require.Equal(t, tc.exists, response.Exists)
@@ -158,7 +158,7 @@ func TestAddNamespace(t *testing.T) {
 
 			_, err := client.AddNamespace(ctx, tc.request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 
 			// Clean up
 			if tc.errorCode == codes.OK {
@@ -218,7 +218,7 @@ func TestRemoveNamespace(t *testing.T) {
 			require.NoError(t, err, "setup failed")
 
 			_, err = client.RemoveNamespace(ctx, tc.request)
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 		})
 	}
 }
@@ -286,7 +286,7 @@ func TestRenameNamespace(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, err := client.RenameNamespace(ctx, tc.request)
 
-			require.Equal(t, tc.errorCode, grpc.Code(err))
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 
 			if tc.errorCode == codes.OK {
 				client.RemoveNamespace(ctx, &pb.RemoveNamespaceRequest{
