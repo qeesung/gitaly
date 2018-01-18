@@ -17,11 +17,11 @@ func (s *server) ResolveConflicts(stream pb.ConflictsService_ResolveConflictsSer
 
 	header := firstRequest.GetHeader()
 	if header == nil {
-		return status.Errorf(codes.InvalidArgument, "ListConflictFiles: empty ResolveConflictsRequestHeader")
+		return status.Errorf(codes.InvalidArgument, "ResolveConflicts: empty ResolveConflictsRequestHeader")
 	}
 
 	if err = validateResolveConflictsHeader(header); err != nil {
-		return status.Errorf(codes.InvalidArgument, "ListConflictFiles: %v", err)
+		return status.Errorf(codes.InvalidArgument, "ResolveConflicts: %v", err)
 	}
 
 	ctx := stream.Context()
