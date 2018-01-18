@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Use grpc-go 1.9.1
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/547
+
 v0.71.0
 
 - Implement GetLfsPointers RPC
