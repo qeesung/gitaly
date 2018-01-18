@@ -7,15 +7,15 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"golang.org/x/net/context"
 )
 
 func (s *server) WriteRef(ctx context.Context, req *pb.WriteRefRequest) (*pb.WriteRefResponse, error) {
 	if err := validateWriteRefRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "WriteRef: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "WriteRef: %v", err)
 	}
 
 	client, err := s.RepositoryServiceClient(ctx)

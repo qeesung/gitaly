@@ -7,8 +7,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) WikiWritePage(stream pb.WikiService_WikiWritePageServer) error {
@@ -18,7 +18,7 @@ func (s *server) WikiWritePage(stream pb.WikiService_WikiWritePageServer) error 
 	}
 
 	if err := validateWikiWritePageRequest(firstRequest); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "WikiWritePage: %v", err)
+		return status.Errorf(codes.InvalidArgument, "WikiWritePage: %v", err)
 	}
 
 	ctx := stream.Context()

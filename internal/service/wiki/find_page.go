@@ -5,15 +5,15 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) WikiFindPage(request *pb.WikiFindPageRequest, stream pb.WikiService_WikiFindPageServer) error {
 	ctx := stream.Context()
 
 	if len(request.GetTitle()) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "WikiFindPage: Empty Title")
+		return status.Errorf(codes.InvalidArgument, "WikiFindPage: Empty Title")
 	}
 
 	client, err := s.WikiServiceClient(ctx)

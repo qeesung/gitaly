@@ -7,8 +7,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // We declare this function in variables so that we can override them in our tests
@@ -41,7 +41,7 @@ func (s *server) FindAllCommits(in *pb.FindAllCommitsRequest, stream pb.CommitSe
 	if len(in.GetRevision()) == 0 {
 		branchNames, err := _findBranchNamesFunc(stream.Context(), in.Repository)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
+			return status.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
 		}
 
 		for _, branch := range branchNames {

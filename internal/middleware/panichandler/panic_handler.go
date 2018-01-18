@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ grpc.UnaryServerInterceptor = UnaryPanicHandler
@@ -15,7 +16,7 @@ var _ grpc.StreamServerInterceptor = StreamPanicHandler
 type PanicHandler func(methodName string, error interface{})
 
 func toPanicError(grpcMethodName string, r interface{}) error {
-	return grpc.Errorf(codes.Internal, "panic: %v", r)
+	return status.Errorf(codes.Internal, "panic: %v", r)
 }
 
 // UnaryPanicHandler handles request-response panics

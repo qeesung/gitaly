@@ -9,8 +9,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // GetRepoPath returns the full path of the repository referenced by an
@@ -24,14 +24,14 @@ func GetRepoPath(repo *pb.Repository) (string, error) {
 	}
 
 	if repoPath == "" {
-		return "", grpc.Errorf(codes.InvalidArgument, "GetRepoPath: empty repo")
+		return "", status.Errorf(codes.InvalidArgument, "GetRepoPath: empty repo")
 	}
 
 	if IsGitDirectory(repoPath) {
 		return repoPath, nil
 	}
 
-	return "", grpc.Errorf(codes.NotFound, "GetRepoPath: not a git repository '%s'", repoPath)
+	return "", status.Errorf(codes.NotFound, "GetRepoPath: not a git repository '%s'", repoPath)
 }
 
 // GetPath returns the path of the repo passed as first argument. An error is
@@ -44,12 +44,12 @@ func GetPath(repo *pb.Repository) (string, error) {
 	}
 
 	if _, err := os.Stat(storagePath); err != nil {
-		return "", grpc.Errorf(codes.Internal, "GetPath: storage path: %v", err)
+		return "", status.Errorf(codes.Internal, "GetPath: storage path: %v", err)
 	}
 
 	relativePath := repo.GetRelativePath()
 	if len(relativePath) == 0 {
-		err := grpc.Errorf(codes.InvalidArgument, "GetPath: relative path missing from %+v", repo)
+		err := status.Errorf(codes.InvalidArgument, "GetPath: relative path missing from %+v", repo)
 		return "", err
 	}
 
@@ -58,7 +58,7 @@ func GetPath(repo *pb.Repository) (string, error) {
 	if strings.HasPrefix(relativePath, ".."+separator) ||
 		strings.Contains(relativePath, separator+".."+separator) ||
 		strings.HasSuffix(relativePath, separator+"..") {
-		return "", grpc.Errorf(codes.InvalidArgument, "GetRepoPath: relative path can't contain directory traversal")
+		return "", status.Errorf(codes.InvalidArgument, "GetRepoPath: relative path can't contain directory traversal")
 	}
 
 	return path.Join(storagePath, relativePath), nil
@@ -69,7 +69,7 @@ func GetPath(repo *pb.Repository) (string, error) {
 func GetStorageByName(storageName string) (string, error) {
 	storagePath, ok := config.StoragePath(storageName)
 	if !ok {
-		return "", grpc.Errorf(codes.InvalidArgument, "Storage can not be found by name '%s'", storageName)
+		return "", status.Errorf(codes.InvalidArgument, "Storage can not be found by name '%s'", storageName)
 	}
 
 	return storagePath, nil

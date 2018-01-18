@@ -8,13 +8,13 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) WikiDeletePage(ctx context.Context, request *pb.WikiDeletePageRequest) (*pb.WikiDeletePageResponse, error) {
 	if err := validateWikiDeletePageRequest(request); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "WikiDeletePage: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "WikiDeletePage: %v", err)
 	}
 
 	client, err := s.WikiServiceClient(ctx)

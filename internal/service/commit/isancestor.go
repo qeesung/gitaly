@@ -2,7 +2,6 @@ package commit
 
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -16,10 +15,10 @@ import (
 
 func (s *server) CommitIsAncestor(ctx context.Context, in *pb.CommitIsAncestorRequest) (*pb.CommitIsAncestorResponse, error) {
 	if in.AncestorId == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty ancestor sha)")
+		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty ancestor sha)")
 	}
 	if in.ChildId == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty child sha)")
+		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty child sha)")
 	}
 
 	ret, err := commitIsAncestorName(ctx, in.Repository, in.AncestorId, in.ChildId)
@@ -38,7 +37,7 @@ func commitIsAncestorName(ctx context.Context, repo *pb.Repository, ancestorID, 
 		if _, ok := status.FromError(err); ok {
 			return false, err
 		}
-		return false, grpc.Errorf(codes.Internal, err.Error())
+		return false, status.Errorf(codes.Internal, err.Error())
 	}
 
 	return cmd.Wait() == nil, nil

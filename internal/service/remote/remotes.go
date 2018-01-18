@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
@@ -16,7 +16,7 @@ import (
 // AddRemote adds a remote to the repository
 func (s *server) AddRemote(ctx context.Context, req *pb.AddRemoteRequest) (*pb.AddRemoteResponse, error) {
 	if err := validateAddRemoteRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "AddRemote: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "AddRemote: %v", err)
 	}
 
 	client, err := s.RemoteServiceClient(ctx)
@@ -46,7 +46,7 @@ func validateAddRemoteRequest(req *pb.AddRemoteRequest) error {
 // RemoveRemote removes the given remote
 func (s *server) RemoveRemote(ctx context.Context, req *pb.RemoveRemoteRequest) (*pb.RemoveRemoteResponse, error) {
 	if err := validateRemoveRemoteRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "AddRemote: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "AddRemote: %v", err)
 	}
 
 	client, err := s.RemoteServiceClient(ctx)

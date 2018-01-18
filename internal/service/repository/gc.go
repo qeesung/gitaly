@@ -5,7 +5,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -32,11 +31,11 @@ func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) 
 		if _, ok := status.FromError(err); ok {
 			return nil, err
 		}
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	// Perform housekeeping post GC

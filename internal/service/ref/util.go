@@ -6,8 +6,8 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var localBranchFormatFields = []string{
@@ -19,7 +19,7 @@ var localBranchFormatFields = []string{
 func parseRef(ref []byte) ([][]byte, error) {
 	elements := bytes.Split(ref, []byte("\x00"))
 	if len(elements) != 9 {
-		return nil, grpc.Errorf(codes.Internal, "error parsing ref %q", ref)
+		return nil, status.Errorf(codes.Internal, "error parsing ref %q", ref)
 	}
 	return elements, nil
 }

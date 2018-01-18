@@ -12,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -53,23 +52,23 @@ func handleInfoRefs(ctx context.Context, service string, req *pb.InfoRefsRequest
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
+		return status.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 
 	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)
+		return status.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)
 	}
 
 	if err := pktFlush(w); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: pktFlush: %v", err)
+		return status.Errorf(codes.Internal, "GetInfoRefs: pktFlush: %v", err)
 	}
 
 	if _, err := io.Copy(w, cmd); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: %v", err)
+		return status.Errorf(codes.Internal, "GetInfoRefs: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Internal, "GetInfoRefs: %v", err)
+		return status.Errorf(codes.Internal, "GetInfoRefs: %v", err)
 	}
 
 	return nil

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -55,7 +55,7 @@ func (*server) CommitLanguages(ctx context.Context, req *pb.CommitLanguagesReque
 	}
 
 	if total == 0 {
-		return nil, grpc.Errorf(codes.Internal, "linguist stats added up to zero: %v", stats)
+		return nil, status.Errorf(codes.Internal, "linguist stats added up to zero: %v", stats)
 	}
 
 	for lang, count := range stats {

@@ -11,8 +11,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServer) error {
@@ -57,11 +57,11 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil, env...)
 
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
+		return status.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
+		return status.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
 	}
 
 	return nil
@@ -69,10 +69,10 @@ func (s *server) PostReceivePack(stream pb.SmartHTTPService_PostReceivePackServe
 
 func validateReceivePackRequest(req *pb.PostReceivePackRequest) error {
 	if req.GlId == "" {
-		return grpc.Errorf(codes.InvalidArgument, "PostReceivePack: empty GlId")
+		return status.Errorf(codes.InvalidArgument, "PostReceivePack: empty GlId")
 	}
 	if req.Data != nil {
-		return grpc.Errorf(codes.InvalidArgument, "PostReceivePack: non-empty Data")
+		return status.Errorf(codes.InvalidArgument, "PostReceivePack: non-empty Data")
 	}
 
 	return nil

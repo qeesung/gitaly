@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -45,20 +46,20 @@ func check(ctx context.Context) (context.Context, error) {
 	encodedToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	if err != nil {
 		countStatus("unauthenticated").Inc()
-		err = grpc.Errorf(codes.Unauthenticated, "authentication required")
+		err = status.Errorf(codes.Unauthenticated, "authentication required")
 		return ctx, ifEnforced(err)
 	}
 
 	token, err := base64.StdEncoding.DecodeString(encodedToken)
 	if err != nil {
 		countStatus("invalid").Inc()
-		err = grpc.Errorf(codes.Unauthenticated, "authentication required")
+		err = status.Errorf(codes.Unauthenticated, "authentication required")
 		return ctx, ifEnforced(err)
 	}
 
 	if !config.Config.Auth.Token.Equal(string(token)) {
 		countStatus("denied").Inc()
-		err = grpc.Errorf(codes.PermissionDenied, "permission denied")
+		err = status.Errorf(codes.PermissionDenied, "permission denied")
 		return ctx, ifEnforced(err)
 	}
 

@@ -3,8 +3,8 @@ package commit
 import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) FilterShasWithSignatures(bidi pb.CommitService_FilterShasWithSignaturesServer) error {
@@ -60,7 +60,7 @@ func (s *server) FilterShasWithSignatures(bidi pb.CommitService_FilterShasWithSi
 
 func verifyFirstFilterShasWithSignaturesRequest(in *pb.FilterShasWithSignaturesRequest) error {
 	if in.Repository == nil {
-		return grpc.Errorf(codes.InvalidArgument, "no repository given")
+		return status.Errorf(codes.InvalidArgument, "no repository given")
 	}
 	return nil
 }

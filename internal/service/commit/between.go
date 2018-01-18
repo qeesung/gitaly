@@ -5,8 +5,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type commitsBetweenSender struct {
@@ -15,10 +15,10 @@ type commitsBetweenSender struct {
 
 func (s *server) CommitsBetween(in *pb.CommitsBetweenRequest, stream pb.CommitService_CommitsBetweenServer) error {
 	if err := git.ValidateRevision(in.GetFrom()); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "CommitsBetween: from: %v", err)
+		return status.Errorf(codes.InvalidArgument, "CommitsBetween: from: %v", err)
 	}
 	if err := git.ValidateRevision(in.GetTo()); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "CommitsBetween: to: %v", err)
+		return status.Errorf(codes.InvalidArgument, "CommitsBetween: to: %v", err)
 	}
 
 	sender := &commitsBetweenSender{stream}

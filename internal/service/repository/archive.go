@@ -5,8 +5,8 @@ import (
 	"io"
 	"os/exec"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -34,7 +34,7 @@ func handleArchive(ctx context.Context, writer io.Writer, repo *pb.Repository,
 	format pb.GetArchiveRequest_Format, prefix, commitID string) error {
 	compressCmd, formatArg := parseArchiveFormat(format)
 	if len(formatArg) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "invalid format")
+		return status.Errorf(codes.InvalidArgument, "invalid format")
 	}
 
 	archiveCommand, err := git.Command(ctx, repo, "archive",
@@ -61,7 +61,7 @@ func handleArchive(ctx context.Context, writer io.Writer, repo *pb.Repository,
 
 func (s *server) GetArchive(in *pb.GetArchiveRequest, stream pb.RepositoryService_GetArchiveServer) error {
 	if err := git.ValidateRevision([]byte(in.CommitId)); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "invalid commitId: %v", err)
+		return status.Errorf(codes.InvalidArgument, "invalid commitId: %v", err)
 	}
 
 	writer := streamio.NewWriter(func(p []byte) error {

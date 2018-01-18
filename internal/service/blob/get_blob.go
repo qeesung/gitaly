@@ -13,13 +13,13 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobServer) error {
 	if err := validateRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "GetBlob: %v", err)
+		return status.Errorf(codes.InvalidArgument, "GetBlob: %v", err)
 	}
 
 	repoPath, err := helper.GetRepoPath(in.Repository)
@@ -32,13 +32,13 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 	cmd, err := command.New(stream.Context(), exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
 	if err != nil {
-		return grpc.Errorf(codes.Internal, "GetBlob: cmd: %v", err)
+		return status.Errorf(codes.Internal, "GetBlob: cmd: %v", err)
 	}
 	defer stdinWriter.Close()
 	defer stdinReader.Close()
 
 	if _, err := fmt.Fprintln(stdinWriter, in.Oid); err != nil {
-		return grpc.Errorf(codes.Internal, "GetBlob: stdin write: %v", err)
+		return status.Errorf(codes.Internal, "GetBlob: stdin write: %v", err)
 	}
 	stdinWriter.Close()
 
@@ -46,7 +46,7 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 
 	objectInfo, err := catfile.ParseObjectInfo(stdout)
 	if err != nil {
-		return grpc.Errorf(codes.Internal, "GetBlob: %v", err)
+		return status.Errorf(codes.Internal, "GetBlob: %v", err)
 	}
 	if objectInfo.Type != "blob" {
 		return helper.DecorateError(codes.Unavailable, stream.Send(&pb.GetBlobResponse{}))
@@ -77,10 +77,10 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 
 	n, err := io.Copy(sw, io.LimitReader(stdout, readLimit))
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "GetBlob: send: %v", err)
+		return status.Errorf(codes.Unavailable, "GetBlob: send: %v", err)
 	}
 	if n != readLimit {
-		return grpc.Errorf(codes.Unavailable, "GetBlob: short send: %d/%d bytes", n, objectInfo.Size)
+		return status.Errorf(codes.Unavailable, "GetBlob: short send: %d/%d bytes", n, objectInfo.Size)
 	}
 
 	return nil

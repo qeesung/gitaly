@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
@@ -14,7 +14,7 @@ import (
 // FetchInternalRemote fetches another Gitaly repository set as a remote
 func (s *server) FetchInternalRemote(ctx context.Context, req *pb.FetchInternalRemoteRequest) (*pb.FetchInternalRemoteResponse, error) {
 	if err := validateFetchInternalRemoteRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "FetchInternalRemote: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "FetchInternalRemote: %v", err)
 	}
 
 	client, err := s.RemoteServiceClient(ctx)

@@ -2,8 +2,8 @@ package operations
 
 import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
@@ -26,11 +26,11 @@ func (s *server) UserCreateBranch(ctx context.Context, req *pb.UserCreateBranchR
 
 func (s *server) UserDeleteBranch(ctx context.Context, req *pb.UserDeleteBranchRequest) (*pb.UserDeleteBranchResponse, error) {
 	if len(req.BranchName) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty branch name)")
+		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty branch name)")
 	}
 
 	if req.User == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty user)")
+		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty user)")
 	}
 
 	client, err := s.OperationServiceClient(ctx)

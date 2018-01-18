@@ -10,7 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -202,7 +201,7 @@ func (s *server) FindDefaultBranchName(ctx context.Context, in *pb.FindDefaultBr
 		if _, ok := status.FromError(err); ok {
 			return nil, err
 		}
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	return &pb.FindDefaultBranchNameResponse{Name: defaultBranchName}, nil
@@ -249,7 +248,7 @@ func (s *server) FindAllBranches(in *pb.FindAllBranchesRequest, stream pb.RefSer
 			if _, ok := status.FromError(err); ok {
 				return err
 			}
-			return grpc.Errorf(codes.Internal, err.Error())
+			return status.Errorf(codes.Internal, err.Error())
 		}
 
 		args = append(args, fmt.Sprintf("--merged=%s", string(defaultBranchName)))

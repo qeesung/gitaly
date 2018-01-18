@@ -9,7 +9,6 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -28,7 +27,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 	}).Debug("CommitDiff")
 
 	if err := validateRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "CommitDiff: %v", err)
+		return status.Errorf(codes.InvalidArgument, "CommitDiff: %v", err)
 	}
 
 	leftSha := in.LeftCommitId
@@ -85,7 +84,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 			response.EndOfPatch = true
 
 			if err := stream.Send(response); err != nil {
-				return grpc.Errorf(codes.Unavailable, "CommitDiff: send: %v", err)
+				return status.Errorf(codes.Unavailable, "CommitDiff: send: %v", err)
 			}
 		} else {
 			patch := diff.Patch
@@ -101,7 +100,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 				}
 
 				if err := stream.Send(response); err != nil {
-					return grpc.Errorf(codes.Unavailable, "CommitDiff: send: %v", err)
+					return status.Errorf(codes.Unavailable, "CommitDiff: send: %v", err)
 				}
 
 				// Use a new response so we don't send other fields (FromPath, ...) over and over
@@ -121,7 +120,7 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 	}).Debug("CommitDelta")
 
 	if err := validateRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "CommitDelta: %v", err)
+		return status.Errorf(codes.InvalidArgument, "CommitDelta: %v", err)
 	}
 
 	leftSha := in.LeftCommitId
@@ -153,7 +152,7 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 		}
 
 		if err := stream.Send(&pb.CommitDeltaResponse{Deltas: batch}); err != nil {
-			return grpc.Errorf(codes.Unavailable, "CommitDelta: send: %v", err)
+			return status.Errorf(codes.Unavailable, "CommitDelta: send: %v", err)
 		}
 
 		return nil
@@ -208,7 +207,7 @@ func eachDiff(ctx context.Context, rpc string, repo *pb.Repository, cmdArgs []st
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
-		return grpc.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
+		return status.Errorf(codes.Internal, "%s: cmd: %v", rpc, err)
 	}
 
 	diffParser := diff.NewDiffParser(cmd, limits)
@@ -220,11 +219,11 @@ func eachDiff(ctx context.Context, rpc string, repo *pb.Repository, cmdArgs []st
 	}
 
 	if err := diffParser.Err(); err != nil {
-		return grpc.Errorf(codes.Internal, "%s: parse failure: %v", rpc, err)
+		return status.Errorf(codes.Internal, "%s: parse failure: %v", rpc, err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return grpc.Errorf(codes.Unavailable, "%s: %v", rpc, err)
+		return status.Errorf(codes.Unavailable, "%s: %v", rpc, err)
 	}
 
 	return nil

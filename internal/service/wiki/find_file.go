@@ -5,15 +5,15 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) WikiFindFile(request *pb.WikiFindFileRequest, stream pb.WikiService_WikiFindFileServer) error {
 	ctx := stream.Context()
 
 	if len(request.GetName()) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "WikiFindFile: Empty Name")
+		return status.Errorf(codes.InvalidArgument, "WikiFindFile: Empty Name")
 	}
 
 	client, err := s.WikiServiceClient(ctx)

@@ -8,13 +8,13 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) LastCommitForPath(ctx context.Context, in *pb.LastCommitForPathRequest) (*pb.LastCommitForPathResponse, error) {
 	if err := validateLastCommitForPathRequest(in); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "LastCommitForPath: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "LastCommitForPath: %v", err)
 	}
 
 	path := string(in.GetPath())

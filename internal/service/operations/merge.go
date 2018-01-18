@@ -7,8 +7,8 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) UserMergeBranch(bidi pb.OperationService_UserMergeBranchServer) error {
@@ -76,7 +76,7 @@ func validateFFRequest(in *pb.UserFFBranchRequest) error {
 
 func (s *server) UserFFBranch(ctx context.Context, in *pb.UserFFBranchRequest) (*pb.UserFFBranchResponse, error) {
 	if err := validateFFRequest(in); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "UserFFBranch: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "UserFFBranch: %v", err)
 	}
 
 	client, err := s.OperationServiceClient(ctx)

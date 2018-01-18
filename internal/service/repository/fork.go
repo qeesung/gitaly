@@ -14,8 +14,8 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const gitalyInternalURL = "ssh://gitaly/internal.git"
@@ -25,10 +25,10 @@ func (s *server) CreateFork(ctx context.Context, req *pb.CreateForkRequest) (*pb
 	sourceRepository := req.SourceRepository
 
 	if sourceRepository == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CreateFork: empty SourceRepository")
+		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: empty SourceRepository")
 	}
 	if targetRepository == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CreateFork: empty Repository")
+		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: empty Repository")
 	}
 
 	targetRepositoryFullPath, err := helper.GetPath(targetRepository)
@@ -37,26 +37,26 @@ func (s *server) CreateFork(ctx context.Context, req *pb.CreateForkRequest) (*pb
 	}
 
 	if _, err := os.Stat(targetRepositoryFullPath); !os.IsNotExist(err) {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CreateFork: dest dir exists")
+		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: dest dir exists")
 	}
 
 	if err := os.MkdirAll(targetRepositoryFullPath, 0770); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: create dest dir: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: create dest dir: %v", err)
 	}
 
 	gitalyServersInfo, err := helper.ExtractGitalyServers(ctx)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: extracting Gitaly servers: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: extracting Gitaly servers: %v", err)
 	}
 
 	sourceRepositoryStorageInfo, ok := gitalyServersInfo[sourceRepository.StorageName]
 	if !ok {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CreateFork: no storage info for %s", sourceRepository.StorageName)
+		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: no storage info for %s", sourceRepository.StorageName)
 	}
 
 	sourceRepositoryGitalyAddress := sourceRepositoryStorageInfo["address"]
 	if sourceRepositoryGitalyAddress == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CreateFork: empty gitaly address")
+		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: empty gitaly address")
 	}
 
 	sourceRepositoryGitalyToken := sourceRepositoryStorageInfo["token"]
@@ -65,7 +65,7 @@ func (s *server) CreateFork(ctx context.Context, req *pb.CreateForkRequest) (*pb
 	pbMarshaler := &jsonpb.Marshaler{}
 	payload, err := pbMarshaler.MarshalToString(cloneReq)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: marshalling payload failed: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: marshalling payload failed: %v", err)
 	}
 
 	gitalySSHPath := path.Join(config.Config.BinDir, "gitaly-ssh")
@@ -86,19 +86,19 @@ func (s *server) CreateFork(ctx context.Context, req *pb.CreateForkRequest) (*pb
 	}
 	cmd, err := command.New(ctx, exec.Command(command.GitPath(), args...), nil, nil, nil, env...)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: clone cmd start: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: clone cmd start: %v", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: clone cmd wait: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: clone cmd wait: %v", err)
 	}
 
 	if err := removeOriginInRepo(ctx, targetRepository); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: %v", err)
 	}
 
 	// CreateRepository is harmless on existing repositories with the side effect that it creates the hook symlink.
 	if _, err := s.CreateRepository(ctx, &pb.CreateRepositoryRequest{Repository: targetRepository}); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "CreateFork: create hooks failed: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateFork: create hooks failed: %v", err)
 	}
 
 	return &pb.CreateForkResponse{}, nil

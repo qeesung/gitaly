@@ -8,8 +8,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
@@ -51,7 +51,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr)
 
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)
+		return status.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -61,7 +61,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 				stream.Send(&pb.SSHUploadPackResponse{ExitStatus: &pb.ExitStatus{Value: int32(status)}}),
 			)
 		}
-		return grpc.Errorf(codes.Unavailable, "SSHUploadPack: %v", err)
+		return status.Errorf(codes.Unavailable, "SSHUploadPack: %v", err)
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (s *server) SSHUploadPack(stream pb.SSHService_SSHUploadPackServer) error {
 
 func validateFirstUploadPackRequest(req *pb.SSHUploadPackRequest) error {
 	if req.Stdin != nil {
-		return grpc.Errorf(codes.InvalidArgument, "SSHUploadPack: non-empty stdin")
+		return status.Errorf(codes.InvalidArgument, "SSHUploadPack: non-empty stdin")
 	}
 
 	return nil

@@ -13,8 +13,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName string, limit int64) catfile.Handler {
@@ -44,7 +44,7 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 				Oid:  treeEntry.Oid,
 			}
 			if err := stream.Send(response); err != nil {
-				return grpc.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
+				return status.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
 			}
 
 			return nil
@@ -54,11 +54,11 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 
 		objectInfo, err := catfile.ParseObjectInfo(stdout)
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "TreeEntry: %v", err)
+			return status.Errorf(codes.Internal, "TreeEntry: %v", err)
 		}
 
 		if strings.ToLower(treeEntry.Type.String()) != objectInfo.Type {
-			return grpc.Errorf(
+			return status.Errorf(
 				codes.Internal,
 				"TreeEntry: mismatched object type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
 				treeEntry.Oid, objectInfo.Oid, treeEntry.Type.String(), objectInfo.Type,
@@ -94,7 +94,7 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 			response.Data = p
 
 			if err := stream.Send(response); err != nil {
-				return grpc.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
+				return status.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
 			}
 
 			// Use a new response so we don't send other fields (Size, ...) over and over
@@ -105,7 +105,7 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 
 		n, err := io.Copy(sw, io.LimitReader(stdout, dataLength))
 		if n < dataLength && err == nil {
-			return grpc.Errorf(codes.Internal, "TreeEntry: Incomplete copy")
+			return status.Errorf(codes.Internal, "TreeEntry: Incomplete copy")
 		}
 
 		return err
@@ -114,7 +114,7 @@ func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path, baseName
 
 func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_TreeEntryServer) error {
 	if err := validateRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
+		return status.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
 	}
 
 	requestPath := string(in.GetPath())

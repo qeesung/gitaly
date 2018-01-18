@@ -7,15 +7,15 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) GetLFSPointers(req *pb.GetLFSPointersRequest, stream pb.BlobService_GetLFSPointersServer) error {
 	ctx := stream.Context()
 
 	if err := validateGetLFSPointersRequest(req); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "GetLFSPointers: %v", err)
+		return status.Errorf(codes.InvalidArgument, "GetLFSPointers: %v", err)
 	}
 
 	client, err := s.BlobServiceClient(ctx)

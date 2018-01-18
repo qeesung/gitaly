@@ -13,14 +13,13 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (*pb.CountCommitsResponse, error) {
 	if err := validateCountCommitsRequest(in); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CountCommits: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "CountCommits: %v", err)
 	}
 
 	cmdArgs := []string{"rev-list", "--count", string(in.GetRevision())}
@@ -43,7 +42,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		if _, ok := status.FromError(err); ok {
 			return nil, err
 		}
-		return nil, grpc.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
+		return nil, status.Errorf(codes.Internal, "CountCommits: cmd: %v", err)
 	}
 
 	var count int64
@@ -61,7 +60,7 @@ func (s *server) CountCommits(ctx context.Context, in *pb.CountCommitsRequest) (
 		count, err = strconv.ParseInt(string(countStr), 10, 0)
 
 		if err != nil {
-			return nil, grpc.Errorf(codes.Internal, "CountCommits: parse count: %v", err)
+			return nil, status.Errorf(codes.Internal, "CountCommits: parse count: %v", err)
 		}
 	}
 

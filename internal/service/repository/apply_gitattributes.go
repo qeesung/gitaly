@@ -13,8 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func applyGitattributesHandler(ctx context.Context, repoPath string, revision []byte) catfile.Handler {
@@ -30,7 +30,7 @@ func applyGitattributesHandler(ctx context.Context, repoPath string, revision []
 			return err
 		}
 		if revisionInfo.Oid == "" {
-			return grpc.Errorf(codes.InvalidArgument, "Revision doesn't exist")
+			return status.Errorf(codes.InvalidArgument, "Revision doesn't exist")
 		}
 		// Discard revision info
 		if _, err := stdout.Discard(int(revisionInfo.Size) + 1); err != nil {
@@ -63,7 +63,7 @@ func applyGitattributesHandler(ctx context.Context, repoPath string, revision []
 
 		tempFile, err := ioutil.TempFile(infoPath, "attributes")
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "ApplyGitAttributes: creating temp file: %v", err)
+			return status.Errorf(codes.Internal, "ApplyGitAttributes: creating temp file: %v", err)
 		}
 		defer os.Remove(tempFile.Name())
 
@@ -74,7 +74,7 @@ func applyGitattributesHandler(ctx context.Context, repoPath string, revision []
 			return err
 		}
 		if n != blobInfo.Size {
-			return grpc.Errorf(codes.Internal,
+			return status.Errorf(codes.Internal,
 				"ApplyGitAttributes: copy yielded %v bytes, expected %v", n, blobInfo.Size)
 		}
 
@@ -95,7 +95,7 @@ func (server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesR
 	}
 
 	if err := git.ValidateRevision(in.GetRevision()); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "ApplyGitAttributes: revision: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "ApplyGitAttributes: revision: %v", err)
 	}
 
 	handler := applyGitattributesHandler(ctx, repoPath, in.GetRevision())

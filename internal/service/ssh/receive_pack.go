@@ -11,8 +11,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error {
@@ -59,7 +59,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, stderr, env...)
 
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)
+		return status.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -69,7 +69,7 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 				stream.Send(&pb.SSHReceivePackResponse{ExitStatus: &pb.ExitStatus{Value: int32(status)}}),
 			)
 		}
-		return grpc.Errorf(codes.Unavailable, "SSHReceivePack: %v", err)
+		return status.Errorf(codes.Unavailable, "SSHReceivePack: %v", err)
 	}
 
 	return nil
@@ -77,10 +77,10 @@ func (s *server) SSHReceivePack(stream pb.SSHService_SSHReceivePackServer) error
 
 func validateFirstReceivePackRequest(req *pb.SSHReceivePackRequest) error {
 	if req.GlId == "" {
-		return grpc.Errorf(codes.InvalidArgument, "SSHReceivePack: empty GlId")
+		return status.Errorf(codes.InvalidArgument, "SSHReceivePack: empty GlId")
 	}
 	if req.Stdin != nil {
-		return grpc.Errorf(codes.InvalidArgument, "SSHReceivePack: non-empty data")
+		return status.Errorf(codes.InvalidArgument, "SSHReceivePack: non-empty data")
 	}
 
 	return nil

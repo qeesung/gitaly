@@ -13,8 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ObjectInfo represents a header returned by `git cat-file --batch`
@@ -41,7 +41,7 @@ func CatFile(ctx context.Context, repo *pb.Repository, handler Handler) error {
 	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 	cmd, err := command.New(ctx, exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil, env...)
 	if err != nil {
-		return grpc.Errorf(codes.Internal, "CatFile: cmd: %v", err)
+		return status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}
 	defer stdinWriter.Close()
 	defer stdinReader.Close()

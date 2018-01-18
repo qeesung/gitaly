@@ -8,13 +8,13 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) UserRebase(ctx context.Context, req *pb.UserRebaseRequest) (*pb.UserRebaseResponse, error) {
 	if err := validateUserRebaseRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "UserRebase: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "UserRebase: %v", err)
 	}
 
 	client, err := s.OperationServiceClient(ctx)

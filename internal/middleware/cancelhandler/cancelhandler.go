@@ -4,6 +4,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Unary is a unary server interceptor that puts cancel codes on errors
@@ -28,5 +29,5 @@ func wrapErr(ctx context.Context, err error) error {
 	if ctx.Err() == context.DeadlineExceeded {
 		code = codes.DeadlineExceeded
 	}
-	return grpc.Errorf(code, "%v", err)
+	return status.Errorf(code, "%v", err)
 }

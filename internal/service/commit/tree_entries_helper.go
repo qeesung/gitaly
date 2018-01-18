@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
@@ -14,12 +14,12 @@ import (
 
 func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (*catfile.ObjectInfo, error) {
 	if _, err := fmt.Fprintf(stdin, "%s^{tree}:%s\n", revision, path); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "TreeEntry: stdin write: %v", err)
+		return nil, status.Errorf(codes.Internal, "TreeEntry: stdin write: %v", err)
 	}
 
 	treeInfo, err := catfile.ParseObjectInfo(stdout)
 	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "TreeEntry: %v", err)
+		return nil, status.Errorf(codes.Internal, "TreeEntry: %v", err)
 	}
 	return treeInfo, nil
 }

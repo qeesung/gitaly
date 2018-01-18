@@ -8,13 +8,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) IsRebaseInProgress(ctx context.Context, req *pb.IsRebaseInProgressRequest) (*pb.IsRebaseInProgressResponse, error) {
 	if err := validateIsRebaseInProgressRequest(req); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "IsRebaseInProgress: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "IsRebaseInProgress: %v", err)
 	}
 
 	client, err := s.RepositoryServiceClient(ctx)

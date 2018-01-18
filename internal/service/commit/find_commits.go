@@ -5,8 +5,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService_FindCommitsServer) error {
@@ -18,14 +18,14 @@ func (s *server) FindCommits(req *pb.FindCommitsRequest, stream pb.CommitService
 		var err error
 		req.Revision, err = defaultBranchName(ctx, req.Repository)
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "defaultBranchName: %v", err)
+			return status.Errorf(codes.Internal, "defaultBranchName: %v", err)
 		}
 	}
 
 	// Clients might send empty paths. That is an error
 	for _, path := range req.Paths {
 		if len(path) == 0 {
-			return grpc.Errorf(codes.InvalidArgument, "path is empty string")
+			return status.Errorf(codes.InvalidArgument, "path is empty string")
 		}
 	}
 

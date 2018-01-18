@@ -5,15 +5,15 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) WikiGetPageVersions(request *pb.WikiGetPageVersionsRequest, stream pb.WikiService_WikiGetPageVersionsServer) error {
 	ctx := stream.Context()
 
 	if len(request.GetPagePath()) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "WikiGetPageVersions: Empty Path")
+		return status.Errorf(codes.InvalidArgument, "WikiGetPageVersions: Empty Path")
 	}
 
 	client, err := s.WikiServiceClient(ctx)

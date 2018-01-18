@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"strings"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -20,7 +19,7 @@ import (
 //  returned or that the same one is returned on each call.
 func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*pb.FindRefNameResponse, error) {
 	if in.CommitId == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "Bad Request (empty commit sha)")
+		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty commit sha)")
 	}
 
 	ref, err := findRefName(ctx, in.Repository, in.CommitId, string(in.Prefix))
@@ -28,7 +27,7 @@ func (s *server) FindRefName(ctx context.Context, in *pb.FindRefNameRequest) (*p
 		if _, ok := status.FromError(err); ok {
 			return nil, err
 		}
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	return &pb.FindRefNameResponse{Name: []byte(ref)}, nil

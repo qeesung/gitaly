@@ -5,7 +5,6 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -16,7 +15,7 @@ type commitsByMessageSender struct {
 
 func (s *server) CommitsByMessage(in *pb.CommitsByMessageRequest, stream pb.CommitService_CommitsByMessageServer) error {
 	if err := validateCommitsByMessageRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "CommitsByMessage: %v", err)
+		return status.Errorf(codes.InvalidArgument, "CommitsByMessage: %v", err)
 	}
 
 	ctx := stream.Context()
@@ -42,7 +41,7 @@ func (s *server) CommitsByMessage(in *pb.CommitsByMessageRequest, stream pb.Comm
 			if _, ok := status.FromError(err); ok {
 				return err
 			}
-			return grpc.Errorf(codes.Internal, "CommitsByMessage: defaultBranchName: %v", err)
+			return status.Errorf(codes.Internal, "CommitsByMessage: defaultBranchName: %v", err)
 		}
 	}
 

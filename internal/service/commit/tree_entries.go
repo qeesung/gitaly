@@ -10,8 +10,8 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var maxTreeEntries = 1000
@@ -89,7 +89,7 @@ func (s *server) GetTreeEntries(in *pb.GetTreeEntriesRequest, stream pb.CommitSe
 	}).Debug("GetTreeEntries")
 
 	if err := validateGetTreeEntriesRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
+		return status.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
 	}
 
 	revision := string(in.GetRevision())

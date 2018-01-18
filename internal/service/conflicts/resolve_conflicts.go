@@ -5,8 +5,8 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *server) ResolveConflicts(stream pb.ConflictsService_ResolveConflictsServer) error {
@@ -17,11 +17,11 @@ func (s *server) ResolveConflicts(stream pb.ConflictsService_ResolveConflictsSer
 
 	header := firstRequest.GetHeader()
 	if header == nil {
-		return grpc.Errorf(codes.InvalidArgument, "ListConflictFiles: empty ResolveConflictsRequestHeader")
+		return status.Errorf(codes.InvalidArgument, "ListConflictFiles: empty ResolveConflictsRequestHeader")
 	}
 
 	if err = validateResolveConflictsHeader(header); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "ListConflictFiles: %v", err)
+		return status.Errorf(codes.InvalidArgument, "ListConflictFiles: %v", err)
 	}
 
 	ctx := stream.Context()

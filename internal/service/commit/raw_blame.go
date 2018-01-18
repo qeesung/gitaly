@@ -10,14 +10,13 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBlameServer) error {
 	if err := validateRawBlameRequest(in); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "RawBlame: %v", err)
+		return status.Errorf(codes.InvalidArgument, "RawBlame: %v", err)
 	}
 
 	ctx := stream.Context()
@@ -29,7 +28,7 @@ func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBla
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
-		return grpc.Errorf(codes.Internal, "RawBlame: cmd: %v", err)
+		return status.Errorf(codes.Internal, "RawBlame: cmd: %v", err)
 	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
@@ -38,7 +37,7 @@ func (s *server) RawBlame(in *pb.RawBlameRequest, stream pb.CommitService_RawBla
 
 	_, err = io.Copy(sw, cmd)
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "RawBlame: send: %v", err)
+		return status.Errorf(codes.Unavailable, "RawBlame: send: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {

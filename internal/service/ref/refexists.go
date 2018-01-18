@@ -5,7 +5,6 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -32,7 +31,7 @@ func refExists(ctx context.Context, repo *pb.Repository, ref string) (bool, erro
 	}).Debug("refExists")
 
 	if !isValidRefName(ref) {
-		return false, grpc.Errorf(codes.InvalidArgument, "invalid refname")
+		return false, status.Errorf(codes.InvalidArgument, "invalid refname")
 	}
 
 	cmd, err := git.Command(ctx, repo, "show-ref", "--verify", "--quiet", ref)
@@ -40,7 +39,7 @@ func refExists(ctx context.Context, repo *pb.Repository, ref string) (bool, erro
 		if _, ok := status.FromError(err); ok {
 			return false, err
 		}
-		return false, grpc.Errorf(codes.Internal, err.Error())
+		return false, status.Errorf(codes.Internal, err.Error())
 	}
 
 	err = cmd.Wait()
@@ -55,7 +54,7 @@ func refExists(ctx context.Context, repo *pb.Repository, ref string) (bool, erro
 	}
 
 	// This will normally occur when exit code > 1
-	return false, grpc.Errorf(codes.Internal, err.Error())
+	return false, status.Errorf(codes.Internal, err.Error())
 }
 
 func isValidRefName(refName string) bool {

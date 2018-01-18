@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 func Test_generateRavenPacket(t *testing.T) {
@@ -36,7 +36,7 @@ func Test_generateRavenPacket(t *testing.T) {
 			name:        "GRPC error",
 			method:      "/gitaly.RepoService/RepoExists",
 			sinceStart:  500 * time.Millisecond,
-			err:         grpc.Errorf(codes.NotFound, "Something failed"),
+			err:         status.Errorf(codes.NotFound, "Something failed"),
 			wantCode:    codes.NotFound,
 			wantMessage: "rpc error: code = NotFound desc = Something failed",
 			wantCulprit: "RepoService::RepoExists",

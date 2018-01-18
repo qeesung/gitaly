@@ -7,11 +7,11 @@ import (
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-var noNameError = grpc.Errorf(codes.InvalidArgument, "Name: cannot be empty")
+var noNameError = status.Errorf(codes.InvalidArgument, "Name: cannot be empty")
 
 func (s *server) NamespaceExists(ctx context.Context, in *pb.NamespaceExistsRequest) (*pb.NamespaceExistsResponse, error) {
 	storagePath, err := helper.GetStorageByName(in.GetStorageName())
@@ -28,7 +28,7 @@ func (s *server) NamespaceExists(ctx context.Context, in *pb.NamespaceExistsRequ
 	if fi, err := os.Stat(namespacePath(storagePath, in.GetName())); os.IsNotExist(err) {
 		return &pb.NamespaceExistsResponse{Exists: false}, nil
 	} else if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "could not stat the directory: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not stat the directory: %v", err)
 	} else {
 		return &pb.NamespaceExistsResponse{Exists: fi.IsDir()}, nil
 	}
@@ -50,7 +50,7 @@ func (s *server) AddNamespace(ctx context.Context, in *pb.AddNamespaceRequest) (
 	}
 
 	if err = os.MkdirAll(namespacePath(storagePath, in.GetName()), 0770); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "create directory: %v", err)
+		return nil, status.Errorf(codes.Internal, "create directory: %v", err)
 	}
 
 	return &pb.AddNamespaceResponse{}, nil
@@ -63,7 +63,7 @@ func (s *server) RenameNamespace(ctx context.Context, in *pb.RenameNamespaceRequ
 	}
 
 	if in.GetFrom() == "" || in.GetTo() == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "from and to cannot be empty")
+		return nil, status.Errorf(codes.InvalidArgument, "from and to cannot be empty")
 	}
 
 	// No need to check if the from path exists, if it doesn't, we'd later get an
@@ -72,14 +72,14 @@ func (s *server) RenameNamespace(ctx context.Context, in *pb.RenameNamespaceRequ
 	if exists, err := s.NamespaceExists(ctx, toExistsCheck); err != nil {
 		return nil, err
 	} else if exists.Exists {
-		return nil, grpc.Errorf(codes.InvalidArgument, "to directory %s already exists", in.GetTo())
+		return nil, status.Errorf(codes.InvalidArgument, "to directory %s already exists", in.GetTo())
 	}
 
 	err = os.Rename(namespacePath(storagePath, in.GetFrom()), namespacePath(storagePath, in.GetTo()))
 	if _, ok := err.(*os.LinkError); ok {
-		return nil, grpc.Errorf(codes.InvalidArgument, "from directory %s not found", in.GetFrom())
+		return nil, status.Errorf(codes.InvalidArgument, "from directory %s not found", in.GetFrom())
 	} else if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "rename: %v", err)
+		return nil, status.Errorf(codes.Internal, "rename: %v", err)
 	}
 
 	return &pb.RenameNamespaceResponse{}, nil
@@ -99,7 +99,7 @@ func (s *server) RemoveNamespace(ctx context.Context, in *pb.RemoveNamespaceRequ
 	// os.RemoveAll is idempotent by itself
 	// No need to check if the directory exists, or not
 	if err = os.RemoveAll(namespacePath(storagePath, in.GetName())); err != nil {
-		return nil, grpc.Errorf(codes.Internal, "removal: %v", err)
+		return nil, status.Errorf(codes.Internal, "removal: %v", err)
 	}
 	return &pb.RemoveNamespaceResponse{}, nil
 }

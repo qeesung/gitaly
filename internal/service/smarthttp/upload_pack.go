@@ -12,8 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -71,7 +71,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil)
 
 	if err != nil {
-		return grpc.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)
+		return status.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -83,7 +83,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 			deepenCount.Inc()
 			return nil
 		}
-		return grpc.Errorf(codes.Unavailable, "PostUploadPack: %v", err)
+		return status.Errorf(codes.Unavailable, "PostUploadPack: %v", err)
 	}
 
 	return nil
@@ -91,7 +91,7 @@ func (s *server) PostUploadPack(stream pb.SmartHTTPService_PostUploadPackServer)
 
 func validateUploadPackRequest(req *pb.PostUploadPackRequest) error {
 	if req.Data != nil {
-		return grpc.Errorf(codes.InvalidArgument, "PostUploadPack: non-empty Data")
+		return status.Errorf(codes.InvalidArgument, "PostUploadPack: non-empty Data")
 	}
 
 	return nil
