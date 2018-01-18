@@ -22,6 +22,10 @@ func GrpcCode(err error) codes.Code {
 		return codes.OK
 	}
 
-	st := status.FromError(err)
+	st, ok := status.FromError(err)
+	if !ok {
+		return codes.Unknown
+	}
+
 	return st.Code()
 }
