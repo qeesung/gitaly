@@ -17,6 +17,7 @@ func DecorateError(code codes.Code, err error) error {
 	return err
 }
 
+// GrpcCode emulates the old grpc.Code function: it translates errors into codes.Code values.
 func GrpcCode(err error) codes.Code {
 	if err == nil {
 		return codes.OK
