@@ -39,7 +39,7 @@ func TestSuccessfulCreateBundleRequest(t *testing.T) {
 		return response.GetData(), err
 	})
 
-	dstDir, err := tempdir.New(testRepo)
+	dstDir, err := tempdir.New(ctx, testRepo)
 	require.NoError(t, err)
 	dstFile, err := ioutil.TempFile(dstDir, "")
 	require.NoError(t, err)
