@@ -24,8 +24,9 @@ func TestNewSuccess(t *testing.T) {
 	err = ioutil.WriteFile(path.Join(tempDir, "test"), []byte("hello"), 0644)
 	require.NoError(t, err, "write file in tempdir")
 
-	cancel()
+	cancel() // This should trigger async removal of the temporary directory
 
+	// Poll because the directory removal is async
 	for i := 0; i < 100; i++ {
 		_, err = os.Stat(tempDir)
 		if err != nil {
