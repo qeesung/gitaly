@@ -14,20 +14,33 @@ import (
 )
 
 func TestNewSuccess(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 	repo := testhelper.TestRepository()
 
-	tempDir, err := New(repo)
+	tempDir, err := New(ctx, repo)
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
 
 	err = ioutil.WriteFile(path.Join(tempDir, "test"), []byte("hello"), 0644)
 	require.NoError(t, err, "write file in tempdir")
 
-	require.NoError(t, os.RemoveAll(tempDir), "remove tempdir")
+	cancel()
+
+	for i := 0; i < 100; i++ {
+		_, err = os.Stat(tempDir)
+		if err != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	require.True(t, os.IsNotExist(err), "expected directory to have been removed, got error %v", err)
 }
 
 func TestNewFailStorageUnknown(t *testing.T) {
-	_, err := New(&pb.Repository{StorageName: "does-not-exist", RelativePath: "foobar.git"})
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	_, err := New(ctx, &pb.Repository{StorageName: "does-not-exist", RelativePath: "foobar.git"})
 	require.Error(t, err)
 }
 

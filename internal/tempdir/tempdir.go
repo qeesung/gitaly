@@ -1,6 +1,7 @@
 package tempdir
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,7 @@ const (
 
 // New returns the path of a new temporary directory for use with the
 // repository. The caller must os.RemoveAll the directory when done.
-func New(repo *pb.Repository) (string, error) {
+func New(ctx context.Context, repo *pb.Repository) (string, error) {
 	storageDir, err := helper.GetStorageByName(repo.StorageName)
 	if err != nil {
 		return "", err
@@ -36,7 +37,17 @@ func New(repo *pb.Repository) (string, error) {
 		return "", err
 	}
 
-	return ioutil.TempDir(root, "repo")
+	tempDir, err := ioutil.TempDir(root, "repo")
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		<-ctx.Done()
+		os.RemoveAll(tempDir)
+	}()
+
+	return tempDir, nil
 }
 
 func tmpRoot(storageRoot string) string {
