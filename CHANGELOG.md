@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Automatically remove tempdir when context is over
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/555
 - Add automatic tempdir cleaner
   https://gitlab.com/gitlab-org/gitaly/merge_requests/540
 
