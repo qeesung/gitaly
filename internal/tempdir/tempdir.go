@@ -25,7 +25,8 @@ const (
 )
 
 // New returns the path of a new temporary directory for use with the
-// repository. The caller must os.RemoveAll the directory when done.
+// repository. The directory is removed with os.RemoveAll when ctx
+// expires.
 func New(ctx context.Context, repo *pb.Repository) (string, error) {
 	storageDir, err := helper.GetStorageByName(repo.StorageName)
 	if err != nil {
