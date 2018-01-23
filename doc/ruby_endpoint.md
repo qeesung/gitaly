@@ -95,8 +95,10 @@ requests and reroutes it to the go server. In general this is boilerplate code
 where only method- and variable names are different.
 
 Examples:
-- [Stream in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/44d9a7df3ea61229f17a349c627b3c76943a03fe/internal/service/wiki/delete_page.go)
-- [Simple request in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/44d9a7df3ea61229f17a349c627b3c76943a03fe/internal/service/wiki/delete_page.go)
+- Simple: [Simple request in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/delete_page.go)
+- Client Streamed: [Stream in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/write_page.go)
+- Server Streamed: [Simple request in, streamed response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/find_page.go)
+- Bidirectional: No example at this time
 
 ###### Ruby
 
