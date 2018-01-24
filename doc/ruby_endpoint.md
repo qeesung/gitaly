@@ -72,16 +72,20 @@ Than create a merge request and wait for a review.
 
 ##### Gitaly
 
-If the proto changes are merged and released in a new version, the Gitaly server
-can be expanded to handle the new request. First update the version for
-`gitaly-proto`:
+The Gitaly Proto changes need to be updated in Gitaly itself before the server
+can be edited.
 
 ```bash
-# 0.71.0 is the version number in this example
-$ govendor fetch gitlab.com/gitlab-org/gitaly-proto/go@=v0.71.0`
+$ govendor fetch gitlab.com/gitlab-org/gitaly-proto/go^::gitlab.com/<your-username>/gitaly-proto/go@<your-feature-branch>
 
 # change the versions in Gemfile for gitaly-proto
-$ cd ruby
+# cd ruby
+$ vim Gemfile
+# Change:
+# gem 'gitaly-proto', '~> 0.75.0', require: 'gitaly' 
+# To 
+# gem 'gitaly-proto', require: 'gitaly', path: 'path/to/gitaly-proto/ruby'
+
 $ bundle
 ```
 
@@ -107,11 +111,16 @@ The method name should match the name defined by the `gitaly-proto` gem. To be s
 run `bundle open gitaly-proto`. The return value of the method should be an
 instance of the response object.
 
+Finally, to test it manually using the GitLab Development Kit, GitLab must be told
+to use the new Gitaly. First run `make` to compile the project. Than go to the
+`gitlab` directory in your GDK and follow the [instructions on using a custom Gitaly][custom-gitaly].
+
 ### Testing
 
 Tests can be written in Ruby with Rspec. These can be found in `ruby/spec/`. These tests are
 end to end tests, so the Go code is tested too.
 
+[custom-gitaly]: https://docs.gitlab.com/ee/development/gitaly.html#running-tests-with-a-locally-modified-version-of-gitaly
 [gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
 [git-remote]: https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes
 [gitaly]: https://gitlab.com/gitlab-org/gitaly
