@@ -137,6 +137,10 @@ func (w *worker) monitor() {
 }
 
 func (w *worker) waitTerminate(pid int) {
+	// Wait for in-flight requests to reach the worker before we slam the
+	// door in their face.
+	time.Sleep(1 * time.Minute)
+
 	terminationCounter.WithLabelValues(w.Name).Inc()
 
 	log.WithFields(log.Fields{
