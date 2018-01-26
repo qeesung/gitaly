@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Wait between ruby worker removal from pool and graceful shutdown
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/567
 - Register the ServerService
   https://gitlab.com/gitlab-org/gitaly/merge_requests/572
 - Vendor gitlab_git at f8dd398a21b19cb7d56
