@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Vendor gitlab_git at a03ea19332736c36ecb9
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/574
+
 v0.77.0
 
 - Implement RepositoryService.WriteConfig RPC
