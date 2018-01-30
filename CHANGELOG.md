@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Handle binary commit messages better
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/577
 - Vendor gitlab_git at a03ea19332736c36ecb9
   https://gitlab.com/gitlab-org/gitaly/merge_requests/574
 
