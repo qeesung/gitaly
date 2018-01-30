@@ -114,7 +114,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			},
 		},
 		{
-			description: "with non-utf8 message encoding",
+			description: "with non-utf8 message encoding, recognized by Git",
 			revision:    "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
 			commit: &pb.GitCommit{
 				Id:      "c809470461118b7bcab850f6e9a7ca97ac42f8ea",
@@ -131,6 +131,26 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 					Date:  &timestamp.Timestamp{Seconds: 1512132977},
 				},
 				ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
+			},
+		},
+		{
+			description: "with non-utf8 garbage message encoding, not recognized by Git",
+			revision:    "0999bb770f8dc92ab5581cc0b474b3e31a96bf5c",
+			commit: &pb.GitCommit{
+				Id:      "0999bb770f8dc92ab5581cc0b474b3e31a96bf5c",
+				Subject: []byte("Hello\xf0world"),
+				Body:    []byte("Hello\xf0world\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1517328273},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1517328273},
+				},
+				ParentIds: []string{"60ecb67744cb56576c30214ff52294f8ce2def98"},
 			},
 		},
 		{

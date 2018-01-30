@@ -1,10 +1,10 @@
 module GitalyServer
   module Utils
     def gitaly_commit_from_rugged(rugged_commit)
-      message_split = rugged_commit.message.split("\n", 2)
+      message_split = rugged_commit.message.b.split("\n", 2)
       Gitaly::GitCommit.new(
         id: rugged_commit.oid,
-        subject: message_split[0] ? message_split[0].chomp.b : "",
+        subject: message_split[0] ? message_split[0].chomp : "",
         body: rugged_commit.message.b,
         parent_ids: rugged_commit.parent_ids,
         author: gitaly_commit_author_from_rugged(rugged_commit.author),

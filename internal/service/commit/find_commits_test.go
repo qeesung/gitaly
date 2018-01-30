@@ -77,6 +77,25 @@ func TestFindCommitsFields(t *testing.T) {
 				ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
 			},
 		},
+		{
+			id: "0999bb770f8dc92ab5581cc0b474b3e31a96bf5c",
+			commit: &pb.GitCommit{
+				Id:      "0999bb770f8dc92ab5581cc0b474b3e31a96bf5c",
+				Subject: []byte("Hello\xf0world"),
+				Body:    []byte("Hello\xf0world\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1517328273},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1517328273},
+				},
+				ParentIds: []string{"60ecb67744cb56576c30214ff52294f8ce2def98"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
