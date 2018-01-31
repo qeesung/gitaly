@@ -15,9 +15,9 @@ We use our issues board for keeping our work in progress up to date in a single 
 
 Current priorities:
 
-1. Migrate endpoints that block an NFS-free Cloud Native (Kubernetes) demo
-1. Migrate everything so we can eliminate Git disk access from gitlab-ee
-1. Optimize Git access where needed to reach parity with gitlab.com-on-NFS performance
+1. Migrate all endpoints that are needed to make gitlab.com run 100% on Gitaly only (no NFS)
+1. Solve all bugs, performance problems and N+1 queries that prevent us from running gitlab.com 100% on Gitaly
+1. Migrate all the endpoints in gitlab-ee
 
 ## Gitaly Team Process
 
