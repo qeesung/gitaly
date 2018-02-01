@@ -3,21 +3,40 @@
 
 We use our issues board for keeping our work in progress up to date in a single place. Please refer to it to see the current status of the project.
 
-1. [Absorb gitlab_git](https://gitlab.com/gitlab-org/gitlab-ce/issues/24374)
-1. [Milestone 0.1](https://gitlab.com/gitlab-org/gitaly/milestones/2)
-1. [Move to GitRPC model where GitLab is not accessing git directly but through Gitaly](https://gitlab.com/gitlab-org/gitaly/issues/30)
-1. [Remove the git NFS mount points from the worker fleet](https://gitlab.com/gitlab-org/gitaly/issues/27)
-1. [Remove gitlab git from Gitlab Rails](https://gitlab.com/gitlab-org/gitaly/issues/31)
-1. [Move to active-active with Git Ketch, with this we can read from any node, greatly reducing the number of IOPS on the leader.](https://gitlab.com/gitlab-org/gitlab-ee/issues/1381)
-1. [Move to the most performant and cost effective cloud](https://gitlab.com/gitlab-com/infrastructure/issues/934)
+### Version 1.0
+
+Version 1.0 is what we need to run gitlab.com 100% on Gitaly, with no
+NFS access to Git repositories anymore.
+
+We expect that gitlab.com will only use a subset of all endpoints. We
+may choose to defer migrating some endpoints until version 1.1.
+
+Version 1.0 will not be done until all included endpoints are in
+opt-out state, meaning that they are sufficiently performant and
+bug-free.
+
+### Version 1.1
+
+Version 1.1 will conclude the migration project. This means that that
+the only production (i.e. non-test) code in anywhere in GitLab that
+touches Git repositories is in Gitaly. There will be no configuration
+'knowledge' in the main GitLab Rails application anymore on where the
+repositories are stored.
+
+After version 1.1 we will stop vendoring gitlab-git into Gitaly.
+
+### Backlog
+
+Any feature that is not essential to version 1.0 (gitlab.com 100%
+Gitaly) or version 1.1 (0% Git in gitlab-ee) will be deferred until
+after version 1.1.
 
 ### Order of Migration
 
 Current priorities:
 
-1. Migrate all endpoints that are needed to make gitlab.com run 100% on Gitaly only (no NFS)
-1. Solve all bugs, performance problems and N+1 queries that prevent us from running gitlab.com 100% on Gitaly
-1. Migrate all the endpoints in gitlab-ee
+1. Work that gets us closer to version 1.0: issues with the `v1.0` label
+1. Work towards version 1.1: issues with the `v1.1` label
 
 ## Gitaly Team Process
 
