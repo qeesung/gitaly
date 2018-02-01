@@ -6,7 +6,7 @@ module GitalyServer
       bridge_exceptions do
         repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
         wiki = Gitlab::Git::Wiki.new(repo)
-        page_path = request.page_path
+        page_path = set_utf8!(request.page_path)
         commit_details = commit_details_from_gitaly(request.commit_details)
 
         wiki.delete_page(page_path, commit_details)
@@ -24,7 +24,7 @@ module GitalyServer
           call.each_remote_read.with_index do |request, index|
             if index.zero?
               repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-              name = request.name
+              name = set_utf8!(request.name)
               format = request.format
               commit_details = request.commit_details
             end
@@ -50,9 +50,9 @@ module GitalyServer
         wiki = Gitlab::Git::Wiki.new(repo)
 
         page = wiki.page(
-          title: request.title,
+          title: set_utf8!(request.title),
           version: request.revision.presence,
-          dir: request.directory.presence
+          dir: set_utf8!(request.directory).presence
         )
 
         unless page
@@ -129,7 +129,7 @@ module GitalyServer
         repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
         wiki = Gitlab::Git::Wiki.new(repo)
 
-        file = wiki.file(request.name, request.revision.presence)
+        file = wiki.file(set_utf8!(request.name), request.revision.presence)
 
         unless file
           return Enumerator.new do |y|
@@ -140,7 +140,7 @@ module GitalyServer
         response = Gitaly::WikiFindFileResponse.new(
           name: file.name.b,
           mime_type: file.mime_type,
-          path: file.path
+          path: file.path.b
         )
 
         Enumerator.new do |y|
@@ -160,7 +160,7 @@ module GitalyServer
       bridge_exceptions do
         repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
         wiki = Gollum::Wiki.new(repo.path)
-        path = request.page_path
+        path = set_utf8!(request.page_path)
 
         page = wiki.paged(Gollum::Page.canonicalize_filename(path), File.split(path).first)
 
@@ -198,8 +198,8 @@ module GitalyServer
           if index.zero?
             repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
             wiki = Gitlab::Git::Wiki.new(repo)
-            title = request.title
-            page_path = request.page_path
+            title = set_utf8!(request.title)
+            page_path = set_utf8!(request.page_path)
             format = request.format
 
             commit_details = commit_details_from_gitaly(request.commit_details)
@@ -220,9 +220,9 @@ module GitalyServer
         wiki = Gitlab::Git::Wiki.new(repo)
 
         page = wiki.page(
-          title: request.title,
+          title: set_utf8!(request.title),
           version: request.revision.presence,
-          dir: request.directory.presence
+          dir: set_utf8!(request.directory).presence
         )
 
         raise GRPC::NotFound unless page

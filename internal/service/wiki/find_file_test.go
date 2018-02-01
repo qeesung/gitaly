@@ -42,7 +42,7 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 	content, err := ioutil.ReadFile("testdata/clouds.png")
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(path.Join(sandboxWikiPath, "clouds.png"), content, 0777)
+	err = ioutil.WriteFile(path.Join(sandboxWikiPath, "cloúds.png"), content, 0777)
 	require.NoError(t, err)
 
 	// Sandbox wiki is empty, so we create a commit to be used later
@@ -61,9 +61,9 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 	newHeadID := testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath, "show", "--format=format:%H", "--no-patch", "HEAD")
 
 	response := &pb.WikiFindFileResponse{
-		Name:     []byte("clouds.png"),
+		Name:     []byte("cloúds.png"),
 		MimeType: "image/png",
-		Path:     []byte("clouds.png"),
+		Path:     []byte("cloúds.png"),
 	}
 
 	testCases := []struct {
@@ -75,7 +75,7 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 			desc: "name only",
 			request: &pb.WikiFindFileRequest{
 				Repository: sandboxWiki,
-				Name:       []byte("clouds.png"),
+				Name:       []byte("cloúds.png"),
 			},
 			response: response,
 		},
@@ -83,7 +83,7 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 			desc: "name + revision that includes the file",
 			request: &pb.WikiFindFileRequest{
 				Repository: sandboxWiki,
-				Name:       []byte("clouds.png"),
+				Name:       []byte("cloúds.png"),
 				Revision:   newHeadID,
 			},
 			response: response,
@@ -92,7 +92,7 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 			desc: "name + revision that does not include the file",
 			request: &pb.WikiFindFileRequest{
 				Repository: sandboxWiki,
-				Name:       []byte("clouds.png"),
+				Name:       []byte("cloúds.png"),
 				Revision:   oldHeadID,
 			},
 			response: &pb.WikiFindFileResponse{},

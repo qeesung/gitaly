@@ -22,8 +22,8 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	page1Name := "Home Page"
-	page2Name := "Installing/Step 133-b"
+	page1Name := "Home Pagé"
+	page2Name := "Instálling/Step 133-b"
 	page3Name := "Installing/Step 133-c"
 	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
@@ -47,8 +47,8 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				},
 				Title:      []byte(page1Name),
 				Format:     "markdown",
-				UrlPath:    "Home-Page",
-				Path:       []byte("Home-Page.md"),
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
@@ -67,8 +67,8 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				},
 				Title:      []byte(page1Name),
 				Format:     "markdown",
-				UrlPath:    "Home-Page",
-				Path:       []byte("Home-Page.md"),
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
 				Name:       []byte(page1Name),
 				Historical: true,
 			},
@@ -87,7 +87,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 			request: &pb.WikiFindPageRequest{
 				Repository: wikiRepo,
 				Title:      []byte("Step 133-b"),
-				Directory:  []byte("Installing"),
+				Directory:  []byte("Instálling"),
 			},
 			expectedPage: &pb.WikiPage{
 				Version: &pb.WikiPageVersion{
@@ -96,8 +96,8 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				},
 				Title:      []byte("Step 133 b"),
 				Format:     "markdown",
-				UrlPath:    "Installing/Step-133-b",
-				Path:       []byte("Installing/Step-133-b.md"),
+				UrlPath:    "Instálling/Step-133-b",
+				Path:       []byte("Instálling/Step-133-b.md"),
 				Name:       []byte("Step 133 b"),
 				Historical: false,
 			},

@@ -34,7 +34,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 
 	request := &pb.WikiWritePageRequest{
 		Repository: wikiRepo,
-		Name:       []byte("Installing Gitaly"),
+		Name:       []byte("Instálling Gitaly"),
 		Format:     "markdown",
 		CommitDetails: &pb.WikiCommitDetails{
 			Name:    authorName,
@@ -73,7 +73,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 	require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
 	require.Equal(t, message, commit.Subject, "message mismatched")
 
-	pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Installing-Gitaly.md")
+	pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Instálling-Gitaly.md")
 	require.Equal(t, content, pageContent, "mismatched content")
 }
 

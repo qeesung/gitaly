@@ -26,8 +26,8 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 	format := "rdoc"
 	content := bytes.Repeat([]byte("*bold*\n\n"), 10000)
 	expectedContent := bytes.Repeat([]byte("\n<p><strong>bold</strong></p>\n"), 10000)
-	page1Name := "Home Page"
-	page2Name := "Installing/Step 133-b"
+	page1Name := "Home Pagé"
+	page2Name := "Instálling/Step 133-b"
 	page3Name := "Installing/Step 133-c"
 	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, format: format, content: content})
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, format: format, content: content})
@@ -57,7 +57,7 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 			request: &pb.WikiGetFormattedDataRequest{
 				Repository: wikiRepo,
 				Title:      []byte("Step 133-b"),
-				Directory:  []byte("Installing"),
+				Directory:  []byte("Instálling"),
 			},
 		},
 	}

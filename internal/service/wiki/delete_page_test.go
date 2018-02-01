@@ -25,7 +25,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	pageName := "A tale of two wikis"
+	pageName := "A talé of two wikis"
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
 	message := []byte("Delete " + pageName)
@@ -35,7 +35,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 
 	request := &pb.WikiDeletePageRequest{
 		Repository: wikiRepo,
-		PagePath:   []byte("a-tale-of-two-wikis"),
+		PagePath:   []byte("a-talé-of-two-wikis"),
 		CommitDetails: &pb.WikiCommitDetails{
 			Name:    authorName,
 			Email:   authorEmail,

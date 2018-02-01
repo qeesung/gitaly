@@ -26,7 +26,7 @@ func TestSuccessfulWikiUpdatePageRequest(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: "Installing Gitaly", content: []byte("foobar")})
+	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: "Instálling Gitaly", content: []byte("foobar")})
 
 	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
 
@@ -36,8 +36,8 @@ func TestSuccessfulWikiUpdatePageRequest(t *testing.T) {
 
 	request := &pb.WikiUpdatePageRequest{
 		Repository: wikiRepo,
-		PagePath:   []byte("//Installing Gitaly"),
-		Title:      []byte("Installing Gitaly"),
+		PagePath:   []byte("//Instálling Gitaly"),
+		Title:      []byte("Instálling Gitaly"),
 		Format:     "markdown",
 		CommitDetails: &pb.WikiCommitDetails{
 			Name:    authorName,
@@ -76,7 +76,7 @@ func TestSuccessfulWikiUpdatePageRequest(t *testing.T) {
 	require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
 	require.Equal(t, message, commit.Subject, "message mismatched")
 
-	pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Installing-Gitaly.md")
+	pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Instálling-Gitaly.md")
 	require.Equal(t, content, pageContent, "mismatched content")
 }
 

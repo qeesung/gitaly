@@ -26,7 +26,7 @@ func TestWikiGetPageVersionsRequest(t *testing.T) {
 
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
-	pageTitle := "WikiGetPageVersions"
+	pageTitle := "WikiGétPageVersions"
 
 	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
 	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageTitle, content: content})
@@ -62,8 +62,8 @@ func TestWikiGetPageVersionsRequest(t *testing.T) {
 				{
 					Commit: &pb.GitCommit{
 						Id:        strings.TrimRight(string(v2cid), "\n"),
-						Body:      []byte("Update WikiGetPageVersions"),
-						Subject:   []byte("Update WikiGetPageVersions"),
+						Body:      []byte("Update WikiGétPageVersions"),
+						Subject:   []byte("Update WikiGétPageVersions"),
 						Author:    gitAuthor,
 						Committer: gitAuthor,
 						ParentIds: []string{strings.TrimRight(string(v1cid), "\n")},
@@ -73,8 +73,8 @@ func TestWikiGetPageVersionsRequest(t *testing.T) {
 				{
 					Commit: &pb.GitCommit{
 						Id:        strings.TrimRight(string(v1cid), "\n"),
-						Body:      []byte("Add WikiGetPageVersions"),
-						Subject:   []byte("Add WikiGetPageVersions"),
+						Body:      []byte("Add WikiGétPageVersions"),
+						Subject:   []byte("Add WikiGétPageVersions"),
 						Author:    gitAuthor,
 						Committer: gitAuthor,
 					},

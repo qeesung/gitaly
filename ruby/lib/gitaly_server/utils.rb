@@ -28,6 +28,16 @@ module GitalyServer
       )
     end
 
+    def set_utf8!(str)
+      raise ArgumentError unless str.respond_to?(:force_encoding)
+      return str if str.encoding == Encoding::UTF_8 && str.valid_encoding?
+
+      str = str.dup if str.respond_to?(:frozen?) && str.frozen?
+
+      str.force_encoding('UTF-8')
+      str.valid_encoding? ? str : raise(ArgumentError, "string is not valid UTF-8: #{str.inspect}")
+    end
+
     def bridge_exceptions
       yield
     rescue GRPC::BadStatus => e
