@@ -35,8 +35,8 @@ after version 1.1.
 
 Current priorities:
 
-1. Work that gets us closer to version 1.0: issues with the `v1.0` label
-1. Work towards version 1.1: issues with the `v1.1` label
+1. Work that gets us closer to version 1.0: issues with the [v1.0 label](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=v1.0)
+1. Work towards version 1.1: issues with the [v1.1 label](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=v1.1)
 
 ## Gitaly Team Process
 
