@@ -44,7 +44,7 @@ module GitalyServer
       bridge_exceptions do
         begin
           repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-          base = repo.merge_base_commit(*request.revisions)
+          base = repo.merge_base(*request.revisions)
 
           Gitaly::FindMergeBaseResponse.new(base: base.to_s)
         rescue Rugged::ReferenceError
