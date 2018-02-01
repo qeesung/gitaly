@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Vendor gitlab_git at 498d32363aa61d679ff749b
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/579
 - Implement OperationService.UserSquash RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/548
 - Update recommended and minimum git versions to 2.14.3 and 2.9.0 respectively
