@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Update the grpc gem to 1.8.7
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/585
 - Implement GetBlobs RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/582
 - Check info split size in catfile parser
