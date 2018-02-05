@@ -64,6 +64,9 @@ func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	}
 
 	info := strings.Split(infoLine, " ")
+	if len(info) != 3 {
+		return nil, fmt.Errorf("invalid info line: %q", infoLine)
+	}
 
 	objectSizeStr := info[2]
 	objectSize, err := strconv.ParseInt(objectSizeStr, 10, 64)
