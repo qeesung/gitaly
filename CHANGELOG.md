@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Check info split size in catfile parser
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/583
+
 v0.78.0
 
 - Vendor gitlab_git at 498d32363aa61d679ff749b
