@@ -162,11 +162,13 @@ test-vendor-gitaly-ruby:
 sast:
   image: registry.gitlab.com/gitlab-org/gl-sast:latest
   before_script: []
+  stage: test
   variables:
     CONFIDENCE_LEVEL: 2
   script:
     - /app/bin/run ./ruby
+    - mv ruby/gl-sast-report.json ./
   artifacts:
     paths:
-    - ruby/gl-sast-report.json
+    - gl-sast-report.json
 
