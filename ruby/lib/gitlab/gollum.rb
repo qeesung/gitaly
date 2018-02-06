@@ -6,20 +6,20 @@ require "gollum-lib"
 module Gollum
   class Committer
     # Patch for UTF-8 path
-    def method_missing(name, *args)
-      index.send(name, *args)
+    def method_missing(name, *args) # rubocop:disable Style/MethodMissing
+      index.send(name, *args) # rubocop:disable GitlabSecurity/PublicSend
     end
   end
 
   class Wiki
-    def pages(treeish = nil, limit: nil)
+    def pages(treeish=nil, limit: nil)
       tree_list((treeish || @ref), limit: limit)
     end
 
     def tree_list(ref, limit: nil)
       if (sha = @access.ref_to_sha(ref))
         commit = @access.commit(sha)
-        tree_map_for(sha).inject([]) do |list, entry|
+        tree_map_for(sha).inject([]) do |list, entry| # rubocop:disable Style/EachWithObject
           next list unless @page_class.valid_page_name?(entry.name)
 
           list << entry.page(self, commit)
@@ -33,7 +33,7 @@ module Gollum
     end
 
     # Remove if https://github.com/gollum/gollum-lib/pull/292 has been merged
-    def update_page(page, name, format, data, commit = {})
+    def update_page(page, name, format, data, commit={})
       name = name ? ::File.basename(name) : page.name
       format ||= page.format
       dir      = ::File.dirname(page.path)
@@ -60,7 +60,7 @@ module Gollum
     end
 
     # Remove if https://github.com/gollum/gollum-lib/pull/292 has been merged
-    def rename_page(page, rename, commit = {})
+    def rename_page(page, rename, commit={})
       return false if page.nil?
       return false if rename.nil? || rename.empty?
 
@@ -74,7 +74,7 @@ module Gollum
       target_dir                = target_dir.gsub(/^\//, '') # rubocop:disable Style/RegexpLiteral
 
       # if the rename is a NOOP, abort
-      if source_dir == target_dir && source_name == target_name
+      if source_dir == target_dir && source_name == target_name # rubocop:disable Style/IfUnlessModifier
         return false
       end
 
