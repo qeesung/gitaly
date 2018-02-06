@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Vendor gitlab_git at 9483cbab26ad239
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/588
+
 v0.79.0
 
 - Update the activesupport gem
