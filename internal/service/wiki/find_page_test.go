@@ -139,6 +139,94 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 	}
 }
 
+func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	page1Name := "Home Pagé"
+	page2Name := "Óther dir/Home Pagé"
+
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
+	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
+
+	testCases := []struct {
+		desc         string
+		request      *pb.WikiFindPageRequest
+		expectedPage *pb.WikiPage
+	}{
+		{
+			desc: "title only",
+			request: &pb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+			},
+			expectedPage: &pb.WikiPage{
+				Version: &pb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
+				Name:       []byte(page1Name),
+				Historical: false,
+			},
+		},
+		{
+			desc: "title + directory that includes the page",
+			request: &pb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+				Directory:  []byte(""),
+			},
+			expectedPage: &pb.WikiPage{
+				Version: &pb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
+				Name:       []byte(page1Name),
+				Historical: false,
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			c, err := client.WikiFindPage(ctx, testCase.request)
+			require.NoError(t, err)
+
+			expectedPage := testCase.expectedPage
+			receivedPage := readFullWikiPageFromWikiFindPageClient(t, c)
+
+			// require.Equal doesn't display a proper diff when either expected/actual has a field
+			// with large data (RawData in our case), so we compare page attributes and content separately.
+			receivedContent := receivedPage.GetRawData()
+			if receivedPage != nil {
+				receivedPage.RawData = nil
+			}
+
+			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
+			if expectedPage != nil {
+				require.Equal(t, mockPageContent, receivedContent, "mismatched page content")
+			}
+		})
+	}
+}
+
 func TestFailedWikiFindPageDueToValidation(t *testing.T) {
 	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
 	defer cleanupFunc()
