@@ -5,6 +5,11 @@ UNRELEASED
 - Vendor gitlab_git at 9483cbab26ad239
   https://gitlab.com/gitlab-org/gitaly/merge_requests/588
 
+v0.80.0
+
+- Lock protobuf to 3.5.1
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/589
+
 v0.79.0
 
 - Update the activesupport gem
