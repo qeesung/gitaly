@@ -202,7 +202,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
-			content: page2Content,
+			content: page1Content,
 		},
 	}
 
