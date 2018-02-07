@@ -151,11 +151,13 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 
 	page1Name := "page1"
 	page1Content := []byte("content " + page1Name)
-	page2Name := "foo/page1"
+
+	page2Name := "page1"
+	page2Path := "foo/" + page2Name
 	page2Content := []byte("content " + page2Name)
 
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, content: page1Content})
-	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, content: page2Content})
+	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Path, content: page2Content})
 
 	testCases := []struct {
 		desc         string
@@ -164,7 +166,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 		content      []byte
 	}{
 		{
-			desc: "title only",
+			desc: "finding page in root directory by title only",
 			request: &pb.WikiFindPageRequest{
 				Repository: wikiRepo,
 				Title:      []byte(page1Name),
@@ -184,7 +186,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 			content: page1Content,
 		},
 		{
-			desc: "title + directory that includes the page",
+			desc: "finding page in root directory by title + directory that includes the page",
 			request: &pb.WikiFindPageRequest{
 				Repository: wikiRepo,
 				Title:      []byte(page1Name),
@@ -203,6 +205,27 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				Historical: false,
 			},
 			content: page1Content,
+		},
+		{
+			desc: "finding page inside a directory by title + directory that includes the page",
+			request: &pb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page2Name),
+				Directory:  []byte("foo"),
+			},
+			expectedPage: &pb.WikiPage{
+				Version: &pb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page2Name),
+				Format:     "markdown",
+				UrlPath:    "foo/page1",
+				Path:       []byte("foo/page1.md"),
+				Name:       []byte(page2Name),
+				Historical: false,
+			},
+			content: page2Content,
 		},
 	}
 
