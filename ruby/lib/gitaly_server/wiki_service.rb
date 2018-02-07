@@ -52,7 +52,7 @@ module GitalyServer
         page = wiki.page(
           title: set_utf8!(request.title),
           version: request.revision.presence,
-          dir: set_utf8!(request.directory).presence
+          dir: set_utf8!(request.directory)
         )
 
         unless page

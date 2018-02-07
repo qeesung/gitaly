@@ -149,8 +149,8 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	page1Name := "Home Pagé"
-	page2Name := "Óther dir/Home Pagé"
+	page1Name := "page1"
+	page2Name := "foo/page1"
 
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
 	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
@@ -173,8 +173,8 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				},
 				Title:      []byte(page1Name),
 				Format:     "markdown",
-				UrlPath:    "Home-Pagé",
-				Path:       []byte("Home-Pagé.md"),
+				UrlPath:    "page1",
+				Path:       []byte("page1.md"),
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
@@ -193,8 +193,8 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				},
 				Title:      []byte(page1Name),
 				Format:     "markdown",
-				UrlPath:    "Home-Pagé",
-				Path:       []byte("Home-Pagé.md"),
+				UrlPath:    "page1",
+				Path:       []byte("page1.md"),
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
@@ -218,6 +218,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 			if receivedPage != nil {
 				receivedPage.RawData = nil
 			}
+
 
 			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
 			if expectedPage != nil {
