@@ -150,15 +150,18 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 	defer conn.Close()
 
 	page1Name := "page1"
+	page1Content := []byte("content " + page1Name)
 	page2Name := "foo/page1"
+	page2Content := []byte("content " + page2Name)
 
-	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
-	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, content: page1Content})
+	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, content: page2Content})
 
 	testCases := []struct {
 		desc         string
 		request      *pb.WikiFindPageRequest
 		expectedPage *pb.WikiPage
+		content      []byte
 	}{
 		{
 			desc: "title only",
@@ -178,6 +181,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
+			content: page1Content,
 		},
 		{
 			desc: "title + directory that includes the page",
@@ -198,6 +202,7 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
+			content: page2Content,
 		},
 	}
 
@@ -219,10 +224,9 @@ func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 				receivedPage.RawData = nil
 			}
 
-
 			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
 			if expectedPage != nil {
-				require.Equal(t, mockPageContent, receivedContent, "mismatched page content")
+				require.Equal(t, testCase.content, receivedContent, "mismatched page content")
 			}
 		})
 	}
