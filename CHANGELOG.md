@@ -1,9 +1,12 @@
 # Gitaly changelog
 
-[v0.82.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.82.0)
+UNRELEASED
 
 - Delete old lock files before performing Garbage Collection
   https://gitlab.com/gitlab-org/gitaly/merge_requests/587
+
+[v0.82.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.82.0)
+
 - Implement RepositoryService.IsSquashInProgress RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/593
 - Added test to prevent wiki page duplication
