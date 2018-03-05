@@ -172,12 +172,7 @@ cover: prepare-tests $(GOCOVMERGE)
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "$(COVERAGE_DIR)"
 	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
-	echo $(LOCAL_PACKAGES) > $(TARGET_DIR)/local_packages
-	for MOD in `cat $(TARGET_DIR)/local_packages`; do \
-		go test -coverpkg=`cat $(TARGET_DIR)/local_packages |tr " " "," ` \
-			-coverprofile=$(COVERAGE_DIR)/unit-`echo $$MOD|tr "/" "_"`.out \
-			$$MOD 2>&1 | grep -v "no packages being tested depend on"; \
-	done
+	go run _support/test-cover-parallel.go $(COVERAGE_DIR) $(LOCAL_PACKAGES)
 	$(GOCOVMERGE) $(COVERAGE_DIR)/*.out > "$(COVERAGE_DIR)/all.merged"
 	go tool cover -html  "$(COVERAGE_DIR)/all.merged" -o "$(COVERAGE_DIR)/all.html"
 	@echo ""
