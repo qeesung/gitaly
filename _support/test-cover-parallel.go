@@ -26,9 +26,12 @@ func main() {
 	buildDeps := exec.Command("go", append([]string{"test", "-i"}, packages...)...)
 	buildDeps.Stdout = os.Stdout
 	buildDeps.Stderr = os.Stderr
+	start := time.Now()
 	if err := buildDeps.Run(); err != nil {
+		log.Printf("command failed: %s", strings.Join(buildDeps.Args, " "))
 		log.Fatal(err)
 	}
+	log.Printf("go test -i\t%.3fs", time.Since(start).Seconds())
 
 	numWorkers := 2
 	packageChan := make(chan string)
