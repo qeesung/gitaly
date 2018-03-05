@@ -61,8 +61,7 @@ def update_changelog(version_string)
   if version_index.nil?
     abort "no #{unreleased_line.inspect} line found in #{changelog}"
   end
-
-  content[version_index] = "[#{version_string}](https://gitlab.com/gitlab-org/gitaly/tags/#{version_string})\n"
+  content[version_index] = version_string + "\n"
   IO.write(changelog, content.join)
   run!(%W[git add #{changelog}])
 end
