@@ -13,6 +13,11 @@ type Ruby struct {
 	GracefulRestartTimeoutToml duration `toml:"graceful_restart_timeout"`
 	RestartDelay               time.Duration
 	RestartDelayToml           duration `toml:"restart_delay"`
+
+	// We might want numWorkers to be configurable in the future. But at the
+	// moment we only support 'pick first' balancing so there is no point in
+	// having more than 2 workers yet.
+	NumWorkers int
 }
 
 // This type is a trick to let our TOML library parse durations from strings.
@@ -45,6 +50,8 @@ func ConfigureRuby() error {
 	if len(Config.Ruby.Dir) == 0 {
 		return fmt.Errorf("gitaly-ruby.dir is not set")
 	}
+
+	Config.Ruby.NumWorkers = 2
 
 	return validateIsDirectory(Config.Ruby.Dir, "gitaly-ruby.dir")
 }

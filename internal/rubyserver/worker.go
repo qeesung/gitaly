@@ -13,13 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	// We might want numWorkers to be configurable in the future. But at the
-	// moment we only support 'pick first' balancing so there is no point in
-	// having more than 2 workers yet.
-	numWorkers = 2
-)
-
 var (
 	terminationCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
