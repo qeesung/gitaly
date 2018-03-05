@@ -24,7 +24,14 @@ func main() {
 	packages := os.Args[2:]
 	baseArgs := []string{"go", "test", fmt.Sprintf("-coverpkg=%s", strings.Join(packages, ","))}
 
-	numWorkers = 2
+	buildDeps := exec.Command("go", append([]string{"test", "-i"}, packages...)...)
+	buildDeps.Stdout = os.Stdout
+	buildDeps.Stderr = os.Stderr
+	if err := buildDeps.Run(); err != nil {
+		log.Fatal(err)
+	}
+
+	numWorkers := 2
 	if maxprocs := runtime.GOMAXPROCS(0); maxprocs < numWorkers {
 		numWorkers = maxprocs
 	}
