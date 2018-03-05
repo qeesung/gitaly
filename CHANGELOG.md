@@ -1,18 +1,18 @@
 # Gitaly changelog
 
-[v0.88.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.88.0)
+v0.88.0
 
 - Add support for all field to {Find,Count}Commits RPCs
   https://gitlab.com/gitlab-org/gitaly/merge_requests/611
 - Vendor gitlab_git at de454de9b10f
   https://gitlab.com/gitlab-org/gitaly/merge_requests/611
 
-[v0.87.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.87.0)
+v0.87.0
 
 - Implement GetCommitSignatures RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/609
 
-[v0.86.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.86.0)
+v0.86.0
 
 - Implement BlobService.GetAllLfsPointers
   https://gitlab.com/gitlab-org/gitaly/merge_requests/562
@@ -21,24 +21,24 @@
 - Use gitaly-proto v0.86.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/606
 
-[v0.85.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.85.0)
+v0.85.0
 
 - Implement recursive tree entries fetching
   https://gitlab.com/gitlab-org/gitaly/merge_requests/600
 
-[v0.84.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.84.0)
+v0.84.0
 
 - Send gitaly-ruby exceptions to Sentry
   https://gitlab.com/gitlab-org/gitaly/merge_requests/598
 - Detect License type for repositories
   https://gitlab.com/gitlab-org/gitaly/merge_requests/601
 
-[v0.83.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.83.0)
+v0.83.0
 
 - Delete old lock files before performing Garbage Collection
   https://gitlab.com/gitlab-org/gitaly/merge_requests/587
 
-[v0.82.0](https://gitlab.com/gitlab-org/gitaly/tags/v0.82.0)
+v0.82.0
 
 - Implement RepositoryService.IsSquashInProgress RPC
   https://gitlab.com/gitlab-org/gitaly/merge_requests/593
