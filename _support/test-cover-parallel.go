@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -32,11 +31,6 @@ func main() {
 	}
 
 	numWorkers := 2
-	if maxprocs := runtime.GOMAXPROCS(0); maxprocs < numWorkers {
-		numWorkers = maxprocs
-	}
-	log.Printf("running 'go test -cover' in parallel with %d processes", numWorkers)
-
 	packageChan := make(chan string)
 	wg := &sync.WaitGroup{}
 	for i := 0; i < numWorkers; i++ {
