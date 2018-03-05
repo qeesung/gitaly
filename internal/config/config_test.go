@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -377,6 +378,30 @@ func TestConfigureRuby(t *testing.T) {
 			} else {
 				require.Error(t, err)
 			}
+		})
+	}
+}
+
+func TestConfigureRubyNumWorkers(t *testing.T) {
+	defer func(oldRuby Ruby) {
+		Config.Ruby = oldRuby
+	}(Config.Ruby)
+
+	testCases := []struct {
+		in, out int
+	}{
+		{in: -1, out: 2},
+		{in: 0, out: 2},
+		{in: 1, out: 2},
+		{in: 2, out: 2},
+		{in: 3, out: 3},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%+v", tc), func(t *testing.T) {
+			Config.Ruby = Ruby{Dir: "/", NumWorkers: tc.in}
+			require.NoError(t, ConfigureRuby())
+			require.Equal(t, tc.out, Config.Ruby.NumWorkers)
 		})
 	}
 }
