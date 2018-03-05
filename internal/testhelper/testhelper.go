@@ -261,9 +261,10 @@ func ConfigureRuby() {
 		log.Fatal("validate ruby config: %v", err)
 	}
 
-	// This speeds up test boot-up. The reason we use more than 1 worker is
-	// to handle memory leaks, the tests don't run for long enough to hit
-	// those memory leaks anyway.
+	// This speeds up test boot-up. The reason we use more than 1 worker in
+	// production is to handle memory leaks, but the tests don't run for long
+	// enough to hit those memory leaks anyway. Most tests also run faster
+	// than the minimum delay before a ruby worker failover can even happen.
 	config.Config.Ruby.NumWorkers = 1
 }
 
