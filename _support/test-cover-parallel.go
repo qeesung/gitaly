@@ -39,11 +39,21 @@ func main() {
 		}()
 	}
 
+	packageMap := make(map[string]bool, len(packages))
 	for _, pkg := range packages {
+		packageMap[pkg] = true
+	}
+
+	for _, pkg := range packages {
+		deps, err := depsForPackage(pkg, packageMap)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		args := []string{
 			"go",
 			"test",
-			fmt.Sprintf("-coverpkg=%s", strings.Join(packages, ",")),
+			fmt.Sprintf("-coverpkg=%s", strings.Join(deps, ",")),
 			fmt.Sprintf("-coverprofile=%s/unit-%s.out", outDir, strings.Replace(pkg, "/", "_", -1)),
 			pkg,
 		}
@@ -53,6 +63,22 @@ func main() {
 	close(cmdChan)
 
 	wg.Wait()
+}
+
+func depsForPackage(pkg string, packageMap map[string]bool) ([]string, error) {
+	depsOut, err := exec.Command("go", "list", "-f", `{{ join .Deps "\n" }}`, pkg).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	deps := []string{pkg}
+	for _, d := range strings.Split(string(depsOut), "\n") {
+		if packageMap[d] {
+			deps = append(deps, d)
+		}
+	}
+
+	return deps, nil
 }
 
 func buildDependentPackages(packages []string) error {
