@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Bump github-linguist to 5.3.3
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/613
+
 v0.88.0
 
 - Add support for all field to {Find,Count}Commits RPCs
