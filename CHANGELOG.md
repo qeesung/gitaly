@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Use only 1 gitaly-ruby process in test
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/615
 - Bump github-linguist to 5.3.3
   https://gitlab.com/gitlab-org/gitaly/merge_requests/613
 
