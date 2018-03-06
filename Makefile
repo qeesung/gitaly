@@ -8,7 +8,6 @@ PKG_BUILD_DIR := $(TARGET_DIR)/src/$(PKG)
 export TEST_REPO_STORAGE_PATH := $(BUILD_DIR)/internal/testhelper/testdata/data
 TEST_REPO := $(TEST_REPO_STORAGE_PATH)/gitlab-test.git
 INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
-COVERAGE_DIR := $(TARGET_DIR)/cover
 ASSEMBLY_ROOT := $(TARGET_DIR)/assembly
 export GITALY_TEST_RUBY_DIR := $(BUILD_DIR)/ruby
 BUNDLE_FLAGS ?= --deployment
@@ -35,7 +34,6 @@ COMMANDS = $(subst $(PKG)/cmd/,,$(COMMAND_PACKAGES))
 # Developer Tools
 GOVENDOR = $(BIN_BUILD_DIR)/govendor
 GOLINT = $(BIN_BUILD_DIR)/golint
-GOCOVMERGE = $(BIN_BUILD_DIR)/gocovmerge
 GOIMPORTS = $(BIN_BUILD_DIR)/goimports
 MEGACHECK = $(BIN_BUILD_DIR)/megacheck
 
@@ -167,24 +165,6 @@ codeclimate-report:
 clean:
 	rm -rf $(TARGET_DIR) $(TEST_REPO) $(TEST_REPO_STORAGE_PATH) ./internal/service/ssh/gitaly-*-pack .ruby-bundle
 
-.PHONY: cover
-cover: prepare-tests $(GOCOVMERGE)
-	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
-	mkdir -p "$(COVERAGE_DIR)"
-	rm -f $(COVERAGE_DIR)/*.out "$(COVERAGE_DIR)/all.merged" "$(COVERAGE_DIR)/all.html"
-	echo $(LOCAL_PACKAGES) > $(TARGET_DIR)/local_packages
-	for MOD in `cat $(TARGET_DIR)/local_packages`; do \
-		go test -coverpkg=`cat $(TARGET_DIR)/local_packages |tr " " "," ` \
-			-coverprofile=$(COVERAGE_DIR)/unit-`echo $$MOD|tr "/" "_"`.out \
-			$$MOD 2>&1 | grep -v "no packages being tested depend on"; \
-	done
-	$(GOCOVMERGE) $(COVERAGE_DIR)/*.out > "$(COVERAGE_DIR)/all.merged"
-	go tool cover -html  "$(COVERAGE_DIR)/all.merged" -o "$(COVERAGE_DIR)/all.html"
-	@echo ""
-	@echo "=====> Total test coverage: <====="
-	@echo ""
-	@go tool cover -func "$(COVERAGE_DIR)/all.merged"
-
 # Install govendor
 $(GOVENDOR): $(TARGET_SETUP)
 	go get -v github.com/kardianos/govendor
@@ -192,10 +172,6 @@ $(GOVENDOR): $(TARGET_SETUP)
 # Install golint
 $(GOLINT): $(TARGET_SETUP)
 	go get -v github.com/golang/lint/golint
-
-# Install gocovmerge
-$(GOCOVMERGE): $(TARGET_SETUP)
-	go get -v github.com/wadey/gocovmerge
 
 # Install goimports
 $(GOIMPORTS): $(TARGET_SETUP)

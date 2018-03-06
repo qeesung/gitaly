@@ -113,15 +113,13 @@ test:go1.10-git2.16:
 
 cover:
   <<: *ruby_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.10-git-2.16
   stage: test
   script:
-    - make cover
-  after_script:
-    - bash <(curl -s https://codecov.io/bash) -t "${CODECOV_TOKEN}" -f _build/cover/all.merged -F unittests
-  artifacts:
-    paths:
-      - _build/cover/all.html
-    expire_in: 1 week
+    - make prepare-tests
+    - go test ./... -v -coverprofile .testCoverage.txt
+  coverage: '/^coverage:\s(\d+(?:\.\d+)?%)/'
+
 
 # Create a code quality report
 codequality:
