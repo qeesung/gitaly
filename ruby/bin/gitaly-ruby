@@ -43,6 +43,7 @@ def main
 
   trap('TERM') { signal_thread.kill }
   start_parent_watcher(ppid_i, signal_thread)
+  start_gc_thread
 
   run_thread = Thread.new do
     s.run
@@ -64,6 +65,15 @@ def start_parent_watcher(original_ppid, signal_thread)
       end
 
       sleep 1
+    end
+  end
+end
+
+def start_gc_thread
+  Thread.new do
+    loop do
+      GC.start
+      sleep 60
     end
   end
 end
