@@ -129,6 +129,7 @@ func TestLimiter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gauge := &counter{}
+			start := make(chan struct{})
 
 			limiter := NewLimiter(tt.maxConcurrency, gauge)
 			wg := sync.WaitGroup{}
@@ -139,6 +140,7 @@ func TestLimiter(t *testing.T) {
 			// concurrently.
 			for c := 0; c < tt.concurrency; c++ {
 				go func(counter int) {
+					<-start
 					for i := 0; i < tt.iterations; i++ {
 						lockKey := strconv.Itoa((i ^ counter) % tt.buckets)
 
@@ -160,7 +162,9 @@ func TestLimiter(t *testing.T) {
 				}(c)
 			}
 
+			close(start)
 			wg.Wait()
+
 			assert.True(t, tt.wantMaxRange[0] <= gauge.max && gauge.max <= tt.wantMaxRange[1], "Expected maximum concurrency to be in the range [%v,%v] but got %v", tt.wantMaxRange[0], tt.wantMaxRange[1], gauge.max)
 			assert.Equal(t, 0, gauge.current)
 			assert.Equal(t, 0, limiter.countSemaphores())
