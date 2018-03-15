@@ -64,12 +64,15 @@ func (c *counter) Exit(ctx context.Context) {
 
 func TestLimiter(t *testing.T) {
 	tests := []struct {
-		name             string
-		concurrency      int
-		maxConcurrency   int
-		iterations       int
-		delay            time.Duration
-		buckets          int
+		name           string
+		concurrency    int
+		maxConcurrency int
+		iterations     int
+		delay          time.Duration
+		buckets        int
+		// The reason we test for the maximum to be in a range, instead of just
+		// being less than an upper bound, is to guard against pathological
+		// limiting where concurrency gets limited to just 1.
 		wantMaxRange     []int
 		wantMonitorCalls bool
 	}{
@@ -117,7 +120,7 @@ func TestLimiter(t *testing.T) {
 			name:           "wide-spread",
 			concurrency:    1000,
 			maxConcurrency: 2,
-			delay:          100 * time.Nanosecond,
+			delay:          5 * time.Millisecond,
 			iterations:     40,
 			buckets:        50,
 			// Intentionally leaving the max (very) low because CI runners may
@@ -125,9 +128,7 @@ func TestLimiter(t *testing.T) {
 			// test to make assertions about how the Go scheduler works, we just want
 			// to see that we don't exceed the limit (100) by more than a small
 			// amount, hence 102.
-			//
-			// Maybe we should just have a maximum, and forget about the lower bound.
-			wantMaxRange:     []int{2, 102},
+			wantMaxRange:     []int{100, 102},
 			wantMonitorCalls: true,
 		},
 	}
