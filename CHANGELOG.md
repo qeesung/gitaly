@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Force gitaly-ruby to run Ruby garbage collection
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/631
 - Rewrite RepositoryService.HasLocalBranches in Go
   https://gitlab.com/gitlab-org/gitaly/merge_requests/629
 - Rewrite RepositoryService.MergeBase in Go
