@@ -120,9 +120,14 @@ func TestLimiter(t *testing.T) {
 			delay:          100 * time.Nanosecond,
 			iterations:     40,
 			buckets:        50,
-			// Intentionally leaving the max low because CI runners
-			// may struggle to do 100 things in parallel
-			wantMaxRange:     []int{50, 102},
+			// Intentionally leaving the max (very) low because CI runners may
+			// struggle to do 100 things in parallel. It is not the point of this
+			// test to make assertions about how the Go scheduler works, we just want
+			// to see that we don't exceed the limit (100) by more than a small
+			// amount, hence 102.
+			//
+			// Maybe we should just have a maximum, and forget about the lower bound.
+			wantMaxRange:     []int{2, 102},
 			wantMonitorCalls: true,
 		},
 	}
