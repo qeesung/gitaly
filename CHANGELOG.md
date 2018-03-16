@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Vendor gitlab_git at 79aa00321063da
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/633
+
 v0.91.0
 
 - Rewrite RepositoryService.HasLocalBranches in Go
