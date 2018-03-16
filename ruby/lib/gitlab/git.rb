@@ -85,6 +85,12 @@ module Gitlab
       def relative_object_directories
         []
       end
+
+      # This method was prematurely deleted from gitlab-ce. TODO: implement it in Go.
+      def fsck
+        msg, status = run_git(%W[--git-dir=#{path} fsck], nice: true)
+        raise GitError.new("Could not fsck repository: #{msg}") unless status.zero?
+      end
     end
 
     class GitlabProjects
