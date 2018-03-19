@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Log process PID in 'spawn complete' entry
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/637
 - Vendor gitlab_git at 79aa00321063da
   https://gitlab.com/gitlab-org/gitaly/merge_requests/633
 
