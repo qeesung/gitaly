@@ -234,6 +234,7 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 	realTime := time.Since(c.startTime)
 
 	entry := grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"pid":                    cmd.ProcessState.Pid(),
 		"path":                   cmd.Path,
 		"args":                   cmd.Args,
 		"command.exitCode":       exitCode,
