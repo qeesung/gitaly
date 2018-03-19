@@ -2,8 +2,10 @@ package commit
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	pathPkg "path"
 
 	"google.golang.org/grpc/codes"
@@ -25,6 +27,8 @@ func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 	return treeInfo, nil
 }
 
+const oidSize = 20
+
 func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
 	var entries []*pb.TreeEntry
 	var modeBytes, filename []byte
@@ -32,38 +36,36 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 
 	// Non-existing tree, return empty entry list
 	if len(treeInfo.Oid) == 0 {
-		return entries, nil
+		return nil, nil
 	}
 
-	oidBytes := make([]byte, 20)
-	bytesLeft := treeInfo.Size
+	treeData := &bytes.Buffer{}
+	if _, err := io.CopyN(treeData, stdout, treeInfo.Size); err != nil {
+		return nil, fmt.Errorf("read tree data: %v", err)
+	}
 
-	for bytesLeft > 0 {
-		modeBytes, err = stdout.ReadBytes(' ')
+	// Extra byte for the linefeed at the end
+	if _, err := io.CopyN(ioutil.Discard, stdout, 1); err != nil {
+		return nil, fmt.Errorf("stdout discard: %v", err)
+	}
+
+	oidBytes := make([]byte, oidSize)
+	for treeData.Len() > 0 {
+		modeBytes, err = treeData.ReadBytes(' ')
 		if err != nil || len(modeBytes) <= 1 {
 			return nil, fmt.Errorf("read entry mode: %v", err)
 		}
-		bytesLeft -= int64(len(modeBytes))
 		modeBytes = modeBytes[:len(modeBytes)-1]
 
-		filename, err = stdout.ReadBytes('\x00')
+		filename, err = treeData.ReadBytes('\x00')
 		if err != nil || len(filename) <= 1 {
 			return nil, fmt.Errorf("read entry path: %v", err)
 		}
-		bytesLeft -= int64(len(filename))
 		filename = filename[:len(filename)-1]
 
-		// bufio.Reader.Read isn't guaranteed to read len(p) since bytes
-		// are taken from at most one Read on the underlying Reader.
-		// We call Peek to make sure we have enough bytes buffered to read into oidBytes.
-		if _, err := stdout.Peek(len(oidBytes)); err != nil {
-			return nil, fmt.Errorf("peek entry oid: %v", err)
+		if n, _ := treeData.Read(oidBytes); n != oidSize {
+			return nil, fmt.Errorf("read entry oid: short read: %d bytes", n)
 		}
-		if n, err := stdout.Read(oidBytes); n != 20 || err != nil {
-			return nil, fmt.Errorf("read entry oid: %v", err)
-		}
-
-		bytesLeft -= int64(len(oidBytes))
 
 		treeEntry, err := newTreeEntry(commitOid, rootOid, rootPath, filename, oidBytes, modeBytes)
 		if err != nil {
@@ -71,11 +73,6 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 		}
 
 		entries = append(entries, treeEntry)
-	}
-
-	// Extra byte for a linefeed at the end
-	if _, err := stdout.Discard(int(bytesLeft + 1)); err != nil {
-		return nil, fmt.Errorf("stdout discard: %v", err)
 	}
 
 	return entries, nil
