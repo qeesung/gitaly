@@ -57,7 +57,7 @@ func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive 
 	if len(rootOid) == 0 {
 		rootTreeInfo, err := c.Info(revision + "^{tree}")
 		if err != nil {
-			if _, ok := err.(catfile.NotFoundError); ok {
+			if catfile.IsNotFound(err) {
 				return nil, nil
 			}
 
@@ -69,7 +69,7 @@ func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive 
 
 	treeEntryInfo, err := c.Info(fmt.Sprintf("%s^{tree}:%s", revision, path))
 	if err != nil {
-		if _, ok := err.(catfile.NotFoundError); ok {
+		if catfile.IsNotFound(err) {
 			return nil, nil
 		}
 

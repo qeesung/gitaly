@@ -60,13 +60,14 @@ func CatFile(ctx context.Context, repo *pb.Repository, handler Handler) error {
 // ParseObjectInfo reads and parses one header line from `git cat-file --batch`
 func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	oi, err := parseObjectInfo(stdout)
-	if _, ok := err.(NotFoundError); ok {
+	if IsNotFound(err) {
 		return &ObjectInfo{}, nil
 	}
 
 	return oi, err
 }
 
+// NotFoundError is returned when requesting an object that does not exist.
 type NotFoundError struct{ error }
 
 func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
@@ -97,12 +98,21 @@ func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	}, nil
 }
 
+// C abstracts 'git cat-file --batch'. It is not thread-safe.
 type C struct {
 	batchCheckIn  io.Writer
 	batchCheckOut *bufio.Reader
 	*catfileBatch
 }
 
+// IsNotFound tests whether err has type NotFoundError.
+func IsNotFound(err error) bool {
+	_, ok := err.(NotFoundError)
+	return ok
+}
+
+// Info returns an ObjectInfo if spec exists. If spec does not exist the
+// error is of type NotFoundError.
 func (c *C) Info(spec string) (*ObjectInfo, error) {
 	if _, err := fmt.Fprintln(c.batchCheckIn, spec); err != nil {
 		return nil, err
@@ -111,6 +121,7 @@ func (c *C) Info(spec string) (*ObjectInfo, error) {
 	return parseObjectInfo(c.batchCheckOut)
 }
 
+// Tree returns a raw tree object.
 func (c *C) Tree(treeOid string) ([]byte, error) {
 	r, err := c.catfileBatch.reader(treeOid, "tree")
 	if err != nil {
@@ -120,6 +131,8 @@ func (c *C) Tree(treeOid string) ([]byte, error) {
 	return ioutil.ReadAll(r)
 }
 
+// Blob returns a reader for the requested blob. The entire blob must be
+// read before any new objects can be requested from this C instance.
 func (c *C) Blob(blobOid string) (io.Reader, error) {
 	return c.catfileBatch.reader(blobOid, "blob")
 }
@@ -136,7 +149,7 @@ func (cb *catfileBatch) reader(spec string, expectedType string) (io.Reader, err
 		if _, err := cb.r.ReadByte(); err != nil {
 			return nil, err
 		}
-		cb.n -= 1
+		cb.n--
 	}
 
 	if cb.n != 0 {
@@ -189,6 +202,7 @@ func (cbr *catfileBatchReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// New returns a new C instance. The C instance is not thread-safe.
 func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 	repoPath, env, err := alternates.PathAndEnv(repo)
 	if err != nil {

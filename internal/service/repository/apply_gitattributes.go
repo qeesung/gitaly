@@ -16,18 +16,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func isNotFound(err error) bool {
-	_, ok := err.(catfile.NotFoundError)
-	return ok
-}
-
 func applyGitattributes(c *catfile.C, repoPath string, revision []byte) error {
 	infoPath := path.Join(repoPath, "info")
 	attributesPath := path.Join(infoPath, "attributes")
 
 	revisionInfo, err := c.Info(string(revision))
 	if err != nil {
-		if isNotFound(err) {
+		if catfile.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "Revision doesn't exist")
 		}
 
@@ -35,11 +30,11 @@ func applyGitattributes(c *catfile.C, repoPath string, revision []byte) error {
 	}
 
 	blobInfo, err := c.Info(fmt.Sprintf("%s:.gitattributes", revision))
-	if err != nil && !isNotFound(err) {
+	if err != nil && !catfile.IsNotFound(err) {
 		return err
 	}
 
-	if isNotFound(err) || blobInfo.Type != "blob" {
+	if catfile.IsNotFound(err) || blobInfo.Type != "blob" {
 		// Remove info/attributes file if there's no .gitattributes file
 		if err := os.Remove(attributesPath); err != nil && !os.IsNotExist(err) {
 			return err
