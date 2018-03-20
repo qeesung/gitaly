@@ -26,7 +26,15 @@ func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "TreeEntry: %v", err)
 	}
-	return treeInfo, nil
+
+	if treeInfo.Type == "tree" || len(treeInfo.Oid) == 0 {
+		return treeInfo, nil
+	}
+
+	// If we want to avoid this copy we need to start using a 'git cat-file
+	// --batch-check' process.
+	_, err = io.CopyN(ioutil.Discard, stdout, treeInfo.Size+1)
+	return &catfile.ObjectInfo{}, err
 }
 
 const oidSize = 20
@@ -92,9 +100,8 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, l
 			return nil, nil
 		}
 
-		// Ideally we'd use a 'git cat-file --batch-check' process so we don't
-		// have to discard this data. But tree objects are small so it is not a
-		// problem.
+		// If we want to avoid this copy we need to start using a 'git cat-file
+		// --batch-check' process.
 		if _, err := io.CopyN(ioutil.Discard, stdout, rootTreeInfo.Size+1); err != nil {
 			return nil, err
 		}
@@ -106,7 +113,7 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, l
 		return nil, err
 	}
 
-	if treeEntryInfo.Type != "tree" {
+	if len(treeEntryInfo.Oid) == 0 {
 		return nil, nil
 	}
 
