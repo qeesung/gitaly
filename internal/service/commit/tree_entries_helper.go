@@ -1,41 +1,14 @@
 package commit
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	pathPkg "path"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 )
-
-// if getTreeInfo returns a struct treeInfo with treeInfo.Oid != "", then
-// the caller must read (treeInfo.Size + 1) bytes from stdout afterwards
-func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (*catfile.ObjectInfo, error) {
-	if _, err := fmt.Fprintf(stdin, "%s^{tree}:%s\n", revision, path); err != nil {
-		return nil, status.Errorf(codes.Internal, "TreeEntry: stdin write: %v", err)
-	}
-
-	treeInfo, err := catfile.ParseObjectInfo(stdout)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "TreeEntry: %v", err)
-	}
-
-	if treeInfo.Type == "tree" || len(treeInfo.Oid) == 0 {
-		return treeInfo, nil
-	}
-
-	// If we want to avoid this copy we need to start using a 'git cat-file
-	// --batch-check' process.
-	_, err = io.CopyN(ioutil.Discard, stdout, treeInfo.Size+1)
-	return &catfile.ObjectInfo{}, err
-}
 
 const oidSize = 20
 
