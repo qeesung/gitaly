@@ -45,7 +45,7 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 	}
 
 	var entries []*pb.TreeEntry
-	oidBytes := make([]byte, oidSize)
+	oidBuf := &bytes.Buffer{}
 	for treeData.Len() > 0 {
 		modeBytes, err := treeData.ReadBytes(' ')
 		if err != nil || len(modeBytes) <= 1 {
@@ -59,11 +59,12 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 		}
 		filename = filename[:len(filename)-1]
 
-		if n, _ := treeData.Read(oidBytes); n != oidSize {
-			return nil, fmt.Errorf("read entry oid: short read: %d bytes", n)
+		oidBuf.Reset()
+		if _, err := io.CopyN(oidBuf, treeData, oidSize); err != nil {
+			return nil, fmt.Errorf("read entry oid: %v", err)
 		}
 
-		treeEntry, err := newTreeEntry(commitOid, rootOid, rootPath, filename, oidBytes, modeBytes)
+		treeEntry, err := newTreeEntry(commitOid, rootOid, rootPath, filename, oidBuf.Bytes(), modeBytes)
 		if err != nil {
 			return nil, fmt.Errorf("new entry info: %v", err)
 		}
