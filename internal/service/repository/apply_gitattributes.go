@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,74 +16,65 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func applyGitattributesHandler(ctx context.Context, repoPath string, revision []byte) catfile.Handler {
-	return func(stdin io.Writer, stdout *bufio.Reader) error {
-		infoPath := path.Join(repoPath, "info")
-		attributesPath := path.Join(infoPath, "attributes")
+func isNotFound(err error) bool {
+	_, ok := err.(catfile.NotFoundError)
+	return ok
+}
 
-		if _, err := fmt.Fprintf(stdin, "%s\n", revision); err != nil {
-			return err
-		}
-		revisionInfo, err := catfile.ParseObjectInfo(stdout)
-		if err != nil {
-			return err
-		}
-		if revisionInfo.Oid == "" {
+func applyGitattributes(c *catfile.C, repoPath string, revision []byte) error {
+	infoPath := path.Join(repoPath, "info")
+	attributesPath := path.Join(infoPath, "attributes")
+
+	revisionInfo, err := c.Info(string(revision))
+	if err != nil {
+		if isNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "Revision doesn't exist")
 		}
-		// Discard revision info
-		if _, err := stdout.Discard(int(revisionInfo.Size) + 1); err != nil {
-			return fmt.Errorf("stdout discard: %v", err)
-		}
 
-		if _, err := fmt.Fprintf(stdin, "%s:%s\n", revision, ".gitattributes"); err != nil {
-			return err
-		}
-		blobInfo, err := catfile.ParseObjectInfo(stdout)
-		if err != nil {
-			return err
-		}
-		if blobInfo.Oid == "" || blobInfo.Type != "blob" {
-			// Remove info/attributes file if there's no .gitattributes file
-			err := os.Remove(attributesPath)
-
-			// Ignore error if atttributes file doesn't exist
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-
-			return nil
-		}
-
-		// Create  /info folder if it doesn't exist
-		if err := os.MkdirAll(infoPath, 0755); err != nil {
-			return err
-		}
-
-		tempFile, err := ioutil.TempFile(infoPath, "attributes")
-		if err != nil {
-			return status.Errorf(codes.Internal, "ApplyGitAttributes: creating temp file: %v", err)
-		}
-		defer os.Remove(tempFile.Name())
-
-		// Write attributes to temp file
-		limitReader := io.LimitReader(stdout, blobInfo.Size)
-		n, err := io.Copy(tempFile, limitReader)
-		if err != nil {
-			return err
-		}
-		if n != blobInfo.Size {
-			return status.Errorf(codes.Internal,
-				"ApplyGitAttributes: copy yielded %v bytes, expected %v", n, blobInfo.Size)
-		}
-
-		if err := tempFile.Close(); err != nil {
-			return err
-		}
-
-		// Rename temp file and return the result
-		return os.Rename(tempFile.Name(), attributesPath)
+		return err
 	}
+
+	blobInfo, err := c.Info(fmt.Sprintf("%s:.gitattributes", revision))
+	if err != nil && !isNotFound(err) {
+		return err
+	}
+
+	if isNotFound(err) || blobInfo.Type != "blob" {
+		// Remove info/attributes file if there's no .gitattributes file
+		if err := os.Remove(attributesPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		return nil
+	}
+
+	// Create  /info folder if it doesn't exist
+	if err := os.MkdirAll(infoPath, 0755); err != nil {
+		return err
+	}
+
+	tempFile, err := ioutil.TempFile(infoPath, "attributes")
+	if err != nil {
+		return status.Errorf(codes.Internal, "ApplyGitAttributes: creating temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	blobReader, err := c.Blob(blobInfo.Oid)
+	if err != nil {
+		return err
+	}
+
+	// Write attributes to temp file
+	if _, err := io.CopyN(tempFile, blobReader, blobInfo.Size); err != nil {
+		return err
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+
+	// Rename temp file and return the result
+	return os.Rename(tempFile.Name(), attributesPath)
 }
 
 func (server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesRequest) (*pb.ApplyGitattributesResponse, error) {
@@ -98,9 +88,12 @@ func (server) ApplyGitattributes(ctx context.Context, in *pb.ApplyGitattributesR
 		return nil, status.Errorf(codes.InvalidArgument, "ApplyGitAttributes: revision: %v", err)
 	}
 
-	handler := applyGitattributesHandler(ctx, repoPath, in.GetRevision())
+	c, err := catfile.New(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
 
-	if err := catfile.CatFile(ctx, repo, handler); err != nil {
+	if err := applyGitattributes(c, repoPath, in.GetRevision()); err != nil {
 		return nil, err
 	}
 
