@@ -1,12 +1,9 @@
 package blob
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"os/exec"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
@@ -22,33 +19,16 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 		return status.Errorf(codes.InvalidArgument, "GetBlob: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(in.Repository)
-	if err != nil {
-		return err
-	}
-
-	stdinReader, stdinWriter := io.Pipe()
-
-	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := command.New(stream.Context(), exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil)
-	if err != nil {
-		return status.Errorf(codes.Internal, "GetBlob: cmd: %v", err)
-	}
-	defer stdinWriter.Close()
-	defer stdinReader.Close()
-
-	if _, err := fmt.Fprintln(stdinWriter, in.Oid); err != nil {
-		return status.Errorf(codes.Internal, "GetBlob: stdin write: %v", err)
-	}
-	stdinWriter.Close()
-
-	stdout := bufio.NewReader(cmd)
-
-	objectInfo, err := catfile.ParseObjectInfo(stdout)
+	c, err := catfile.New(stream.Context(), in.Repository)
 	if err != nil {
 		return status.Errorf(codes.Internal, "GetBlob: %v", err)
 	}
-	if objectInfo.Type != "blob" {
+
+	objectInfo, err := c.Info(in.Oid)
+	if err != nil && !catfile.IsNotFound(err) {
+		return status.Errorf(codes.Internal, "GetBlob: %v", err)
+	}
+	if catfile.IsNotFound(err) || objectInfo.Type != "blob" {
 		return helper.DecorateError(codes.Unavailable, stream.Send(&pb.GetBlobResponse{}))
 	}
 
@@ -65,6 +45,11 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 		return helper.DecorateError(codes.Unavailable, stream.Send(firstMessage))
 	}
 
+	blobReader, err := c.Blob(objectInfo.Oid)
+	if err != nil {
+		return status.Errorf(codes.Internal, "GetBlob: %v", err)
+	}
+
 	sw := streamio.NewWriter(func(p []byte) error {
 		msg := &pb.GetBlobResponse{}
 		if firstMessage != nil {
@@ -75,12 +60,9 @@ func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobSer
 		return stream.Send(msg)
 	})
 
-	n, err := io.Copy(sw, io.LimitReader(stdout, readLimit))
+	_, err = io.CopyN(sw, blobReader, readLimit)
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "GetBlob: send: %v", err)
-	}
-	if n != readLimit {
-		return status.Errorf(codes.Unavailable, "GetBlob: short send: %d/%d bytes", n, objectInfo.Size)
 	}
 
 	return nil

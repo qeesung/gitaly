@@ -10,9 +10,10 @@ import (
 
 func TestParseObjectInfoSuccess(t *testing.T) {
 	testCases := []struct {
-		desc   string
-		input  string
-		output *ObjectInfo
+		desc     string
+		input    string
+		output   *ObjectInfo
+		notFound bool
 	}{
 		{
 			desc:  "existing object",
@@ -24,16 +25,21 @@ func TestParseObjectInfoSuccess(t *testing.T) {
 			},
 		},
 		{
-			desc:   "non existing object",
-			input:  "bla missing\n",
-			output: &ObjectInfo{},
+			desc:     "non existing object",
+			input:    "bla missing\n",
+			notFound: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))
-			output, err := ParseObjectInfo(reader)
+			output, err := parseObjectInfo(reader)
+			if tc.notFound {
+				require.True(t, IsNotFound(err), "expect NotFoundError")
+				return
+			}
+
 			require.NoError(t, err)
 			require.Equal(t, tc.output, output)
 		})
@@ -54,7 +60,7 @@ func TestParseObjectInfoErrors(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))
-			_, err := ParseObjectInfo(reader)
+			_, err := parseObjectInfo(reader)
 
 			require.Error(t, err)
 		})

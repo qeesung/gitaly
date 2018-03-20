@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
@@ -23,16 +24,6 @@ type ObjectInfo struct {
 	Oid  string
 	Type string
 	Size int64
-}
-
-// ParseObjectInfo reads and parses one header line from `git cat-file --batch`
-func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
-	oi, err := parseObjectInfo(stdout)
-	if IsNotFound(err) {
-		return &ObjectInfo{}, nil
-	}
-
-	return oi, err
 }
 
 // NotFoundError is returned when requesting an object that does not exist.
@@ -66,10 +57,10 @@ func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	}, nil
 }
 
-// C abstracts 'git cat-file --batch'. It is not thread-safe.
+// C abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
+// It lets you retrieve object metadata and raw objects from a Git repo.
 type C struct {
-	batchCheckIn  io.Writer
-	batchCheckOut *bufio.Reader
+	*catfileBatchCheck
 	*catfileBatch
 }
 
@@ -82,11 +73,18 @@ func IsNotFound(err error) bool {
 // Info returns an ObjectInfo if spec exists. If spec does not exist the
 // error is of type NotFoundError.
 func (c *C) Info(spec string) (*ObjectInfo, error) {
-	if _, err := fmt.Fprintln(c.batchCheckIn, spec); err != nil {
+	return c.catfileBatchCheck.info(spec)
+}
+
+func (cbc *catfileBatchCheck) info(spec string) (*ObjectInfo, error) {
+	cbc.Lock()
+	defer cbc.Unlock()
+
+	if _, err := fmt.Fprintln(cbc.w, spec); err != nil {
 		return nil, err
 	}
 
-	return parseObjectInfo(c.batchCheckOut)
+	return parseObjectInfo(cbc.r)
 }
 
 // Tree returns a raw tree object.
@@ -115,13 +113,23 @@ func (c *C) Blob(blobOid string) (io.Reader, error) {
 	return c.catfileBatch.reader(blobOid, "blob")
 }
 
+type catfileBatchCheck struct {
+	r *bufio.Reader
+	w io.Writer
+	sync.Mutex
+}
+
 type catfileBatch struct {
 	r *bufio.Reader
 	w io.Writer
 	n int64
+	sync.Mutex
 }
 
 func (cb *catfileBatch) reader(spec string, expectedType string) (io.Reader, error) {
+	cb.Lock()
+	defer cb.Unlock()
+
 	if cb.n == 1 {
 		// Consume linefeed
 		if _, err := cb.r.ReadByte(); err != nil {
@@ -163,6 +171,9 @@ func (cb *catfileBatch) reader(spec string, expectedType string) (io.Reader, err
 }
 
 func (cb *catfileBatch) consume(nBytes int) {
+	cb.Lock()
+	defer cb.Unlock()
+
 	cb.n -= int64(nBytes)
 	if cb.n < 1 {
 		panic("too many bytes read from catfileBatch")
@@ -180,7 +191,7 @@ func (cbr *catfileBatchReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// New returns a new C instance. The C instance is not thread-safe.
+// New returns a new C instance.
 func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 	repoPath, env, err := alternates.PathAndEnv(repo)
 	if err != nil {
@@ -188,7 +199,8 @@ func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 	}
 
 	c := &C{
-		catfileBatch: &catfileBatch{},
+		catfileBatch:      &catfileBatch{},
+		catfileBatchCheck: &catfileBatchCheck{},
 	}
 
 	var batchStdinReader io.Reader
@@ -201,13 +213,13 @@ func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 	c.catfileBatch.r = bufio.NewReader(batchCmd)
 
 	var batchCheckStdinReader io.Reader
-	batchCheckStdinReader, c.batchCheckIn = io.Pipe()
+	batchCheckStdinReader, c.catfileBatchCheck.w = io.Pipe()
 	batchCheckCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch-check"}
 	batchCheckCmd, err := command.New(ctx, exec.Command(command.GitPath(), batchCheckCmdArgs...), batchCheckStdinReader, nil, nil, env...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}
-	c.batchCheckOut = bufio.NewReader(batchCheckCmd)
+	c.catfileBatchCheck.r = bufio.NewReader(batchCheckCmd)
 
 	return c, nil
 }
