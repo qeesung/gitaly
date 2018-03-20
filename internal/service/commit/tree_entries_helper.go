@@ -49,12 +49,12 @@ func extractEntryInfoFromTreeData(treeBytes []byte, commitOid, rootOid, rootPath
 	return entries, nil
 }
 
-func treeEntries(c *catfile.C, revision, path string, lookupRootOid bool, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
+func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
 	if path == "." {
 		path = ""
 	}
 
-	if lookupRootOid {
+	if len(rootOid) == 0 {
 		rootTreeInfo, err := c.Info(revision + "^{tree}")
 		if err != nil {
 			if _, ok := err.(catfile.NotFoundError); ok {
@@ -99,7 +99,7 @@ func treeEntries(c *catfile.C, revision, path string, lookupRootOid bool, rootOi
 		orderedEntries = append(orderedEntries, entry)
 
 		if entry.Type == pb.TreeEntry_TREE {
-			subentries, err := treeEntries(c, revision, string(entry.Path), false, rootOid, true)
+			subentries, err := treeEntries(c, revision, string(entry.Path), rootOid, true)
 			if err != nil {
 				return nil, err
 			}
@@ -113,19 +113,17 @@ func treeEntries(c *catfile.C, revision, path string, lookupRootOid bool, rootOi
 
 // TreeEntryForRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
 func TreeEntryForRevisionAndPath(c *catfile.C, revision, path string) (*pb.TreeEntry, error) {
-	entries, err := treeEntries(c, revision, pathPkg.Dir(path), false, "", false)
+	entries, err := treeEntries(c, revision, pathPkg.Dir(path), "", false)
 	if err != nil {
 		return nil, err
 	}
 
-	var treeEntry *pb.TreeEntry
-
 	for _, entry := range entries {
 		if string(entry.Path) == path {
-			treeEntry = entry
-			break
+			entry.RootOid = "" // Not sure why we do this
+			return entry, nil
 		}
 	}
 
-	return treeEntry, nil
+	return nil, nil
 }

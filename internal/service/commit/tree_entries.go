@@ -35,7 +35,7 @@ func populateFlatPath(c *catfile.C, entries []*pb.TreeEntry) error {
 		}
 
 		for {
-			subentries, err := treeEntries(c, entry.CommitOid, string(entry.FlatPath), true, "", false)
+			subentries, err := treeEntries(c, entry.CommitOid, string(entry.FlatPath), "", false)
 
 			if err != nil {
 				return err
@@ -52,7 +52,7 @@ func populateFlatPath(c *catfile.C, entries []*pb.TreeEntry) error {
 }
 
 func sendTreeEntries(stream pb.CommitService_GetTreeEntriesServer, c *catfile.C, revision, path string, recursive bool) error {
-	entries, err := treeEntries(c, revision, path, true, "", recursive)
+	entries, err := treeEntries(c, revision, path, "", recursive)
 	if err != nil {
 		return err
 	}
