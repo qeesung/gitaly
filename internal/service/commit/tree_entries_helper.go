@@ -30,12 +30,8 @@ func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 const oidSize = 20
 
 func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
-	var entries []*pb.TreeEntry
-	var modeBytes, filename []byte
-	var err error
-
-	// Non-existing tree, return empty entry list
 	if len(treeInfo.Oid) == 0 {
+		// Handle 'not found' by returning an empty response
 		return nil, nil
 	}
 
@@ -44,20 +40,20 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 		return nil, fmt.Errorf("read tree data: %v", err)
 	}
 
-	// Extra byte for the linefeed at the end
 	if _, err := io.CopyN(ioutil.Discard, stdout, 1); err != nil {
-		return nil, fmt.Errorf("stdout discard: %v", err)
+		return nil, fmt.Errorf("discard cat-file linefeed: %v", err)
 	}
 
+	var entries []*pb.TreeEntry
 	oidBytes := make([]byte, oidSize)
 	for treeData.Len() > 0 {
-		modeBytes, err = treeData.ReadBytes(' ')
+		modeBytes, err := treeData.ReadBytes(' ')
 		if err != nil || len(modeBytes) <= 1 {
 			return nil, fmt.Errorf("read entry mode: %v", err)
 		}
 		modeBytes = modeBytes[:len(modeBytes)-1]
 
-		filename, err = treeData.ReadBytes('\x00')
+		filename, err := treeData.ReadBytes('\x00')
 		if err != nil || len(filename) <= 1 {
 			return nil, fmt.Errorf("read entry path: %v", err)
 		}
