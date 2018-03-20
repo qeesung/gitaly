@@ -15,6 +15,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 )
 
+// if getTreeInfo returns a struct treeInfo with treeInfo.Oid != "", then
+// the caller must read (treeInfo.Size + 1) bytes from stdout afterwards
 func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (*catfile.ObjectInfo, error) {
 	if _, err := fmt.Fprintf(stdin, "%s^{tree}:%s\n", revision, path); err != nil {
 		return nil, status.Errorf(codes.Internal, "TreeEntry: stdin write: %v", err)
@@ -31,8 +33,7 @@ const oidSize = 20
 
 func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
 	if len(treeInfo.Oid) == 0 {
-		// Handle 'not found' by returning an empty response
-		return nil, nil
+		return nil, fmt.Errorf("empty tree oid")
 	}
 
 	treeData := &bytes.Buffer{}
@@ -75,62 +76,64 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 	return entries, nil
 }
 
-func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, includeRootOid bool, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
+func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, lookupRootOid bool, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
 	if path == "." {
 		path = ""
 	}
 
-	var entries []*pb.TreeEntry
-
-	if path == "" || includeRootOid {
-		// We always need to process the root path to get the rootTreeInfo.Oid
+	if lookupRootOid {
 		rootTreeInfo, err := getTreeInfo(revision, "", stdin, stdout)
 		if err != nil {
 			return nil, err
 		}
 
-		rootOid = rootTreeInfo.Oid
-
-		entries, err = extractEntryInfoFromTreeData(stdout, revision, rootOid, "", rootTreeInfo)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if path != "" {
-		treeEntryInfo, err := getTreeInfo(revision, path, stdin, stdout)
-		if err != nil {
-			return nil, err
-		}
-		if treeEntryInfo.Type != "tree" {
+		if len(rootTreeInfo.Oid) == 0 {
+			// 'revision' does not point to a commit
 			return nil, nil
 		}
 
-		entries, err = extractEntryInfoFromTreeData(stdout, revision, rootOid, path, treeEntryInfo)
-		if err != nil {
+		// Ideally we'd use a 'git cat-file --batch-check' process so we don't
+		// have to discard this data. But tree objects are small so it is not a
+		// problem.
+		if _, err := io.CopyN(ioutil.Discard, stdout, rootTreeInfo.Size+1); err != nil {
 			return nil, err
 		}
+		rootOid = rootTreeInfo.Oid
+	}
+
+	treeEntryInfo, err := getTreeInfo(revision, path, stdin, stdout)
+	if err != nil {
+		return nil, err
+	}
+
+	if treeEntryInfo.Type != "tree" {
+		return nil, nil
+	}
+
+	entries, err := extractEntryInfoFromTreeData(stdout, revision, rootOid, path, treeEntryInfo)
+	if err != nil {
+		return nil, err
 	}
 
 	if !recursive {
 		return entries, nil
 	}
 
-	var orderdEntries []*pb.TreeEntry
+	var orderedEntries []*pb.TreeEntry
 	for _, entry := range entries {
-		orderdEntries = append(orderdEntries, entry)
+		orderedEntries = append(orderedEntries, entry)
 
 		if entry.Type == pb.TreeEntry_TREE {
-			subentries, err := treeEntries(revision, string(entry.Path), stdin, stdout, true, rootOid, true)
+			subentries, err := treeEntries(revision, string(entry.Path), stdin, stdout, false, rootOid, true)
 			if err != nil {
 				return nil, err
 			}
 
-			orderdEntries = append(orderdEntries, subentries...)
+			orderedEntries = append(orderedEntries, subentries...)
 		}
 	}
 
-	return orderdEntries, nil
+	return orderedEntries, nil
 }
 
 // TreeEntryForRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
