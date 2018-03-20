@@ -1,9 +1,7 @@
 package commit
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 
 	log "github.com/sirupsen/logrus"
 
@@ -53,35 +51,33 @@ func populateFlatPath(c *catfile.C, entries []*pb.TreeEntry) error {
 	return nil
 }
 
-func getTreeEntriesHandler(stream pb.CommitService_GetTreeEntriesServer, c *catfile.C, revision, path string, recursive bool) catfile.Handler {
-	return func(stdin io.Writer, stdout *bufio.Reader) error {
-		entries, err := treeEntries(c, revision, path, true, "", recursive)
-		if err != nil {
+func sendTreeEntries(stream pb.CommitService_GetTreeEntriesServer, c *catfile.C, revision, path string, recursive bool) error {
+	entries, err := treeEntries(c, revision, path, true, "", recursive)
+	if err != nil {
+		return err
+	}
+
+	if !recursive {
+		if err := populateFlatPath(c, entries); err != nil {
 			return err
 		}
-
-		if !recursive {
-			if err := populateFlatPath(c, entries); err != nil {
-				return err
-			}
-		}
-
-		for len(entries) > maxTreeEntries {
-			chunk := &pb.GetTreeEntriesResponse{
-				Entries: entries[:maxTreeEntries],
-			}
-			if err := stream.Send(chunk); err != nil {
-				return err
-			}
-			entries = entries[maxTreeEntries:]
-		}
-
-		if len(entries) > 0 {
-			return stream.Send(&pb.GetTreeEntriesResponse{Entries: entries})
-		}
-
-		return nil
 	}
+
+	for len(entries) > maxTreeEntries {
+		chunk := &pb.GetTreeEntriesResponse{
+			Entries: entries[:maxTreeEntries],
+		}
+		if err := stream.Send(chunk); err != nil {
+			return err
+		}
+		entries = entries[maxTreeEntries:]
+	}
+
+	if len(entries) > 0 {
+		return stream.Send(&pb.GetTreeEntriesResponse{Entries: entries})
+	}
+
+	return nil
 }
 
 func (s *server) GetTreeEntries(in *pb.GetTreeEntriesRequest, stream pb.CommitService_GetTreeEntriesServer) error {
@@ -101,7 +97,5 @@ func (s *server) GetTreeEntries(in *pb.GetTreeEntriesRequest, stream pb.CommitSe
 
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
-	handler := getTreeEntriesHandler(stream, c, revision, path, in.Recursive)
-
-	return catfile.CatFile(stream.Context(), in.Repository, handler)
+	return sendTreeEntries(stream, c, revision, path, in.Recursive)
 }
