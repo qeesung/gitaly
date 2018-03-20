@@ -2,7 +2,6 @@ package catfile
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -99,8 +98,9 @@ func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 }
 
 type C struct {
-	batchIn, batchCheckIn   io.Writer
-	batchOut, batchCheckOut *bufio.Reader
+	batchCheckIn  io.Writer
+	batchCheckOut *bufio.Reader
+	*catfileBatch
 }
 
 func (c *C) Info(spec string) (*ObjectInfo, error) {
@@ -112,33 +112,81 @@ func (c *C) Info(spec string) (*ObjectInfo, error) {
 }
 
 func (c *C) Tree(treeOid string) ([]byte, error) {
-	if _, err := fmt.Fprintln(c.batchIn, treeOid); err != nil {
-		return nil, err
-	}
-
-	oi, err := parseObjectInfo(c.batchOut)
+	r, err := c.catfileBatch.reader(treeOid, "tree")
 	if err != nil {
 		return nil, err
 	}
 
-	bytesAvailable := oi.Size + 1
+	return ioutil.ReadAll(r)
+}
 
-	if oi.Type != "tree" {
-		// This is a programmer error and it should never happen. But if it does,
-		// we need to leave the cat-file process in a good state
-		if _, err := io.CopyN(ioutil.Discard, c.batchOut, bytesAvailable); err != nil {
+func (c *C) Blob(blobOid string) (io.Reader, error) {
+	return c.catfileBatch.reader(blobOid, "blob")
+}
+
+type catfileBatch struct {
+	r *bufio.Reader
+	w io.Writer
+	n int64
+}
+
+func (cb *catfileBatch) reader(spec string, expectedType string) (io.Reader, error) {
+	if cb.n == 1 {
+		// Consume linefeed
+		if _, err := cb.r.ReadByte(); err != nil {
 			return nil, err
 		}
-
-		return nil, NotFoundError{fmt.Errorf("%s is a %s, not a tree", oi.Oid, oi.Type)}
+		cb.n -= 1
 	}
 
-	treeData := &bytes.Buffer{}
-	if _, err := io.CopyN(treeData, c.batchOut, bytesAvailable); err != nil {
+	if cb.n != 0 {
+		return nil, fmt.Errorf("catfileBatch contains %d unread bytes", cb.n)
+	}
+
+	if _, err := fmt.Fprintln(cb.w, spec); err != nil {
 		return nil, err
 	}
 
-	return treeData.Bytes()[:oi.Size], nil
+	oi, err := parseObjectInfo(cb.r)
+	if err != nil {
+		return nil, err
+	}
+
+	cb.n = oi.Size + 1
+
+	if oi.Type != expectedType {
+		// This is a programmer error and it should never happen. But if it does,
+		// we need to leave the cat-file process in a good state
+		if _, err := io.CopyN(ioutil.Discard, cb.r, cb.n); err != nil {
+			return nil, err
+		}
+		cb.n = 0
+
+		return nil, NotFoundError{fmt.Errorf("expected %s to be a %s, got %s", oi.Oid, expectedType, oi.Type)}
+	}
+
+	return &catfileBatchReader{
+		catfileBatch: cb,
+		r:            io.LimitReader(cb.r, oi.Size),
+	}, nil
+}
+
+func (cb *catfileBatch) consume(nBytes int) {
+	cb.n -= int64(nBytes)
+	if cb.n < 1 {
+		panic("too many bytes read from catfileBatch")
+	}
+}
+
+type catfileBatchReader struct {
+	*catfileBatch
+	r io.Reader
+}
+
+func (cbr *catfileBatchReader) Read(p []byte) (int, error) {
+	n, err := cbr.r.Read(p)
+	cbr.catfileBatch.consume(n)
+	return n, err
 }
 
 func New(ctx context.Context, repo *pb.Repository) (*C, error) {
@@ -147,16 +195,18 @@ func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 		return nil, err
 	}
 
-	c := &C{}
+	c := &C{
+		catfileBatch: &catfileBatch{},
+	}
 
 	var batchStdinReader io.Reader
-	batchStdinReader, c.batchIn = io.Pipe()
+	batchStdinReader, c.catfileBatch.w = io.Pipe()
 	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 	batchCmd, err := command.New(ctx, exec.Command(command.GitPath(), batchCmdArgs...), batchStdinReader, nil, nil, env...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}
-	c.batchOut = bufio.NewReader(batchCmd)
+	c.catfileBatch.r = bufio.NewReader(batchCmd)
 
 	var batchCheckStdinReader io.Reader
 	batchCheckStdinReader, c.batchCheckIn = io.Pipe()
