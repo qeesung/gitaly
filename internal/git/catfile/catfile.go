@@ -25,38 +25,6 @@ type ObjectInfo struct {
 	Size int64
 }
 
-// Handler takes care of writing to stdin and reading from stdout of
-// `git cat-file --batch`
-type Handler func(io.Writer, *bufio.Reader) error
-
-// CatFile fetches the tree entries information using git cat-file. It
-// calls the handler with the TreeEntry slice, and an stdin reader and a stdout
-// writer in case the handler wants to perform addition cat-file operations.
-func CatFile(ctx context.Context, repo *pb.Repository, handler Handler) error {
-	repoPath, env, err := alternates.PathAndEnv(repo)
-	if err != nil {
-		return err
-	}
-
-	stdinReader, stdinWriter := io.Pipe()
-	cmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
-	cmd, err := command.New(ctx, exec.Command(command.GitPath(), cmdArgs...), stdinReader, nil, nil, env...)
-	if err != nil {
-		return status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
-	}
-	defer stdinWriter.Close()
-	defer stdinReader.Close()
-
-	stdout := bufio.NewReader(cmd)
-
-	if err := handler(stdinWriter, stdout); err != nil {
-		return err
-	}
-
-	stdinWriter.Close()
-	return cmd.Wait()
-}
-
 // ParseObjectInfo reads and parses one header line from `git cat-file --batch`
 func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	oi, err := parseObjectInfo(stdout)
@@ -124,6 +92,16 @@ func (c *C) Info(spec string) (*ObjectInfo, error) {
 // Tree returns a raw tree object.
 func (c *C) Tree(treeOid string) ([]byte, error) {
 	r, err := c.catfileBatch.reader(treeOid, "tree")
+	if err != nil {
+		return nil, err
+	}
+
+	return ioutil.ReadAll(r)
+}
+
+// Commit returns a raw commit object.
+func (c *C) Commit(commitOid string) ([]byte, error) {
+	r, err := c.catfileBatch.reader(commitOid, "commit")
 	if err != nil {
 		return nil, err
 	}

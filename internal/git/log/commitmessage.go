@@ -1,11 +1,8 @@
 package log
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -36,9 +33,14 @@ func newCommitMessageHelper(ctx context.Context, repo *pb.Repository) (*commitMe
 		catFileErr: make(chan error),
 	}
 
+	c, err := catfile.New(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		select {
-		case cmh.catFileErr <- catfile.CatFile(ctx, repo, cmh.handleCatFile):
+		case cmh.catFileErr <- cmh.handleCatFile(c):
 		case <-ctx.Done():
 			// This case is here to ensure this goroutine won't leak. We can't assume
 			// someone is listening on the cmh.catFileErr channel.
@@ -65,11 +67,11 @@ func (cmh *commitMessageHelper) commitMessage(commitID string) (string, string, 
 
 // handleCatFile gets the raw commit message for a sequence of commit
 // ID's from a git-cat-file process.
-func (cmh *commitMessageHelper) handleCatFile(stdin io.Writer, stdout *bufio.Reader) error {
+func (cmh *commitMessageHelper) handleCatFile(c *catfile.C) error {
 	for {
 		select {
 		case messageRequest := <-cmh.requests:
-			subject, body, err := getCommitMessage(messageRequest.commitID, stdin, stdout)
+			subject, body, err := getCommitMessage(c, messageRequest.commitID)
 
 			// Always return a response, because a client is blocked waiting for it.
 			messageRequest.response <- commitMessageResponse{
@@ -91,12 +93,8 @@ func (cmh *commitMessageHelper) handleCatFile(stdin io.Writer, stdout *bufio.Rea
 }
 
 // getCommitMessage returns subject, body, error by querying git cat-file via stdin and stdout.
-func getCommitMessage(commitID string, stdin io.Writer, stdout *bufio.Reader) (string, string, error) {
-	if _, err := fmt.Fprintln(stdin, commitID); err != nil {
-		return "", "", err
-	}
-
-	objInfo, err := catfile.ParseObjectInfo(stdout)
+func getCommitMessage(c *catfile.C, commitID string) (string, string, error) {
+	objInfo, err := c.Info(commitID)
 	if err != nil {
 		return "", "", err
 	}
@@ -105,13 +103,13 @@ func getCommitMessage(commitID string, stdin io.Writer, stdout *bufio.Reader) (s
 		return "", "", fmt.Errorf("invalid ObjectInfo for %q: %v", commitID, objInfo)
 	}
 
-	rawCommit, err := ioutil.ReadAll(io.LimitReader(stdout, objInfo.Size))
+	rawCommit, err := c.Commit(objInfo.Oid)
 	if err != nil {
 		return "", "", err
 	}
 
-	if _, err := stdout.Discard(1); err != nil {
-		return "", "", fmt.Errorf("error discarding newline: %v", err)
+	if err != nil {
+		return "", "", err
 	}
 
 	commitString := string(rawCommit)
