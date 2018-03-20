@@ -57,7 +57,7 @@ func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlob
 
 		blobReader, err := c.Blob(objectInfo.Oid)
 		if err != nil {
-			return err
+			return status.Errorf(codes.Internal, "GetBlobs: %v", err)
 		}
 
 		response.Size = objectInfo.Size
