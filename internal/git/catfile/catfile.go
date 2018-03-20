@@ -130,7 +130,7 @@ func (c *C) Tree(treeOid string) ([]byte, error) {
 			return nil, err
 		}
 
-		return nil, NotFoundError{fmt.Errorf("%s is a %s not a tree: %s", oi.Oid, oi.Type)}
+		return nil, NotFoundError{fmt.Errorf("%s is a %s, not a tree", oi.Oid, oi.Type)}
 	}
 
 	treeData := &bytes.Buffer{}
