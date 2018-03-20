@@ -20,7 +20,7 @@ func applyGitattributes(c *catfile.C, repoPath string, revision []byte) error {
 	infoPath := path.Join(repoPath, "info")
 	attributesPath := path.Join(infoPath, "attributes")
 
-	revisionInfo, err := c.Info(string(revision))
+	_, err := c.Info(string(revision))
 	if err != nil {
 		if catfile.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "Revision doesn't exist")
