@@ -39,19 +39,11 @@ func getTreeInfo(revision, path string, stdin io.Writer, stdout *bufio.Reader) (
 
 const oidSize = 20
 
-func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
+func extractEntryInfoFromTreeData(treeBytes []byte, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
 	if len(treeInfo.Oid) == 0 {
 		return nil, fmt.Errorf("empty tree oid")
 	}
-
-	treeData := &bytes.Buffer{}
-	if _, err := io.CopyN(treeData, stdout, treeInfo.Size); err != nil {
-		return nil, fmt.Errorf("read tree data: %v", err)
-	}
-
-	if _, err := io.CopyN(ioutil.Discard, stdout, 1); err != nil {
-		return nil, fmt.Errorf("discard cat-file linefeed: %v", err)
-	}
+	treeData := bytes.NewBuffer(treeBytes)
 
 	var entries []*pb.TreeEntry
 	oidBuf := &bytes.Buffer{}
@@ -84,40 +76,43 @@ func extractEntryInfoFromTreeData(stdout *bufio.Reader, commitOid, rootOid, root
 	return entries, nil
 }
 
-func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, lookupRootOid bool, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
+func treeEntries(c *catfile.C, revision, path string, lookupRootOid bool, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
 	if path == "." {
 		path = ""
 	}
 
 	if lookupRootOid {
-		rootTreeInfo, err := getTreeInfo(revision, "", stdin, stdout)
+		rootTreeInfo, err := c.Info(revision + "^{tree}")
 		if err != nil {
+			if _, ok := err.(catfile.NotFoundError); ok {
+				return nil, nil
+			}
+
 			return nil, err
 		}
 
-		if len(rootTreeInfo.Oid) == 0 {
-			// 'revision' does not point to a commit
-			return nil, nil
-		}
-
-		// If we want to avoid this copy we need to start using a 'git cat-file
-		// --batch-check' process.
-		if _, err := io.CopyN(ioutil.Discard, stdout, rootTreeInfo.Size+1); err != nil {
-			return nil, err
-		}
 		rootOid = rootTreeInfo.Oid
 	}
 
-	treeEntryInfo, err := getTreeInfo(revision, path, stdin, stdout)
+	treeEntryInfo, err := c.Info(fmt.Sprintf("%s^{tree}:%s", revision, path))
+	if err != nil {
+		if _, ok := err.(catfile.NotFoundError); ok {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	if treeEntryInfo.Type != "tree" {
+		return nil, nil
+	}
+
+	treeData, err := c.Tree(treeEntryInfo.Oid)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(treeEntryInfo.Oid) == 0 {
-		return nil, nil
-	}
-
-	entries, err := extractEntryInfoFromTreeData(stdout, revision, rootOid, path, treeEntryInfo)
+	entries, err := extractEntryInfoFromTreeData(treeData, revision, rootOid, path, treeEntryInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +126,7 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, l
 		orderedEntries = append(orderedEntries, entry)
 
 		if entry.Type == pb.TreeEntry_TREE {
-			subentries, err := treeEntries(revision, string(entry.Path), stdin, stdout, false, rootOid, true)
+			subentries, err := treeEntries(c, revision, string(entry.Path), false, rootOid, true)
 			if err != nil {
 				return nil, err
 			}
@@ -144,8 +139,8 @@ func treeEntries(revision, path string, stdin io.Writer, stdout *bufio.Reader, l
 }
 
 // TreeEntryForRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
-func TreeEntryForRevisionAndPath(revision, path string, stdin io.Writer, stdout *bufio.Reader) (*pb.TreeEntry, error) {
-	entries, err := treeEntries(revision, pathPkg.Dir(path), stdin, stdout, false, "", false)
+func TreeEntryForRevisionAndPath(c *catfile.C, revision, path string) (*pb.TreeEntry, error) {
+	entries, err := treeEntries(c, revision, pathPkg.Dir(path), false, "", false)
 	if err != nil {
 		return nil, err
 	}

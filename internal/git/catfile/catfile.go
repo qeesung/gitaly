@@ -2,9 +2,11 @@ package catfile
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -58,6 +60,17 @@ func CatFile(ctx context.Context, repo *pb.Repository, handler Handler) error {
 
 // ParseObjectInfo reads and parses one header line from `git cat-file --batch`
 func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
+	oi, err := parseObjectInfo(stdout)
+	if _, ok := err.(NotFoundError); ok {
+		return &ObjectInfo{}, nil
+	}
+
+	return oi, err
+}
+
+type NotFoundError struct{ error }
+
+func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	infoLine, err := stdout.ReadString('\n')
 	if err != nil {
 		return nil, fmt.Errorf("read info line: %v", err)
@@ -65,7 +78,7 @@ func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 
 	infoLine = strings.TrimSuffix(infoLine, "\n")
 	if strings.HasSuffix(infoLine, " missing") {
-		return &ObjectInfo{}, nil
+		return nil, NotFoundError{fmt.Errorf("object not found")}
 	}
 
 	info := strings.Split(infoLine, " ")
@@ -83,4 +96,76 @@ func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 		Type: info[1],
 		Size: objectSize,
 	}, nil
+}
+
+type C struct {
+	batchIn, batchCheckIn   io.Writer
+	batchOut, batchCheckOut *bufio.Reader
+}
+
+func (c *C) Info(spec string) (*ObjectInfo, error) {
+	if _, err := fmt.Fprintln(c.batchCheckIn, spec); err != nil {
+		return nil, err
+	}
+
+	return parseObjectInfo(c.batchCheckOut)
+}
+
+func (c *C) Tree(treeOid string) ([]byte, error) {
+	if _, err := fmt.Fprintln(c.batchIn, treeOid); err != nil {
+		return nil, err
+	}
+
+	oi, err := parseObjectInfo(c.batchOut)
+	if err != nil {
+		return nil, err
+	}
+
+	bytesAvailable := oi.Size + 1
+
+	if oi.Type != "tree" {
+		// This is a programmer error and it should never happen. But if it does,
+		// we need to leave the cat-file process in a good state
+		if _, err := io.CopyN(ioutil.Discard, c.batchOut, bytesAvailable); err != nil {
+			return nil, err
+		}
+
+		return nil, NotFoundError{fmt.Errorf("%s is a %s not a tree: %s", oi.Oid, oi.Type)}
+	}
+
+	treeData := &bytes.Buffer{}
+	if _, err := io.CopyN(treeData, c.batchOut, bytesAvailable); err != nil {
+		return nil, err
+	}
+
+	return treeData.Bytes()[:oi.Size], nil
+}
+
+func New(ctx context.Context, repo *pb.Repository) (*C, error) {
+	repoPath, env, err := alternates.PathAndEnv(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &C{}
+
+	var batchStdinReader io.Reader
+	batchStdinReader, c.batchIn = io.Pipe()
+	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
+	batchCmd, err := command.New(ctx, exec.Command(command.GitPath(), batchCmdArgs...), batchStdinReader, nil, nil, env...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
+	}
+	c.batchOut = bufio.NewReader(batchCmd)
+
+	var batchCheckStdinReader io.Reader
+	batchCheckStdinReader, c.batchCheckIn = io.Pipe()
+	batchCheckCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch-check"}
+	batchCheckCmd, err := command.New(ctx, exec.Command(command.GitPath(), batchCheckCmdArgs...), batchCheckStdinReader, nil, nil, env...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
+	}
+	c.batchCheckOut = bufio.NewReader(batchCheckCmd)
+
+	return c, nil
 }

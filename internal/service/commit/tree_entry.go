@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func treeEntryHandler(stream pb.Commit_TreeEntryServer, revision, path string, limit int64) catfile.Handler {
+func treeEntryHandler(stream pb.Commit_TreeEntryServer, c *catfile.C, revision, path string, limit int64) catfile.Handler {
 	return func(stdin io.Writer, stdout *bufio.Reader) error {
-		treeEntry, err := TreeEntryForRevisionAndPath(revision, path, stdin, stdout)
+		treeEntry, err := TreeEntryForRevisionAndPath(c, revision, path)
 		if err != nil {
 			return err
 		}
@@ -114,7 +114,12 @@ func (s *server) TreeEntry(in *pb.TreeEntryRequest, stream pb.CommitService_Tree
 		requestPath = strings.TrimRight(requestPath, "/")
 	}
 
-	handler := treeEntryHandler(stream, string(in.GetRevision()), requestPath, in.GetLimit())
+	c, err := catfile.New(stream.Context(), in.Repository)
+	if err != nil {
+		return err
+	}
+
+	handler := treeEntryHandler(stream, c, string(in.GetRevision()), requestPath, in.GetLimit())
 	return catfile.CatFile(stream.Context(), in.Repository, handler)
 }
 

@@ -16,13 +16,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func getBlobsHandler(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlobsServer) catfile.Handler {
+func getBlobsHandler(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlobsServer, c *catfile.C) catfile.Handler {
 	return func(stdin io.Writer, stdout *bufio.Reader) error {
 		for _, revisionPath := range req.RevisionPaths {
 			revision := revisionPath.Revision
 			path := revisionPath.Path
 
-			treeEntry, err := commit.TreeEntryForRevisionAndPath(revision, string(path), stdin, stdout)
+			treeEntry, err := commit.TreeEntryForRevisionAndPath(c, revision, string(path))
 			if err != nil {
 				return err
 			}
@@ -121,7 +121,11 @@ func (*server) GetBlobs(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlobsS
 	if len(req.RevisionPaths) == 0 {
 		return status.Errorf(codes.InvalidArgument, "GetBlobs: empty RevisionPaths")
 	}
+	c, err := catfile.New(stream.Context(), req.Repository)
+	if err != nil {
+		return err
+	}
 
-	handler := getBlobsHandler(req, stream)
+	handler := getBlobsHandler(req, stream, c)
 	return catfile.CatFile(stream.Context(), req.Repository, handler)
 }

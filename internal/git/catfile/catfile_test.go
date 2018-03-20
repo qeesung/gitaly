@@ -55,6 +55,7 @@ func TestParseObjectInfoErrors(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))
 			_, err := ParseObjectInfo(reader)
+
 			require.Error(t, err)
 		})
 	}
