@@ -86,26 +86,14 @@ func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlob
 				return stream.Send(msg)
 			})
 
-			sent, err := io.Copy(sw, io.LimitReader(blobReader, readLimit))
+			_, err := io.CopyN(sw, blobReader, readLimit)
 			if err != nil {
 				return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
 			}
-			if sent != readLimit {
-				return status.Errorf(codes.Unavailable, "GetBlobs: short send: %d/%d bytes", sent, objectInfo.Size)
-			}
 		}
 
-		discardSize := int64(0)
-		if readLimit < objectInfo.Size {
-			discardSize += objectInfo.Size - readLimit
-		}
-
-		discarded, err := io.Copy(ioutil.Discard, io.LimitReader(blobReader, discardSize))
-		if err != nil {
+		if _, err := io.Copy(ioutil.Discard, blobReader); err != nil {
 			return status.Errorf(codes.Unavailable, "GetBlobs: discarding data: %v", err)
-		}
-		if discarded != discardSize {
-			return status.Errorf(codes.Unavailable, "GetBlobs: short discard: %d/%d bytes", discarded, discardSize)
 		}
 	}
 
