@@ -72,7 +72,7 @@ func (b *batch) reader(spec string, expectedType string) (io.Reader, error) {
 		}
 		b.n = 0
 
-		return nil, NotFoundError{fmt.Errorf("expected %s to be a %s, got %s", oi.Oid, expectedType, oi.Type)}
+		return nil, fmt.Errorf("expected %s to be a %s, got %s", oi.Oid, expectedType, oi.Type)
 	}
 
 	return &batchReader{
