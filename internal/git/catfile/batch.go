@@ -17,7 +17,7 @@ import (
 // batch encapsulates a 'git cat-file --batch' process
 type batch struct {
 	r *bufio.Reader
-	w io.Writer
+	w io.WriteCloser
 	n int64
 	sync.Mutex
 }
@@ -33,6 +33,11 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*batch, error
 		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}
 	b.r = bufio.NewReader(batchCmd)
+	go func() {
+		<-ctx.Done()
+		// This is crucial to prevent leaking file descriptors.
+		b.w.Close()
+	}()
 
 	return b, nil
 }

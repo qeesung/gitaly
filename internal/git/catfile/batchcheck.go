@@ -17,7 +17,7 @@ import (
 // batchCheck encapsulates a 'git cat-file --batch-check' process
 type batchCheck struct {
 	r *bufio.Reader
-	w io.Writer
+	w io.WriteCloser
 	sync.Mutex
 }
 
@@ -32,6 +32,11 @@ func newBatchCheck(ctx context.Context, repoPath string, env []string) (*batchCh
 		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
 	}
 	bc.r = bufio.NewReader(batchCmd)
+	go func() {
+		<-ctx.Done()
+		// This is crucial to prevent leaking file descriptors.
+		bc.w.Close()
+	}()
 
 	return bc, nil
 }
