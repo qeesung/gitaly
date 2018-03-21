@@ -18,13 +18,15 @@ type C struct {
 
 // Info returns an ObjectInfo if spec exists. If spec does not exist the
 // error is of type NotFoundError.
-func (c *C) Info(spec string) (*ObjectInfo, error) {
-	return c.batchCheck.info(spec)
+func (c *C) Info(revspec string) (*ObjectInfo, error) {
+	return c.batchCheck.info(revspec)
 }
 
-// Tree returns a raw tree object.
-func (c *C) Tree(treeOid string) ([]byte, error) {
-	r, err := c.batch.reader(treeOid, "tree")
+// Tree returns a raw tree object. It is an error if revspec does not
+// point to a tree. To prevent this firstuse Info to resolve the revspec
+// and check the object type.
+func (c *C) Tree(revspec string) ([]byte, error) {
+	r, err := c.batch.reader(revspec, "tree")
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +34,11 @@ func (c *C) Tree(treeOid string) ([]byte, error) {
 	return ioutil.ReadAll(r)
 }
 
-// Commit returns a raw commit object.
-func (c *C) Commit(commitOid string) ([]byte, error) {
-	r, err := c.batch.reader(commitOid, "commit")
+// Commit returns a raw commit object. It is an error if revspec does not
+// point to a commit. To prevent this first use Info to resolve the revspec
+// and check the object type.
+func (c *C) Commit(revspec string) ([]byte, error) {
+	r, err := c.batch.reader(revspec, "commit")
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +48,11 @@ func (c *C) Commit(commitOid string) ([]byte, error) {
 
 // Blob returns a reader for the requested blob. The entire blob must be
 // read before any new objects can be requested from this C instance.
-func (c *C) Blob(blobOid string) (io.Reader, error) {
-	return c.batch.reader(blobOid, "blob")
+//
+// It is an error if revspec does not point to a blob. To prevent this
+// first use Info to resolve the revspec and check the object type.
+func (c *C) Blob(revspec string) (io.Reader, error) {
+	return c.batch.reader(revspec, "blob")
 }
 
 // New returns a new C instance.

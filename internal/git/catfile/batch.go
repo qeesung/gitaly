@@ -42,7 +42,7 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*batch, error
 	return b, nil
 }
 
-func (b *batch) reader(spec string, expectedType string) (io.Reader, error) {
+func (b *batch) reader(revspec string, expectedType string) (io.Reader, error) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -58,7 +58,7 @@ func (b *batch) reader(spec string, expectedType string) (io.Reader, error) {
 		return nil, fmt.Errorf("cannot create new reader: batch contains %d unread bytes", b.n)
 	}
 
-	if _, err := fmt.Fprintln(b.w, spec); err != nil {
+	if _, err := fmt.Fprintln(b.w, revspec); err != nil {
 		return nil, err
 	}
 
