@@ -1,0 +1,11 @@
+tree 86ec18bfe87ad42a782fdabd8310f9b7ac750f51
+parent b83d6e391c22777fca1ed3012fce84f633d7fed0
+parent 4a24d82dbca5c11c61556f3b35ca472b7463187e
+author Sean McGivern <sean@mcgivern.me.uk> 1491906794 +0000
+committer Sean McGivern <sean@mcgivern.me.uk> 1491906794 +0000
+
+Merge branch 'gitlab-test-usage-dev-testing-docs' into 'master'
+
+Update README.md to include `Usage in testing and development`
+
+See merge request !21

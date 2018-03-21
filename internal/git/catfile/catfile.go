@@ -139,7 +139,7 @@ func (cb *catfileBatch) reader(spec string, expectedType string) (io.Reader, err
 	}
 
 	if cb.n != 0 {
-		return nil, fmt.Errorf("catfileBatch contains %d unread bytes", cb.n)
+		return nil, fmt.Errorf("cannot create new reader: catfileBatch contains %d unread bytes", cb.n)
 	}
 
 	if _, err := fmt.Fprintln(cb.w, spec); err != nil {
