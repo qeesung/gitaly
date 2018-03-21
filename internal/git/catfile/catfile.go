@@ -11,6 +11,10 @@ import (
 
 // C abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
 // It lets you retrieve object metadata and raw objects from a Git repo.
+//
+// Although it's thread-safe in the sense of not panicking, a C instance
+// can only serve single request at a time. If you try to use it across
+// multiple goroutines you are likely to encounter errors.
 type C struct {
 	*batchCheck
 	*batch
