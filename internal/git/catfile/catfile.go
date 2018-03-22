@@ -58,8 +58,14 @@ func (c *C) Blob(revspec string) (io.Reader, error) {
 	return c.batch.reader(revspec, "blob")
 }
 
-// New returns a new C instance.
+// New returns a new C instance. It is important that ctx gets canceled
+// somewhere, because if it doesn't the cat-file processes spawned by
+// New() never terminate.
 func New(ctx context.Context, repo *pb.Repository) (*C, error) {
+	if ctx.Done() == nil {
+		panic("empty ctx.Done() in catfile.C.New()")
+	}
+
 	repoPath, env, err := alternates.PathAndEnv(repo)
 	if err != nil {
 		return nil, err
