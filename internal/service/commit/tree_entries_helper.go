@@ -12,11 +12,10 @@ import (
 
 const oidSize = 20
 
-func extractEntryInfoFromTreeData(treeBytes []byte, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
+func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*pb.TreeEntry, error) {
 	if len(treeInfo.Oid) == 0 {
 		return nil, fmt.Errorf("empty tree oid")
 	}
-	treeData := bytes.NewBuffer(treeBytes)
 
 	var entries []*pb.TreeEntry
 	oidBuf := &bytes.Buffer{}
@@ -80,12 +79,17 @@ func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive 
 		return nil, nil
 	}
 
-	treeData, err := c.Tree(treeEntryInfo.Oid)
+	treeReader, err := c.Tree(treeEntryInfo.Oid)
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err := extractEntryInfoFromTreeData(treeData, revision, rootOid, path, treeEntryInfo)
+	treeBytes := &bytes.Buffer{}
+	if _, err := treeBytes.ReadFrom(treeReader); err != nil {
+		return nil, err
+	}
+
+	entries, err := extractEntryInfoFromTreeData(treeBytes, revision, rootOid, path, treeEntryInfo)
 	if err != nil {
 		return nil, err
 	}

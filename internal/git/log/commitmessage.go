@@ -3,6 +3,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -103,19 +104,18 @@ func getCommitMessage(c *catfile.C, commitID string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid ObjectInfo for %q: %v", commitID, objInfo)
 	}
 
-	rawCommit, err := c.Commit(objInfo.Oid)
+	commitReader, err := c.Commit(objInfo.Oid)
 	if err != nil {
 		return "", "", err
 	}
 
+	rawCommit, err := ioutil.ReadAll(commitReader)
 	if err != nil {
 		return "", "", err
 	}
-
-	commitString := string(rawCommit)
 
 	var body string
-	if split := strings.SplitN(commitString, "\n\n", 2); len(split) == 2 {
+	if split := strings.SplitN(string(rawCommit), "\n\n", 2); len(split) == 2 {
 		body = split[1]
 	}
 	subject := strings.TrimRight(strings.SplitN(body, "\n", 2)[0], "\r\n")

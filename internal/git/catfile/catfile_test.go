@@ -102,7 +102,9 @@ func TestCommit(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			contents, err := c.Commit(tc.spec)
+			commitReader, err := c.Commit(tc.spec)
+			require.NoError(t, err)
+			contents, err := ioutil.ReadAll(commitReader)
 			require.NoError(t, err)
 
 			require.Equal(t, tc.output, string(contents))
@@ -135,7 +137,9 @@ func TestTree(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			contents, err := c.Tree(tc.spec)
+			treeReader, err := c.Tree(tc.spec)
+			require.NoError(t, err)
+			contents, err := ioutil.ReadAll(treeReader)
 			require.NoError(t, err)
 
 			require.Equal(t, tc.output, string(contents))
@@ -155,7 +159,9 @@ func TestRepeatedCalls(t *testing.T) {
 	treeBytes, err := ioutil.ReadFile("testdata/tree-7e2f26d033ee47cd0745649d1a28277c56197921")
 	require.NoError(t, err)
 
-	tree1, err := c.Tree(treeOid)
+	tree1Reader, err := c.Tree(treeOid)
+	require.NoError(t, err)
+	tree1, err := ioutil.ReadAll(tree1Reader)
 	require.NoError(t, err)
 	require.Equal(t, string(treeBytes), string(tree1))
 
@@ -174,7 +180,9 @@ func TestRepeatedCalls(t *testing.T) {
 	_, err = io.Copy(ioutil.Discard, blobReader)
 	require.NoError(t, err, "blob reading should still work")
 
-	tree2, err := c.Tree(treeOid)
+	tree2Reader, err := c.Tree(treeOid)
+	tree2, err := ioutil.ReadAll(tree2Reader)
+	require.NoError(t, err)
 	require.NoError(t, err, "request should succeed because blob was consumed")
 	require.Equal(t, string(treeBytes), string(tree2))
 }

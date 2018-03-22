@@ -3,7 +3,6 @@ package catfile
 import (
 	"context"
 	"io"
-	"io/ioutil"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
@@ -27,26 +26,18 @@ func (c *C) Info(revspec string) (*ObjectInfo, error) {
 
 // Tree returns a raw tree object. It is an error if revspec does not
 // point to a tree. To prevent this firstuse Info to resolve the revspec
-// and check the object type.
-func (c *C) Tree(revspec string) ([]byte, error) {
-	r, err := c.batch.reader(revspec, "tree")
-	if err != nil {
-		return nil, err
-	}
-
-	return ioutil.ReadAll(r)
+// and check the object type. Caller must consume the Reader before
+// making another call on C.
+func (c *C) Tree(revspec string) (io.Reader, error) {
+	return c.batch.reader(revspec, "tree")
 }
 
 // Commit returns a raw commit object. It is an error if revspec does not
 // point to a commit. To prevent this first use Info to resolve the revspec
-// and check the object type.
-func (c *C) Commit(revspec string) ([]byte, error) {
-	r, err := c.batch.reader(revspec, "commit")
-	if err != nil {
-		return nil, err
-	}
-
-	return ioutil.ReadAll(r)
+// and check the object type. Caller must consume the Reader before
+// making another call on C.
+func (c *C) Commit(revspec string) (io.Reader, error) {
+	return c.batch.reader(revspec, "commit")
 }
 
 // Blob returns a reader for the requested blob. The entire blob must be
