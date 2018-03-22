@@ -104,6 +104,7 @@ func TestCommit(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			commitReader, err := c.Commit(tc.spec)
 			require.NoError(t, err)
+
 			contents, err := ioutil.ReadAll(commitReader)
 			require.NoError(t, err)
 
@@ -139,6 +140,7 @@ func TestTree(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			treeReader, err := c.Tree(tc.spec)
 			require.NoError(t, err)
+
 			contents, err := ioutil.ReadAll(treeReader)
 			require.NoError(t, err)
 
@@ -161,8 +163,10 @@ func TestRepeatedCalls(t *testing.T) {
 
 	tree1Reader, err := c.Tree(treeOid)
 	require.NoError(t, err)
+
 	tree1, err := ioutil.ReadAll(tree1Reader)
 	require.NoError(t, err)
+
 	require.Equal(t, string(treeBytes), string(tree1))
 
 	blobReader, err := c.Blob("dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82")
@@ -182,7 +186,9 @@ func TestRepeatedCalls(t *testing.T) {
 
 	tree2Reader, err := c.Tree(treeOid)
 	require.NoError(t, err)
+
 	tree2, err := ioutil.ReadAll(tree2Reader)
 	require.NoError(t, err, "request should succeed because blob was consumed")
+
 	require.Equal(t, string(treeBytes), string(tree2))
 }
