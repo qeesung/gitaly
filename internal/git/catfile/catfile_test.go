@@ -181,8 +181,8 @@ func TestRepeatedCalls(t *testing.T) {
 	require.NoError(t, err, "blob reading should still work")
 
 	tree2Reader, err := c.Tree(treeOid)
-	tree2, err := ioutil.ReadAll(tree2Reader)
 	require.NoError(t, err)
+	tree2, err := ioutil.ReadAll(tree2Reader)
 	require.NoError(t, err, "request should succeed because blob was consumed")
 	require.Equal(t, string(treeBytes), string(tree2))
 }
