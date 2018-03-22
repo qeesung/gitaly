@@ -50,7 +50,7 @@ func TestBlob(t *testing.T) {
 	c, err := New(ctx, testhelper.TestRepository())
 	require.NoError(t, err)
 
-	gitignoreBytes, err := ioutil.ReadFile("testdata/60ecb67744cb56576c30214ff52294f8ce2def98-gitignore")
+	gitignoreBytes, err := ioutil.ReadFile("testdata/blob-dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82")
 	require.NoError(t, err)
 
 	testCases := []struct {
