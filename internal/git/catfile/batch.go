@@ -18,7 +18,18 @@ import (
 type batch struct {
 	r *bufio.Reader
 	w io.WriteCloser
+
+	// n is a state machine that tracks how much data we still have to read
+	// from r. Legal states are: n==0, this means we can do a new request on
+	// the cat-file process. n==1, this means that we have to discard a
+	// trailing newline. n>0, this means we are in the middle of reading a
+	// raw git object.
 	n int64
+
+	// Even though the batch type should not be used concurrently, I think
+	// that if that does happen by mistake we should give proper errors
+	// instead of doing unsafe memory writes (to n) and failing in some
+	// unpredictable way.
 	sync.Mutex
 }
 
