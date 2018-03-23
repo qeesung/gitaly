@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Add catfile convenience methods
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/638
 - Server implementation FindRemoteRepository
   https://gitlab.com/gitlab-org/gitaly/merge_requests/636
 - Log process PID in 'spawn complete' entry
