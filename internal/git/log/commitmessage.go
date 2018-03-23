@@ -68,7 +68,7 @@ func (cmh *commitMessageHelper) commitMessage(commitID string) (string, string, 
 
 // handleCatFile gets the raw commit message for a sequence of commit
 // ID's from a git-cat-file process.
-func (cmh *commitMessageHelper) handleCatFile(c *catfile.C) error {
+func (cmh *commitMessageHelper) handleCatFile(c *catfile.Batch) error {
 	for {
 		select {
 		case messageRequest := <-cmh.requests:
@@ -94,7 +94,7 @@ func (cmh *commitMessageHelper) handleCatFile(c *catfile.C) error {
 }
 
 // getCommitMessage returns subject, body, error by querying git cat-file via stdin and stdout.
-func getCommitMessage(c *catfile.C, commitID string) (string, string, error) {
+func getCommitMessage(c *catfile.Batch, commitID string) (string, string, error) {
 	objInfo, err := c.Info(commitID)
 	if err != nil {
 		return "", "", err

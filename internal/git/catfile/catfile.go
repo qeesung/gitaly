@@ -8,19 +8,19 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 )
 
-// C abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
+// Batch abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
 // It lets you retrieve object metadata and raw objects from a Git repo.
 //
-// A C instance can only serve single request at a time. If you want to
+// A Batch instance can only serve single request at a time. If you want to
 // use it across multiple goroutines you need to add your own locking.
-type C struct {
+type Batch struct {
 	*batchCheck
 	*batch
 }
 
 // Info returns an ObjectInfo if spec exists. If spec does not exist the
 // error is of type NotFoundError.
-func (c *C) Info(revspec string) (*ObjectInfo, error) {
+func (c *Batch) Info(revspec string) (*ObjectInfo, error) {
 	return c.batchCheck.info(revspec)
 }
 
@@ -28,7 +28,7 @@ func (c *C) Info(revspec string) (*ObjectInfo, error) {
 // point to a tree. To prevent this firstuse Info to resolve the revspec
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
-func (c *C) Tree(revspec string) (io.Reader, error) {
+func (c *Batch) Tree(revspec string) (io.Reader, error) {
 	return c.batch.reader(revspec, "tree")
 }
 
@@ -36,25 +36,25 @@ func (c *C) Tree(revspec string) (io.Reader, error) {
 // point to a commit. To prevent this first use Info to resolve the revspec
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
-func (c *C) Commit(revspec string) (io.Reader, error) {
+func (c *Batch) Commit(revspec string) (io.Reader, error) {
 	return c.batch.reader(revspec, "commit")
 }
 
 // Blob returns a reader for the requested blob. The entire blob must be
-// read before any new objects can be requested from this C instance.
+// read before any new objects can be requested from this Batch instance.
 //
 // It is an error if revspec does not point to a blob. To prevent this
 // first use Info to resolve the revspec and check the object type.
-func (c *C) Blob(revspec string) (io.Reader, error) {
+func (c *Batch) Blob(revspec string) (io.Reader, error) {
 	return c.batch.reader(revspec, "blob")
 }
 
-// New returns a new C instance. It is important that ctx gets canceled
+// New returns a new Batch instance. It is important that ctx gets canceled
 // somewhere, because if it doesn't the cat-file processes spawned by
 // New() never terminate.
-func New(ctx context.Context, repo *pb.Repository) (*C, error) {
+func New(ctx context.Context, repo *pb.Repository) (*Batch, error) {
 	if ctx.Done() == nil {
-		panic("empty ctx.Done() in catfile.C.New()")
+		panic("empty ctx.Done() in catfile.Batch.New()")
 	}
 
 	repoPath, env, err := alternates.PathAndEnv(repo)
@@ -62,7 +62,7 @@ func New(ctx context.Context, repo *pb.Repository) (*C, error) {
 		return nil, err
 	}
 
-	c := &C{}
+	c := &Batch{}
 
 	c.batch, err = newBatch(ctx, repoPath, env)
 	if err != nil {

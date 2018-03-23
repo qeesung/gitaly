@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func applyGitattributes(c *catfile.C, repoPath string, revision []byte) error {
+func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) error {
 	infoPath := path.Join(repoPath, "info")
 	attributesPath := path.Join(infoPath, "attributes")
 

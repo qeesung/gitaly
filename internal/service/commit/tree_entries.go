@@ -26,7 +26,7 @@ func validateGetTreeEntriesRequest(in *pb.GetTreeEntriesRequest) error {
 	return nil
 }
 
-func populateFlatPath(c *catfile.C, entries []*pb.TreeEntry) error {
+func populateFlatPath(c *catfile.Batch, entries []*pb.TreeEntry) error {
 	for _, entry := range entries {
 		entry.FlatPath = entry.Path
 
@@ -51,7 +51,7 @@ func populateFlatPath(c *catfile.C, entries []*pb.TreeEntry) error {
 	return nil
 }
 
-func sendTreeEntries(stream pb.CommitService_GetTreeEntriesServer, c *catfile.C, revision, path string, recursive bool) error {
+func sendTreeEntries(stream pb.CommitService_GetTreeEntriesServer, c *catfile.Batch, revision, path string, recursive bool) error {
 	entries, err := treeEntries(c, revision, path, "", recursive)
 	if err != nil {
 		return err

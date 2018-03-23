@@ -48,7 +48,7 @@ func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, ro
 	return entries, nil
 }
 
-func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
+func treeEntries(c *catfile.Batch, revision, path string, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
 	if path == "." {
 		path = ""
 	}
@@ -116,7 +116,7 @@ func treeEntries(c *catfile.C, revision, path string, rootOid string, recursive 
 }
 
 // TreeEntryForRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
-func TreeEntryForRevisionAndPath(c *catfile.C, revision, path string) (*pb.TreeEntry, error) {
+func TreeEntryForRevisionAndPath(c *catfile.Batch, revision, path string) (*pb.TreeEntry, error) {
 	entries, err := treeEntries(c, revision, pathPkg.Dir(path), "", false)
 	if err != nil {
 		return nil, err

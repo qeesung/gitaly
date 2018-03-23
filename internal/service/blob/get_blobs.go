@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlobsServer, c *catfile.C) error {
+func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlobsServer, c *catfile.Batch) error {
 	for _, revisionPath := range req.RevisionPaths {
 		revision := revisionPath.Revision
 		path := revisionPath.Path
