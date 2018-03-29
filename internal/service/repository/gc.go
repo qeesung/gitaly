@@ -13,7 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
-func (s *server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) (*pb.GarbageCollectResponse, error) {
+func (server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectRequest) (*pb.GarbageCollectResponse, error) {
 	ctxlogger := grpc_logrus.Extract(ctx)
 	ctxlogger.WithFields(log.Fields{
 		"WriteBitmaps": in.GetCreateBitmap(),
@@ -24,7 +24,7 @@ func (s *server) GarbageCollect(ctx context.Context, in *pb.GarbageCollectReques
 		return nil, err
 	}
 
-	if err := s.CleanupRepo(repoPath); err != nil {
+	if err := cleanupRepo(repoPath); err != nil {
 		return nil, err
 	}
 

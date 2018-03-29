@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (server) CleanupRepo(repoPath string) error {
+func cleanupRepo(repoPath string) error {
 	threshold := time.Now().Add(-1 * time.Hour)
 	if err := cleanRefsLocks(filepath.Join(repoPath, "refs"), threshold); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanRefsLocks: %v", err)
