@@ -64,13 +64,15 @@ func FixDirectoryPermissions(path string) error {
 	return fixDirectoryPermissions(path, make(map[string]struct{}))
 }
 
+const minimumDirPerm = 0700
+
 func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
 	return filepath.Walk(path, func(path string, info os.FileInfo, errIncoming error) error {
-		if !info.IsDir() || info.Mode()&0700 >= 0700 {
+		if !info.IsDir() || info.Mode()&minimumDirPerm == minimumDirPerm {
 			return nil
 		}
 
-		if err := os.Chmod(path, info.Mode()|0700); err != nil {
+		if err := os.Chmod(path, info.Mode()|minimumDirPerm); err != nil {
 			return err
 		}
 
