@@ -1,7 +1,6 @@
 package housekeeping
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -201,7 +200,6 @@ func TestShouldUnlink(t *testing.T) {
 		path    string
 		modTime time.Time
 		mode    os.FileMode
-		err     error
 	}
 	tests := []struct {
 		name string
@@ -214,7 +212,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/objects",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0700,
-				err:     nil,
 			},
 			want: false,
 		},
@@ -224,7 +221,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0770,
-				err:     nil,
 			},
 			want: false,
 		},
@@ -234,7 +230,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0600,
-				err:     nil,
 			},
 			want: false,
 		},
@@ -244,7 +239,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-8 * 24 * time.Hour),
 				mode:    0600,
-				err:     nil,
 			},
 			want: true,
 		},
@@ -254,7 +248,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0000,
-				err:     nil,
 			},
 			want: false,
 		},
@@ -264,7 +257,6 @@ func TestShouldUnlink(t *testing.T) {
 				path:    "/tmp/tmp_DELETEME",
 				modTime: time.Now().Add(-1 * time.Hour),
 				mode:    0000,
-				err:     fmt.Errorf("file inaccessible"),
 			},
 			want: false,
 		},
@@ -272,7 +264,7 @@ func TestShouldUnlink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := shouldRemove(tt.args.path, tt.args.modTime, tt.args.mode, tt.args.err); got != tt.want {
+			if got := shouldRemove(tt.args.path, tt.args.modTime, tt.args.mode); got != tt.want {
 				t.Errorf("shouldUnlink() = %v, want %v", got, tt.want)
 			}
 		})

@@ -26,7 +26,7 @@ func Perform(ctx context.Context, repoPath string) error {
 			return nil
 		}
 
-		if info == nil || !shouldRemove(path, info.ModTime(), info.Mode(), err) {
+		if info == nil || !shouldRemove(path, info.ModTime(), info.Mode()) {
 			return nil
 		}
 
@@ -94,7 +94,7 @@ func forceRemove(path string) error {
 	return os.RemoveAll(path)
 }
 
-func shouldRemove(path string, modTime time.Time, mode os.FileMode, _ error) bool {
+func shouldRemove(path string, modTime time.Time, mode os.FileMode) bool {
 	base := filepath.Base(path)
 
 	// Only delete entries starting with `tmp_` and older than a week
