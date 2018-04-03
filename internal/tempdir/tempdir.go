@@ -97,7 +97,7 @@ func clean(dir string) error {
 		}
 
 		fullPath := path.Join(dir, info.Name())
-		if err := housekeeping.FixDirectoryPermissions(fullPath, nil); err != nil {
+		if err := housekeeping.FixDirectoryPermissions(fullPath); err != nil {
 			return err
 		}
 

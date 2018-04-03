@@ -91,7 +91,7 @@ func forceRemove(path string) error {
 	}
 
 	// Delete failed. Try again after chmod'ing directories recursively
-	if err := FixDirectoryPermissions(path, nil); err != nil {
+	if err := FixDirectoryPermissions(path); err != nil {
 		return err
 	}
 
