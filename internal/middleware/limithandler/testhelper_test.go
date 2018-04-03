@@ -1,23 +1,29 @@
 package limithandler_test
 
 import (
-	"sync/atomic"
+	"sync"
 
 	pb "gitlab.com/gitlab-org/gitaly/internal/middleware/limithandler/testpb"
 	"golang.org/x/net/context"
 )
 
 type server struct {
-	requestCount uint64
-	blockCh      chan (struct{})
+	requestCount int
+	sync.Mutex
+	blockCh chan (struct{})
 }
 
 func (s *server) registerRequest() {
-	atomic.AddUint64(&s.requestCount, 1)
+	s.Lock()
+	s.requestCount++
+	s.Unlock()
 }
 
 func (s *server) getRequestCount() int {
-	return int(atomic.LoadUint64(&s.requestCount))
+	s.Lock()
+	count := s.requestCount
+	s.Unlock()
+	return count
 }
 
 func (s *server) Unary(ctx context.Context, in *pb.UnaryRequest) (*pb.UnaryResponse, error) {
