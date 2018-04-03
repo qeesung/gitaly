@@ -74,35 +74,32 @@ func TestCleanSuccess(t *testing.T) {
 	recent := time.Now()
 
 	makeDir(t, "a", old)
+	makeDir(t, "a/b", recent) // Messes up mtime of "a", we fix that below
 	makeDir(t, "c", recent)
 	makeDir(t, "f", old)
 
-	makeFile(t, "a/b", old)
+	makeFile(t, "a/b/g", old)
 	makeFile(t, "c/d", old)
 	makeFile(t, "e", recent)
 
 	// This is really evil and even breaks 'rm -rf'
+	require.NoError(t, chmod("a/b", 0), "apply evil permissions to 'a/b'")
 	require.NoError(t, chmod("a", 0), "apply evil permissions to 'a'")
+
+	require.NoError(t, chtimes("a", old), "reset mtime of 'a'")
 
 	assertEntries(t, "a", "c", "e", "f")
 
 	require.NoError(t, clean(cleanRoot), "walk first pass")
-	// 'a' won't get removed because it's mtime is bumped when 'a/b' is deleted
-	assertEntries(t, "a", "c", "e")
-
-	info, err := stat("a")
-	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0700), info.Mode().Perm(), "permissions of 'a' should have been fixed")
-
-	_, err = stat("a/b")
-	require.True(t, os.IsNotExist(err), "entry 'a/b' should be gone")
-
-	require.NoError(t, clean(cleanRoot), "walk second pass")
-	assertEntries(t, "a", "c", "e")
+	assertEntries(t, "c", "e")
 }
 
 func chmod(p string, mode os.FileMode) error {
 	return os.Chmod(path.Join(cleanRoot, p), mode)
+}
+
+func chtimes(p string, t time.Time) error {
+	return os.Chtimes(path.Join(cleanRoot, p), t, t)
 }
 
 func stat(p string) (os.FileInfo, error) {

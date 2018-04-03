@@ -56,10 +56,23 @@ func Perform(ctx context.Context, repoPath string) error {
 	return err
 }
 
-func fixPermissions(path string) {
-	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			os.Chmod(path, 0700)
+func FixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
+	if retriedPaths == nil {
+		retriedPaths = make(map[string]struct{})
+	}
+
+	return filepath.Walk(path, func(path string, info os.FileInfo, errIncoming error) error {
+		if !info.IsDir() || info.Mode()&0700 >= 0700 {
+			return nil
+		}
+
+		if err := os.Chmod(path, info.Mode()|0700); err != nil {
+			return err
+		}
+
+		if _, retried := retriedPaths[path]; !retried && os.IsPermission(errIncoming) {
+			retriedPaths[path] = struct{}{}
+			return FixDirectoryPermissions(path, retriedPaths)
 		}
 
 		return nil
@@ -74,12 +87,14 @@ func forceRemove(path string) error {
 	}
 
 	// Delete failed. Try again after chmod'ing directories recursively
-	fixPermissions(path)
+	if err := FixDirectoryPermissions(path, nil); err != nil {
+		return err
+	}
 
 	return os.RemoveAll(path)
 }
 
-func shouldRemove(path string, modTime time.Time, mode os.FileMode, err error) bool {
+func shouldRemove(path string, modTime time.Time, mode os.FileMode, _ error) bool {
 	base := filepath.Base(path)
 
 	// Only delete entries starting with `tmp_` and older than a week

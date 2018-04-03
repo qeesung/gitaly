@@ -2,17 +2,16 @@ package tempdir
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -84,7 +83,30 @@ func clean(dir string) error {
 		panic(invalidCleanRoot("invalid tempdir clean root: panicking to prevent data loss"))
 	}
 
-	return filepath.Walk(dir, cleanFunc)
+	entries, err := ioutil.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	for _, info := range entries {
+		if time.Since(info.ModTime()) < maxAge {
+			continue
+		}
+
+		fullPath := path.Join(dir, info.Name())
+		if err := housekeeping.FixDirectoryPermissions(fullPath, nil); err != nil {
+			return err
+		}
+
+		if err := os.RemoveAll(fullPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 const (
@@ -92,30 +114,3 @@ const (
 )
 
 type invalidCleanRoot string
-
-func cleanFunc(path string, info os.FileInfo, errIncoming error) error {
-	if errIncoming != nil && !os.IsNotExist(errIncoming) {
-		return fmt.Errorf("incoming %q: %v", path, errIncoming)
-	}
-
-	if info == nil {
-		return nil
-	}
-
-	if perm := info.Mode().Perm(); info.IsDir() && perm&0700 < 0700 {
-		// Fix directory read permissions
-		if err := os.Chmod(path, perm|0700); err != nil {
-			return err
-		}
-	}
-
-	if time.Since(info.ModTime()) < maxAge {
-		return nil
-	}
-
-	if err := os.Remove(path); err != nil && !info.IsDir() {
-		return err
-	}
-
-	return nil
-}
