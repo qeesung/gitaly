@@ -111,4 +111,11 @@ func (server) GetBlob(_ *pb.GetBlobRequest, _ pb.BlobService_GetBlobServer) erro
 
 ## Concurrency
 
-Use channels and [package "sync"](https://golang.org/pkg/sync/). Don't use "sync/atomic".
+The [documentation of "sync/atomic"](https://golang.org/pkg/sync/atomic/) says:
+
+> These functions require great care to be used correctly. Except for
+special, low-level applications, synchronization is better done with
+channels or the facilities of the sync package.
+
+Gitaly is not a low-level application so we use channels and [package
+"sync"](https://golang.org/pkg/sync/), not package "sync/atomic".
