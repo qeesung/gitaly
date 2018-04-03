@@ -56,11 +56,15 @@ func Perform(ctx context.Context, repoPath string) error {
 	return err
 }
 
-func FixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
-	if retriedPaths == nil {
-		retriedPaths = make(map[string]struct{})
-	}
+// FixDirectoryPermissions does a recursive directory walk to look for
+// directories that cannot be accessed by the current user, and tries to
+// fix those with chmod. The motivating problem is that directories with mode
+// 0 break os.RemoveAll.
+func FixDirectoryPermissions(path string) error {
+	return fixDirectoryPermissions(path, make(map[string]struct{}))
+}
 
+func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
 	return filepath.Walk(path, func(path string, info os.FileInfo, errIncoming error) error {
 		if !info.IsDir() || info.Mode()&0700 >= 0700 {
 			return nil
@@ -72,7 +76,7 @@ func FixDirectoryPermissions(path string, retriedPaths map[string]struct{}) erro
 
 		if _, retried := retriedPaths[path]; !retried && os.IsPermission(errIncoming) {
 			retriedPaths[path] = struct{}{}
-			return FixDirectoryPermissions(path, retriedPaths)
+			return fixDirectoryPermissions(path, retriedPaths)
 		}
 
 		return nil
