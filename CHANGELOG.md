@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Fix directory permission walker for Go 1.10
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/650
+
 v0.93.0
 
 - Fix concurrency limit handler stream interceptor
