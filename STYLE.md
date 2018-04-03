@@ -117,5 +117,5 @@ The [documentation of "sync/atomic"](https://golang.org/pkg/sync/atomic/) says:
 special, low-level applications, synchronization is better done with
 channels or the facilities of the sync package.
 
-Gitaly is not a low-level application so we use channels and [package
-"sync"](https://golang.org/pkg/sync/), not package "sync/atomic".
+Gitaly is not a low-level application so we should avoid "sync/atomic".
+We use channels and [package "sync"](https://golang.org/pkg/sync/).
