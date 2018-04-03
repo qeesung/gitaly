@@ -21,6 +21,8 @@ const (
 	// directory name that could be provided by a user. The '+' character is
 	// not allowed in GitLab namespaces or repositories.
 	tmpRootPrefix = "+gitaly/tmp"
+
+	maxAge = 7 * 24 * time.Hour
 )
 
 // New returns the path of a new temporary directory for use with the
@@ -75,6 +77,8 @@ func StartCleaning() {
 	}
 }
 
+type invalidCleanRoot string
+
 func clean(dir string) error {
 	// If we start "cleaning up" the wrong directory we may delete user data
 	// which is Really Bad.
@@ -108,9 +112,3 @@ func clean(dir string) error {
 
 	return nil
 }
-
-const (
-	maxAge = 7 * 24 * time.Hour
-)
-
-type invalidCleanRoot string
