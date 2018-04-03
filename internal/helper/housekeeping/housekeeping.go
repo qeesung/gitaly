@@ -20,7 +20,7 @@ func Perform(ctx context.Context, repoPath string) error {
 	filesMarkedForRemoval := 0
 	unremovableFiles := 0
 
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, _ error) error {
 		if repoPath == path {
 			// Never consider the root path
 			return nil
@@ -32,8 +32,7 @@ func Perform(ctx context.Context, repoPath string) error {
 
 		filesMarkedForRemoval++
 
-		err = forceRemove(path)
-		if err != nil {
+		if err := forceRemove(path); err != nil {
 			unremovableFiles++
 			logger.WithError(err).WithField("path", path).Warn("unable to remove stray file")
 		}

@@ -102,10 +102,6 @@ func chtimes(p string, t time.Time) error {
 	return os.Chtimes(path.Join(cleanRoot, p), t, t)
 }
 
-func stat(p string) (os.FileInfo, error) {
-	return os.Stat(path.Join(cleanRoot, p))
-}
-
 func assertEntries(t *testing.T, entries ...string) {
 	foundEntries, err := ioutil.ReadDir(cleanRoot)
 	require.NoError(t, err)
