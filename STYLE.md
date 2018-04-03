@@ -108,3 +108,7 @@ func (server) GetBlob(_ *pb.GetBlobRequest, _ pb.BlobService_GetBlobServer) erro
     return helper.Unimplemented
 }
 ```
+
+## Concurrency
+
+Use channels and [package "sync"](https://golang.org/pkg/sync/). Don't use "sync/atomic".
