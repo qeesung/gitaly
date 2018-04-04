@@ -15,7 +15,6 @@ import (
 )
 
 func TestGetRepoPath(t *testing.T) {
-	testhelper.ConfigureTestStorage()
 	defer func(oldStorages []config.Storage) {
 		config.Config.Storages = oldStorages
 	}(config.Config.Storages)
