@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -76,6 +77,12 @@ func GitlabTestStoragePath() string {
 // ConfigureTestStorage adds a storage entry to Config pointing to
 // the path of the gitlab-test repo.
 func ConfigureTestStorage() {
+	configureTestStorageOnce.Do(configureTestStorage)
+}
+
+var configureTestStorageOnce sync.Once
+
+func configureTestStorage() {
 	config.Config.Storages = []config.Storage{
 		{Name: "default", Path: GitlabTestStoragePath()},
 	}
@@ -121,7 +128,7 @@ func TestRepository() *pb.Repository {
 	}
 
 	if !testRepoValid(repo) {
-		log.Fatalf("Test repo not found, did you run `make prepare-tests`?")
+		panic("Test repo not found, did you run `make prepare-tests`?")
 	}
 
 	return repo

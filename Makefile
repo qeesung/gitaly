@@ -121,6 +121,10 @@ test: test-go rspec
 test-go: prepare-tests
 	@go test $(LOCAL_PACKAGES)
 
+.PHONY: race-go
+race-go: prepare-tests
+	@go test -race $(LOCAL_PACKAGES)
+
 .PHONY: rspec
 rspec: assemble-internal prepare-tests
 	cd ruby && bundle exec rspec

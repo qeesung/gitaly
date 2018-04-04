@@ -40,8 +40,9 @@ func concurrencyKeyFn(ctx context.Context) string {
 	return ""
 }
 
-// New returns a GRPC server with all Gitaly services and interceptors set up.
-func New(rubyServer *rubyserver.Server) *grpc.Server {
+var logrusEntry *log.Entry
+
+func init() {
 	logger := log.StandardLogger()
 
 	urlSanitizer := logsanitizer.NewURLSanitizerHook()
@@ -52,9 +53,12 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 	)
 	logger.Hooks.Add(urlSanitizer)
 
-	logrusEntry := log.NewEntry(logger)
+	logrusEntry = log.NewEntry(logger)
 	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
+}
 
+// New returns a GRPC server with all Gitaly services and interceptors set up.
+func New(rubyServer *rubyserver.Server) *grpc.Server {
 	ctxTagOpts := []grpc_ctxtags.Option{
 		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}

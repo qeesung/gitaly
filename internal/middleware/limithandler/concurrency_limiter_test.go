@@ -38,6 +38,12 @@ func (c *counter) down() {
 	c.current = c.current - 1
 }
 
+func (c *counter) currentVal() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.current
+}
+
 func (c *counter) Queued(ctx context.Context) {
 	c.Lock()
 	defer c.Unlock()
@@ -147,8 +153,8 @@ func TestLimiter(t *testing.T) {
 
 						limiter.Limit(context.Background(), lockKey, func() (interface{}, error) {
 							gauge.up()
-
-							assert.True(t, gauge.current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", gauge.current, tt.wantMaxRange[1])
+							current := gauge.currentVal()
+							assert.True(t, current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", current, tt.wantMaxRange[1])
 							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", limiter.countSemaphores(), tt.buckets)
 							time.Sleep(tt.delay)
 

@@ -46,8 +46,7 @@ verify:
     name: "$CI_JOB_NAME"
     expire_in: 6 months
 
-.test_template: &test_definition
-  <<: *ruby_definition
+.go_test_template: &go_test_definition
   stage: test
   # Override the ruby_definition cache definition for pull
   cache:
@@ -55,6 +54,10 @@ verify:
     paths:
       - ruby/vendor/bundle
     policy: pull
+
+.test_template: &test_definition
+  <<: *ruby_definition
+  <<: *go_test_definition
   script:
     - go version
     - git version
@@ -110,6 +113,13 @@ test:go1.9-git2.16:
 test:go1.10-git2.16:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.10-git-2.16
+
+race:
+  <<: *go_test_definition
+  script:
+    - go version
+    - git version
+    - make race-go
 
 cover:
   <<: *ruby_definition
