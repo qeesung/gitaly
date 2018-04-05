@@ -51,8 +51,9 @@ type Storage struct {
 
 // Logging contains the logging configuration for Gitaly
 type Logging struct {
-	Format    string
-	SentryDSN string `toml:"sentry_dsn"`
+	Format        string
+	SentryDSN     string `toml:"sentry_dsn"`
+	RubySentryDSN string `toml:"ruby_sentry_dsn"`
 }
 
 // Prometheus contains additional configuration data for prometheus

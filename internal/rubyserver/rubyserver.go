@@ -109,7 +109,7 @@ func Start() (*Server, error) {
 		"GITALY_RUBY_GITALY_BIN_DIR="+cfg.BinDir,
 		"GITALY_VERSION="+version.GetVersion(),
 	)
-	if dsn := cfg.Logging.SentryDSN; dsn != "" {
+	if dsn := cfg.Logging.RubySentryDSN; dsn != "" {
 		env = append(env, "SENTRY_DSN="+dsn)
 	}
 

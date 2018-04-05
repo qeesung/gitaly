@@ -112,6 +112,14 @@ max\_rss limit.
 |restart_delay|string|no|Time memory must be high before a restart is triggered, in seconds. Default 5 minutes ("5m").|
 |num_workers|integer|no|Number of gitaly-ruby worker processes. Default 2, minimum 2.|
 
+### Logging
+
+|name|type|required|notes|
+|----|----|--------|-----|
+|format|string|no|Log format: "text" or "json". Default: "text"|
+|sentry_dsn|string|no|Sentry DSN for exception monitoring|
+|ruby_sentry_dsn|string|no|Sentry DSN for gitaly-ruby exception monitoring|
+
 ## Environment variables
 
 ### GITALY_DEBUG

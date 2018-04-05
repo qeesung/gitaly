@@ -31,8 +31,10 @@ path = "/home/git/repositories"
 # # You can optionally configure Gitaly to output JSON-formatted log messages to stdout
 # [logging]
 # format = "json"
-# # Additionally exceptions from the Go server and gitaly-ruby can be reported to Sentry
+# # Additionally exceptions from the Go server can be reported to Sentry
 # sentry_dsn = "https://<key>:<secret>@sentry.io/<project>"
+# # Exceptions from gitaly-ruby can also be reported to Sentry
+# ruby_sentry_dsn = "https://<key>:<secret>@sentry.io/<project>"
 
 # # You can optionally configure Gitaly to record histogram latencies on GRPC method calls
 # [prometheus]
