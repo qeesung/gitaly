@@ -14,7 +14,5 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	testhelper.ConfigureTestStorage()
-
 	return m.Run()
 }

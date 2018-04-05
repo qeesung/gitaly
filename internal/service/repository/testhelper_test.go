@@ -88,7 +88,6 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	testhelper.ConfigureTestStorage()
 	testhelper.ConfigureRuby()
 	config.Config.Auth = config.Auth{Token: config.Token(testhelper.RepositoryAuthToken)}
 

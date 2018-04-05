@@ -153,7 +153,6 @@ func updateWikiPage(t *testing.T, client pb.WikiServiceClient, wikiRepo *pb.Repo
 }
 
 func setupWikiRepo(t *testing.T) (*pb.Repository, string, func()) {
-	testhelper.ConfigureTestStorage()
 	relPath := strings.Join([]string{t.Name(), "wiki-test.git"}, "-")
 	storagePath := testhelper.GitlabTestStoragePath()
 	wikiRepoPath := path.Join(storagePath, relPath)
