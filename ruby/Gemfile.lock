@@ -120,7 +120,7 @@ GEM
     rubocop-rspec (1.17.0)
       rubocop (>= 0.50.0)
     ruby-progressbar (1.8.3)
-    rugged (0.26.0)
+    rugged (0.27.0)
     sanitize (2.1.0)
       nokogiri (>= 1.4.4)
     sentry-raven (2.7.2)
@@ -152,6 +152,7 @@ DEPENDENCIES
   licensee (~> 8.7.0)
   rdoc (~> 4.2)
   rspec
+  rugged (~> 0.27.0)
   sentry-raven (~> 2.7.2)
 
 BUNDLED WITH
