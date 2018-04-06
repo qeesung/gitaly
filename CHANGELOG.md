@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Use rugged 0.27.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/660
+
 v0.94.0
 
 - Send gitaly-ruby exceptions to their own DSN
