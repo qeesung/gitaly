@@ -256,7 +256,7 @@ your custom protocol and use it to run the test suite.
 
 - clone https://gitlab.com/gitlab-org/gitaly-proto.git
 - create a new branch in gitaly-proto
-- make changes
+- make changes to the `*.proto` files
 - **run `make`** to generate the new protobuf wrapper code, otherwise your changes get ignored!
 - `git add .` and commit
 - push to your new branch in gitlab-org/gitaly-proto or to your own fork
