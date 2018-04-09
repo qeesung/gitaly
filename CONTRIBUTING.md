@@ -241,3 +241,53 @@ It can also be used with profiling tools, for example [go-torch](https://github.
 ```shell
 go-torch --url http://localhost:9236 -p > flamegraph.svg
 ```
+
+## Development and testing with a custom gitaly-proto
+
+During development you sometimes want to use a modified of
+gitaly-proto that has not been released yet. This is how you can do
+that. Every time you change gitaly-proto you need to perform these
+steps.
+
+You can speed up this process a little bit by avoiding the Git push
+but that is more complex and it won't work in CI. If you follow the
+process below, Gitaly's CI will be able to fetch your custom protocol
+and use it to run the test suite.
+
+### 1. Change gitaly-proto
+
+- clone https://gitlab.com/gitlab-org/gitaly-proto.git
+- create a new branch in gitaly-proto
+- make changes
+- **run `make`** to generate the new protobuf wrapper code, otherwise your changes get ignored!
+- `git add .` and commit
+- push to your new branch in gitlab-org/gitaly-proto or to your own fork
+
+### 2. Make Gitaly use your custom gitaly-proto
+
+The following steps take place inside your Gitaly repo.
+
+- Fetch the generated Go code:
+
+```shell
+# for forks:
+govendor fetch gitlab.com/gitlab-org/gitaly-proto/go::gitlab.com/my-user/gitaly-proto/go@my-branch
+
+# for a gitlab-org branch:
+govendor fetch gitlab.com/gitlab-org/gitaly-proto/go@my-branch
+```
+
+- Include it in your next commit with `git add vendor`
+- For gitaly-ruby, edit `ruby/Gemfile` so that it has:
+
+```ruby
+gem 'gitaly-proto', git: 'https://gitlab.com/my-user/gitaly-proto.git', branch: 'my-branch'
+```
+
+- Update Gemfile.lock with
+
+```shell
+cd ruby && bundle update gitaly-proto
+```
+
+- Include the changes in your next commit with `git add ruby/Gemfile ruby/Gemfile.lock`
