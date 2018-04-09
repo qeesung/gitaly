@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Fix fragile checksum test
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/661
 - Use rugged 0.27.0
   https://gitlab.com/gitlab-org/gitaly/merge_requests/660
 
