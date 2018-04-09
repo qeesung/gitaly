@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"os"
+	"os/exec"
+	"path"
 	"testing"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -17,8 +20,15 @@ func TestSuccessfulCalculateChecksum(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
+
+	// Force the refs database of testRepo into a known state
+	require.NoError(t, os.RemoveAll(path.Join(testRepoPath, "refs")))
+	for _, d := range []string{"refs/heads", "refs/tags"} {
+		require.NoError(t, os.MkdirAll(path.Join(testRepoPath, d), 0755))
+	}
+	require.NoError(t, exec.Command("cp", "testdata/checksum-test-packed-refs", path.Join(testRepoPath, "packed-refs")).Run())
 
 	request := &pb.CalculateChecksumRequest{Repository: testRepo}
 	testCtx, cancelCtx := testhelper.Context()
@@ -26,7 +36,7 @@ func TestSuccessfulCalculateChecksum(t *testing.T) {
 
 	response, err := client.CalculateChecksum(testCtx, request)
 	require.NoError(t, err)
-	require.Equal(t, "8786527b0747d37d268adc75c5e5e54f3323891c", response.Checksum)
+	require.Equal(t, "7b5dbc8bbacb2bfd4584b5e26ed363e7a1cce041", response.Checksum)
 }
 
 func TestEmptyRepositoryCalculateChecksum(t *testing.T) {
