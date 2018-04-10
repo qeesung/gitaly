@@ -3,7 +3,6 @@ package gitalyauth
 import (
 	"crypto/subtle"
 	"encoding/base64"
-	"fmt"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"golang.org/x/net/context"
@@ -16,9 +15,12 @@ var (
 	errDenied          = status.Errorf(codes.PermissionDenied, "permission denied")
 )
 
+// CheckToken checks the 'authentication' header of incoming gRPC
+// metadata in ctx. It returns nil if and only if the token matches
+// secret.
 func CheckToken(ctx context.Context, secret string) error {
 	if len(secret) == 0 {
-		return fmt.Errorf("CheckToken: secret may not be empty")
+		panic("CheckToken: secret may not be empty")
 	}
 
 	encodedToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
