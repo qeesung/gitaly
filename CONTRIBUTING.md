@@ -244,10 +244,10 @@ go-torch --url http://localhost:9236 -p > flamegraph.svg
 
 ## Development and testing with a custom gitaly-proto
 
-During development you sometimes want to use a modified of
-gitaly-proto that has not been released yet. This is how you can do
-that. Every time you change gitaly-proto you need to perform these
-steps.
+During development you sometimes want to use a feature branch of
+gitaly-proto instead of an officially released tag. This is how you
+can do that. Every time you change gitaly-proto you need to perform
+these steps.
 
 If you follow the process below, Gitaly's CI will be able to fetch
 your custom protocol and use it to run the test suite.
