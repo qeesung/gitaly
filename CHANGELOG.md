@@ -2,9 +2,10 @@
 
 UNRELEASED
 
-v0.95.0
 - Make it a fatal error if gitaly-ruby can't start
   https://gitlab.com/gitlab-org/gitaly/merge_requests/667
+
+v0.95.0
 - Fix fragile checksum test
   https://gitlab.com/gitlab-org/gitaly/merge_requests/661
 - Use rugged 0.27.0
