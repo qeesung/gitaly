@@ -28,6 +28,7 @@ func formatRepoRequest(repo *pb.Repository) map[string]interface{} {
 		"repoStorage":   repo.StorageName,
 		"repoPath":      repo.RelativePath,
 		"topLevelGroup": getTopLevelGroupFromRepoPath(repo.RelativePath),
+		"glRepository":  repo.GlRepository,
 	}
 }
 
