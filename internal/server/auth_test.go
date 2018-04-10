@@ -35,7 +35,7 @@ func TestAuthFailures(t *testing.T) {
 	defer func(oldAuth config.Auth) {
 		config.Config.Auth = oldAuth
 	}(config.Config.Auth)
-	config.Config.Auth.Token = config.Token("quxbaz")
+	config.Config.Auth.Token = "quxbaz"
 
 	testCases := []struct {
 		desc string
@@ -77,23 +77,23 @@ func TestAuthSuccess(t *testing.T) {
 		desc     string
 		opts     []grpc.DialOption
 		required bool
-		token    config.Token
+		token    string
 	}{
 		{desc: "no auth, not required"},
 		{
 			desc:  "incorrect auth, not required",
 			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("incorrect"))},
-			token: config.Token("foobar"),
+			token: "foobar",
 		},
 		{
 			desc:  "correct auth, not required",
 			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
-			token: config.Token("foobar"),
+			token: "foobar",
 		},
 		{
 			desc:     "correct auth, required",
 			opts:     []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials("foobar"))},
-			token:    config.Token("foobar"),
+			token:    "foobar",
 			required: true,
 		},
 	}

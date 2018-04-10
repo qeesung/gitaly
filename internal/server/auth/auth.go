@@ -1,8 +1,7 @@
 package auth
 
 import (
-	"encoding/base64"
-
+	"gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -43,28 +42,22 @@ func check(ctx context.Context) (context.Context, error) {
 		return ctx, nil
 	}
 
-	encodedToken, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	if err != nil {
+	err := gitalyauth.CheckToken(ctx, config.Config.Auth.Token)
+	if err == nil {
+		countStatus(okLabel()).Inc()
+		return ctx, nil
+	}
+
+	switch status.Code(err) {
+	case codes.Unauthenticated:
 		countStatus("unauthenticated").Inc()
-		err = status.Errorf(codes.Unauthenticated, "authentication required")
-		return ctx, ifEnforced(err)
-	}
-
-	token, err := base64.StdEncoding.DecodeString(encodedToken)
-	if err != nil {
-		countStatus("invalid").Inc()
-		err = status.Errorf(codes.Unauthenticated, "authentication required")
-		return ctx, ifEnforced(err)
-	}
-
-	if !config.Config.Auth.Token.Equal(string(token)) {
+	case codes.PermissionDenied:
 		countStatus("denied").Inc()
-		err = status.Errorf(codes.PermissionDenied, "permission denied")
-		return ctx, ifEnforced(err)
+	default:
+		countStatus("invalid").Inc()
 	}
 
-	countStatus(okLabel()).Inc()
-	return ctx, nil
+	return ctx, ifEnforced(err)
 }
 
 func ifEnforced(err error) error {

@@ -1,23 +1,13 @@
 package config
 
 import (
-	"crypto/subtle"
-
 	log "github.com/sirupsen/logrus"
 )
 
 // Auth contains the authentication settings for this Gitaly process.
 type Auth struct {
-	Transitioning bool  `toml:"transitioning"`
-	Token         Token `toml:"token"`
-}
-
-// Token is a Gitaly authentication token.
-type Token string
-
-// Equal tests if t is equal to the other token
-func (t Token) Equal(other string) bool {
-	return subtle.ConstantTimeCompare([]byte(other), []byte(t)) == 1
+	Transitioning bool   `toml:"transitioning"`
+	Token         string `toml:"token"`
 }
 
 func validateToken() error {
