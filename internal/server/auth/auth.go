@@ -43,12 +43,9 @@ func check(ctx context.Context) (context.Context, error) {
 	}
 
 	err := gitalyauth.CheckToken(ctx, config.Config.Auth.Token)
-	if err == nil {
-		countStatus(okLabel()).Inc()
-		return ctx, nil
-	}
-
 	switch status.Code(err) {
+	case codes.OK:
+		countStatus(okLabel()).Inc()
 	case codes.Unauthenticated:
 		countStatus("unauthenticated").Inc()
 	case codes.PermissionDenied:
