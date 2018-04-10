@@ -161,8 +161,7 @@ func run(listeners []net.Listener) error {
 
 	ruby, err := rubyserver.Start()
 	if err != nil {
-		// TODO: this will be a fatal error in the future
-		log.WithError(err).Warn("failed to start ruby service")
+		return err
 	}
 	defer ruby.Stop()
 
