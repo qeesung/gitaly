@@ -89,7 +89,7 @@ func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
 	testhelper.ConfigureRuby()
-	config.Config.Auth = config.Auth{Token: config.Token(testhelper.RepositoryAuthToken)}
+	config.Config.Auth = config.Auth{Token: testhelper.RepositoryAuthToken}
 
 	var err error
 	config.Config.GitlabShell.Dir, err = filepath.Abs("testdata/gitlab-shell")
