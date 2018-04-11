@@ -164,3 +164,11 @@ module Gitlab
     end
   end
 end
+
+module Gitlab
+  module Utils
+    def self.nlbr(str)
+      str.gsub(/\R/, "<br>").html_safe
+    end
+  end
+end
