@@ -201,10 +201,10 @@
 			"revisionTime": "2017-12-31T12:27:32Z"
 		},
 		{
-			"checksumSHA1": "i1StA5P+5g3QYtRlxJm9gq9ACaE=",
+			"checksumSHA1": "DP5B3R9nsWjriE1zeI+eSZXFv3k=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go",
-			"revision": "7db52529381a2f952bdbc59acece1953dee9c5b7",
-			"revisionTime": "2018-04-12T06:57:19Z",
+			"revision": "f5dea4897098847e3bf540c55033b6c3465a225d",
+			"revisionTime": "2018-04-12T08:37:35Z",
 			"version": "fj-update-wiki-comment-struct",
 			"versionExact": "fj-update-wiki-comment-struct"
 		},
