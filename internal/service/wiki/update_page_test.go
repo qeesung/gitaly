@@ -154,10 +154,11 @@ func TestFailedWikiUpdatePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty commit details' id",
-			request: &pb.WikiWritePageRequest{
+			desc: "empty commit details' user id",
+			request: &pb.WikiUpdatePageRequest{
 				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
+				PagePath:   []byte("//Installing Gitaly.md"),
+				Title:      []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
 					UserName: []byte("username"),
@@ -171,15 +172,16 @@ func TestFailedWikiUpdatePageDueToValidations(t *testing.T) {
 		},
 		{
 			desc: "empty commit details' username",
-			request: &pb.WikiWritePageRequest{
+			request: &pb.WikiUpdatePageRequest{
 				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
+				PagePath:   []byte("//Installing Gitaly.md"),
+				Title:      []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:  []byte("1"),
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
+					UserId:  	[]byte("1"),
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
 				},
 				Content: []byte(""),
 			},

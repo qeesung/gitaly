@@ -224,7 +224,7 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty commit details' id",
+			desc: "empty commit details' user id",
 			request: &pb.WikiWritePageRequest{
 				Repository: wikiRepo,
 				Name:       []byte("Installing Gitaly"),

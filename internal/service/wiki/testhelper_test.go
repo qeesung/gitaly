@@ -100,9 +100,11 @@ func writeWikiPage(t *testing.T, client pb.WikiServiceClient, wikiRepo *pb.Repos
 	}
 
 	commitDetails := &pb.WikiCommitDetails{
-		Name:    []byte("Ahmad Sherif"),
-		Email:   []byte("ahmad@gitlab.com"),
-		Message: []byte("Add " + opts.title),
+		UserId:   []byte("1"),
+		UserName: []byte("ahmad"),
+		Name:     []byte("Ahmad Sherif"),
+		Email:    []byte("ahmad@gitlab.com"),
+		Message:  []byte("Add " + opts.title),
 	}
 
 	request := &pb.WikiWritePageRequest{
@@ -127,9 +129,11 @@ func writeWikiPage(t *testing.T, client pb.WikiServiceClient, wikiRepo *pb.Repos
 
 func updateWikiPage(t *testing.T, client pb.WikiServiceClient, wikiRepo *pb.Repository, name string, content []byte) {
 	commitDetails := &pb.WikiCommitDetails{
-		Name:    []byte("Ahmad Sherif"),
-		Email:   []byte("ahmad@gitlab.com"),
-		Message: []byte("Update " + name),
+		UserId:   []byte("1"),
+		UserName: []byte("ahmad"),
+		Name:     []byte("Ahmad Sherif"),
+		Email:    []byte("ahmad@gitlab.com"),
+		Message:  []byte("Update " + name),
 	}
 
 	request := &pb.WikiUpdatePageRequest{

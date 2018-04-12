@@ -108,34 +108,30 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty commit details' id",
-			request: &pb.WikiWritePageRequest{
+			desc: "empty commit details' username",
+			request: &pb.WikiDeletePageRequest{
 				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
+				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
 					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Email:    []byte("a@b.com"),
 					Message:  []byte("A message"),
 				},
-				Content: []byte(""),
 			},
 			code: codes.InvalidArgument,
 		},
 		{
 			desc: "empty commit details' username",
-			request: &pb.WikiWritePageRequest{
+			request: &pb.WikiDeletePageRequest{
 				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
+				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:  []byte("1"),
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
+					UserId: 	[]byte("1"),
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
 				},
-				Content: []byte(""),
 			},
 			code: codes.InvalidArgument,
 		},
