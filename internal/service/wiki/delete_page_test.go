@@ -26,7 +26,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 	defer conn.Close()
 
 	pageName := "A talé of two wikis"
-	authorID := []byte("1")
+	authorID := int32(1)
 	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
@@ -39,11 +39,11 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 		Repository: wikiRepo,
 		PagePath:   []byte("a-talé-of-two-wikis"),
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId:   authorID,
-			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,
 			Message:  message,
+			UserId:   authorID,
+			UserName: authorUserName,
 		},
 	}
 
@@ -70,11 +70,11 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 	defer conn.Close()
 
 	commitDetails := &pb.WikiCommitDetails{
-		UserId:   []byte("1"),
-		UserName: []byte("ahmad"),
 		Name:     []byte("Ahmad Sherif"),
 		Email:    []byte("ahmad@gitlab.com"),
 		Message:  []byte("Delete a wiki page"),
+		UserId:   int32(1),
+		UserName: []byte("ahmad"),
 	}
 
 	testCases := []struct {
@@ -108,43 +108,15 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty commit details' username",
-			request: &pb.WikiDeletePageRequest{
-				Repository: wikiRepo,
-				PagePath:   []byte("does-not-matter"),
-				CommitDetails: &pb.WikiCommitDetails{
-					UserName: []byte("username"),
-					Name:     []byte("A name"),
-					Email:    []byte("a@b.com"),
-					Message:  []byte("A message"),
-				},
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' username",
-			request: &pb.WikiDeletePageRequest{
-				Repository: wikiRepo,
-				PagePath:   []byte("does-not-matter"),
-				CommitDetails: &pb.WikiCommitDetails{
-					UserId:  []byte("1"),
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
-				},
-			},
-			code: codes.InvalidArgument,
-		},
-		{
 			desc: "empty commit details' name",
 			request: &pb.WikiDeletePageRequest{
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Email:    []byte("a@b.com"),
 					Message:  []byte("A message"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
 				},
 			},
 			code: codes.InvalidArgument,
@@ -155,10 +127,10 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Message:  []byte("A message"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
 				},
 			},
 			code: codes.InvalidArgument,
@@ -169,10 +141,38 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Email:    []byte("a@b.com"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
+				},
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty commit details' user id",
+			request: &pb.WikiDeletePageRequest{
+				Repository: wikiRepo,
+				PagePath:   []byte("does-not-matter"),
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
+					UserName: []byte("username"),
+				},
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty commit details' username",
+			request: &pb.WikiDeletePageRequest{
+				Repository: wikiRepo,
+				PagePath:   []byte("does-not-matter"),
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:    []byte("A name"),
+					Email:   []byte("a@b.com"),
+					Message: []byte("A message"),
+					UserId:  int32(1),
 				},
 			},
 			code: codes.InvalidArgument,

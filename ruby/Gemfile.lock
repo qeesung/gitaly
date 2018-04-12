@@ -1,6 +1,6 @@
 GIT
   remote: https://gitlab.com/gitlab-org/gitaly-proto
-  revision: 7db52529381a2f952bdbc59acece1953dee9c5b7
+  revision: f5dea4897098847e3bf540c55033b6c3465a225d
   branch: fj-update-wiki-comment-struct
   specs:
     gitaly-proto (0.96.0)

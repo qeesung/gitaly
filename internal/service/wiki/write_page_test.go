@@ -28,7 +28,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 
 	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
 
-	authorID := []byte("1")
+	authorID := int32(1)
 	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
@@ -39,11 +39,11 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 		Name:       []byte("Instálling Gitaly"),
 		Format:     "markdown",
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId:   authorID,
-			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,
 			Message:  message,
+			UserId:   authorID,
+			UserName: authorUserName,
 		},
 	}
 
@@ -94,11 +94,11 @@ func TestFailedWikiWritePageDueToDuplicatePage(t *testing.T) {
 	pageName := "Installing Gitaly"
 	content := []byte("Mock wiki page content")
 	commitDetails := &pb.WikiCommitDetails{
-		UserId:   []byte("1"),
-		UserName: []byte("ahmad"),
 		Name:     []byte("Ahmad Sherif"),
 		Email:    []byte("ahmad@gitlab.com"),
 		Message:  []byte("Add " + pageName),
+		UserId:   int32(1),
+		UserName: []byte("ahmad"),
 	}
 
 	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageName, content: content})
@@ -139,11 +139,11 @@ func TestFailedWikiWritePageInPathDueToDuplicatePage(t *testing.T) {
 	pageName := "foo/Installing Gitaly"
 	content := []byte("Mock wiki page content")
 	commitDetails := &pb.WikiCommitDetails{
-		UserId:   []byte("1"),
-		UserName: []byte("ahmad"),
 		Name:     []byte("Ahmad Sherif"),
 		Email:    []byte("ahmad@gitlab.com"),
 		Message:  []byte("Add " + pageName),
+		UserId:   int32(1),
+		UserName: []byte("ahmad"),
 	}
 
 	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageName, content: content})
@@ -181,11 +181,11 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 	defer conn.Close()
 
 	commitDetails := &pb.WikiCommitDetails{
-		UserId:   []byte("1"),
-		UserName: []byte("ahmad"),
 		Name:     []byte("Ahmad Sherif"),
 		Email:    []byte("ahmad@gitlab.com"),
 		Message:  []byte("Add installation instructions"),
+		UserId:   int32(1),
+		UserName: []byte("ahmad"),
 	}
 
 	testCases := []struct {
@@ -224,48 +224,16 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty commit details' user id",
-			request: &pb.WikiWritePageRequest{
-				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
-				CommitDetails: &pb.WikiCommitDetails{
-					UserName: []byte("username"),
-					Name:     []byte("A name"),
-					Email:    []byte("a@b.com"),
-					Message:  []byte("A message"),
-				},
-				Content: []byte(""),
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' username",
-			request: &pb.WikiWritePageRequest{
-				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
-				CommitDetails: &pb.WikiCommitDetails{
-					UserId:  []byte("1"),
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
-				},
-				Content: []byte(""),
-			},
-			code: codes.InvalidArgument,
-		},
-		{
 			desc: "empty commit details' name",
 			request: &pb.WikiWritePageRequest{
 				Repository: wikiRepo,
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Email:    []byte("a@b.com"),
 					Message:  []byte("A message"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
 				},
 				Content: []byte(""),
 			},
@@ -278,10 +246,10 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Message:  []byte("A message"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
 				},
 				Content: []byte(""),
 			},
@@ -294,10 +262,42 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId:   []byte("1"),
-					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Email:    []byte("a@b.com"),
+					UserId:   int32(1),
+					UserName: []byte("username"),
+				},
+				Content: []byte(""),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty commit details' user id",
+			request: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Installing Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
+					UserName: []byte("username"),
+				},
+				Content: []byte(""),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty commit details' username",
+			request: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Installing Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:    []byte("A name"),
+					Email:   []byte("a@b.com"),
+					Message: []byte("A message"),
+					UserId:  int32(1),
 				},
 				Content: []byte(""),
 			},

@@ -16,7 +16,7 @@ func validateRequestCommitDetails(request requestWithCommitDetails) error {
 		return fmt.Errorf("empty CommitDetails")
 	}
 
-	if len(commitDetails.GetUserId()) == 0 {
+	if commitDetails.GetUserId() == 0 {
 		return fmt.Errorf("empty CommitDetails.UserId")
 	}
 
