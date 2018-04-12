@@ -26,6 +26,8 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 	defer conn.Close()
 
 	pageName := "A talé of two wikis"
+	authorId := []byte("1")
+	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
 	message := []byte("Delete " + pageName)
@@ -37,9 +39,11 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 		Repository: wikiRepo,
 		PagePath:   []byte("a-talé-of-two-wikis"),
 		CommitDetails: &pb.WikiCommitDetails{
-			Name:    authorName,
-			Email:   authorEmail,
-			Message: message,
+			UserId: 	authorId,
+			UserName: authorUserName,
+			Name:     authorName,
+			Email:    authorEmail,
+			Message:  message,
 		},
 	}
 
@@ -66,9 +70,11 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 	defer conn.Close()
 
 	commitDetails := &pb.WikiCommitDetails{
-		Name:    []byte("Ahmad Sherif"),
-		Email:   []byte("ahmad@gitlab.com"),
-		Message: []byte("Delete a wiki page"),
+		UserId:   []byte("1"),
+		UserName: []byte("ahmad"),
+		Name:     []byte("Ahmad Sherif"),
+		Email:    []byte("ahmad@gitlab.com"),
+		Message:  []byte("Delete a wiki page"),
 	}
 
 	testCases := []struct {
@@ -102,13 +108,47 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
+			desc: "empty commit details' id",
+			request: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Installing Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					UserName: []byte("username"),
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
+				},
+				Content: []byte(""),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "empty commit details' username",
+			request: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Installing Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					UserId:  []byte("1"),
+					Name:    []byte("A name"),
+					Email:   []byte("a@b.com"),
+					Message: []byte("A message"),
+				},
+				Content: []byte(""),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
 			desc: "empty commit details' name",
 			request: &pb.WikiDeletePageRequest{
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
+					UserId: 	[]byte("1"),
+					UserName: []byte("username"),
+					Email:    []byte("a@b.com"),
+					Message:  []byte("A message"),
 				},
 			},
 			code: codes.InvalidArgument,
@@ -119,8 +159,10 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					Name:    []byte("A name"),
-					Message: []byte("A message"),
+					UserId: 	[]byte("1"),
+					UserName: []byte("username"),
+					Name:     []byte("A name"),
+					Message:  []byte("A message"),
 				},
 			},
 			code: codes.InvalidArgument,
@@ -131,8 +173,10 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					Name:  []byte("A name"),
-					Email: []byte("a@b.com"),
+					UserId: 	[]byte("1"),
+					UserName: []byte("username"),
+					Name:     []byte("A name"),
+					Email:    []byte("a@b.com"),
 				},
 			},
 			code: codes.InvalidArgument,
