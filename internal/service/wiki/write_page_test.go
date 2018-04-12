@@ -28,7 +28,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 
 	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
 
-	authorId := []byte("1")
+	authorID := []byte("1")
 	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
@@ -39,7 +39,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 		Name:       []byte("Instálling Gitaly"),
 		Format:     "markdown",
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId: 	authorId,
+			UserId: 	authorID,
 			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,

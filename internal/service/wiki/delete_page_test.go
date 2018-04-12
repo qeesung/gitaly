@@ -26,7 +26,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 	defer conn.Close()
 
 	pageName := "A talé of two wikis"
-	authorId := []byte("1")
+	authorID := []byte("1")
 	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
@@ -39,7 +39,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 		Repository: wikiRepo,
 		PagePath:   []byte("a-talé-of-two-wikis"),
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId: 	authorId,
+			UserId: 	authorID,
 			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,
