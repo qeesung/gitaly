@@ -39,7 +39,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 		Name:       []byte("Instálling Gitaly"),
 		Format:     "markdown",
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId: 	authorID,
+			UserId:   authorID,
 			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,
@@ -262,7 +262,7 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Email:    []byte("a@b.com"),
 					Message:  []byte("A message"),
@@ -278,7 +278,7 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Message:  []byte("A message"),
@@ -294,7 +294,7 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 				Name:       []byte("Installing Gitaly"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Email:    []byte("a@b.com"),

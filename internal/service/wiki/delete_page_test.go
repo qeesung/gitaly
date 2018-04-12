@@ -39,7 +39,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 		Repository: wikiRepo,
 		PagePath:   []byte("a-talé-of-two-wikis"),
 		CommitDetails: &pb.WikiCommitDetails{
-			UserId: 	authorID,
+			UserId:   authorID,
 			UserName: authorUserName,
 			Name:     authorName,
 			Email:    authorEmail,
@@ -127,10 +127,10 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
-					Name:     []byte("A name"),
-					Email:    []byte("a@b.com"),
-					Message:  []byte("A message"),
+					UserId:  []byte("1"),
+					Name:    []byte("A name"),
+					Email:   []byte("a@b.com"),
+					Message: []byte("A message"),
 				},
 			},
 			code: codes.InvalidArgument,
@@ -141,7 +141,7 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Email:    []byte("a@b.com"),
 					Message:  []byte("A message"),
@@ -155,7 +155,7 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Message:  []byte("A message"),
@@ -169,7 +169,7 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				Repository: wikiRepo,
 				PagePath:   []byte("does-not-matter"),
 				CommitDetails: &pb.WikiCommitDetails{
-					UserId: 	[]byte("1"),
+					UserId:   []byte("1"),
 					UserName: []byte("username"),
 					Name:     []byte("A name"),
 					Email:    []byte("a@b.com"),
