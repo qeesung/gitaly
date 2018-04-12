@@ -2,6 +2,8 @@
 
 v0.96.1
 
+- Vendor gitlab_git at 7e3bb679a92156304
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/669
 - Make it a fatal error if gitaly-ruby can't start
   https://gitlab.com/gitlab-org/gitaly/merge_requests/667
 - Tag log entries with repo.GlRepository
