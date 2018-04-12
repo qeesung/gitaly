@@ -1,3 +1,12 @@
+GIT
+  remote: https://gitlab.com/gitlab-org/gitaly-proto
+  revision: 7db52529381a2f952bdbc59acece1953dee9c5b7
+  branch: fj-update-wiki-comment-struct
+  specs:
+    gitaly-proto (0.96.0)
+      google-protobuf (~> 3.1)
+      grpc (~> 1.10)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -17,9 +26,6 @@ GEM
       multipart-post (>= 1.2, < 3)
     gemojione (3.3.0)
       json
-    gitaly-proto (0.95.0)
-      google-protobuf (~> 3.1)
-      grpc (~> 1.10)
     github-linguist (5.3.3)
       charlock_holmes (~> 0.7.5)
       escape_utils (~> 1.1.0)
@@ -141,7 +147,7 @@ PLATFORMS
 
 DEPENDENCIES
   activesupport (~> 5.0.2)
-  gitaly-proto (~> 0.95.0)
+  gitaly-proto!
   github-linguist (~> 5.3.3)
   gitlab-gollum-lib (~> 4.2)
   gitlab-gollum-rugged_adapter (~> 0.4.4)
