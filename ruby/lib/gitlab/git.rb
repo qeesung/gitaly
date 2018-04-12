@@ -58,7 +58,7 @@ module Gitlab
       def initialize(gitaly_repository, path, gl_repository, gitlab_projects, combined_alt_dirs="")
         @gitaly_repository = gitaly_repository
 
-        @absolute_object_directories = combined_alt_dirs
+        @alternate_object_directories = combined_alt_dirs
           .split(File::PATH_SEPARATOR)
           .map { |d| File.join(path, d) }
 
@@ -79,7 +79,7 @@ module Gitlab
       end
 
       def alternate_object_directories
-        @absolute_object_directories
+        @alternate_object_directories
       end
 
       def relative_object_directories
