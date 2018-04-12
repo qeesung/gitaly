@@ -167,6 +167,9 @@ end
 
 module Gitlab
   module Utils
+    # TODO remove this monkey-patch after
+    # https://gitlab.com/gitlab-org/gitlab-ce/merge_requests/18335 is merged
+    # and vendored.
     def self.nlbr(str)
       str.gsub(/\R/, "<br>").html_safe
     end
