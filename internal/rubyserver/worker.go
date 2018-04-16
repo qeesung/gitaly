@@ -37,15 +37,18 @@ type worker struct {
 
 	// This is for testing only, so that we can inject a fake balancer
 	balancerUpdate chan balancerProxy
+
+	test bool
 }
 
-func newWorker(p *supervisor.Process, address string, events <-chan supervisor.Event) *worker {
+func newWorker(p *supervisor.Process, address string, events <-chan supervisor.Event, test bool) *worker {
 	w := &worker{
 		Process:        p,
 		address:        address,
 		events:         events,
 		healthChecks:   make(chan error),
 		balancerUpdate: make(chan balancerProxy),
+		test:           test,
 	}
 	go w.monitor()
 	go w.checkHealth()
@@ -71,6 +74,8 @@ type defaultBalancer struct{}
 
 func (defaultBalancer) AddAddress(s string)         { balancer.AddAddress(s) }
 func (defaultBalancer) RemoveAddress(s string) bool { return balancer.RemoveAddress(s) }
+
+var healthRestartDelay = 5 * time.Minute
 
 func (w *worker) monitor() {
 	swMem := &stopwatch{}
@@ -133,7 +138,7 @@ func (w *worker) monitor() {
 			case nil:
 			// Health check OK
 			default:
-				if time.Since(lastRestart) <= 5*time.Minute {
+				if time.Since(lastRestart) <= healthRestartDelay {
 					// This break prevents fast restart loops
 					break nextEvent
 				}
@@ -165,6 +170,10 @@ func (w *worker) logPid(pid int) *log.Entry {
 }
 
 func (w *worker) waitTerminate(pid int) {
+	if w.test {
+		return
+	}
+
 	// Wait for in-flight requests to reach the worker before we slam the
 	// door in their face.
 	time.Sleep(1 * time.Minute)

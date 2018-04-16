@@ -132,7 +132,7 @@ func Start() (*Server, error) {
 			return nil, err
 		}
 
-		s.workers = append(s.workers, newWorker(p, socketPath, events))
+		s.workers = append(s.workers, newWorker(p, socketPath, events, false))
 	}
 
 	return s, nil
