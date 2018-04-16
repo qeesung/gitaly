@@ -9,13 +9,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-type healthCheck int
-
-const (
-	HealthGood healthCheck = iota
-	HealthBad
-)
-
 func (w *worker) checkHealth() {
 	for {
 		w.healthChecks <- ping(w.address)
@@ -35,6 +28,7 @@ func ping(address string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()

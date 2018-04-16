@@ -141,7 +141,7 @@ func (w *worker) monitor() {
 				w.log().WithError(err).Warn("health check failed")
 
 				if bal.RemoveAddress(w.address) {
-					w.logPid(currentPid).Info("removed from balancer due to failing health checks")
+					w.logPid(currentPid).Info("removed from balancer due to failed health check")
 					go w.waitTerminate(currentPid)
 					lastRestart = time.Now()
 				}
