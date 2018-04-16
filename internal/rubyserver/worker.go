@@ -31,8 +31,9 @@ func init() {
 // it if necessary, in cooperation with the balancer.
 type worker struct {
 	*supervisor.Process
-	address string
-	events  <-chan supervisor.Event
+	address      string
+	events       <-chan supervisor.Event
+	healthChecks chan error
 
 	// This is for testing only, so that we can inject a fake balancer
 	balancerUpdate chan balancerProxy
@@ -43,9 +44,11 @@ func newWorker(p *supervisor.Process, address string, events <-chan supervisor.E
 		Process:        p,
 		address:        address,
 		events:         events,
+		healthChecks:   make(chan error),
 		balancerUpdate: make(chan balancerProxy),
 	}
 	go w.monitor()
+	go w.checkHealth()
 
 	bal := defaultBalancer{}
 	w.balancerUpdate <- bal
@@ -70,7 +73,8 @@ func (defaultBalancer) AddAddress(s string)         { balancer.AddAddress(s) }
 func (defaultBalancer) RemoveAddress(s string) bool { return balancer.RemoveAddress(s) }
 
 func (w *worker) monitor() {
-	sw := &stopwatch{}
+	swMem := &stopwatch{}
+	lastRestart := time.Now()
 	currentPid := 0
 	bal := <-w.balancerUpdate
 
@@ -79,8 +83,7 @@ func (w *worker) monitor() {
 		select {
 		case e := <-w.events:
 			if e.Pid <= 0 {
-				log.WithFields(log.Fields{
-					"worker.name":      w.Name,
+				w.log().WithFields(log.Fields{
 					"worker.event_pid": e.Pid,
 				}).Info("received invalid PID")
 				break nextEvent
@@ -96,14 +99,14 @@ func (w *worker) monitor() {
 
 				bal.AddAddress(w.address)
 				currentPid = e.Pid
-				sw.reset()
+				swMem.reset()
 			case supervisor.MemoryHigh:
 				if e.Pid != currentPid {
 					break nextEvent
 				}
 
-				sw.mark()
-				if sw.elapsed() <= config.Config.Ruby.RestartDelay {
+				swMem.mark()
+				if swMem.elapsed() <= config.Config.Ruby.RestartDelay {
 					break nextEvent
 				}
 
@@ -111,22 +114,54 @@ func (w *worker) monitor() {
 				// we may leave the system without the capacity to make gitaly-ruby
 				// requests.
 				if bal.RemoveAddress(w.address) {
-					go w.waitTerminate(e.Pid)
-					sw.reset()
+					w.logPid(currentPid).Info("removed from balancer due to high memory")
+					go w.waitTerminate(currentPid)
+					lastRestart = time.Now()
+					swMem.reset()
 				}
 			case supervisor.MemoryLow:
 				if e.Pid != currentPid {
 					break nextEvent
 				}
 
-				sw.reset()
+				swMem.reset()
 			default:
 				panic(fmt.Sprintf("unknown state %v", e.Type))
+			}
+		case err := <-w.healthChecks:
+			switch err {
+			case nil:
+			// Health check OK
+			default:
+				if time.Since(lastRestart) <= 5*time.Minute {
+					// This break prevents fast restart loops
+					break nextEvent
+				}
+
+				w.log().WithError(err).Warn("health check failed")
+
+				if bal.RemoveAddress(w.address) {
+					w.logPid(currentPid).Info("removed from balancer due to failing health checks")
+					go w.waitTerminate(currentPid)
+					lastRestart = time.Now()
+				}
 			}
 		case bal = <-w.balancerUpdate:
 			// For testing only.
 		}
 	}
+}
+
+func (w *worker) log() *log.Entry {
+	return log.WithFields(log.Fields{
+		"worker.name": w.Name,
+	})
+}
+
+func (w *worker) logPid(pid int) *log.Entry {
+	return w.log().WithFields(log.Fields{
+		"worker.pid": pid,
+	})
 }
 
 func (w *worker) waitTerminate(pid int) {
@@ -136,17 +171,11 @@ func (w *worker) waitTerminate(pid int) {
 
 	terminationCounter.WithLabelValues(w.Name).Inc()
 
-	log.WithFields(log.Fields{
-		"worker.name": w.Name,
-		"worker.pid":  pid,
-	}).Info("sending SIGTERM")
+	w.logPid(pid).Info("sending SIGTERM")
 	syscall.Kill(pid, syscall.SIGTERM)
 
 	time.Sleep(config.Config.Ruby.GracefulRestartTimeout)
 
-	log.WithFields(log.Fields{
-		"worker.name": w.Name,
-		"worker.pid":  pid,
-	}).Info("sending SIGKILL")
+	w.logPid(pid).Info("sending SIGKILL")
 	syscall.Kill(pid, syscall.SIGKILL)
 }
