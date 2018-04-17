@@ -3,7 +3,6 @@ package supervisor
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"os/exec"
 	"sync"
 	"time"
@@ -92,11 +91,11 @@ func (p *Process) start(logger *log.Entry) (*exec.Cmd, error) {
 	return cmd, cmd.Start()
 }
 
-// Non-blocking notification
 func (p *Process) notifyUp(pid int) {
 	select {
 	case p.events <- Event{Type: Up, Pid: pid}:
-	default:
+	case <-time.After(1 * time.Second):
+		// Timeout
 	}
 }
 
@@ -142,7 +141,7 @@ spawnLoop:
 			continue
 		}
 		pid := cmd.Process.Pid
-		p.notifyUp(pid)
+		go p.notifyUp(pid)
 		logger.WithField("supervisor.pid", pid).Warn("spawned")
 
 		waitCh := make(chan struct{})
@@ -160,10 +159,10 @@ spawnLoop:
 	waitLoop:
 		for {
 			select {
-			case <-time.After(randomDuration(30, 60)):
+			case <-time.After(1 * time.Minute):
 				// We repeat this idempotent notification because its delivery is not
 				// guaranteed.
-				p.notifyUp(pid)
+				go p.notifyUp(pid)
 			case <-time.After(config.CrashResetTime):
 				crashes = 0
 			case <-waitCh:
@@ -199,8 +198,4 @@ func (p *Process) Stop() {
 	case <-time.After(1 * time.Second):
 		// Don't wait for shutdown forever
 	}
-}
-
-func randomDuration(minSeconds int, maxSeconds int) time.Duration {
-	return time.Duration(minSeconds+rand.Intn(maxSeconds-minSeconds)) * time.Second
 }
