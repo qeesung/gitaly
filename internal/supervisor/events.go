@@ -11,7 +11,7 @@ const (
 	MemoryHigh
 	// MemoryLow indicates the process memory is at or below the threshold.
 	MemoryLow
-	HealthGood
+	HealthOK
 	HealthBad
 )
 

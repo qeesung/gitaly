@@ -136,7 +136,7 @@ func (w *worker) monitor() {
 				}
 
 				swMem.reset()
-			case supervisor.HealthGood:
+			case supervisor.HealthOK:
 			// Do nothing
 			case supervisor.HealthBad:
 				if time.Since(lastRestart) <= healthRestartDelay {

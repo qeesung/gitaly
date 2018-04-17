@@ -112,7 +112,7 @@ func watch(p *Process) {
 	go monitorRss(monitorChan, monitorDone, p.events, p.Name, p.memoryThreshold)
 
 	if p.healthCheck != nil {
-		go monitorHealth(p.healthCheck, p.events)
+		go monitorHealth(p.healthCheck, p.events, p.Name)
 	}
 
 spawnLoop:
