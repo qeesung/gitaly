@@ -73,10 +73,16 @@ type defaultBalancer struct{}
 func (defaultBalancer) AddAddress(s string)         { balancer.AddAddress(s) }
 func (defaultBalancer) RemoveAddress(s string) bool { return balancer.RemoveAddress(s) }
 
-var healthRestartDelay = 5 * time.Minute
+var (
+	// Ignore health checks for the current process after it just restarted
+	healthRestartCoolOff = 5 * time.Minute
+	// Health considered bad after sustained failed health checks
+	healthRestartDelay = 1 * time.Minute
+)
 
 func (w *worker) monitor() {
 	swMem := &stopwatch{}
+	swHealth := &stopwatch{}
 	lastRestart := time.Now()
 	currentPid := 0
 	bal := <-w.balancerUpdate
@@ -101,6 +107,8 @@ func (w *worker) monitor() {
 				bal.AddAddress(w.address)
 				currentPid = e.Pid
 				swMem.reset()
+				swHealth.reset()
+				lastRestart = time.Now()
 			case supervisor.MemoryHigh:
 				if badPid(e.Pid) {
 					w.logBadEvent(e)
@@ -122,7 +130,6 @@ func (w *worker) monitor() {
 				if bal.RemoveAddress(w.address) {
 					w.logPid(currentPid).Info("removed from balancer due to high memory")
 					go w.waitTerminate(currentPid)
-					lastRestart = time.Now()
 					swMem.reset()
 				}
 			case supervisor.MemoryLow:
@@ -137,19 +144,24 @@ func (w *worker) monitor() {
 
 				swMem.reset()
 			case supervisor.HealthOK:
-			// Do nothing
+				swHealth.reset()
 			case supervisor.HealthBad:
-				if time.Since(lastRestart) <= healthRestartDelay {
-					// This break prevents fast restart loops
+				if time.Since(lastRestart) <= healthRestartCoolOff {
+					// Ignore health checks for a while after the supervised process restarted
 					break nextEvent
 				}
 
 				w.log().WithError(e.Error).Warn("health check failed")
 
+				swHealth.mark()
+				if swHealth.elapsed() <= healthRestartDelay {
+					break nextEvent
+				}
+
 				if bal.RemoveAddress(w.address) {
-					w.logPid(currentPid).Info("removed from balancer due to failed health check")
+					w.logPid(currentPid).Info("removed from balancer due to failed health checks")
 					go w.waitTerminate(currentPid)
-					lastRestart = time.Now()
+					swHealth.reset()
 				}
 			default:
 				panic(fmt.Sprintf("unknown state %v", e.Type))

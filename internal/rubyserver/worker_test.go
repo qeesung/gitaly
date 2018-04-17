@@ -11,7 +11,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	restartDelay := 100 * time.Millisecond
+	restartDelay := 10 * time.Millisecond
 
 	defer func(old time.Duration) {
 		config.Config.Ruby.RestartDelay = old
@@ -22,6 +22,11 @@ func TestWorker(t *testing.T) {
 		healthRestartDelay = old
 	}(healthRestartDelay)
 	healthRestartDelay = restartDelay
+
+	defer func(old time.Duration) {
+		healthRestartCoolOff = old
+	}(healthRestartCoolOff)
+	healthRestartCoolOff = restartDelay
 
 	events := make(chan supervisor.Event)
 	addr := "the address"
@@ -36,7 +41,13 @@ func TestWorker(t *testing.T) {
 	mustAdd(t, w, addr, func() { events <- upEvent(firstPid) })
 
 	time.Sleep(2 * restartDelay)
-	t.Log("waited long enough, this health check should trigger failover")
+
+	t.Log("waited long enough, this health check should start health timer")
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
+
+	time.Sleep(2 * restartDelay)
+
+	t.Log("this second failed health check should trigger failover")
 	mustRemove(t, w, addr, func() { events <- healthBadEvent() })
 
 	t.Log("ignore repeated up event")
