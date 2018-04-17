@@ -18,16 +18,6 @@ func TestWorker(t *testing.T) {
 	}(config.Config.Ruby.RestartDelay)
 	config.Config.Ruby.RestartDelay = restartDelay
 
-	defer func(old time.Duration) {
-		healthRestartDelay = old
-	}(healthRestartDelay)
-	healthRestartDelay = restartDelay
-
-	defer func(old time.Duration) {
-		healthRestartCoolOff = old
-	}(healthRestartCoolOff)
-	healthRestartCoolOff = restartDelay
-
 	events := make(chan supervisor.Event)
 	addr := "the address"
 	w := newWorker(&supervisor.Process{Name: "testing"}, addr, events, true)
@@ -39,16 +29,6 @@ func TestWorker(t *testing.T) {
 
 	t.Log("register first PID as 'up'")
 	mustAdd(t, w, addr, func() { events <- upEvent(firstPid) })
-
-	time.Sleep(2 * restartDelay)
-
-	t.Log("waited long enough, this health check should start health timer")
-	mustIgnore(t, w, func() { events <- healthBadEvent() })
-
-	time.Sleep(2 * restartDelay)
-
-	t.Log("this second failed health check should trigger failover")
-	mustRemove(t, w, addr, func() { events <- healthBadEvent() })
 
 	t.Log("ignore repeated up event")
 	mustIgnore(t, w, func() { events <- upEvent(firstPid) })
@@ -92,6 +72,48 @@ func TestWorker(t *testing.T) {
 	t.Log("send mem high count over the threshold")
 	time.Sleep(2 * restartDelay)
 	mustRemove(t, w, addr, func() { events <- memHighEvent(secondPid) })
+}
+
+func TestWorkerHealthChecks(t *testing.T) {
+	restartDelay := 10 * time.Millisecond
+
+	defer func(old time.Duration) {
+		healthRestartDelay = old
+	}(healthRestartDelay)
+	healthRestartDelay = restartDelay
+
+	defer func(old time.Duration) {
+		healthRestartCoolOff = old
+	}(healthRestartCoolOff)
+	healthRestartCoolOff = restartDelay
+
+	events := make(chan supervisor.Event)
+	addr := "the address"
+	w := newWorker(&supervisor.Process{Name: "testing"}, addr, events, true)
+
+	t.Log("ignore health failures during startup")
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
+
+	firstPid := 123
+
+	t.Log("register first PID as 'up'")
+	mustAdd(t, w, addr, func() { events <- upEvent(firstPid) })
+
+	t.Log("still ignore health failures during startup")
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
+
+	time.Sleep(2 * restartDelay)
+
+	t.Log("waited long enough, this health check should start health timer")
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
+
+	time.Sleep(2 * restartDelay)
+
+	t.Log("this second failed health check should trigger failover")
+	mustRemove(t, w, addr, func() { events <- healthBadEvent() })
+
+	t.Log("ignore extra health failures")
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
 }
 
 func mustIgnore(t *testing.T, w *worker, f func()) {
