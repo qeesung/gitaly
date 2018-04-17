@@ -111,8 +111,9 @@ func watch(p *Process) {
 	monitorDone := make(chan struct{})
 	go monitorRss(monitorChan, monitorDone, p.events, p.Name, p.memoryThreshold)
 
+	healthShutdown := make(chan struct{})
 	if p.healthCheck != nil {
-		go monitorHealth(p.healthCheck, p.events, p.Name)
+		go monitorHealth(p.healthCheck, p.events, p.Name, healthShutdown)
 	}
 
 spawnLoop:
@@ -178,6 +179,7 @@ spawnLoop:
 		}
 	}
 
+	close(healthShutdown)
 	close(monitorChan)
 	<-monitorDone
 	close(p.done)

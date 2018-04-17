@@ -90,7 +90,7 @@ func getRss(pid int) int {
 	return rss
 }
 
-func monitorHealth(f func() error, events chan<- Event, name string) {
+func monitorHealth(f func() error, events chan<- Event, name string, shutdown <-chan struct{}) {
 	for {
 		e := Event{Error: f()}
 
@@ -106,6 +106,8 @@ func monitorHealth(f func() error, events chan<- Event, name string) {
 		case events <- e:
 		case <-time.After(1 * time.Second):
 			// Prevent sending stale events
+		case <-shutdown:
+			return
 		}
 
 		time.Sleep(15 * time.Second)
