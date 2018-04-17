@@ -3,6 +3,7 @@ package supervisor
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"os/exec"
 	"sync"
 	"time"
@@ -159,7 +160,7 @@ spawnLoop:
 	waitLoop:
 		for {
 			select {
-			case <-time.After(1 * time.Minute):
+			case <-time.After(randomDuration(30, 60)):
 				// We repeat this idempotent notification because its delivery is not
 				// guaranteed.
 				p.notifyUp(pid)
@@ -198,4 +199,8 @@ func (p *Process) Stop() {
 	case <-time.After(1 * time.Second):
 		// Don't wait for shutdown forever
 	}
+}
+
+func randomDuration(minSeconds int, maxSeconds int) time.Duration {
+	return time.Duration(minSeconds+rand.Intn(maxSeconds-minSeconds)) * time.Second
 }
