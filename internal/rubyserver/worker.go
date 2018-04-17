@@ -105,6 +105,7 @@ func (w *worker) monitor() {
 
 				bal.AddAddress(w.address)
 				currentPid = e.Pid
+
 				swMem.reset()
 				swHealth.reset()
 				lastRestart = time.Now()
@@ -158,7 +159,7 @@ func (w *worker) monitor() {
 				}
 
 				if bal.RemoveAddress(w.address) {
-					w.logPid(currentPid).Info("removed from balancer due to failed health checks")
+					w.logPid(currentPid).Info("removed from balancer due to sustained failing health checks")
 					go w.waitTerminate(currentPid)
 					swHealth.reset()
 				}
