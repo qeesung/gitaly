@@ -31,8 +31,9 @@ func init() {
 // it if necessary, in cooperation with the balancer.
 type worker struct {
 	*supervisor.Process
-	address string
-	events  <-chan supervisor.Event
+	address  string
+	events   <-chan supervisor.Event
+	shutdown chan struct{}
 
 	// This is for testing only, so that we can inject a fake balancer
 	balancerUpdate chan balancerProxy
@@ -45,6 +46,7 @@ func newWorker(p *supervisor.Process, address string, events <-chan supervisor.E
 		Process:        p,
 		address:        address,
 		events:         events,
+		shutdown:       make(chan struct{}),
 		balancerUpdate: make(chan balancerProxy),
 		testing:        testing,
 	}
@@ -168,8 +170,14 @@ func (w *worker) monitor() {
 			}
 		case bal = <-w.balancerUpdate:
 			// For testing only.
+		case <-w.shutdown:
+			return
 		}
 	}
+}
+
+func (w *worker) stopMonitor() {
+	close(w.shutdown)
 }
 
 func badPid(pid int) bool {
