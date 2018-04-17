@@ -81,3 +81,18 @@ func getRss(pid int) int {
 
 	return rss
 }
+
+func monitorHealth(f func() error, events chan<- Event) {
+	for {
+		e := Event{
+			Error: f(),
+			Type:  HealthGood,
+		}
+		if e.Error != nil {
+			e.Type = HealthBad
+		}
+
+		events <- e
+		time.Sleep(15 * time.Second)
+	}
+}

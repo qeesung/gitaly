@@ -45,6 +45,7 @@ type Process struct {
 
 	memoryThreshold int
 	events          chan<- Event
+	healthCheck     func() error
 
 	// Information to start the process
 	env  []string
@@ -58,7 +59,7 @@ type Process struct {
 }
 
 // New creates a new proces instance.
-func New(name string, env []string, args []string, dir string, memoryThreshold int, events chan<- Event) (*Process, error) {
+func New(name string, env []string, args []string, dir string, memoryThreshold int, events chan<- Event, healthCheck func() error) (*Process, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("need at least one argument")
 	}
@@ -67,6 +68,7 @@ func New(name string, env []string, args []string, dir string, memoryThreshold i
 		Name:            name,
 		memoryThreshold: memoryThreshold,
 		events:          events,
+		healthCheck:     healthCheck,
 		env:             env,
 		args:            args,
 		dir:             dir,
@@ -108,6 +110,10 @@ func watch(p *Process) {
 	monitorChan := make(chan monitorProcess, config.CrashThreshold)
 	monitorDone := make(chan struct{})
 	go monitorRss(monitorChan, monitorDone, p.events, p.Name, p.memoryThreshold)
+
+	if p.healthCheck != nil {
+		go monitorHealth(p.healthCheck, p.events)
+	}
 
 spawnLoop:
 	for {

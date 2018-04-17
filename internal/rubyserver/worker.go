@@ -38,20 +38,18 @@ type worker struct {
 	// This is for testing only, so that we can inject a fake balancer
 	balancerUpdate chan balancerProxy
 
-	test bool
+	testing bool
 }
 
-func newWorker(p *supervisor.Process, address string, events <-chan supervisor.Event, test bool) *worker {
+func newWorker(p *supervisor.Process, address string, events <-chan supervisor.Event, testing bool) *worker {
 	w := &worker{
 		Process:        p,
 		address:        address,
 		events:         events,
-		healthChecks:   make(chan error),
 		balancerUpdate: make(chan balancerProxy),
-		test:           test,
+		testing:        testing,
 	}
 	go w.monitor()
-	go w.checkHealth()
 
 	bal := defaultBalancer{}
 	w.balancerUpdate <- bal
@@ -87,15 +85,13 @@ func (w *worker) monitor() {
 	nextEvent:
 		select {
 		case e := <-w.events:
-			if e.Pid <= 0 {
-				w.log().WithFields(log.Fields{
-					"worker.event_pid": e.Pid,
-				}).Info("received invalid PID")
-				break nextEvent
-			}
-
 			switch e.Type {
 			case supervisor.Up:
+				if badPid(e.Pid) {
+					w.logBadEvent(e)
+					break nextEvent
+				}
+
 				if e.Pid == currentPid {
 					// Ignore repeated events to avoid constantly resetting our internal
 					// state.
@@ -106,6 +102,11 @@ func (w *worker) monitor() {
 				currentPid = e.Pid
 				swMem.reset()
 			case supervisor.MemoryHigh:
+				if badPid(e.Pid) {
+					w.logBadEvent(e)
+					break nextEvent
+				}
+
 				if e.Pid != currentPid {
 					break nextEvent
 				}
@@ -125,36 +126,42 @@ func (w *worker) monitor() {
 					swMem.reset()
 				}
 			case supervisor.MemoryLow:
+				if badPid(e.Pid) {
+					w.logBadEvent(e)
+					break nextEvent
+				}
+
 				if e.Pid != currentPid {
 					break nextEvent
 				}
 
 				swMem.reset()
-			default:
-				panic(fmt.Sprintf("unknown state %v", e.Type))
-			}
-		case err := <-w.healthChecks:
-			switch err {
-			case nil:
-			// Health check OK
-			default:
+			case supervisor.HealthGood:
+			// Do nothing
+			case supervisor.HealthBad:
 				if time.Since(lastRestart) <= healthRestartDelay {
 					// This break prevents fast restart loops
 					break nextEvent
 				}
 
-				w.log().WithError(err).Warn("health check failed")
+				w.log().WithError(e.Error).Warn("health check failed")
 
 				if bal.RemoveAddress(w.address) {
 					w.logPid(currentPid).Info("removed from balancer due to failed health check")
 					go w.waitTerminate(currentPid)
 					lastRestart = time.Now()
 				}
+			default:
+				panic(fmt.Sprintf("unknown state %v", e.Type))
 			}
 		case bal = <-w.balancerUpdate:
 			// For testing only.
 		}
 	}
+}
+
+func badPid(pid int) bool {
+	return pid <= 0
 }
 
 func (w *worker) log() *log.Entry {
@@ -169,8 +176,14 @@ func (w *worker) logPid(pid int) *log.Entry {
 	})
 }
 
+func (w *worker) logBadEvent(e supervisor.Event) {
+	w.log().WithFields(log.Fields{
+		"worker.event": e,
+	}).Error("monitor state machine received bad event")
+}
+
 func (w *worker) waitTerminate(pid int) {
-	if w.test {
+	if w.testing {
 		return
 	}
 

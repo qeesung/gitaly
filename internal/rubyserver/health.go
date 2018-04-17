@@ -9,14 +9,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-func (w *worker) checkHealth() {
-	for {
-		w.healthChecks <- ping(w.address)
-
-		time.Sleep(15 * time.Second)
-	}
-}
-
 func ping(address string) error {
 	conn, err := grpc.Dial(
 		address,

@@ -26,11 +26,9 @@ func TestWorker(t *testing.T) {
 	events := make(chan supervisor.Event)
 	addr := "the address"
 	w := newWorker(&supervisor.Process{Name: "testing"}, addr, events, true)
-	health := w.healthChecks
-	healthErr := errors.New("test health check error")
 
 	t.Log("ignore health failures during startup")
-	mustIgnore(t, w, func() { health <- healthErr })
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
 
 	firstPid := 123
 
@@ -39,7 +37,7 @@ func TestWorker(t *testing.T) {
 
 	time.Sleep(2 * restartDelay)
 	t.Log("waited long enough, this health check should trigger failover")
-	mustRemove(t, w, addr, func() { health <- healthErr })
+	mustRemove(t, w, addr, func() { events <- healthBadEvent() })
 
 	t.Log("ignore repeated up event")
 	mustIgnore(t, w, func() { events <- upEvent(firstPid) })
@@ -62,7 +60,7 @@ func TestWorker(t *testing.T) {
 	mustRemove(t, w, addr, func() { events <- memHighEvent(firstPid) })
 
 	t.Log("ignore health failures during startup")
-	mustIgnore(t, w, func() { health <- errors.New("bla") })
+	mustIgnore(t, w, func() { events <- healthBadEvent() })
 
 	secondPid := 456
 	t.Log("registering a new PID")
@@ -130,6 +128,10 @@ func memHighEvent(pid int) supervisor.Event {
 
 func memLowEvent(pid int) supervisor.Event {
 	return supervisor.Event{Type: supervisor.MemoryLow, Pid: pid}
+}
+
+func healthBadEvent() supervisor.Event {
+	return supervisor.Event{Type: supervisor.HealthBad, Error: errors.New("test bad health")}
 }
 
 func newAdd(t *testing.T, addr string) *addBalancer {

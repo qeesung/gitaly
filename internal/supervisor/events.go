@@ -11,10 +11,13 @@ const (
 	MemoryHigh
 	// MemoryLow indicates the process memory is at or below the threshold.
 	MemoryLow
+	HealthGood
+	HealthBad
 )
 
 // Event is used to notify a listener of process state changes.
 type Event struct {
-	Type EventType
-	Pid  int
+	Type  EventType
+	Pid   int
+	Error error
 }
