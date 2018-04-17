@@ -11,7 +11,9 @@ const (
 	MemoryHigh
 	// MemoryLow indicates the process memory is at or below the threshold.
 	MemoryLow
+	// HealthOK indicates the that the health check function returned a 'nil' error
 	HealthOK
+	// HealthBad indicates the that the health check function returned an error
 	HealthBad
 )
 

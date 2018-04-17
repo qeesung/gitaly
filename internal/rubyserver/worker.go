@@ -31,9 +31,8 @@ func init() {
 // it if necessary, in cooperation with the balancer.
 type worker struct {
 	*supervisor.Process
-	address      string
-	events       <-chan supervisor.Event
-	healthChecks chan error
+	address string
+	events  <-chan supervisor.Event
 
 	// This is for testing only, so that we can inject a fake balancer
 	balancerUpdate chan balancerProxy
