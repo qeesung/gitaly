@@ -46,7 +46,7 @@ module Gitlab
       end
 
       # This method is mandatory and no longer exists in gitlab-ce.
-      # TODO: implement it in Go.
+      # TODO: implement it in Go because it is slow, and gitaly-ruby gets restarted a lot.
       def fsck
         msg, status = run_git(%W[--git-dir=#{path} fsck], nice: true)
         raise GitError.new("Could not fsck repository: #{msg}") unless status.zero?
