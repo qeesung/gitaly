@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Make gitaly-ruby's grpc server log at level WARN
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/681
 - Add config option to point to languages.json
   https://gitlab.com/gitlab-org/gitaly/merge_requests/652
 
