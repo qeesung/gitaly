@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Catch CommitErrors while rebasing
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/680
 - Add config option to point to languages.json
   https://gitlab.com/gitlab-org/gitaly/merge_requests/652
 

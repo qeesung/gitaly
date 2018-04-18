@@ -52,6 +52,8 @@ module GitalyServer
           Gitaly::UserDeleteTagResponse.new
         rescue Gitlab::Git::HooksService::PreReceiveError => e
           Gitaly::UserDeleteTagResponse.new(pre_receive_error: set_utf8!(e.message))
+        rescue Gitlab::Git::CommitError => e
+          raise GRPC::FailedPrecondition.new(e)
         end
       end
     end
@@ -93,6 +95,8 @@ module GitalyServer
           Gitaly::UserDeleteBranchResponse.new
         rescue Gitlab::Git::HooksService::PreReceiveError => e
           Gitaly::UserDeleteBranchResponse.new(pre_receive_error: set_utf8!(e.message))
+        rescue Gitlab::Git::CommitError => e
+          raise GRPC::FailedPrecondition.new(e)
         end
       end
     end
@@ -221,6 +225,8 @@ module GitalyServer
           return Gitaly::UserRebaseResponse.new(pre_receive_error: set_utf8!(e.message))
         rescue Gitlab::Git::Repository::GitError => e
           return Gitaly::UserRebaseResponse.new(git_error: set_utf8!(e.message))
+        rescue Gitlab::Git::CommitError => e
+          raise GRPC::FailedPrecondition.new(e.message)
         end
       end
     end
@@ -253,6 +259,8 @@ module GitalyServer
           Gitaly::UserCommitFilesResponse.new(index_error: set_utf8!(e.message))
         rescue Gitlab::Git::HooksService::PreReceiveError => e
           Gitaly::UserCommitFilesResponse.new(pre_receive_error: set_utf8!(e.message))
+        rescue Gitlab::Git::CommitError => e
+          raise GRPC::FailedPrecondition.new(e.message)
         end
       end
     end
