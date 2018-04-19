@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Use gitaly-proto 0.97.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/683
 - Make gitaly-ruby's grpc server log at level WARN
   https://gitlab.com/gitlab-org/gitaly/merge_requests/681
 - Add health checks for gitaly-ruby
