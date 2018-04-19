@@ -67,7 +67,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 					UserName: authorUserName,
 				},
 			},
-			content: bytes.Repeat([]byte("Mock wiki page content"), 10000),
+			content: bytes.Repeat([]byte("Mock wiki page content 2"), 10000),
 		},
 	}
 
