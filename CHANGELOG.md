@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Vendor gitlab_git at 7053bdba2e1d76707
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/684
 - Make wiki commit fields backwards compatible
   https://gitlab.com/gitlab-org/gitaly/merge_requests/685
 - Catch CommitErrors while rebasing
