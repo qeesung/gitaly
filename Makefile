@@ -102,11 +102,15 @@ docker: $(TARGET_SETUP)
 	docker build -t gitlab/gitaly:$(VERSION_PREFIXED) -t gitlab/gitaly:latest $(TARGET_DIR)/docker/
 
 .PHONY: verify
-verify: lint check-formatting megacheck govendor-status notice-up-to-date
+verify: lint check-formatting megacheck govendor-status notice-up-to-date govendor-tagged
 
 .PHONY: govendor-status
 govendor-status: $(TARGET_SETUP) $(GOVENDOR)
 	cd $(PKG_BUILD_DIR) && govendor status
+
+.PHONY: govendor-tagged
+govendor-tagged: $(TARGET_SETUP) $(GOVENDOR)
+	cd $(PKG_BUILD_DIR) && _support/gitaly-proto-tagged
 
 $(TEST_REPO):
 	git clone --bare https://gitlab.com/gitlab-org/gitlab-test.git $@

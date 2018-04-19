@@ -4,6 +4,15 @@ UNRELEASED
 
 - Catch CommitErrors while rebasing
   https://gitlab.com/gitlab-org/gitaly/merge_requests/680
+
+v0.97.0
+
+- Use gitaly-proto 0.97.0
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/683
+- Make gitaly-ruby's grpc server log at level WARN
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/681
+- Add health checks for gitaly-ruby
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/678
 - Add config option to point to languages.json
   https://gitlab.com/gitlab-org/gitaly/merge_requests/652
 
