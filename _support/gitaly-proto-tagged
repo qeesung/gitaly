@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+gitaly_proto_line = `govendor list | grep gitaly-proto` # safe to use backticks, no string interpolation
+abort unless $?.success?
+
+puts gitaly_proto_line
+
+# Not sure what 'version_a' and 'version_b' are exactly, they seem to be identical most of the time.
+_, _, _, version_a, version_b = gitaly_proto_line.split(/\s+/, 5)
+
+tag_regex = /^v[0-9]/
+unless version_a =~ tag_regex && version_b =~ tag_regex
+  abort "FAIL: govendor is not using a tagged version of gitaly-ruby"
+end
+
+puts 'OK'
