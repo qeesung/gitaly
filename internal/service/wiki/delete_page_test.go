@@ -33,30 +33,54 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 	message := []byte("Delete " + pageName)
 	content := []byte("It was the best of wikis, it was the worst of wikis")
 
-	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageName, content: content})
-
-	request := &pb.WikiDeletePageRequest{
-		Repository: wikiRepo,
-		PagePath:   []byte("a-talé-of-two-wikis"),
-		CommitDetails: &pb.WikiCommitDetails{
-			Name:     authorName,
-			Email:    authorEmail,
-			Message:  message,
-			UserId:   authorID,
-			UserName: authorUserName,
+	testCases := []struct {
+		desc string
+		req  *pb.WikiDeletePageRequest
+	}{
+		{
+			desc: "with user id and username",
+			req: &pb.WikiDeletePageRequest{
+				Repository: wikiRepo,
+				PagePath:   []byte("a-talé-of-two-wikis"),
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:     authorName,
+					Email:    authorEmail,
+					Message:  message,
+					UserId:   authorID,
+					UserName: authorUserName,
+				},
+			},
+		},
+		{
+			desc: "without user id and username", // deprecate in GitLab 11.0
+			req: &pb.WikiDeletePageRequest{
+				Repository: wikiRepo,
+				PagePath:   []byte("a-talé-of-two-wikis"),
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:    authorName,
+					Email:   authorEmail,
+					Message: message,
+				},
+			},
 		},
 	}
 
-	_, err := client.WikiDeletePage(ctx, request)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageName, content: content})
 
-	headID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
-	commit, err := gitlog.GetCommit(ctx, wikiRepo, string(headID), "")
-	require.NoError(t, err, "look up git commit after deleting a wiki page")
+			_, err := client.WikiDeletePage(ctx, tc.req)
+			require.NoError(t, err)
 
-	require.Equal(t, authorName, commit.Author.Name, "author name mismatched")
-	require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
-	require.Equal(t, message, commit.Subject, "message mismatched")
+			headID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
+			commit, err := gitlog.GetCommit(ctx, wikiRepo, string(headID), "")
+			require.NoError(t, err, "look up git commit after deleting a wiki page")
+
+			require.Equal(t, authorName, commit.Author.Name, "author name mismatched")
+			require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
+			require.Equal(t, message, commit.Subject, "message mismatched")
+		})
+	}
 }
 
 func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
@@ -145,34 +169,6 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 					Email:    []byte("a@b.com"),
 					UserId:   int32(1),
 					UserName: []byte("username"),
-				},
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' user id",
-			request: &pb.WikiDeletePageRequest{
-				Repository: wikiRepo,
-				PagePath:   []byte("does-not-matter"),
-				CommitDetails: &pb.WikiCommitDetails{
-					Name:     []byte("A name"),
-					Email:    []byte("a@b.com"),
-					Message:  []byte("A message"),
-					UserName: []byte("username"),
-				},
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' username",
-			request: &pb.WikiDeletePageRequest{
-				Repository: wikiRepo,
-				PagePath:   []byte("does-not-matter"),
-				CommitDetails: &pb.WikiCommitDetails{
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
-					UserId:  int32(1),
 				},
 			},
 			code: codes.InvalidArgument,

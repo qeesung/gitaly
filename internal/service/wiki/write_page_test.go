@@ -26,59 +26,88 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	content := bytes.Repeat([]byte("Mock wiki page content"), 10000)
-
 	authorID := int32(1)
 	authorUserName := []byte("ahmad")
 	authorName := []byte("Ahmad Sherif")
 	authorEmail := []byte("ahmad@gitlab.com")
 	message := []byte("Add installation instructions")
 
-	request := &pb.WikiWritePageRequest{
-		Repository: wikiRepo,
-		Name:       []byte("Instálling Gitaly"),
-		Format:     "markdown",
-		CommitDetails: &pb.WikiCommitDetails{
-			Name:     authorName,
-			Email:    authorEmail,
-			Message:  message,
-			UserId:   authorID,
-			UserName: authorUserName,
+	testCases := []struct {
+		desc    string
+		req     *pb.WikiWritePageRequest
+		content []byte
+	}{
+		{
+			desc: "with user id and username",
+			req: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Instálling Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:     authorName,
+					Email:    authorEmail,
+					Message:  message,
+					UserId:   authorID,
+					UserName: authorUserName,
+				},
+			},
+			content: bytes.Repeat([]byte("Mock wiki page content"), 10000),
+		},
+		{
+			desc: "without user id and username", // deprecate in gitlab 11.0
+			req: &pb.WikiWritePageRequest{
+				Repository: wikiRepo,
+				Name:       []byte("Instálling Gitaly"),
+				Format:     "markdown",
+				CommitDetails: &pb.WikiCommitDetails{
+					Name:     authorName,
+					Email:    authorEmail,
+					Message:  message,
+					UserId:   authorID,
+					UserName: authorUserName,
+				},
+			},
+			content: bytes.Repeat([]byte("Mock wiki page content"), 10000),
 		},
 	}
 
-	stream, err := client.WikiWritePage(ctx)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.WikiWritePage(ctx)
+			require.NoError(t, err)
 
-	nSends, err := sendBytes(content, 1000, func(p []byte) error {
-		request.Content = p
+			request := tc.req
+			nSends, err := sendBytes(tc.content, 1000, func(p []byte) error {
+				request.Content = p
 
-		if err := stream.Send(request); err != nil {
-			return err
-		}
+				if err := stream.Send(request); err != nil {
+					return err
+				}
 
-		// Use a new response so we don't send other fields (Repository, ...) over and over
-		request = &pb.WikiWritePageRequest{}
+				// Use a new response so we don't send other fields (Repository, ...) over and over
+				request = &pb.WikiWritePageRequest{}
 
-		return nil
-	})
+				return nil
+			})
 
-	require.NoError(t, err)
-	require.True(t, nSends > 1, "should have sent more than one message")
+			require.NoError(t, err)
+			require.True(t, nSends > 1, "should have sent more than one message")
 
-	_, err = stream.CloseAndRecv()
-	require.NoError(t, err)
+			_, err = stream.CloseAndRecv()
+			require.NoError(t, err)
 
-	headID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
-	commit, err := gitlog.GetCommit(ctx, wikiRepo, string(headID), "")
-	require.NoError(t, err, "look up git commit after writing a wiki page")
+			headID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
+			commit, err := gitlog.GetCommit(ctx, wikiRepo, string(headID), "")
+			require.NoError(t, err, "look up git commit after writing a wiki page")
 
-	require.Equal(t, authorName, commit.Author.Name, "author name mismatched")
-	require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
-	require.Equal(t, message, commit.Subject, "message mismatched")
+			require.Equal(t, authorName, commit.Author.Name, "author name mismatched")
+			require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
+			require.Equal(t, message, commit.Subject, "message mismatched")
 
-	pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Instálling-Gitaly.md")
-	require.Equal(t, content, pageContent, "mismatched content")
+			pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Instálling-Gitaly.md")
+			require.Equal(t, tc.content, pageContent, "mismatched content")
+		})
+	}
 }
 
 func TestFailedWikiWritePageDueToDuplicatePage(t *testing.T) {
@@ -266,38 +295,6 @@ func TestFailedWikiWritePageDueToValidations(t *testing.T) {
 					Email:    []byte("a@b.com"),
 					UserId:   int32(1),
 					UserName: []byte("username"),
-				},
-				Content: []byte(""),
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' user id",
-			request: &pb.WikiWritePageRequest{
-				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
-				CommitDetails: &pb.WikiCommitDetails{
-					Name:     []byte("A name"),
-					Email:    []byte("a@b.com"),
-					Message:  []byte("A message"),
-					UserName: []byte("username"),
-				},
-				Content: []byte(""),
-			},
-			code: codes.InvalidArgument,
-		},
-		{
-			desc: "empty commit details' username",
-			request: &pb.WikiWritePageRequest{
-				Repository: wikiRepo,
-				Name:       []byte("Installing Gitaly"),
-				Format:     "markdown",
-				CommitDetails: &pb.WikiCommitDetails{
-					Name:    []byte("A name"),
-					Email:   []byte("a@b.com"),
-					Message: []byte("A message"),
-					UserId:  int32(1),
 				},
 				Content: []byte(""),
 			},
