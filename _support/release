@@ -20,6 +20,12 @@ def main(version)
     abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
   end
 
+  if version.start_with?("v")
+    puts "Do you really want your tag to be v#{version}? Enter 'Yes' to continue; Ctrl-C to abort"
+    $stdout.flush
+    abort unless $stdin.gets.chomp == 'Yes'
+  end
+
   run!(%w[make verify])
   run!(%w[make clean test])
 
