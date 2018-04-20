@@ -33,9 +33,10 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 	message := []byte("Add installation instructions")
 
 	testCases := []struct {
-		desc    string
-		req     *pb.WikiWritePageRequest
-		content []byte
+		desc       string
+		req        *pb.WikiWritePageRequest
+		gollumPath string
+		content    []byte
 	}{
 		{
 			desc: "with user id and username",
@@ -51,13 +52,14 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 					UserName: authorUserName,
 				},
 			},
-			content: bytes.Repeat([]byte("Mock wiki page content"), 10000),
+			gollumPath: "Instálling-Gitaly.md",
+			content:    bytes.Repeat([]byte("Mock wiki page content"), 10000),
 		},
 		{
 			desc: "without user id and username", // deprecate in gitlab 11.0
 			req: &pb.WikiWritePageRequest{
 				Repository: wikiRepo,
-				Name:       []byte("Instálling Gitaly"),
+				Name:       []byte("Instálling Gitaly 2"),
 				Format:     "markdown",
 				CommitDetails: &pb.WikiCommitDetails{
 					Name:     authorName,
@@ -67,7 +69,8 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 					UserName: authorUserName,
 				},
 			},
-			content: bytes.Repeat([]byte("Mock wiki page content 2"), 10000),
+			gollumPath: "Instálling-Gitaly-2.md",
+			content:    bytes.Repeat([]byte("Mock wiki page content 2"), 10000),
 		},
 	}
 
@@ -93,8 +96,10 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, nSends > 1, "should have sent more than one message")
 
-			_, err = stream.CloseAndRecv()
+			resp, err := stream.CloseAndRecv()
 			require.NoError(t, err)
+
+			require.Empty(t, resp.DuplicateError, "DuplicateError must be empty")
 
 			headID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
 			commit, err := gitlog.GetCommit(ctx, wikiRepo, string(headID), "")
@@ -104,7 +109,7 @@ func TestSuccessfulWikiWritePageRequest(t *testing.T) {
 			require.Equal(t, authorEmail, commit.Author.Email, "author email mismatched")
 			require.Equal(t, message, commit.Subject, "message mismatched")
 
-			pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:Instálling-Gitaly.md")
+			pageContent := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "cat-file", "blob", "HEAD:"+tc.gollumPath)
 			require.Equal(t, tc.content, pageContent, "mismatched content")
 		})
 	}
