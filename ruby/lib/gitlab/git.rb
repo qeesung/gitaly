@@ -24,6 +24,7 @@ vendor_gitlab_git = '../../vendor/gitlab_git/'
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/encoding_helper.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/utils/strong_memoize.rb')
+require_relative File.join(vendor_gitlab_git, 'lib/gitlab/wiki/committer_with_hooks.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/popen.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
@@ -77,6 +78,10 @@ module Gitlab
   module GlId
     def self.gl_id(user)
       user.gl_id
+    end
+
+    def self.gl_id_from_id_value(id)
+      "user-#{id}"
     end
   end
 end

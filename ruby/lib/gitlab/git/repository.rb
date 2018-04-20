@@ -26,7 +26,6 @@ module Gitlab
         @path = path
         @gl_repository = gl_repository
         @gitlab_projects = gitlab_projects
-        @attributes = Gitlab::Git::InfoAttributes.new(path)
       end
 
       def circuit_breaker
