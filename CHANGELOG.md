@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Make wiki commit fields backwards compatible
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/685
 - Catch CommitErrors while rebasing
   https://gitlab.com/gitlab-org/gitaly/merge_requests/680
 
