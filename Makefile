@@ -194,6 +194,8 @@ $(GOVENDOR): $(TARGET_SETUP)
 
 # Install golint
 $(GOLINT): $(TARGET_SETUP)
+	# We should run only this: go get -v golang.org/x/lint/golint
+	# But that is currently (2018-04-23) broken so we have this clunky workaround.
 	mkdir -p $(GOPATH)/src/golang.org/x
 	rm -rf $(GOPATH)/src/golang.org/x/lint
 	git clone https://github.com/golang/lint $(GOPATH)/src/golang.org/x/lint
