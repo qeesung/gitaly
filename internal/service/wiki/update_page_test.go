@@ -57,7 +57,7 @@ func TestSuccessfulWikiUpdatePageRequest(t *testing.T) {
 			content: bytes.Repeat([]byte("Mock wiki page content"), 10000),
 		},
 		{
-			desc: "without user id and username", // deprecate in gitlab 11.0
+			desc: "without user id and username", // deprecate in gitlab 11.0 https://gitlab.com/gitlab-org/gitaly/issues/1154
 			req: &pb.WikiUpdatePageRequest{
 				Repository: wikiRepo,
 				PagePath:   []byte("//Instálling Gitaly"),

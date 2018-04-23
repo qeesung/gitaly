@@ -52,7 +52,7 @@ func TestSuccessfulWikiDeletePageRequest(t *testing.T) {
 			},
 		},
 		{
-			desc: "without user id and username", // deprecate in GitLab 11.0
+			desc: "without user id and username", // deprecate in GitLab 11.0 https://gitlab.com/gitlab-org/gitaly/issues/1154
 			req: &pb.WikiDeletePageRequest{
 				Repository: wikiRepo,
 				PagePath:   []byte("a-talé-of-two-wikis"),
