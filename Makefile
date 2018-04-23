@@ -194,7 +194,12 @@ $(GOVENDOR): $(TARGET_SETUP)
 
 # Install golint
 $(GOLINT): $(TARGET_SETUP)
-	go get -v github.com/golang/lint/golint
+	mkdir -p $(GOPATH)/src/golang.org/x
+	rm -rf $(GOPATH)/src/golang.org/x/lint
+	git clone https://github.com/golang/lint $(GOPATH)/src/golang.org/x/lint
+	rm -rf $(GOPATH)/src/golang.org/x/tools
+	git clone https://github.com/golang/tools $(GOPATH)/src/golang.org/x/tools
+	go install golang.org/x/lint/golint
 
 # Install gocovmerge
 $(GOCOVMERGE): $(TARGET_SETUP)
