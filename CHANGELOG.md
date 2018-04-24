@@ -2,7 +2,7 @@
 
 UNRELEASED
 
-- Vendor gitlab_git at 7053bdba2e1d76707
+- Vendor gitlab_git at 8b41c40674273d6ee
   https://gitlab.com/gitlab-org/gitaly/merge_requests/684
 - Make wiki commit fields backwards compatible
   https://gitlab.com/gitlab-org/gitaly/merge_requests/685
