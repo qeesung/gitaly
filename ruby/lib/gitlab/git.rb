@@ -19,6 +19,10 @@ require_relative 'rails_logger.rb'
 require_relative 'gollum.rb'
 require_relative 'config.rb'
 
+def require_dependency(_arg)
+  # no-op
+end
+
 vendor_gitlab_git = '../../vendor/gitlab_git/'
 
 # Some later requires are order-sensitive. Manually require whatever we need.
