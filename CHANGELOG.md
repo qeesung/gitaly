@@ -4,6 +4,8 @@ UNRELEASED
 
 - Upgrade Licensee gem to match the CE gem
   https://gitlab.com/gitlab-org/gitaly/merge_requests/693
+- Vendor gitlab_git at 8b41c40674273d6ee
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/684
 - Make wiki commit fields backwards compatible
   https://gitlab.com/gitlab-org/gitaly/merge_requests/685
 - Catch CommitErrors while rebasing
