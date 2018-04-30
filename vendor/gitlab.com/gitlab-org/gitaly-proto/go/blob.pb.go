@@ -223,6 +223,8 @@ It has these top-level messages:
 	GetSnapshotResponse
 	CreateRepositoryFromSnapshotRequest
 	CreateRepositoryFromSnapshotResponse
+	GetRawChangesRequest
+	GetRawChangesResponse
 	ServerInfoRequest
 	ServerInfoResponse
 	Repository

@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Server implementation for repository raw_changes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/699
 - Add 'large request' test case to ListCommitsByOid
   https://gitlab.com/gitlab-org/gitaly/merge_requests/703
 - Vendor gitlab_git at gitlab-org/gitlab-ce@3fcb9c115d776feb

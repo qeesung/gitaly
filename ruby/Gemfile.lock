@@ -17,7 +17,7 @@ GEM
       multipart-post (>= 1.2, < 3)
     gemojione (3.3.0)
       json
-    gitaly-proto (0.97.0)
+    gitaly-proto (0.98.0)
       google-protobuf (~> 3.1)
       grpc (~> 1.10)
     github-linguist (5.3.3)
@@ -141,7 +141,7 @@ PLATFORMS
 
 DEPENDENCIES
   activesupport (~> 5.0.2)
-  gitaly-proto (~> 0.97.0)
+  gitaly-proto (~> 0.98.0)
   github-linguist (~> 5.3.3)
   gitlab-gollum-lib (~> 4.2)
   gitlab-gollum-rugged_adapter (~> 0.4.4)

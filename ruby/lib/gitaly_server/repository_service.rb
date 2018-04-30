@@ -116,5 +116,49 @@ module GitalyServer
         Gitaly::FindLicenseResponse.new(license_short_name: short_name || "")
       end
     end
+
+    def get_raw_changes(request, call)
+      bridge_exceptions do
+        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+
+        changes = begin
+                    repo
+                      .raw_changes_between(request.from_revision, request.to_revision)
+                      .map { |c| to_proto_raw_change(c) }
+                  rescue ::Gitlab::Git::Repository::GitError
+                    raise GRPC::InvalidArgument.new("revisions could not be found")
+                  end
+
+        Enumerator.new do |y|
+          changes.each_slice(100) do |batch|
+            y.yield Gitaly::GetRawChangesResponse.new(raw_changes: batch)
+          end
+        end
+      end
+    end
+
+    private
+
+    OPERATION_MAP = {
+      added:        Gitaly::GetRawChangesResponse::RawChange::Operation::ADDED,
+      copied:       Gitaly::GetRawChangesResponse::RawChange::Operation::COPIED,
+      deleted:      Gitaly::GetRawChangesResponse::RawChange::Operation::DELETED,
+      modified:     Gitaly::GetRawChangesResponse::RawChange::Operation::MODIFIED,
+      renamed:      Gitaly::GetRawChangesResponse::RawChange::Operation::RENAMED,
+      type_changed: Gitaly::GetRawChangesResponse::RawChange::Operation::TYPE_CHANGED
+    }.freeze
+
+    def to_proto_raw_change(change)
+      operation = OPERATION_MAP[change.operation] || Gitaly::GetRawChangesResponse::RawChange::Operation::UNKNOWN
+
+      # Protobuf doesn't even try to call `to_s` or `to_i` where it might be needed.
+      Gitaly::GetRawChangesResponse::RawChange.new(
+        blob_id: change.blob_id.to_s,
+        size: change.blob_size.to_i,
+        new_path: change.new_path.to_s,
+        old_path: change.old_path.to_s,
+        operation: operation
+      )
+    end
   end
 end
