@@ -56,6 +56,9 @@ dir = "/home/git/gitaly/ruby"
 #
 # # Time that gitaly-ruby memory must remain high before a restart (seconds)
 # restart_delay = "5m"
+#
+# # Number of gitaly-ruby worker processes
+# num_workers = 2
 
 [gitlab-shell]
 # The directory where gitlab-shell is installed

@@ -116,8 +116,11 @@ func Start() (*Server, error) {
 
 	gitalyRuby := path.Join(cfg.Ruby.Dir, "bin/gitaly-ruby")
 
+	numWorkers := cfg.Ruby.NumWorkers
+	balancer.ConfigureBuilder(numWorkers, 0)
+
 	s := &Server{}
-	for i := 0; i < cfg.Ruby.NumWorkers; i++ {
+	for i := 0; i < numWorkers; i++ {
 		name := fmt.Sprintf("gitaly-ruby.%d", i)
 		socketPath := socketPath(i)
 

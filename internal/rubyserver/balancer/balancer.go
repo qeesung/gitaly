@@ -21,6 +21,8 @@ package balancer
 //
 
 import (
+	"time"
+
 	"google.golang.org/grpc/resolver"
 )
 
@@ -31,6 +33,11 @@ var (
 func init() {
 	resolver.Register(lbBuilder)
 }
+
+const (
+	// DefaultRemoveDelay is the minimum time between successive address removals.
+	DefaultRemoveDelay = 1 * time.Minute
+)
 
 // AddAddress adds the address of a gitaly-ruby instance to the load
 // balancer.
@@ -57,10 +64,38 @@ type addressUpdate struct {
 	next  chan struct{}
 }
 
+type config struct {
+	numAddrs    int
+	removeDelay time.Duration
+}
+
 type builder struct {
 	addAddress     chan string
 	removeAddress  chan addressRemoval
 	addressUpdates chan addressUpdate
+	configUpdate   chan config
+
+	// for testing only
+	testingRestart chan struct{}
+}
+
+// ConfigureBuilder changes the configuration of the global balancer
+// instance. All calls that interact with the balancer will block until
+// ConfigureBuilder has been called at least once.
+func ConfigureBuilder(numAddrs int, removeDelay time.Duration) {
+	cfg := config{
+		numAddrs:    numAddrs,
+		removeDelay: removeDelay,
+	}
+
+	if cfg.removeDelay <= 0 {
+		cfg.removeDelay = DefaultRemoveDelay
+	}
+	if numAddrs <= 0 {
+		panic("numAddrs must be at least 1")
+	}
+
+	lbBuilder.configUpdate <- cfg
 }
 
 func newBuilder() *builder {
@@ -68,6 +103,8 @@ func newBuilder() *builder {
 		addAddress:     make(chan string),
 		removeAddress:  make(chan addressRemoval),
 		addressUpdates: make(chan addressUpdate),
+		configUpdate:   make(chan config),
+		testingRestart: make(chan struct{}),
 	}
 	go b.monitor()
 
@@ -83,11 +120,7 @@ func (*builder) Scheme() string { return Scheme }
 // care what "address" the caller wants to resolve. We always resolve to
 // the current list of address for local gitaly-ruby processes.
 func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.BuildOption) (resolver.Resolver, error) {
-	// JV: Normally I would delete this but this is very poorly documented,
-	// and I don't want to have to look up the magic words again. In case we
-	// ever want to do round-robin.
-	// cc.NewServiceConfig(`{"LoadBalancingPolicy":"round_robin"}`)
-
+	cc.NewServiceConfig(`{"LoadBalancingPolicy":"round_robin"}`)
 	return newGitalyResolver(cc, b.addressUpdates), nil
 }
 
@@ -95,6 +128,8 @@ func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.Bu
 func (b *builder) monitor() {
 	addresses := make(map[string]struct{})
 	notify := make(chan struct{})
+	cfg := <-b.configUpdate
+	lastRemoval := time.Now()
 
 	for {
 		au := addressUpdate{next: notify}
@@ -112,14 +147,20 @@ func (b *builder) monitor() {
 			notify = broadcast(notify)
 		case removal := <-b.removeAddress:
 			_, addressKnown := addresses[removal.addr]
-			if !addressKnown || len(addresses) <= 1 {
+			if !addressKnown || len(addresses) < cfg.numAddrs || time.Since(lastRemoval) < cfg.removeDelay {
 				removal.ok <- false
 				break
 			}
 
 			delete(addresses, removal.addr)
 			removal.ok <- true
+			lastRemoval = time.Now()
 			notify = broadcast(notify)
+		case cfg = <-b.configUpdate:
+		case <-b.testingRestart:
+			go b.monitor()
+			b.configUpdate <- cfg
+			return
 		}
 	}
 }

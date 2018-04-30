@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Replace gitaly-ruby limiter with round robin load balancing
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/700
 - Unvendor Repository#create implementation
   https://gitlab.com/gitlab-org/gitaly/merge_requests/713
 - Add gitaly-ruby installation debug log messages
