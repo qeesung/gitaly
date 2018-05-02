@@ -164,5 +164,14 @@ func TestGetRawChangesMappingOperations(t *testing.T) {
 		pb.GetRawChangesResponse_RawChange_ADDED,
 	}
 
+	firstChange := &pb.GetRawChangesResponse_RawChange{
+		BlobId:    "53855584db773c3df5b5f61f72974cb298822fbb",
+		Size:      22846,
+		NewPath:   "CHANGELOG.md",
+		OldPath:   "CHANGELOG",
+		Operation: pb.GetRawChangesResponse_RawChange_RENAMED,
+	}
+
+	require.Equal(t, firstChange, msg.GetRawChanges()[0])
 	require.EqualValues(t, expected, ops)
 }
