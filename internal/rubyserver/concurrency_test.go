@@ -7,49 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
-
-func TestConcurrency(t *testing.T) {
-	testhelper.ConfigureRuby()
-	config.Config.Ruby.Concurrency = 1
-
-	s, err := Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-
-	require.NoError(t, waitPing(s), "wait for gitaly-ruby to boot")
-
-	start := make(chan struct{})
-	wg := &sync.WaitGroup{}
-
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			<-start
-			for j := 0; j < 10; j++ {
-				// Before we had gitaly-ruby rate limiting, this could result in
-				// ResourceExhausted errors. This test is meant to guard against that
-				// problem coming back.
-				require.NoError(t, makeRequest(s))
-			}
-		}()
-	}
-
-	close(start) // increase chances that goroutines all run at once
-
-	wg.Wait()
-}
 
 func waitPing(s *Server) error {
 	var err error
