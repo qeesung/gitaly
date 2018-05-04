@@ -55,11 +55,6 @@ func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlob
 			return status.Errorf(codes.InvalidArgument, "GetBlobs: object at %s:%s is %s, not blob", revision, path, objectInfo.Type)
 		}
 
-		blobReader, err := c.Blob(objectInfo.Oid)
-		if err != nil {
-			return status.Errorf(codes.Internal, "GetBlobs: %v", err)
-		}
-
 		response.Size = objectInfo.Size
 
 		var readLimit int64
@@ -69,27 +64,36 @@ func sendGetBlobsResponse(req *pb.GetBlobsRequest, stream pb.BlobService_GetBlob
 			readLimit = req.Limit
 		}
 
+		// For correctness it does not matter, but for performance, the order is
+		// important: first check if readlimit == 0, if not, only then create
+		// blobReader.
 		if readLimit == 0 {
 			if err := stream.Send(response); err != nil {
 				return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
 			}
-		} else {
-			sw := streamio.NewWriter(func(p []byte) error {
-				msg := &pb.GetBlobsResponse{}
-				if response != nil {
-					msg = response
-					response = nil
-				}
+			continue
+		}
 
-				msg.Data = p
+		blobReader, err := c.Blob(objectInfo.Oid)
+		if err != nil {
+			return status.Errorf(codes.Internal, "GetBlobs: %v", err)
+		}
 
-				return stream.Send(msg)
-			})
-
-			_, err := io.CopyN(sw, blobReader, readLimit)
-			if err != nil {
-				return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
+		sw := streamio.NewWriter(func(p []byte) error {
+			msg := &pb.GetBlobsResponse{}
+			if response != nil {
+				msg = response
+				response = nil
 			}
+
+			msg.Data = p
+
+			return stream.Send(msg)
+		})
+
+		_, err = io.CopyN(sw, blobReader, readLimit)
+		if err != nil {
+			return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
 		}
 
 		if _, err := io.Copy(ioutil.Discard, blobReader); err != nil {
