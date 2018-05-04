@@ -745,9 +745,7 @@ func (m *UserCommitFilesAction) String() string            { return proto.Compac
 func (*UserCommitFilesAction) ProtoMessage()               {}
 func (*UserCommitFilesAction) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{18} }
 
-type isUserCommitFilesAction_UserCommitFilesActionPayload interface {
-	isUserCommitFilesAction_UserCommitFilesActionPayload()
-}
+type isUserCommitFilesAction_UserCommitFilesActionPayload interface{ isUserCommitFilesAction_UserCommitFilesActionPayload() }
 
 type UserCommitFilesAction_Header struct {
 	Header *UserCommitFilesActionHeader `protobuf:"bytes,1,opt,name=header,oneof"`
@@ -934,9 +932,7 @@ func (m *UserCommitFilesRequest) String() string            { return proto.Compa
 func (*UserCommitFilesRequest) ProtoMessage()               {}
 func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{20} }
 
-type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface {
-	isUserCommitFilesRequest_UserCommitFilesRequestPayload()
-}
+type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface{ isUserCommitFilesRequest_UserCommitFilesRequestPayload() }
 
 type UserCommitFilesRequest_Header struct {
 	Header *UserCommitFilesRequestHeader `protobuf:"bytes,1,opt,name=header,oneof"`

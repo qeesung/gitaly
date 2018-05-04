@@ -225,6 +225,10 @@ It has these top-level messages:
 	CreateRepositoryFromSnapshotResponse
 	GetRawChangesRequest
 	GetRawChangesResponse
+	SearchFilesByNameRequest
+	SearchFilesByNameResponse
+	SearchFilesByContentRequest
+	SearchFilesByContentResponse
 	ServerInfoRequest
 	ServerInfoResponse
 	Repository

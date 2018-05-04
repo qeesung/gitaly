@@ -4,6 +4,8 @@ UNRELEASED
 
 - GetBlobs: don't create blob reader if limit is zero
   https://gitlab.com/gitlab-org/gitaly/merge_requests/706
+- Implement SearchFilesBy{Content,Name}
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/677
 - Introduce feature flag package based on gRPC metadata
   https://gitlab.com/gitlab-org/gitaly/merge_requests/704
 
