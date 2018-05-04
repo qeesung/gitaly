@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Remove ruby concurrency limiter
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/708
 - Implement SearchFilesBy{Content,Name}
   https://gitlab.com/gitlab-org/gitaly/merge_requests/677
 - Introduce feature flag package based on gRPC metadata
