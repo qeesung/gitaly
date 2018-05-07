@@ -15,10 +15,10 @@ verify:
     - make verify
 
 danger-review:
+  image: registry.gitlab.com/zj/dangercontainer:latest
   stage: build
   script:
     - git version
-    - gem install danger-gitlab --no-document
     - danger
 
 .ruby_template: &ruby_definition

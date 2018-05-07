@@ -4,6 +4,8 @@ UNRELEASED
 
 - Remove ruby concurrency limiter
   https://gitlab.com/gitlab-org/gitaly/merge_requests/708
+- Improve changelog entry checks using Danger
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/705
 - GetBlobs: don't create blob reader if limit is zero
   https://gitlab.com/gitlab-org/gitaly/merge_requests/706
 - Implement SearchFilesBy{Content,Name}
