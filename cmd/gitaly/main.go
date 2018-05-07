@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	flagVersion = flag.Bool("version", false, "Print version and exit")
+	flagVersion    = flag.Bool("version", false, "Print version and exit")
+	flagTestConfig = flag.Bool("test-config", false, "Load configuration and exit")
 )
 
 func loadConfig(configPath string) error {
@@ -105,6 +106,12 @@ func main() {
 	config.ConfigureSentry(version.GetVersion())
 	config.ConfigurePrometheus()
 	config.ConfigureConcurrencyLimits()
+
+	log.Info("config load OK")
+
+	if *flagTestConfig {
+		os.Exit(0)
+	}
 
 	tempdir.StartCleaning()
 

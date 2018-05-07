@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Add gitaly-ruby installation debug log messages
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/710
 - Introduce src-d/go-git as dependency
   https://gitlab.com/gitlab-org/gitaly/merge_requests/709
 

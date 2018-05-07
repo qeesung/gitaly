@@ -56,7 +56,9 @@ build:	.ruby-bundle $(TARGET_SETUP)
 	cp $(foreach cmd,$(COMMANDS),$(BIN_BUILD_DIR)/$(cmd)) $(BUILD_DIR)/
 
 .ruby-bundle:	ruby/Gemfile.lock ruby/Gemfile
+	cd ruby && bundle config # for debugging
 	cd ruby && bundle install $(BUNDLE_FLAGS)
+	cd ruby && bundle show gitaly-proto # sanity check
 	touch $@
 
 # TODO: confirm what references this target? Omnibus? Source installs?
