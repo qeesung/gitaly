@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Unvendor Repository#create implementation
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/713
+
 v0.100.0
 
 - Fix WikiFindPage when the page has invalidly-encoded content

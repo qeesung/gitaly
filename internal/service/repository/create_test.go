@@ -63,6 +63,31 @@ func TestCreateRepositoryFailure(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
+	storagePath, err := helper.GetStorageByName("default")
+	require.NoError(t, err)
+	fullPath := path.Join(storagePath, "foo.git")
+
+	_, err = os.Create(fullPath)
+	require.NoError(t, err)
+	defer os.RemoveAll(fullPath)
+
+	_, err = client.CreateRepository(ctx, &pb.CreateRepositoryRequest{
+		Repository: &pb.Repository{StorageName: "default", RelativePath: "foo.git"},
+	})
+
+	testhelper.AssertGrpcError(t, err, codes.Unknown, "")
+}
+
+func TestCreateRepositoryFailureInvalidArgs(t *testing.T) {
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	testCases := []struct {
 		repo *pb.Repository
 		code codes.Code
