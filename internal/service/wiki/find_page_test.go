@@ -25,14 +25,18 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 	page1Name := "Home Pagé"
 	page2Name := "Instálling/Step 133-b"
 	page3Name := "Installing/Step 133-c"
+	page4Name := "Encoding is fun"
 	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
-	page3Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name})
+	page4Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page4Name, content: []byte("f\xFCr")})
+	latestCommit := page4Commit
 
 	testCases := []struct {
-		desc         string
-		request      *pb.WikiFindPageRequest
-		expectedPage *pb.WikiPage
+		desc            string
+		request         *pb.WikiFindPageRequest
+		expectedPage    *pb.WikiPage
+		expectedContent []byte
 	}{
 		{
 			desc: "title only",
@@ -42,7 +46,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 			},
 			expectedPage: &pb.WikiPage{
 				Version: &pb.WikiPageVersion{
-					Commit: page3Commit,
+					Commit: latestCommit,
 					Format: "markdown",
 				},
 				Title:      []byte(page1Name),
@@ -52,6 +56,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				Name:       []byte(page1Name),
 				Historical: false,
 			},
+			expectedContent: mockPageContent,
 		},
 		{
 			desc: "title + revision that includes the page",
@@ -72,6 +77,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				Name:       []byte(page1Name),
 				Historical: true,
 			},
+			expectedContent: mockPageContent,
 		},
 		{
 			desc: "title + revision that does not include the page",
@@ -91,7 +97,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 			},
 			expectedPage: &pb.WikiPage{
 				Version: &pb.WikiPageVersion{
-					Commit: page3Commit,
+					Commit: latestCommit,
 					Format: "markdown",
 				},
 				Title:      []byte("Step 133 b"),
@@ -101,6 +107,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				Name:       []byte("Step 133 b"),
 				Historical: false,
 			},
+			expectedContent: mockPageContent,
 		},
 		{
 			desc: "title + directory that does not include the page",
@@ -110,6 +117,26 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 				Directory:  []byte("Installation"),
 			},
 			expectedPage: nil,
+		},
+		{
+			desc: "title for invalidly-encoded page",
+			request: &pb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte("Encoding is fun"),
+			},
+			expectedPage: &pb.WikiPage{
+				Version: &pb.WikiPageVersion{
+					Commit: latestCommit,
+					Format: "markdown",
+				},
+				Title:      []byte(page4Name),
+				Format:     "markdown",
+				UrlPath:    "Encoding-is-fun",
+				Path:       []byte("Encoding-is-fun.md"),
+				Name:       []byte(page4Name),
+				Historical: false,
+			},
+			expectedContent: []byte("fr"),
 		},
 	}
 
@@ -133,7 +160,7 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 
 			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
 			if expectedPage != nil {
-				require.Equal(t, mockPageContent, receivedContent, "mismatched page content")
+				require.Equal(t, testCase.expectedContent, receivedContent, "mismatched page content")
 			}
 		})
 	}

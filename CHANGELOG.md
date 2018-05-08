@@ -2,6 +2,8 @@
 
 UNRELEASED
 
+- Fix WikiFindPage when the page has invalidly-encoded content
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/712
 - Introduce src-d/go-git as dependency
   https://gitlab.com/gitlab-org/gitaly/merge_requests/709
 
