@@ -1,5 +1,10 @@
 # Gitaly changelog
 
+UNRELEASED
+
+- Introduce src-d/go-git as dependency
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/709
+
 v0.99.0
 
 - Improve changelog entry checks using Danger
