@@ -2,7 +2,7 @@
 
 UNRELEASED
 
-- Replace gitaly-ruby limiter with round robin load balancing
+- Use round robin load balancing instead of 'pick first' for gitaly-ruby
   https://gitlab.com/gitlab-org/gitaly/merge_requests/700
 - Unvendor Repository#create implementation
   https://gitlab.com/gitlab-org/gitaly/merge_requests/713
