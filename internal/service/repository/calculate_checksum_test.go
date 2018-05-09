@@ -6,11 +6,10 @@ import (
 	"path"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessfulCalculateChecksum(t *testing.T) {
@@ -56,6 +55,27 @@ func TestEmptyRepositoryCalculateChecksum(t *testing.T) {
 	response, err := client.CalculateChecksum(testCtx, request)
 	require.NoError(t, err)
 	require.Equal(t, "0000000000000000000000000000000000000000", response.Checksum)
+}
+
+func TestBrokenRepositoryCalculateChecksum(t *testing.T) {
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	repo, testRepoPath, cleanupFn := testhelper.InitBareRepo(t)
+	defer cleanupFn()
+
+	// Force an empty HEAD file
+	require.NoError(t, os.Truncate(path.Join(testRepoPath, "HEAD"), 0))
+
+	request := &pb.CalculateChecksumRequest{Repository: repo}
+	testCtx, cancelCtx := testhelper.Context()
+	defer cancelCtx()
+
+	_, err := client.CalculateChecksum(testCtx, request)
+	testhelper.AssertGrpcError(t, err, codes.DataLoss, "not a git repository")
 }
 
 func TestFailedCalculateChecksum(t *testing.T) {

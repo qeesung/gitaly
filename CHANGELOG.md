@@ -4,6 +4,11 @@ UNRELEASED
 
 - Remove ruby concurrency limiter
   https://gitlab.com/gitlab-org/gitaly/merge_requests/708
+- Introduce src-d/go-git as dependency
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/709
+
+v0.99.0
+
 - Improve changelog entry checks using Danger
   https://gitlab.com/gitlab-org/gitaly/merge_requests/705
 - GetBlobs: don't create blob reader if limit is zero
@@ -12,6 +17,8 @@ UNRELEASED
   https://gitlab.com/gitlab-org/gitaly/merge_requests/677
 - Introduce feature flag package based on gRPC metadata
   https://gitlab.com/gitlab-org/gitaly/merge_requests/704
+- Return DataLoss error for non-valid git repositories when calculating the checksum
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/697
 
 v0.98.0
 

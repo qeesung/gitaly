@@ -2,13 +2,17 @@ package repository
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"math/big"
+	"os/exec"
+	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	"golang.org/x/net/context"
@@ -21,7 +25,7 @@ const blankChecksum = "0000000000000000000000000000000000000000"
 func (s *server) CalculateChecksum(ctx context.Context, in *pb.CalculateChecksumRequest) (*pb.CalculateChecksumResponse, error) {
 	repo := in.GetRepository()
 
-	_, err := helper.GetRepoPath(repo)
+	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +69,32 @@ func (s *server) CalculateChecksum(ctx context.Context, in *pb.CalculateChecksum
 	}
 
 	if err := cmd.Wait(); err != nil {
-		if code, ok := command.ExitStatus(err); ok && code == 1 {
-			// Exit code 1: the repository doesn't have any ref
+		if isValidRepo(ctx, repo) {
 			return &pb.CalculateChecksumResponse{Checksum: blankChecksum}, nil
 		}
 
-		// This will normally occur when exit code > 1
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.DataLoss, "CalculateChecksum: not a git repository '%s'", repoPath)
 	}
 
 	return &pb.CalculateChecksumResponse{Checksum: hex.EncodeToString(checksum.Bytes())}, nil
+}
+
+func isValidRepo(ctx context.Context, repo *pb.Repository) bool {
+	repoPath, env, err := alternates.PathAndEnv(repo)
+	if err != nil {
+		return false
+	}
+
+	args := []string{"-C", repoPath, "rev-parse", "--is-inside-git-dir"}
+	stdout := &bytes.Buffer{}
+	cmd, err := command.New(ctx, exec.Command(command.GitPath(), args...), nil, stdout, nil, env...)
+	if err != nil {
+		return false
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return false
+	}
+
+	return strings.EqualFold(strings.TrimRight(stdout.String(), "\n"), "true")
 }
