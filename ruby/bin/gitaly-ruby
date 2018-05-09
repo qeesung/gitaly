@@ -24,11 +24,7 @@ def main
   FileUtils.mkdir_p(socket_dir)
   File.chmod(0700, socket_dir)
 
-  pool_size = ENV['GITALY_RUBY_THREAD_POOL_SIZE'].to_i
-  pool_size = 30 if pool_size <= 0
-
   s = GRPC::RpcServer.new(
-    pool_size: pool_size,
     poll_period: SHUTDOWN_TIMEOUT,
     interceptors: [
       GitalyServer::SentryInterceptor.new,

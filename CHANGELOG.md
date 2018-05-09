@@ -4,6 +4,12 @@ UNRELEASED
 
 - Fix WikiFindPage when the page has invalidly-encoded content
   https://gitlab.com/gitlab-org/gitaly/merge_requests/712
+- Add danger container to the Gitaly project
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/711
+- Remove ruby concurrency limiter
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/708
+- Drop support for Golang 1.8
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/715
 - Introduce src-d/go-git as dependency
   https://gitlab.com/gitlab-org/gitaly/merge_requests/709
 

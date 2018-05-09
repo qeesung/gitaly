@@ -15,8 +15,11 @@ verify:
     - make verify
 
 danger-review:
-  image: registry.gitlab.com/zj/dangercontainer:latest
+  image: registry.gitlab.com/gitlab-org/gitaly/dangercontainer:latest
   stage: build
+  except:
+    - tags
+    - master
   script:
     - git version
     - danger
@@ -78,10 +81,6 @@ build:go1.9:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.9-git-2.16
 
-build:go1.8:
-  <<: *build_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.8.6-git-2.14
-
 binaries_go1.10:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.10-git-2.16
@@ -90,16 +89,8 @@ binaries_go1.9:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.9-git-2.16
 
-binaries_go1.8:
-  <<: *assemble_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.8.6-git-2.14
-
 test:default:
   <<: *test_definition
-
-test:go1.8-git2.14:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.8-git-2.14
 
 test:go1.9-git2.9:
   <<: *test_definition
@@ -191,6 +182,22 @@ update-downstream-server-version:
   script:
     - ruby _support/update-downstream-server-version
   allow_failure: true
+
+create-dangercontainer:
+  stage: publish
+  image: docker:git
+  services:
+    - docker:dind
+  only:
+    - master@gitlab-org/gitaly
+  variables:
+    IMAGE_TAG: "${CI_REGISTRY_IMAGE}/dangercontainer:latest"
+  script:
+    - cd _support/dangercontainer
+    - docker build -t $IMAGE_TAG ./
+    - docker login --username gitlab-ci-token --password $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push $IMAGE_TAG
+    - docker logout $CI_REGISTRY
 
 # Ensure that gitlab-git vendoring from gitlab-ce is functioning
 test-vendor-gitaly-ruby:
