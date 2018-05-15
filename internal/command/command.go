@@ -112,7 +112,7 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 			"pid":  logPid,
 			"path": cmd.Path,
 			"args": cmd.Args,
-		}).Info("spawn")
+		}).Debug("spawn")
 	}()
 
 	command := &Command{
@@ -251,5 +251,5 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 		})
 	}
 
-	entry.Info("spawn complete")
+	entry.Debug("spawn complete")
 }

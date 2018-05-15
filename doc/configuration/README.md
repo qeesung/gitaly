@@ -112,7 +112,6 @@ max\_rss limit.
 |restart_delay|string|no|Time memory must be high before a restart is triggered, in seconds. Default 5 minutes ("5m").|
 |num_workers|integer|no|Number of gitaly-ruby worker processes. Default 2, minimum 2.|
 |linguist_languages_path|string|no|Override for dynamic languages.json discovery. Default: "" (use dynamic discovery).|
-|concurrency|integer|no|Maximum number of concurrent gitaly-ruby requests. Default 20.|
 
 ### Logging
 
