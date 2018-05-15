@@ -133,7 +133,7 @@ func (b *builder) monitor() {
 
 	for {
 		au := addressUpdate{next: notify}
-		for _, a := range p.addrs() {
+		for _, a := range p.activeAddrs() {
 			au.addrs = append(au.addrs, resolver.Address{Addr: a})
 		}
 
@@ -146,7 +146,7 @@ func (b *builder) monitor() {
 			p.add(addr)
 			notify = broadcast(notify)
 		case removal := <-b.removeAddress:
-			if time.Since(lastRemoval) < cfg.removeDelay || p.size() < cfg.numAddrs-1 {
+			if time.Since(lastRemoval) < cfg.removeDelay || p.activeSize() < cfg.numAddrs-1 {
 				removal.ok <- false
 				break
 			}
