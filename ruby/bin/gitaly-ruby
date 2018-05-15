@@ -35,6 +35,7 @@ def main
   s.add_http2_port(port, :this_port_is_insecure)
   GRPC.logger.info("... running insecurely on #{port}")
 
+  GRPC.logger.warn("Using gitaly-proto #{Gitaly::VERSION}")
   GitalyServer.register_handlers(s)
 
   signal_thread = Thread.new do
