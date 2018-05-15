@@ -5,6 +5,7 @@ func newPool() *pool {
 }
 
 // pool is a set that keeps one address (element) set aside as a standby.
+// This data structure is not thread safe.
 type pool struct {
 	standby string
 	active  map[string]struct{}
@@ -49,6 +50,7 @@ func (p *pool) remove(addr string) bool {
 // order is not deterministic.
 func (p *pool) activeAddrs() []string {
 	var addrs []string
+
 	for a := range p.active {
 		addrs = append(addrs, a)
 	}

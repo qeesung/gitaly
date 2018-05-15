@@ -131,19 +131,27 @@ func (b *builder) monitor() {
 	cfg := <-b.configUpdate
 	lastRemoval := time.Now()
 
+	// This channel is intentionally nil so that our 'select' below won't
+	// send messages to it. We do this to prevent sending out invalid (empty)
+	// messages during boot.
+	var addressUpdates chan addressUpdate
+
 	for {
 		au := addressUpdate{next: notify}
 		for _, a := range p.activeAddrs() {
 			au.addrs = append(au.addrs, resolver.Address{Addr: a})
 		}
 
+		if len(au.addrs) > 0 && addressUpdates == nil {
+			// Start listening for address update requests
+			addressUpdates = b.addressUpdates
+		}
+
 		select {
-		case b.addressUpdates <- au:
-			if len(au.addrs) == 0 {
-				panic("builder monitor sent empty address update")
-			}
+		case addressUpdates <- au:
 		case addr := <-b.addAddress:
 			p.add(addr)
+
 			notify = broadcast(notify)
 		case removal := <-b.removeAddress:
 			if time.Since(lastRemoval) < cfg.removeDelay || p.activeSize() < cfg.numAddrs-1 {
