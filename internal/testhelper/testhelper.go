@@ -259,12 +259,6 @@ func ConfigureRuby() {
 	if err := config.ConfigureRuby(); err != nil {
 		log.Fatal("validate ruby config: %v", err)
 	}
-
-	// This speeds up test boot-up. The reason we use more than 1 worker in
-	// production is to handle memory leaks, but the tests don't run for long
-	// enough to hit those memory leaks anyway. Most tests also run faster
-	// than the minimum delay before a ruby worker failover can even happen.
-	config.Config.Ruby.NumWorkers = 1
 }
 
 // NewTestGrpcServer creates a GRPC Server for testing purposes

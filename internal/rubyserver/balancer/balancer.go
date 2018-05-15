@@ -126,14 +126,14 @@ func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.Bu
 
 // monitor serves address list requests and handles address updates.
 func (b *builder) monitor() {
-	addresses := make(map[string]struct{})
+	p := newPool()
 	notify := make(chan struct{})
 	cfg := <-b.configUpdate
 	lastRemoval := time.Now()
 
 	for {
 		au := addressUpdate{next: notify}
-		for a := range addresses {
+		for _, a := range p.addrs() {
 			au.addrs = append(au.addrs, resolver.Address{Addr: a})
 		}
 
@@ -143,16 +143,19 @@ func (b *builder) monitor() {
 				panic("builder monitor sent empty address update")
 			}
 		case addr := <-b.addAddress:
-			addresses[addr] = struct{}{}
+			p.add(addr)
 			notify = broadcast(notify)
 		case removal := <-b.removeAddress:
-			_, addressKnown := addresses[removal.addr]
-			if !addressKnown || len(addresses) < cfg.numAddrs || time.Since(lastRemoval) < cfg.removeDelay {
+			if time.Since(lastRemoval) < cfg.removeDelay || p.size() < cfg.numAddrs-1 {
 				removal.ok <- false
 				break
 			}
 
-			delete(addresses, removal.addr)
+			if !p.remove(removal.addr) {
+				removal.ok <- false
+				break
+			}
+
 			removal.ok <- true
 			lastRemoval = time.Now()
 			notify = broadcast(notify)

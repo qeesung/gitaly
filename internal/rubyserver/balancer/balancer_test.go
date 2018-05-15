@@ -1,11 +1,95 @@
 package balancer
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/resolver"
 )
+
+func TestServiceConfig(t *testing.T) {
+	configureBuilderTest(3)
+
+	tcc := &testClientConn{}
+	lbBuilder.Build(resolver.Target{}, tcc, resolver.BuildOption{})
+
+	configUpdates := tcc.ConfigUpdates()
+	require.True(t, len(configUpdates) == 1, "expected exactly one config update, found %d", len(configUpdates))
+
+	svcConfig := struct{ LoadBalancingPolicy string }{}
+	require.NoError(t, json.NewDecoder(strings.NewReader(configUpdates[0])).Decode(&svcConfig))
+	require.Equal(t, "round_robin", svcConfig.LoadBalancingPolicy)
+}
+
+func TestAddressUpdatesSmallestPool(t *testing.T) {
+	// The smallest number of addresses is 2: 1 standby, and 1 active.
+	addrs := configureBuilderTest(2)
+
+	tcc := &testClientConn{}
+	lbBuilder.Build(resolver.Target{}, tcc, resolver.BuildOption{})
+
+	// Simulate some random updates
+	RemoveAddress(addrs[0])
+	RemoveAddress(addrs[0])
+	AddAddress(addrs[0])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[0])
+	AddAddress(addrs[1])
+	AddAddress(addrs[1])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[0])
+	AddAddress(addrs[0])
+
+	addrUpdates := tcc.AddrUpdates()
+	require.True(t, len(addrUpdates) > 0, "expected at least one address update")
+
+	expectedActive := len(addrs) - 1 // subtract 1 for the standby
+	for _, update := range addrUpdates {
+		require.Equal(t, expectedActive, len(update))
+	}
+}
+
+func TestAddressUpdatesRoundRobinPool(t *testing.T) {
+	// With 3 addresses in the pool, 2 will be active.
+	addrs := configureBuilderTest(3)
+
+	tcc := &testClientConn{}
+	lbBuilder.Build(resolver.Target{}, tcc, resolver.BuildOption{})
+
+	// Simulate some random updates
+	RemoveAddress(addrs[0])
+	RemoveAddress(addrs[0])
+	RemoveAddress(addrs[2])
+	AddAddress(addrs[0])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[0])
+	AddAddress(addrs[2])
+	AddAddress(addrs[1])
+	AddAddress(addrs[1])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[2])
+	RemoveAddress(addrs[1])
+	AddAddress(addrs[1])
+	RemoveAddress(addrs[2])
+	RemoveAddress(addrs[1])
+	RemoveAddress(addrs[0])
+	AddAddress(addrs[0])
+
+	addrUpdates := tcc.AddrUpdates()
+	require.True(t, len(addrUpdates) > 0, "expected at least one address update")
+
+	expectedActive := len(addrs) - 1 // subtract 1 for the standby
+	for _, update := range addrUpdates {
+		require.Equal(t, expectedActive, len(update))
+	}
+}
 
 func TestRemovals(t *testing.T) {
 	okActions := []action{
@@ -54,6 +138,19 @@ func TestRemovals(t *testing.T) {
 			lastFails: true,
 			delay:     2 * removeDelay,
 		},
+		{
+			// This relies on the implementation detail that the first address added
+			// to the balancer is the standby. The standby cannot be removed.
+			desc: "remove standby address",
+			actions: []action{
+				{add: "foo"},
+				{add: "qux"},
+				{add: "baz"},
+				{remove: "foo"},
+			},
+			lastFails: true,
+			delay:     2 * removeDelay,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -84,4 +181,56 @@ func TestRemovals(t *testing.T) {
 type action struct {
 	add    string
 	remove string
+}
+
+type testClientConn struct {
+	addrUpdates   [][]resolver.Address
+	configUpdates []string
+	mu            sync.Mutex
+}
+
+func (tcc *testClientConn) NewAddress(addresses []resolver.Address) {
+	tcc.mu.Lock()
+	defer tcc.mu.Unlock()
+
+	tcc.addrUpdates = append(tcc.addrUpdates, addresses)
+}
+
+func (tcc *testClientConn) NewServiceConfig(serviceConfig string) {
+	tcc.mu.Lock()
+	defer tcc.mu.Unlock()
+
+	tcc.configUpdates = append(tcc.configUpdates, serviceConfig)
+}
+
+func (tcc *testClientConn) AddrUpdates() [][]resolver.Address {
+	tcc.mu.Lock()
+	defer tcc.mu.Unlock()
+
+	return tcc.addrUpdates
+}
+
+func (tcc *testClientConn) ConfigUpdates() []string {
+	tcc.mu.Lock()
+	defer tcc.mu.Unlock()
+
+	return tcc.configUpdates
+}
+
+// configureBuilderTest reconfigures the global builder and pre-populates
+// it with addresses. It returns the list of addresses it added.
+func configureBuilderTest(numAddrs int) []string {
+	delay := 1 * time.Millisecond
+	ConfigureBuilder(numAddrs, delay)
+	lbBuilder.testingRestart <- struct{}{}
+	time.Sleep(2 * delay)
+
+	var addrs []string
+	for i := 0; i < numAddrs; i++ {
+		a := fmt.Sprintf("test.%d", i)
+		AddAddress(a)
+		addrs = append(addrs, a)
+	}
+
+	return addrs
 }
