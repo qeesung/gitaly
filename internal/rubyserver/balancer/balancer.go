@@ -149,6 +149,7 @@ func (b *builder) monitor() {
 
 		select {
 		case addressUpdates <- au:
+			// We have served an address update request
 		case addr := <-b.addAddress:
 			p.add(addr)
 
@@ -168,6 +169,7 @@ func (b *builder) monitor() {
 			lastRemoval = time.Now()
 			notify = broadcast(notify)
 		case cfg = <-b.configUpdate:
+			// We have received a config update
 		case <-b.testingRestart:
 			go b.monitor()
 			b.configUpdate <- cfg
