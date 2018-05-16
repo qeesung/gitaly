@@ -19,7 +19,7 @@ func TestServiceConfig(t *testing.T) {
 	lbBuilder.Build(resolver.Target{}, tcc, resolver.BuildOption{})
 
 	configUpdates := tcc.ConfigUpdates()
-	require.True(t, len(configUpdates) == 1, "expected exactly one config update, found %d", len(configUpdates))
+	require.Len(t, configUpdates, 1, "expect exactly one config update")
 
 	svcConfig := struct{ LoadBalancingPolicy string }{}
 	require.NoError(t, json.NewDecoder(strings.NewReader(configUpdates[0])).Decode(&svcConfig))
