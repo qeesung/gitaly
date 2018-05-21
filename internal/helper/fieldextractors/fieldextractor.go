@@ -11,8 +11,12 @@ type repositoryBasedRequest interface {
 }
 
 type namespaceBasedRequest interface {
-	GetStorageName() string
+	storageBasedRequest
 	GetName() string
+}
+
+type storageBasedRequest interface {
+	GetStorageName() string
 }
 
 func formatRepoRequest(repo *pb.Repository) map[string]interface{} {
@@ -46,6 +50,12 @@ func getTopLevelGroupFromRepoPath(repoPath string) string {
 	return parts[0]
 }
 
+func formatStorageRequest(storageReq storageBasedRequest) map[string]interface{} {
+	return map[string]interface{}{
+		"StorageName": storageReq.GetStorageName(),
+	}
+}
+
 func formatNamespaceRequest(namespaceReq namespaceBasedRequest) map[string]interface{} {
 	return map[string]interface{}{
 		"StorageName": namespaceReq.GetStorageName(),
@@ -74,6 +84,8 @@ func FieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 		return formatRepoRequest(req.(repositoryBasedRequest).GetRepository())
 	case namespaceBasedRequest:
 		return formatNamespaceRequest(req.(namespaceBasedRequest))
+	case storageBasedRequest:
+		return formatStorageRequest(req.(storageBasedRequest))
 	}
 
 	return nil
