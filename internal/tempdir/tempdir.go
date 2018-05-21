@@ -18,13 +18,16 @@ import (
 )
 
 const (
+	// GitalyDataPrefix is the top-level directory we use to store system (non-user) data.
 	GitalyDataPrefix = "+gitaly"
-	// We need to be careful that this path does not clash with any
-	// directory name that could be provided by a user. The '+' character is
-	// not allowed in GitLab namespaces or repositories.
+
+	// TmpRootPrefix is the directory in which we store temporary
+	// directories. We need to be careful that this path does not clash with
+	// any directory name that could be provided by a user. The '+' character
+	// is not allowed in GitLab namespaces or repositories.
 	TmpRootPrefix = GitalyDataPrefix + "/tmp"
 
-	// This delay is used by ForDeleteAllRepositories. It is also a fallback
+	// MaxAge is used by ForDeleteAllRepositories. It is also a fallback
 	// for the context-scoped temporary directories, to ensure they get
 	// cleaned up if the cleanup at the end of the context failed to run.
 	MaxAge = 7 * 24 * time.Hour

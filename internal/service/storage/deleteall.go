@@ -5,13 +5,14 @@ import (
 	"os"
 	"path"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
+	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	pb "gitlab.com/gitlab-org/gitaly-proto/go"
-	"golang.org/x/net/context"
 )
 
 func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRepositoriesRequest) (*pb.DeleteAllRepositoriesResponse, error) {
@@ -30,10 +31,17 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 		return nil, status.Errorf(codes.Internal, "open storage dir: %v", err)
 	}
 
-	for err != io.EOF {
-		var dirents []os.FileInfo
-		dirents, err = dir.Readdir(100)
-		if err != nil && err != io.EOF {
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"tempdir": tempReposDir,
+		"storage": req.StorageName,
+	}).Warn("moving all repositories in storage to tempdir")
+
+	count := 0
+	for done := false; !done; {
+		dirents, err := dir.Readdir(100)
+		if err == io.EOF {
+			done = true
+		} else if err != nil {
 			return nil, status.Errorf(codes.Internal, "read storage dir: %v", err)
 		}
 
@@ -42,11 +50,18 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 				continue
 			}
 
+			count++
 			if err := os.Rename(path.Join(storageDir, d.Name()), path.Join(tempReposDir, d.Name())); err != nil {
 				return nil, status.Errorf(codes.Internal, "move dir: %v", err)
 			}
 		}
 	}
+
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"tempdir":        tempReposDir,
+		"storage":        req.StorageName,
+		"numDirectories": count,
+	}).Warn("directories removed")
 
 	return &pb.DeleteAllRepositoriesResponse{}, nil
 }
