@@ -53,7 +53,7 @@ func TestNewAsRepositoryFailStorageUnknown(t *testing.T) {
 	require.Error(t, err)
 }
 
-var cleanRoot = path.Join("testdata/clean", tmpRootPrefix)
+var cleanRoot = path.Join("testdata/clean", TmpRootPrefix)
 
 func TestCleanerSafety(t *testing.T) {
 	defer func() {
@@ -135,7 +135,7 @@ func makeDir(t *testing.T, dirPath string, mtime time.Time) {
 
 func TestCleanNoTmpExists(t *testing.T) {
 	// This directory is valid because it ends in the special prefix
-	dir := path.Join("testdata", "does-not-exist", tmpRootPrefix)
+	dir := path.Join("testdata", "does-not-exist", TmpRootPrefix)
 
 	require.NoError(t, clean(dir))
 }

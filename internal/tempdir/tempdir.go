@@ -18,10 +18,11 @@ import (
 )
 
 const (
+	GitalyDataPrefix = "+gitaly"
 	// We need to be careful that this path does not clash with any
 	// directory name that could be provided by a user. The '+' character is
 	// not allowed in GitLab namespaces or repositories.
-	tmpRootPrefix = "+gitaly/tmp"
+	TmpRootPrefix = GitalyDataPrefix + "/tmp"
 
 	// This delay is used by ForDeleteAllRepositories. It is also a fallback
 	// for the context-scoped temporary directories, to ensure they get
@@ -30,9 +31,9 @@ const (
 )
 
 // ForDeleteAllRepositories returns a temporary directory for the given storage. It is not context-scoped but it will get removed eventuall (after MaxAge).
-func ForDeleteAllRepositories(storage config.Storage) (string, error) {
-	prefix := fmt.Sprintf("%s-repositories.old.%d", storage.Name, time.Now.Unix())
-	_, path, err := newAsRepository(context.Background(), storage.Name, prefix)
+func ForDeleteAllRepositories(storageName string) (string, error) {
+	prefix := fmt.Sprintf("%s-repositories.old.%d", storageName, time.Now().Unix())
+	_, path, err := newAsRepository(context.Background(), storageName, prefix)
 
 	return path, err
 }
@@ -82,7 +83,7 @@ func newAsRepository(ctx context.Context, storageName string, prefix string) (*p
 }
 
 func tmpRoot(storageRoot string) string {
-	return filepath.Join(storageRoot, tmpRootPrefix)
+	return filepath.Join(storageRoot, TmpRootPrefix)
 }
 
 // StartCleaning starts tempdir cleanup goroutines.
@@ -111,7 +112,7 @@ type invalidCleanRoot string
 func clean(dir string) error {
 	// If we start "cleaning up" the wrong directory we may delete user data
 	// which is Really Bad.
-	if !strings.HasSuffix(dir, tmpRootPrefix) {
+	if !strings.HasSuffix(dir, TmpRootPrefix) {
 		log.Print(dir)
 		panic(invalidCleanRoot("invalid tempdir clean root: panicking to prevent data loss"))
 	}
