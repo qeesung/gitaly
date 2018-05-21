@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,6 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestDeleteAllSuccess(t *testing.T) {
@@ -47,11 +50,74 @@ func TestDeleteAllSuccess(t *testing.T) {
 
 	require.Len(t, storageDirents(t, testStorage), 1, "there should be no more git directory entries in test storage")
 	_, err = os.Stat(gitalyDataFile)
-	require.NoError(t, err)
+	require.NoError(t, err, "unrelated data file should still exist")
 }
 
 func storageDirents(t *testing.T, st config.Storage) []os.FileInfo {
 	dirents, err := ioutil.ReadDir(testStorage.Path)
 	require.NoError(t, err)
 	return dirents
+}
+
+func TestDeleteAllFail(t *testing.T) {
+	server, socketPath := runStorageServer(t)
+	defer server.Stop()
+
+	client, conn := newStorageClient(t, socketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testCases := []struct {
+		desc  string
+		req   *pb.DeleteAllRepositoriesRequest
+		setup func(t *testing.T)
+		code  codes.Code
+	}{
+		{
+			desc: "empty storage name",
+			req:  &pb.DeleteAllRepositoriesRequest{},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "unknown storage name",
+			req:  &pb.DeleteAllRepositoriesRequest{StorageName: "does not exist"},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "cannot create trash dir",
+			req:  &pb.DeleteAllRepositoriesRequest{StorageName: testStorage.Name},
+			setup: func(t *testing.T) {
+				dataDir := path.Join(testStorage.Path, tempdir.GitalyDataPrefix)
+				require.NoError(t, os.RemoveAll(dataDir))
+				require.NoError(t, ioutil.WriteFile(dataDir, nil, 0644), "write file where there should be a directory")
+
+				lsOut, err := exec.Command("ls", "-l", testStorage.Path).CombinedOutput()
+				require.NoError(t, err)
+				fmt.Printf("%s\n", lsOut)
+			},
+			code: codes.Internal,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.NoError(t, os.RemoveAll(testStorage.Path))
+			require.NoError(t, os.MkdirAll(testStorage.Path, 0755))
+
+			repoPath := path.Join(testStorage.Path, "foobar.git")
+			require.NoError(t, exec.Command("git", "init", "--bare", repoPath).Run())
+
+			if tc.setup != nil {
+				tc.setup(t)
+			}
+
+			_, err := client.DeleteAllRepositories(ctx, tc.req)
+			require.Equal(t, tc.code, status.Code(err), "expected grpc status code")
+
+			_, err = os.Stat(repoPath)
+			require.NoError(t, err, "repo must still exist")
+		})
+	}
 }

@@ -21,9 +21,9 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 		return nil, status.Errorf(codes.InvalidArgument, "storage lookup failed: %v", err)
 	}
 
-	tempReposDir, err := tempdir.ForDeleteAllRepositories(req.StorageName)
+	trashDir, err := tempdir.ForDeleteAllRepositories(req.StorageName)
 	if err != nil {
-		status.Errorf(codes.Internal, "create temp dir: %v", err)
+		return nil, status.Errorf(codes.Internal, "create trash dir: %v", err)
 	}
 
 	dir, err := os.Open(storageDir)
@@ -32,9 +32,9 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 	}
 
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"tempdir": tempReposDir,
-		"storage": req.StorageName,
-	}).Warn("moving all repositories in storage to tempdir")
+		"trashDir": trashDir,
+		"storage":  req.StorageName,
+	}).Warn("moving all repositories in storage to trash")
 
 	count := 0
 	for done := false; !done; {
@@ -50,18 +50,19 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 				continue
 			}
 
-			count++
-			if err := os.Rename(path.Join(storageDir, d.Name()), path.Join(tempReposDir, d.Name())); err != nil {
+			if err := os.Rename(path.Join(storageDir, d.Name()), path.Join(trashDir, d.Name())); err != nil {
 				return nil, status.Errorf(codes.Internal, "move dir: %v", err)
+
+				count++
 			}
 		}
 	}
 
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"tempdir":        tempReposDir,
+		"trashDir":       trashDir,
 		"storage":        req.StorageName,
 		"numDirectories": count,
-	}).Warn("directories removed")
+	}).Warn("directories moved to trash")
 
 	return &pb.DeleteAllRepositoriesResponse{}, nil
 }

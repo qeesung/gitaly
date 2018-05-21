@@ -35,7 +35,7 @@ const (
 
 // ForDeleteAllRepositories returns a temporary directory for the given storage. It is not context-scoped but it will get removed eventuall (after MaxAge).
 func ForDeleteAllRepositories(storageName string) (string, error) {
-	prefix := fmt.Sprintf("%s-repositories.old.%d", storageName, time.Now().Unix())
+	prefix := fmt.Sprintf("%s-repositories.old.%d.", storageName, time.Now().Unix())
 	_, path, err := newAsRepository(context.Background(), storageName, prefix)
 
 	return path, err
