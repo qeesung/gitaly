@@ -20,6 +20,7 @@ It is generated from these files:
 	shared.proto
 	smarthttp.proto
 	ssh.proto
+	storage.proto
 	wiki.proto
 
 It has these top-level messages:
@@ -250,6 +251,8 @@ It has these top-level messages:
 	SSHReceivePackResponse
 	SSHUploadArchiveRequest
 	SSHUploadArchiveResponse
+	DeleteAllRepositoriesRequest
+	DeleteAllRepositoriesResponse
 	WikiCommitDetails
 	WikiPageVersion
 	WikiPage
