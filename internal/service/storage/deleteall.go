@@ -50,10 +50,10 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 				continue
 			}
 
+			count++
+
 			if err := os.Rename(path.Join(storageDir, d.Name()), path.Join(trashDir, d.Name())); err != nil {
 				return nil, status.Errorf(codes.Internal, "move dir: %v", err)
-
-				count++
 			}
 		}
 	}
