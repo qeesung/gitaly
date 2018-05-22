@@ -30,6 +30,7 @@ func (s *server) DeleteAllRepositories(ctx context.Context, req *pb.DeleteAllRep
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "open storage dir: %v", err)
 	}
+	defer dir.Close()
 
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"trashDir": trashDir,
