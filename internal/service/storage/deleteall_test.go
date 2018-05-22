@@ -18,6 +18,8 @@ import (
 )
 
 func TestDeleteAllSuccess(t *testing.T) {
+	require.NoError(t, os.RemoveAll(testStorage.Path))
+
 	gitalyDataFile := path.Join(testStorage.Path, tempdir.GitalyDataPrefix+"/foobar")
 	require.NoError(t, os.MkdirAll(path.Dir(gitalyDataFile), 0755))
 	require.NoError(t, ioutil.WriteFile(gitalyDataFile, nil, 0644))
@@ -35,7 +37,12 @@ func TestDeleteAllSuccess(t *testing.T) {
 		require.NoError(t, exec.Command("git", "init", "--bare", fullPath).Run())
 	}
 
-	require.Len(t, storageDirents(t, testStorage), 3, "there should be directory entries in test storage")
+	dirents := storageDirents(t, testStorage)
+	expectedNames := []string{"+gitaly", "baz", "foo"}
+	require.Len(t, dirents, len(expectedNames))
+	for i, expected := range expectedNames {
+		require.Equal(t, expected, dirents[i].Name())
+	}
 
 	server, socketPath := runStorageServer(t)
 	defer server.Stop()
@@ -48,13 +55,16 @@ func TestDeleteAllSuccess(t *testing.T) {
 	_, err := client.DeleteAllRepositories(ctx, &pb.DeleteAllRepositoriesRequest{StorageName: testStorage.Name})
 	require.NoError(t, err)
 
-	require.Len(t, storageDirents(t, testStorage), 1, "there should be no more git directory entries in test storage")
+	dirents = storageDirents(t, testStorage)
+	require.Len(t, dirents, 1)
+	require.Equal(t, "+gitaly", dirents[0].Name())
+
 	_, err = os.Stat(gitalyDataFile)
 	require.NoError(t, err, "unrelated data file should still exist")
 }
 
 func storageDirents(t *testing.T, st config.Storage) []os.FileInfo {
-	dirents, err := ioutil.ReadDir(testStorage.Path)
+	dirents, err := ioutil.ReadDir(st.Path)
 	require.NoError(t, err)
 	return dirents
 }
