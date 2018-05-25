@@ -1,0 +1,5 @@
+---
+title: Use the same faraday gem version as gitlab-ce
+merge_request: 733
+author:
+type: other
