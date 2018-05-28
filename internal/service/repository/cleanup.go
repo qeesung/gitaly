@@ -47,6 +47,11 @@ func cleanupRepo(repoPath string) error {
 
 func cleanRefsLocks(rootPath string, threshold time.Time) error {
 	return filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if os.IsNotExist(err) {
+			// Race condition: somebody already deleted the file for us. Ignore this file.
+			return nil
+		}
+
 		if err != nil {
 			return err
 		}
