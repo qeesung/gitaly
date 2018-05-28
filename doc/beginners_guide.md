@@ -27,24 +27,31 @@ GitLab as a whole.
 
 You have the following options to combine GOPATH and GDK:
 
-1. (default) use the embedded Gitaly GOPATH in GDK and run `export
-GOPATH=/path/to/gdk/gitaly` in your terminal before invoking `go`
-command like `go test`
-2. (more convenient for some IDE's and editor plugins) run `go get
-gitlab.com/gitlab-org/gitaly` in your global GOPATH, and symlink
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
-`$GOPATH/src/gitlab.com/gitlab-org/gitaly`
+1. (default and recommended) use the embedded Gitaly GOPATH in GDK 
+2. (if you like having a global GOPATH) run `go get
+   gitlab.com/gitlab-org/gitaly` in your global GOPATH, and symlink
+   `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
+   `$GOPATH/src/gitlab.com/gitlab-org/gitaly`
 
-Option 1 is set up automatically for you when you install GDK. It's a
-little spartan because you have to dedicate a terminal window to
-Gitaly and export GOPATH in there but it works and it gives you full
-access to the `go` toolchain.
+Option 1 is set up automatically for you when you install GDK. It gives you several options:
 
-About option 2: certain text editor plugins and IDE's that analyze
-your Go code need to know the GOPATH your code lives in. In this
-scenario it makes sense to have a 'global' GOPATH on your development
-machine and to configure your editor plugins to use that global
-GOPATH. To integrate this with GDK do the following:
+- use a "dumb" text editor and run `go` commands in a dedicated
+  terminal window with the correct exported GOPATH
+- use VSCode with `"go.inferGopath": true` in your user settings. This
+  will auto-detect the GDK embededded GOPATH
+- launch a new Atom window with the GDK embedded GOPATH:
+
+```
+cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly
+GOPATH=/path/to/gdk/gitaly atom .
+```
+
+- ... (your favourite editor here)
+
+About option 2: most editors with Go language integration should have a
+way to let you set GOPATH for a specific editor session. If you want
+to use a global GOPATH anyway, you can do the following to still get
+GDK integration:
 
 ```
 cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/
@@ -67,7 +74,8 @@ to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
 protocol defines what requests can be made and what data the requester has to
 send with the request. For each request the response is defined too.
 
-You can find a clone of the gitaly-proto repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
+You can find a clone of the gitaly-proto repository in
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
 
 #### Gitaly
 
