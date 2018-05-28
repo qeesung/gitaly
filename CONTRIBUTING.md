@@ -157,15 +157,7 @@ the traditional author-reviewer 1-author-reviewer 1-reviewer 2-author-reviewer 2
 
 ## Gitaly Developer Quick-start Guide
 
-For Rubyist interested in a primer on working on Gitaly, please read the [Rubyist Gitaly Guide](./doc/ruby_endpoint.md)
-
-- Check the [README.md](README.md) file to ensure that you have the correct version of Go installed.
-- To **lint**, **check formatting**, etc: `make verify`
-- To **build**: `make build`
-- To run **tests**: `make test`
-- To get **coverage**: `make cover`
-- **Clean**: `make clean`
-- All-in-one: `make verify build test`
+See the [beginner's guide](doc/beginners_guide.md).
 
 ## Debug Logging
 

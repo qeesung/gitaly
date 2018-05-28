@@ -1,0 +1,252 @@
+## Beginner's guide to Gitaly contributions
+
+### Setup
+
+#### GitLab
+
+Before you can develop on Gitaly, it's required to have a
+[GitLab Development Kit][gdk] properly installed. After installing GitLab, verify
+it to be working by starting the required servers and visiting GitLab on
+`http://localhost:3000`.
+
+#### Go
+
+For the GitLab Development Kit to run, both Ruby and Golang are installed.
+
+In GDK, Gitaly is installed into its own GOPATH at `/path/to/gdk/gitaly`.
+
+Optional: if you want to run commands from the go toolchain you can
+use a dedicated terminal window in which you first run:
+
+```
+export GOPATH=/path/to/gdk/gitaly
+```
+
+#### Gitaly Proto
+
+GitLab will want to read and manipulate Git data, to do this it needs to talk
+to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
+protocol defines what requests can be made and what data the requester has to
+send with the request. For each request the response is defined too.
+
+You can find a clone of the gitaly-proto repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
+
+#### Gitaly
+
+Gitaly is a component that calls procedure on the Git data when it's requested
+to do so.
+
+You can find a clone of the gitaly repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`.
+
+### Development
+
+#### Process
+
+In general there are a couple of stages to go through, in order:
+1. Add a request/response combination to [Gitaly Proto][gitaly-proto], or edit
+  an existing one
+1. Change [Gitaly][gitaly] accordingly
+1. Use the endpoint in other GitLab components (CE/EE, GitLab Workhorse, etc.)
+
+##### Gitaly Proto
+
+The [Protocol buffer documentation][proto-docs] combined with the `*.proto` files
+should be enough to get you started. A service needs to be picked that can
+receive the procedure call. A general rule of thumb is that the service is named
+either after the Git CLI command, or after the Git object type.
+
+If either your request or response data cal exceed 100KB you need to use the
+`stream` keyword. To generate the server and client code, run `make`. If this
+succeeds without any errors, create a feature branch to commit your changes to.
+Then create a merge request and wait for a review.
+
+##### Gitaly
+
+The Gitaly Proto changes need to be updated in Gitaly itself before the server
+can be edited.
+
+```bash
+$ govendor fetch gitlab.com/gitlab-org/gitaly-proto/go^::gitlab.com/<your-username>/gitaly-proto/go@<your-feature-branch>
+
+# change the versions in Gemfile for gitaly-proto
+# cd ruby
+$ vim Gemfile
+# Change:
+# gem 'gitaly-proto', '~> 0.75.0', require: 'gitaly' 
+# To 
+# gem 'gitaly-proto', require: 'gitaly', git: 'https://gitlab.com/<your-username>/gitaly-proto'
+
+$ bundle
+```
+
+If proto is updated, run `make`. This will fail to compile Gitaly, as Gitaly
+doesn't yet have the new endpoint implemented. We fix this by adding a dummy implementation.
+
+###### Adding an empty Go implementation for a new RPC
+
+This is a typical Go compiler error after you have have vendored a new protocol:
+
+```
+# gitlab.com/gitlab-org/gitaly/internal/service/repository
+_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitaly.RepositoryServiceServer in return argument:
+    *server does not implement gitaly.RepositoryServiceServer (missing RestoreCustomHooks method)
+```
+
+In this case a new RPC called `RestoreCustomHooks` was added to the
+RepositoryService service, but it does not have an implementation. We
+fix this by adding a dummy implementation.
+
+Open the file that triggered the error, in this case
+`internal/service/repository/server.go`. We add a (wrong) dummy
+function so that we can get hints from the compiler:
+
+```
+func (*server) RestoreCustomHooks() {
+}
+```
+
+When we run `make` again, we now get a different error.
+
+```
+# gitlab.com/gitlab-org/gitaly/internal/service/repository
+_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitaly.RepositoryServiceServer in return argument:
+	*server does not implement gitaly.RepositoryServiceServer (wrong type for RestoreCustomHooks method)
+		have RestoreCustomHooks()
+		want RestoreCustomHooks(gitaly.RepositoryService_RestoreCustomHooksServer) error
+```
+
+This error tells us the expected signature. We copy-paste this
+signature into server.go, **changing `gitaly` to `pb`**.
+
+```
+func (*server) RestoreCustomHooks(pb.RepositoryService_RestoreCustomHooksServer) error {
+}
+```
+
+Run `make` again, now we get:
+
+```
+# gitlab.com/gitlab-org/gitaly/internal/service/repository
+_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:19:1: missing return at end of function
+```
+
+The final solution is to add
+`"gitlab.com/gitlab-org/gitaly/internal/helper"` to the imports in
+server.go, and make the function:
+
+```
+func (*server) RestoreCustomHooks(pb.RepositoryService_RestoreCustomHooksServer) error {
+	return helper.Unimplemented
+}
+```
+
+Note that the exact signature and the number of arguments / response
+values depends on the RPC type. Use the hints from the compiler to get
+the correct dummy function.
+
+##### Gitaly-ruby
+
+Gitaly is mostly written in Go but it also uses a pool of Ruby helper
+processes. This helper application is called gitaly-ruby and its code
+is in the `ruby` subdirectory of Gitaly. Gitaly-ruby is a gRPC server,
+just like its Go parent process. The Go parent proxies certain
+requests to gitaly-ruby.
+
+Currently (GitLab 10.8) it is our experience that gitaly-ruby is
+unsuitable for RPC's that are slow, or that are called at a high rate.
+It should only be used for:
+
+- legacy GitLab application code that is too complex or subtle to rewrite in Go
+- prototyping (if you the contributor are uncomfortable writing Go)
+
+
+###### Gitaly-ruby boilerplate
+
+To create the Ruby endpoint, some Go is required as the go code receives the
+requests and proxies it to the Go server. In general this is boilerplate code
+where only method and variable names are different.
+
+Examples:
+- Simple: [Simple request in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/delete_page.go)
+- Client Streamed: [Stream in, simple response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/write_page.go)
+- Server Streamed: [Simple request in, streamed response out](https://gitlab.com/gitlab-org/gitaly/blob/6841327adea214666417ee339ca37b58b20c649c/internal/service/wiki/find_page.go)
+- Bidirectional: No example at this time
+
+###### Ruby
+
+The Ruby code needs to be added to `ruby/lib/gitaly_server/<service-name>_service.rb`.
+The method name should match the name defined by the `gitaly-proto` gem. To be sure
+run `bundle open gitaly-proto`. The return value of the method should be an
+instance of the response object.
+
+Finally, to test it manually using the GitLab Development Kit, GitLab must be told
+to use the new Gitaly. First run `make` to compile the project. Then go to the
+`gitlab` directory in your GDK and follow the [instructions on using a custom Gitaly][custom-gitaly].
+
+### Testing
+
+Gitaly's tests are mostly written in Go but it is possible to write Rspec tests too.
+
+To run the full test suite, use `make test`.
+
+#### Go tests
+
+- each RPC must have end-to-end tests at the service level
+- optionally, you can add unit tests for functions that need more coverage
+
+A typical set of Go tests for an RPC consists of two or three test
+functions: a success test, a failure test (usually a table driven test
+using t.Run), and sometimes a validation test. Our Go RPC tests use
+in-process test servers that only implement the service the current
+RPC belongs to. So if you are working on an RPC in the
+'RepositoryService', your tests would go in
+`internal/service/repository/your_rpc_test.go`.
+
+##### Running one specific Go test
+
+When you are trying to fix a specific test failure it is inefficient
+to run `make test` all the time. To run just one test you need to know
+the package it lives in (e.g. `internal/service/repository`) and the
+test name (e.g. `TestRepositoryExists`).
+
+To run the test you need a terminal window with working directory
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`. Make sure
+GOPATH is set correctly in your terminal window:
+
+```
+export GOPATH=/path/to/gdk/gitaly
+```
+
+Now you can run the one test you're interested in:
+
+```
+go test -count 1 -run TestRepositoryExists ./internal/service/repository
+```
+
+#### Rspec tests
+
+It is possible to write end-to-end Rspec tests that run against a full
+Gitaly server. This is more or less equivalent to the service-level
+tests we write in Go. You can also write unit tests for Ruby code in
+Rspec.
+
+Because the Rspec tests use a full Gitaly server you must re-compile
+Gitaly everytime you change the Go code. Run `make` to recompile.
+
+Then, you can run Rspec tests in the `ruby` subdirectory.
+
+```
+cd ruby
+bundle exec rspec
+```
+
+[custom-gitaly]: https://docs.gitlab.com/ee/development/gitaly.html#running-tests-with-a-locally-modified-version-of-gitaly
+[gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
+[git-remote]: https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes
+[gitaly]: https://gitlab.com/gitlab-org/gitaly
+[gitaly-issue]: https://gitlab.com/gitlab-org/gitaly/issues
+[gitaly-proto]: https://gitlab.com/gitlab-org/gitaly-proto
+[gitaly-proto-issue]: https://gitlab.com/gitlab-org/gitaly-proto/issues
+[gitlab]: https://gitlab.com
+[go-workspace]: https://golang.org/doc/code.html#Workspaces
+[proto-docs]: https://developers.google.com/protocol-buffers/docs/overview
