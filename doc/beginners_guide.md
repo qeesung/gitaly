@@ -15,12 +15,50 @@ For the GitLab Development Kit to run, both Ruby and Golang are installed.
 
 In GDK, Gitaly is installed into its own GOPATH at `/path/to/gdk/gitaly`.
 
-Optional: if you want to run commands from the go toolchain you can
-use a dedicated terminal window in which you first run:
+##### GOPATH and GDK
+
+> If you don't know what GOPATH is you can skip this section.
+
+Although it is not necessary for compiling or testing Gitaly, you
+often want to do your Go development work in the context of a GOPATH.
+At the same time, when working on GitLab, it is useful to use GDK so
+that you can see e.g. how your Gitaly contribution integrates into
+GitLab as a whole.
+
+You have the following options to combine GOPATH and GDK:
+
+1. (default) use the embedded Gitaly GOPATH in GDK and run `export
+GOPATH=/path/to/gdk/gitaly` in your terminal before invoking `go`
+command like `go test`
+2. (more convenient for some IDE's and editor plugins) run `go get
+gitlab.com/gitlab-org/gitaly` in your global GOPATH, and symlink
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
+`$GOPATH/src/gitlab.com/gitlab-org/gitaly`
+
+Option 1 is set up automatically for you when you install GDK. It's a
+little spartan because you have to dedicate a terminal window to
+Gitaly and export GOPATH in there but it works and it gives you full
+access to the `go` toolchain.
+
+About option 2: certain text editor plugins and IDE's that analyze
+your Go code need to know the GOPATH your code lives in. In this
+scenario it makes sense to have a 'global' GOPATH on your development
+machine and to configure your editor plugins to use that global
+GOPATH. To integrate this with GDK do the following:
 
 ```
-export GOPATH=/path/to/gdk/gitaly
+cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/
+mv gitaly gitaly.deleted
+ln -s /path/to/global/gopath/src/gitlab.com/gitlab-org/gitaly gitaly
 ```
+
+Now you can open the copy of Gitaly inside your global GOPATH with
+your favourite editor, and all your plugins should work. You should
+stop doing work in
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` because that
+path is a symlink; this breaks some tools. We recommend that you run
+terminal commands for Gitaly development inside your global GOPATH
+instead.
 
 #### Gitaly Proto
 
