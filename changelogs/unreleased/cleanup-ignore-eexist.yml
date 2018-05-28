@@ -1,0 +1,5 @@
+---
+title: Ignore ENOENT when cleaning up lock files
+merge_request: 740
+author:
+type: fixed
