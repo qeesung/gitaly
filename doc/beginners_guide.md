@@ -33,7 +33,8 @@ You have the following options to combine GOPATH and GDK:
    `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
    `$GOPATH/src/gitlab.com/gitlab-org/gitaly`
 
-Option 1 is set up automatically for you when you install GDK. It gives you several options:
+Option 1 is set up automatically for you when you install GDK. It gives
+you several options:
 
 - use a "dumb" text editor and run `go` commands in a dedicated
   terminal window with the correct exported GOPATH
@@ -60,12 +61,9 @@ ln -s /path/to/global/gopath/src/gitlab.com/gitlab-org/gitaly gitaly
 ```
 
 Now you can open the copy of Gitaly inside your global GOPATH with
-your favourite editor, and all your plugins should work. You should
-stop doing work in
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` because that
-path is a symlink; this breaks some tools. We recommend that you run
-terminal commands for Gitaly development inside your global GOPATH
-instead.
+your favourite editor, and all your plugins should work. Note that when
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` is a symlink,
+some tools break. In this case run commands in your global GOPATH instead.
 
 #### Gitaly Proto
 
