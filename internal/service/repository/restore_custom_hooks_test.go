@@ -78,22 +78,3 @@ func TestFailedRestoreCustomHooksDueToValidations(t *testing.T) {
 	_, err = stream.CloseAndRecv()
 	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
 }
-
-// func TestFailedCreateRepositoryFromBundleRequestDueToValidations(t *testing.T) {
-// 	server, serverSocketPath := runRepoServer(t)
-// 	defer server.Stop()
-//
-// 	client, conn := newRepositoryClient(t, serverSocketPath)
-// 	defer conn.Close()
-//
-// 	ctx, cancel := testhelper.Context()
-// 	defer cancel()
-//
-// 	stream, err := client.CreateRepositoryFromBundle(ctx)
-// 	require.NoError(t, err)
-//
-// 	require.NoError(t, stream.Send(&pb.CreateRepositoryFromBundleRequest{}))
-//
-// 	_, err = stream.CloseAndRecv()
-// 	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
-// }
