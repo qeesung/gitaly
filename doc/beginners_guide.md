@@ -31,7 +31,7 @@ You can find a clone of the gitaly repository in `/path/to/gdk/gitaly/src/gitlab
 
 > If you don't know what GOPATH is you can skip this section.
 
-Although compile and test Gitaly using `make` without having to set a
+Although you can compile and test Gitaly using `make` without having to set a
 GOPATH, you often want to do your Go development work in the context
 of a GOPATH. At the same time, when working on GitLab, it is useful to
 use GDK so that you can see e.g. how your Gitaly contribution
