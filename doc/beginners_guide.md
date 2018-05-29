@@ -17,7 +17,7 @@ to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
 protocol defines what requests can be made and what data the requester has to
 send with the request. For each request the response is defined too.
 
-You can find a clone of the gitaly-proto repository in
+You can find a clone of the [gitaly-proto repository][gitaly-proto] in
 `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
 
 #### Gitaly
