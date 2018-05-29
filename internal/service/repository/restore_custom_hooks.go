@@ -44,12 +44,16 @@ func (s *server) RestoreCustomHooks(stream pb.RepositoryService_RestoreCustomHoo
 	ctx := stream.Context()
 
 	tmpDir, err := tempdir.New(ctx, repo)
+	if err != nil {
+		return status.Errorf(codes.Internal, "RestoreCustomHooks: Can not create tmpdir %v", err)
+	}
+
 	tarPath := path.Join(tmpDir, "custom_hooks.tar")
 
 	file, err := os.Create(tarPath)
 
 	if err != nil {
-		return status.Errorf(codes.Internal, "RestoreCustomHooks: Can not create file%v", err)
+		return status.Errorf(codes.Internal, "RestoreCustomHooks: Can not create file %v", err)
 	}
 	_, err = io.Copy(file, reader)
 	if err != nil {
