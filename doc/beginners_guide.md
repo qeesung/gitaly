@@ -9,21 +9,33 @@ Before you can develop on Gitaly, it's required to have a
 it to be working by starting the required servers and visiting GitLab on
 `http://localhost:3000`.
 
-#### Go
 
-For the GitLab Development Kit to run, both Ruby and Golang are installed.
+#### Gitaly Proto
 
-In GDK, Gitaly is installed into its own GOPATH at `/path/to/gdk/gitaly`.
+GitLab will want to read and manipulate Git data, to do this it needs to talk
+to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
+protocol defines what requests can be made and what data the requester has to
+send with the request. For each request the response is defined too.
+
+You can find a clone of the gitaly-proto repository in
+`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
+
+#### Gitaly
+
+Gitaly is a component that calls procedure on the Git data when it's requested
+to do so.
+
+You can find a clone of the gitaly repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`.
 
 ##### GOPATH and GDK
 
 > If you don't know what GOPATH is you can skip this section.
 
-Although it is not necessary for compiling or testing Gitaly, you
-often want to do your Go development work in the context of a GOPATH.
-At the same time, when working on GitLab, it is useful to use GDK so
-that you can see e.g. how your Gitaly contribution integrates into
-GitLab as a whole.
+Although compile and test Gitaly using `make` without having to set a
+GOPATH, you often want to do your Go development work in the context
+of a GOPATH. At the same time, when working on GitLab, it is useful to
+use GDK so that you can see e.g. how your Gitaly contribution
+integrates into GitLab as a whole.
 
 You have the following options to combine GOPATH and GDK:
 
@@ -47,8 +59,6 @@ cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly
 GOPATH=/path/to/gdk/gitaly atom .
 ```
 
-- ... (your favourite editor here)
-
 About option 2: most editors with Go language integration should have a
 way to let you set GOPATH for a specific editor session. If you want
 to use a global GOPATH anyway, you can do the following to still get
@@ -65,23 +75,6 @@ your favourite editor, and all your plugins should work. Note that when
 `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` is a symlink,
 some tools break. In this case run commands in your global GOPATH instead.
 
-#### Gitaly Proto
-
-GitLab will want to read and manipulate Git data, to do this it needs to talk
-to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
-protocol defines what requests can be made and what data the requester has to
-send with the request. For each request the response is defined too.
-
-You can find a clone of the gitaly-proto repository in
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
-
-#### Gitaly
-
-Gitaly is a component that calls procedure on the Git data when it's requested
-to do so.
-
-You can find a clone of the gitaly repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`.
-
 ### Development
 
 #### Process
@@ -94,12 +87,14 @@ In general there are a couple of stages to go through, in order:
 
 ##### Gitaly Proto
 
-The [Protocol buffer documentation][proto-docs] combined with the `*.proto` files
-should be enough to get you started. A service needs to be picked that can
-receive the procedure call. A general rule of thumb is that the service is named
-either after the Git CLI command, or after the Git object type.
+The [Protocol buffer documentation][proto-docs] combined with the
+`*.proto` files in the [gitaly-proto repository][gitaly-proto] should
+be enough to get you started. A service needs to be picked that can
+receive the procedure call. A general rule of thumb is that the
+service is named either after the Git CLI command, or after the Git
+object type.
 
-If either your request or response data cal exceed 100KB you need to use the
+If either your request or response data can exceed 100KB you need to use the
 `stream` keyword. To generate the server and client code, run `make`. If this
 succeeds without any errors, create a feature branch to commit your changes to.
 Then create a merge request and wait for a review.
