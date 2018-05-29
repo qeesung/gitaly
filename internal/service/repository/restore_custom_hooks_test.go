@@ -57,7 +57,7 @@ func TestSuccessfullRestoreCustomHooksRequest(t *testing.T) {
 	_, err = stream.CloseAndRecv()
 	require.NoError(t, err)
 
-	testhelper.MustRunCommand(t, nil, "ls", "-l", path.Join(repoPath, "custom_hooks/pre-push.sample"))
+	require.FileExists(t, path.Join(repoPath, "custom_hooks/pre-push.sample"))
 }
 
 func TestFailedRestoreCustomHooksDueToValidations(t *testing.T) {
