@@ -1,9 +1,7 @@
 package repository
 
 import (
-	"os"
 	"os/exec"
-	"path"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
@@ -40,17 +38,12 @@ func (s *server) RestoreCustomHooks(stream pb.RepositoryService_RestoreCustomHoo
 		return status.Errorf(codes.Internal, "RestoreCustomHooks: getting repo path failed %v", err)
 	}
 
-	repoCustomHooksPath := path.Join(repoPath, "custom_hooks")
-	err = os.Mkdir(repoCustomHooksPath, 0700)
-	if err != nil {
-		return status.Errorf(codes.Internal, "RestoreCustomHooks: creating custom hooks directory in repo failed %v", err)
-	}
-
 	cmdArgs := []string{
 		"-xf",
 		"-",
 		"-C",
-		repoCustomHooksPath,
+		repoPath,
+		"custom_hooks",
 	}
 
 	ctx := stream.Context()
