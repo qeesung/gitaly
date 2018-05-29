@@ -1,0 +1,5 @@
+---
+title: 'Tests: only match error strings we create'
+merge_request: 743
+author:
+type: other
