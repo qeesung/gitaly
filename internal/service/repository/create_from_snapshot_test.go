@@ -134,6 +134,7 @@ func TestCreateRepositoryFromSnapshotFailsIfBadURL(t *testing.T) {
 
 	rsp, err := createFromSnapshot(t, req)
 	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	require.Contains(t, err.Error(), "Bad HTTP URL")
 	require.Nil(t, rsp)
 }
 
