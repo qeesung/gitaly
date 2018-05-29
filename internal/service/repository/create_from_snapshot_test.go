@@ -118,7 +118,8 @@ func TestCreateRepositoryFromSnapshotFailsIfRepositoryExists(t *testing.T) {
 
 	req := &pb.CreateRepositoryFromSnapshotRequest{Repository: testRepo}
 	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "destination directory exists")
+	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	require.Contains(t, err.Error(), "destination directory exists")
 	require.Nil(t, rsp)
 }
 
@@ -132,65 +133,62 @@ func TestCreateRepositoryFromSnapshotFailsIfBadURL(t *testing.T) {
 	}
 
 	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "Bad HTTP URL")
+	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
 	require.Nil(t, rsp)
 }
 
-func TestCreateRepositoryFromSnapshotFailsIfBadAuth(t *testing.T) {
+func TestCreateRepositoryFromSnapshotBadRequests(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	cleanupFn() // free up the destination dir for use
 
-	// Create a HTTP server that serves a given tar file
+	testCases := []struct {
+		desc        string
+		url         string
+		auth        string
+		code        codes.Code
+		errContains string
+	}{
+		{
+			desc:        "http bad auth",
+			url:         tarPath,
+			auth:        "Bad authentication",
+			code:        codes.Internal,
+			errContains: "HTTP server: 401 ",
+		},
+		{
+			desc:        "http not found",
+			url:         tarPath + ".does-not-exist",
+			auth:        secret,
+			code:        codes.Internal,
+			errContains: "HTTP server: 404 ",
+		},
+		{
+			desc:        "http do not follow redirects",
+			url:         redirectPath,
+			auth:        secret,
+			code:        codes.Internal,
+			errContains: "HTTP server: 302 ",
+		},
+	}
+
 	srv := httptest.NewServer(&testhandler{})
 	defer srv.Close()
 
-	req := &pb.CreateRepositoryFromSnapshotRequest{
-		Repository: testRepo,
-		HttpUrl:    srv.URL + tarPath,
-		HttpAuth:   "Bad authentication",
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			req := &pb.CreateRepositoryFromSnapshotRequest{
+				Repository: testRepo,
+				HttpUrl:    srv.URL + tc.url,
+				HttpAuth:   tc.auth,
+			}
+
+			rsp, err := createFromSnapshot(t, req)
+			testhelper.AssertGrpcError(t, err, tc.code, "")
+			require.Nil(t, rsp)
+
+			require.Contains(t, err.Error(), tc.errContains)
+		})
 	}
-
-	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.Internal, "HTTP server: 401 Unauthorized")
-	require.Nil(t, rsp)
-}
-
-func TestCreateRepositoryFromSnapshotFailsIfHttp404(t *testing.T) {
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	cleanupFn() // free up the destination dir for use
-
-	// Create a HTTP server that serves a given tar file
-	srv := httptest.NewServer(&testhandler{})
-	defer srv.Close()
-
-	req := &pb.CreateRepositoryFromSnapshotRequest{
-		Repository: testRepo,
-		HttpUrl:    srv.URL + tarPath + ".does-not-exist",
-		HttpAuth:   secret,
-	}
-
-	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.Internal, "HTTP server: 404 Not Found")
-	require.Nil(t, rsp)
-}
-
-func TestCreateRepositoryFromSnapshotDoesNotFollowRedirects(t *testing.T) {
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	cleanupFn() // free up the destination dir for use
-
-	// Create a HTTP server that serves a given tar file
-	srv := httptest.NewServer(&testhandler{})
-	defer srv.Close()
-
-	req := &pb.CreateRepositoryFromSnapshotRequest{
-		Repository: testRepo,
-		HttpUrl:    srv.URL + redirectPath,
-		HttpAuth:   secret,
-	}
-
-	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.Internal, "HTTP server: 302 Found")
-	require.Nil(t, rsp)
 }
 
 func TestCreateRepositoryFromSnapshotHandlesMalformedResponse(t *testing.T) {

@@ -124,9 +124,8 @@ func TestRepository() *pb.Repository {
 	return repo
 }
 
-// AssertGrpcError asserts the passed err is of the same code as expectedCode. Optionally, it can
-// assert the error contains the text of containsText if the latter is not an empty string.
-func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, containsText string) {
+// AssertGrpcError asserts the passed err is of the same code as expectedCode.
+func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, _deprecated string) {
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
@@ -137,8 +136,8 @@ func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, containsT
 		t.Fatalf("Expected an error with code %v, got %v. The error was %v", expectedCode, code, err)
 	}
 
-	if containsText != "" && !strings.Contains(err.Error(), containsText) {
-		t.Fatalf("Expected an error message containing %v, got %v", containsText, err.Error())
+	if _deprecated != "" && !strings.Contains(err.Error(), _deprecated) {
+		t.Fatalf("Expected an error message containing %v, got %v", _deprecated, err.Error())
 	}
 }
 

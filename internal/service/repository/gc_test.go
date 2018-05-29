@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
@@ -116,7 +117,8 @@ func TestGarbageCollectDeletesRefsLocks(t *testing.T) {
 	createFileWithTimes(deleteLockPath, oldTime)
 
 	c, err := client.GarbageCollect(ctx, req)
-	testhelper.AssertGrpcError(t, err, codes.Internal, "GarbageCollect: cmd wait")
+	testhelper.AssertGrpcError(t, err, codes.Internal, "")
+	require.Contains(t, err.Error(), "GarbageCollect: cmd wait")
 	assert.Nil(t, c)
 
 	// Sanity checks

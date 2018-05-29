@@ -229,7 +229,8 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			defer cancel()
 
 			_, err := client.UserSquash(ctx, testCase.request)
-			testhelper.AssertGrpcError(t, err, testCase.code, testCase.desc)
+			testhelper.AssertGrpcError(t, err, testCase.code, "")
+			require.Contains(t, err.Error(), testCase.desc)
 		})
 	}
 }
