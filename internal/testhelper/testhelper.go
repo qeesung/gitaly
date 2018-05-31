@@ -133,11 +133,11 @@ func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, _deprecat
 	// Check that the code matches
 	status, _ := status.FromError(err)
 	if code := status.Code(); code != expectedCode {
-		t.Fatalf("Expected an error with code %v, got %v. The error was %v", expectedCode, code, err)
+		t.Fatalf("Expected an error with code '%v', got '%v'. The error was '%v'", expectedCode, code, err)
 	}
 
 	if _deprecated != "" && !strings.Contains(err.Error(), _deprecated) {
-		t.Fatalf("Expected an error message containing %v, got %v", _deprecated, err.Error())
+		t.Fatalf("Expected an error message containing '%v', got '%v'", _deprecated, err.Error())
 	}
 }
 
