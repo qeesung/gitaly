@@ -24,6 +24,8 @@ module GitalyServer
       end
     end
 
+    # TODO: Can be removed once https://gitlab.com/gitlab-org/gitaly/merge_requests/738
+    #       is well and truly out in the wild.
     def fsck(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 

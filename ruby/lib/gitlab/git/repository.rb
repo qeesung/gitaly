@@ -94,7 +94,8 @@ module Gitlab
       end
 
       # This method is mandatory and no longer exists in gitlab-ce.
-      # TODO: implement it in Go because it is slow, and gitaly-ruby gets restarted a lot.
+      # TODO: Can be removed once https://gitlab.com/gitlab-org/gitaly/merge_requests/738
+      #       is well and truly out in the wild.
       def fsck
         msg, status = run_git(%W[--git-dir=#{path} fsck], nice: true)
         raise GitError.new("Could not fsck repository: #{msg}") unless status.zero?
