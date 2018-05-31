@@ -1,23 +1,34 @@
 package repository
 
 import (
+	"bytes"
+	"os/exec"
+
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 
 	"golang.org/x/net/context"
-
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 )
 
 func (s *server) Fsck(ctx context.Context, req *pb.FsckRequest) (*pb.FsckResponse, error) {
-	client, err := s.RepositoryServiceClient(ctx)
+	var stdout, stderr bytes.Buffer
+
+	repoPath, env, err := alternates.PathAndEnv(req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
 
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
+	args := []string{"--git-dir", repoPath, "fsck"}
+
+	cmd, err := command.New(ctx, exec.Command(command.GitPath(), args...), nil, &stdout, &stderr, env...)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.Fsck(clientCtx, req)
+	if err = cmd.Wait(); err != nil {
+		return &pb.FsckResponse{Error: append(stdout.Bytes(), stderr.Bytes()...)}, nil
+	}
+
+	return &pb.FsckResponse{}, nil
 }

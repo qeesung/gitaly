@@ -78,5 +78,5 @@ func TestFsckFailureSlightlyBrokenRepo(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 	assert.NotEmpty(t, string(c.GetError()))
-	assert.Contains(t, string(c.GetError()), "Could not fsck repository")
+	assert.Contains(t, string(c.GetError()), "error: HEAD: invalid sha1 pointer")
 }
