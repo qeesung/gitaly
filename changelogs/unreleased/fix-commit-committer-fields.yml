@@ -1,0 +1,5 @@
+---
+title: Fix committer bug in go-git adapter
+merge_request: 748
+author:
+type: fixed
