@@ -197,6 +197,27 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			},
 		},
 		{
+			description: "with different author and committer",
+			revision:    "77e835ef0856f33c4f0982f84d10bdb0567fe440",
+			commit: &pb.GitCommit{
+				Id:      "77e835ef0856f33c4f0982f84d10bdb0567fe440",
+				Subject: []byte("Add file larger than 1 mb"),
+				Body:    []byte("Add file larger than 1 mb\n\nIn order to test Max File Size push rule we need a file larger than 1 MB\n"),
+				Author: &pb.CommitAuthor{
+					Name:  []byte("Ruben Davila"),
+					Email: []byte("rdavila84@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1523247267},
+				},
+				Committer: &pb.CommitAuthor{
+					Name:  []byte("Jacob Vosmaer"),
+					Email: []byte("jacob@gitlab.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1527855450},
+				},
+				ParentIds: []string{"60ecb67744cb56576c30214ff52294f8ce2def98"},
+				BodySize:  100,
+			},
+		},
+		{
 			description: "With a non-existing ref name",
 			revision:    "this-doesnt-exists",
 			commit:      nil,

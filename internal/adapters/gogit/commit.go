@@ -57,8 +57,8 @@ func commitToProtoCommit(commit *object.Commit) *pb.GitCommit {
 	}
 	committer := pb.CommitAuthor{
 		Name:  []byte(commit.Committer.Name),
-		Email: []byte(commit.Author.Email),
-		Date:  &timestamp.Timestamp{Seconds: commit.Author.When.Unix()},
+		Email: []byte(commit.Committer.Email),
+		Date:  &timestamp.Timestamp{Seconds: commit.Committer.When.Unix()},
 	}
 
 	byteBody := []byte(body)
