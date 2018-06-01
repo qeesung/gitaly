@@ -33,6 +33,9 @@ func ValidateRevision(revision []byte) error {
 	if bytes.Contains(revision, []byte("\x00")) {
 		return fmt.Errorf("revision can't contain NUL")
 	}
+	if bytes.Contains(revision, []byte(":")) {
+		return fmt.Errorf("revision can't contain ':'")
+	}
 	return nil
 }
 

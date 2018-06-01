@@ -15,6 +15,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func TestSuccessfulFindCommitRequest(t *testing.T) {
@@ -226,7 +227,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 		})
 	}
 
-	ctx = metadata.NewOutgoingContext(
+	gogitCtx := metadata.NewOutgoingContext(
 		ctx,
 		metadata.New(map[string]string{featureflag.HeaderKey("gogit-findcommit"): "true"}),
 	)
@@ -237,9 +238,9 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			Revision:   []byte(testCase.revision),
 		}
 
-		response, err := client.FindCommit(ctx, request)
-		require.NoError(t, err)
-		require.Equal(t, allCommits[i], response.Commit)
+		response, err := client.FindCommit(gogitCtx, request)
+		require.NoError(t, err, "request with go-git should succeed")
+		require.Equal(t, allCommits[i], response.Commit, "commit fetched with go-git should match default")
 	}
 }
 
@@ -263,7 +264,15 @@ func TestFailedFindCommitRequest(t *testing.T) {
 		{repo: invalidRepo, revision: []byte("master"), description: "Invalid repo"},
 		{repo: testRepo, revision: []byte(""), description: "Empty revision"},
 		{repo: testRepo, revision: []byte("-master"), description: "Invalid revision"},
+		{repo: testRepo, revision: []byte("mas:ter"), description: "Invalid revision"},
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	gogitCtx := metadata.NewOutgoingContext(
+		ctx,
+		metadata.New(map[string]string{featureflag.HeaderKey("gogit-findcommit"): "true"}),
+	)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
@@ -272,10 +281,11 @@ func TestFailedFindCommitRequest(t *testing.T) {
 				Revision:   testCase.revision,
 			}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 			_, err := client.FindCommit(ctx, request)
-			testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+			require.Equal(t, codes.InvalidArgument, status.Code(err), "default lookup should fail")
+
+			_, err = client.FindCommit(gogitCtx, request)
+			require.Equal(t, codes.InvalidArgument, status.Code(err), "go-git lookup should fail")
 		})
 	}
 }

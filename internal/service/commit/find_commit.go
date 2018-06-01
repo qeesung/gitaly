@@ -30,12 +30,12 @@ func init() {
 }
 
 func (s *server) FindCommit(ctx context.Context, in *pb.FindCommitRequest) (*pb.FindCommitResponse, error) {
-	if err := git.ValidateRevision(in.GetRevision()); err != nil {
+	revision := in.GetRevision()
+	if err := git.ValidateRevision(revision); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "FindCommit: revision: %v", err)
 	}
 
 	repo := in.GetRepository()
-	revision := in.GetRevision()
 
 	if featureflag.IsEnabled(ctx, "gogit-findcommit") {
 		commit, err := gogitFindCommit(repo, revision)
