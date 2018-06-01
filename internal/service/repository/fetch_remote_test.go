@@ -88,7 +88,7 @@ func TestFetchRemoteFailure(t *testing.T) {
 			defer cancel()
 
 			resp, err := client.FetchRemote(ctx, tc.req)
-			testhelper.AssertGrpcError(t, err, tc.code, "")
+			testhelper.RequireGrpcError(t, err, tc.code)
 			require.Contains(t, err.Error(), tc.err)
 			assert.Nil(t, resp)
 		})

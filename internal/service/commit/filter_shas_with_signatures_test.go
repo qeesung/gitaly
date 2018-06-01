@@ -82,7 +82,7 @@ func TestFilterShasWithSignaturesValidationError(t *testing.T) {
 	require.NoError(t, stream.CloseSend())
 
 	_, err = recvFSWS(stream)
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 	require.Contains(t, err.Error(), "no repository given")
 }
 

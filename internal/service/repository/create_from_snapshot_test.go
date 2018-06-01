@@ -118,7 +118,7 @@ func TestCreateRepositoryFromSnapshotFailsIfRepositoryExists(t *testing.T) {
 
 	req := &pb.CreateRepositoryFromSnapshotRequest{Repository: testRepo}
 	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 	require.Contains(t, err.Error(), "destination directory exists")
 	require.Nil(t, rsp)
 }
@@ -133,7 +133,7 @@ func TestCreateRepositoryFromSnapshotFailsIfBadURL(t *testing.T) {
 	}
 
 	rsp, err := createFromSnapshot(t, req)
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 	require.Contains(t, err.Error(), "Bad HTTP URL")
 	require.Nil(t, rsp)
 }
@@ -184,7 +184,7 @@ func TestCreateRepositoryFromSnapshotBadRequests(t *testing.T) {
 			}
 
 			rsp, err := createFromSnapshot(t, req)
-			testhelper.AssertGrpcError(t, err, tc.code, "")
+			testhelper.RequireGrpcError(t, err, tc.code)
 			require.Nil(t, rsp)
 
 			require.Contains(t, err.Error(), tc.errContains)

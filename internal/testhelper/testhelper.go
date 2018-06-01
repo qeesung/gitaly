@@ -124,8 +124,8 @@ func TestRepository() *pb.Repository {
 	return repo
 }
 
-// AssertGrpcError asserts the passed err is of the same code as expectedCode.
-func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, _deprecated string) {
+// RequireGrpcError asserts the passed err is of the same code as expectedCode.
+func RequireGrpcError(t *testing.T, err error, expectedCode codes.Code) {
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
@@ -133,11 +133,7 @@ func AssertGrpcError(t *testing.T, err error, expectedCode codes.Code, _deprecat
 	// Check that the code matches
 	status, _ := status.FromError(err)
 	if code := status.Code(); code != expectedCode {
-		t.Fatalf("Expected an error with code '%v', got '%v'. The error was '%v'", expectedCode, code, err)
-	}
-
-	if _deprecated != "" && !strings.Contains(err.Error(), _deprecated) {
-		t.Fatalf("Expected an error message containing '%v', got '%v'", _deprecated, err.Error())
+		t.Fatalf("Expected an error with code %v, got %v. The error was %q", expectedCode, code, err.Error())
 	}
 }
 
