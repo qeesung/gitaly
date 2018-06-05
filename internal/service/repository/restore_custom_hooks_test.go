@@ -76,7 +76,7 @@ func TestFailedRestoreCustomHooksDueToValidations(t *testing.T) {
 	require.NoError(t, stream.Send(&pb.RestoreCustomHooksRequest{}))
 
 	_, err = stream.CloseAndRecv()
-	testhelper.AssertGrpcError(t, err, codes.InvalidArgument, "")
+	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 }
 
 func TestFailedRestoreCustomHooksDueToBadTar(t *testing.T) {
@@ -119,5 +119,5 @@ func TestFailedRestoreCustomHooksDueToBadTar(t *testing.T) {
 	require.NoError(t, err)
 	_, err = stream.CloseAndRecv()
 
-	testhelper.AssertGrpcError(t, err, codes.Internal, "")
+	testhelper.RequireGrpcError(t, err, codes.Internal)
 }
