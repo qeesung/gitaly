@@ -45,6 +45,7 @@ end
 require_relative 'git/gitaly_remote_repository.rb'
 require_relative 'git/repository.rb'
 require_relative 'git/gitlab_projects.rb'
+require_relative 'git/commit.rb'
 
 class String
   # Because we are not rendering HTML, this is a no-op in gitaly-ruby.
