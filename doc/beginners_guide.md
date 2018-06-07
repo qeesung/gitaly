@@ -218,6 +218,9 @@ The method name should match the name defined by the `gitaly-proto` gem. To be s
 run `bundle open gitaly-proto`. The return value of the method should be an
 instance of the response object.
 
+If you add any files in `ruby/lib/gitlab/` they need to be globaly `require`d manually.
+This is done here https://gitlab.com/gitlab-org/gitaly/blob/edebf1a1a8e65c4c41f149a9e5b0239970417699/ruby/lib/gitlab/git.rb#L45-48
+
 Finally, to test it manually using the GitLab Development Kit, GitLab must be told
 to use the new Gitaly. First run `make` to compile the project. Then go to the
 `gitlab` directory in your GDK and follow the [instructions on using a custom Gitaly][custom-gitaly].
