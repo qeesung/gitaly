@@ -156,7 +156,12 @@ func TestRemovals(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			lbBuilder.testingRestart <- struct{}{}
-			time.Sleep(2 * removeDelay) // wait for lastRemoval in monitor goroutine to be long enough ago
+			bootSleep := 2 * removeDelay
+			if bootSleep == 0 {
+				bootSleep := 2 * time.Millisecond
+			}
+
+			time.Sleep(bootSleep) // wait for lastRemoval in monitor goroutine to be long enough ago
 
 			for i, a := range tc.actions {
 				if a.add != "" {
