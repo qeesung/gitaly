@@ -1,0 +1,5 @@
+---
+title: Try to fix flaky rubyserver.TestRemovals test
+merge_request: 759
+author:
+type: other
