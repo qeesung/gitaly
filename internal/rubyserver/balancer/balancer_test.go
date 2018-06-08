@@ -158,7 +158,7 @@ func TestRemovals(t *testing.T) {
 			lbBuilder.testingRestart <- struct{}{}
 			bootSleep := 2 * removeDelay
 			if bootSleep == 0 {
-				bootSleep := 2 * time.Millisecond
+				bootSleep = 2 * time.Millisecond
 			}
 
 			time.Sleep(bootSleep) // wait for lastRemoval in monitor goroutine to be long enough ago
