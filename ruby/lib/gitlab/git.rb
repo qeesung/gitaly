@@ -47,6 +47,7 @@ require_relative 'git/gitaly_remote_repository.rb'
 require_relative 'git/repository.rb'
 require_relative 'git/gitlab_projects.rb'
 require_relative 'git/commit.rb'
+require_relative 'git/pre_receive_error.rb'
 
 class String
   # Because we are not rendering HTML, this is a no-op in gitaly-ruby.
@@ -76,19 +77,6 @@ module Gitlab
         raise NotAvailableInGitalyRuby
       end
     end
-
-    # This needs to be back-ported to gitlab-ce
-    module Version
-      extend Gitlab::Git::Popen
-
-      def self.version
-        Gitlab::VersionInfo.parse(popen(%W(#{Gitlab.config.git.bin_path} --version), nil).first)
-      end
-    end
-
-    def self.version
-      Version.version
-    end
   end
 end
 
@@ -100,17 +88,6 @@ module Gitlab
 
     def self.gl_id_from_id_value(id)
       "user-#{id}"
-    end
-  end
-end
-
-module Gitlab
-  module Utils
-    # TODO remove this monkey-patch after
-    # https://gitlab.com/gitlab-org/gitlab-ce/merge_requests/18335 is merged
-    # and vendored.
-    def self.nlbr(str)
-      str.gsub(/\R/, "<br>").html_safe
     end
   end
 end

@@ -29,7 +29,7 @@ module GitalyServer
           raise GRPC::FailedPrecondition.new(e.message)
         rescue Gitlab::Git::Repository::TagExistsError
           return Gitaly::UserCreateTagResponse.new(exists: true)
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           return Gitaly::UserCreateTagResponse.new(pre_receive_error: set_utf8!(e.message))
         end
       end
@@ -50,7 +50,7 @@ module GitalyServer
           repo.rm_tag(tag_name, user: user)
 
           Gitaly::UserDeleteTagResponse.new
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserDeleteTagResponse.new(pre_receive_error: set_utf8!(e.message))
         rescue Gitlab::Git::CommitError => e
           raise GRPC::FailedPrecondition.new(e)
@@ -78,7 +78,7 @@ module GitalyServer
           Gitaly::UserCreateBranchResponse.new(branch: branch)
         rescue Gitlab::Git::Repository::InvalidRef, Gitlab::Git::CommitError => ex
           raise GRPC::FailedPrecondition.new(ex.message)
-        rescue Gitlab::Git::HooksService::PreReceiveError => ex
+        rescue Gitlab::Git::PreReceiveError => ex
           return Gitaly::UserCreateBranchResponse.new(pre_receive_error: set_utf8!(ex.message))
         end
       end
@@ -93,7 +93,7 @@ module GitalyServer
           repo.rm_branch(request.branch_name, user: user)
 
           Gitaly::UserDeleteBranchResponse.new
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserDeleteBranchResponse.new(pre_receive_error: set_utf8!(e.message))
         rescue Gitlab::Git::CommitError => e
           raise GRPC::FailedPrecondition.new(e)
@@ -123,7 +123,7 @@ module GitalyServer
             end
 
             y << Gitaly::UserMergeBranchResponse.new(branch_update: branch_update_result(result))
-          rescue Gitlab::Git::HooksService::PreReceiveError => e
+          rescue Gitlab::Git::PreReceiveError => e
             y << Gitaly::UserMergeBranchResponse.new(pre_receive_error: set_utf8!(e.message))
           end
         end
@@ -144,7 +144,7 @@ module GitalyServer
           raise GRPC::FailedPrecondition.new(e.to_s)
         rescue ArgumentError => e
           raise GRPC::InvalidArgument.new(e.to_s)
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserFFBranchResponse.new(pre_receive_error: set_utf8!(e.message))
         end
       end
@@ -173,7 +173,7 @@ module GitalyServer
           Gitaly::UserCherryPickResponse.new(create_tree_error: set_utf8!(e.message))
         rescue Gitlab::Git::CommitError => e
           Gitaly::UserCherryPickResponse.new(commit_error: set_utf8!(e.message))
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserCherryPickResponse.new(pre_receive_error: set_utf8!(e.message))
         end
       end
@@ -202,7 +202,7 @@ module GitalyServer
           Gitaly::UserRevertResponse.new(create_tree_error: set_utf8!(e.message))
         rescue Gitlab::Git::CommitError => e
           Gitaly::UserRevertResponse.new(commit_error: set_utf8!(e.message))
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserRevertResponse.new(pre_receive_error: set_utf8!(e.message))
         end
       end
@@ -221,7 +221,7 @@ module GitalyServer
                                    remote_branch: request.remote_branch)
 
           Gitaly::UserRebaseResponse.new(rebase_sha: rebase_sha)
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           return Gitaly::UserRebaseResponse.new(pre_receive_error: set_utf8!(e.message))
         rescue Gitlab::Git::Repository::GitError => e
           return Gitaly::UserRebaseResponse.new(git_error: set_utf8!(e.message))
@@ -257,7 +257,7 @@ module GitalyServer
           Gitaly::UserCommitFilesResponse.new(branch_update: branch_update)
         rescue Gitlab::Git::Index::IndexError => e
           Gitaly::UserCommitFilesResponse.new(index_error: set_utf8!(e.message))
-        rescue Gitlab::Git::HooksService::PreReceiveError => e
+        rescue Gitlab::Git::PreReceiveError => e
           Gitaly::UserCommitFilesResponse.new(pre_receive_error: set_utf8!(e.message))
         rescue Gitlab::Git::CommitError => e
           raise GRPC::FailedPrecondition.new(e.message)
