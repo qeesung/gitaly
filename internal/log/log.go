@@ -1,0 +1,63 @@
+package log
+
+import (
+	"os"
+
+	"github.com/sirupsen/logrus"
+)
+
+var (
+	Default = logrus.StandardLogger()
+	GrpcGo  = logrus.New()
+	Loggers = []*logrus.Logger{Default, GrpcGo}
+
+	debugLoggingEnabled = os.Getenv("GITALY_DEBUG") == "1"
+)
+
+func init() {
+	// This ensures that any log statements that occur before
+	// the configuration has been loaded will be written to
+	// stdout instead of stderr
+	for _, l := range Loggers {
+		l.Out = os.Stdout
+	}
+}
+
+func Configure(format string, level string) {
+	switch format {
+	case "json":
+		for _, l := range Loggers {
+			l.Formatter = &logrus.JSONFormatter{}
+		}
+	case "":
+		// Just stick with the default
+	default:
+		logrus.WithField("format", format).Fatal("invalid logger format")
+	}
+
+	logrusLevel, err := logrus.ParseLevel(level)
+	if err != nil {
+		logrusLevel = logrus.InfoLevel
+	}
+	if debugLoggingEnabled {
+		logrusLevel = logrus.DebugLevel
+	}
+
+	for _, l := range Loggers {
+		if l == GrpcGo {
+			l.SetLevel(mapGrpcLogLevel(logrusLevel))
+		} else {
+			l.SetLevel(logrusLevel)
+		}
+	}
+}
+
+func mapGrpcLogLevel(level logrus.Level) logrus.Level {
+	// grpc-go is too verbose at level 'info'. So when config.toml requests
+	// level info, we tell grpc-go to log at 'warn' instead.
+	if level == logrus.InfoLevel {
+		return logrus.WarnLevel
+	}
+
+	return level
+}

@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
+	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/logsanitizer"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/cancelhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/limithandler"
@@ -43,18 +44,21 @@ func concurrencyKeyFn(ctx context.Context) string {
 var logrusEntry *log.Entry
 
 func init() {
-	logger := log.StandardLogger()
+	for _, l := range gitalylog.Loggers {
+		urlSanitizer := logsanitizer.NewURLSanitizerHook()
+		urlSanitizer.AddPossibleGrpcMethod(
+			"CreateRepositoryFromURL",
+			"FetchRemote",
+			"UpdateRemoteMirror",
+		)
+		l.Hooks.Add(urlSanitizer)
+	}
 
-	urlSanitizer := logsanitizer.NewURLSanitizerHook()
-	urlSanitizer.AddPossibleGrpcMethod(
-		"CreateRepositoryFromURL",
-		"FetchRemote",
-		"UpdateRemoteMirror",
-	)
-	logger.Hooks.Add(urlSanitizer)
+	// logrusEntry is used by middlewares below
+	logrusEntry = log.NewEntry(gitalylog.Default)
 
-	logrusEntry = log.NewEntry(logger)
-	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
+	// grpc-go should use a custom logger; it is too chatty
+	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
 }
 
 // New returns a GRPC server with all Gitaly services and interceptors set up.
