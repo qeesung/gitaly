@@ -57,7 +57,7 @@ func init() {
 	// logrusEntry is used by middlewares below
 	logrusEntry = log.NewEntry(gitalylog.Default)
 
-	// grpc-go should use a custom logger; it is too chatty
+	// grpc-go gets a custom logger; it is too chatty
 	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
 }
 

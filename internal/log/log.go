@@ -7,8 +7,15 @@ import (
 )
 
 var (
+	// Default is the default logrus logger
 	Default = logrus.StandardLogger()
-	GrpcGo  = logrus.New()
+
+	// GrpcGo is a dedicated logrus logger for the grpc-go library. We use it
+	// to control the library's chattiness.
+	GrpcGo = logrus.New()
+
+	// Loggers is convenient when you want to apply configuration to all
+	// loggers
 	Loggers = []*logrus.Logger{Default, GrpcGo}
 
 	debugLoggingEnabled = os.Getenv("GITALY_DEBUG") == "1"
@@ -23,6 +30,8 @@ func init() {
 	}
 }
 
+// Configure sets the format and level on all loggers. It applies level
+// mapping to the GrpcGo logger.
 func Configure(format string, level string) {
 	switch format {
 	case "json":
