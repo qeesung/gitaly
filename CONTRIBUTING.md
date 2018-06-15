@@ -161,11 +161,7 @@ See the [beginner's guide](doc/beginners_guide.md).
 
 ## Debug Logging
 
-Debug logging can be enabled in Gitaly through the `GITALY_DEBUG` environment variable:
-
-```
-$ GITALY_DEBUG=1 ./gitaly config.toml
-```
+Debug logging can be enabled in Gitaly through `level` setting under `[logging]` in config.toml.
 
 ## Git Tracing
 
@@ -173,10 +169,10 @@ Gitaly will reexport `GIT_TRACE*` [environment variables](https://git-scm.com/bo
 
 This can be an aid to debugging some sets of problems. For example, if you would like to know what git is going internally, you can set `GIT_TRACE=true`:
 
-Note that since git stderr stream will be logged at debug level, you need to enable debug logging too.
+Note that since git stderr stream will be logged at debug level, you need to enable debug logging in `config.toml`.
 
 ```shell
-$ GITALY_DEBUG=1 GIT_TRACE=true ./gitaly config.toml
+$ GIT_TRACE=true ./gitaly config.toml
 ...
 DEBU[0015] 13:04:08.646399 git.c:322               trace: built-in: git 'gc'  grpc.method=GarbageCollect grpc.request.repoPath="gitlab/gitlab-design.git" grpc.request.repoStorage=default grpc.request.topLevelGroup=gitlab grpc.service=gitaly.RepositoryService peer.address= span.kind=server system=grpc
 DEBU[0015] 13:04:08.649346 run-command.c:626       trace: run_command: 'pack-refs' '--all' '--prune'  grpc.method=GarbageCollect grpc.request.repoPath="gitlab/gitlab-design.git" grpc.request.repoStorage=default grpc.request.topLevelGroup=gitlab grpc.service=gitaly.RepositoryService peer.address= span.kind=server system=grpc

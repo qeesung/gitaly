@@ -115,6 +115,13 @@ max\_rss limit.
 
 ### Logging
 
+Example:
+
+```
+[logging]
+level = "warn"
+```
+
 |name|type|required|notes|
 |----|----|--------|-----|
 |format|string|no|Log format: "text" or "json". Default: "text"|
@@ -123,10 +130,6 @@ max\_rss limit.
 |ruby_sentry_dsn|string|no|Sentry DSN for gitaly-ruby exception monitoring|
 
 ## Environment variables
-
-### GITALY_DEBUG
-
-When set to `1`, Gitaly will print debug log messages.
 
 ### GITALY_SOCKET_PATH
 

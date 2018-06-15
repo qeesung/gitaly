@@ -17,8 +17,6 @@ var (
 	// Loggers is convenient when you want to apply configuration to all
 	// loggers
 	Loggers = []*logrus.Logger{Default, GrpcGo}
-
-	debugLoggingEnabled = os.Getenv("GITALY_DEBUG") == "1"
 )
 
 func init() {
@@ -47,9 +45,6 @@ func Configure(format string, level string) {
 	logrusLevel, err := logrus.ParseLevel(level)
 	if err != nil {
 		logrusLevel = logrus.InfoLevel
-	}
-	if debugLoggingEnabled {
-		logrusLevel = logrus.DebugLevel
 	}
 
 	for _, l := range Loggers {
