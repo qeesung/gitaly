@@ -161,7 +161,7 @@ See the [beginner's guide](doc/beginners_guide.md).
 
 ## Debug Logging
 
-Debug logging can be enabled in Gitaly through `level` setting under `[logging]` in config.toml.
+Debug logging can be enabled in Gitaly using `level = "debug"` under `[logging]` in config.toml.
 
 ## Git Tracing
 
