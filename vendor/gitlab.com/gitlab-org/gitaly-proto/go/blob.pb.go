@@ -104,6 +104,8 @@ It has these top-level messages:
 	PostReceiveResponse
 	UserCreateBranchRequest
 	UserCreateBranchResponse
+	UserUpdateBranchRequest
+	UserUpdateBranchResponse
 	UserDeleteBranchRequest
 	UserDeleteBranchResponse
 	UserDeleteTagRequest
@@ -160,6 +162,8 @@ It has these top-level messages:
 	ListTagNamesContainingCommitResponse
 	GetTagMessagesRequest
 	GetTagMessagesResponse
+	ListNewCommitsRequest
+	ListNewCommitsResponse
 	AddRemoteRequest
 	AddRemoteResponse
 	RemoveRemoteRequest
