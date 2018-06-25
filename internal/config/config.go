@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -137,8 +138,7 @@ func validateStorages() error {
 		return fmt.Errorf("no storage configurations found. Are you using the right format? https://gitlab.com/gitlab-org/gitaly/issues/397")
 	}
 
-	seenNames := make(map[string]bool)
-	for _, st := range Config.Storages {
+	for i, st := range Config.Storages {
 		if st.Name == "" {
 			return fmt.Errorf("empty storage name in %v", st)
 		}
@@ -147,11 +147,22 @@ func validateStorages() error {
 			return fmt.Errorf("empty storage path in %v", st)
 		}
 
-		name := st.Name
-		if seenNames[name] {
-			return fmt.Errorf("storage %q is defined more than once", name)
+		pathSt := filepath.Clean(st.Path)
+		for j := 0; j < i; j++ {
+			other := Config.Storages[j]
+			if other.Name == st.Name {
+				return fmt.Errorf("storage %q is defined more than once", st.Name)
+			}
+
+			pathOther := filepath.Clean(other.Path)
+			if pathSt == pathOther {
+				continue
+			}
+
+			if strings.HasPrefix(pathSt, pathOther) || strings.HasPrefix(pathOther, pathSt) {
+				return fmt.Errorf("storage paths may not nest: %q and %q", st.Name, other.Name)
+			}
 		}
-		seenNames[name] = true
 	}
 
 	return nil

@@ -159,15 +159,26 @@ func TestValidateStorages(t *testing.T) {
 	}(Config.Storages)
 
 	testCases := []struct {
+		desc     string
 		storages []Storage
 		invalid  bool
 	}{
 		{
+			desc: "just 1 storage",
 			storages: []Storage{
 				{Name: "default", Path: "/home/git/repositories"},
 			},
 		},
 		{
+			desc: "multiple storages",
+			storages: []Storage{
+				{Name: "default", Path: "/home/git/repositories1"},
+				{Name: "other", Path: "/home/git/repositories2"},
+				{Name: "third", Path: "/home/git/repositories3"},
+			},
+		},
+		{
+			desc: "multiple storages pointing to same directory",
 			storages: []Storage{
 				{Name: "default", Path: "/home/git/repositories"},
 				{Name: "other", Path: "/home/git/repositories"},
@@ -175,6 +186,25 @@ func TestValidateStorages(t *testing.T) {
 			},
 		},
 		{
+			desc: "nested paths 1",
+			storages: []Storage{
+				{Name: "default", Path: "/home/git/repositories"},
+				{Name: "other", Path: "/home/git/repositories"},
+				{Name: "third", Path: "/home/git/repositories/third"},
+			},
+			invalid: true,
+		},
+		{
+			desc: "nested paths 2",
+			storages: []Storage{
+				{Name: "default", Path: "/home/git/repositories/default"},
+				{Name: "other", Path: "/home/git/repositories"},
+				{Name: "third", Path: "/home/git/repositories"},
+			},
+			invalid: true,
+		},
+		{
+			desc: "duplicate definition",
 			storages: []Storage{
 				{Name: "default", Path: "/home/git/repositories"},
 				{Name: "default", Path: "/home/git/repositories"},
@@ -182,6 +212,7 @@ func TestValidateStorages(t *testing.T) {
 			invalid: true,
 		},
 		{
+			desc: "re-definition",
 			storages: []Storage{
 				{Name: "default", Path: "/home/git/repositories1"},
 				{Name: "default", Path: "/home/git/repositories2"},
@@ -189,12 +220,14 @@ func TestValidateStorages(t *testing.T) {
 			invalid: true,
 		},
 		{
+			desc: "empty name",
 			storages: []Storage{
 				{Name: "", Path: "/home/git/repositories1"},
 			},
 			invalid: true,
 		},
 		{
+			desc: "empty path",
 			storages: []Storage{
 				{Name: "default", Path: ""},
 			},
@@ -203,14 +236,16 @@ func TestValidateStorages(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		Config.Storages = tc.storages
-		err := validateStorages()
-		if tc.invalid {
-			assert.Error(t, err, "%+v", tc.storages)
-			continue
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			Config.Storages = tc.storages
+			err := validateStorages()
+			if tc.invalid {
+				assert.Error(t, err, "%+v", tc.storages)
+				return
+			}
 
-		assert.NoError(t, err, "%+v", tc.storages)
+			assert.NoError(t, err, "%+v", tc.storages)
+		})
 	}
 }
 
