@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	pathPkg "path"
+	"path/filepath"
+	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
@@ -51,6 +53,12 @@ func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, ro
 func treeEntries(c *catfile.Batch, revision, path string, rootOid string, recursive bool) ([]*pb.TreeEntry, error) {
 	if path == "." {
 		path = ""
+	}
+
+	// If we ask 'git cat-file' for a path outside the repository tree it
+	// blows up with a fatal error. So, we avoid asking for this.
+	if strings.HasPrefix(filepath.Clean(path), "../") {
+		return nil, nil
 	}
 
 	if len(rootOid) == 0 {

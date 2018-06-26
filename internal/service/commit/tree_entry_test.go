@@ -133,6 +133,11 @@ func TestSuccessfulTreeEntry(t *testing.T) {
 				mode:       0100644,
 			},
 		},
+		{
+			revision:          []byte("913c66a37b4a45b9769037c55c2d238bd0942d2e"),
+			path:              []byte("../bar/.gitkeep"), // Git blows up on paths like this
+			expectedTreeEntry: treeEntry{},
+		},
 	}
 
 	for _, testCase := range testCases {
