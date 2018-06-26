@@ -1,0 +1,5 @@
+---
+title: Fix TreeEntry relative path bug
+merge_request: 776
+author:
+type: fixed
