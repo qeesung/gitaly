@@ -138,29 +138,30 @@ func validateStorages() error {
 		return fmt.Errorf("no storage configurations found. Are you using the right format? https://gitlab.com/gitlab-org/gitaly/issues/397")
 	}
 
-	for i, st := range Config.Storages {
-		if st.Name == "" {
-			return fmt.Errorf("empty storage name in %v", st)
+	for i, storage := range Config.Storages {
+		if storage.Name == "" {
+			return fmt.Errorf("empty storage name in %v", storage)
 		}
 
-		if st.Path == "" {
-			return fmt.Errorf("empty storage path in %v", st)
+		if storage.Path == "" {
+			return fmt.Errorf("empty storage path in %v", storage)
 		}
 
-		pathSt := filepath.Clean(st.Path)
+		stPath := filepath.Clean(storage.Path)
 		for j := 0; j < i; j++ {
 			other := Config.Storages[j]
-			if other.Name == st.Name {
-				return fmt.Errorf("storage %q is defined more than once", st.Name)
+			if other.Name == storage.Name {
+				return fmt.Errorf("storage %q is defined more than once", storage.Name)
 			}
 
-			pathOther := filepath.Clean(other.Path)
-			if pathSt == pathOther {
+			otherPath := filepath.Clean(other.Path)
+			if stPath == otherPath {
+				// This is weird but we allow it for legacy gitlab.com reasons.
 				continue
 			}
 
-			if strings.HasPrefix(pathSt, pathOther) || strings.HasPrefix(pathOther, pathSt) {
-				return fmt.Errorf("storage paths may not nest: %q and %q", st.Name, other.Name)
+			if strings.HasPrefix(stPath, otherPath) || strings.HasPrefix(otherPath, stPath) {
+				return fmt.Errorf("storage paths may not nest: %q and %q", storage.Name, storage.Name)
 			}
 		}
 	}
