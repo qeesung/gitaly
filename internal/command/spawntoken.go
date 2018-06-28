@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+const logDurationThreshold = 5 * time.Millisecond
 
 var (
 	spawnTokens chan struct{}
@@ -37,7 +40,7 @@ type SpawnConfig struct {
 	// Note that this does not limit the total number of child processes that
 	// can be attached to Gitaly at the same time. It only limits the rate at
 	// which we can create new child processes.
-	MaxParallel int `split_words:"true" default:"100"`
+	MaxParallel int `split_words:"true" default:"10"`
 }
 
 func init() {
@@ -52,15 +55,30 @@ func getSpawnToken(ctx context.Context) (putToken func(), err error) {
 	// requests from piling up behind the ForkLock if forking for some reason
 	// slows down. This has happened in real life, see
 	// https://gitlab.com/gitlab-org/gitaly/issues/823.
+	start := time.Now()
+
 	select {
 	case spawnTokens <- struct{}{}:
+		logTime(ctx, start, "spawn token acquired")
+
 		return func() {
 			<-spawnTokens
 		}, nil
 	case <-time.After(spawnConfig.Timeout):
+		logTime(ctx, start, "spawn token timeout")
 		spawnTimeoutCount.Inc()
+
 		return nil, spawnTimeoutError(fmt.Errorf("process spawn timed out after %v", spawnConfig.Timeout))
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+func logTime(ctx context.Context, start time.Time, msg string) {
+	delta := time.Since(start)
+	if delta < logDurationThreshold {
+		return
+	}
+
+	grpc_logrus.Extract(ctx).WithField("spawn_queue_ms", delta.Seconds()*1000).Info(msg)
 }
