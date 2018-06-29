@@ -311,8 +311,12 @@ module GitalyServer
     def commit_files_action_from_gitaly_request(header)
       {
         action: header.action.downcase,
-        file_path: header.file_path,
-        previous_path: header.previous_path,
+        # Forcing the encoding to UTF-8 here is unusual. But these paths get
+        # compared with Rugged::Index entries, which are also force-encoded to
+        # UTF-8. See
+        # https://github.com/libgit2/rugged/blob/f8172c2a177a6795553f38f01248daff923f4264/ext/rugged/rugged_index.c#L514
+        file_path: set_utf8!(header.file_path),
+        previous_path: set_utf8!(header.previous_path),
         encoding: header.base64_content ? 'base64' : '',
         content: ''
       }

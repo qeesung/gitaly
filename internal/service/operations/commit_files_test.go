@@ -42,7 +42,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	defer newRepoCleanupFn()
 
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
-	filePath := "my/file.txt"
+	filePath := "héllo/wörld"
 	authorName := []byte("Jane Doe")
 	authorEmail := []byte("janedoe@gitlab.com")
 	testCases := []struct {
@@ -171,19 +171,53 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
-	headerRequest := headerRequest(testRepo, user, "feature", commitFilesMessage, nil, nil)
-	actionsRequest1 := createFileHeaderRequest("README.md")
-	actionsRequest2 := actionContentRequest("This file already exists")
+	testCases := []struct {
+		desc       string
+		requests   []*pb.UserCommitFilesRequest
+		indexError string
+	}{
+		{
+			desc: "file already exists",
+			requests: []*pb.UserCommitFilesRequest{
+				headerRequest(testRepo, user, "feature", commitFilesMessage, nil, nil),
+				createFileHeaderRequest("README.md"),
+				actionContentRequest("This file already exists"),
+			},
+			indexError: "A file with this name already exists",
+		},
+		{
+			desc: "dir already exists",
+			requests: []*pb.UserCommitFilesRequest{
+				headerRequest(testRepo, user, "utf-dir", commitFilesMessage, nil, nil),
+				actionRequest(&pb.UserCommitFilesAction{
+					UserCommitFilesActionPayload: &pb.UserCommitFilesAction_Header{
+						Header: &pb.UserCommitFilesActionHeader{
+							Action:        pb.UserCommitFilesActionHeader_CREATE_DIR,
+							Base64Content: false,
+							FilePath:      []byte("héllo"),
+						},
+					},
+				}),
+				actionContentRequest("This file already exists, as a directory"),
+			},
+			indexError: "A directory with this name already exists",
+		},
+	}
 
-	stream, err := client.UserCommitFiles(ctx)
-	require.NoError(t, err)
-	require.NoError(t, stream.Send(headerRequest))
-	require.NoError(t, stream.Send(actionsRequest1))
-	require.NoError(t, stream.Send(actionsRequest2))
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.UserCommitFiles(ctx)
+			require.NoError(t, err)
 
-	r, err := stream.CloseAndRecv()
-	require.NoError(t, err)
-	require.Equal(t, r.GetIndexError(), "A file with this name already exists")
+			for _, req := range tc.requests {
+				require.NoError(t, stream.Send(req))
+			}
+
+			r, err := stream.CloseAndRecv()
+			require.NoError(t, err)
+			require.Equal(t, tc.indexError, r.GetIndexError())
+		})
+	}
 }
 
 func TestFailedUserCommitFilesRequest(t *testing.T) {
