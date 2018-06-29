@@ -1,0 +1,5 @@
+---
+title: Fix encoding bug in UserCommitFiles
+merge_request: 782
+author:
+type: fixed
