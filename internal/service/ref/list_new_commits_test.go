@@ -51,6 +51,10 @@ func TestListNewCommits(t *testing.T) {
 			},
 		},
 		{
+			revision:     "- rm -rf /",
+			responseCode: codes.InvalidArgument,
+		},
+		{
 			revision:     "1234deadbeef",
 			responseCode: codes.InvalidArgument,
 		},
