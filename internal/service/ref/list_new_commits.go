@@ -7,6 +7,7 @@ import (
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,7 +21,7 @@ func (s *server) ListNewCommits(in *pb.ListNewCommitsRequest, stream pb.RefServi
 
 	ctx := stream.Context()
 
-	revList, err := git.Command(ctx, in.Repository, "rev-list", oid, "--not", "--all")
+	revList, err := git.Command(ctx, in.GetRepository(), "rev-list", oid, "--not", "--all")
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err
@@ -28,13 +29,18 @@ func (s *server) ListNewCommits(in *pb.ListNewCommitsRequest, stream pb.RefServi
 		return status.Errorf(codes.Internal, "ListNewCommits: gitCommand: %v", err)
 	}
 
+	batch, err := catfile.New(ctx, in.GetRepository())
+	if err != nil {
+		return status.Errorf(codes.Internal, "ListNewCommits: catfile: %v", err)
+	}
+
+	i := 0
 	commits := []*pb.GitCommit{}
 	scanner := bufio.NewScanner(revList)
-	i := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		// TODO
-		commit, err := log.GetCommit(ctx, in.GetRepository(), strings.TrimSpace(line))
+
+		commit, err := log.GetCommitCatfile(batch, strings.TrimSpace(line))
 		if err != nil {
 			return status.Errorf(codes.Internal, "ListNewCommits: commit not found: %v", err)
 		}
