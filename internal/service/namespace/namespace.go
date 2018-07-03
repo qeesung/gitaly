@@ -40,16 +40,12 @@ func (s *server) AddNamespace(ctx context.Context, in *pb.AddNamespaceRequest) (
 		return nil, err
 	}
 
-	// Make idempotent, as it's called through Sidekiq
-	// Exists check will return an err if in.GetName() == ""
-	existsRequest := &pb.NamespaceExistsRequest{StorageName: in.StorageName, Name: in.Name}
-	if exists, err := s.NamespaceExists(ctx, existsRequest); err != nil {
-		return nil, err
-	} else if exists.Exists {
-		return &pb.AddNamespaceResponse{}, nil
+	name := in.GetName()
+	if len(name) == 0 {
+		return nil, noNameError
 	}
 
-	if err = os.MkdirAll(namespacePath(storagePath, in.GetName()), 0770); err != nil {
+	if err = os.MkdirAll(namespacePath(storagePath, name), 0770); err != nil {
 		return nil, status.Errorf(codes.Internal, "create directory: %v", err)
 	}
 
