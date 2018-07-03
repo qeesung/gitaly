@@ -231,6 +231,205 @@ module Gitlab
         raise Gitlab::Git::Repository::GitError.new(e)
       end
 
+      def add_tag(tag_name, user:, target:, message: nil)
+        target_object = Ref.dereference_object(lookup(target))
+        raise InvalidRef.new("target not found: #{target}") unless target_object
+
+        user = Gitlab::Git::User.from_gitlab(user) unless user.respond_to?(:gl_id)
+
+        options = nil # Use nil, not the empty hash. Rugged cares about this.
+        if message
+          options = {
+            message: message,
+            tagger: Gitlab::Git.committer_hash(email: user.email, name: user.name)
+          }
+        end
+
+        Gitlab::Git::OperationService.new(user, self).add_tag(tag_name, target_object.oid, options)
+
+        find_tag(tag_name)
+      rescue Rugged::ReferenceError => ex
+        raise InvalidRef, ex
+      rescue Rugged::TagError
+        raise TagExistsError
+      end
+
+      def rm_branch(branch_name, user:)
+        OperationService.new(user, self).rm_branch(find_branch(branch_name))
+      end
+
+      def rm_tag(tag_name, user:)
+        Gitlab::Git::OperationService.new(user, self).rm_tag(find_tag(tag_name))
+      end
+
+      def merge(user, source_sha, target_branch, message, &block)
+        committer = Gitlab::Git.committer_hash(email: user.email, name: user.name)
+
+        OperationService.new(user, self).with_branch(target_branch) do |start_commit|
+          our_commit = start_commit.sha
+          their_commit = source_sha
+
+          raise 'Invalid merge target' unless our_commit
+          raise 'Invalid merge source' unless their_commit
+
+          merge_index = rugged.merge_commits(our_commit, their_commit)
+          break if merge_index.conflicts?
+
+          options = {
+            parents: [our_commit, their_commit],
+            tree: merge_index.write_tree(rugged),
+            message: message,
+            author: committer,
+            committer: committer
+          }
+
+          commit_id = create_commit(options)
+
+          yield commit_id
+
+          commit_id
+        end
+      rescue Gitlab::Git::CommitError # when merge_index.conflicts?
+        nil
+      end
+
+      def ff_merge(user, source_sha, target_branch)
+        OperationService.new(user, self).with_branch(target_branch) do |our_commit|
+          raise ArgumentError, 'Invalid merge target' unless our_commit
+
+          source_sha
+        end
+      rescue Rugged::ReferenceError, InvalidRef
+        raise ArgumentError, 'Invalid merge source'
+      end
+
+      def revert(user:, commit:, branch_name:, message:, start_branch_name:, start_repository:)
+        OperationService.new(user, self).with_branch(
+          branch_name,
+          start_branch_name: start_branch_name,
+          start_repository: start_repository
+        ) do |start_commit|
+
+          Gitlab::Git.check_namespace!(commit, start_repository)
+
+          revert_tree_id = check_revert_content(commit, start_commit.sha)
+          raise CreateTreeError unless revert_tree_id
+
+          committer = user_to_committer(user)
+
+          create_commit(message: message,
+                        author: committer,
+                        committer: committer,
+                        tree: revert_tree_id,
+                        parents: [start_commit.sha])
+        end
+      end
+
+      def cherry_pick(user:, commit:, branch_name:, message:, start_branch_name:, start_repository:)
+        args = {
+          user: user,
+          commit: commit,
+          branch_name: branch_name,
+          message: message,
+          start_branch_name: start_branch_name,
+          start_repository: start_repository
+        }
+
+        rugged_cherry_pick(args)
+      end
+
+      def rebase(user, rebase_id, branch:, branch_sha:, remote_repository:, remote_branch:)
+        rebase_path = worktree_path(REBASE_WORKTREE_PREFIX, rebase_id)
+        env = git_env_for_user(user)
+
+        if remote_repository.is_a?(RemoteRepository)
+          env.merge!(remote_repository.fetch_env)
+          remote_repo_path = GITALY_INTERNAL_URL
+        else
+          remote_repo_path = remote_repository.path
+        end
+
+        with_worktree(rebase_path, branch, env: env) do
+          run_git!(
+            %W(pull --rebase #{remote_repo_path} #{remote_branch}),
+            chdir: rebase_path, env: env
+          )
+
+          rebase_sha = run_git!(%w(rev-parse HEAD), chdir: rebase_path, env: env).strip
+
+          update_branch(branch, user: user, newrev: rebase_sha, oldrev: branch_sha)
+
+          rebase_sha
+        end
+      end
+
+      def squash(user, squash_id, branch:, start_sha:, end_sha:, author:, message:)
+        squash_path = worktree_path(SQUASH_WORKTREE_PREFIX, squash_id)
+        env = git_env_for_user(user).merge(
+          'GIT_AUTHOR_NAME' => author.name,
+          'GIT_AUTHOR_EMAIL' => author.email
+        )
+        diff_range = "#{start_sha}...#{end_sha}"
+        diff_files = run_git!(
+          %W(diff --name-only --diff-filter=ar --binary #{diff_range})
+        ).chomp
+
+        with_worktree(squash_path, branch, sparse_checkout_files: diff_files, env: env) do
+          # Apply diff of the `diff_range` to the worktree
+          diff = run_git!(%W(diff --binary #{diff_range}))
+          run_git!(%w(apply --index --whitespace=nowarn), chdir: squash_path, env: env) do |stdin|
+            stdin.binmode
+            stdin.write(diff)
+          end
+
+          # Commit the `diff_range` diff
+          run_git!(%W(commit --no-verify --message #{message}), chdir: squash_path, env: env)
+
+          # Return the squash sha. May print a warning for ambiguous refs, but
+          # we can ignore that with `--quiet` and just take the SHA, if present.
+          # HEAD here always refers to the current HEAD commit, even if there is
+          # another ref called HEAD.
+          run_git!(
+            %w(rev-parse --quiet --verify HEAD), chdir: squash_path, env: env
+          ).chomp
+        end
+      end
+
+      def multi_action(
+        user, branch_name:, message:, actions:,
+        author_email: nil, author_name: nil,
+        start_branch_name: nil, start_repository: self)
+
+        OperationService.new(user, self).with_branch(
+          branch_name,
+          start_branch_name: start_branch_name,
+          start_repository: start_repository
+        ) do |start_commit|
+
+          index = Gitlab::Git::Index.new(self)
+          parents = []
+
+          if start_commit
+            index.read_tree(start_commit.rugged_commit.tree)
+            parents = [start_commit.sha]
+          end
+
+          actions.each { |opts| index.apply(opts.delete(:action), opts) }
+
+          committer = user_to_committer(user)
+          author = Gitlab::Git.committer_hash(email: author_email, name: author_name) || committer
+          options = {
+            tree: index.write_tree,
+            message: message,
+            parents: parents,
+            author: author,
+            committer: committer
+          }
+
+          create_commit(options)
+        end
+      end
+
       private
 
       def uncached_has_local_branches?
