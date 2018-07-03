@@ -1,0 +1,5 @@
+---
+title: Rewrite ListCommitsByOid in Go
+merge_request: 787
+author:
+type: performance
