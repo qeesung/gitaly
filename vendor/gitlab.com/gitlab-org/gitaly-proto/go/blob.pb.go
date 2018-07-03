@@ -216,6 +216,10 @@ It has these top-level messages:
 	CreateBundleResponse
 	WriteConfigRequest
 	WriteConfigResponse
+	SetConfigRequest
+	SetConfigResponse
+	DeleteConfigRequest
+	DeleteConfigResponse
 	RestoreCustomHooksRequest
 	RestoreCustomHooksResponse
 	BackupCustomHooksRequest
