@@ -1,0 +1,5 @@
+---
+title: Remove unnecessary existence check in AddNamespace
+merge_request: 785
+author:
+type: other
