@@ -6,6 +6,8 @@ import (
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 )
 
+const batchSizeListCommitsByOid = 20
+
 func (s *server) ListCommitsByOid(in *pb.ListCommitsByOidRequest, stream pb.CommitService_ListCommitsByOidServer) error {
 	ctx := stream.Context()
 
@@ -25,11 +27,11 @@ func (s *server) ListCommitsByOid(in *pb.ListCommitsByOidRequest, stream pb.Comm
 			commits = append(commits, commit)
 		}
 
-		if len(commits) == 20 {
+		if len(commits) == batchSizeListCommitsByOid {
 			if err := stream.Send(&pb.ListCommitsByOidResponse{Commits: commits}); err != nil {
 				return err
 			}
-			commits = nil
+			commits = commits[:0]
 		}
 	}
 
