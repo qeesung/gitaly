@@ -16,6 +16,10 @@ func (s *server) ListCommitsByOid(in *pb.ListCommitsByOidRequest, stream pb.Comm
 		return err
 	}
 
+	send := func(commits []*pb.GitCommit) error {
+		return stream.Send(&pb.ListCommitsByOidResponse{Commits: commits})
+	}
+
 	var commits []*pb.GitCommit
 	for _, oid := range in.Oid {
 		commit, err := gitlog.GetCommitCatfile(c, oid)
@@ -23,20 +27,22 @@ func (s *server) ListCommitsByOid(in *pb.ListCommitsByOidRequest, stream pb.Comm
 			return err
 		}
 
-		if commit != nil {
-			commits = append(commits, commit)
+		if commit == nil {
+			continue
 		}
 
+		commits = append(commits, commit)
+
 		if len(commits) == batchSizeListCommitsByOid {
-			if err := stream.Send(&pb.ListCommitsByOidResponse{Commits: commits}); err != nil {
+			if err := send(commits); err != nil {
 				return err
 			}
-			commits = commits[:0]
+			commits = nil
 		}
 	}
 
 	if len(commits) > 0 {
-		return stream.Send(&pb.ListCommitsByOidResponse{Commits: commits})
+		return send(commits)
 	}
 
 	return nil
