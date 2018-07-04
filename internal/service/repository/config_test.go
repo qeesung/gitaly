@@ -24,7 +24,7 @@ func TestDeleteConfig(t *testing.T) {
 		reqKeys []string
 	}{
 		{
-			desc: "empty reqest",
+			desc: "empty request",
 		},
 		{
 			desc:    "keys that don't exist",
@@ -78,7 +78,7 @@ func TestSetConfig(t *testing.T) {
 		expected []string
 	}{
 		{
-			desc: "empty reqest",
+			desc: "empty request",
 		},
 		{
 			desc: "mix of different types",
