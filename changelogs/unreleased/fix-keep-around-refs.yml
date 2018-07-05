@@ -1,0 +1,5 @@
+---
+title: Implement fetch keep-around refs in create from bundle
+merge_request: 790
+author:
+type: fixed
