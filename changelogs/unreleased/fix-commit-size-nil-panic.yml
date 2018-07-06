@@ -1,5 +1,5 @@
 ---
-title: Handle nil author and commiter in commitSize
+title: Remove unnecessary commit size bookkeeping
 merge_request: 791
 author:
 type: fixed
