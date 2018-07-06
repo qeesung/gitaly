@@ -6,6 +6,7 @@ import (
 	"path"
 	"testing"
 
+	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -34,6 +35,8 @@ func TestSuccessfulCreateRepositoryFromBundleRequest(t *testing.T) {
 	tmpdir, err := tempdir.New(ctx, testRepo)
 	require.NoError(t, err)
 	bundlePath := path.Join(tmpdir, "original.bundle")
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "update-ref", "refs/custom-refs/ref1", "HEAD")
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "bundle", "create", bundlePath, "--all")
 	defer os.RemoveAll(bundlePath)
@@ -78,9 +81,9 @@ func TestSuccessfulCreateRepositoryFromBundleRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
 
-	info, err = os.Lstat(path.Join(importedRepoPath, "refs", "keep-around"))
+	commit, err := log.GetCommit(ctx, importedRepo, "refs/custom-refs/ref1")
 	require.NoError(t, err)
-	require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
+	require.NotNil(t, commit)
 }
 
 func TestFailedCreateRepositoryFromBundleRequestDueToValidations(t *testing.T) {

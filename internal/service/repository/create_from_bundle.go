@@ -86,10 +86,13 @@ func (s *server) CreateRepositoryFromBundle(stream pb.RepositoryService_CreateRe
 
 	// We do a fetch to get all refs including keep-around refs
 	args = []string{
+		"-C",
+		repoPath,
 		"fetch",
-		"origin",
+		bundlePath,
 		"refs/*:refs/*",
 	}
+
 	cmd, err = command.New(ctx, exec.Command(command.GitPath(), args...), nil, nil, nil)
 	if err != nil {
 		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd start failed fetching refs: %v", err)
