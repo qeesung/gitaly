@@ -77,6 +77,10 @@ func TestSuccessfulCreateRepositoryFromBundleRequest(t *testing.T) {
 	info, err := os.Lstat(path.Join(importedRepoPath, "hooks"))
 	require.NoError(t, err)
 	require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
+
+	info, err = os.Lstat(path.Join(importedRepoPath, "refs", "keep-around"))
+	require.NoError(t, err)
+	require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
 }
 
 func TestFailedCreateRepositoryFromBundleRequestDueToValidations(t *testing.T) {
