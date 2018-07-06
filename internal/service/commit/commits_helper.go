@@ -61,8 +61,15 @@ func sendCommits(ctx context.Context, sender commitsSender, repo *pb.Repository,
 }
 
 func commitSize(commit *pb.GitCommit) int {
-	return len(commit.Id) + len(commit.Subject) + len(commit.Body) +
-		len(commit.Author.Name) + len(commit.Author.Email) + len(commit.Committer.Name) + len(commit.Committer.Email) +
-		8 + 8 + // Author and Committer timestamps are int64
-		len(commit.ParentIds)*40
+	size := len(commit.Id) + len(commit.Subject) + len(commit.Body) + len(commit.ParentIds)*40
+
+	author := commit.GetAuthor()
+	size += len(author.GetName()) + len(author.GetEmail())
+
+	committer := commit.GetCommitter()
+	size += len(committer.GetName()) + len(committer.GetEmail())
+
+	size += 8 + 8 // Author and Committer timestamps are int64
+
+	return size
 }
