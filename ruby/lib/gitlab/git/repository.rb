@@ -430,6 +430,25 @@ module Gitlab
         end
       end
 
+      def raw_log(options)
+        sha =
+          unless options[:all]
+            actual_ref = options[:ref] || root_ref
+            begin
+              sha_from_ref(actual_ref)
+            rescue Rugged::OdbError, Rugged::InvalidError, Rugged::ReferenceError
+              # Return an empty array if the ref wasn't found
+              return []
+            end
+          end
+
+        log_by_shell(sha, options)
+      end
+
+      def fetch_source_branch!(source_repository, source_branch, local_ref)
+        rugged_fetch_source_branch(source_repository, source_branch, local_ref)
+      end
+
       private
 
       def uncached_has_local_branches?
@@ -447,6 +466,72 @@ module Gitlab
         end.compact
 
         sort_branches(branches, sort_by)
+      end
+
+      def log_by_shell(sha, options)
+        limit = options[:limit].to_i
+        offset = options[:offset].to_i
+        use_follow_flag = options[:follow] && options[:path].present?
+
+        # We will perform the offset in Ruby because --follow doesn't play well with --skip.
+        # See: https://gitlab.com/gitlab-org/gitlab-ce/issues/3574#note_3040520
+        offset_in_ruby = use_follow_flag && options[:offset].present?
+        limit += offset if offset_in_ruby
+
+        cmd = %w[log]
+        cmd << "--max-count=#{limit}"
+        cmd << '--format=%H'
+        cmd << "--skip=#{offset}" unless offset_in_ruby
+        cmd << '--follow' if use_follow_flag
+        cmd << '--no-merges' if options[:skip_merges]
+        cmd << "--after=#{options[:after].iso8601}" if options[:after]
+        cmd << "--before=#{options[:before].iso8601}" if options[:before]
+
+        if options[:all]
+          cmd += %w[--all --reverse]
+        else
+          cmd << sha
+        end
+
+        # :path can be a string or an array of strings
+        if options[:path].present?
+          cmd << '--'
+          cmd += Array(options[:path])
+        end
+
+        raw_output, _status = run_git(cmd)
+        lines = offset_in_ruby ? raw_output.lines.drop(offset) : raw_output.lines
+
+        lines.map! { |c| Rugged::Commit.new(rugged, c.strip) }
+      end
+
+      def build_git_cmd(*args)
+        object_directories = alternate_object_directories.join(File::PATH_SEPARATOR)
+
+        env = { 'PWD' => self.path }
+        env['GIT_ALTERNATE_OBJECT_DIRECTORIES'] = object_directories if object_directories.present?
+
+        [
+          env,
+          ::Gitlab.config.git.bin_path,
+          *args,
+          { chdir: self.path }
+        ]
+      end
+
+      def git_diff_cmd(old_rev, new_rev)
+        old_rev = old_rev == ::Gitlab::Git::BLANK_SHA ? ::Gitlab::Git::EMPTY_TREE_ID : old_rev
+
+        build_git_cmd('diff', old_rev, new_rev, '--raw')
+      end
+
+      def git_cat_file_cmd
+        format = '%(objectname) %(objectsize) %(rest)'
+        build_git_cmd('cat-file', "--batch-check=#{format}")
+      end
+
+      def format_git_cat_file_script
+        File.expand_path('../support/format-git-cat-file-input', __FILE__)
       end
     end
   end
