@@ -90,34 +90,7 @@ end
 	require.Equal(t, expectedFiles, receivedFiles)
 }
 
-func TestFailedListConflictFilesRequestDueToConflictSideMissing(t *testing.T) {
-	server, serverSocketPath := runConflictsServer(t)
-	defer server.Stop()
-
-	client, conn := NewConflictsClient(t, serverSocketPath)
-	defer conn.Close()
-
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
-	ourCommitOid := "eb227b3e214624708c474bdab7bde7afc17cefcc" // conflict-missing-side
-	theirCommitOid := "824be604a34828eb682305f0d963056cfac87b2d"
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	request := &pb.ListConflictFilesRequest{
-		Repository:     testRepo,
-		OurCommitOid:   ourCommitOid,
-		TheirCommitOid: theirCommitOid,
-	}
-
-	c, err := client.ListConflictFiles(ctx, request)
-	require.NoError(t, err)
-	testhelper.RequireGrpcError(t, drainListConflictFilesResponse(c), codes.FailedPrecondition)
-}
-
-func TestFailedListConflictFilesFailedPrecondition(t *testing.T) {
+func TestListConflictFilesFailedPrecondition(t *testing.T) {
 	server, serverSocketPath := runConflictsServer(t)
 	defer server.Stop()
 
@@ -135,6 +108,11 @@ func TestFailedListConflictFilesFailedPrecondition(t *testing.T) {
 		ourCommitOid   string
 		theirCommitOid string
 	}{
+		{
+			desc:           "conflict side missing",
+			ourCommitOid:   "eb227b3e214624708c474bdab7bde7afc17cefcc",
+			theirCommitOid: "824be604a34828eb682305f0d963056cfac87b2d",
+		},
 		{
 			// These commits have a conflict on the 'VERSION' file in the test repo.
 			// The conflict is expected to raise an encoding error.
@@ -206,7 +184,7 @@ func TestFailedListConflictFilesRequestDueToValidation(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty OurCommitId repo",
+			desc: "empty OurCommitId field",
 			request: &pb.ListConflictFilesRequest{
 				Repository:     testRepo,
 				OurCommitOid:   "",
@@ -215,7 +193,7 @@ func TestFailedListConflictFilesRequestDueToValidation(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "empty TheirCommitId repo",
+			desc: "empty TheirCommitId field",
 			request: &pb.ListConflictFilesRequest{
 				Repository:     testRepo,
 				OurCommitOid:   ourCommitOid,
