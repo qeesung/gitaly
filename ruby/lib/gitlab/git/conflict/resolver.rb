@@ -2,7 +2,7 @@ module Gitlab
   module Git
     module Conflict
       class Resolver
-        ConflictSideMissing = Class.new(StandardError)
+        ListError = Class.new(StandardError)
         ResolutionError = Class.new(StandardError)
 
         def initialize(target_repository, our_commit_oid, their_commit_oid)
@@ -13,8 +13,8 @@ module Gitlab
 
         def conflicts
           @conflicts = rugged_list_conflict_files
-        rescue Rugged::ReferenceError, Rugged::OdbError, GRPC::BadStatus => e
-          raise Gitlab::Git::CommandError.new(e)
+        rescue Rugged::ReferenceError, Rugged::OdbError => e
+          raise ListError.new(e)
         end
 
         def resolve_conflicts(source_repository, resolution, source_branch:, target_branch:)
@@ -31,7 +31,7 @@ module Gitlab
 
         def conflict_files(repository, index)
           index.conflicts.map do |conflict|
-            raise ConflictSideMissing unless conflict[:theirs] && conflict[:ours]
+            raise ListError unless conflict[:theirs] && conflict[:ours]
 
             Gitlab::Git::Conflict::File.new(
               repository,

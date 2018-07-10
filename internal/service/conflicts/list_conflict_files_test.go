@@ -127,24 +127,55 @@ func TestFailedListConflictFilesFailedPrecondition(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	// These commits have a conflict on the 'VERSION' file in the test repo.
-	// The conflict is expected to raise an encoding error.
-	ourCommitOid := "bd493d44ae3c4dd84ce89cb75be78c4708cbd548"
-	theirCommitOid := "7df99c9ad5b8c9bfc5ae4fb7a91cc87adcce02ef"
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	request := &pb.ListConflictFilesRequest{
-		Repository:     testRepo,
-		OurCommitOid:   ourCommitOid,
-		TheirCommitOid: theirCommitOid,
+	testCases := []struct {
+		desc           string
+		ourCommitOid   string
+		theirCommitOid string
+	}{
+		{
+			// These commits have a conflict on the 'VERSION' file in the test repo.
+			// The conflict is expected to raise an encoding error.
+			desc:           "encoding error",
+			ourCommitOid:   "bd493d44ae3c4dd84ce89cb75be78c4708cbd548",
+			theirCommitOid: "7df99c9ad5b8c9bfc5ae4fb7a91cc87adcce02ef",
+		},
+		{
+			desc:           "submodule object lookup error",
+			ourCommitOid:   "de78448b0b504f3f60093727bddfda1ceee42345",
+			theirCommitOid: "2f61d70f862c6a4f782ef7933e020a118282db29",
+		},
+		{
+			desc:           "invalid commit id on 'our' side",
+			ourCommitOid:   "abcdef0000000000000000000000000000000000",
+			theirCommitOid: "1a35b5a77cf6af7edf6703f88e82f6aff613666f",
+		},
+		{
+			desc:           "invalid commit id on 'their' side",
+			ourCommitOid:   "1a35b5a77cf6af7edf6703f88e82f6aff613666f",
+			theirCommitOid: "abcdef0000000000000000000000000000000000",
+		},
 	}
 
-	c, err := client.ListConflictFiles(ctx, request)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
 
-	testhelper.RequireGrpcError(t, drainListConflictFilesResponse(c), codes.FailedPrecondition)
+			request := &pb.ListConflictFilesRequest{
+				Repository:     testRepo,
+				OurCommitOid:   tc.ourCommitOid,
+				TheirCommitOid: tc.theirCommitOid,
+			}
+
+			c, err := client.ListConflictFiles(ctx, request)
+			if err == nil {
+				err = drainListConflictFilesResponse(c)
+			}
+
+			testhelper.RequireGrpcError(t, err, codes.FailedPrecondition)
+		})
+	}
 }
 
 func TestFailedListConflictFilesRequestDueToValidation(t *testing.T) {
