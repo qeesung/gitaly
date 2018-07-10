@@ -1,0 +1,5 @@
+---
+title: Translate more ListConflictFiles errors into FailedPrecondition
+merge_request: 797
+author:
+type: fixed
