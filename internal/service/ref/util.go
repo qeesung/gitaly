@@ -86,7 +86,7 @@ func newFindLocalBranchesWriter(stream pb.Ref_FindLocalBranchesServer, c *catfil
 				return err
 			}
 
-			branches = append(branches, buildLocalBranch(elements[1], target))
+			branches = append(branches, buildLocalBranch(elements[0], target))
 		}
 		return stream.Send(&pb.FindLocalBranchesResponse{Branches: branches})
 	}
