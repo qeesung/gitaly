@@ -33,7 +33,6 @@ require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/popen.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/ref.rb')
 require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/repository_mirroring.rb')
-require_relative File.join(vendor_gitlab_git, 'lib/gitlab/git/storage/circuit_breaker_settings.rb')
 
 # Require all .rb files we can find in the vendored gitlab/git directory
 dir = File.expand_path(File.join('..', vendor_gitlab_git, 'lib/gitlab/'), __FILE__)

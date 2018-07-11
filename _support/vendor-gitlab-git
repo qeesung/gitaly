@@ -13,6 +13,10 @@ FILE_LIST = %w[
 EXCLUDE = %w[
   lib/gitlab/git/commit_stats.rb
   lib/gitlab/git/conflict/resolver.rb
+  lib/gitlab/git/diff_collection.rb
+  lib/gitlab/git/storage/
+  lib/gitlab/git/storage.rb
+  lib/gitlab/git/tree.rb
 ].freeze
 
 REMOTE = 'https://gitlab.com/gitlab-org/gitlab-ce'.freeze
