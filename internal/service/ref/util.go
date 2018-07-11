@@ -26,24 +26,28 @@ func buildLocalBranch(c *catfile.Batch, elements [][]byte) (*pb.FindLocalBranchR
 	if err != nil {
 		return nil, err
 	}
-	author := pb.FindLocalBranchCommitAuthor{
-		Name:  target.Author.Name,
-		Email: target.Author.Email,
-		Date:  target.Author.Date,
-	}
-	committer := pb.FindLocalBranchCommitAuthor{
-		Name:  target.Committer.Name,
-		Email: target.Committer.Email,
-		Date:  target.Committer.Date,
+
+	response := &pb.FindLocalBranchResponse{
+		Name:          elements[0],
+		CommitId:      target.Id,
+		CommitSubject: target.Subject,
 	}
 
-	return &pb.FindLocalBranchResponse{
-		Name:            elements[0],
-		CommitId:        target.Id,
-		CommitSubject:   target.Subject,
-		CommitAuthor:    &author,
-		CommitCommitter: &committer,
-	}, nil
+	author := target.GetAuthor()
+	response.CommitAuthor = &pb.FindLocalBranchCommitAuthor{
+		Name:  author.Name,
+		Email: author.Email,
+		Date:  author.Date,
+	}
+
+	committer := target.GetCommitter()
+	response.CommitCommitter = &pb.FindLocalBranchCommitAuthor{
+		Name:  committer.Name,
+		Email: committer.Email,
+		Date:  committer.Date,
+	}
+
+	return response, nil
 }
 
 func buildBranch(c *catfile.Batch, elements [][]byte) (*pb.FindAllBranchesResponse_Branch, error) {
