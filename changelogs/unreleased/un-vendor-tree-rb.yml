@@ -1,0 +1,5 @@
+---
+title: Stop vendoring some gitlab_git files we don't need
+merge_request: 801
+author:
+type: other
