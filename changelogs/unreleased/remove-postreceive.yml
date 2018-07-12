@@ -1,0 +1,5 @@
+---
+title: Remove implementation of Notifications::PostReceive
+merge_request: 806
+author:
+type: removed
