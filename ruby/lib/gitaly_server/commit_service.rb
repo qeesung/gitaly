@@ -21,6 +21,7 @@ module GitalyServer
       end
     end
 
+    # TODO remove this implementation in GitLab 11.3
     def list_commits_by_oid(request, call)
       bridge_exceptions do
         repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)

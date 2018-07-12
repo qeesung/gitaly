@@ -220,4 +220,5 @@ test-vendor-gitaly-ruby:
     - DEBIAN_FRONTEND=noninteractive apt-get update -qq && apt-get -q -y install rsync
   script:
     - _support/vendor-gitlab-git master
+    - git diff
     - make test

@@ -1,5 +1,25 @@
 # Gitaly changelog
 
+## v0.112.0
+
+#### Fixed
+- Translate more ListConflictFiles errors into FailedPrecondition
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/797
+- Implement fetch keep-around refs in create from bundle
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/790
+- Remove unnecessary commit size calculations
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/791
+
+#### Other
+- Add validation for config keys
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/788
+- Vendor gitlab-git at b14b31b819f0f09d73e001
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/792
+
+#### Performance
+- Rewrite ListCommitsByOid in Go
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/787
+
 ## v0.111.1
 
 #### Fixed

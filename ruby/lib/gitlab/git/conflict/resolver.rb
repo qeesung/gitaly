@@ -2,7 +2,7 @@ module Gitlab
   module Git
     module Conflict
       class Resolver
-        ConflictSideMissing = Class.new(StandardError)
+        ListError = Class.new(StandardError)
         ResolutionError = Class.new(StandardError)
 
         def initialize(target_repository, our_commit_oid, their_commit_oid)
@@ -12,29 +12,13 @@ module Gitlab
         end
 
         def conflicts
-          @conflicts ||= begin
-            @target_repository.gitaly_migrate(:conflicts_list_conflict_files) do |is_enabled|
-              if is_enabled
-                gitaly_conflicts_client(@target_repository).list_conflict_files.to_a
-              else
-                rugged_list_conflict_files
-              end
-            end
-          end
-        rescue GRPC::FailedPrecondition => e
-          raise Gitlab::Git::Conflict::Resolver::ConflictSideMissing.new(e.message)
-        rescue Rugged::ReferenceError, Rugged::OdbError, GRPC::BadStatus => e
-          raise Gitlab::Git::CommandError.new(e)
+          @conflicts = rugged_list_conflict_files
+        rescue Rugged::ReferenceError, Rugged::OdbError => e
+          raise ListError.new(e)
         end
 
         def resolve_conflicts(source_repository, resolution, source_branch:, target_branch:)
-          source_repository.gitaly_migrate(:conflicts_resolve_conflicts) do |is_enabled|
-            if is_enabled
-              gitaly_conflicts_client(source_repository).resolve_conflicts(@target_repository, resolution, source_branch, target_branch)
-            else
-              rugged_resolve_conflicts(source_repository, resolution, source_branch, target_branch)
-            end
-          end
+          rugged_resolve_conflicts(source_repository, resolution, source_branch, target_branch)
         end
 
         def conflict_for_path(conflicts, old_path, new_path)
@@ -47,7 +31,7 @@ module Gitlab
 
         def conflict_files(repository, index)
           index.conflicts.map do |conflict|
-            raise ConflictSideMissing unless conflict[:theirs] && conflict[:ours]
+            raise ListError unless conflict[:theirs] && conflict[:ours]
 
             Gitlab::Git::Conflict::File.new(
               repository,
@@ -56,10 +40,6 @@ module Gitlab
               index.merge_file(conflict[:ours][:path])[:data]
             )
           end
-        end
-
-        def gitaly_conflicts_client(repository)
-          repository.gitaly_conflicts_client(@our_commit_oid, @their_commit_oid)
         end
 
         def write_resolved_file_to_index(repository, index, file, params)
