@@ -8,7 +8,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/conflicts"
 	"gitlab.com/gitlab-org/gitaly/internal/service/diff"
 	"gitlab.com/gitlab-org/gitaly/internal/service/namespace"
-	"gitlab.com/gitlab-org/gitaly/internal/service/notifications"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
@@ -31,7 +30,6 @@ func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	pb.RegisterCommitServiceServer(grpcServer, commit.NewServer(rubyServer))
 	pb.RegisterDiffServiceServer(grpcServer, diff.NewServer(rubyServer))
 	pb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer())
-	pb.RegisterNotificationServiceServer(grpcServer, notifications.NewServer())
 	pb.RegisterOperationServiceServer(grpcServer, operations.NewServer(rubyServer))
 	pb.RegisterRefServiceServer(grpcServer, ref.NewServer(rubyServer))
 	pb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(rubyServer))
