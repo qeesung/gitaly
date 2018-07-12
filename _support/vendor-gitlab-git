@@ -11,12 +11,14 @@ FILE_LIST = %w[
 
 # We have (already) stopped vendoring these files.
 EXCLUDE = %w[
+  lib/gitlab/git/blob.rb
   lib/gitlab/git/blob_snippet.rb
   lib/gitlab/git/commit_stats.rb
   lib/gitlab/git/compare.rb
   lib/gitlab/git/conflict/resolver.rb
   lib/gitlab/git/diff_collection.rb
   lib/gitlab/git/gitmodules_parser.rb
+  lib/gitlab/git/rev_list.rb
   lib/gitlab/git/storage/
   lib/gitlab/git/storage.rb
   lib/gitlab/git/tree.rb
