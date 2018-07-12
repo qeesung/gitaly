@@ -37,6 +37,16 @@ module TestRepo
     File.join(DEFAULT_STORAGE_DIR, gitaly_repo.relative_path)
   end
 
+  def gitlab_git_from_gitaly(gitaly_repo)
+    Gitlab::Git::Repository.new(
+      gitaly_repo,
+      repo_path_from_gitaly(gitaly_repo),
+      '',
+      nil,
+      ''
+    )
+  end
+
   def self.clone_new_repo!(destination)
     return if system(*%W[git clone --quiet --bare #{TEST_REPO_ORIGIN} #{destination}])
     abort "Failed to clone test repo. Try running 'make prepare-tests' and try again."
