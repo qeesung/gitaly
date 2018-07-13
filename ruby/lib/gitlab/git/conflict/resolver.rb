@@ -14,7 +14,7 @@ module Gitlab
         def conflicts
           @conflicts = rugged_list_conflict_files
         rescue Rugged::ReferenceError, Rugged::OdbError => e
-          raise ListError.new(e)
+          raise ListError, e
         end
 
         def resolve_conflicts(source_repository, resolution, source_branch:, target_branch:)
@@ -31,7 +31,9 @@ module Gitlab
 
         def conflict_files(repository, index)
           index.conflicts.map do |conflict|
-            raise ListError unless conflict[:theirs] && conflict[:ours]
+            unless conflict[:theirs] && conflict[:ours]
+              raise ListError, 'conflict side missing'
+            end
 
             Gitlab::Git::Conflict::File.new(
               repository,
