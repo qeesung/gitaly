@@ -449,6 +449,52 @@ module Gitlab
         rugged_fetch_source_branch(source_repository, source_branch, local_ref)
       end
 
+      # Directly find a branch with a simple name (e.g. master)
+      #
+      # force_reload causes a new Rugged repository to be instantiated
+      #
+      # This is to work around a bug in libgit2 that causes in-memory refs to
+      # be stale/invalid when packed-refs is changed.
+      # See https://gitlab.com/gitlab-org/gitlab-ce/issues/15392#note_14538333
+      def find_branch(name, force_reload = false)
+        reload_rugged if force_reload
+
+        rugged_ref = rugged.branches[name]
+        if rugged_ref
+          target_commit = Gitlab::Git::Commit.find(self, rugged_ref.target)
+          Gitlab::Git::Branch.new(self, rugged_ref.name, rugged_ref.target, target_commit)
+        end
+      end
+
+      # Delete the specified branch from the repository
+      def delete_branch(branch_name)
+        rugged.branches.delete(branch_name)
+      rescue Rugged::ReferenceError => e
+        raise DeleteBranchError, e
+      end
+
+      def delete_refs(*ref_names)
+        git_delete_refs(*ref_names)
+      end
+
+      def delete_all_refs_except(prefixes)
+        delete_refs(*all_ref_names_except(prefixes))
+      end
+
+      # Returns true if the given branch exists
+      #
+      # name - The name of the branch as a String.
+      def branch_exists?(name)
+        rugged.branches.exists?(name)
+
+      # If the branch name is invalid (e.g. ".foo") Rugged will raise an error.
+      # Whatever code calls this method shouldn't have to deal with that so
+      # instead we just return `false` (which is true since a branch doesn't
+      # exist when it has an invalid name).
+      rescue Rugged::ReferenceError
+        false
+      end
+
       private
 
       def uncached_has_local_branches?
@@ -532,6 +578,20 @@ module Gitlab
 
       def format_git_cat_file_script
         File.expand_path('../support/format-git-cat-file-input', __FILE__)
+      end
+
+      def git_delete_refs(*ref_names)
+        instructions = ref_names.map do |ref|
+          "delete #{ref}\x00\x00"
+        end
+
+        message, status = run_git(%w[update-ref --stdin -z]) do |stdin|
+          stdin.write(instructions.join)
+        end
+
+        unless status.zero?
+          raise GitError.new("Could not delete refs #{ref_names}: #{message}")
+        end
       end
     end
   end
