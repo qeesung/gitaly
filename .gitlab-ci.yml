@@ -79,7 +79,7 @@ build:go1.10:
 
 build:go1.9:
   <<: *build_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.16
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.18
 
 binaries_go1.10:
   <<: *assemble_definition
@@ -87,7 +87,7 @@ binaries_go1.10:
 
 binaries_go1.9:
   <<: *assemble_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.16
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.18
 
 test:default:
   <<: *test_definition
@@ -95,34 +95,6 @@ test:default:
 test:go1.9-git2.9-ruby-2.4:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.9
-
-test:go1.9-git2.14-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.14
-
-test:go1.10-git2.14-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.14
-
-test:go1.9-git2.16-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.16
-
-test:go1.10-git2.16-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.16
-
-test:go1.9-git2.17-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.9-git-2.17
-
-test:go1.10-git2.17-ruby.2-4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.17
-
-test:go1.10-git2.17-ruby-2.3:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.3-golang-1.10-git-2.17
 
 test:go1.9-git2.18-ruby-2.4:
   <<: *test_definition
