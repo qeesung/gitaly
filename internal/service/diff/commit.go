@@ -23,7 +23,7 @@ func (s *server) CommitDiff(in *pb.CommitDiffRequest, stream pb.DiffService_Comm
 		"LeftCommitId":           in.LeftCommitId,
 		"RightCommitId":          in.RightCommitId,
 		"IgnoreWhitespaceChange": in.IgnoreWhitespaceChange,
-		"Paths":                  in.Paths,
+		"Paths":                  logPaths(in.Paths),
 	}).Debug("CommitDiff")
 
 	if err := validateRequest(in); err != nil {
@@ -116,7 +116,7 @@ func (s *server) CommitDelta(in *pb.CommitDeltaRequest, stream pb.DiffService_Co
 	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
 		"LeftCommitId":  in.LeftCommitId,
 		"RightCommitId": in.RightCommitId,
-		"Paths":         in.Paths,
+		"Paths":         logPaths(in.Paths),
 	}).Debug("CommitDelta")
 
 	if err := validateRequest(in); err != nil {
@@ -235,4 +235,12 @@ func deltaSize(diff *diff.Diff) int {
 		len(diff.FromPath) + len(diff.ToPath)
 
 	return size
+}
+
+func logPaths(paths [][]byte) []string {
+	result := make([]string, len(paths))
+	for i, p := range paths {
+		result[i] = string(p)
+	}
+	return result
 }
