@@ -199,7 +199,7 @@ module Gitlab
       def ancestor?(from, to)
         return false if from.nil? || to.nil?
 
-        rugged_merge_base(from, to) == from
+        merge_base(from, to) == from
       rescue Rugged::OdbError
         false
       end
@@ -495,6 +495,39 @@ module Gitlab
         false
       end
 
+      def merge_base(from, to)
+        rugged.merge_base(from, to)
+      rescue Rugged::ReferenceError
+        nil
+      end
+
+      def write_ref(ref_path, ref, old_ref: nil, shell: true)
+        if shell
+          shell_write_ref(ref_path, ref, old_ref)
+        else
+          rugged_write_ref(ref_path, ref)
+        end
+      end
+
+      # Lookup for rugged object by oid or ref name
+      def lookup(oid_or_ref_name)
+        rugged.rev_parse(oid_or_ref_name)
+      end
+
+      def commit_index(user, branch_name, index, options)
+        committer = user_to_committer(user)
+
+        OperationService.new(user, self).with_branch(branch_name) do
+          commit_params = options.merge(
+            tree: index.write_tree(rugged),
+            author: committer,
+            committer: committer
+          )
+
+          create_commit(commit_params)
+        end
+      end
+
       private
 
       def uncached_has_local_branches?
@@ -592,6 +625,76 @@ module Gitlab
         unless status.zero?
           raise GitError.new("Could not delete refs #{ref_names}: #{message}")
         end
+      end
+
+      def rugged_cherry_pick(user:, commit:, branch_name:, message:, start_branch_name:, start_repository:)
+        OperationService.new(user, self).with_branch(
+          branch_name,
+          start_branch_name: start_branch_name,
+          start_repository: start_repository
+        ) do |start_commit|
+
+          Gitlab::Git.check_namespace!(commit, start_repository)
+
+          cherry_pick_tree_id = check_cherry_pick_content(commit, start_commit.sha)
+          raise CreateTreeError unless cherry_pick_tree_id
+
+          committer = user_to_committer(user)
+
+          create_commit(message: message,
+                        author: {
+                            email: commit.author_email,
+                            name: commit.author_name,
+                            time: commit.authored_date
+                        },
+                        committer: committer,
+                        tree: cherry_pick_tree_id,
+                        parents: [start_commit.sha])
+        end
+      end
+
+      def check_cherry_pick_content(target_commit, source_sha)
+        args = [target_commit.sha, source_sha]
+        args << 1 if target_commit.merge_commit?
+
+        cherry_pick_index = rugged.cherrypick_commit(*args)
+        return false if cherry_pick_index.conflicts?
+
+        tree_id = cherry_pick_index.write_tree(rugged)
+        return false unless diff_exists?(source_sha, tree_id)
+
+        tree_id
+      end
+
+      def create_commit(params = {})
+        params[:message].delete!("\r")
+
+        Rugged::Commit.create(rugged, params)
+      end
+
+      def shell_write_ref(ref_path, ref, old_ref)
+        raise ArgumentError, "invalid ref_path #{ref_path.inspect}" if ref_path.include?(' ')
+        raise ArgumentError, "invalid ref #{ref.inspect}" if ref.include?("\x00")
+        raise ArgumentError, "invalid old_ref #{old_ref.inspect}" if !old_ref.nil? && old_ref.include?("\x00")
+
+        input = "update #{ref_path}\x00#{ref}\x00#{old_ref}\x00"
+        run_git!(%w[update-ref --stdin -z]) { |stdin| stdin.write(input) }
+      end
+
+      def rugged_write_ref(ref_path, ref)
+        rugged.references.create(ref_path, ref, force: true)
+      rescue Rugged::ReferenceError => ex
+        Rails.logger.error "Unable to create #{ref_path} reference for repository #{path}: #{ex}"
+      rescue Rugged::OSError => ex
+        raise unless ex.message =~ /Failed to create locked file/ && ex.message =~ /File exists/
+
+        Rails.logger.error "Unable to create #{ref_path} reference for repository #{path}: #{ex}"
+      end
+
+      def rugged_head
+        rugged.head
+      rescue Rugged::ReferenceError
+        nil
       end
     end
   end
