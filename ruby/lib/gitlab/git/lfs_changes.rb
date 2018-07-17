@@ -1,6 +1,11 @@
 module Gitlab
   module Git
     class LfsChanges
+      def initialize(repository, newrev)
+        @repository = repository
+        @newrev = newrev
+      end
+
       def new_pointers(object_limit: nil, not_in: nil)
         git_new_pointers(object_limit, not_in)
       end
