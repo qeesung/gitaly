@@ -1,5 +1,5 @@
 ---
 title: Exclude more gitlab_git files from vendoring
-merge_request:
+merge_request: 815
 author:
 type: other
