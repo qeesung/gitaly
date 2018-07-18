@@ -29,7 +29,6 @@ module Gitlab
         #
         #   Commit.find(repo, 'master')
         #
-        # Gitaly migration: https://gitlab.com/gitlab-org/gitaly/issues/321
         def find(repo, commit_id = "HEAD")
           # Already a commit?
           return commit_id if commit_id.is_a?(Gitlab::Git::Commit)
