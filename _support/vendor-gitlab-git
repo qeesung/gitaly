@@ -14,6 +14,7 @@ EXCLUDE = %w[
   lib/gitlab/git/blame.rb
   lib/gitlab/git/blob.rb
   lib/gitlab/git/blob_snippet.rb
+  lib/gitlab/git/commit.rb
   lib/gitlab/git/commit_stats.rb
   lib/gitlab/git/compare.rb
   lib/gitlab/git/conflict/resolver.rb
