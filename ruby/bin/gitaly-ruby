@@ -42,7 +42,10 @@ def main
     sleep
   end
 
-  trap('TERM') { signal_thread.kill }
+  %w[TERM INT].each do |signal|
+    trap(signal) { signal_thread.kill }
+  end
+
   start_parent_watcher(ppid_i, signal_thread)
 
   run_thread = Thread.new do
