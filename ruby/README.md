@@ -44,3 +44,13 @@ between gitlab-ce / gitlab-ee and `gitaly-ruby`.
 To update the vendored copy of Gitlab::Git, run
 `_support/vendor-gitlab-git COMMIT_ID` from the root of the Gitaly
 repository.
+
+## Development
+
+Gitaly-ruby is only meant to be spawned by Gitaly itself. But, during
+development you may want to try spawning it in a terminal yourself.
+You can do that with the following incantation:
+
+```shell
+sh -c 'bin/gitaly-ruby $$ tmp/socket & wait'
+```
