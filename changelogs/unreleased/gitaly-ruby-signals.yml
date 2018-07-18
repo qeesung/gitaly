@@ -1,0 +1,5 @@
+---
+title: Catch SIGINT in gitaly-ruby
+merge_request: 818
+author:
+type: other
