@@ -1,0 +1,5 @@
+---
+title: Fix lines.Sender message chunking
+merge_request: 817
+author:
+type: fixed
