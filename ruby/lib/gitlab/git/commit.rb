@@ -1,4 +1,3 @@
-# Gitlab::Git::Commit is a wrapper around native Rugged::Commit object
 module Gitlab
   module Git
     class Commit
@@ -23,24 +22,6 @@ module Gitlab
       end
 
       class << self
-        # Get commits collection
-        #
-        # Ex.
-        #   Commit.where(
-        #     repo: repo,
-        #     ref: 'master',
-        #     path: 'app/models',
-        #     limit: 10,
-        #     offset: 5,
-        #   )
-        #
-        def where(options)
-          repo = options.delete(:repo)
-          raise 'Gitlab::Git::Repository is required' unless repo.respond_to?(:log)
-
-          repo.log(options)
-        end
-
         # Get single commit
         #
         # Ex.
@@ -78,86 +59,8 @@ module Gitlab
           obj.is_a?(Rugged::Commit) ? obj : nil
         end
 
-        # Get last commit for HEAD
-        #
-        # Ex.
-        #   Commit.last(repo)
-        #
-        def last(repo)
-          find(repo)
-        end
-
-        # Get last commit for specified path and ref
-        #
-        # Ex.
-        #   Commit.last_for_path(repo, '29eda46b', 'app/models')
-        #
-        #   Commit.last_for_path(repo, 'master', 'Gemfile')
-        #
-        def last_for_path(repo, ref, path = nil)
-          where(
-            repo: repo,
-            ref: ref,
-            path: path,
-            limit: 1
-          ).first
-        end
-
-        # Get commits between two revspecs
-        # See also #repository.commits_between
-        #
-        # Ex.
-        #   Commit.between(repo, '29eda46b', 'master')
-        #
-        def between(repo, base, head)
-          repo.wrapped_gitaly_errors do
-            repo.gitaly_commit_client.between(base, head)
-          end
-        end
-
-        # Returns commits collection
-        #
-        # Ex.
-        #   Commit.find_all(
-        #     repo,
-        #     ref: 'master',
-        #     max_count: 10,
-        #     skip: 5,
-        #     order: :date
-        #   )
-        #
-        #   +options+ is a Hash of optional arguments to git
-        #     :ref is the ref from which to begin (SHA1 or name)
-        #     :max_count is the maximum number of commits to fetch
-        #     :skip is the number of commits to skip
-        #     :order is the commits order and allowed value is :none (default), :date,
-        #        :topo, or any combination of them (in an array). Commit ordering types
-        #        are documented here:
-        #        http://www.rubydoc.info/github/libgit2/rugged/Rugged#SORT_NONE-constant)
-        #
-        # Gitaly migration: https://gitlab.com/gitlab-org/gitaly/issues/326
-        def find_all(repo, options = {})
-          repo.wrapped_gitaly_errors do
-            Gitlab::GitalyClient::CommitService.new(repo).find_all_commits(options)
-          end
-        end
-
         def decorate(repository, commit, ref = nil)
           Gitlab::Git::Commit.new(repository, commit, ref)
-        end
-
-        # Returns the `Rugged` sorting type constant for one or more given
-        # sort types. Valid keys are `:none`, `:topo`, and `:date`, or an array
-        # containing more than one of them. `:date` uses a combination of date and
-        # topological sorting to closer mimic git's native ordering.
-        def rugged_sort_type(sort_type)
-          @rugged_sort_types ||= {
-            none: Rugged::SORT_NONE,
-            topo: Rugged::SORT_TOPO,
-            date: Rugged::SORT_DATE | Rugged::SORT_TOPO
-          }
-
-          @rugged_sort_types.fetch(sort_type, Rugged::SORT_NONE)
         end
 
         def shas_with_signatures(repository, shas)
@@ -168,59 +71,6 @@ module Gitlab
               false
             end
           end
-        end
-
-        # Only to be used when the object ids will not necessarily have a
-        # relation to each other. The last 10 commits for a branch for example,
-        # should go through .where
-        def batch_by_oid(repo, oids)
-          repo.wrapped_gitaly_errors do
-            repo.gitaly_commit_client.list_commits_by_oid(oids)
-          end
-        end
-
-        def extract_signature(repository, commit_id)
-          repository.gitaly_commit_client.extract_signature(commit_id)
-        end
-
-        def extract_signature_lazily(repository, commit_id)
-          BatchLoader.for({ repository: repository, commit_id: commit_id }).batch do |items, loader|
-            items_by_repo = items.group_by { |i| i[:repository] }
-
-            items_by_repo.each do |repo, items|
-              commit_ids = items.map { |i| i[:commit_id] }
-
-              signatures = batch_signature_extraction(repository, commit_ids)
-
-              signatures.each do |commit_sha, signature_data|
-                loader.call({ repository: repository, commit_id: commit_sha }, signature_data)
-              end
-            end
-          end
-        end
-
-        def batch_signature_extraction(repository, commit_ids)
-          repository.gitaly_commit_client.get_commit_signatures(commit_ids)
-        end
-
-        def get_message(repository, commit_id)
-          BatchLoader.for({ repository: repository, commit_id: commit_id }).batch do |items, loader|
-            items_by_repo = items.group_by { |i| i[:repository] }
-
-            items_by_repo.each do |repo, items|
-              commit_ids = items.map { |i| i[:commit_id] }
-
-              messages = get_messages(repository, commit_ids)
-
-              messages.each do |commit_sha, message|
-                loader.call({ repository: repository, commit_id: commit_sha }, message)
-              end
-            end
-          end
-        end
-
-        def get_messages(repository, commit_ids)
-          repository.gitaly_commit_client.get_commit_messages(commit_ids)
         end
       end
 
@@ -267,14 +117,6 @@ module Gitlab
         parent_ids.first
       end
 
-      # Returns a diff object for the changes from this commit's first parent.
-      # If there is no parent, then the diff is between this commit and an
-      # empty repo. See Repository#diff for keys allowed in the +options+
-      # hash.
-      def diff_from_parent(options = {})
-        @repository.gitaly_commit_client.diff_from_parent(self, options)
-      end
-
       # Not to be called directly, but right now its used for tests and in old
       # migrations
       def rugged_diff_from_parent(options = {})
@@ -290,13 +132,6 @@ module Gitlab
 
         diff.find_similar!(break_rewrites: break_rewrites)
         diff
-      end
-
-      def deltas
-        @deltas ||= begin
-          deltas = @repository.gitaly_commit_client.commit_deltas(self)
-          deltas.map { |delta| Gitlab::Git::Diff.new(delta) }
-        end
       end
 
       def has_zero_stats?
@@ -317,10 +152,6 @@ module Gitlab
 
       def date
         committed_date
-      end
-
-      def diffs(options = {})
-        Gitlab::Git::DiffCollection.new(diff_from_parent(options), options)
       end
 
       def parents
