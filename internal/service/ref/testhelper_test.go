@@ -93,9 +93,9 @@ func testMain(m *testing.M) int {
 	}
 	defer rubyServer.Stop()
 
-	// Use 100 bytes as the maximum message size to test that fragmenting the
+	// Force small messages to test that fragmenting the
 	// ref list works correctly
-	lines.MaxMsgSize = 100
+	lines.ItemsPerMessage = 3
 
 	return m.Run()
 }

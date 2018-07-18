@@ -111,7 +111,7 @@ func _findBranchNames(ctx context.Context, repo *pb.Repository) ([][]byte, error
 
 	scanner := bufio.NewScanner(cmd)
 	for scanner.Scan() {
-		names, _ = lines.CopyAndAppend(names, scanner.Bytes())
+		names = lines.CopyAndAppend(names, scanner.Bytes())
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("reading standard input: %v", err)

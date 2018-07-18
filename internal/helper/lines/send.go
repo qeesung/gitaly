@@ -6,27 +6,26 @@ import (
 	"io"
 )
 
-// MaxMsgSize establishes the threshold to flush the buffer when using the
-// `Send` function. It's a variable instead of a constant to make it easier to
+// ItemsPerMessage establishes the threshold to flush the buffer when using the
+// `Send` function. It's a variable instead of a constant to make it possible to
 // override in tests.
-var MaxMsgSize = 1024 * 128 // 128 KiB
+var ItemsPerMessage = 20
 
 // Sender handles a buffer of lines from a Git command
 type Sender func([][]byte) error
 
 type writer struct {
 	sender Sender
-	size   int
 	lines  [][]byte
 	delim  []byte
 }
 
 // CopyAndAppend adds a newly allocated copy of `e` to the `s` slice. Useful to
 // avoid io buffer shennanigans
-func CopyAndAppend(s [][]byte, e []byte) ([][]byte, int) {
+func CopyAndAppend(s [][]byte, e []byte) [][]byte {
 	line := make([]byte, len(e))
-	size := copy(line, e)
-	return append(s, line), size
+	copy(line, e)
+	return append(s, line)
 }
 
 // flush calls the `sender` handler function with the accumulated lines and
@@ -42,7 +41,6 @@ func (w *writer) flush() error {
 
 	// Reset the message
 	w.lines = nil
-	w.size = 0
 
 	return nil
 }
@@ -50,11 +48,9 @@ func (w *writer) flush() error {
 // addLine adds a new line to the writer buffer, and flushes if the maximum
 // size has been achieved
 func (w *writer) addLine(p []byte) error {
-	lines, size := CopyAndAppend(w.lines, p)
-	w.size += size
-	w.lines = lines
+	w.lines = CopyAndAppend(w.lines, p)
 
-	if w.size > MaxMsgSize {
+	if len(w.lines) >= ItemsPerMessage {
 		return w.flush()
 	}
 
