@@ -49,7 +49,7 @@ path = "/home/git/repositories"
 dir = "/home/git/gitaly/ruby"
 
 # # Gitaly-ruby resident set size (RSS) that triggers a memory restart (bytes)
-# max_rss = 300000000
+# max_rss = 200000000
 #
 # # Grace period before a gitaly-ruby process is forcibly terminated after exceeding max_rss (seconds)
 # graceful_restart_timeout = "10m"

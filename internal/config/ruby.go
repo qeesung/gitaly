@@ -36,7 +36,7 @@ func ConfigureRuby() error {
 	}
 
 	if Config.Ruby.MaxRSS == 0 {
-		Config.Ruby.MaxRSS = 300 * 1024 * 1024
+		Config.Ruby.MaxRSS = 200 * 1024 * 1024
 	}
 
 	Config.Ruby.RestartDelay = Config.Ruby.RestartDelayToml.Duration
