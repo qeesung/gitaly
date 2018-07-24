@@ -1,5 +1,5 @@
 ---
 title: Lower gitaly-ruby default max_rss to 200MB
-merge_request:
+merge_request: 833
 author:
 type: other
