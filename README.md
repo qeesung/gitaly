@@ -22,21 +22,24 @@ To see where it fits in please look at [GitLab's architecture](https://docs.gitl
 
 ## Project Goals
 
-Make the git data storage tier of large GitLab instances, and *GitLab.com in particular*, **fast**.
+Fault-tolerant horizontal scale of Git storage in GitLab, and particularly, on gitlab.com.
 
 This will be achieved by focusing on two areas (in this order):
 
-  1. **Move git operations as close to the data as possible**
-     * Migrate from git operations on workers, accessing git data over NFS to
-       Gitaly services running on file-servers accessing git data on local
-       drives ([See our test results](https://gitlab.com/gitlab-com/infrastructure/issues/1912#note_31368476))
-     * Ultimately, this will lead to all git operations occurring via the Gitaly
-       service and the removal of the need for NFS access to git volumes.
-  1. **Optimize git services using caching and other techniques**
+  1. **Migrate from repository access via NFS to gitaly-proto, GitLab's new Git RPC protocol**
+  1. **Evolve from large Gitaly servers managed as "pets" to smaller Gitaly servers that are "cattle" **
 
 ## Current Status
 
-Gitaly has been shipped as part of GitLab since 9.0. We are migrating git operations from in-process Rugged implementations to Gitaly service endpoints.
+As of GitLab 11.1, most application code accesses Git repositories
+through Gitaly instead of direct disk access. We are close to removing
+all Git disk access from gitlab-rails (the Gitaly
+[v1.1](https://gitlab.com/gitlab-org/gitaly/milestones/55) milestone).
+We are even closer to fully supporting the subset of Git operations
+needed by gitlab.com (the
+[v1.0](https://gitlab.com/gitlab-org/gitaly/milestones/54) milestone).
+When these two milestones are closed the migration project will be
+complete.
 
 [The roadmap is available here](doc/ROADMAP.md).
 
