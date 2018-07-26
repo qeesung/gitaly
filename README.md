@@ -22,12 +22,12 @@ To see where it fits in please look at [GitLab's architecture](https://docs.gitl
 
 ## Project Goals
 
-Fault-tolerant horizontal scale of Git storage in GitLab, and particularly, on gitlab.com.
+Fault-tolerant horizontal scaling of Git storage in GitLab, and particularly, on [gitlab.com](https://gitlab.com).
 
 This will be achieved by focusing on two areas (in this order):
 
   1. **Migrate from repository access via NFS to gitaly-proto, GitLab's new Git RPC protocol**
-  1. **Evolve from large Gitaly servers managed as "pets" to smaller Gitaly servers that are "cattle" **
+  1. **Evolve from large Gitaly servers managed as "pets" to smaller Gitaly servers that are "cattle"**
 
 ## Current Status
 
