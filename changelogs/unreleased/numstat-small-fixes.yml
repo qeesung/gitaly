@@ -1,0 +1,5 @@
+---
+title: Move diff parser test to own package
+merge_request: 837
+author:
+type: other
