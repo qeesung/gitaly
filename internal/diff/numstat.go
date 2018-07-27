@@ -21,7 +21,7 @@ type NumStatParser struct {
 }
 
 const (
-	numStatDelimiter = byte(0)
+	numStatDelimiter = 0
 )
 
 // NewDiffNumStatParser returns a new NumStatParser

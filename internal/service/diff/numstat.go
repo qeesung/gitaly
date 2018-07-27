@@ -52,8 +52,7 @@ func (s *server) DiffStats(in *pb.DiffStatsRequest, stream pb.DiffService_DiffSt
 		batch = append(batch, numStat)
 
 		if len(batch) == maxNumStatBatchSize {
-			err := sendStats(batch, stream)
-			if err != nil {
+			if err := sendStats(batch, stream); err != nil {
 				return err
 			}
 
