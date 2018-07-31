@@ -101,7 +101,7 @@ execute RPC's implemented in Ruby instead of Go. The `[gitaly-ruby]`
 section of the config file contains settings for these helper processes.
 
 These processes are known to occasionally suffer from memory leaks.
-Gitaly restarts its gitaly-ruby helpers when there memory exceeds the
+Gitaly restarts its gitaly-ruby helpers when their memory exceeds the
 max\_rss limit.
 
 |name|type|required|notes|
