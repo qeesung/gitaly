@@ -122,7 +122,7 @@ Because Gitaly "owns" Git pushes, gitlab-shell must therefore be
 installed alongside Gitaly. We hope this will be [simplified in the
 future](https://gitlab.com/gitlab-org/gitaly/issues/1226).
 
-```
+```toml
 [gitlab-shell]
 dir = "/home/git/gitlab-shell"
 ```
@@ -135,7 +135,7 @@ dir = "/home/git/gitlab-shell"
 
 Example:
 
-```
+```toml
 [logging]
 level = "warn"
 ```
