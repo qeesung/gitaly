@@ -44,7 +44,7 @@ func (s *server) ListNewCommits(in *pb.ListNewCommitsRequest, stream pb.RefServi
 		}
 		commits = append(commits, commit)
 
-		if len(commits)%10 == 0 {
+		if len(commits) >= 10 {
 			response := &pb.ListNewCommitsResponse{Commits: commits}
 			if err := stream.Send(response); err != nil {
 				return err
