@@ -3,7 +3,6 @@ package ref
 import (
 	"bufio"
 	"regexp"
-	"strings"
 
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -34,27 +33,31 @@ func (s *server) ListNewCommits(in *pb.ListNewCommitsRequest, stream pb.RefServi
 		return status.Errorf(codes.Internal, "ListNewCommits: catfile: %v", err)
 	}
 
-	i := 0
 	commits := []*pb.GitCommit{}
 	scanner := bufio.NewScanner(revList)
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		commit, err := log.GetCommitCatfile(batch, strings.TrimSpace(line))
+		commit, err := log.GetCommitCatfile(batch, line)
 		if err != nil {
 			return status.Errorf(codes.Internal, "ListNewCommits: commit not found: %v", err)
 		}
 		commits = append(commits, commit)
 
-		if i%10 == 0 {
+		if len(commits)%10 == 0 {
 			response := &pb.ListNewCommitsResponse{Commits: commits}
-			stream.Send(response)
+			if err := stream.Send(response); err != nil {
+				return err
+			}
+
 			commits = commits[:0]
 		}
 	}
 
 	response := &pb.ListNewCommitsResponse{Commits: commits}
-	stream.Send(response)
+	if err := stream.Send(response); err != nil {
+		return err
+	}
 
 	return revList.Wait()
 }
