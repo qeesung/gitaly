@@ -54,9 +54,11 @@ func (s *server) ListNewCommits(in *pb.ListNewCommitsRequest, stream pb.RefServi
 		}
 	}
 
-	response := &pb.ListNewCommitsResponse{Commits: commits}
-	if err := stream.Send(response); err != nil {
-		return err
+	if len(commits) > 0 {
+		response := &pb.ListNewCommitsResponse{Commits: commits}
+		if err := stream.Send(response); err != nil {
+			return err
+		}
 	}
 
 	return revList.Wait()
