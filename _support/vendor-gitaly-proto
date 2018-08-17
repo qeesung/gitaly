@@ -5,9 +5,8 @@ PROGNAME = 'vendor-gitaly-proto'
 USAGE = "Usage: #{PROGNAME} [--fork GITALY_PROTO_FORK_REPO] REVISION"
 ORIGIN = 'gitlab.com/gitlab-org/gitaly-proto'
 
-def main(revision, fork_repo:)
-  fork_repo ||= ORIGIN
-  run!(%W[govendor fetch #{ORIGIN}/go::#{fork_repo}/go@#{revision}])
+def main(revision, repo:)
+  run!(%W[govendor fetch #{ORIGIN}/go::#{repo}/go@#{revision}])
 end
 
 def run!(cmd)
@@ -16,7 +15,7 @@ def run!(cmd)
   abort 'command failed' unless system(*cmd)
 end
 
-fork_repo = ARGV.getopts(nil, 'fork:')['fork']
+options = ARGV.getopts(nil, 'fork:')
 abort USAGE unless ARGV.count == 1
 
-main(ARGV.first, fork_repo: fork_repo)
+main(ARGV.first, repo: options['fork'] || ORIGIN)
