@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'optparse'
+require_relative 'run'
 
 PROGNAME = 'vendor-gitaly-proto'
 USAGE = "Usage: #{PROGNAME} [--fork GITALY_PROTO_FORK_REPO] REVISION"
@@ -7,12 +8,6 @@ ORIGIN = 'gitlab.com/gitlab-org/gitaly-proto'
 
 def main(revision, repo:)
   run!(%W[govendor fetch #{ORIGIN}/go::#{repo}/go@#{revision}])
-end
-
-def run!(cmd)
-  print_cmd = cmd.join(' ')
-  warn '> ' + print_cmd
-  abort 'command failed' unless system(*cmd)
 end
 
 options = ARGV.getopts(nil, 'fork:')
