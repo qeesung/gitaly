@@ -108,7 +108,7 @@ The Gitaly Proto changes need to be updated in Gitaly itself before the server
 can be edited.
 
 ```bash
-$ govendor fetch gitlab.com/gitlab-org/gitaly-proto/go^::gitlab.com/<your-username>/gitaly-proto/go@<your-feature-branch>
+$ _support/vendor-gitaly-proto --fork gitlab.com/my-user/gitaly-proto my-branch
 
 # change the versions in Gemfile for gitaly-proto
 # cd ruby

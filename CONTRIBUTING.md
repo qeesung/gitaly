@@ -257,13 +257,13 @@ The following steps take place inside your Gitaly repo.
 
 ```shell
 # for forks:
-govendor fetch gitlab.com/gitlab-org/gitaly-proto/go::gitlab.com/my-user/gitaly-proto/go@my-branch
+_support/vendor-gitaly-proto --fork gitlab.com/my-user/gitaly-proto my-branch
 
 # for a gitlab-org branch:
-govendor fetch gitlab.com/gitlab-org/gitaly-proto/go@my-branch
+_support/vendor-gitaly-proto my-branch
 
 # if the gitaly-proto version you want to use was already released:
-govendor fetch gitlab.com/gitlab-org/gitaly-proto/go@v<tag-version>
+_support/vendor-gitaly-proto v<tag-version>
 ```
 
 - Include the new proto Go code in your next commit with `git add vendor`
