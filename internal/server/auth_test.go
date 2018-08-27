@@ -56,7 +56,7 @@ func TestAuthFailures(t *testing.T) {
 		{
 			desc: "wrong secret new auth",
 			opts: []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2("foobar"))},
-			code: codes.Unauthenticated,
+			code: codes.PermissionDenied,
 		},
 	}
 	for _, tc := range testCases {

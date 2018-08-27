@@ -25,6 +25,13 @@ var (
 	errDenied          = status.Errorf(codes.PermissionDenied, "permission denied")
 )
 
+// AuthInfo contains the authentication information coming from a request
+type AuthInfo struct {
+	Version       string
+	SignedMessage []byte
+	Message       string
+}
+
 // CheckToken checks the 'authentication' header of incoming gRPC
 // metadata in ctx. It returns nil if and only if the token matches
 // secret.
@@ -33,54 +40,64 @@ func CheckToken(ctx context.Context, secret string) error {
 		panic("CheckToken: secret may not be empty")
 	}
 
-	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	authInfo, err := ExtractAuthInfo(ctx)
 	if err != nil {
 		return errUnauthenticated
 	}
 
-	if hmacTokenValid([]byte(token), []byte(secret), time.Now(), timestampThreshold) {
-		return nil
+	switch authInfo.Version {
+	case "v1":
+		decodedToken, err := base64.StdEncoding.DecodeString(authInfo.Message)
+		if err != nil {
+			return errUnauthenticated
+		}
+
+		if tokensEqual(decodedToken, []byte(secret)) {
+			return nil
+		}
+	case "v2":
+		if hmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), time.Now(), timestampThreshold) {
+			return nil
+		}
 	}
 
-	decodedToken, err := base64.StdEncoding.DecodeString(token)
-	if err != nil {
-		return errUnauthenticated
-	}
-
-	// HMAC auth failed. Fallback to comparing to the secret itself
-	if !tokensEqual(decodedToken, []byte(secret)) {
-		return errDenied
-	}
-
-	return nil
+	return errDenied
 }
 
 func tokensEqual(tok1, tok2 []byte) bool {
 	return subtle.ConstantTimeCompare(tok1, tok2) == 1
 }
 
-func hmacTokenValid(token, secret []byte, targetTime time.Time, timestampThreshold time.Duration) bool {
+// ExtractAuthInfo returns an `AuthInfo` with the data extracted from `ctx`
+func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+
+	if err != nil {
+		return nil, err
+	}
+
 	split := strings.SplitN(string(token), ".", 3)
+
 	if len(split) != 3 {
-		return false
+		return &AuthInfo{Version: "v1", Message: token}, nil
 	}
 
 	version, sig, msg := split[0], split[1], split[2]
-	if version != "v2" {
-		return false
-	}
-
 	decodedSig, err := hex.DecodeString(sig)
 	if err != nil {
+		return nil, err
+	}
+
+	return &AuthInfo{Version: version, SignedMessage: decodedSig, Message: msg}, nil
+}
+
+func hmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, timestampThreshold time.Duration) bool {
+	expectedHMAC := hmacSign(secret, message)
+	if !hmac.Equal(signedMessage, expectedHMAC) {
 		return false
 	}
 
-	expectedHMAC := hmacSign(secret, msg)
-	if !hmac.Equal(decodedSig, expectedHMAC) {
-		return false
-	}
-
-	timestamp, err := strconv.ParseInt(msg, 10, 64)
+	timestamp, err := strconv.ParseInt(message, 10, 64)
 	if err != nil {
 		return false
 	}

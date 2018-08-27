@@ -3,6 +3,7 @@ package metadatahandler
 import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -15,9 +16,9 @@ var (
 			Namespace: "gitaly",
 			Subsystem: "service",
 			Name:      "client_requests",
-			Help:      "Counter of client requests received by client, call_site and response code",
+			Help:      "Counter of client requests received by client, call_site, auth version and response code",
 		},
-		[]string{"client_name", "call_site", "grpc_code"},
+		[]string{"client_name", "call_site", "auth_version", "grpc_code"},
 	)
 )
 
@@ -30,6 +31,9 @@ const CallSiteKey = "grpc.meta.call_site"
 
 // ClientNameKey is the key used in ctx_tags to store the client name
 const ClientNameKey = "grpc.meta.client_name"
+
+// AuthVersionKey is the key used in ctx_tags to store the client name
+const AuthVersionKey = "grpc.meta.auth_version"
 
 // Unknown client and feature. Matches the prometheus grpc unknown value
 const unknownValue = "unknown"
@@ -46,13 +50,14 @@ func getFromMD(md metadata.MD, header string) string {
 // addMetadataTags extracts metadata from the connection headers and add it to the
 // ctx_tags, if it is set. Returns values appropriate for use with prometheus labels,
 // using `unknown` if a value is not set
-func addMetadataTags(ctx context.Context) (clientName string, callSite string) {
+func addMetadataTags(ctx context.Context) (clientName string, callSite string, authVersion string) {
 	clientName = unknownValue
 	callSite = unknownValue
+	authVersion = unknownValue
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return clientName, callSite
+		return clientName, callSite, authVersion
 	}
 
 	tags := grpc_ctxtags.Extract(ctx)
@@ -69,17 +74,23 @@ func addMetadataTags(ctx context.Context) (clientName string, callSite string) {
 		tags.Set(ClientNameKey, metadata)
 	}
 
-	return clientName, callSite
+	authInfo, _ := gitalyauth.ExtractAuthInfo(ctx)
+	if authInfo != nil {
+		authVersion = authInfo.Version
+		tags.Set(AuthVersionKey, authInfo.Version)
+	}
+
+	return clientName, callSite, authVersion
 }
 
 // UnaryInterceptor returns a Unary Interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	clientName, callSite := addMetadataTags(ctx)
+	clientName, callSite, authVersion := addMetadataTags(ctx)
 
 	res, err := handler(ctx, req)
 
 	grpcCode := helper.GrpcCode(err)
-	requests.WithLabelValues(clientName, callSite, grpcCode.String()).Inc()
+	requests.WithLabelValues(clientName, callSite, authVersion, grpcCode.String()).Inc()
 
 	return res, err
 }
@@ -87,12 +98,12 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 // StreamInterceptor returns a Stream Interceptor
 func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	ctx := stream.Context()
-	clientName, callSite := addMetadataTags(ctx)
+	clientName, callSite, authVersion := addMetadataTags(ctx)
 
 	err := handler(srv, stream)
 
 	grpcCode := helper.GrpcCode(err)
-	requests.WithLabelValues(clientName, callSite, grpcCode.String()).Inc()
+	requests.WithLabelValues(clientName, callSite, authVersion, grpcCode.String()).Inc()
 
 	return err
 }
