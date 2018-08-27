@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strconv"
@@ -40,7 +41,7 @@ func (s *server) RepositorySize(ctx context.Context, in *pb.RepositorySizeReques
 
 	sizeParts := bytes.Split(sizeLine, []byte("\t"))
 	if len(sizeParts) != 2 {
-		grpc_logrus.Extract(ctx).Warn("ignoring du malformed output: %q", sizeLine)
+		grpc_logrus.Extract(ctx).Warn(fmt.Sprintf("ignoring du malformed output: %q", sizeLine))
 		return repositorySizeResponse(0), nil
 	}
 

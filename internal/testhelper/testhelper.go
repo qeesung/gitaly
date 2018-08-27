@@ -252,7 +252,7 @@ func ConfigureRuby() {
 	}
 
 	if err := config.ConfigureRuby(); err != nil {
-		log.Fatal("validate ruby config: %v", err)
+		log.Fatalf("validate ruby config: %v", err)
 	}
 }
 
