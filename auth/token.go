@@ -35,7 +35,7 @@ type AuthInfo struct {
 // CheckToken checks the 'authentication' header of incoming gRPC
 // metadata in ctx. It returns nil if and only if the token matches
 // secret.
-func CheckToken(ctx context.Context, secret string) error {
+func CheckToken(ctx context.Context, secret string, targetTime time.Time) error {
 	if len(secret) == 0 {
 		panic("CheckToken: secret may not be empty")
 	}
@@ -56,7 +56,7 @@ func CheckToken(ctx context.Context, secret string) error {
 			return nil
 		}
 	case "v2":
-		if hmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), time.Now(), timestampThreshold) {
+		if hmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, timestampThreshold) {
 			return nil
 		}
 	}
@@ -78,6 +78,8 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 
 	split := strings.SplitN(string(token), ".", 3)
 
+	// v1 is base64-encoded using base64.StdEncoding, which cannot contain a ".".
+	// A v1 token cannot slip through here.
 	if len(split) != 3 {
 		return &AuthInfo{Version: "v1", Message: token}, nil
 	}

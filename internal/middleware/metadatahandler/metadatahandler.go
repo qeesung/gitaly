@@ -16,7 +16,7 @@ var (
 			Namespace: "gitaly",
 			Subsystem: "service",
 			Name:      "client_requests",
-			Help:      "Counter of client requests received by client, call_site, auth version and response code",
+			Help:      "Counter of client requests received by client, call_site, auth version, and response code",
 		},
 		[]string{"client_name", "call_site", "auth_version", "grpc_code"},
 	)
@@ -32,7 +32,7 @@ const CallSiteKey = "grpc.meta.call_site"
 // ClientNameKey is the key used in ctx_tags to store the client name
 const ClientNameKey = "grpc.meta.client_name"
 
-// AuthVersionKey is the key used in ctx_tags to store the client name
+// AuthVersionKey is the key used in ctx_tags to store the auth version
 const AuthVersionKey = "grpc.meta.auth_version"
 
 // Unknown client and feature. Matches the prometheus grpc unknown value

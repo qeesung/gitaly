@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+
 	"gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 
@@ -42,7 +44,7 @@ func check(ctx context.Context) (context.Context, error) {
 		return ctx, nil
 	}
 
-	err := gitalyauth.CheckToken(ctx, config.Config.Auth.Token)
+	err := gitalyauth.CheckToken(ctx, config.Config.Auth.Token, time.Now())
 	switch status.Code(err) {
 	case codes.OK:
 		countStatus(okLabel()).Inc()
