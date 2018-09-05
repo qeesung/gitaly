@@ -22,6 +22,12 @@ var (
 	)
 )
 
+type metadataTags struct {
+	clientName  string
+	callSite    string
+	authVersion string
+}
+
 func init() {
 	prometheus.MustRegister(requests)
 }
@@ -50,47 +56,49 @@ func getFromMD(md metadata.MD, header string) string {
 // addMetadataTags extracts metadata from the connection headers and add it to the
 // ctx_tags, if it is set. Returns values appropriate for use with prometheus labels,
 // using `unknown` if a value is not set
-func addMetadataTags(ctx context.Context) (clientName string, callSite string, authVersion string) {
-	clientName = unknownValue
-	callSite = unknownValue
-	authVersion = unknownValue
+func addMetadataTags(ctx context.Context) metadataTags {
+	metaTags := metadataTags{
+		clientName:  unknownValue,
+		callSite:    unknownValue,
+		authVersion: unknownValue,
+	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return clientName, callSite, authVersion
+		return metaTags
 	}
 
 	tags := grpc_ctxtags.Extract(ctx)
 
 	metadata := getFromMD(md, "call_site")
 	if metadata != "" {
-		callSite = metadata
+		metaTags.callSite = metadata
 		tags.Set(CallSiteKey, metadata)
 	}
 
 	metadata = getFromMD(md, "client_name")
 	if metadata != "" {
-		clientName = metadata
+		metaTags.clientName = metadata
 		tags.Set(ClientNameKey, metadata)
 	}
 
 	authInfo, _ := gitalyauth.ExtractAuthInfo(ctx)
 	if authInfo != nil {
-		authVersion = authInfo.Version
+		metaTags.authVersion = authInfo.Version
 		tags.Set(AuthVersionKey, authInfo.Version)
 	}
 
-	return clientName, callSite, authVersion
+	return metaTags
 }
 
 // UnaryInterceptor returns a Unary Interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	clientName, callSite, authVersion := addMetadataTags(ctx)
+	metaTags := addMetadataTags(ctx)
 
 	res, err := handler(ctx, req)
 
 	grpcCode := helper.GrpcCode(err)
-	requests.WithLabelValues(clientName, callSite, authVersion, grpcCode.String()).Inc()
+	requests.WithLabelValues(metaTags.clientName, metaTags.callSite, metaTags.authVersion, grpcCode.String()).Inc()
 
 	return res, err
 }
@@ -98,12 +106,12 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 // StreamInterceptor returns a Stream Interceptor
 func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	ctx := stream.Context()
-	clientName, callSite, authVersion := addMetadataTags(ctx)
+	metaTags := addMetadataTags(ctx)
 
 	err := handler(srv, stream)
 
 	grpcCode := helper.GrpcCode(err)
-	requests.WithLabelValues(clientName, callSite, authVersion, grpcCode.String()).Inc()
+	requests.WithLabelValues(metaTags.clientName, metaTags.callSite, metaTags.authVersion, grpcCode.String()).Inc()
 
 	return err
 }
