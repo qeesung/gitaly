@@ -3,10 +3,11 @@ module Gitlab
     class Index
       IndexError = Class.new(StandardError)
 
-      DEFAULT_MODE = 0o100644
+      DEFAULT_MODE = 0o100644.freeze
+      EXECUTE_MODE = 0o100755.freeze
 
-      ACTIONS = %w(create create_dir update move delete).freeze
-      ACTION_OPTIONS = %i(file_path previous_path content encoding).freeze
+      ACTIONS = %w(create create_dir update move delete chmod).freeze
+      ACTION_OPTIONS = %i(file_path previous_path content encoding execute_filemode).freeze
 
       attr_reader :repository, :raw_index
 
@@ -94,6 +95,20 @@ module Gitlab
         end
 
         raw_index.remove(options[:file_path])
+      end
+
+      def chmod(options)
+        options = normalize_options(options)
+
+        file_entry = get(options[:file_path])
+        unless file_entry
+          raise IndexError, "A file with this name doesn't exist"
+        end
+
+        options[:content] = repository.lookup(file_entry[:oid]).content
+        mode = options[:execute_filemode] ? EXECUTE_MODE : DEFAULT_MODE
+
+        add_blob(options, mode: mode)
       end
 
       private

@@ -86,6 +86,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 			actionsRequest1 := createFileHeaderRequest(filePath)
 			actionsRequest2 := actionContentRequest("My")
 			actionsRequest3 := actionContentRequest(" content")
+			actionsRequest4 := chmodFileHeaderRequest(filePath, true)
 
 			stream, err := client.UserCommitFiles(ctx)
 			require.NoError(t, err)
@@ -93,6 +94,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 			require.NoError(t, stream.Send(actionsRequest1))
 			require.NoError(t, stream.Send(actionsRequest2))
 			require.NoError(t, stream.Send(actionsRequest3))
+			require.NoError(t, stream.Send(actionsRequest4))
 
 			r, err := stream.CloseAndRecv()
 			require.NoError(t, err)
@@ -109,6 +111,8 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 
 			fileContent := testhelper.MustRunCommand(t, nil, "git", "-C", tc.repoPath, "show", headCommit.GetId()+":"+filePath)
 			require.Equal(t, "My content", string(fileContent))
+			commitInfo := testhelper.MustRunCommand(t, nil, "git", "-C", tc.repoPath, "show", headCommit.GetId())
+			require.Contains(t, string(commitInfo), "new file mode 100755")
 		})
 	}
 }
@@ -184,6 +188,14 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 				actionContentRequest("This file already exists"),
 			},
 			indexError: "A file with this name already exists",
+		},
+		{
+			desc: "file doesn't exists",
+			requests: []*pb.UserCommitFilesRequest{
+				headerRequest(testRepo, user, "feature", commitFilesMessage, nil, nil),
+				chmodFileHeaderRequest("documents/story.txt", true),
+			},
+			indexError: "A file with this name doesn't exist",
 		},
 		{
 			desc: "dir already exists",
@@ -296,6 +308,18 @@ func createFileHeaderRequest(filePath string) *pb.UserCommitFilesRequest {
 				Action:        pb.UserCommitFilesActionHeader_CREATE,
 				Base64Content: false,
 				FilePath:      []byte(filePath),
+			},
+		},
+	})
+}
+
+func chmodFileHeaderRequest(filePath string, executeFilemode bool) *pb.UserCommitFilesRequest {
+	return actionRequest(&pb.UserCommitFilesAction{
+		UserCommitFilesActionPayload: &pb.UserCommitFilesAction_Header{
+			Header: &pb.UserCommitFilesActionHeader{
+				Action:          pb.UserCommitFilesActionHeader_CHMOD,
+				FilePath:        []byte(filePath),
+				ExecuteFilemode: executeFilemode,
 			},
 		},
 	})

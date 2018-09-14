@@ -228,6 +228,37 @@ describe Gitlab::Git::Index do
     end
   end
 
+  describe '#chmod' do
+    def entry
+      index.get(options[:file_path])
+    end
+
+    let(:options) do
+      {
+        file_path: 'README.md',
+        execute_filemode: true
+      }
+    end
+
+    context 'when no file at that path exists' do
+      before do
+        options[:file_path] = 'documents/story.txt'
+      end
+
+      it 'raises an error' do
+        expect { index.chmod(options) }.to raise_error("A file with this name doesn't exist")
+      end
+    end
+
+    context 'when a file at that path exists' do
+      it 'updates the execute file mode and leaves the content unchanged' do
+        expect do
+          expect { index.chmod(options) }.not_to change { lookup(entry[:oid]).content }
+        end.to change { entry[:mode] }.from(0o100644).to(0o100755)
+      end
+    end
+  end
+
   def lookup(revision)
     repository.rugged.rev_parse(revision)
   end
