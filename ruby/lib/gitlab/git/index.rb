@@ -105,10 +105,9 @@ module Gitlab
           raise IndexError, "A file with this name doesn't exist"
         end
 
-        options[:content] = repository.lookup(file_entry[:oid]).content
         mode = options[:execute_filemode] ? EXECUTE_MODE : DEFAULT_MODE
 
-        add_blob(options, mode: mode)
+        raw_index.add(path: options[:file_path], oid: file_entry[:oid], mode: mode)
       end
 
       private
