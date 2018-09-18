@@ -1,6 +1,7 @@
 package operations_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -46,36 +47,40 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	authorName := []byte("Jane Doe")
 	authorEmail := []byte("janedoe@gitlab.com")
 	testCases := []struct {
-		desc          string
-		repo          *pb.Repository
-		repoPath      string
-		branchName    string
-		repoCreated   bool
-		branchCreated bool
+		desc            string
+		repo            *pb.Repository
+		repoPath        string
+		branchName      string
+		repoCreated     bool
+		branchCreated   bool
+		executeFilemode bool
 	}{
 		{
-			desc:          "existing repo and branch",
-			repo:          testRepo,
-			repoPath:      testRepoPath,
-			branchName:    "feature",
-			repoCreated:   false,
-			branchCreated: false,
+			desc:            "existing repo and branch",
+			repo:            testRepo,
+			repoPath:        testRepoPath,
+			branchName:      "feature",
+			repoCreated:     false,
+			branchCreated:   false,
+			executeFilemode: true,
 		},
 		{
-			desc:          "existing repo, new branch",
-			repo:          testRepo,
-			repoPath:      testRepoPath,
-			branchName:    "new-branch",
-			repoCreated:   false,
-			branchCreated: true,
+			desc:            "existing repo, new branch",
+			repo:            testRepo,
+			repoPath:        testRepoPath,
+			branchName:      "new-branch",
+			repoCreated:     false,
+			branchCreated:   true,
+			executeFilemode: false,
 		},
 		{
-			desc:          "new repo",
-			repo:          newRepo,
-			repoPath:      newRepoPath,
-			branchName:    "feature",
-			repoCreated:   true,
-			branchCreated: true,
+			desc:            "new repo",
+			repo:            newRepo,
+			repoPath:        newRepoPath,
+			branchName:      "feature",
+			repoCreated:     true,
+			branchCreated:   true,
+			executeFilemode: false,
 		},
 	}
 
@@ -86,7 +91,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 			actionsRequest1 := createFileHeaderRequest(filePath)
 			actionsRequest2 := actionContentRequest("My")
 			actionsRequest3 := actionContentRequest(" content")
-			actionsRequest4 := chmodFileHeaderRequest(filePath, true)
+			actionsRequest4 := chmodFileHeaderRequest(filePath, tc.executeFilemode)
 
 			stream, err := client.UserCommitFiles(ctx)
 			require.NoError(t, err)
@@ -111,8 +116,13 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 
 			fileContent := testhelper.MustRunCommand(t, nil, "git", "-C", tc.repoPath, "show", headCommit.GetId()+":"+filePath)
 			require.Equal(t, "My content", string(fileContent))
+
 			commitInfo := testhelper.MustRunCommand(t, nil, "git", "-C", tc.repoPath, "show", headCommit.GetId())
-			require.Contains(t, string(commitInfo), "new file mode 100755")
+			expectedFilemode := "100644"
+			if tc.executeFilemode == true {
+				expectedFilemode = "100755"
+			}
+			require.Contains(t, string(commitInfo), fmt.Sprint("new file mode ", expectedFilemode))
 		})
 	}
 }
