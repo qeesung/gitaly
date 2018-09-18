@@ -56,31 +56,37 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 		executeFilemode bool
 	}{
 		{
-			desc:            "existing repo and branch",
+			desc:          "existing repo and branch",
+			repo:          testRepo,
+			repoPath:      testRepoPath,
+			branchName:    "feature",
+			repoCreated:   false,
+			branchCreated: false,
+		},
+		{
+			desc:          "existing repo, new branch",
+			repo:          testRepo,
+			repoPath:      testRepoPath,
+			branchName:    "new-branch",
+			repoCreated:   false,
+			branchCreated: true,
+		},
+		{
+			desc:          "new repo",
+			repo:          newRepo,
+			repoPath:      newRepoPath,
+			branchName:    "feature",
+			repoCreated:   true,
+			branchCreated: true,
+		},
+		{
+			desc:            "create executable file",
 			repo:            testRepo,
 			repoPath:        testRepoPath,
-			branchName:      "feature",
+			branchName:      "feature-executable",
 			repoCreated:     false,
-			branchCreated:   false,
+			branchCreated:   true,
 			executeFilemode: true,
-		},
-		{
-			desc:            "existing repo, new branch",
-			repo:            testRepo,
-			repoPath:        testRepoPath,
-			branchName:      "new-branch",
-			repoCreated:     false,
-			branchCreated:   true,
-			executeFilemode: false,
-		},
-		{
-			desc:            "new repo",
-			repo:            newRepo,
-			repoPath:        newRepoPath,
-			branchName:      "feature",
-			repoCreated:     true,
-			branchCreated:   true,
-			executeFilemode: false,
 		},
 	}
 
