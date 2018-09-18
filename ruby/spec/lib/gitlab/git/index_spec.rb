@@ -251,10 +251,12 @@ describe Gitlab::Git::Index do
     end
 
     context 'when a file at that path exists' do
-      it 'updates the execute file mode and leaves the content unchanged' do
-        expect do
-          expect { index.chmod(options) }.not_to change { lookup(entry[:oid]).content }
-        end.to change { entry[:mode] }.from(0o100644).to(0o100755)
+      it 'updates the execute file mode' do
+        expect { index.chmod(options) }.to change { entry[:mode] }.from(0o100644).to(0o100755)
+      end
+
+      it 'leaves the content unchanged' do
+        expect { index.chmod(options) }.not_to change { lookup(entry[:oid]).content }
       end
     end
   end
