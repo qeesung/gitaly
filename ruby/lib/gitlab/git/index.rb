@@ -3,8 +3,8 @@ module Gitlab
     class Index
       IndexError = Class.new(StandardError)
 
-      DEFAULT_MODE = 0o100644.freeze
-      EXECUTE_MODE = 0o100755.freeze
+      DEFAULT_MODE = 0o100644
+      EXECUTE_MODE = 0o100755
 
       ACTIONS = %w(create create_dir update move delete chmod).freeze
       ACTION_OPTIONS = %i(file_path previous_path content encoding execute_filemode).freeze

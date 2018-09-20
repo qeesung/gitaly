@@ -125,7 +125,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 
 			commitInfo := testhelper.MustRunCommand(t, nil, "git", "-C", tc.repoPath, "show", headCommit.GetId())
 			expectedFilemode := "100644"
-			if tc.executeFilemode == true {
+			if tc.executeFilemode {
 				expectedFilemode = "100755"
 			}
 			require.Contains(t, string(commitInfo), fmt.Sprint("new file mode ", expectedFilemode))
