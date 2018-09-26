@@ -50,16 +50,20 @@ end
 def wait_ready!(socket)
   last_exception = StandardError.new('wait_ready! has not made any connection attempts')
 
-  10.times do |i|
+  print('Booting gitaly for integration tests')
+  100.times do |i|
     sleep 0.1
+    printf('.')
     begin
       UNIXSocket.new(socket).close
+      puts ' ok'
       return
     rescue => ex
       last_exception = ex
     end
   end
 
+  puts
   raise last_exception
 end
 
