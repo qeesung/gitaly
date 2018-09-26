@@ -48,7 +48,7 @@ def start_gitaly
 end
 
 def wait_ready!(socket)
-  last_exception = nil
+  last_exception = StandardError.new('wait_ready! has not made any connection attempts')
 
   10.times do |i|
     sleep 0.1
