@@ -7,7 +7,7 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay
-  CUSTOM_IMAGE_VERSION: ruby-2.4-golang-1.10-git-2.18
+  CUSTOM_IMAGE_VERSION: ruby-2.4-golang-1.11-git-2.18
 
 verify:
   stage: test

@@ -1,0 +1,5 @@
+---
+title: Remove support for Go 1.9
+merge_request:
+author:
+type: deprecated
