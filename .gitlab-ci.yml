@@ -1,4 +1,4 @@
-image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.18
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.11-git-2.18
 
 stages:
   - build
@@ -97,10 +97,6 @@ test:default:
 test:go1.10-git2.18-ruby-2.4:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.18
-
-test:go1.11-git2.18-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.11-git-2.18
 
 race:
   <<: *go_test_definition
