@@ -35,10 +35,7 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		return 0, nil, nil // want more data
 	}
 
-	if bytes.HasPrefix(data, []byte("000")) && (data[3] < '4') && (data[3] >= '0') {
-		// special case: "000x" packet with x < 4: return empty token
-		return 4, data[:0], nil
-	}
+	// Invariant: len(data) >= 4
 
 	// We have at least 4 bytes available so we can decode the 4-hex digit
 	// length prefix of the packet line.
@@ -54,10 +51,20 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		return 0, nil, fmt.Errorf("pktLineSplitter: invalid length: %d", pktLength)
 	}
 
+	if pktLength < 4 {
+		// Special case: magic empty packet 0000, 0001, 0002 or 0003.
+		return 4, data[:0], nil
+	}
+
+	// Invariant: len(data) >= 4, pktLength >= 4
+
 	if len(data) < pktLength {
+		// data contains incomplete packet
+
 		if atEOF {
 			return 0, nil, fmt.Errorf("pktLineSplitter: less than %d bytes in input %q", pktLength, data)
 		}
+
 		return 0, nil, nil // want more data
 	}
 
