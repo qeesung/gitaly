@@ -222,9 +222,9 @@ func makePostUploadPackRequest(t *testing.T, serverSocketPath string, in *pb.Pos
 func extractPackDataFromResponse(t *testing.T, buf *bytes.Buffer) ([]byte, int, int) {
 	var pack []byte
 
-	// The response should have the following format, where <length> is always four hexadecimal digits.
-	// <length><data>
-	// <length><data>
+	// The response should have the following format.
+	// PKT-LINE
+	// PKT-LINE
 	// ...
 	// 0000
 	scanner := pktline.NewScanner(buf)
