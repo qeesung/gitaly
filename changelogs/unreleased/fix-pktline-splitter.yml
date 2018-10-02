@@ -1,5 +1,5 @@
 ---
 title: Fix panic in git pktline splitter
-merge_request:
+merge_request: 893
 author:
 type: fixed
