@@ -39,14 +39,13 @@ func IsFlush(pkt []byte) bool {
 }
 
 // WriteString writes a string with pkt-line framing
-func WriteString(w io.Writer, str string) error {
+func WriteString(w io.Writer, str string) (int, error) {
 	pktLen := len(str) + 4
 	if pktLen > maxPktSize {
-		return fmt.Errorf("string too large: %d bytes", len(str))
+		return 0, fmt.Errorf("string too large: %d bytes", len(str))
 	}
 
-	_, err := fmt.Fprintf(w, "%04x%s", pktLen, str)
-	return err
+	return fmt.Fprintf(w, "%04x%s", pktLen, str)
 }
 
 // WriteFlush write a pkt flush packet.

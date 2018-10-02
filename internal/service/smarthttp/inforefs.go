@@ -56,7 +56,7 @@ func handleInfoRefs(ctx context.Context, service string, req *pb.InfoRefsRequest
 		return status.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 
-	if err := pktline.WriteString(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
+	if _, err := pktline.WriteString(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return status.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)
 	}
 
