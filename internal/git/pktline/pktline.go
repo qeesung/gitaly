@@ -13,6 +13,7 @@ import (
 
 const (
 	maxPktSize = 0xffff
+	flush      = "0000"
 )
 
 // NewScanner returns a bufio.Scanner that splits on Git pktline boundaries
@@ -32,9 +33,26 @@ func Data(pkt []byte) []byte {
 	return pkt[4:]
 }
 
-// IsMagic detects magic packets such as '0000'
-func IsMagic(pkt []byte) bool {
-	return len(pkt) == 4 && bytes.HasPrefix(pkt, []byte("000")) && pkt[3] < '4' && pkt[3] >= '0'
+// IsFlush detects the special flush packet '0000'
+func IsFlush(pkt []byte) bool {
+	return bytes.Equal(pkt, []byte(flush))
+}
+
+// WriteString writes a string with pkt-line framing
+func WriteString(w io.Writer, str string) error {
+	pktLen := len(str) + 4
+	if pktLen > maxPktSize {
+		return fmt.Errorf("string too large: %d bytes", len(str))
+	}
+
+	_, err := fmt.Fprintf(w, "%04x%s", pktLen, str)
+	return err
+}
+
+// WriteFlush write a pkt flush packet.
+func WriteFlush(w io.Writer) error {
+	_, err := w.Write([]byte(flush))
+	return err
 }
 
 func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {

@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -65,10 +65,10 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	// UploadPack request is a "want" packet line followed by a packet flush, then many "have" packets followed by a packet flush.
 	// This is explained a bit in https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols#_downloading_data
 	requestBuffer := &bytes.Buffer{}
-	pktLine(requestBuffer, fmt.Sprintf("want %s %s\n", newHead, clientCapabilities))
-	pktFlush(requestBuffer)
-	pktLine(requestBuffer, fmt.Sprintf("have %s\n", oldHead))
-	pktFlush(requestBuffer)
+	pktline.WriteString(requestBuffer, fmt.Sprintf("want %s %s\n", newHead, clientCapabilities))
+	pktline.WriteFlush(requestBuffer)
+	pktline.WriteString(requestBuffer, fmt.Sprintf("have %s\n", oldHead))
+	pktline.WriteFlush(requestBuffer)
 
 	req := &pb.PostUploadPackRequest{
 		Repository: &pb.Repository{
@@ -120,10 +120,10 @@ func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
 	requestBodyCopy := &bytes.Buffer{}
 	tee := io.MultiWriter(requestBody, requestBodyCopy)
 
-	pktLine(tee, fmt.Sprintf("want %s %s\n", want, clientCapabilities))
-	pktFlush(tee)
-	pktLine(tee, fmt.Sprintf("have %s\n", have))
-	pktFlush(tee)
+	pktline.WriteString(tee, fmt.Sprintf("want %s %s\n", want, clientCapabilities))
+	pktline.WriteFlush(tee)
+	pktline.WriteString(tee, fmt.Sprintf("have %s\n", have))
+	pktline.WriteFlush(tee)
 
 	rpcRequest := &pb.PostUploadPackRequest{
 		Repository: &pb.Repository{
@@ -157,9 +157,9 @@ func TestSuccessfulUploadPackDeepenRequest(t *testing.T) {
 	testRepo := testhelper.TestRepository()
 
 	requestBody := &bytes.Buffer{}
-	pktLine(requestBody, fmt.Sprintf("want e63f41fe459e62e1228fcef60d7189127aeba95a %s\n", clientCapabilities))
-	pktLine(requestBody, "deepen 1")
-	pktFlush(requestBody)
+	pktline.WriteString(requestBody, fmt.Sprintf("want e63f41fe459e62e1228fcef60d7189127aeba95a %s\n", clientCapabilities))
+	pktline.WriteString(requestBody, "deepen 1")
+	pktline.WriteFlush(requestBody)
 
 	rpcRequest := &pb.PostUploadPackRequest{Repository: testRepo}
 	response, err := makePostUploadPackRequest(t, serverSocketPath, rpcRequest, requestBody)
@@ -227,27 +227,19 @@ func extractPackDataFromResponse(t *testing.T, buf *bytes.Buffer) ([]byte, int, 
 	// <length><data>
 	// ...
 	// 0000
-	for {
-		pktLenStr := buf.Next(4)
-		if len(pktLenStr) != 4 {
-			return nil, 0, 0
-		}
-		if string(pktLenStr) == pktFlushStr {
+	scanner := pktline.NewScanner(buf)
+	for scanner.Scan() {
+		pkt := scanner.Bytes()
+		if pktline.IsFlush(pkt) {
 			break
 		}
 
-		pktLen, err := strconv.ParseUint(string(pktLenStr), 16, 16)
-		require.NoError(t, err)
-
-		restPktLen := int(pktLen) - 4
-		pkt := buf.Next(restPktLen)
-		require.Equal(t, restPktLen, len(pkt), "Incomplete packet read")
-
-		// The first byte of the packet is the band designator. We only care about data in band 1.
-		if pkt[0] == 1 {
-			pack = append(pack, pkt[1:]...)
+		// The first data byte of the packet is the band designator. We only care about data in band 1.
+		if data := pktline.Data(pkt); len(data) > 0 && data[0] == 1 {
+			pack = append(pack, data[1:]...)
 		}
 	}
+	require.NoError(t, scanner.Err())
 
 	// The packet is structured as follows:
 	// 4 bytes for signature, here it's "PACK"

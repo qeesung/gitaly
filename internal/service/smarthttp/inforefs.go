@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	pb "gitlab.com/gitlab-org/gitaly-proto/go"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 
@@ -55,11 +56,11 @@ func handleInfoRefs(ctx context.Context, service string, req *pb.InfoRefsRequest
 		return status.Errorf(codes.Internal, "GetInfoRefs: cmd: %v", err)
 	}
 
-	if err := pktLine(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
+	if err := pktline.WriteString(w, fmt.Sprintf("# service=git-%s\n", service)); err != nil {
 		return status.Errorf(codes.Internal, "GetInfoRefs: pktLine: %v", err)
 	}
 
-	if err := pktFlush(w); err != nil {
+	if err := pktline.WriteFlush(w); err != nil {
 		return status.Errorf(codes.Internal, "GetInfoRefs: pktFlush: %v", err)
 	}
 
@@ -72,14 +73,4 @@ func handleInfoRefs(ctx context.Context, service string, req *pb.InfoRefsRequest
 	}
 
 	return nil
-}
-
-func pktLine(w io.Writer, s string) error {
-	_, err := fmt.Fprintf(w, "%04x%s", len(s)+4, s)
-	return err
-}
-
-func pktFlush(w io.Writer) error {
-	_, err := fmt.Fprint(w, "0000")
-	return err
 }
