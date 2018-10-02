@@ -3,6 +3,8 @@ package pktline
 // Utility functions for working with the Git pkt-line format. See
 // https://github.com/git/git/blob/master/Documentation/technical/protocol-common.txt
 
+// TODO add tests https://gitlab.com/gitlab-org/gitaly/issues/1340
+
 import (
 	"bufio"
 	"bytes"
