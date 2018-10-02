@@ -35,8 +35,8 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		return 0, nil, nil // want more data
 	}
 
-	if bytes.HasPrefix(data, []byte("0000")) {
-		// special case: "0000" terminator packet: return empty token
+	if bytes.HasPrefix(data, []byte("000")) && (data[3] < '4') && (data[3] >= '0') {
+		// special case: "000x" packet with x < 4: return empty token
 		return 4, data[:0], nil
 	}
 

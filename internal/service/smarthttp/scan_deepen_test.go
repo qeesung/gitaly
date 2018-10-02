@@ -13,7 +13,10 @@ func TestSuccessfulScanDeepen(t *testing.T) {
 		output bool
 	}{
 		{"000dsomething000cdeepen 10000", true},
-		{"000dsomething0000000cdeepen 1", true},
+		{"000dsomething0000000cdeepen 1", true}, // 0000 packet
+		{"000dsomething0001000cdeepen 1", true}, // 0001 packet
+		{"000dsomething0002000cdeepen 1", true}, // 0002 packet
+		{"000dsomething0003000cdeepen 1", true}, // 0003 packet
 		{"000dsomething0000000cdeepen 1" + strings.Repeat("garbage", 1000000), true},
 		{"ffff" + strings.Repeat("x", 65531) + "000cdeepen 1", true},
 		{"000dsomething0000", false},
