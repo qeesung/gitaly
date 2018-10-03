@@ -64,8 +64,6 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		return 0, nil, nil // want more data
 	}
 
-	// Invariant: len(data) >= 4
-
 	// We have at least 4 bytes available so we can decode the 4-hex digit
 	// length prefix of the packet line.
 	pktLength64, err := strconv.ParseInt(string(data[:4]), 16, 0)
@@ -84,8 +82,6 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		// Special case: magic empty packet 0000, 0001, 0002 or 0003.
 		return 4, data[:4], nil
 	}
-
-	// Invariant: len(data) >= 4, pktLength >= 4
 
 	if len(data) < pktLength {
 		// data contains incomplete packet
