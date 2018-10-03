@@ -26,7 +26,9 @@ func NewScanner(r io.Reader) *bufio.Scanner {
 	return scanner
 }
 
-// Data returns the data contained in pkt. The length prefix is not validated.
+// Data returns the packet pkt without its length header. The length
+// header is not validated. Returns nil when pkt is a magic packet such
+// as '0000'.
 func Data(pkt []byte) []byte {
 	if len(pkt) == 4 {
 		return nil
