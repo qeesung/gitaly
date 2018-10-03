@@ -15,7 +15,10 @@ import (
 
 const (
 	maxPktSize = 0xffff
-	flush      = "0000"
+)
+
+var (
+	flush = []byte("0000")
 )
 
 // NewScanner returns a bufio.Scanner that splits on Git pktline boundaries
@@ -39,7 +42,7 @@ func Data(pkt []byte) []byte {
 
 // IsFlush detects the special flush packet '0000'
 func IsFlush(pkt []byte) bool {
-	return bytes.Equal(pkt, []byte(flush))
+	return bytes.Equal(pkt, flush)
 }
 
 // WriteString writes a string with pkt-line framing
@@ -54,7 +57,7 @@ func WriteString(w io.Writer, str string) (int, error) {
 
 // WriteFlush write a pkt flush packet.
 func WriteFlush(w io.Writer) error {
-	_, err := w.Write([]byte(flush))
+	_, err := w.Write(flush)
 	return err
 }
 
