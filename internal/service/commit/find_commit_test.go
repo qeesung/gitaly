@@ -248,22 +248,6 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 		})
 	}
 	require.Equal(t, len(testCases), len(allCommits), "length of allCommits")
-
-	gogitCtx := metadata.NewOutgoingContext(
-		ctx,
-		metadata.New(map[string]string{featureflag.HeaderKey("gogit-findcommit"): "true"}),
-	)
-
-	for i, testCase := range testCases {
-		request := &gitalypb.FindCommitRequest{
-			Repository: testRepo,
-			Revision:   []byte(testCase.revision),
-		}
-
-		response, err := client.FindCommit(gogitCtx, request)
-		require.NoError(t, err, "request with go-git should succeed")
-		require.Equal(t, allCommits[i], response.Commit, "commit fetched with go-git should match default")
-	}
 }
 
 func TestFailedFindCommitRequest(t *testing.T) {
