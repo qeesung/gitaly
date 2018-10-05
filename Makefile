@@ -169,8 +169,7 @@ notice: $(TARGET_SETUP) $(GOVENDOR)
 
 .PHONY: notice-up-to-date
 notice-up-to-date: $(TARGET_SETUP) $(GOVENDOR)
-	# TODO re-enable this! https://gitlab.com/gitlab-org/gitaly/issues/1358
-	@true || (cd $(PKG_BUILD_DIR) && govendor license -template _support/notice.template | cmp - NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
+	@(cd $(PKG_BUILD_DIR) && govendor license -template _support/notice.template | cmp - NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
 .PHONY: codeclimate-report
 codeclimate-report:
