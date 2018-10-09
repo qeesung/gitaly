@@ -31,13 +31,9 @@ func NewScanner(r io.Reader) *bufio.Scanner {
 }
 
 // Data returns the packet pkt without its length header. The length
-// header is not validated. Returns nil when pkt is a magic packet such
+// header is not validated. Returns an empty slice when pkt is a magic packet such
 // as '0000'.
 func Data(pkt []byte) []byte {
-	if len(pkt) == 4 {
-		return nil
-	}
-
 	return pkt[4:]
 }
 
