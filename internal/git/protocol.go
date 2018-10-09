@@ -9,10 +9,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// RequestWithGitProtocol holds requests that respond to GitProtocol
-type RequestWithGitProtocol interface {
-	GetGitProtocol() string
-}
+const (
+	// ProtocolV2 is the special value used by Git clients to request protocol v2
+	ProtocolV2 = "version=2"
+)
 
 var (
 	gitProtocolRequests = prometheus.NewCounterVec(
@@ -26,6 +26,11 @@ var (
 
 func init() {
 	prometheus.MustRegister(gitProtocolRequests)
+}
+
+// RequestWithGitProtocol holds requests that respond to GitProtocol
+type RequestWithGitProtocol interface {
+	GetGitProtocol() string
 }
 
 // AddGitProtocolEnv checks whether the request has Git protocol v2

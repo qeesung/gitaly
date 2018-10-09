@@ -11,9 +11,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 )
 
-// ProtocolV2 Git sets the protocol 2 string as in the environment
-const ProtocolV2 = "version=2"
-
 // FallbackTimeValue is the value returned by `SafeTimeParse` in case it
 // encounters a parse error. It's the maximum time value possible in golang.
 // See https://gitlab.com/gitlab-org/gitaly/issues/556#note_40289573
