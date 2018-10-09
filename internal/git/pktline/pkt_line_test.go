@@ -101,7 +101,6 @@ func TestIsFlush(t *testing.T) {
 }
 
 func TestWriteString(t *testing.T) {
-
 	testCases := []struct {
 		desc string
 		in   string
@@ -136,11 +135,11 @@ func TestWriteString(t *testing.T) {
 			_, err := WriteString(w, tc.in)
 
 			if tc.fail {
-				require.Error(t, err, "WriteString")
-				return
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 
-			require.NoError(t, err, "WriteString")
 			require.Equal(t, tc.out, w.String())
 		})
 	}
