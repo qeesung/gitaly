@@ -32,7 +32,8 @@ func init() {
 }
 
 func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackServer) error {
-	grpc_logrus.Extract(stream.Context()).Debug("PostUploadPack")
+	ctx := stream.Context()
+	grpc_logrus.Extract(ctx).Debug("PostUploadPack")
 
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
@@ -59,7 +60,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		return stream.Send(&gitalypb.PostUploadPackResponse{Data: p})
 	})
 
-	env := git.AddGitProtocolEnv(req, []string{})
+	env := git.AddGitProtocolEnv(ctx, req, []string{})
 
 	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {
@@ -74,7 +75,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 	args = append(args, "upload-pack", "--stateless-rpc", repoPath)
 
 	osCommand := exec.Command(command.GitPath(), args...)
-	cmd, err := command.New(stream.Context(), osCommand, stdin, stdout, nil, env...)
+	cmd, err := command.New(ctx, osCommand, stdin, stdout, nil, env...)
 
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)

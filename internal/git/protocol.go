@@ -1,6 +1,11 @@
 package git
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -12,13 +17,48 @@ type RequestWithGitProtocol interface {
 var (
 	gitProtocolRequests = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "gitaly_protocol_requests_total",
+			Name: "gitaly_git_protocol_requests_total",
 			Help: "Counter of Git protocol requests",
 		},
-		[]string{"protocol"},
+		[]string{"grpc_service", "grpc_method", "git_protocol"},
 	)
 )
 
 func init() {
 	prometheus.MustRegister(gitProtocolRequests)
+}
+
+// AddGitProtocolEnv checks whether the request has Git protocol v2
+// and sets this in the environment.
+func AddGitProtocolEnv(ctx context.Context, req RequestWithGitProtocol, env []string) []string {
+	service, method := methodFromContext(ctx)
+
+	if req.GetGitProtocol() == ProtocolV2 {
+		env = append(env, fmt.Sprintf("GIT_PROTOCOL=%s", req.GetGitProtocol()))
+
+		gitProtocolRequests.WithLabelValues(service, method, "v2").Inc()
+	} else {
+		gitProtocolRequests.WithLabelValues(service, method, "v0").Inc()
+	}
+
+	return env
+}
+
+func methodFromContext(ctx context.Context) (service string, method string) {
+	tags := grpc_ctxtags.Extract(ctx)
+	ctxValue := tags.Values()["grpc.request.fullMethod"]
+	if ctxValue == nil {
+		return "", ""
+	}
+
+	if s, ok := ctxValue.(string); ok {
+		split := strings.Split(s, "/")
+		if len(split) != 3 {
+			return "", ""
+		}
+
+		return split[1], split[2]
+	}
+
+	return "", ""
 }
