@@ -225,7 +225,7 @@ func makeCommit(t *testing.T, localRepoPath string) ([]byte, []byte, bool) {
 	return oldHead, newHead, t.Failed()
 }
 
-func drainPostReceivePackResponse(stream gitalypb.SSH_SSHReceivePackClient) error {
+func drainPostReceivePackResponse(stream gitalypb.SSHService_SSHReceivePackClient) error {
 	var err error
 	for err == nil {
 		_, err = stream.Recv()

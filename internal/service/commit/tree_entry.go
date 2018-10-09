@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func sendTreeEntry(stream gitalypb.Commit_TreeEntryServer, c *catfile.Batch, revision, path string, limit int64) error {
+func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c *catfile.Batch, revision, path string, limit int64) error {
 	treeEntry, err := TreeEntryForRevisionAndPath(c, revision, path)
 	if err != nil {
 		return err

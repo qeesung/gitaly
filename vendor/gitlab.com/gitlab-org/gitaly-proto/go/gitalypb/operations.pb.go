@@ -49,7 +49,7 @@ func (x UserCommitFilesActionHeader_ActionType) String() string {
 	return proto.EnumName(UserCommitFilesActionHeader_ActionType_name, int32(x))
 }
 func (UserCommitFilesActionHeader_ActionType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor7, []int{19, 0}
+	return fileDescriptor6, []int{19, 0}
 }
 
 type UserCreateBranchRequest struct {
@@ -62,7 +62,7 @@ type UserCreateBranchRequest struct {
 func (m *UserCreateBranchRequest) Reset()                    { *m = UserCreateBranchRequest{} }
 func (m *UserCreateBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserCreateBranchRequest) ProtoMessage()               {}
-func (*UserCreateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+func (*UserCreateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 func (m *UserCreateBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -102,7 +102,7 @@ type UserCreateBranchResponse struct {
 func (m *UserCreateBranchResponse) Reset()                    { *m = UserCreateBranchResponse{} }
 func (m *UserCreateBranchResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserCreateBranchResponse) ProtoMessage()               {}
-func (*UserCreateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
+func (*UserCreateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
 
 func (m *UserCreateBranchResponse) GetBranch() *Branch {
 	if m != nil {
@@ -129,7 +129,7 @@ type UserUpdateBranchRequest struct {
 func (m *UserUpdateBranchRequest) Reset()                    { *m = UserUpdateBranchRequest{} }
 func (m *UserUpdateBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserUpdateBranchRequest) ProtoMessage()               {}
-func (*UserUpdateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
+func (*UserUpdateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
 
 func (m *UserUpdateBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -173,7 +173,7 @@ type UserUpdateBranchResponse struct {
 func (m *UserUpdateBranchResponse) Reset()                    { *m = UserUpdateBranchResponse{} }
 func (m *UserUpdateBranchResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserUpdateBranchResponse) ProtoMessage()               {}
-func (*UserUpdateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
+func (*UserUpdateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{3} }
 
 func (m *UserUpdateBranchResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -191,7 +191,7 @@ type UserDeleteBranchRequest struct {
 func (m *UserDeleteBranchRequest) Reset()                    { *m = UserDeleteBranchRequest{} }
 func (m *UserDeleteBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserDeleteBranchRequest) ProtoMessage()               {}
-func (*UserDeleteBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
+func (*UserDeleteBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{4} }
 
 func (m *UserDeleteBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -221,7 +221,7 @@ type UserDeleteBranchResponse struct {
 func (m *UserDeleteBranchResponse) Reset()                    { *m = UserDeleteBranchResponse{} }
 func (m *UserDeleteBranchResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserDeleteBranchResponse) ProtoMessage()               {}
-func (*UserDeleteBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{5} }
+func (*UserDeleteBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{5} }
 
 func (m *UserDeleteBranchResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -239,7 +239,7 @@ type UserDeleteTagRequest struct {
 func (m *UserDeleteTagRequest) Reset()                    { *m = UserDeleteTagRequest{} }
 func (m *UserDeleteTagRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserDeleteTagRequest) ProtoMessage()               {}
-func (*UserDeleteTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{6} }
+func (*UserDeleteTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{6} }
 
 func (m *UserDeleteTagRequest) GetRepository() *Repository {
 	if m != nil {
@@ -269,7 +269,7 @@ type UserDeleteTagResponse struct {
 func (m *UserDeleteTagResponse) Reset()                    { *m = UserDeleteTagResponse{} }
 func (m *UserDeleteTagResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserDeleteTagResponse) ProtoMessage()               {}
-func (*UserDeleteTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{7} }
+func (*UserDeleteTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{7} }
 
 func (m *UserDeleteTagResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -289,7 +289,7 @@ type UserCreateTagRequest struct {
 func (m *UserCreateTagRequest) Reset()                    { *m = UserCreateTagRequest{} }
 func (m *UserCreateTagRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserCreateTagRequest) ProtoMessage()               {}
-func (*UserCreateTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{8} }
+func (*UserCreateTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{8} }
 
 func (m *UserCreateTagRequest) GetRepository() *Repository {
 	if m != nil {
@@ -335,7 +335,7 @@ type UserCreateTagResponse struct {
 func (m *UserCreateTagResponse) Reset()                    { *m = UserCreateTagResponse{} }
 func (m *UserCreateTagResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserCreateTagResponse) ProtoMessage()               {}
-func (*UserCreateTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{9} }
+func (*UserCreateTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{9} }
 
 func (m *UserCreateTagResponse) GetTag() *Tag {
 	if m != nil {
@@ -373,7 +373,7 @@ type UserMergeBranchRequest struct {
 func (m *UserMergeBranchRequest) Reset()                    { *m = UserMergeBranchRequest{} }
 func (m *UserMergeBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserMergeBranchRequest) ProtoMessage()               {}
-func (*UserMergeBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{10} }
+func (*UserMergeBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{10} }
 
 func (m *UserMergeBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -430,7 +430,7 @@ type UserMergeBranchResponse struct {
 func (m *UserMergeBranchResponse) Reset()                    { *m = UserMergeBranchResponse{} }
 func (m *UserMergeBranchResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserMergeBranchResponse) ProtoMessage()               {}
-func (*UserMergeBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{11} }
+func (*UserMergeBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{11} }
 
 func (m *UserMergeBranchResponse) GetCommitId() string {
 	if m != nil {
@@ -465,7 +465,7 @@ type OperationBranchUpdate struct {
 func (m *OperationBranchUpdate) Reset()                    { *m = OperationBranchUpdate{} }
 func (m *OperationBranchUpdate) String() string            { return proto.CompactTextString(m) }
 func (*OperationBranchUpdate) ProtoMessage()               {}
-func (*OperationBranchUpdate) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{12} }
+func (*OperationBranchUpdate) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{12} }
 
 func (m *OperationBranchUpdate) GetCommitId() string {
 	if m != nil {
@@ -498,7 +498,7 @@ type UserFFBranchRequest struct {
 func (m *UserFFBranchRequest) Reset()                    { *m = UserFFBranchRequest{} }
 func (m *UserFFBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserFFBranchRequest) ProtoMessage()               {}
-func (*UserFFBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{13} }
+func (*UserFFBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{13} }
 
 func (m *UserFFBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -536,7 +536,7 @@ type UserFFBranchResponse struct {
 func (m *UserFFBranchResponse) Reset()                    { *m = UserFFBranchResponse{} }
 func (m *UserFFBranchResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserFFBranchResponse) ProtoMessage()               {}
-func (*UserFFBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{14} }
+func (*UserFFBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{14} }
 
 func (m *UserFFBranchResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -565,7 +565,7 @@ type UserCherryPickRequest struct {
 func (m *UserCherryPickRequest) Reset()                    { *m = UserCherryPickRequest{} }
 func (m *UserCherryPickRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserCherryPickRequest) ProtoMessage()               {}
-func (*UserCherryPickRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{15} }
+func (*UserCherryPickRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{15} }
 
 func (m *UserCherryPickRequest) GetRepository() *Repository {
 	if m != nil {
@@ -626,7 +626,7 @@ type UserCherryPickResponse struct {
 func (m *UserCherryPickResponse) Reset()                    { *m = UserCherryPickResponse{} }
 func (m *UserCherryPickResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserCherryPickResponse) ProtoMessage()               {}
-func (*UserCherryPickResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{16} }
+func (*UserCherryPickResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{16} }
 
 func (m *UserCherryPickResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -669,7 +669,7 @@ type UserRevertRequest struct {
 func (m *UserRevertRequest) Reset()                    { *m = UserRevertRequest{} }
 func (m *UserRevertRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserRevertRequest) ProtoMessage()               {}
-func (*UserRevertRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{17} }
+func (*UserRevertRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{17} }
 
 func (m *UserRevertRequest) GetRepository() *Repository {
 	if m != nil {
@@ -730,7 +730,7 @@ type UserRevertResponse struct {
 func (m *UserRevertResponse) Reset()                    { *m = UserRevertResponse{} }
 func (m *UserRevertResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserRevertResponse) ProtoMessage()               {}
-func (*UserRevertResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{18} }
+func (*UserRevertResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{18} }
 
 func (m *UserRevertResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -771,7 +771,7 @@ type UserCommitFilesActionHeader struct {
 func (m *UserCommitFilesActionHeader) Reset()                    { *m = UserCommitFilesActionHeader{} }
 func (m *UserCommitFilesActionHeader) String() string            { return proto.CompactTextString(m) }
 func (*UserCommitFilesActionHeader) ProtoMessage()               {}
-func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{19} }
+func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{19} }
 
 func (m *UserCommitFilesActionHeader) GetAction() UserCommitFilesActionHeader_ActionType {
 	if m != nil {
@@ -818,7 +818,7 @@ type UserCommitFilesAction struct {
 func (m *UserCommitFilesAction) Reset()                    { *m = UserCommitFilesAction{} }
 func (m *UserCommitFilesAction) String() string            { return proto.CompactTextString(m) }
 func (*UserCommitFilesAction) ProtoMessage()               {}
-func (*UserCommitFilesAction) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{20} }
+func (*UserCommitFilesAction) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{20} }
 
 type isUserCommitFilesAction_UserCommitFilesActionPayload interface{ isUserCommitFilesAction_UserCommitFilesActionPayload() }
 
@@ -937,7 +937,7 @@ type UserCommitFilesRequestHeader struct {
 func (m *UserCommitFilesRequestHeader) Reset()                    { *m = UserCommitFilesRequestHeader{} }
 func (m *UserCommitFilesRequestHeader) String() string            { return proto.CompactTextString(m) }
 func (*UserCommitFilesRequestHeader) ProtoMessage()               {}
-func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{21} }
+func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{21} }
 
 func (m *UserCommitFilesRequestHeader) GetRepository() *Repository {
 	if m != nil {
@@ -1005,7 +1005,7 @@ type UserCommitFilesRequest struct {
 func (m *UserCommitFilesRequest) Reset()                    { *m = UserCommitFilesRequest{} }
 func (m *UserCommitFilesRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserCommitFilesRequest) ProtoMessage()               {}
-func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{22} }
+func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{22} }
 
 type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface{ isUserCommitFilesRequest_UserCommitFilesRequestPayload() }
 
@@ -1123,7 +1123,7 @@ type UserCommitFilesResponse struct {
 func (m *UserCommitFilesResponse) Reset()                    { *m = UserCommitFilesResponse{} }
 func (m *UserCommitFilesResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserCommitFilesResponse) ProtoMessage()               {}
-func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{23} }
+func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{23} }
 
 func (m *UserCommitFilesResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -1159,7 +1159,7 @@ type UserRebaseRequest struct {
 func (m *UserRebaseRequest) Reset()                    { *m = UserRebaseRequest{} }
 func (m *UserRebaseRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserRebaseRequest) ProtoMessage()               {}
-func (*UserRebaseRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{24} }
+func (*UserRebaseRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{24} }
 
 func (m *UserRebaseRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1219,7 +1219,7 @@ type UserRebaseResponse struct {
 func (m *UserRebaseResponse) Reset()                    { *m = UserRebaseResponse{} }
 func (m *UserRebaseResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserRebaseResponse) ProtoMessage()               {}
-func (*UserRebaseResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{25} }
+func (*UserRebaseResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{25} }
 
 func (m *UserRebaseResponse) GetRebaseSha() string {
 	if m != nil {
@@ -1256,7 +1256,7 @@ type UserSquashRequest struct {
 func (m *UserSquashRequest) Reset()                    { *m = UserSquashRequest{} }
 func (m *UserSquashRequest) String() string            { return proto.CompactTextString(m) }
 func (*UserSquashRequest) ProtoMessage()               {}
-func (*UserSquashRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{26} }
+func (*UserSquashRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{26} }
 
 func (m *UserSquashRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1322,7 +1322,7 @@ type UserSquashResponse struct {
 func (m *UserSquashResponse) Reset()                    { *m = UserSquashResponse{} }
 func (m *UserSquashResponse) String() string            { return proto.CompactTextString(m) }
 func (*UserSquashResponse) ProtoMessage()               {}
-func (*UserSquashResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{27} }
+func (*UserSquashResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{27} }
 
 func (m *UserSquashResponse) GetSquashSha() string {
 	if m != nil {
@@ -1872,9 +1872,9 @@ var _OperationService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "operations.proto",
 }
 
-func init() { proto.RegisterFile("operations.proto", fileDescriptor7) }
+func init() { proto.RegisterFile("operations.proto", fileDescriptor6) }
 
-var fileDescriptor7 = []byte{
+var fileDescriptor6 = []byte{
 	// 1545 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x59, 0xcd, 0x6f, 0x1b, 0xd5,
 	0x16, 0xf7, 0xd8, 0xce, 0xd8, 0x39, 0x71, 0x1c, 0xe7, 0xf6, 0xcb, 0x75, 0x9b, 0x26, 0x9d, 0xb6,

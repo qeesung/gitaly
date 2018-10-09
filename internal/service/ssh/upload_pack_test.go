@@ -218,7 +218,7 @@ func testClone(t *testing.T, serverSocketPath, storageName, relativePath, localR
 	return string(localHead), string(remoteHead), string(localTags), string(remoteTags), nil
 }
 
-func drainPostUploadPackResponse(stream gitalypb.SSH_SSHUploadPackClient) error {
+func drainPostUploadPackResponse(stream gitalypb.SSHService_SSHUploadPackClient) error {
 	var err error
 	for err == nil {
 		_, err = stream.Recv()

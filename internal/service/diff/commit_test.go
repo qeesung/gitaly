@@ -959,7 +959,7 @@ func TestFailedCommitDeltaRequestWithNonExistentCommit(t *testing.T) {
 	testhelper.RequireGrpcError(t, err, codes.Unavailable)
 }
 
-func drainCommitDiffResponse(c gitalypb.Diff_CommitDiffClient) error {
+func drainCommitDiffResponse(c gitalypb.DiffService_CommitDiffClient) error {
 	for {
 		_, err := c.Recv()
 		if err != nil {
@@ -968,7 +968,7 @@ func drainCommitDiffResponse(c gitalypb.Diff_CommitDiffClient) error {
 	}
 }
 
-func drainCommitDeltaResponse(c gitalypb.Diff_CommitDeltaClient) error {
+func drainCommitDeltaResponse(c gitalypb.DiffService_CommitDeltaClient) error {
 	for {
 		_, err := c.Recv()
 		if err != nil {
@@ -1068,7 +1068,7 @@ func assertExactReceivedDiffs(t *testing.T, client gitalypb.DiffService_CommitDi
 	}
 }
 
-func assertExactReceivedDeltas(t *testing.T, client gitalypb.Diff_CommitDeltaClient, expectedDeltas []diff.Diff) {
+func assertExactReceivedDeltas(t *testing.T, client gitalypb.DiffService_CommitDeltaClient, expectedDeltas []diff.Diff) {
 	i := 0
 	for {
 		fetchedDeltas, err := client.Recv()

@@ -251,7 +251,7 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 	}
 }
 
-func drainPostReceivePackResponse(stream gitalypb.SmartHTTP_PostReceivePackClient) error {
+func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePackClient) error {
 	var err error
 	for err == nil {
 		_, err = stream.Recv()

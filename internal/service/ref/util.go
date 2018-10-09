@@ -76,19 +76,19 @@ func buildBranch(c *catfile.Batch, elements [][]byte) (*gitalypb.Branch, error) 
 	}, nil
 }
 
-func newFindAllBranchNamesWriter(stream gitalypb.Ref_FindAllBranchNamesServer) lines.Sender {
+func newFindAllBranchNamesWriter(stream gitalypb.RefService_FindAllBranchNamesServer) lines.Sender {
 	return func(refs [][]byte) error {
 		return stream.Send(&gitalypb.FindAllBranchNamesResponse{Names: refs})
 	}
 }
 
-func newFindAllTagNamesWriter(stream gitalypb.Ref_FindAllTagNamesServer) lines.Sender {
+func newFindAllTagNamesWriter(stream gitalypb.RefService_FindAllTagNamesServer) lines.Sender {
 	return func(refs [][]byte) error {
 		return stream.Send(&gitalypb.FindAllTagNamesResponse{Names: refs})
 	}
 }
 
-func newFindLocalBranchesWriter(stream gitalypb.Ref_FindLocalBranchesServer, c *catfile.Batch) lines.Sender {
+func newFindLocalBranchesWriter(stream gitalypb.RefService_FindLocalBranchesServer, c *catfile.Batch) lines.Sender {
 	return func(refs [][]byte) error {
 		var branches []*gitalypb.FindLocalBranchResponse
 

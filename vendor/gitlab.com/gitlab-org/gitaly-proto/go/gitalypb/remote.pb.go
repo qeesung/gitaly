@@ -28,7 +28,7 @@ type AddRemoteRequest struct {
 func (m *AddRemoteRequest) Reset()                    { *m = AddRemoteRequest{} }
 func (m *AddRemoteRequest) String() string            { return proto.CompactTextString(m) }
 func (*AddRemoteRequest) ProtoMessage()               {}
-func (*AddRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (*AddRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
 
 func (m *AddRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -64,7 +64,7 @@ type AddRemoteResponse struct {
 func (m *AddRemoteResponse) Reset()                    { *m = AddRemoteResponse{} }
 func (m *AddRemoteResponse) String() string            { return proto.CompactTextString(m) }
 func (*AddRemoteResponse) ProtoMessage()               {}
-func (*AddRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (*AddRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
 
 type RemoveRemoteRequest struct {
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
@@ -74,7 +74,7 @@ type RemoveRemoteRequest struct {
 func (m *RemoveRemoteRequest) Reset()                    { *m = RemoveRemoteRequest{} }
 func (m *RemoveRemoteRequest) String() string            { return proto.CompactTextString(m) }
 func (*RemoveRemoteRequest) ProtoMessage()               {}
-func (*RemoveRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (*RemoveRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
 
 func (m *RemoveRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -97,7 +97,7 @@ type RemoveRemoteResponse struct {
 func (m *RemoveRemoteResponse) Reset()                    { *m = RemoveRemoteResponse{} }
 func (m *RemoveRemoteResponse) String() string            { return proto.CompactTextString(m) }
 func (*RemoveRemoteResponse) ProtoMessage()               {}
-func (*RemoveRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (*RemoveRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
 
 func (m *RemoveRemoteResponse) GetResult() bool {
 	if m != nil {
@@ -114,7 +114,7 @@ type FetchInternalRemoteRequest struct {
 func (m *FetchInternalRemoteRequest) Reset()                    { *m = FetchInternalRemoteRequest{} }
 func (m *FetchInternalRemoteRequest) String() string            { return proto.CompactTextString(m) }
 func (*FetchInternalRemoteRequest) ProtoMessage()               {}
-func (*FetchInternalRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (*FetchInternalRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
 
 func (m *FetchInternalRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -137,7 +137,7 @@ type FetchInternalRemoteResponse struct {
 func (m *FetchInternalRemoteResponse) Reset()                    { *m = FetchInternalRemoteResponse{} }
 func (m *FetchInternalRemoteResponse) String() string            { return proto.CompactTextString(m) }
 func (*FetchInternalRemoteResponse) ProtoMessage()               {}
-func (*FetchInternalRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{5} }
+func (*FetchInternalRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
 
 func (m *FetchInternalRemoteResponse) GetResult() bool {
 	if m != nil {
@@ -155,7 +155,7 @@ type UpdateRemoteMirrorRequest struct {
 func (m *UpdateRemoteMirrorRequest) Reset()                    { *m = UpdateRemoteMirrorRequest{} }
 func (m *UpdateRemoteMirrorRequest) String() string            { return proto.CompactTextString(m) }
 func (*UpdateRemoteMirrorRequest) ProtoMessage()               {}
-func (*UpdateRemoteMirrorRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{6} }
+func (*UpdateRemoteMirrorRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{6} }
 
 func (m *UpdateRemoteMirrorRequest) GetRepository() *Repository {
 	if m != nil {
@@ -184,7 +184,7 @@ type UpdateRemoteMirrorResponse struct {
 func (m *UpdateRemoteMirrorResponse) Reset()                    { *m = UpdateRemoteMirrorResponse{} }
 func (m *UpdateRemoteMirrorResponse) String() string            { return proto.CompactTextString(m) }
 func (*UpdateRemoteMirrorResponse) ProtoMessage()               {}
-func (*UpdateRemoteMirrorResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{7} }
+func (*UpdateRemoteMirrorResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{7} }
 
 type FindRemoteRepositoryRequest struct {
 	Remote string `protobuf:"bytes,1,opt,name=remote" json:"remote,omitempty"`
@@ -193,7 +193,7 @@ type FindRemoteRepositoryRequest struct {
 func (m *FindRemoteRepositoryRequest) Reset()                    { *m = FindRemoteRepositoryRequest{} }
 func (m *FindRemoteRepositoryRequest) String() string            { return proto.CompactTextString(m) }
 func (*FindRemoteRepositoryRequest) ProtoMessage()               {}
-func (*FindRemoteRepositoryRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{8} }
+func (*FindRemoteRepositoryRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{8} }
 
 func (m *FindRemoteRepositoryRequest) GetRemote() string {
 	if m != nil {
@@ -211,7 +211,7 @@ type FindRemoteRepositoryResponse struct {
 func (m *FindRemoteRepositoryResponse) Reset()                    { *m = FindRemoteRepositoryResponse{} }
 func (m *FindRemoteRepositoryResponse) String() string            { return proto.CompactTextString(m) }
 func (*FindRemoteRepositoryResponse) ProtoMessage()               {}
-func (*FindRemoteRepositoryResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{9} }
+func (*FindRemoteRepositoryResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{9} }
 
 func (m *FindRemoteRepositoryResponse) GetExists() bool {
 	if m != nil {
@@ -228,7 +228,7 @@ type FindRemoteRootRefRequest struct {
 func (m *FindRemoteRootRefRequest) Reset()                    { *m = FindRemoteRootRefRequest{} }
 func (m *FindRemoteRootRefRequest) String() string            { return proto.CompactTextString(m) }
 func (*FindRemoteRootRefRequest) ProtoMessage()               {}
-func (*FindRemoteRootRefRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{10} }
+func (*FindRemoteRootRefRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{10} }
 
 func (m *FindRemoteRootRefRequest) GetRepository() *Repository {
 	if m != nil {
@@ -251,7 +251,7 @@ type FindRemoteRootRefResponse struct {
 func (m *FindRemoteRootRefResponse) Reset()                    { *m = FindRemoteRootRefResponse{} }
 func (m *FindRemoteRootRefResponse) String() string            { return proto.CompactTextString(m) }
 func (*FindRemoteRootRefResponse) ProtoMessage()               {}
-func (*FindRemoteRootRefResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{11} }
+func (*FindRemoteRootRefResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{11} }
 
 func (m *FindRemoteRootRefResponse) GetRef() string {
 	if m != nil {
@@ -547,9 +547,9 @@ var _RemoteService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "remote.proto",
 }
 
-func init() { proto.RegisterFile("remote.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("remote.proto", fileDescriptor8) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor8 = []byte{
 	// 536 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x55, 0x4f, 0x8f, 0xd3, 0x3e,
 	0x10, 0xfd, 0xa5, 0xe9, 0xf6, 0xd7, 0x0e, 0x5d, 0xd4, 0xba, 0xd5, 0x2a, 0xcd, 0xf6, 0xd0, 0x35,

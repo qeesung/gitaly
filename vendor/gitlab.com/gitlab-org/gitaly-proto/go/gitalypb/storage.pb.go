@@ -25,7 +25,7 @@ type ListDirectoriesRequest struct {
 func (m *ListDirectoriesRequest) Reset()                    { *m = ListDirectoriesRequest{} }
 func (m *ListDirectoriesRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListDirectoriesRequest) ProtoMessage()               {}
-func (*ListDirectoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{0} }
+func (*ListDirectoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{0} }
 
 func (m *ListDirectoriesRequest) GetStorageName() string {
 	if m != nil {
@@ -48,7 +48,7 @@ type ListDirectoriesResponse struct {
 func (m *ListDirectoriesResponse) Reset()                    { *m = ListDirectoriesResponse{} }
 func (m *ListDirectoriesResponse) String() string            { return proto.CompactTextString(m) }
 func (*ListDirectoriesResponse) ProtoMessage()               {}
-func (*ListDirectoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{1} }
+func (*ListDirectoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{1} }
 
 func (m *ListDirectoriesResponse) GetPaths() []string {
 	if m != nil {
@@ -64,7 +64,7 @@ type DeleteAllRepositoriesRequest struct {
 func (m *DeleteAllRepositoriesRequest) Reset()                    { *m = DeleteAllRepositoriesRequest{} }
 func (m *DeleteAllRepositoriesRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteAllRepositoriesRequest) ProtoMessage()               {}
-func (*DeleteAllRepositoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{2} }
+func (*DeleteAllRepositoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{2} }
 
 func (m *DeleteAllRepositoriesRequest) GetStorageName() string {
 	if m != nil {
@@ -79,7 +79,7 @@ type DeleteAllRepositoriesResponse struct {
 func (m *DeleteAllRepositoriesResponse) Reset()                    { *m = DeleteAllRepositoriesResponse{} }
 func (m *DeleteAllRepositoriesResponse) String() string            { return proto.CompactTextString(m) }
 func (*DeleteAllRepositoriesResponse) ProtoMessage()               {}
-func (*DeleteAllRepositoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{3} }
+func (*DeleteAllRepositoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{3} }
 
 func init() {
 	proto.RegisterType((*ListDirectoriesRequest)(nil), "gitaly.ListDirectoriesRequest")
@@ -221,9 +221,9 @@ var _StorageService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "storage.proto",
 }
 
-func init() { proto.RegisterFile("storage.proto", fileDescriptor15) }
+func init() { proto.RegisterFile("storage.proto", fileDescriptor14) }
 
-var fileDescriptor15 = []byte{
+var fileDescriptor14 = []byte{
 	// 238 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2d, 0x2e, 0xc9, 0x2f,
 	0x4a, 0x4c, 0x4f, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x4b, 0xcf, 0x2c, 0x49, 0xcc,

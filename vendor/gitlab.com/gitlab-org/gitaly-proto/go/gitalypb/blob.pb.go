@@ -8,7 +8,6 @@ It is generated from these files:
 	blob.proto
 	commit.proto
 	conflicts.proto
-	deprecated-services.proto
 	diff.proto
 	namespace.proto
 	notifications.proto
