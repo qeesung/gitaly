@@ -6,7 +6,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -33,7 +32,6 @@ func init() {
 
 func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackServer) error {
 	ctx := stream.Context()
-	grpc_logrus.Extract(ctx).Debug("PostUploadPack")
 
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {

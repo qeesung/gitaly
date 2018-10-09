@@ -52,6 +52,7 @@ func methodFromContext(ctx context.Context) (service string, method string) {
 	}
 
 	if s, ok := ctxValue.(string); ok {
+		// Expect: "/foo.BarService/Qux"
 		split := strings.Split(s, "/")
 		if len(split) != 3 {
 			return "", ""
