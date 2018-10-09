@@ -31,14 +31,20 @@ func TestScanner(t *testing.T) {
 			out:  []string{"0010hello world!", "0000", largestPacket, "0000"},
 		},
 		{
-			desc: "short read middle",
+			desc: "missing byte middle",
 			in:   "0010hello world!00000010010hello world!",
 			out:  []string{"0010hello world!", "0000", "0010010hello wor"},
 			fail: true,
 		},
 		{
-			desc: "short read end",
+			desc: "unfinished prefix",
 			in:   "0010hello world!000",
+			out:  []string{"0010hello world!"},
+			fail: true,
+		},
+		{
+			desc: "short read in data, only prefix",
+			in:   "0010hello world!0005",
 			out:  []string{"0010hello world!"},
 			fail: true,
 		},
