@@ -1,59 +1,28 @@
 package remote
 
 import (
-	"bufio"
-	"strings"
-
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
-
-const headPrefix = "HEAD branch: "
-
-func findRemoteRootRef(ctx context.Context, repo *gitalypb.Repository, remote string) (string, error) {
-	cmd, err := git.Command(ctx, repo, "remote", "show", remote)
-	if err != nil {
-		return "", err
-	}
-
-	scanner := bufio.NewScanner(cmd)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		if strings.HasPrefix(line, headPrefix) {
-			return strings.TrimPrefix(line, headPrefix), nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return "", err
-	}
-
-	return "", status.Error(codes.NotFound, "couldn't query the remote HEAD")
-}
 
 // FindRemoteRootRef queries the remote to determine its HEAD
 func (s *server) FindRemoteRootRef(ctx context.Context, in *gitalypb.FindRemoteRootRefRequest) (*gitalypb.FindRemoteRootRefResponse, error) {
-	remote := in.GetRemote()
-	if remote == "" {
-		return nil, status.Error(codes.InvalidArgument, "empty remote can't be queried")
-	}
+	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+		"Remote": in.GetRemote(),
+	}).Debug("FindRemoteRootRef")
 
-	ref, err := findRemoteRootRef(ctx, in.GetRepository(), remote)
+	client, err := s.RemoteServiceClient(ctx)
 	if err != nil {
-		if _, ok := status.FromError(err); ok {
-			return nil, err
-		}
-
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, err
 	}
 
-	return &gitalypb.FindRemoteRootRefResponse{Ref: ref}, nil
+	clientCtx, err := rubyserver.SetHeaders(ctx, in.GetRepository())
+	if err != nil {
+		return nil, err
+	}
+
+	return client.FindRemoteRootRef(clientCtx, in)
 }

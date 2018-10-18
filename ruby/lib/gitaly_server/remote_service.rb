@@ -35,6 +35,19 @@ module GitalyServer
       end
     end
 
+    def find_remote_root_ref(request, call)
+      bridge_exceptions do
+        raise GRPC::InvalidArgument, "empty remote can't be queried" if request.remote.empty?
+
+        gitlab_projects = Gitlab::Git::GitlabProjects.from_gitaly(request.repository, call)
+        ref = gitlab_projects.find_remote_root_ref(request.remote)
+
+        raise GRPC::Internal, "remote root ref not found for remote '#{request.remote}'" unless ref
+
+        Gitaly::FindRemoteRootRefResponse.new(ref: ref)
+      end
+    end
+
     def update_remote_mirror(call)
       bridge_exceptions do
         request_enum = call.each_remote_read

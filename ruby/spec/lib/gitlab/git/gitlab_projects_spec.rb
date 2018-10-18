@@ -24,15 +24,22 @@ describe Gitlab::Git::GitlabProjects do
     )
   end
 
-  def stub_spawn(*args, success: true)
+  def stub_spawn(*args, output: 'output', success: true)
     exitstatus = success ? 0 : nil
-    expect(gl_projects).to receive(:popen_with_timeout).with(*args)
-                                                       .and_return(["output", exitstatus])
+
+    expect(gl_projects)
+      .to receive(:popen)
+      .with(*args)
+      .and_return([output, exitstatus])
   end
 
-  def stub_spawn_timeout(*args)
-    expect(gl_projects).to receive(:popen_with_timeout).with(*args)
-                                                       .and_raise(Timeout::Error)
+  def stub_spawn_timeout(*args, output: 'output', success: true)
+    exitstatus = success ? 0 : nil
+
+    expect(gl_projects)
+      .to receive(:popen_with_timeout)
+      .with(*args)
+      .and_return([output, exitstatus])
   end
 
   describe '#initialize' do
@@ -51,13 +58,13 @@ describe Gitlab::Git::GitlabProjects do
     subject { gl_projects.push_branches(remote_name, 600, force, [branch_name]) }
 
     it 'executes the command' do
-      stub_spawn(cmd, 600, tmp_repo_path, success: true)
+      stub_spawn_timeout(cmd, 600, tmp_repo_path, success: true)
 
       is_expected.to be_truthy
     end
 
     it 'fails' do
-      stub_spawn(cmd, 600, tmp_repo_path, success: false)
+      stub_spawn_timeout(cmd, 600, tmp_repo_path, success: false)
 
       is_expected.to be_falsy
     end
@@ -67,7 +74,7 @@ describe Gitlab::Git::GitlabProjects do
       let(:force) { true }
 
       it 'executes the command' do
-        stub_spawn(cmd, 600, tmp_repo_path, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, success: true)
 
         is_expected.to be_truthy
       end
@@ -101,13 +108,13 @@ describe Gitlab::Git::GitlabProjects do
 
     context 'with default args' do
       it 'executes the command' do
-        stub_spawn(cmd, 600, tmp_repo_path, {}, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: true)
 
         is_expected.to be_truthy
       end
 
       it 'returns false if the command fails' do
-        stub_spawn(cmd, 600, tmp_repo_path, {}, success: false)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: false)
 
         is_expected.to be_falsy
       end
@@ -118,7 +125,7 @@ describe Gitlab::Git::GitlabProjects do
       let(:cmd) { %W(#{Gitlab.config.git.bin_path} fetch #{remote_name} --quiet --prune --force --tags) }
 
       it 'executes the command with forced option' do
-        stub_spawn(cmd, 600, tmp_repo_path, {}, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: true)
 
         is_expected.to be_truthy
       end
@@ -129,7 +136,7 @@ describe Gitlab::Git::GitlabProjects do
       let(:cmd) { %W(#{Gitlab.config.git.bin_path} fetch #{remote_name} --quiet --prune --no-tags) }
 
       it 'executes the command' do
-        stub_spawn(cmd, 600, tmp_repo_path, {}, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: true)
 
         is_expected.to be_truthy
       end
@@ -140,7 +147,7 @@ describe Gitlab::Git::GitlabProjects do
       let(:cmd) { %W(#{Gitlab.config.git.bin_path} fetch #{remote_name} --quiet --tags) }
 
       it 'executes the command' do
-        stub_spawn(cmd, 600, tmp_repo_path, {}, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: true)
 
         is_expected.to be_truthy
       end
@@ -153,7 +160,7 @@ describe Gitlab::Git::GitlabProjects do
         script = stub_tempfile('scriptFile', 'gitlab-shell-ssh-wrapper', chmod: 0o755)
         key = stub_tempfile('/tmp files/keyFile', 'gitlab-shell-key-file', chmod: 0o400)
 
-        stub_spawn(cmd, 600, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, success: true)
 
         is_expected.to be_truthy
 
@@ -169,13 +176,39 @@ describe Gitlab::Git::GitlabProjects do
         script = stub_tempfile('scriptFile', 'gitlab-shell-ssh-wrapper', chmod: 0o755)
         key = stub_tempfile('/tmp files/knownHosts', 'gitlab-shell-known-hosts', chmod: 0o400)
 
-        stub_spawn(cmd, 600, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, success: true)
+        stub_spawn_timeout(cmd, 600, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, success: true)
 
         is_expected.to be_truthy
 
         expect(script.string).to eq("#!/bin/sh\nexec ssh '-oStrictHostKeyChecking=\"yes\"' '-oUserKnownHostsFile=\"/tmp files/knownHosts\"' \"$@\"")
         expect(key.string).to eq('KNOWN HOSTS')
       end
+    end
+  end
+
+  describe '#find_remote_root_ref' do
+    let(:remote_name) { 'remote-name' }
+    let(:cmd) { %W(#{Gitlab.config.git.bin_path} remote show #{remote_name}) }
+
+    subject { gl_projects.find_remote_root_ref(remote_name) }
+
+    it 'returns remote root ref when succeeds' do
+      output = <<~OUTPUT
+        * remote origin
+        Fetch URL: https://gitlab.com/gitlab-org/gitlab-ce.git
+        Push  URL: https://gitlab.com/gitlab-org/gitlab-ce.git
+        HEAD branch: development
+      OUTPUT
+
+      stub_spawn(cmd, tmp_repo_path, output: output, success: true)
+
+      is_expected.to eq 'development'
+    end
+
+    it 'returns nil when fails' do
+      stub_spawn(cmd, tmp_repo_path, success: false)
+
+      is_expected.to be_nil
     end
   end
 end

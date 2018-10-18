@@ -6,6 +6,8 @@ module Gitlab
       include Gitlab::Git::Popen
       include Gitlab::Utils::StrongMemoize
 
+      HEAD_PREFIX = 'HEAD branch: '.freeze
+
       # Relative path is a directory name for repository with .git at the end.
       # Example: gitlab-org/gitlab-test.git
       attr_reader :repository_relative_path
@@ -69,6 +71,23 @@ module Gitlab
           run_with_timeout(cmd, timeout, repository_absolute_path, env).tap do |success|
             logger.error "Fetching remote #{name} for repository #{repository_absolute_path} failed." unless success
           end
+        end
+      end
+
+      def find_remote_root_ref(remote_name)
+        logger.info "Finding remote root ref from #{remote_name} for repository #{repository_absolute_path}."
+
+        cmd = %W(#{Gitlab.config.git.bin_path} remote show #{remote_name})
+
+        if run(cmd, repository_absolute_path)
+          output.each_line do |line|
+            line = line.strip
+
+            break line.sub(HEAD_PREFIX, '') if line.start_with?(HEAD_PREFIX)
+          end
+        else
+          logger.error("Finding remote root ref from #{remote_name} for repository #{repository_absolute_path} failed.")
+          nil
         end
       end
 
