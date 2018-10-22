@@ -1,0 +1,5 @@
+---
+title: Don't confuse govendor license with ruby gem .go files
+merge_request: 935
+author:
+type: fixed
