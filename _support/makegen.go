@@ -354,13 +354,17 @@ govendor-status: {{ .GoVendor }}
 	go get github.com/kardianos/govendor
 
 .PHONY: notice-up-to-date
-notice-up-to-date: {{ .GoVendor }}
+notice-up-to-date: {{ .GoVendor }} clean-ruby-vendor-go
 	# notice-up-to-date
 	@(cd {{ .SourceDir }} && govendor license -template _support/notice.template | cmp - NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
-.PHONY: notice
-notice: {{ .GoVendor }}
+.PHONY: notice 
+notice: {{ .GoVendor }} clean-ruby-vendor-go
 	cd {{ .SourceDir }} && govendor license -template _support/notice.template -o NOTICE
+
+.PHONY: clean-ruby-vendor-go 
+clean-ruby-vendor-go:
+	cd {{ .SourceDir }} && find ruby/vendor -type f -name '*.go' -delete
 
 .PHONY: govendor-tagged
 govendor-tagged: {{ .GoVendor }}
