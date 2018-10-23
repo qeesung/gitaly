@@ -15,8 +15,6 @@ module Gitlab
         GIT_OBJECT_DIRECTORY_RELATIVE
         GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE
       ].freeze
-      SEARCH_CONTEXT_LINES = 3
-      REV_LIST_COMMIT_LIMIT = 2_000
       # In https://gitlab.com/gitlab-org/gitaly/merge_requests/698
       # We copied these two prefixes into gitaly-go, so don't change these
       # or things will break! (REBASE_WORKTREE_PREFIX and SQUASH_WORKTREE_PREFIX)
@@ -24,19 +22,15 @@ module Gitlab
       SQUASH_WORKTREE_PREFIX = 'squash'.freeze
       GITALY_INTERNAL_URL = 'ssh://gitaly/internal.git'.freeze
       GITLAB_PROJECTS_TIMEOUT = Gitlab.config.gitlab_shell.git_timeout
-      EMPTY_REPOSITORY_CHECKSUM = '0000000000000000000000000000000000000000'.freeze
       AUTOCRLF_VALUES = { 'true' => true, 'false' => false, 'input' => :input }.freeze
       RUGGED_KEY = :rugged_list
 
       NoRepository = Class.new(StandardError)
-      InvalidRepository = Class.new(StandardError)
-      InvalidBlobName = Class.new(StandardError)
       InvalidRef = Class.new(StandardError)
       GitError = Class.new(StandardError)
       DeleteBranchError = Class.new(StandardError)
       CreateTreeError = Class.new(StandardError)
       TagExistsError = Class.new(StandardError)
-      ChecksumError = Class.new(StandardError)
 
       class << self
         def from_gitaly(gitaly_repository, call)
@@ -152,13 +146,6 @@ module Gitlab
         end
       end
 
-      # TODO: Can be removed once https://gitlab.com/gitlab-org/gitaly/merge_requests/738
-      #       is well and truly out in the wild.
-      def fsck
-        msg, status = run_git(%W[--git-dir=#{path} fsck], nice: true)
-        raise GitError, "Could not fsck repository: #{msg}" unless status.zero?
-      end
-
       def exists?
         File.exist?(File.join(path, 'refs'))
       end
@@ -206,10 +193,6 @@ module Gitlab
             end
           end
         end
-      end
-
-      def tag_names
-        rugged.tags.map(&:name)
       end
 
       def tags
@@ -830,10 +813,6 @@ module Gitlab
         raise GitError, output unless status.zero?
 
         output
-      end
-
-      def run_git_with_timeout(args, timeout, env: {})
-        popen_with_timeout([Gitlab.config.git.bin_path, *args], timeout, path, env)
       end
 
       def git_env_for_user(user)

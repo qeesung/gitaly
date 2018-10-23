@@ -24,20 +24,6 @@ module GitalyServer
       end
     end
 
-    # TODO: Can be removed once https://gitlab.com/gitlab-org/gitaly/merge_requests/738
-    #       is well and truly out in the wild.
-    def fsck(request, call)
-      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-
-      repo.fsck
-
-      Gitaly::FsckResponse.new
-    rescue Gitlab::Git::Repository::GitError => ex
-      Gitaly::FsckResponse.new(error: ex.message.b)
-    rescue Rugged::RepositoryError => ex
-      Gitaly::FsckResponse.new(error: ex.message.b)
-    end
-
     def fetch_remote(request, call)
       bridge_exceptions do
         gitlab_projects = Gitlab::Git::GitlabProjects.from_gitaly(request.repository, call)
