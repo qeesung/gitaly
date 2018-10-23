@@ -89,7 +89,8 @@ module Gitlab
               parents: [@our_commit_oid, @their_commit_oid]
             }
 
-            source_repository.commit_index(resolution.user, source_branch, index, commit_params)
+            UserRepository.new(source_repository, resolution.user)
+                          .commit_index(source_branch, index, commit_params)
           end
         end
       end

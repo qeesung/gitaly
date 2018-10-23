@@ -9,12 +9,13 @@ module GitalyServer
 
           gitaly_user = get_param!(request, :user)
           user = Gitlab::Git::User.from_gitaly(gitaly_user)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
 
           tag_name = get_param!(request, :tag_name)
 
           target_revision = get_param!(request, :target_revision)
 
-          created_tag = repo.add_tag(tag_name, user: user, target: target_revision, message: request.message.presence)
+          created_tag = user_repo.add_tag(tag_name, target: target_revision, message: request.message.presence)
           return Gitaly::UserCreateTagResponse.new unless created_tag
 
           rugged_commit = created_tag.dereferenced_target.rugged_commit
@@ -42,7 +43,7 @@ module GitalyServer
 
           tag_name = get_param!(request, :tag_name)
 
-          repo.rm_tag(tag_name, user: user)
+          Gitlab::Git::UserRepository.new(repo, user).rm_tag(tag_name)
 
           Gitaly::UserDeleteTagResponse.new
         rescue Gitlab::Git::PreReceiveError => e
@@ -60,9 +61,11 @@ module GitalyServer
           target = get_param!(request, :start_point)
           gitaly_user = get_param!(request, :user)
 
-          branch_name = request.branch_name
           user = Gitlab::Git::User.from_gitaly(gitaly_user)
-          created_branch = repo.add_branch(branch_name, user: user, target: target)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
+
+          branch_name = request.branch_name
+          created_branch = user_repo.add_branch(branch_name, target: target)
           return Gitaly::UserCreateBranchResponse.new unless created_branch
 
           rugged_commit = created_branch.dereferenced_target.rugged_commit
@@ -85,9 +88,9 @@ module GitalyServer
           newrev = get_param!(request, :newrev)
           oldrev = get_param!(request, :oldrev)
           gitaly_user = get_param!(request, :user)
-
           user = Gitlab::Git::User.from_gitaly(gitaly_user)
-          repo.update_branch(branch_name, user: user, newrev: newrev, oldrev: oldrev)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
+          user_repo.update_branch(branch_name, newrev: newrev, oldrev: oldrev)
 
           Gitaly::UserUpdateBranchResponse.new
         rescue Gitlab::Git::Repository::InvalidRef, Gitlab::Git::CommitError => ex
@@ -104,7 +107,7 @@ module GitalyServer
           repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
           user = Gitlab::Git::User.from_gitaly(request.user)
 
-          repo.rm_branch(request.branch_name, user: user)
+          Gitlab::Git::UserRepository.new(repo, user).rm_branch(request.branch_name)
 
           Gitaly::UserDeleteBranchResponse.new
         rescue Gitlab::Git::PreReceiveError => e
@@ -122,12 +125,14 @@ module GitalyServer
 
           repository = Gitlab::Git::Repository.from_gitaly(first_request.repository, call)
           user = Gitlab::Git::User.from_gitaly(first_request.user)
+          user_repo = Gitlab::Git::UserRepository.new(repository, user)
+
           source_sha = first_request.commit_id.dup
           target_branch = first_request.branch.dup
           message = first_request.message.dup
 
           begin
-            result = repository.merge(user, source_sha, target_branch, message) do |commit_id|
+            result = user_repo.merge(source_sha, target_branch, message) do |commit_id|
               y << Gitaly::UserMergeBranchResponse.new(commit_id: commit_id)
 
               second_request = session.next
@@ -147,8 +152,8 @@ module GitalyServer
         begin
           repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
           user = Gitlab::Git::User.from_gitaly(request.user)
-
-          result = repo.ff_merge(user, request.commit_id, request.branch)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
+          result = user_repo.ff_merge(request.commit_id, request.branch)
           branch_update = branch_update_result(result)
 
           Gitaly::UserFFBranchResponse.new(branch_update: branch_update)
@@ -167,11 +172,11 @@ module GitalyServer
         begin
           repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
           user = Gitlab::Git::User.from_gitaly(request.user)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
           commit = Gitlab::Git::Commit.new(repo, request.commit)
           start_repository = Gitlab::Git::GitalyRemoteRepository.new(request.start_repository || request.repository, call)
 
-          result = repo.cherry_pick(
-            user: user,
+          result = user_repo.cherry_pick(
             commit: commit,
             branch_name: request.branch_name,
             message: request.message.dup,
@@ -199,8 +204,7 @@ module GitalyServer
           commit = Gitlab::Git::Commit.new(repo, request.commit)
           start_repository = Gitlab::Git::GitalyRemoteRepository.new(request.start_repository || request.repository, call)
 
-          result = repo.revert(
-            user: user,
+          result = Gitlab::Git::UserRepository.new(repo, user).revert(
             commit: commit,
             branch_name: request.branch_name,
             message: request.message.dup,
@@ -225,12 +229,13 @@ module GitalyServer
         begin
           repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
           user = Gitlab::Git::User.from_gitaly(request.user)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
           remote_repository = Gitlab::Git::GitalyRemoteRepository.new(request.remote_repository, call)
-          rebase_sha = repo.rebase(user, request.rebase_id,
-                                   branch: request.branch,
-                                   branch_sha: request.branch_sha,
-                                   remote_repository: remote_repository,
-                                   remote_branch: request.remote_branch)
+          rebase_sha = user_repo.rebase(request.rebase_id,
+                                        branch: request.branch,
+                                        branch_sha: request.branch_sha,
+                                        remote_repository: remote_repository,
+                                        remote_branch: request.remote_branch)
 
           Gitaly::UserRebaseResponse.new(rebase_sha: rebase_sha)
         rescue Gitlab::Git::PreReceiveError => e
@@ -262,9 +267,10 @@ module GitalyServer
 
           repo = Gitlab::Git::Repository.from_gitaly(header.repository, call)
           user = Gitlab::Git::User.from_gitaly(header.user)
+          user_repo = Gitlab::Git::UserRepository.new(repo, user)
           opts = commit_files_opts(call, header, actions)
 
-          branch_update = branch_update_result(repo.multi_action(user, opts))
+          branch_update = branch_update_result(user_repo.multi_action(opts))
 
           Gitaly::UserCommitFilesResponse.new(branch_update: branch_update)
         rescue Gitlab::Git::Index::IndexError => e
@@ -282,14 +288,15 @@ module GitalyServer
         repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
         user = Gitlab::Git::User.from_gitaly(request.user)
         author = Gitlab::Git::User.from_gitaly(request.author)
+        user_repo = Gitlab::Git::UserRepository.new(repo, user)
 
         begin
-          squash_sha = repo.squash(user, request.squash_id,
-                                   branch: request.branch,
-                                   start_sha: request.start_sha,
-                                   end_sha: request.end_sha,
-                                   author: author,
-                                   message: request.commit_message)
+          squash_sha = user_repo.squash(request.squash_id,
+                                        branch: request.branch,
+                                        start_sha: request.start_sha,
+                                        end_sha: request.end_sha,
+                                        author: author,
+                                        message: request.commit_message)
 
           Gitaly::UserSquashResponse.new(squash_sha: squash_sha)
         rescue Gitlab::Git::Repository::GitError => e
