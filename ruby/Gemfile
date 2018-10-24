@@ -19,8 +19,7 @@ gem 'faraday', '~> 0.12'
 # This version needs to be in sync with GitLab CE/EE
 gem 'licensee', '~> 8.9.0'
 
-# Locked until https://github.com/google/protobuf/issues/4210 is closed
-gem 'google-protobuf', '= 3.5.1'
+gem 'google-protobuf', '~> 3.6'
 
 group :development, :test do
   gem 'rubocop', '~> 0.50', require: false
