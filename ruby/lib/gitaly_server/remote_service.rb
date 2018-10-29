@@ -40,7 +40,7 @@ module GitalyServer
         raise GRPC::InvalidArgument, "empty remote can't be queried" if request.remote.empty?
 
         gitlab_projects = Gitlab::Git::GitlabProjects.from_gitaly(request.repository, call)
-        ref = gitlab_projects.find_remote_root_ref(request.remote)
+        ref = gitlab_projects.find_remote_root_ref(request.remote, ssh_key: request.credentials&.ssh_key, known_hosts: request.credentials&.known_hosts)
 
         raise GRPC::Internal, "remote root ref not found for remote '#{request.remote}'" unless ref
 

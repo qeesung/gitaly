@@ -74,21 +74,28 @@ module Gitlab
         end
       end
 
-      def find_remote_root_ref(remote_name)
+      def find_remote_root_ref(remote_name, ssh_key: nil, known_hosts: nil)
         logger.info "Finding remote root ref from #{remote_name} for repository #{repository_absolute_path}."
 
         cmd = %W(#{Gitlab.config.git.bin_path} remote show #{remote_name})
+        ref = nil
 
-        if run(cmd, repository_absolute_path)
-          output.each_line do |line|
-            line = line.strip
+        setup_ssh_auth(ssh_key, known_hosts) do |env|
+          if run(cmd, repository_absolute_path, env)
+            output.each_line do |line|
+              line = line.strip
 
-            break line.sub(HEAD_PREFIX, '') if line.start_with?(HEAD_PREFIX)
+              if line.start_with?(HEAD_PREFIX)
+                ref = line.sub(HEAD_PREFIX, '')
+                break
+              end
+            end
+          else
+            logger.error("Finding remote root ref from #{remote_name} for repository #{repository_absolute_path} failed.")
           end
-        else
-          logger.error("Finding remote root ref from #{remote_name} for repository #{repository_absolute_path} failed.")
-          nil
         end
+
+        ref
       end
 
       def push_branches(remote_name, timeout, force, branch_names)

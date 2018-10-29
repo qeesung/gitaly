@@ -11,7 +11,9 @@ import (
 // FindRemoteRootRef queries the remote to determine its HEAD
 func (s *server) FindRemoteRootRef(ctx context.Context, in *gitalypb.FindRemoteRootRefRequest) (*gitalypb.FindRemoteRootRefResponse, error) {
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
-		"Remote": in.GetRemote(),
+		"Remote":     in.GetRemote(),
+		"SSHKey":     in.GetCredentials().GetSshKey(),
+		"KnownHosts": in.GetCredentials().GetKnownHosts(),
 	}).Debug("FindRemoteRootRef")
 
 	client, err := s.RemoteServiceClient(ctx)

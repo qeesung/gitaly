@@ -93,19 +93,6 @@ describe Gitlab::Git::GitlabProjects do
 
     subject { gl_projects.fetch_remote(remote_name, 600, args) }
 
-    def stub_tempfile(name, filename, opts = {})
-      chmod = opts.delete(:chmod)
-      file = StringIO.new
-
-      allow(file).to receive(:close!)
-      allow(file).to receive(:path).and_return(name)
-
-      expect(Tempfile).to receive(:new).with(filename).and_return(file)
-      expect(file).to receive(:chmod).with(chmod) if chmod
-
-      file
-    end
-
     context 'with default args' do
       it 'executes the command' do
         stub_spawn_timeout(cmd, 600, tmp_repo_path, {}, success: true)
@@ -189,26 +176,85 @@ describe Gitlab::Git::GitlabProjects do
   describe '#find_remote_root_ref' do
     let(:remote_name) { 'remote-name' }
     let(:cmd) { %W(#{Gitlab.config.git.bin_path} remote show #{remote_name}) }
-
-    subject { gl_projects.find_remote_root_ref(remote_name) }
-
-    it 'returns remote root ref when succeeds' do
-      output = <<~OUTPUT
+    let(:args) { {} }
+    let(:output) do
+      <<~OUTPUT
         * remote origin
         Fetch URL: https://gitlab.com/gitlab-org/gitlab-ce.git
         Push  URL: https://gitlab.com/gitlab-org/gitlab-ce.git
         HEAD branch: development
       OUTPUT
+    end
 
-      stub_spawn(cmd, tmp_repo_path, output: output, success: true)
+    subject { gl_projects.find_remote_root_ref(remote_name, {}.merge(args)) }
+
+    it 'returns remote root ref when succeeds' do
+      stub_spawn(cmd, tmp_repo_path, {}, output: output, success: true)
 
       is_expected.to eq 'development'
     end
 
-    it 'returns nil when fails' do
-      stub_spawn(cmd, tmp_repo_path, success: false)
+    it 'returns nil when output does not have the head branch' do
+      output = <<~OUTPUT
+        * remote origin
+        Fetch URL: https://gitlab.com/gitlab-org/gitlab-ce.git
+        Push  URL: https://gitlab.com/gitlab-org/gitlab-ce.git
+      OUTPUT
+
+      stub_spawn(cmd, tmp_repo_path, {}, output: output, success: true)
 
       is_expected.to be_nil
     end
+
+    it 'returns nil when fails' do
+      stub_spawn(cmd, tmp_repo_path, {}, success: false)
+
+      is_expected.to be_nil
+    end
+
+    describe 'with an SSH key' do
+      let(:args) { { ssh_key: 'SSH KEY' } }
+
+      it 'sets GIT_SSH to a custom script' do
+        script = stub_tempfile('scriptFile', 'gitlab-shell-ssh-wrapper', chmod: 0o755)
+        key    = stub_tempfile('/tmp files/keyFile', 'gitlab-shell-key-file', chmod: 0o400)
+
+        stub_spawn(cmd, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, output: output, success: true)
+
+        is_expected.to eq 'development'
+
+        expect(script.string).to eq("#!/bin/sh\nexec ssh '-oIdentityFile=\"/tmp files/keyFile\"' '-oIdentitiesOnly=\"yes\"' \"$@\"")
+        expect(key.string).to eq('SSH KEY')
+      end
+    end
+
+    describe 'with known_hosts data' do
+      let(:args) { { known_hosts: 'KNOWN HOSTS' } }
+
+      it 'sets GIT_SSH to a custom script' do
+        script = stub_tempfile('scriptFile', 'gitlab-shell-ssh-wrapper', chmod: 0o755)
+        key = stub_tempfile('/tmp files/knownHosts', 'gitlab-shell-known-hosts', chmod: 0o400)
+
+        stub_spawn(cmd, tmp_repo_path, { 'GIT_SSH' => 'scriptFile' }, output: output, success: true)
+
+        is_expected.to eq 'development'
+
+        expect(script.string).to eq("#!/bin/sh\nexec ssh '-oStrictHostKeyChecking=\"yes\"' '-oUserKnownHostsFile=\"/tmp files/knownHosts\"' \"$@\"")
+        expect(key.string).to eq('KNOWN HOSTS')
+      end
+    end
+  end
+
+  def stub_tempfile(name, filename, opts = {})
+    chmod = opts.delete(:chmod)
+    file = StringIO.new
+
+    allow(file).to receive(:close!)
+    allow(file).to receive(:path).and_return(name)
+
+    expect(Tempfile).to receive(:new).with(filename).and_return(file)
+    expect(file).to receive(:chmod).with(chmod) if chmod
+
+    file
   end
 end

@@ -9,13 +9,25 @@ import (
 )
 
 func (s *server) FetchRemote(ctx context.Context, in *gitalypb.FetchRemoteRequest) (*gitalypb.FetchRemoteResponse, error) {
+	credentials := in.GetCredentials()
+
+	sshKey := credentials.GetSshKey()
+	if sshKey == "" {
+		sshKey = in.GetSshKey()
+	}
+
+	knownHosts := credentials.GetKnownHosts()
+	if knownHosts == "" {
+		knownHosts = in.GetKnownHosts()
+	}
+
 	grpc_logrus.Extract(ctx).WithFields(log.Fields{
 		"Remote":     in.GetRemote(),
 		"Force":      in.GetForce(),
 		"NoTags":     in.GetNoTags(),
 		"Timeout":    in.GetTimeout(),
-		"SSHKey":     in.GetSshKey(),
-		"KnownHosts": in.GetKnownHosts(),
+		"SSHKey":     sshKey,
+		"KnownHosts": knownHosts,
 	}).Debug("FetchRemote")
 
 	client, err := s.RepositoryServiceClient(ctx)
