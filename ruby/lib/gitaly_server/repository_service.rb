@@ -31,8 +31,8 @@ module GitalyServer
         success = gitlab_projects.fetch_remote(request.remote, request.timeout,
                                                force: request.force,
                                                tags: !request.no_tags,
-                                               ssh_key: request.ssh_key.presence,
-                                               known_hosts: request.known_hosts.presence)
+                                               ssh_key: request.credentials&.ssh_key || request.ssh_key.presence,
+                                               known_hosts: request.credentials&.known_hosts || request.known_hosts.presence)
 
         raise GRPC::Unknown.new("Fetching remote #{request.remote} failed: #{gitlab_projects.output}") unless success
 
