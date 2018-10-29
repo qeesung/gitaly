@@ -137,6 +137,8 @@ It has these top-level messages:
 	UserSquashResponse
 	UserApplyPatchRequest
 	UserApplyPatchResponse
+	UserUpdateSubmoduleRequest
+	UserUpdateSubmoduleResponse
 	ListNewBlobsRequest
 	ListNewBlobsResponse
 	FindDefaultBranchNameRequest
@@ -258,6 +260,7 @@ It has these top-level messages:
 	ServerInfoRequest
 	ServerInfoResponse
 	Repository
+	RepositoryCredentials
 	GitCommit
 	CommitAuthor
 	ExitStatus

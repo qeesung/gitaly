@@ -213,12 +213,12 @@
 			"revisionTime": "2017-12-31T12:27:32Z"
 		},
 		{
-			"checksumSHA1": "sgtWlz2r6XUcjr+eXvBrb9JqgVs=",
+			"checksumSHA1": "PTtiy1IOzqijIh9qrcmvcPJlHwc=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb",
-			"revision": "43fb53d30d4eba169e663f708544c3b813eb0c9a",
-			"revisionTime": "2018-10-22T12:10:33Z",
-			"version": "v0.121.0",
-			"versionExact": "v0.121.0"
+			"revision": "e7d644773656a9bcc3afff26fa9175a6b2ef8a5e",
+			"revisionTime": "2018-10-29T17:29:09Z",
+			"version": "1363-fetch-remote-default-branch-doesn-t-work-with-ssh-mirrors",
+			"versionExact": "1363-fetch-remote-default-branch-doesn-t-work-with-ssh-mirrors"
 		},
 		{
 			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
