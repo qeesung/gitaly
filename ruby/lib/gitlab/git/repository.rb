@@ -355,7 +355,8 @@ module Gitlab
       end
 
       def find_tag(name)
-        tags.find { |tag| tag.name == name }
+        name_b = name.b
+        tags.find { |tag| tag.name.b == name_b }
       end
 
       def merge(user, source_sha, target_branch, message)

@@ -61,7 +61,7 @@ func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	tagNameInput := "to-be-deleted-soon-tag"
+	tagNameInput := "to-be-déleted-soon-tag"
 	defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
 
 	user := &gitalypb.User{
@@ -119,7 +119,7 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 		Email: []byte("ahmad@gitlab.com"),
 		GlId:  "user-123",
 	}
-	inputTagName := "to-be-created-soon"
+	inputTagName := "to-be-créated-soon"
 
 	testCases := []struct {
 		desc           string
