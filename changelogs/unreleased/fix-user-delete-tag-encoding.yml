@@ -1,0 +1,5 @@
+---
+title: Fix encoding bug in User{Create,Delete}Tag
+merge_request: 952
+author:
+type: fixed
