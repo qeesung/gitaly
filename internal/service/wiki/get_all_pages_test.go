@@ -25,10 +25,12 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 
 	page1Name := "Page 1"
 	page2Name := "Page 2"
+	page3Name := "Page 3"
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name})
-	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, forceContentEmpty: true})
+	page3Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name})
 	expectedPage1 := &gitalypb.WikiPage{
-		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
+		Version:    &gitalypb.WikiPageVersion{Commit: page3Commit, Format: "markdown"},
 		Title:      []byte(page1Name),
 		Format:     "markdown",
 		UrlPath:    "Page-1",
@@ -38,12 +40,22 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 		Historical: false,
 	}
 	expectedPage2 := &gitalypb.WikiPage{
-		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
+		Version:    &gitalypb.WikiPageVersion{Commit: page3Commit, Format: "markdown"},
 		Title:      []byte(page2Name),
 		Format:     "markdown",
 		UrlPath:    "Page-2",
 		Path:       []byte("Page-2.md"),
 		Name:       []byte(page2Name),
+		RawData:    nil,
+		Historical: false,
+	}
+	expectedPage3 := &gitalypb.WikiPage{
+		Version:    &gitalypb.WikiPageVersion{Commit: page3Commit, Format: "markdown"},
+		Title:      []byte(page3Name),
+		Format:     "markdown",
+		UrlPath:    "Page-3",
+		Path:       []byte("Page-3.md"),
+		Name:       []byte(page3Name),
 		RawData:    mockPageContent,
 		Historical: false,
 	}
@@ -56,7 +68,7 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 		{
 			desc:          "No limit",
 			limit:         0,
-			expectedCount: 2,
+			expectedCount: 3,
 		},
 		{
 			desc:          "Limit of 1",
@@ -64,13 +76,13 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 			expectedCount: 1,
 		},
 		{
-			desc:          "Limit of 2",
-			limit:         2,
-			expectedCount: 2,
+			desc:          "Limit of 3",
+			limit:         3,
+			expectedCount: 3,
 		},
 	}
 
-	expectedPages := []*gitalypb.WikiPage{expectedPage1, expectedPage2}
+	expectedPages := []*gitalypb.WikiPage{expectedPage1, expectedPage2, expectedPage3}
 
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -87,60 +99,6 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 				requireWikiPagesEqual(t, expectedPages[i], receivedPages[i])
 			}
 		})
-	}
-}
-
-func TestSuccessfulWikiGetAllPagesRequestContentNil(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	server, serverSocketPath := runWikiServiceServer(t)
-	defer server.Stop()
-
-	client, conn := newWikiClient(t, serverSocketPath)
-	defer conn.Close()
-
-	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
-	defer cleanupFunc()
-
-	page1Name := "Page 1"
-	page2Name := "Page 2"
-	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, forceContentEmpty: true})
-	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
-	expectedPage1 := &gitalypb.WikiPage{
-		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
-		Title:      []byte(page1Name),
-		Format:     "markdown",
-		UrlPath:    "Page-1",
-		Path:       []byte("Page-1.md"),
-		Name:       []byte(page1Name),
-		RawData:    nil,
-		Historical: false,
-	}
-	expectedPage2 := &gitalypb.WikiPage{
-		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
-		Title:      []byte(page2Name),
-		Format:     "markdown",
-		UrlPath:    "Page-2",
-		Path:       []byte("Page-2.md"),
-		Name:       []byte(page2Name),
-		RawData:    mockPageContent,
-		Historical: false,
-	}
-
-	expectedPages := []*gitalypb.WikiPage{expectedPage1, expectedPage2}
-
-	rpcRequest := gitalypb.WikiGetAllPagesRequest{Repository: wikiRepo, Limit: 0}
-
-	c, err := client.WikiGetAllPages(ctx, &rpcRequest)
-	require.NoError(t, err)
-
-	receivedPages := readWikiPagesFromWikiGetAllPagesClient(t, c)
-
-	require.Len(t, receivedPages, 2)
-
-	for i := 0; i < 2; i++ {
-		requireWikiPagesEqual(t, expectedPages[i], receivedPages[i])
 	}
 }
 
