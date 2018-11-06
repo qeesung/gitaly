@@ -43,118 +43,7 @@ func TestSuccessfulWikiFindFileRequest(t *testing.T) {
 	err = ioutil.WriteFile(path.Join(sandboxWikiPath, "cloúds.png"), content, 0644)
 	require.NoError(t, err)
 
-	// Sandbox wiki is empty, so we create a commit to be used later
-	testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath,
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
-		"commit", "--allow-empty", "-m", "Adding an empty commit")
-	oldHeadID := testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath, "show", "--format=format:%H", "--no-patch", "HEAD")
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath, "add", ".")
-	testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath,
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
-		"commit", "-m", "Adding an image")
-
-	newHeadID := testhelper.MustRunCommand(t, nil, "git", "-C", sandboxWikiPath, "show", "--format=format:%H", "--no-patch", "HEAD")
-
-	response := &gitalypb.WikiFindFileResponse{
-		Name:     []byte("cloúds.png"),
-		MimeType: "image/png",
-		Path:     []byte("cloúds.png"),
-	}
-
-	testCases := []struct {
-		desc     string
-		request  *gitalypb.WikiFindFileRequest
-		response *gitalypb.WikiFindFileResponse
-	}{
-		{
-			desc: "name only",
-			request: &gitalypb.WikiFindFileRequest{
-				Repository: sandboxWiki,
-				Name:       []byte("cloúds.png"),
-			},
-			response: response,
-		},
-		{
-			desc: "name + revision that includes the file",
-			request: &gitalypb.WikiFindFileRequest{
-				Repository: sandboxWiki,
-				Name:       []byte("cloúds.png"),
-				Revision:   newHeadID,
-			},
-			response: response,
-		},
-		{
-			desc: "name + revision that does not include the file",
-			request: &gitalypb.WikiFindFileRequest{
-				Repository: sandboxWiki,
-				Name:       []byte("cloúds.png"),
-				Revision:   oldHeadID,
-			},
-			response: &gitalypb.WikiFindFileResponse{},
-		},
-		{
-			desc: "non-existent name",
-			request: &gitalypb.WikiFindFileRequest{
-				Repository: sandboxWiki,
-				Name:       []byte("moar-clouds.png"),
-			},
-			response: &gitalypb.WikiFindFileResponse{},
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
-
-			c, err := client.WikiFindFile(ctx, testCase.request)
-			require.NoError(t, err)
-
-			expectedResponse := testCase.response
-			receivedResponse := readFullResponseFromWikiFindFileClient(t, c)
-
-			// require.Equal doesn't display a proper diff when either expected/actual has a field
-			// with large data (RawData in our case), so we compare file attributes and content separately.
-			receivedContent := receivedResponse.GetRawData()
-			if receivedResponse != nil {
-				receivedResponse.RawData = nil
-			}
-
-			require.Equal(t, expectedResponse, receivedResponse, "mismatched response")
-			if len(expectedResponse.Name) > 0 {
-				require.Equal(t, content, receivedContent, "mismatched content")
-			}
-		})
-	}
-}
-
-func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
-	_, wikiRepoPath, cleanupFunc := setupWikiRepo(t)
-	defer cleanupFunc()
-
-	server, serverSocketPath := runWikiServiceServer(t)
-	defer server.Stop()
-
-	client, conn := newWikiClient(t, serverSocketPath)
-	defer conn.Close()
-
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
-	storagePath := testhelper.GitlabTestStoragePath()
-	sandboxWikiPath := path.Join(storagePath, "find-file-sandbox")
-
-	testhelper.MustRunCommand(t, nil, "git", "clone", wikiRepoPath, sandboxWikiPath)
-	defer os.RemoveAll(sandboxWikiPath)
-
-	sandboxWiki := &gitalypb.Repository{
-		StorageName:  "default",
-		RelativePath: "find-file-sandbox/.git",
-	}
-
-	err := ioutil.WriteFile(path.Join(sandboxWikiPath, "cloúds.png"), nil, 0644)
+	err = ioutil.WriteFile(path.Join(sandboxWikiPath, "no_content.png"), nil, 0644)
 	require.NoError(t, err)
 
 	// Sandbox wiki is empty, so we create a commit to be used later
@@ -179,9 +68,10 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 	}
 
 	testCases := []struct {
-		desc     string
-		request  *gitalypb.WikiFindFileRequest
-		response *gitalypb.WikiFindFileResponse
+		desc            string
+		request         *gitalypb.WikiFindFileRequest
+		response        *gitalypb.WikiFindFileResponse
+		expectedContent []byte
 	}{
 		{
 			desc: "name only",
@@ -189,7 +79,8 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 				Repository: sandboxWiki,
 				Name:       []byte("cloúds.png"),
 			},
-			response: response,
+			response:        response,
+			expectedContent: content,
 		},
 		{
 			desc: "name + revision that includes the file",
@@ -198,7 +89,8 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 				Name:       []byte("cloúds.png"),
 				Revision:   newHeadID,
 			},
-			response: response,
+			response:        response,
+			expectedContent: content,
 		},
 		{
 			desc: "name + revision that does not include the file",
@@ -207,7 +99,8 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 				Name:       []byte("cloúds.png"),
 				Revision:   oldHeadID,
 			},
-			response: &gitalypb.WikiFindFileResponse{},
+			response:        &gitalypb.WikiFindFileResponse{},
+			expectedContent: content,
 		},
 		{
 			desc: "non-existent name",
@@ -215,7 +108,21 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 				Repository: sandboxWiki,
 				Name:       []byte("moar-clouds.png"),
 			},
-			response: &gitalypb.WikiFindFileResponse{},
+			response:        &gitalypb.WikiFindFileResponse{},
+			expectedContent: content,
+		},
+		{
+			desc: "file with no content",
+			request: &gitalypb.WikiFindFileRequest{
+				Repository: sandboxWiki,
+				Name:       []byte("no_content.png"),
+			},
+			response: &gitalypb.WikiFindFileResponse{
+				Name:     []byte("no_content.png"),
+				MimeType: "image/png",
+				Path:     []byte("no_content.png"),
+			},
+			expectedContent: nil,
 		},
 	}
 
@@ -229,7 +136,6 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 
 			expectedResponse := testCase.response
 			receivedResponse := readFullResponseFromWikiFindFileClient(t, c)
-			require.NotNil(t, receivedResponse)
 
 			// require.Equal doesn't display a proper diff when either expected/actual has a field
 			// with large data (RawData in our case), so we compare file attributes and content separately.
@@ -239,8 +145,8 @@ func TestSuccessfulWikiFindFileRequestContentNil(t *testing.T) {
 			}
 
 			require.Equal(t, expectedResponse, receivedResponse, "mismatched response")
-			if expectedResponse.Name != nil {
-				require.Len(t, receivedContent, 0)
+			if len(expectedResponse.Name) > 0 {
+				require.Equal(t, testCase.expectedContent, receivedContent, "mismatched content")
 			}
 		})
 	}

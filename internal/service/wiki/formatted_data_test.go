@@ -27,13 +27,16 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 	page1Name := "Home Pagé"
 	page2Name := "Instálling/Step 133-b"
 	page3Name := "Installing/Step 133-c"
+	page4Name := "Empty file"
 	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, format: format, content: content})
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, format: format, content: content})
 	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name, format: format, content: content})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page4Name, format: format, forceContentEmpty: true})
 
 	testCases := []struct {
-		desc    string
-		request *gitalypb.WikiGetFormattedDataRequest
+		desc            string
+		request         *gitalypb.WikiGetFormattedDataRequest
+		expectedContent []byte
 	}{
 		{
 			desc: "title only",
@@ -41,6 +44,7 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 				Repository: wikiRepo,
 				Title:      []byte(page1Name),
 			},
+			expectedContent: expectedContent,
 		},
 		{
 			desc: "title + revision that includes the page",
@@ -49,6 +53,7 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 				Title:      []byte(page1Name),
 				Revision:   []byte(page1Commit.Id),
 			},
+			expectedContent: expectedContent,
 		},
 		{
 			desc: "title + directory that includes the page",
@@ -57,6 +62,15 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 				Title:      []byte("Step 133-b"),
 				Directory:  []byte("Instálling"),
 			},
+			expectedContent: expectedContent,
+		},
+		{
+			desc: "title for file with empty content",
+			request: &gitalypb.WikiGetFormattedDataRequest{
+				Repository: wikiRepo,
+				Title:      []byte("Empty file"),
+			},
+			expectedContent: nil,
 		},
 	}
 
@@ -69,7 +83,7 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 			require.NoError(t, err)
 
 			receivedData := readFullDataFromWikiGetFormattedDataClient(t, c)
-			require.Equal(t, expectedContent, receivedData)
+			require.Equal(t, testCase.expectedContent, receivedData)
 		})
 	}
 }
