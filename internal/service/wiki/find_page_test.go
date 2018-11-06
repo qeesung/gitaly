@@ -164,6 +164,138 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 	}
 }
 
+func TestSuccessfulWikiFindPageRequestContentNil(t *testing.T) {
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	page1Name := "Home Pagé"
+	page2Name := "Instálling/Step 133-b"
+	page3Name := "Installing/Step 133-c"
+	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, forceContentEmpty: true})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, forceContentEmpty: true})
+	page3Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name, forceContentEmpty: true})
+	latestCommit := page3Commit
+
+	testCases := []struct {
+		desc            string
+		request         *gitalypb.WikiFindPageRequest
+		expectedPage    *gitalypb.WikiPage
+		expectedContent []byte
+	}{
+		{
+			desc: "title only",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: latestCommit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
+				Name:       []byte(page1Name),
+				Historical: false,
+			},
+			expectedContent: nil,
+		},
+		{
+			desc: "title + revision that includes the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+				Revision:   []byte(page1Commit.Id),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: page1Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "Home-Pagé",
+				Path:       []byte("Home-Pagé.md"),
+				Name:       []byte(page1Name),
+				Historical: true,
+			},
+			expectedContent: nil,
+		},
+		{
+			desc: "title + revision that does not include the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page2Name),
+				Revision:   []byte(page1Commit.Id),
+			},
+			expectedPage: nil,
+		},
+		{
+			desc: "title + directory that includes the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte("Step 133-b"),
+				Directory:  []byte("Instálling"),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: latestCommit,
+					Format: "markdown",
+				},
+				Title:      []byte("Step 133 b"),
+				Format:     "markdown",
+				UrlPath:    "Instálling/Step-133-b",
+				Path:       []byte("Instálling/Step-133-b.md"),
+				Name:       []byte("Step 133 b"),
+				Historical: false,
+			},
+			expectedContent: nil,
+		},
+		{
+			desc: "title + directory that does not include the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte("Step 133-b"),
+				Directory:  []byte("Installation"),
+			},
+			expectedPage: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			c, err := client.WikiFindPage(ctx, testCase.request)
+			require.NoError(t, err)
+
+			expectedPage := testCase.expectedPage
+			receivedPage := readFullWikiPageFromWikiFindPageClient(t, c)
+
+			// require.Equal doesn't display a proper diff when either expected/actual has a field
+			// with large data (RawData in our case), so we compare page attributes and content separately.
+			receivedContent := receivedPage.GetRawData()
+			if receivedPage != nil {
+				receivedPage.RawData = nil
+			}
+
+			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
+			if expectedPage != nil {
+				require.Equal(t, testCase.expectedContent, receivedContent, "mismatched page content")
+			}
+		})
+	}
+}
+
 func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
 	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
 	defer cleanupFunc()

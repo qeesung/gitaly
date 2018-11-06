@@ -74,6 +74,67 @@ func TestSuccessfulWikiGetFormattedDataRequest(t *testing.T) {
 	}
 }
 
+func TestSuccessfulWikiGetFormattedDataRequestContentNil(t *testing.T) {
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	format := "rdoc"
+	page1Name := "Home Pagé"
+	page2Name := "Instálling/Step 133-b"
+	page3Name := "Installing/Step 133-c"
+	page1Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, format: format, forceContentEmpty: true})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name, format: format, forceContentEmpty: true})
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page3Name, format: format, forceContentEmpty: true})
+
+	testCases := []struct {
+		desc    string
+		request *gitalypb.WikiGetFormattedDataRequest
+	}{
+		{
+			desc: "title only",
+			request: &gitalypb.WikiGetFormattedDataRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+			},
+		},
+		{
+			desc: "title + revision that includes the page",
+			request: &gitalypb.WikiGetFormattedDataRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+				Revision:   []byte(page1Commit.Id),
+			},
+		},
+		{
+			desc: "title + directory that includes the page",
+			request: &gitalypb.WikiGetFormattedDataRequest{
+				Repository: wikiRepo,
+				Title:      []byte("Step 133-b"),
+				Directory:  []byte("Instálling"),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			c, err := client.WikiGetFormattedData(ctx, testCase.request)
+			require.NoError(t, err)
+
+			receivedData := readFullDataFromWikiGetFormattedDataClient(t, c)
+			require.Len(t, receivedData, 0)
+		})
+	}
+}
+
 func TestFailedWikiGetFormattedDataDueToValidation(t *testing.T) {
 	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
 	defer cleanupFunc()

@@ -1,0 +1,5 @@
+---
+title: Fixed bug with wiki operations enumerator when content nil
+merge_request: 962
+author:
+type: fixed

@@ -61,28 +61,18 @@ module GitalyServer
           end
         end
 
-        version = Gitaly::WikiPageVersion.new(
-          commit: gitaly_commit_from_rugged(page.version.commit.raw_commit),
-          format: page.version.format.to_s
-        )
-        gitaly_wiki_page = Gitaly::WikiPage.new(
-          version: version,
-          format: page.format.to_s,
-          title: page.title.b,
-          url_path: page.url_path.to_s,
-          path: page.path.b,
-          name: page.name.b,
-          historical: page.historical?
-        )
+        gitaly_wiki_page = build_gitaly_wiki_page(page)
 
         Enumerator.new do |y|
+          y.yield Gitaly::WikiFindPageResponse.new(page: gitaly_wiki_page)
+
           io = StringIO.new(page.text_data)
           while chunk = io.read(Gitlab.config.git.write_buffer_size)
             gitaly_wiki_page.raw_data = chunk
 
             y.yield Gitaly::WikiFindPageResponse.new(page: gitaly_wiki_page)
 
-            gitaly_wiki_page = Gitaly::WikiPage.new
+            gitaly_wiki_page = build_gitaly_wiki_page
           end
         end
       end
@@ -96,19 +86,9 @@ module GitalyServer
 
         Enumerator.new do |y|
           wiki.pages(limit: pages_limit).each do |page|
-            version = Gitaly::WikiPageVersion.new(
-              commit: gitaly_commit_from_rugged(page.version.commit.raw_commit),
-              format: page.version.format.to_s
-            )
-            gitaly_wiki_page = Gitaly::WikiPage.new(
-              version: version,
-              format: page.format.to_s,
-              title: page.title.b,
-              url_path: page.url_path.to_s,
-              path: page.path.b,
-              name: page.name.b,
-              historical: page.historical?
-            )
+            gitaly_wiki_page = build_gitaly_wiki_page(page)
+
+            y.yield Gitaly::WikiGetAllPagesResponse.new(page: gitaly_wiki_page)
 
             io = StringIO.new(page.text_data)
             while chunk = io.read(Gitlab.config.git.write_buffer_size)
@@ -116,7 +96,7 @@ module GitalyServer
 
               y.yield Gitaly::WikiGetAllPagesResponse.new(page: gitaly_wiki_page)
 
-              gitaly_wiki_page = Gitaly::WikiPage.new
+              gitaly_wiki_page = build_gitaly_wiki_page
             end
 
             y.yield Gitaly::WikiGetAllPagesResponse.new(end_of_page: true)
@@ -145,6 +125,8 @@ module GitalyServer
         )
 
         Enumerator.new do |y|
+          y.yield response
+
           io = StringIO.new(file.raw_data)
           while chunk = io.read(Gitlab.config.git.write_buffer_size)
             response.raw_data = chunk
@@ -229,12 +211,37 @@ module GitalyServer
         raise GRPC::NotFound unless page
 
         Enumerator.new do |y|
+          y.yield Gitaly::WikiGetFormattedDataResponse.new
+
           io = StringIO.new(page.formatted_data)
           while chunk = io.read(Gitlab.config.git.write_buffer_size)
             y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
           end
         end
       end
+    end
+
+    private
+
+    def build_gitaly_wiki_page(page = nil)
+      return Gitaly::WikiPage.new unless page
+
+      Gitaly::WikiPage.new(
+        version: build_gitaly_page_version(page),
+        format: page.format.to_s,
+        title: page.title.b,
+        url_path: page.url_path.to_s,
+        path: page.path.b,
+        name: page.name.b,
+        historical: page.historical?
+      )
+    end
+
+    def build_gitaly_page_version(page)
+      Gitaly::WikiPageVersion.new(
+        commit: gitaly_commit_from_rugged(page.version.commit.raw_commit),
+        format: page.version.format.to_s
+      )
     end
   end
 end

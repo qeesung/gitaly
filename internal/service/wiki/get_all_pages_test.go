@@ -65,8 +65,8 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 		},
 		{
 			desc:          "Limit of 2",
-			limit:         1,
-			expectedCount: 1,
+			limit:         2,
+			expectedCount: 2,
 		},
 	}
 
@@ -87,6 +87,60 @@ func TestSuccessfulWikiGetAllPagesRequest(t *testing.T) {
 				requireWikiPagesEqual(t, expectedPages[i], receivedPages[i])
 			}
 		})
+	}
+}
+
+func TestSuccessfulWikiGetAllPagesRequestContentNil(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	page1Name := "Page 1"
+	page2Name := "Page 2"
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, forceContentEmpty: true})
+	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Name})
+	expectedPage1 := &gitalypb.WikiPage{
+		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
+		Title:      []byte(page1Name),
+		Format:     "markdown",
+		UrlPath:    "Page-1",
+		Path:       []byte("Page-1.md"),
+		Name:       []byte(page1Name),
+		RawData:    nil,
+		Historical: false,
+	}
+	expectedPage2 := &gitalypb.WikiPage{
+		Version:    &gitalypb.WikiPageVersion{Commit: page2Commit, Format: "markdown"},
+		Title:      []byte(page2Name),
+		Format:     "markdown",
+		UrlPath:    "Page-2",
+		Path:       []byte("Page-2.md"),
+		Name:       []byte(page2Name),
+		RawData:    mockPageContent,
+		Historical: false,
+	}
+
+	expectedPages := []*gitalypb.WikiPage{expectedPage1, expectedPage2}
+
+	rpcRequest := gitalypb.WikiGetAllPagesRequest{Repository: wikiRepo, Limit: 0}
+
+	c, err := client.WikiGetAllPages(ctx, &rpcRequest)
+	require.NoError(t, err)
+
+	receivedPages := readWikiPagesFromWikiGetAllPagesClient(t, c)
+
+	require.Len(t, receivedPages, 2)
+
+	for i := 0; i < 2; i++ {
+		requireWikiPagesEqual(t, expectedPages[i], receivedPages[i])
 	}
 }
 

@@ -21,9 +21,10 @@ import (
 )
 
 type createWikiPageOpts struct {
-	title   string
-	content []byte
-	format  string
+	title             string
+	content           []byte
+	format            string
+	forceContentEmpty bool
 }
 
 var (
@@ -84,7 +85,7 @@ func newWikiClient(t *testing.T, serverSocketPath string) (gitalypb.WikiServiceC
 
 func writeWikiPage(t *testing.T, client gitalypb.WikiServiceClient, wikiRepo *gitalypb.Repository, opts createWikiPageOpts) {
 	var content []byte
-	if len(opts.content) == 0 {
+	if len(opts.content) == 0 && !opts.forceContentEmpty {
 		content = mockPageContent
 	} else {
 		content = opts.content
@@ -192,7 +193,6 @@ func createTestWikiPage(t *testing.T, client gitalypb.WikiServiceClient, wikiRep
 
 	wikiRepoPath, err := helper.GetRepoPath(wikiRepo)
 	require.NoError(t, err)
-
 	writeWikiPage(t, client, wikiRepo, opts)
 	head1ID := testhelper.MustRunCommand(t, nil, "git", "-C", wikiRepoPath, "show", "--format=format:%H", "--no-patch", "HEAD")
 	pageCommit, err := gitlog.GetCommit(ctx, wikiRepo, string(head1ID))
