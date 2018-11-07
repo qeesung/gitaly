@@ -205,7 +205,7 @@ module GitalyServer
               y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
             end
           else
-            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: nil)
+            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: "")
           end
         end
       end
