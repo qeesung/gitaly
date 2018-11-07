@@ -82,17 +82,13 @@ module GitalyServer
 
         Enumerator.new do |y|
           wiki.pages(limit: pages_limit).each do |page|
-            gitaly_wiki_page = build_gitaly_wiki_page(page)
-
-            y.yield Gitaly::WikiGetAllPagesResponse.new(page: gitaly_wiki_page)
+            y.yield Gitaly::WikiGetAllPagesResponse.new(page: build_gitaly_wiki_page(page))
 
             io = StringIO.new(page.text_data)
             while chunk = io.read(Gitlab.config.git.write_buffer_size)
-              gitaly_wiki_page.raw_data = chunk
+              gitaly_wiki_page = Gitaly::WikiPage.new(raw_data: chunk)
 
               y.yield Gitaly::WikiGetAllPagesResponse.new(page: gitaly_wiki_page)
-
-              gitaly_wiki_page = build_gitaly_wiki_page
             end
 
             y.yield Gitaly::WikiGetAllPagesResponse.new(end_of_page: true)
@@ -125,11 +121,7 @@ module GitalyServer
 
           io = StringIO.new(file.raw_data)
           while chunk = io.read(Gitlab.config.git.write_buffer_size)
-            response.raw_data = chunk
-
-            y.yield response
-
-            response = Gitaly::WikiFindFileResponse.new
+            y.yield Gitaly::WikiFindFileResponse.new(raw_data: chunk)
           end
         end
       end
@@ -207,11 +199,13 @@ module GitalyServer
         raise GRPC::NotFound unless page
 
         Enumerator.new do |y|
-          y.yield Gitaly::WikiGetFormattedDataResponse.new
-
-          io = StringIO.new(page.formatted_data)
-          while chunk = io.read(Gitlab.config.git.write_buffer_size)
-            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
+          if page.formatted_data.present?
+            io = StringIO.new(page.formatted_data)
+            while chunk = io.read(Gitlab.config.git.write_buffer_size)
+              y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
+            end
+          else
+            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: nil)
           end
         end
       end

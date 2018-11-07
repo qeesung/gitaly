@@ -186,6 +186,122 @@ func TestSuccessfulWikiFindPageRequest(t *testing.T) {
 	}
 }
 
+func TestSuccessfulWikiFindPageSameTitleDifferentPathRequest(t *testing.T) {
+	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
+	defer cleanupFunc()
+
+	server, serverSocketPath := runWikiServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newWikiClient(t, serverSocketPath)
+	defer conn.Close()
+
+	page1Name := "page1"
+	page1Content := []byte("content " + page1Name)
+
+	page2Name := "page1"
+	page2Path := "foo/" + page2Name
+	page2Content := []byte("content " + page2Name)
+
+	createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page1Name, content: page1Content})
+	page2Commit := createTestWikiPage(t, client, wikiRepo, createWikiPageOpts{title: page2Path, content: page2Content})
+
+	testCases := []struct {
+		desc         string
+		request      *gitalypb.WikiFindPageRequest
+		expectedPage *gitalypb.WikiPage
+		content      []byte
+	}{
+		{
+			desc: "finding page in root directory by title only",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "page1",
+				Path:       []byte("page1.md"),
+				Name:       []byte(page1Name),
+				Historical: false,
+			},
+			content: page1Content,
+		},
+		{
+			desc: "finding page in root directory by title + directory that includes the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page1Name),
+				Directory:  []byte(""),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page1Name),
+				Format:     "markdown",
+				UrlPath:    "page1",
+				Path:       []byte("page1.md"),
+				Name:       []byte(page1Name),
+				Historical: false,
+			},
+			content: page1Content,
+		},
+		{
+			desc: "finding page inside a directory by title + directory that includes the page",
+			request: &gitalypb.WikiFindPageRequest{
+				Repository: wikiRepo,
+				Title:      []byte(page2Name),
+				Directory:  []byte("foo"),
+			},
+			expectedPage: &gitalypb.WikiPage{
+				Version: &gitalypb.WikiPageVersion{
+					Commit: page2Commit,
+					Format: "markdown",
+				},
+				Title:      []byte(page2Name),
+				Format:     "markdown",
+				UrlPath:    "foo/page1",
+				Path:       []byte("foo/page1.md"),
+				Name:       []byte(page2Name),
+				Historical: false,
+			},
+			content: page2Content,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			c, err := client.WikiFindPage(ctx, testCase.request)
+			require.NoError(t, err)
+
+			expectedPage := testCase.expectedPage
+			receivedPage := readFullWikiPageFromWikiFindPageClient(t, c)
+
+			// require.Equal doesn't display a proper diff when either expected/actual has a field
+			// with large data (RawData in our case), so we compare page attributes and content separately.
+			receivedContent := receivedPage.GetRawData()
+			if receivedPage != nil {
+				receivedPage.RawData = nil
+			}
+
+			require.Equal(t, expectedPage, receivedPage, "mismatched page attributes")
+			if expectedPage != nil {
+				require.Equal(t, testCase.content, receivedContent, "mismatched page content")
+			}
+		})
+	}
+}
+
 func TestFailedWikiFindPageDueToValidation(t *testing.T) {
 	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
 	defer cleanupFunc()
