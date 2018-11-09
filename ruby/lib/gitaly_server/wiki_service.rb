@@ -199,13 +199,9 @@ module GitalyServer
         raise GRPC::NotFound unless page
 
         Enumerator.new do |y|
-          if page.formatted_data.present?
-            io = StringIO.new(page.formatted_data)
-            while chunk = io.read(Gitlab.config.git.write_buffer_size)
-              y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
-            end
-          else
-            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: "")
+          io = StringIO.new(page.formatted_data)
+          while chunk = io.read(Gitlab.config.git.write_buffer_size)
+            y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
           end
         end
       end
