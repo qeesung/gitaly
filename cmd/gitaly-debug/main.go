@@ -40,7 +40,7 @@ func main() {
 }
 
 func testHTTPCloneSpeed(gitDir string) {
-	fmt.Println("Generating server response for HTTP clone. Data goes to /dev/null.")
+	msg("Generating server response for HTTP clone. Data goes to /dev/null.")
 	infoRefs := exec.Command("git", "upload-pack", "--stateless-rpc", "--advertise-refs", gitDir)
 	infoRefs.Stderr = os.Stderr
 	out, err := infoRefs.StdoutPipe()
@@ -58,7 +58,7 @@ func testHTTPCloneSpeed(gitDir string) {
 
 	noError(infoRefs.Wait())
 
-	fmt.Printf("advertise-refs %d lines %v\n", len(infoLines), time.Since(start))
+	msg("advertise-refs %d lines %v", len(infoLines), time.Since(start))
 
 	if len(infoLines) == 0 {
 		fatal("no refs were advertised")
@@ -96,7 +96,7 @@ func testHTTPCloneSpeed(gitDir string) {
 	n, err := io.Copy(ioutil.Discard, out)
 	noError(err)
 
-	fmt.Printf("upload-pack %s %v\n", humanBytes(n), time.Since(start))
+	msg("upload-pack %s %v", humanBytes(n), time.Since(start))
 }
 
 func noError(err error) {
@@ -106,8 +106,12 @@ func noError(err error) {
 }
 
 func fatal(a interface{}) {
-	fmt.Fprintln(os.Stderr, a)
+	msg("%v", a)
 	os.Exit(1)
+}
+
+func msg(format string, a ...interface{}) {
+	fmt.Fprintln(os.Stderr, fmt.Sprintf(format, a...))
 }
 
 func humanBytes(n int64) string {
