@@ -13,3 +13,4 @@
 /ruby/tmp
 *.socket
 git-env
+/gitaly-debug
