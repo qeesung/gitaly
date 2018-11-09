@@ -31,6 +31,7 @@ func main() {
 }
 
 func testHttpCloneSpeed(gitDir string) {
+	fmt.Println("Generating server response for HTTP clone. Data goes to /dev/null.")
 	infoRefs := exec.Command("git", "upload-pack", "--stateless-rpc", "--advertise-refs", gitDir)
 	infoRefs.Stderr = os.Stderr
 	out, err := infoRefs.StdoutPipe()
