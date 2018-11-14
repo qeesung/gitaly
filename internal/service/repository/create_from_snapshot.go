@@ -11,7 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/correlation"
+	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

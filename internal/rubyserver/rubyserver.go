@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
@@ -22,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/supervisor"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/streamio"
+	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -256,7 +258,17 @@ func dialOptions() []grpc.DialOption {
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)
 		}),
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(
+			grpc_middleware.ChainUnaryClient(
+				grpc_prometheus.UnaryClientInterceptor,
+				grpccorrelation.UnaryClientCorrelationInterceptor,
+			),
+		),
+		grpc.WithStreamInterceptor(
+			grpc_middleware.ChainStreamClient(
+				grpc_prometheus.StreamClientInterceptor,
+				grpccorrelation.StreamClientCorrelationInterceptor,
+			),
+		),
 	}
 }

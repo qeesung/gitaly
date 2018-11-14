@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/service"
+	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -75,6 +76,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			cancelhandler.Stream, // Should be below LogHandler
 			lh.StreamInterceptor(),
 			auth.StreamServerInterceptor(),
+			grpccorrelation.UnaryServerCorrelationInterceptor,
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.StreamPanicHandler,
@@ -88,6 +90,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			cancelhandler.Unary, // Should be below LogHandler
 			lh.UnaryInterceptor(),
 			auth.UnaryServerInterceptor(),
+			grpccorrelation.StreamServerCorrelationInterceptor,
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.UnaryPanicHandler,

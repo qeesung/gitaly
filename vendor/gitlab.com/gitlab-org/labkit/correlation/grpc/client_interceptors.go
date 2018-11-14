@@ -6,10 +6,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"gitlab.com/gitlab-org/gitlab-workhorse/internal/correlation"
+	"gitlab.com/gitlab-org/labkit/correlation"
 )
-
-const metadataCorrelatorKey = "X-GitLab-Correlation-ID"
 
 func injectFromContext(ctx context.Context) context.Context {
 	correlationID := correlation.ExtractFromContext(ctx)

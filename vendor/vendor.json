@@ -339,16 +339,18 @@
 			"versionExact": "v0.123.0"
 		},
 		{
-			"checksumSHA1": "/oKUbmrHeZF9EZ0u/nlyYZIOx3w=",
-			"path": "gitlab.com/gitlab-org/gitlab-workhorse/internal/correlation",
-			"revision": "692ad3c48ab0664ab5ca80ea963c51354d50df9f",
-			"revisionTime": "2018-11-14T11:15:54Z"
+			"checksumSHA1": "ogiRgXL/jwRVV+RXyKIC0jL/Uog=",
+			"origin": "gitlab.com/andrewn/labkit/correlation",
+			"path": "gitlab.com/gitlab-org/labkit/correlation",
+			"revision": "99946a43ae8e2c9ef92d517682913958be78c331",
+			"revisionTime": "2018-11-14T18:00:10Z"
 		},
 		{
-			"checksumSHA1": "YGWUf38Ho/aFKQNbej7CbEkLyJM=",
-			"path": "gitlab.com/gitlab-org/gitlab-workhorse/internal/correlation/grpc",
-			"revision": "692ad3c48ab0664ab5ca80ea963c51354d50df9f",
-			"revisionTime": "2018-11-14T11:15:54Z"
+			"checksumSHA1": "PPpFxhk4q27JT7pXJbcYJnU4JKs=",
+			"origin": "gitlab.com/andrewn/labkit/correlation/grpc",
+			"path": "gitlab.com/gitlab-org/labkit/correlation/grpc",
+			"revision": "99946a43ae8e2c9ef92d517682913958be78c331",
+			"revisionTime": "2018-11-14T18:00:10Z"
 		},
 		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
