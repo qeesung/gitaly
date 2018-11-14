@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
+	"gitlab.com/gitlab-org/gitlab-workhorse/internal/correlation"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,7 +39,7 @@ var httpTransport = &http.Transport{
 // (above). It also disables following redirects, as we don't expect this to be
 // required for this RPC.
 var httpClient = &http.Client{
-	Transport: httpTransport,
+	Transport: correlation.NewInstrumentedRoundTripper(httpTransport),
 	CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	},
