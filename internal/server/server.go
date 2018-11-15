@@ -76,7 +76,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			cancelhandler.Stream, // Should be below LogHandler
 			lh.StreamInterceptor(),
 			auth.StreamServerInterceptor(),
-			grpccorrelation.UnaryServerCorrelationInterceptor,
+			grpccorrelation.StreamServerCorrelationInterceptor,
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.StreamPanicHandler,
@@ -90,7 +90,7 @@ func New(rubyServer *rubyserver.Server) *grpc.Server {
 			cancelhandler.Unary, // Should be below LogHandler
 			lh.UnaryInterceptor(),
 			auth.UnaryServerInterceptor(),
-			grpccorrelation.StreamServerCorrelationInterceptor,
+			grpccorrelation.UnaryServerCorrelationInterceptor,
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.UnaryPanicHandler,
