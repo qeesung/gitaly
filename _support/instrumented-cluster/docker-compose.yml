@@ -2,7 +2,7 @@ version: "2.4"
 
 services:
   gitaly1repos:
-    image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.11-git-2.17
+    image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.5-golang-1.11-git-2.18
     volumes:
       - gitalydata1:/repositories
       - ./gitaly1repos/setup.sh:/setup.sh

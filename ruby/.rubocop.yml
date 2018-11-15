@@ -7,3 +7,6 @@ AllCops:
 
 Style/NumericPredicate:
   Enabled: false
+
+Style/RedundantBegin:
+  Enabled: false

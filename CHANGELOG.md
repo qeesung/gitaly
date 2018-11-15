@@ -1,5 +1,13 @@
 # Gitaly changelog
 
+## v0.132.0
+
+#### Other
+- Upgrade to Ruby 2.5.3
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/942
+- Remove dead code post 10.8
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/964
+
 ## v0.131.0
 
 #### Fixed
