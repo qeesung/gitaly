@@ -1,5 +1,11 @@
 # Gitaly changelog
 
+## v0.133.0
+
+#### Other
+- Upgrade gRPC-go from v1.9.1 to v1.16
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/972
+
 ## v0.132.0
 
 #### Other
