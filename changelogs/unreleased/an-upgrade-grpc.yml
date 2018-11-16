@@ -1,0 +1,5 @@
+---
+title: Upgrade gRPC-go from v1.9.1 to v1.16
+merge_request: 972
+author:
+type: other
