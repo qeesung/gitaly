@@ -326,15 +326,15 @@
 			"checksumSHA1": "ogiRgXL/jwRVV+RXyKIC0jL/Uog=",
 			"origin": "gitlab.com/andrewn/labkit/correlation",
 			"path": "gitlab.com/gitlab-org/labkit/correlation",
-			"revision": "99946a43ae8e2c9ef92d517682913958be78c331",
-			"revisionTime": "2018-11-14T18:00:10Z"
+			"revision": "f5d8d5442a53893cdcc1dcb1cd038a92e8c93dbc",
+			"revisionTime": "2018-11-16T14:41:08Z"
 		},
 		{
 			"checksumSHA1": "PPpFxhk4q27JT7pXJbcYJnU4JKs=",
 			"origin": "gitlab.com/andrewn/labkit/correlation/grpc",
 			"path": "gitlab.com/gitlab-org/labkit/correlation/grpc",
-			"revision": "99946a43ae8e2c9ef92d517682913958be78c331",
-			"revisionTime": "2018-11-14T18:00:10Z"
+			"revision": "f5d8d5442a53893cdcc1dcb1cd038a92e8c93dbc",
+			"revisionTime": "2018-11-16T14:41:08Z"
 		},
 		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
