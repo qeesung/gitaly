@@ -17,12 +17,18 @@ tool offline and copy the executable to your server.
 
 ## Subcommands
 
-### `test-http-clone-speed`
+### `simulate-http-clone`
 
-    gitaly-debug test-http-clone-speed /path/to/repo.git
+    gitaly-debug simulate-http-clone /path/to/repo.git
 
 This simulates the server workload for a full HTTP Git clone on a
 repository on your Gitaly server. You can use this to determine the
 best-case performance of `git clone`. An example application is to
 determine if a slow `git clone` is bottle-necked by Gitaly server
 performance, or by something downstream.
+
+The results returned by this command give an indication of the ideal
+case performance of a `git clone` on the repository, as if there is
+unlimited network bandwidth and no latency. This speed will not be
+reached in real life but it shows the best you can hope for from a given
+repository on a given Gitaly server.

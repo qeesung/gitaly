@@ -17,7 +17,7 @@ const (
 
 Subcommands:
 
-test-http-clone-speed GIT_DIR
+simulate-http-clone GIT_DIR
 	Simulates the server side workload of serving a full git clone over
 	HTTP. The clone data is written to /dev/null. Note that in real life
 	the workload also depends on the transport capabilities requested by
@@ -32,7 +32,7 @@ func main() {
 	gitDir := os.Args[2]
 
 	switch os.Args[1] {
-	case "test-http-clone-speed":
+	case "simulate-http-clone":
 		testHTTPCloneSpeed(gitDir)
 	default:
 		fatal(usage)
@@ -58,7 +58,7 @@ func testHTTPCloneSpeed(gitDir string) {
 
 	noError(infoRefs.Wait())
 
-	msg("advertise-refs %d lines %v", len(infoLines), time.Since(start))
+	msg("simulated GET \"/info/refs?service=git-upload-pack\" returned %d lines, took %v", len(infoLines), time.Since(start))
 
 	if len(infoLines) == 0 {
 		fatal("no refs were advertised")
@@ -96,7 +96,7 @@ func testHTTPCloneSpeed(gitDir string) {
 	n, err := io.Copy(ioutil.Discard, out)
 	noError(err)
 
-	msg("upload-pack %s %v", humanBytes(n), time.Since(start))
+	msg("simulated POST \"/git-upload-pack\" returned %s, took %v", humanBytes(n), time.Since(start))
 }
 
 func noError(err error) {
