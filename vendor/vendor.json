@@ -324,17 +324,19 @@
 		},
 		{
 			"checksumSHA1": "ogiRgXL/jwRVV+RXyKIC0jL/Uog=",
-			"origin": "gitlab.com/andrewn/labkit/correlation",
 			"path": "gitlab.com/gitlab-org/labkit/correlation",
-			"revision": "f5d8d5442a53893cdcc1dcb1cd038a92e8c93dbc",
-			"revisionTime": "2018-11-16T14:41:08Z"
+			"revision": "e258edd8878d55823e65670d512ed52463f42eaa",
+			"revisionTime": "2018-11-16T15:37:58Z",
+			"version": "an-initial",
+			"versionExact": "an-initial"
 		},
 		{
 			"checksumSHA1": "PPpFxhk4q27JT7pXJbcYJnU4JKs=",
-			"origin": "gitlab.com/andrewn/labkit/correlation/grpc",
 			"path": "gitlab.com/gitlab-org/labkit/correlation/grpc",
-			"revision": "f5d8d5442a53893cdcc1dcb1cd038a92e8c93dbc",
-			"revisionTime": "2018-11-16T14:41:08Z"
+			"revision": "e258edd8878d55823e65670d512ed52463f42eaa",
+			"revisionTime": "2018-11-16T15:37:58Z",
+			"version": "an-initial",
+			"versionExact": "an-initial"
 		},
 		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
