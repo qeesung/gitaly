@@ -9,7 +9,6 @@ func TestParseAddress(t *testing.T) {
 		raw       string
 		canonical string
 		invalid   bool
-		secure    bool
 	}{
 		{raw: "unix:/foo/bar.socket", canonical: "unix:///foo/bar.socket"},
 		{raw: "unix:///foo/bar.socket", canonical: "unix:///foo/bar.socket"},
@@ -25,7 +24,9 @@ func TestParseAddress(t *testing.T) {
 		{raw: "tcp:/foo/bar.socket", invalid: true},
 		{raw: "tcp://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:9999", canonical: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:9999"},
 		{raw: "foobar:9999", canonical: "foobar:9999"},
-		{raw: "https://foobar:9999", canonical: "https://foobar:9999"},
+		// As per https://github.com/grpc/grpc/blob/master/doc/naming.md...
+		{raw: "dns:///127.0.0.1:9999", canonical: "dns:///127.0.0.1:9999"},
+		{raw: "dns:///[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:9999", canonical: "dns:///[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:9999"},
 	}
 
 	for _, tc := range testCases {
