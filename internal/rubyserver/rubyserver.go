@@ -258,13 +258,13 @@ func dialOptions() []grpc.DialOption {
 		grpc.WithUnaryInterceptor(
 			grpc_middleware.ChainUnaryClient(
 				grpc_prometheus.UnaryClientInterceptor,
-				grpccorrelation.UnaryClientCorrelationInterceptor,
+				grpccorrelation.UnaryClientCorrelationInterceptor(),
 			),
 		),
 		grpc.WithStreamInterceptor(
 			grpc_middleware.ChainStreamClient(
 				grpc_prometheus.StreamClientInterceptor,
-				grpccorrelation.StreamClientCorrelationInterceptor,
+				grpccorrelation.StreamClientCorrelationInterceptor(),
 			),
 		),
 	}

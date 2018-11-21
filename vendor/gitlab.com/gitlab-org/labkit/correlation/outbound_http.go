@@ -27,6 +27,9 @@ func (c instrumentedRoundTripper) RoundTrip(req *http.Request) (res *http.Respon
 // NewInstrumentedRoundTripper acts as a "client-middleware" for outbound http requests
 // adding instrumentation to the outbound request and then delegating to the underlying
 // transport
-func NewInstrumentedRoundTripper(delegate http.RoundTripper) http.RoundTripper {
+func NewInstrumentedRoundTripper(delegate http.RoundTripper, opts ...InstrumentedRoundTripperOption) http.RoundTripper {
+	// Currently we don't use any of the options available
+	applyInstrumentedRoundTripperOptions(opts)
+
 	return &instrumentedRoundTripper{delegate: delegate}
 }

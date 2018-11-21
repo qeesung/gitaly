@@ -19,13 +19,17 @@ func injectFromContext(ctx context.Context) context.Context {
 }
 
 // UnaryClientCorrelationInterceptor propagates Correlation-IDs downstream
-func UnaryClientCorrelationInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	ctx = injectFromContext(ctx)
-	return invoker(ctx, method, req, reply, cc, opts...)
+func UnaryClientCorrelationInterceptor() grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		ctx = injectFromContext(ctx)
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
 }
 
 // StreamClientCorrelationInterceptor propagates Correlation-IDs downstream
-func StreamClientCorrelationInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-	ctx = injectFromContext(ctx)
-	return streamer(ctx, desc, cc, method, opts...)
+func StreamClientCorrelationInterceptor() grpc.StreamClientInterceptor {
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		ctx = injectFromContext(ctx)
+		return streamer(ctx, desc, cc, method, opts...)
+	}
 }

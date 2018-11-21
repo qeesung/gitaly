@@ -323,20 +323,20 @@
 			"versionExact": "v0.123.0"
 		},
 		{
-			"checksumSHA1": "ogiRgXL/jwRVV+RXyKIC0jL/Uog=",
+			"checksumSHA1": "S9x46Eq79I1EkoXI8woeIU6w/wY=",
 			"path": "gitlab.com/gitlab-org/labkit/correlation",
-			"revision": "e258edd8878d55823e65670d512ed52463f42eaa",
-			"revisionTime": "2018-11-16T15:37:58Z",
-			"version": "an-initial",
-			"versionExact": "an-initial"
+			"revision": "fb2eeb11fc358f8f538692d1c0f6e57d7f268691",
+			"revisionTime": "2018-11-21T15:01:09Z",
+			"version": "master",
+			"versionExact": "master"
 		},
 		{
-			"checksumSHA1": "PPpFxhk4q27JT7pXJbcYJnU4JKs=",
+			"checksumSHA1": "UFBFulprWZHuL9GHhjCKoHXm+Ww=",
 			"path": "gitlab.com/gitlab-org/labkit/correlation/grpc",
-			"revision": "e258edd8878d55823e65670d512ed52463f42eaa",
-			"revisionTime": "2018-11-16T15:37:58Z",
-			"version": "an-initial",
-			"versionExact": "an-initial"
+			"revision": "fb2eeb11fc358f8f538692d1c0f6e57d7f268691",
+			"revisionTime": "2018-11-21T15:01:09Z",
+			"version": "master",
+			"versionExact": "master"
 		},
 		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",

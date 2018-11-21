@@ -23,15 +23,19 @@ func extractFromContext(ctx context.Context) context.Context {
 }
 
 // UnaryServerCorrelationInterceptor propagates Correlation-IDs from incoming upstream services
-func UnaryServerCorrelationInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	ctx = extractFromContext(ctx)
-	return handler(ctx, req)
+func UnaryServerCorrelationInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		ctx = extractFromContext(ctx)
+		return handler(ctx, req)
+	}
 }
 
 // StreamServerCorrelationInterceptor propagates Correlation-IDs from incoming upstream services
-func StreamServerCorrelationInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	wrapped := grpc_middleware.WrapServerStream(ss)
-	wrapped.WrappedContext = extractFromContext(ss.Context())
+func StreamServerCorrelationInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		wrapped := grpc_middleware.WrapServerStream(ss)
+		wrapped.WrappedContext = extractFromContext(ss.Context())
 
-	return handler(srv, wrapped)
+		return handler(srv, wrapped)
+	}
 }
