@@ -128,18 +128,6 @@ func TestReceivePackPushFailure(t *testing.T) {
 	if err == nil {
 		t.Errorf("local and remote head equal. push did not fail")
 	}
-
-	currentGitVersion, _ := git.Version()
-
-	// receive.MaxInputSize is only available since Git 2.11.0
-	// Skip this test from the job that uses Git 2.9.0
-	if currentGitVersion != "2.9.0" {
-		_, _, err = testCloneAndPush(t, serverSocketPath, pushParams{storageName: testRepo.GetStorageName(), glID: "1", gitConfigOptions: []string{"receive.MaxInputSize=1"}})
-		if err == nil {
-			t.Errorf("local and remote head equal. push did not fail")
-		}
-	}
-
 }
 
 func TestReceivePackPushHookFailure(t *testing.T) {

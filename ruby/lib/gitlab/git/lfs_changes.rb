@@ -25,8 +25,7 @@ module Gitlab
       end
 
       def git_all_pointers
-        params = {}
-        params[:options] = ["--filter=blob:limit=#{Gitlab::Git::Blob::LFS_POINTER_MAX_SIZE}"] if rev_list_supports_new_options?
+        params = { options: ["--filter=blob:limit=#{Gitlab::Git::Blob::LFS_POINTER_MAX_SIZE}"] }
 
         rev_list.all_objects(rev_list_params(params)) do |object_ids|
           Gitlab::Git::Blob.batch_lfs_pointers(@repository, object_ids)
@@ -42,16 +41,10 @@ module Gitlab
       # This is required in order to improve the performance of LFS integrity check
       def rev_list_params(params = {})
         params[:options] ||= []
-        params[:options] << "--in-commit-order" if rev_list_supports_new_options?
+        params[:options] << "--in-commit-order"
         params[:require_path] = true
 
         params
-      end
-
-      def rev_list_supports_new_options?
-        return @option_supported if defined?(@option_supported)
-
-        @option_supported = Gitlab::Git.version >= Gitlab::VersionInfo.parse('2.16.0')
       end
     end
   end

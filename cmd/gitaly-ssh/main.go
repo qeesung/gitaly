@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -9,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type packFn func(_, _ string) (int32, error)
+type packFn func(_ *grpc.ClientConn, _ string) (int32, error)
 
 // GITALY_ADDRESS="tcp://1.2.3.4:9999" or "unix:/var/run/gitaly.sock"
 // GITALY_TOKEN="foobar1234"
@@ -41,12 +42,26 @@ func main() {
 		}
 	}
 
-	code, err := packer(os.Getenv("GITALY_ADDRESS"), os.Getenv("GITALY_PAYLOAD"))
+	conn, err := getConnection(os.Getenv("GITALY_ADDRESS"))
+	if err != nil {
+		log.Fatalf("%s: %v", os.Args[1], err)
+	}
+	defer conn.Close()
+
+	code, err := packer(conn, os.Getenv("GITALY_PAYLOAD"))
 	if err != nil {
 		log.Fatalf("%s: %v", os.Args[1], err)
 	}
 
 	os.Exit(int(code))
+}
+
+func getConnection(url string) (*grpc.ClientConn, error) {
+	if url == "" {
+		return nil, fmt.Errorf("gitaly address can not be empty")
+	}
+
+	return client.Dial(url, dialOpts())
 }
 
 func dialOpts() []grpc.DialOption {

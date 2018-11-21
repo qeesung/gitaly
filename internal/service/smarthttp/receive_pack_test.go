@@ -111,11 +111,6 @@ func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 }
 
 func TestFailedReceivePackRequestWithGitOpts(t *testing.T) {
-	currentGitVersion, _ := git.Version()
-	if currentGitVersion == "2.9.0" {
-		t.Skip("Skip because Git 2.9 does not support receive.MaxInputSize")
-	}
-
 	server, serverSocketPath := runSmartHTTPServer(t)
 	defer server.Stop()
 

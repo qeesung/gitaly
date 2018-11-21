@@ -1,0 +1,5 @@
+---
+title: Bump nokogiri to 1.8.5
+merge_request: 979
+author:
+type: security

@@ -10,9 +10,13 @@ var DefaultDialOpts = []grpc.DialOption{
 }
 
 // Dial gitaly
-// Deprecated: Use grpc.Dial directly instead
 func Dial(rawAddress string, connOpts []grpc.DialOption) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(rawAddress, connOpts...)
+	canonicalAddress, err := parseAddress(rawAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := grpc.Dial(canonicalAddress, connOpts...)
 	if err != nil {
 		return nil, err
 	}
