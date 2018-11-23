@@ -9,8 +9,6 @@ import (
 	"sync"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // batch encapsulates a 'git cat-file --batch' process
@@ -40,7 +38,7 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*batch, error
 	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 	batchCmd, err := git.BareCommand(ctx, stdinReader, nil, nil, env, batchCmdArgs...)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "CatFile: cmd: %v", err)
+		return nil, err
 	}
 	b.r = bufio.NewReader(batchCmd)
 	go func() {
