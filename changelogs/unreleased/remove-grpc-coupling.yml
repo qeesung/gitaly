@@ -1,0 +1,5 @@
+---
+title: Remove grpc dependency from catfile
+merge_request: 983
+author:
+type: other
