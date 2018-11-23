@@ -10,11 +10,21 @@ Gitaly uses [SemVer](https://semver.org) version numbering.
 
 ## Branching Model
 
-Like other GitLab projects, Gitaly uses the [GitLab Workflow](https://docs.gitlab.com/ee/workflow/gitlab_flow.html)  branching model.
+All tags get created on the `master` branch, except patch releases for
+older minor versions. Such patches get an "on-demand stable branch".
 
-![](https://docs.google.com/drawings/d/1VBDeOouLohq5EqOrht_9IGgNGQ2D6WgW_O6TgKytU2w/pub?w=960&h=720)
+### Example:
 
-[Edit this diagram](https://docs.google.com/a/gitlab.com/drawings/d/1VBDeOouLohq5EqOrht_9IGgNGQ2D6WgW_O6TgKytU2w/edit)
+Suppose we have the following sequence of tags on Gitaly `master`:
 
-* Merge requests will target the master branch.
-* If the merge request is an optimisation of the previous stable branch, i.e. the branch currently running on GitLab.com, the MR will be cherry picked across to the stable branch and deployed to Gitlab.com from there.
+-   v6.0.0
+-   v5.4.4
+-   v5.4.3
+
+Now imagine GitLab `12-3-stable` uses Gitaly 5.4.3 and we have a Gitaly
+bug fix we want to include in GitLab `12-3-stable`. We will create an
+"on-demand stable branch" in Gitaly for this:
+
+1.  Create `5-4-stable` in Gitaly from the latest 5.4.x tag:
+    `git checkout -b 5-4-stable v5.4.4`.
+2.  Create Gitaly `v5.4.5` on the `5-4-stable` branch.
