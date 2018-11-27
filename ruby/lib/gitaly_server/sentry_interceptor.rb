@@ -53,11 +53,8 @@ module GitalyServer
       }
       tags.merge!(call.metadata)
 
-      exc_to_report = exc
-      exc_to_report = exc.cause if exc.cause && exc.is_a?(GRPC::Unknown) && exc.metadata.key?(:"gitaly-ruby.exception.class")
-
       Raven.tags_context(tags)
-      Raven.capture_exception(exc_to_report, fingerprint: ['gitaly-ruby', grpc_method, exc_to_report.message])
+      Raven.capture_exception(exc, fingerprint: ['gitaly-ruby', grpc_method, exc.message])
 
       raise exc
     end

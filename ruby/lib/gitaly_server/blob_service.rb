@@ -7,41 +7,35 @@ module GitalyServer
     MAX_LFS_POINTERS_PER_MESSSAGE = 100
 
     def get_lfs_pointers(request, call)
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-        blobs = Gitlab::Git::Blob.batch_lfs_pointers(repo, request.blob_ids)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      blobs = Gitlab::Git::Blob.batch_lfs_pointers(repo, request.blob_ids)
 
-        Enumerator.new do |y|
-          sliced_gitaly_lfs_pointers(blobs) do |lfs_pointers|
-            y.yield Gitaly::GetLFSPointersResponse.new(lfs_pointers: lfs_pointers)
-          end
+      Enumerator.new do |y|
+        sliced_gitaly_lfs_pointers(blobs) do |lfs_pointers|
+          y.yield Gitaly::GetLFSPointersResponse.new(lfs_pointers: lfs_pointers)
         end
       end
     end
 
     def get_new_lfs_pointers(request, call)
       Enumerator.new do |y|
-        bridge_exceptions do
-          changes = lfs_changes(request, call)
-          object_limit = request.limit.zero? ? nil : request.limit
-          not_in = request.not_in_all ? :all : request.not_in_refs.to_a
-          blobs = changes.new_pointers(object_limit: object_limit, not_in: not_in)
+        changes = lfs_changes(request, call)
+        object_limit = request.limit.zero? ? nil : request.limit
+        not_in = request.not_in_all ? :all : request.not_in_refs.to_a
+        blobs = changes.new_pointers(object_limit: object_limit, not_in: not_in)
 
-          sliced_gitaly_lfs_pointers(blobs) do |lfs_pointers|
-            y.yield Gitaly::GetNewLFSPointersResponse.new(lfs_pointers: lfs_pointers)
-          end
+        sliced_gitaly_lfs_pointers(blobs) do |lfs_pointers|
+          y.yield Gitaly::GetNewLFSPointersResponse.new(lfs_pointers: lfs_pointers)
         end
       end
     end
 
     def get_all_lfs_pointers(request, call)
       Enumerator.new do |y|
-        bridge_exceptions do
-          changes = lfs_changes(request, call)
+        changes = lfs_changes(request, call)
 
-          sliced_gitaly_lfs_pointers(changes.all_pointers) do |lfs_pointers|
-            y.yield Gitaly::GetAllLFSPointersResponse.new(lfs_pointers: lfs_pointers)
-          end
+        sliced_gitaly_lfs_pointers(changes.all_pointers) do |lfs_pointers|
+          y.yield Gitaly::GetAllLFSPointersResponse.new(lfs_pointers: lfs_pointers)
         end
       end
     end

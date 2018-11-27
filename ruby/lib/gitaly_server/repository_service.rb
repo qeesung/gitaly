@@ -5,141 +5,121 @@ module GitalyServer
     include Utils
 
     def create_repository(_request, call)
-      bridge_exceptions do
-        repo_path = GitalyServer.repo_path(call)
+      repo_path = GitalyServer.repo_path(call)
 
-        Gitlab::Git::Repository.create(repo_path)
+      Gitlab::Git::Repository.create(repo_path)
 
-        Gitaly::CreateRepositoryResponse.new
-      end
+      Gitaly::CreateRepositoryResponse.new
     end
 
     def fetch_source_branch(request, call)
-      bridge_exceptions do
-        source_repository = Gitlab::Git::GitalyRemoteRepository.new(request.source_repository, call)
-        repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-        result = repository.fetch_source_branch!(source_repository, request.source_branch, request.target_ref)
+      source_repository = Gitlab::Git::GitalyRemoteRepository.new(request.source_repository, call)
+      repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      result = repository.fetch_source_branch!(source_repository, request.source_branch, request.target_ref)
 
-        Gitaly::FetchSourceBranchResponse.new(result: result)
-      end
+      Gitaly::FetchSourceBranchResponse.new(result: result)
     end
 
     def fetch_remote(request, call)
-      bridge_exceptions do
-        gitlab_projects = Gitlab::Git::GitlabProjects.from_gitaly(request.repository, call)
+      gitlab_projects = Gitlab::Git::GitlabProjects.from_gitaly(request.repository, call)
 
-        success = Gitlab::Git::SshAuth.from_gitaly(request).setup do |env|
-          gitlab_projects.fetch_remote(
-            request.remote,
-            request.timeout,
-            force: request.force,
-            tags: !request.no_tags,
-            env: env
-          )
-        end
-
-        raise GRPC::Unknown.new("Fetching remote #{request.remote} failed: #{gitlab_projects.output}") unless success
-
-        Gitaly::FetchRemoteResponse.new
+      success = Gitlab::Git::SshAuth.from_gitaly(request).setup do |env|
+        gitlab_projects.fetch_remote(
+          request.remote,
+          request.timeout,
+          force: request.force,
+          tags: !request.no_tags,
+          env: env
+        )
       end
+
+      raise GRPC::Unknown.new("Fetching remote #{request.remote} failed: #{gitlab_projects.output}") unless success
+
+      Gitaly::FetchRemoteResponse.new
     end
 
     def is_rebase_in_progress(request, call) # rubocop:disable Naming/PredicateName
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        result = repo.rebase_in_progress?(request.rebase_id)
+      result = repo.rebase_in_progress?(request.rebase_id)
 
-        Gitaly::IsRebaseInProgressResponse.new(in_progress: result)
-      end
+      Gitaly::IsRebaseInProgressResponse.new(in_progress: result)
     end
 
     def is_squash_in_progress(request, call) # rubocop:disable Naming/PredicateName
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        result = repo.squash_in_progress?(request.squash_id)
+      result = repo.squash_in_progress?(request.squash_id)
 
-        Gitaly::IsSquashInProgressResponse.new(in_progress: result)
-      end
+      Gitaly::IsSquashInProgressResponse.new(in_progress: result)
     end
 
     def write_ref(request, call)
-      bridge_exceptions do
-        Gitlab::Git::Repository.from_gitaly(request.repository, call)
-                               .write_ref(request.ref, request.revision, old_ref: request.old_revision)
+      Gitlab::Git::Repository.from_gitaly(request.repository, call)
+                             .write_ref(request.ref, request.revision, old_ref: request.old_revision)
 
-        Gitaly::WriteRefResponse.new
-      end
+      Gitaly::WriteRefResponse.new
     end
 
     def write_config(request, call)
-      bridge_exceptions do
-        begin
-          repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      begin
+        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-          repo.write_config(full_path: request.full_path)
+        repo.write_config(full_path: request.full_path)
 
-          Gitaly::WriteConfigResponse.new
-        rescue Rugged::Error => ex
-          Gitaly::WriteConfigResponse.new(error: ex.message.b)
-        end
+        Gitaly::WriteConfigResponse.new
+      rescue Rugged::Error => ex
+        Gitaly::WriteConfigResponse.new(error: ex.message.b)
       end
     end
 
     def set_config(request, call)
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        request.entries.each do |entry|
-          key = entry.key
-          value = case entry.value
-                  when :value_str
-                    entry.value_str
-                  when :value_int32
-                    entry.value_int32
-                  when :value_bool
-                    entry.value_bool
-                  else
-                    raise GRPC::InvalidArgument, "unknown entry type: #{entry.value}"
-                  end
+      request.entries.each do |entry|
+        key = entry.key
+        value = case entry.value
+                when :value_str
+                  entry.value_str
+                when :value_int32
+                  entry.value_int32
+                when :value_bool
+                  entry.value_bool
+                else
+                  raise GRPC::InvalidArgument, "unknown entry type: #{entry.value}"
+                end
 
-          repo.rugged.config[key] = value
-        end
-
-        Gitaly::SetConfigResponse.new
+        repo.rugged.config[key] = value
       end
+
+      Gitaly::SetConfigResponse.new
     end
 
     def find_license(request, call)
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        short_name = begin
-                       ::Licensee.license(repo.path).try(:key)
-                     rescue Rugged::Error
-                     end
+      short_name = begin
+                     ::Licensee.license(repo.path).try(:key)
+                   rescue Rugged::Error
+                   end
 
-        Gitaly::FindLicenseResponse.new(license_short_name: short_name || "")
-      end
+      Gitaly::FindLicenseResponse.new(license_short_name: short_name || "")
     end
 
     def get_raw_changes(request, call)
-      bridge_exceptions do
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        changes = begin
-                    repo
-                      .raw_changes_between(request.from_revision, request.to_revision)
-                      .map { |c| to_proto_raw_change(c) }
-                  rescue ::Gitlab::Git::Repository::GitError => e
-                    raise GRPC::InvalidArgument.new(e.message)
-                  end
+      changes = begin
+                  repo
+                    .raw_changes_between(request.from_revision, request.to_revision)
+                    .map { |c| to_proto_raw_change(c) }
+                rescue ::Gitlab::Git::Repository::GitError => e
+                  raise GRPC::InvalidArgument.new(e.message)
+                end
 
-        Enumerator.new do |y|
-          changes.each_slice(100) do |batch|
-            y.yield Gitaly::GetRawChangesResponse.new(raw_changes: batch)
-          end
+      Enumerator.new do |y|
+        changes.each_slice(100) do |batch|
+          y.yield Gitaly::GetRawChangesResponse.new(raw_changes: batch)
         end
       end
     end
