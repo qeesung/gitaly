@@ -5,40 +5,38 @@ module GitalyServer
     include Utils
 
     def list_conflict_files(request, call)
-      begin
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-        resolver = Gitlab::Git::Conflict::Resolver.new(repo, request.our_commit_oid, request.their_commit_oid)
-        conflicts = resolver.conflicts
-        files = []
-        msg_size = 0
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      resolver = Gitlab::Git::Conflict::Resolver.new(repo, request.our_commit_oid, request.their_commit_oid)
+      conflicts = resolver.conflicts
+      files = []
+      msg_size = 0
 
-        Enumerator.new do |y|
-          enumerate_conflicts(conflicts) do |file|
-            files << Gitaly::ConflictFile.new(header: conflict_file_header(file))
+      Enumerator.new do |y|
+        enumerate_conflicts(conflicts) do |file|
+          files << Gitaly::ConflictFile.new(header: conflict_file_header(file))
 
-            strio = StringIO.new(file.content)
-            while chunk = strio.read(Gitlab.config.git.write_buffer_size - msg_size)
-              files << Gitaly::ConflictFile.new(content: chunk)
-              msg_size += chunk.bytesize
+          strio = StringIO.new(file.content)
+          while chunk = strio.read(Gitlab.config.git.write_buffer_size - msg_size)
+            files << Gitaly::ConflictFile.new(content: chunk)
+            msg_size += chunk.bytesize
 
-              # We don't send a message for each chunk because the content of
-              # a file may be smaller than the size limit, which means we can
-              # keep adding data to the message
-              next if msg_size < Gitlab.config.git.write_buffer_size
+            # We don't send a message for each chunk because the content of
+            # a file may be smaller than the size limit, which means we can
+            # keep adding data to the message
+            next if msg_size < Gitlab.config.git.write_buffer_size
 
-              y.yield(Gitaly::ListConflictFilesResponse.new(files: files))
+            y.yield(Gitaly::ListConflictFilesResponse.new(files: files))
 
-              files = []
-              msg_size = 0
-            end
+            files = []
+            msg_size = 0
           end
-
-          # Send leftover data, if any
-          y.yield(Gitaly::ListConflictFilesResponse.new(files: files)) if files.any?
         end
-      rescue Gitlab::Git::Conflict::Resolver::ListError => e
-        raise GRPC::FailedPrecondition.new(e.message)
+
+        # Send leftover data, if any
+        y.yield(Gitaly::ListConflictFilesResponse.new(files: files)) if files.any?
       end
+    rescue Gitlab::Git::Conflict::Resolver::ListError => e
+      raise GRPC::FailedPrecondition.new(e.message)
     end
 
     def resolve_conflicts(call)

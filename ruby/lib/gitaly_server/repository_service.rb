@@ -62,15 +62,13 @@ module GitalyServer
     end
 
     def write_config(request, call)
-      begin
-        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 
-        repo.write_config(full_path: request.full_path)
+      repo.write_config(full_path: request.full_path)
 
-        Gitaly::WriteConfigResponse.new
-      rescue Rugged::Error => ex
-        Gitaly::WriteConfigResponse.new(error: ex.message.b)
-      end
+      Gitaly::WriteConfigResponse.new
+    rescue Rugged::Error => ex
+      Gitaly::WriteConfigResponse.new(error: ex.message.b)
     end
 
     def set_config(request, call)

@@ -14,30 +14,28 @@ module GitalyServer
     end
 
     def wiki_write_page(call)
-      begin
-        repo = name = format = commit_details = nil
-        content = ""
+      repo = name = format = commit_details = nil
+      content = ""
 
-        call.each_remote_read.with_index do |request, index|
-          if index.zero?
-            repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-            name = set_utf8!(request.name)
-            format = request.format
-            commit_details = request.commit_details
-          end
-
-          content << request.content
+      call.each_remote_read.with_index do |request, index|
+        if index.zero?
+          repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+          name = set_utf8!(request.name)
+          format = request.format
+          commit_details = request.commit_details
         end
 
-        wiki = Gitlab::Git::Wiki.new(repo)
-        commit_details = commit_details_from_gitaly(commit_details)
-
-        wiki.write_page(name, format.to_sym, content, commit_details)
-
-        Gitaly::WikiWritePageResponse.new
-      rescue Gitlab::Git::Wiki::DuplicatePageError => e
-        Gitaly::WikiWritePageResponse.new(duplicate_error: e.message.b)
+        content << request.content
       end
+
+      wiki = Gitlab::Git::Wiki.new(repo)
+      commit_details = commit_details_from_gitaly(commit_details)
+
+      wiki.write_page(name, format.to_sym, content, commit_details)
+
+      Gitaly::WikiWritePageResponse.new
+    rescue Gitlab::Git::Wiki::DuplicatePageError => e
+      Gitaly::WikiWritePageResponse.new(duplicate_error: e.message.b)
     end
 
     def wiki_find_page(request, call)
