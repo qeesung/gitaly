@@ -19,28 +19,6 @@ module GitalyServer
       Gitaly::CommitStatsResponse.new(oid: stats.id, additions: stats.additions, deletions: stats.deletions)
     end
 
-    # TODO remove this implementation in GitLab 11.3
-    def list_commits_by_oid(request, call)
-      repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-
-      Enumerator.new do |y|
-        request.oid.each_slice(20) do |oids|
-          commits = oids.map do |oid|
-            commit =
-              begin
-                repository.rev_parse_target(oid)
-              rescue Rugged::ReferenceError, Rugged::InvalidError
-                nil
-              end
-
-            commit.is_a?(Rugged::Commit) ? gitaly_commit_from_rugged(commit) : nil
-          end.compact
-
-          y.yield Gitaly::ListCommitsByOidResponse.new(commits: commits)
-        end
-      end
-    end
-
     def find_commits(request, call)
       repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
       options = {
