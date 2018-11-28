@@ -13,7 +13,7 @@ module GitalyServer
       target_revision = get_param!(request, :target_revision)
 
       created_tag = repo.add_tag(tag_name, user: user, target: target_revision, message: request.message.presence)
-      return Gitaly::UserCreateTagResponse.new unless created_tag
+      Gitaly::UserCreateTagResponse.new unless created_tag
 
       rugged_commit = created_tag.dereferenced_target.rugged_commit
       commit = gitaly_commit_from_rugged(rugged_commit)
@@ -23,9 +23,9 @@ module GitalyServer
     rescue Gitlab::Git::Repository::InvalidRef => e
       raise GRPC::FailedPrecondition.new(e.message)
     rescue Gitlab::Git::Repository::TagExistsError
-      return Gitaly::UserCreateTagResponse.new(exists: true)
+      Gitaly::UserCreateTagResponse.new(exists: true)
     rescue Gitlab::Git::PreReceiveError => e
-      return Gitaly::UserCreateTagResponse.new(pre_receive_error: set_utf8!(e.message))
+      Gitaly::UserCreateTagResponse.new(pre_receive_error: set_utf8!(e.message))
     end
 
     def user_delete_tag(request, call)
@@ -53,7 +53,7 @@ module GitalyServer
       branch_name = request.branch_name
       user = Gitlab::Git::User.from_gitaly(gitaly_user)
       created_branch = repo.add_branch(branch_name, user: user, target: target)
-      return Gitaly::UserCreateBranchResponse.new unless created_branch
+      Gitaly::UserCreateBranchResponse.new unless created_branch
 
       rugged_commit = created_branch.dereferenced_target.rugged_commit
       commit = gitaly_commit_from_rugged(rugged_commit)
@@ -62,7 +62,7 @@ module GitalyServer
     rescue Gitlab::Git::Repository::InvalidRef, Gitlab::Git::CommitError => ex
       raise GRPC::FailedPrecondition.new(ex.message)
     rescue Gitlab::Git::PreReceiveError => ex
-      return Gitaly::UserCreateBranchResponse.new(pre_receive_error: set_utf8!(ex.message))
+      Gitaly::UserCreateBranchResponse.new(pre_receive_error: set_utf8!(ex.message))
     end
 
     def user_update_branch(request, call)
@@ -79,7 +79,7 @@ module GitalyServer
     rescue Gitlab::Git::Repository::InvalidRef, Gitlab::Git::CommitError => ex
       raise GRPC::FailedPrecondition.new(ex.message)
     rescue Gitlab::Git::PreReceiveError => ex
-      return Gitaly::UserUpdateBranchResponse.new(pre_receive_error: set_utf8!(ex.message))
+      Gitaly::UserUpdateBranchResponse.new(pre_receive_error: set_utf8!(ex.message))
     end
 
     def user_delete_branch(request, call)
@@ -198,9 +198,9 @@ module GitalyServer
 
       Gitaly::UserRebaseResponse.new(rebase_sha: rebase_sha)
     rescue Gitlab::Git::PreReceiveError => e
-      return Gitaly::UserRebaseResponse.new(pre_receive_error: set_utf8!(e.message))
+      Gitaly::UserRebaseResponse.new(pre_receive_error: set_utf8!(e.message))
     rescue Gitlab::Git::Repository::GitError => e
-      return Gitaly::UserRebaseResponse.new(git_error: set_utf8!(e.message))
+      Gitaly::UserRebaseResponse.new(git_error: set_utf8!(e.message))
     rescue Gitlab::Git::CommitError => e
       raise GRPC::FailedPrecondition.new(e.message)
     end
