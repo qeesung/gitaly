@@ -16,6 +16,8 @@ import (
 
 func init() {
 	var certPem []byte
+	count := 0
+
 	if f := os.Getenv("SSL_CERT_FILE"); len(f) > 0 {
 		pem, err := ioutil.ReadFile(f)
 		if err != nil {
@@ -23,6 +25,7 @@ func init() {
 		}
 		pem = append(pem, '\n')
 		certPem = append(certPem, pem...)
+		count++
 	}
 
 	if d := os.Getenv("SSL_CERT_DIR"); len(d) > 0 {
@@ -42,6 +45,7 @@ func init() {
 			}
 			pem = append(pem, '\n')
 			certPem = append(certPem, pem...)
+			count++
 		}
 	}
 
@@ -54,5 +58,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	pool.AppendCertsFromPEM(certPem)
+	if pool.AppendCertsFromPEM(certPem) {
+		log.Printf("added %d certificates to pool", count)
+	} else {
+		log.Printf("failed to add %d certificates to pool", count)
+	}
 }
