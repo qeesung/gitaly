@@ -75,7 +75,7 @@ func TestConnectivity(t *testing.T) {
 	require.NoError(t, err)
 	for _, testcase := range testCases {
 		cmd := exec.Command("git", "ls-remote", "git@localhost:test/test.git", "refs/heads/master")
-
+		cmd.Stderr = os.Stderr
 		cmd.Env = []string{
 			fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 			fmt.Sprintf("GITALY_ADDRESS=%s", testcase.addr),
@@ -86,7 +86,7 @@ func TestConnectivity(t *testing.T) {
 
 		output, err := cmd.Output()
 
-		require.NoError(t, err)
+		require.NoError(t, err, "git ls-remote exit status")
 		require.True(t, strings.HasSuffix(strings.TrimSpace(string(output)), "refs/heads/master"))
 	}
 }
