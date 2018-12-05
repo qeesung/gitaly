@@ -1,0 +1,5 @@
+---
+title: Fix TLS client code on macOS
+merge_request: 994
+author:
+type: fixed
