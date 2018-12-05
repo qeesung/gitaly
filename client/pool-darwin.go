@@ -1,7 +1,5 @@
 // +build darwin
 
-// The code in this file circumvents the fact that Go on macOS does not
-// support SSL_CERT_{DIR,FILE}.
 package client
 
 import (
@@ -11,6 +9,8 @@ import (
 	"path"
 )
 
+// systemCertPool circumvents the fact that Go on macOS does not support
+// SSL_CERT_{DIR,FILE}.
 func systemCertPool() (*x509.CertPool, error) {
 	var certPem []byte
 	count := 0
