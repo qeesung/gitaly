@@ -1,9 +1,7 @@
 // +build darwin
-//
-// This is test-only code to circumvent the fact that Go on macOS does
-// not support SSL_CERT_{DIR,FILE}.
-//
 
+// The code in this file circumvents the fact that Go on macOS does not
+// support SSL_CERT_{DIR,FILE}.
 package client
 
 import (
@@ -22,6 +20,7 @@ func systemCertPool() (*x509.CertPool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pem = append(pem, '\n')
 		certPem = append(certPem, pem...)
 		count++
@@ -42,14 +41,11 @@ func systemCertPool() (*x509.CertPool, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			pem = append(pem, '\n')
 			certPem = append(certPem, pem...)
 			count++
 		}
-	}
-
-	if len(certPem) == 0 {
-		return x509.SystemCertPool()
 	}
 
 	pool, err := x509.SystemCertPool()
