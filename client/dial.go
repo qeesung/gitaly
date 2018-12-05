@@ -1,8 +1,6 @@
 package client
 
 import (
-	"crypto/x509"
-
 	"google.golang.org/grpc/credentials"
 
 	"net/url"
@@ -21,7 +19,7 @@ func Dial(rawAddress string, connOpts []grpc.DialOption) (*grpc.ClientConn, erro
 	}
 
 	if isTLS(rawAddress) {
-		certPool, err := x509.SystemCertPool()
+		certPool, err := systemCertPool()
 		if err != nil {
 			return nil, err
 		}

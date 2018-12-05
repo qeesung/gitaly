@@ -4,24 +4,23 @@
 // not support SSL_CERT_{DIR,FILE}.
 //
 
-package main
+package client
 
 import (
 	"crypto/x509"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 )
 
-func init() {
+func systemCertPool() (*x509.CertPool, error) {
 	var certPem []byte
 	count := 0
 
 	if f := os.Getenv("SSL_CERT_FILE"); len(f) > 0 {
 		pem, err := ioutil.ReadFile(f)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		pem = append(pem, '\n')
 		certPem = append(certPem, pem...)
@@ -31,7 +30,7 @@ func init() {
 	if d := os.Getenv("SSL_CERT_DIR"); len(d) > 0 {
 		entries, err := ioutil.ReadDir(d)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 
 		for _, entry := range entries {
@@ -41,7 +40,7 @@ func init() {
 
 			pem, err := ioutil.ReadFile(path.Join(d, entry.Name()))
 			if err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 			pem = append(pem, '\n')
 			certPem = append(certPem, pem...)
@@ -50,17 +49,14 @@ func init() {
 	}
 
 	if len(certPem) == 0 {
-		return
+		return x509.SystemCertPool()
 	}
 
 	pool, err := x509.SystemCertPool()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	if pool.AppendCertsFromPEM(certPem) {
-		log.Printf("added %d certificates to pool", count)
-	} else {
-		log.Printf("failed to add %d certificates to pool", count)
-	}
+	pool.AppendCertsFromPEM(certPem)
+	return pool, nil
 }
