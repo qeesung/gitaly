@@ -316,9 +316,14 @@ func (c *Command) logProcessComplete(ctx context.Context, exitCode int) {
 	entry.Debug("spawn complete")
 }
 
+// Command arguments will be passed to the exec syscall as
+// null-terminated C strings. That means the arguments themselves may not
+// contain a null byte. The go stdlib checks for null bytes but it
+// returns a cryptic error. This function returns a more explicit error.
 func checkNullArgv(cmd *exec.Cmd) error {
 	for _, arg := range cmd.Args {
 		if strings.IndexByte(arg, 0) > -1 {
+			// Use %q so that the null byte gets printed as \x00
 			return nullInArgvError{fmt.Errorf("detected null byte in command argument %q", arg)}
 		}
 	}

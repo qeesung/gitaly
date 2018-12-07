@@ -1,0 +1,5 @@
+---
+title: Add explicit null byte check in internal/command.New
+merge_request: 997
+author:
+type: other
