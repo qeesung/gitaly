@@ -3,12 +3,8 @@
 [![Pipeline status](https://gitlab.com/gitlab-org/gitaly/badges/master/pipeline.svg)](https://gitlab.com/gitlab-org/gitaly/commits/master) [![coverage report](https://gitlab.com/gitlab-org/gitaly/badges/master/coverage.svg)](https://codecov.io/gl/gitlab-org/gitaly)
 
 **Quick Links**:
-  [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration) |
   [**Roadmap**](https://gitlab.com/groups/gitlab-org/-/roadmap?label_name%5B%5D=Gitaly&scope=all&sort=start_date_asc&state=opened) |
-  [Open Conversations](https://gitlab.com/gitlab-org/gitaly/issues?label_name%5B%5D=Conversation) |
-  [Unassigned Conversations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=To%20Do&assignee_id=0) |
-  [Migrations](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Conversation&label_name[]=Migration) |
-  [Want to Contribute?](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Accepting%20Merge%20Requests) |
+  [Want to Contribute?](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Accepting%20merge%20requests) |
   [GitLab Gitaly Issues](https://gitlab.com/groups/gitlab-org/issues?scope=all&state=opened&utf8=%E2%9C%93&label_name%5B%5D=Gitaly) |
   [GitLab Gitaly Merge Requests](https://gitlab.com/groups/gitlab-org/merge_requests?label_name%5B%5D=Gitaly) |
   [gitlab.com dashboard](https://performance.gitlab.net/dashboard/db/gitaly) |
@@ -31,21 +27,23 @@ This will be achieved by focusing on two areas (in this order):
 
 ## Current Status
 
-As of GitLab 11.1, most application code accesses Git repositories
-through Gitaly instead of direct disk access. We are close to removing
-all Git disk access from gitlab-rails (the Gitaly
-[v1.1](https://gitlab.com/gitlab-org/gitaly/milestones/55) milestone).
-We are even closer to fully supporting the subset of Git operations
-needed by gitlab.com (the
-[v1.0](https://gitlab.com/gitlab-org/gitaly/milestones/54) milestone).
-When these two milestones are closed the migration project will be
-complete.
+As of GitLab 11.5, almost all application code accesses Git repositories
+through Gitaly instead of direct disk access. GitLab.com production no
+longer uses direct disk access to touch Git repositories; the [NFS
+mounts have been
+removed](https://about.gitlab.com/2018/09/12/the-road-to-gitaly-1-0/).
 
-[The roadmap is available here](https://gitlab.com/groups/gitlab-org/-/roadmap?label_name%5B%5D=Gitaly&scope=all&sort=start_date_asc&state=opened).
+The last feature that remains to be migrated is the [ElasticSearch
+indexer](https://gitlab.com/gitlab-org/gitaly/issues/760). Once that is
+done we can conclude the migration project by [removing the Git
+repository storage paths from gitlab-rails's
+configuration](https://gitlab.com/gitlab-org/gitaly/issues/1282).
 
-The migration process is [documented](/doc/MIGRATION_PROCESS.md).
+In the meantime we are building features according to our
+[roadmap](https://gitlab.com/groups/gitlab-org/-/roadmap?label_name%5B%5D=Gitaly&scope=all&sort=start_date_asc&state=opened).
 
-If you're interested in seeing how well Gitaly is performing on GitLab.com, we have dashboards!
+If you're interested in seeing how well Gitaly is performing on
+GitLab.com, we have dashboards!
 
 ##### Overall
 
@@ -55,11 +53,10 @@ If you're interested in seeing how well Gitaly is performing on GitLab.com, we h
 
  [![image](https://gitlab.com/gitlab-org/gitaly/uploads/5b3825e01c48975c2a64e01ae37b4a3d/image.png)](http://monitor.gitlab.net/dashboard/db/gitaly-features?orgId=1&var-job=gitaly-production&from=now-7d&to=now)
 
-## Migrations
-
-The progress of Gitaly's endpoint migrations is tracked via the [**Migration Board**](https://gitlab.com/gitlab-org/gitaly/boards/331341?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Migration)
-
 ## Installation
+
+Most users won't install Gitaly on its own. It is already included in
+[your GitLab installation](https://about.gitlab.com/install/).
 
 Gitaly requires Go 1.10 or newer and Ruby 2.4. Run `make` to download
 and compile Ruby dependencies, and to compile the Gitaly Go
