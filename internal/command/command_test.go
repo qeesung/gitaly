@@ -181,7 +181,7 @@ func TestNewCommandNullInArg(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := New(ctx, exec.Command("sh", "-c", "\x00"), nil, nil, nil)
+	_, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"), nil, nil, nil)
 	require.Error(t, err)
 	t.Log(err)
 
