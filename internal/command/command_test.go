@@ -183,7 +183,6 @@ func TestNewCommandNullInArg(t *testing.T) {
 
 	_, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"), nil, nil, nil)
 	require.Error(t, err)
-	t.Log(err)
 
 	_, ok := err.(nullInArgvError)
 	require.True(t, ok, "expected %+v to be nullInArgvError", err)
