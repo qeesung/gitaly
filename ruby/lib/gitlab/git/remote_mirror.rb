@@ -27,23 +27,29 @@ module Gitlab
 
       private
 
+      def ref_matchers
+        @ref_matchers ||= only_branches_matching.map do |ref|
+          GitLab::RefMatcher.new(ref)
+        end
+      end
+
       def local_branches
         @local_branches ||= refs_obj(
           repository.local_branches,
-          only_refs_matching: only_branches_matching
+          match_refs: true
         )
       end
 
       def remote_branches
         @remote_branches ||= refs_obj(
           repository.remote_branches(ref_name),
-          only_refs_matching: only_branches_matching
+          match_refs: true
         )
       end
 
-      def refs_obj(refs, only_refs_matching: [])
+      def refs_obj(refs, match_refs: false)
         refs.each_with_object({}) do |ref, refs|
-          next if only_refs_matching.present? && !only_refs_matching.include?(ref.name)
+          next if match_refs && !include_ref?(ref.name)
 
           refs[ref.name] = ref
         end
@@ -92,6 +98,12 @@ module Gitlab
 
           remote_ref_id && repository.ancestor?(remote_ref_id, default_branch_id)
         end
+      end
+
+      def include_ref?(ref_name)
+        return true unless ref_matchers.present?
+
+        ref_matchers.any? { |matcher| matcher.matches?(ref_name) }
       end
     end
   end

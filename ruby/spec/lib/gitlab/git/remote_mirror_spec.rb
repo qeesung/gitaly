@@ -27,6 +27,54 @@ describe Gitlab::Git::RemoteMirror do
   end
 
   describe '#update' do
+    context 'with wildcard protected branches' do
+      subject(:remote_mirror) do
+        described_class.new(
+          repository,
+          ref_name,
+          ssh_auth: ssh_auth,
+          only_branches_matching: ['master', '*-stable']
+        )
+      end
+
+      it 'updates the remote repository' do
+        # Stub this check so we try to delete the obsolete tag
+        allow(repository).to receive(:ancestor?).and_return(true)
+
+        expect(repository).to receive(:local_branches).and_return([ref('master'), ref('11-5-stable'), ref('unprotected')])
+        expect(repository).to receive(:remote_branches)
+          .with(ref_name)
+          .and_return([ref('master'), ref('obsolete-branch')])
+
+        expect(repository).to receive(:tags).and_return([ref('v1.0.0'), ref('new-tag')])
+        expect(repository).to receive(:remote_tags)
+          .with(ref_name, env: env)
+          .and_return([ref('v1.0.0'), ref('obsolete-tag')])
+
+        expect(gitlab_projects)
+          .to receive(:push_branches)
+          .with(ref_name, gl_projects_timeout, gl_projects_force, ['master', '11-5-stable'], env: env)
+          .and_return(true)
+
+        expect(gitlab_projects)
+          .to receive(:push_branches)
+          .with(ref_name, gl_projects_timeout, gl_projects_force, ['v1.0.0', 'new-tag'], env: env)
+          .and_return(true)
+
+        # Leave remote branches that do not match the protected branch filter
+        expect(gitlab_projects)
+          .not_to receive(:delete_remote_branches)
+          .with(ref_name, ['obsolete-branch'], env: env)
+
+        expect(gitlab_projects)
+          .to receive(:delete_remote_branches)
+          .with(ref_name, ['obsolete-tag'], env: env)
+          .and_return(true)
+
+        remote_mirror.update
+      end
+    end
+
     it 'updates the remote repository' do
       # Stub this check so we try to delete the obsolete refs
       allow(repository).to receive(:ancestor?).and_return(true)

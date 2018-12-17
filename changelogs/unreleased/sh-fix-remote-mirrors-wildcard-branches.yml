@@ -1,0 +1,5 @@
+---
+title: Fix wildcard protected branches not working with remote mirrors
+merge_request: 1006
+author:
+type: fixed
