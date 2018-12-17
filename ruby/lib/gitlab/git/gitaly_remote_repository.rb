@@ -2,6 +2,7 @@ module Gitlab
   module Git
     class GitalyRemoteRepository < RemoteRepository
       CLIENT_NAME = 'gitaly-ruby'.freeze
+      PEM_REXP = /[-]+BEGIN CERTIFICATE[-]+.+?[-]+END CERTIFICATE[-]+/m
 
       attr_reader :gitaly_client
 
@@ -39,10 +40,18 @@ module Gitlab
         files = []
         files += Dir["#{ENV['SSL_CERT_DIR']}/*"] if ENV['SSL_CERT_DIR']
         files += [ENV['SSL_CERT_FILE']] if ENV['SSL_CERT_FILE']
+        files.sort!
 
-        @certs = files.map do |cert|
-          File.read(cert)
-        end.join("\n")
+        @certs = files.flat_map do |cert_file|
+          File.read(cert_file).scan(PEM_REXP).map do |cert|
+            begin
+              OpenSSL::X509::Certificate.new(cert).to_pem
+            rescue OpenSSL::OpenSSLError => e
+              Rails.logger.error "Could not load certificate #{cert_file} #{e}"
+              nil
+            end
+          end.compact
+        end.uniq.join("\n")
       end
 
       def credentials

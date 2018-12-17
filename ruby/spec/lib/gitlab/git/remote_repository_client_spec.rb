@@ -25,12 +25,22 @@ describe Gitlab::Git::GitalyRemoteRepository do
     end
 
     context 'when SSL_CERT_DIR is set' do
-      it 'Should return concatenation of gitalycert and gitalycert2' do
+      it 'Should return concatenation of gitalycert and gitalycert2 and gitalycert3 ommiting gitalycertdup.pem' do
         cert_pool_dir = File.join(File.dirname(__FILE__), "testdata/certs")
         allow(ENV).to receive(:[]).with('SSL_CERT_DIR').and_return(cert_pool_dir)
         allow(ENV).to receive(:[]).with('SSL_CERT_FILE').and_return(nil)
         certs = client.certs
-        expected_certs = [File.read(File.join(cert_pool_dir, "gitalycert2.pem")), File.read(File.join(cert_pool_dir, "gitalycert.pem"))].join "\n"
+
+        # gitalycertdup.pem must exist and must be a duplicate of gitalycert.pem
+        expect(File.exist?(File.join(cert_pool_dir, "gitalycertdup.pem"))).to be true
+        expect(File.read(File.join(cert_pool_dir, "gitalycertdup.pem")))
+          .to eq File.read(File.join(cert_pool_dir, "gitalycert.pem"))
+
+        # No gitalycertdup.pem because duplicates should be removed
+        expected_certs = [File.read(File.join(cert_pool_dir, "gitalycert.pem")),
+                          File.read(File.join(cert_pool_dir, "gitalycert2.pem")),
+                          File.read(File.join(cert_pool_dir, "gitalycert3.pem"))].join "\n"
+
         expect(certs).to eq expected_certs
       end
     end
@@ -41,7 +51,7 @@ describe Gitlab::Git::GitalyRemoteRepository do
         cert1_file = File.join(File.dirname(__FILE__), "testdata/gitalycert.pem")
         allow(ENV).to receive(:[]).with('SSL_CERT_DIR').and_return(cert_pool_dir)
         allow(ENV).to receive(:[]).with('SSL_CERT_FILE').and_return(cert1_file)
-        expected_certs_paths = [File.join(cert_pool_dir, "gitalycert2.pem"), File.join(cert_pool_dir, "gitalycert.pem"), cert1_file]
+        expected_certs_paths = [cert1_file, File.join(cert_pool_dir, "gitalycert2.pem"), File.join(cert_pool_dir, "gitalycert3.pem")]
 
         expected_certs = expected_certs_paths.map do |cert|
           File.read cert
