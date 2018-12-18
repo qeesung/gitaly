@@ -34,7 +34,7 @@ module GitLab
       @wildcard_regex ||= begin
                             split = @ref_name_or_pattern.split('*', -1) # Use -1 to correctly handle trailing '*'
                             quoted_segments = split.map { |segment| Regexp.quote(segment) }
-                            regex_string = quoted_segments.join('.*?')
+                            quoted_segments.join('.*?')
                           end
     end
   end
