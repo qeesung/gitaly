@@ -32,10 +32,9 @@ module GitLab
 
     def wildcard_regex
       @wildcard_regex ||= begin
-                            name = @ref_name_or_pattern.gsub('*', 'STAR_DONT_ESCAPE')
-                            quoted_name = Regexp.quote(name)
-                            regex_string = quoted_name.gsub('STAR_DONT_ESCAPE', '.*?')
-                            /\A#{regex_string}\z/i
+                            split = @ref_name_or_pattern.split('*', -1) # Use -1 to correctly handle trailing '*'
+                            quoted_segments = split.map { |segment| Regexp.quote(segment) }
+                            regex_string = quoted_segments.join('.*?')
                           end
     end
   end
