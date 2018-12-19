@@ -40,8 +40,8 @@ func (u *Updater) Create(ref, value string) error {
 
 // Update commands the reference to be updated to point at the sha specified in
 // newvalue
-func (u *Updater) Update(ref, newvalue string) error {
-	_, err := fmt.Fprintf(u.cmd, "update %s\x00%s\x00\x00", ref, newvalue)
+func (u *Updater) Update(ref, newvalue, oldvalue string) error {
+	_, err := fmt.Fprintf(u.cmd, "update %s\x00%s\x00%s\x00", ref, newvalue, oldvalue)
 	return err
 }
 

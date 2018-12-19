@@ -66,7 +66,7 @@ func TestUpdate(t *testing.T) {
 	require.NotNil(t, commit, "%s does not exist in the test repository", ref)
 	require.NotEqual(t, commit.Id, sha, "%s points to HEAD: %s in the test repository", ref, sha)
 
-	require.NoError(t, updater.Update(ref, sha))
+	require.NoError(t, updater.Update(ref, sha, ""))
 	require.NoError(t, updater.Wait())
 
 	// check the ref was updated
