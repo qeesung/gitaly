@@ -98,25 +98,32 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 
 	remoteName := "remote_mirror_2"
 
-	// Preconditions
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "remote", "add", remoteName, mirrorPath)
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "fetch", remoteName)
+	setupCommands := [][]string{
+		// Preconditions
+		{"config", "user.email", "gitalytest@example.com"},
+		{"remote", "add", remoteName, mirrorPath},
+		{"fetch", remoteName},
+		// Updates
+		{"branch", "11-0-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},
+		{"branch", "11-1-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},                // Add branch
+		{"branch", "ignored-branch", "60ecb67744cb56576c30214ff52294f8ce2def98"},             // Add branch not matching branch list
+		{"update-ref", "refs/heads/some-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
+		{"update-ref", "refs/heads/feature", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"},     // Update branch
+		// Scoped to the project, so will be removed after
+		{"branch", "-D", "not-merged-branch"},                                                   // Delete branch
+		{"tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98"},                          // Add tag
+		{"tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update tag
+	}
 
-	// Updates
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "11-0-stable", "60ecb67744cb56576c30214ff52294f8ce2def98")                // Add branch
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "11-1-stable", "60ecb67744cb56576c30214ff52294f8ce2def98")                // Add branch
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "ignored-branch", "60ecb67744cb56576c30214ff52294f8ce2def98")             // Add branch not matching branch list
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "update-ref", "refs/heads/some-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9") // Update branch
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "update-ref", "refs/heads/feature", "0b4bc9a49b562e85de7cc9e834518ea6828729b9")     // Update branch
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "-D", "not-merged-branch")                                                // Delete branch
+	for _, args := range setupCommands {
+		gitArgs := []string{"-C", testRepoPath}
+		gitArgs = append(gitArgs, args...)
+		testhelper.MustRunCommand(t, nil, "git", gitArgs...)
+	}
 
-	// Scoped to the project, so will be removed after
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "user.email", "gitalytest@example.com") // Delete branch
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98")                          // Add tag
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9") // Update tag
 	// Workaround for https://gitlab.com/gitlab-org/gitaly/issues/1439
-	testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "tag", "v1.2.0", "master") // Delete tag
+	// Create a tag on the remote to ensure it gets deleted later
+	testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "tag", "v1.2.0", "master")
 
 	newTagOid := string(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "v1.0.0"))
 	newTagOid = strings.TrimSpace(newTagOid)
