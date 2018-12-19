@@ -1,0 +1,5 @@
+---
+title: Deduplicate CA in gitaly tls
+merge_request: 1005
+author:
+type: fixed
