@@ -39,9 +39,9 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 		{"update-ref", "refs/heads/empty-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
 		{"branch", "-D", "not-merged-branch"},                                                 // Delete branch
 		// Scoped to the project, so will be removed after
-		{"tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98"},                          // Add tag,
-		{"tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update tag,
-		{"tag", "-d", "v0.0.1"}, // Delete tag,
+		{"tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98"},                          // Add tag
+		{"tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update tag
+		{"tag", "-d", "v0.0.1"}, // Delete tag
 	}
 
 	for _, args := range setupCommands {
