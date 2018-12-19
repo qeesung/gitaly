@@ -74,6 +74,17 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, logErr)
 	require.NotNil(t, commit)
 	require.Equal(t, commit.Id, sha, "reference was not updated")
+
+	// try updating the ref with an old sha that doesn't exist
+	parentCommit, err := log.GetCommit(ctx, testRepo, "HEAD^")
+	require.NoError(t, err)
+	require.Error(t, updater.Update(ref, parentCommit.Id, "486c7fa8b63951e78bd483fc59aac446286bf1ed"))
+
+	// check the ref was not updated
+	commit, logErr = log.GetCommit(ctx, testRepo, ref)
+	require.NoError(t, logErr)
+	require.NotNil(t, commit)
+	require.NotEqual(t, commit.Id, parentCommit.Id, "reference was updated when it shouldn't have been")
 }
 
 func TestDelete(t *testing.T) {
