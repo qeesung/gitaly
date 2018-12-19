@@ -6,28 +6,39 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (s *server) WriteRef(ctx context.Context, req *gitalypb.WriteRefRequest) (*gitalypb.WriteRefResponse, error) {
-	if err := validateWriteRefRequest(req); err != nil {
+	var err error
+	if err = validateWriteRefRequest(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "WriteRef: %v", err)
 	}
-
-	client, err := s.RepositoryServiceClient(ctx)
-	if err != nil {
-		return nil, err
+	if string(req.Ref) == "HEAD" {
+		cmd, err := git.Command(ctx, req.GetRepository(), "symbolic-ref", string(req.GetRef()), string(req.GetRevision()))
+		if err != nil {
+			return &gitalypb.WriteRefResponse{}, status.Errorf(codes.Internal, "WriteRef: %v", err)
+		}
+		if err = cmd.Wait(); err != nil {
+			return &gitalypb.WriteRefResponse{}, status.Errorf(codes.Internal, "WriteRef: %v", err)
+		}
+		return &gitalypb.WriteRefResponse{}, nil
 	}
 
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
+	u, err := updateref.New(ctx, req.GetRepository())
 	if err != nil {
-		return nil, err
+		return &gitalypb.WriteRefResponse{}, status.Errorf(codes.Internal, "WriteRef: %v", err)
 	}
-
-	return client.WriteRef(clientCtx, req)
+	if err = u.Update(string(req.GetRef()), string(req.GetRevision()), string(req.GetOldRevision())); err != nil {
+		return &gitalypb.WriteRefResponse{}, status.Errorf(codes.Internal, "WriteRef: %v", err)
+	}
+	if err = u.Wait(); err != nil {
+		return &gitalypb.WriteRefResponse{}, status.Errorf(codes.Internal, "WriteRef: %v", err)
+	}
+	return &gitalypb.WriteRefResponse{}, nil
 }
 
 func validateWriteRefRequest(req *gitalypb.WriteRefRequest) error {
