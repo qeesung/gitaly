@@ -100,6 +100,62 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
     it { is_expected.to respond_to(:tags) }
   end
 
+  describe '#raw_log' do
+    let(:options) { { path: filename, ref: 'master', limit: 10 } }
+
+    def create_file(filename)
+      user = Gitlab::Git::User.new('testuser', 'Test User', 'test@example.com', 1)
+      actions = [{ action: :create, file_path: filename, content: 'Hello world' }]
+      mutable_repository.multi_action(user, branch_name: 'master', message: 'hello', actions: actions)
+    end
+
+    describe 'with a filename with no special characters' do
+      let(:filename) { 'test.md' }
+
+      it 'finds a commit for the file' do
+        create_file(filename)
+        data = mutable_repository.raw_log(options)
+
+        expect(data.count).to eq(1)
+        expect(data.first).to be_a(Rugged::Commit)
+      end
+    end
+
+    describe 'with a file with braces and spaces' do
+      let(:filename) { "test/{{ myfile }}" }
+
+      it 'finds a commit for a file with braces' do
+        create_file(filename)
+        data = mutable_repository.raw_log(options)
+
+        expect(data.count).to eq(1)
+        expect(data.first).to be_a(Rugged::Commit)
+      end
+    end
+
+    describe 'with multiple files' do
+      it 'finds two commits' do
+        files = ['test1.txt', '{{another}}']
+        files.each { |filename| create_file(filename) }
+        multi_options = { path: files, ref: 'master', limit: 10 }
+
+        data = mutable_repository.raw_log(multi_options)
+        expect(data.count).to eq(2)
+        expect(data).to all(be_a(Rugged::Commit))
+      end
+    end
+
+    describe 'with a non-existent file' do
+      let(:filename) { "not-here" }
+
+      it 'does not find a commit' do
+        data = mutable_repository.raw_log(options)
+
+        expect(data.count).to eq(0)
+      end
+    end
+  end
+
   describe '#root_ref' do
     it 'calls #discover_default_branch' do
       expect(repository).to receive(:discover_default_branch)
