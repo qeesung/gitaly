@@ -12,32 +12,39 @@ import (
 )
 
 func (s *server) WriteRef(ctx context.Context, req *gitalypb.WriteRefRequest) (*gitalypb.WriteRefResponse, error) {
-	var err error
-	if err = validateWriteRefRequest(req); err != nil {
+	if err := validateWriteRefRequest(req); err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}
+	if err := writeRef(ctx, req); err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
+	return &gitalypb.WriteRefResponse{}, nil
+}
+
+func writeRef(ctx context.Context, req *gitalypb.WriteRefRequest) error {
 	if string(req.Ref) == "HEAD" {
 		cmd, err := git.Command(ctx, req.GetRepository(), "symbolic-ref", string(req.GetRef()), string(req.GetRevision()))
 		if err != nil {
-			return &gitalypb.WriteRefResponse{}, helper.ErrInternal(fmt.Errorf("error when creating symbolic-ref command: %v", err))
+			return fmt.Errorf("error when creating symbolic-ref command: %v", err)
 		}
 		if err = cmd.Wait(); err != nil {
-			return &gitalypb.WriteRefResponse{}, helper.ErrInternal(fmt.Errorf("error when running symbolic-ref command: %v", err))
+			return fmt.Errorf("error when running symbolic-ref command: %v", err)
 		}
-		return &gitalypb.WriteRefResponse{}, nil
+		return nil
 	}
 
 	u, err := updateref.New(ctx, req.GetRepository())
 	if err != nil {
-		return &gitalypb.WriteRefResponse{}, helper.ErrInternal(fmt.Errorf("error when running creating new updater: %v", err))
+		return fmt.Errorf("error when running creating new updater: %v", err)
 	}
 	if err = u.Update(string(req.GetRef()), string(req.GetRevision()), string(req.GetOldRevision())); err != nil {
-		return &gitalypb.WriteRefResponse{}, helper.ErrInternal(fmt.Errorf("error when creating update-ref command: %v", err))
+		return fmt.Errorf("error when creating update-ref command: %v", err)
 	}
 	if err = u.Wait(); err != nil {
-		return &gitalypb.WriteRefResponse{}, helper.ErrInternal(fmt.Errorf("error when running update-ref command: %v", err))
+		return fmt.Errorf("error when running update-ref command: %v", err)
 	}
-	return &gitalypb.WriteRefResponse{}, nil
+	return nil
 }
 
 func validateWriteRefRequest(req *gitalypb.WriteRefRequest) error {

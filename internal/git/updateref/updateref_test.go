@@ -78,7 +78,7 @@ func TestUpdate(t *testing.T) {
 	// try updating the ref with an old sha that doesn't exist
 	parentCommit, err := log.GetCommit(ctx, testRepo, "HEAD^")
 	require.NoError(t, err)
-	require.Error(t, updater.Update(ref, parentCommit.Id, "486c7fa8b63951e78bd483fc59aac446286bf1ed"))
+	require.Error(t, updater.Update(ref, parentCommit.Id, parentCommit.Id))
 
 	// check the ref was not updated
 	commit, logErr = log.GetCommit(ctx, testRepo, ref)
