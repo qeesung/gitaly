@@ -1,5 +1,5 @@
 ---
 title: Migrate writeref from using the ruby implementation to go
-merge_request:
-author:
+merge_request: 1008
+author: johncai
 type: other
