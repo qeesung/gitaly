@@ -12,18 +12,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer) error {
-	ctx := stream.Context()
 	req, err := stream.Recv() // First request contains only Repository, GlId, and GlUsername
 	if err != nil {
-		return err
+		return helper.ErrInternal(err)
 	}
 
-	grpc_logrus.Extract(ctx).WithFields(log.Fields{
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
 		"GlID":             req.GlId,
 		"GlRepository":     req.GlRepository,
 		"GlUsername":       req.GlUsername,
@@ -31,8 +28,18 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 	}).Debug("SSHReceivePack")
 
 	if err = validateFirstReceivePackRequest(req); err != nil {
-		return err
+		return helper.ErrInvalidArgument(err)
 	}
+
+	if err := sshReceivePack(stream, req); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitalypb.SSHReceivePackRequest) error {
+	ctx := stream.Context()
 
 	stdin := streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
@@ -67,17 +74,17 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 	cmd, err := git.BareCommand(ctx, stdin, stdout, stderr, env, gitOptions...)
 
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "SSHReceivePack: cmd: %v", err)
+		return fmt.Errorf("start cmd: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		if status, ok := command.ExitStatus(err); ok {
-			return helper.DecorateError(
-				codes.Internal,
-				stream.Send(&gitalypb.SSHReceivePackResponse{ExitStatus: &gitalypb.ExitStatus{Value: int32(status)}}),
-			)
+			return stream.Send(&gitalypb.SSHReceivePackResponse{
+				ExitStatus: &gitalypb.ExitStatus{Value: int32(status)},
+			})
 		}
-		return status.Errorf(codes.Unavailable, "SSHReceivePack: %v", err)
+
+		return fmt.Errorf("cmd wait: %v", err)
 	}
 
 	return nil
@@ -85,10 +92,10 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 
 func validateFirstReceivePackRequest(req *gitalypb.SSHReceivePackRequest) error {
 	if req.GlId == "" {
-		return status.Errorf(codes.InvalidArgument, "SSHReceivePack: empty GlId")
+		return fmt.Errorf("empty GlId")
 	}
 	if req.Stdin != nil {
-		return status.Errorf(codes.InvalidArgument, "SSHReceivePack: non-empty data")
+		return fmt.Errorf("non-empty data in first request")
 	}
 
 	return nil

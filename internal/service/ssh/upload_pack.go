@@ -1,26 +1,34 @@
 package ssh
 
 import (
+	"fmt"
+
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) error {
-	ctx := stream.Context()
-
 	req, err := stream.Recv() // First request contains Repository only
 	if err != nil {
-		return err
+		return helper.ErrInternal(err)
 	}
 
 	if err = validateFirstUploadPackRequest(req); err != nil {
-		return err
+		return helper.ErrInvalidArgument(err)
 	}
+
+	if err = sshUploadPack(stream, req); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb.SSHUploadPackRequest) error {
+	ctx := stream.Context()
 
 	stdin := streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
@@ -51,17 +59,16 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 	cmd, err := git.BareCommand(ctx, stdin, stdout, stderr, env, args...)
 
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "SSHUploadPack: cmd: %v", err)
+		return fmt.Errorf("start cmd: %v", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		if status, ok := command.ExitStatus(err); ok {
-			return helper.DecorateError(
-				codes.Internal,
-				stream.Send(&gitalypb.SSHUploadPackResponse{ExitStatus: &gitalypb.ExitStatus{Value: int32(status)}}),
-			)
+			return stream.Send(&gitalypb.SSHUploadPackResponse{
+				ExitStatus: &gitalypb.ExitStatus{Value: int32(status)},
+			})
 		}
-		return status.Errorf(codes.Unavailable, "SSHUploadPack: %v", err)
+		return fmt.Errorf("cmd wait: %v", err)
 	}
 
 	return nil
@@ -69,7 +76,7 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 
 func validateFirstUploadPackRequest(req *gitalypb.SSHUploadPackRequest) error {
 	if req.Stdin != nil {
-		return status.Errorf(codes.InvalidArgument, "SSHUploadPack: non-empty stdin")
+		return fmt.Errorf("non-empty stdin in first request")
 	}
 
 	return nil
