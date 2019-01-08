@@ -19,6 +19,11 @@ func parseAddress(rawAddress string) (canonicalAddress string, err error) {
 		}
 		return u.Host, nil
 	}
+	// UNIX sockets are not natively supported in gRPC yet.
+	// This is a workaround described in https://github.com/grpc/grpc-go/issues/1846#issuecomment-362634790.
+	if u.Scheme == "unix" {
+		return "passthrough:///" + u.String(), nil
+	}
 
 	return u.String(), nil
 }

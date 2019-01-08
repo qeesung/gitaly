@@ -10,11 +10,11 @@ func TestParseAddress(t *testing.T) {
 		canonical string
 		invalid   bool
 	}{
-		{raw: "unix:/foo/bar.socket", canonical: "unix:///foo/bar.socket"},
-		{raw: "unix:///foo/bar.socket", canonical: "unix:///foo/bar.socket"},
+		{raw: "unix:/foo/bar.socket", canonical: "passthrough:///unix:///foo/bar.socket"},
+		{raw: "unix:///foo/bar.socket", canonical: "passthrough:///unix:///foo/bar.socket"},
 		// Mainly for test purposes we explicitly want to support relative paths
-		{raw: "unix://foo/bar.socket", canonical: "unix://foo/bar.socket"},
-		{raw: "unix:foo/bar.socket", canonical: "unix:foo/bar.socket"},
+		{raw: "unix://foo/bar.socket", canonical: "passthrough:///unix://foo/bar.socket"},
+		{raw: "unix:foo/bar.socket", canonical: "passthrough:///unix:foo/bar.socket"},
 		{raw: "tcp://1.2.3.4", canonical: "1.2.3.4"},
 		{raw: "tcp://1.2.3.4:567", canonical: "1.2.3.4:567"},
 		{raw: "tcp://foobar", canonical: "foobar"},

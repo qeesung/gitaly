@@ -2,6 +2,7 @@ package client
 
 import (
 	"google.golang.org/grpc/credentials"
+	_ "google.golang.org/grpc/resolver/passthrough"
 
 	"net/url"
 
