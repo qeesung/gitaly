@@ -63,15 +63,7 @@ func sendTreeEntries(stream gitalypb.CommitService_GetTreeEntriesServer, c *catf
 		}
 	}
 
-	sender := &chunker.Sender{
-		NewResponse: func() chunker.Response {
-			return &treeEntriesResponse{
-				stream:   stream,
-				response: &gitalypb.GetTreeEntriesResponse{},
-			}
-		},
-	}
-
+	sender := chunker.New(&treeEntriesSender{stream: stream})
 	for _, e := range entries {
 		sender.Send(e)
 	}
@@ -79,16 +71,17 @@ func sendTreeEntries(stream gitalypb.CommitService_GetTreeEntriesServer, c *catf
 	return sender.Flush()
 }
 
-type treeEntriesResponse struct {
+type treeEntriesSender struct {
 	response *gitalypb.GetTreeEntriesResponse
 	stream   gitalypb.CommitService_GetTreeEntriesServer
 }
 
-func (c *treeEntriesResponse) Append(it chunker.Item) {
+func (c *treeEntriesSender) Append(it chunker.Item) {
 	c.response.Entries = append(c.response.Entries, it.(*gitalypb.TreeEntry))
 }
 
-func (c *treeEntriesResponse) Send() error { return c.stream.Send(c.response) }
+func (c *treeEntriesSender) Send() error { return c.stream.Send(c.response) }
+func (c *treeEntriesSender) Reset()      { c.response = &gitalypb.GetTreeEntriesResponse{} }
 
 func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gitalypb.CommitService_GetTreeEntriesServer) error {
 	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{

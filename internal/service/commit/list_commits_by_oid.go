@@ -15,14 +15,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 		return err
 	}
 
-	sender := &chunker.Sender{
-		NewResponse: func() chunker.Response {
-			return &commitsByOidResponse{
-				stream:   stream,
-				response: &gitalypb.ListCommitsByOidResponse{},
-			}
-		},
-	}
+	sender := chunker.New(&commitsByOidSender{stream: stream})
 
 	for _, oid := range in.Oid {
 		commit, err := gitlog.GetCommitCatfile(c, oid)
@@ -42,13 +35,14 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 	return sender.Flush()
 }
 
-type commitsByOidResponse struct {
+type commitsByOidSender struct {
 	response *gitalypb.ListCommitsByOidResponse
 	stream   gitalypb.CommitService_ListCommitsByOidServer
 }
 
-func (c *commitsByOidResponse) Append(it chunker.Item) {
+func (c *commitsByOidSender) Append(it chunker.Item) {
 	c.response.Commits = append(c.response.Commits, it.(*gitalypb.GitCommit))
 }
 
-func (c *commitsByOidResponse) Send() error { return c.stream.Send(c.response) }
+func (c *commitsByOidSender) Send() error { return c.stream.Send(c.response) }
+func (c *commitsByOidSender) Reset()      { c.response = &gitalypb.ListCommitsByOidResponse{} }

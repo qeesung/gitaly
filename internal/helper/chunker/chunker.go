@@ -2,40 +2,41 @@ package chunker
 
 type Item interface{}
 
-type Response interface {
+type Sender interface {
+	Reset()
 	Append(Item)
 	Send() error
 }
 
-type Sender struct {
-	NewResponse func() Response
+func New(s Sender) *Chunker { return &Chunker{Sender: s} }
 
-	n        int
-	response Response
+type Chunker struct {
+	Sender
+	n int
 }
 
-const chunkSize = 20
-
-func (c *Sender) Send(it Item) error {
+func (c *Chunker) Send(it Item) error {
 	if c.n == 0 {
-		c.response = c.NewResponse()
+		c.Sender.Reset()
 	}
 
-	c.response.Append(it)
+	c.Sender.Append(it)
 	c.n++
 
+	const chunkSize = 20
 	if c.n >= chunkSize {
 		return c.send()
 	}
+
 	return nil
 }
 
-func (c *Sender) send() error {
+func (c *Chunker) send() error {
 	c.n = 0
-	return c.response.Send()
+	return c.Sender.Send()
 }
 
-func (c *Sender) Flush() error {
+func (c *Chunker) Flush() error {
 	if c.n == 0 {
 		return nil
 	}
