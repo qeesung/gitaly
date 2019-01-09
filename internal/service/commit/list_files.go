@@ -28,7 +28,7 @@ func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.Commit
 	if len(revision) == 0 {
 		defaultBranch, err := defaultBranchName(stream.Context(), repo)
 		if err != nil {
-			return helper.DecorateError(codes.NotFound, fmt.Errorf("Revision not found %q", revision))
+			return helper.DecorateError(codes.NotFound, fmt.Errorf("revision not found %q", revision))
 		}
 
 		revision = string(defaultBranch)
