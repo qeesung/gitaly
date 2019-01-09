@@ -1,14 +1,15 @@
 package commit
 
 import (
-	"bytes"
+	"io"
 
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -47,27 +48,36 @@ func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.Commit
 		return status.Errorf(codes.Internal, err.Error())
 	}
 
-	return lines.Send(cmd, listFilesWriter(stream), []byte{'\x00'})
+	sender := chunker.New(&listFilesSender{stream: stream})
+
+	for parser := lstree.NewParser(cmd); ; {
+		entry, err := parser.NextEntry()
+		if err != nil {
+			if err == io.EOF {
+				break // happy path
+			}
+			return err
+		}
+
+		if entry.Type != lstree.Blob {
+			continue
+		}
+
+		if err := sender.Send([]byte(entry.Path)); err != nil {
+			return err
+		}
+	}
+
+	return sender.Flush()
 }
 
-func listFilesWriter(stream gitalypb.CommitService_ListFilesServer) lines.Sender {
-	return func(objs [][]byte) error {
-		paths := make([][]byte, 0)
-		for _, obj := range objs {
-			data := bytes.SplitN(obj, []byte{'\t'}, 2)
-			if len(data) != 2 {
-				return status.Errorf(codes.Internal, "ListFiles: failed parsing line")
-			}
+type listFilesSender struct {
+	stream   gitalypb.CommitService_ListFilesServer
+	response *gitalypb.ListFilesResponse
+}
 
-			meta := bytes.SplitN(data[0], []byte{' '}, 3)
-			if len(meta) != 3 {
-				return status.Errorf(codes.Internal, "ListFiles: failed parsing meta")
-			}
-
-			if bytes.Equal(meta[1], []byte("blob")) {
-				paths = append(paths, data[1])
-			}
-		}
-		return stream.Send(&gitalypb.ListFilesResponse{Paths: paths})
-	}
+func (s *listFilesSender) Reset()      { s.response = &gitalypb.ListFilesResponse{} }
+func (s *listFilesSender) Send() error { return s.stream.Send(s.response) }
+func (s *listFilesSender) Append(it chunker.Item) {
+	s.response.Paths = append(s.response.Paths, it.([]byte))
 }
