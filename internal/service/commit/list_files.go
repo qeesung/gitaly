@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"fmt"
 	"io"
 
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -11,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.CommitService_ListFilesServer) error {
@@ -24,38 +24,42 @@ func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.Commit
 		return err
 	}
 
-	revision := in.GetRevision()
+	revision := string(in.GetRevision())
 	if len(revision) == 0 {
-		var err error
-
-		revision, err = defaultBranchName(stream.Context(), repo)
+		defaultBranch, err := defaultBranchName(stream.Context(), repo)
 		if err != nil {
-			if _, ok := status.FromError(err); ok {
-				return err
-			}
-			return status.Errorf(codes.NotFound, "Revision not found %q", in.GetRevision())
+			return helper.DecorateError(codes.NotFound, fmt.Errorf("Revision not found %q", revision))
 		}
+
+		revision = string(defaultBranch)
 	}
-	if !git.IsValidRef(stream.Context(), repo, string(revision)) {
+
+	if !git.IsValidRef(stream.Context(), repo, revision) {
 		return stream.Send(&gitalypb.ListFilesResponse{})
 	}
 
-	cmd, err := git.Command(stream.Context(), repo, "ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", string(revision))
+	if err := listFiles(repo, revision, stream); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func listFiles(repo *gitalypb.Repository, revision string, stream gitalypb.CommitService_ListFilesServer) error {
+	args := []string{"ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", revision}
+	cmd, err := git.Command(stream.Context(), repo, args...)
 	if err != nil {
-		if _, ok := status.FromError(err); ok {
-			return err
-		}
-		return status.Errorf(codes.Internal, err.Error())
+		return err
 	}
 
 	sender := chunker.New(&listFilesSender{stream: stream})
 
 	for parser := lstree.NewParser(cmd); ; {
 		entry, err := parser.NextEntry()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			if err == io.EOF {
-				break // happy path
-			}
 			return err
 		}
 
