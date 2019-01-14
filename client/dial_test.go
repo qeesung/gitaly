@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -41,12 +40,10 @@ func TestDial(t *testing.T) {
 	require.NoError(t, err, "start listeners: %v. %s", err)
 	defer stop()
 
-	wd, err := os.Getwd()
-	require.NoError(t, err, "getwd: %v. %s", err)
-
 	unixSocketAbsPath := connectionMap["unix"]
-	unixSocketRelPath, err := filepath.Rel(wd, unixSocketAbsPath)
-	require.NoError(t, err, "relative path failure: %v. %s", err)
+	unixSocketRelPath := "testdata/gitaly.socket"
+	require.NoError(t, os.RemoveAll(unixSocketRelPath))
+	require.NoError(t, os.Symlink(unixSocketAbsPath, unixSocketRelPath))
 
 	tests := []struct {
 		name           string

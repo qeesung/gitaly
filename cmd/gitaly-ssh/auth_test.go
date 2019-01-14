@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -45,8 +44,11 @@ func TestConnectivity(t *testing.T) {
 
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
 
-	relativeSocketPath, err := filepath.Rel(cwd, socketPath)
-	require.NoError(t, err, "relative path failure: %v. %s", err)
+	// Unix socket paths must be short (less than 100 characters). This
+	// relative path is short.
+	relativeSocketPath := "testdata/gitaly.socket"
+	require.NoError(t, os.RemoveAll(relativeSocketPath))
+	require.NoError(t, os.Symlink(socketPath, relativeSocketPath))
 
 	tcpServer, tcpPort := runServer(t, server.NewInsecure, "tcp", "localhost:0")
 	defer tcpServer.Stop()
@@ -104,6 +106,7 @@ func TestConnectivity(t *testing.T) {
 			cmd.Env = []string{
 				fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 				fmt.Sprintf("GITALY_ADDRESS=%s", testcase.addr),
+				fmt.Sprintf("GITALY_WD=%s", cwd),
 				fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
 				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", gitalySSHPath),
 				fmt.Sprintf("SSL_CERT_DIR=%s", certPoolPath),
