@@ -20,7 +20,7 @@ module Gitlab
 
           # stderr and stdout pipes can block if stderr/stdout aren't drained: https://bugs.ruby-lang.org/issues/9082
           # Mimic what Ruby does with capture3: https://github.com/ruby/ruby/blob/1ec544695fa02d714180ef9c34e755027b6a2103/lib/open3.rb#L257-L273
-          err_reader = Thread.new { stderr.read }
+          err_reader = thread_reader(stderr)
 
           yield(stdin) if block_given?
           stdin.close
@@ -54,8 +54,8 @@ module Gitlab
         pid = Process.spawn(vars, *cmd, out: wout, err: werr, chdir: path, pgroup: true)
         # stderr and stdout pipes can block if stderr/stdout aren't drained: https://bugs.ruby-lang.org/issues/9082
         # Mimic what Ruby does with capture3: https://github.com/ruby/ruby/blob/1ec544695fa02d714180ef9c34e755027b6a2103/lib/open3.rb#L257-L273
-        out_reader = Thread.new { rout.read }
-        err_reader = Thread.new { rerr.read }
+        out_reader = thread_reader(rout)
+        err_reader = thread_reader(rerr)
 
         begin
           # close write ends so we could read them
@@ -99,6 +99,17 @@ module Gitlab
         Process.kill("KILL", -pid)
         Process.wait(pid)
       rescue Errno::ESRCH
+      end
+
+      def thread_reader(io)
+        Thread.new do
+          begin
+            io.read
+          rescue IOError
+            # If io is closed in another thread we get IOError. This happens on
+            # error return paths. Ignore so that logs don't get cluttered.
+          end
+        end
       end
     end
   end
