@@ -41,6 +41,7 @@ func TestDial(t *testing.T) {
 	defer stop()
 
 	unixSocketAbsPath := connectionMap["unix"]
+
 	unixSocketRelPath := "testdata/gitaly.socket"
 	require.NoError(t, os.RemoveAll(unixSocketRelPath))
 	require.NoError(t, os.Symlink(unixSocketAbsPath, unixSocketRelPath))

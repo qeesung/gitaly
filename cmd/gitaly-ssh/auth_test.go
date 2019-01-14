@@ -44,8 +44,6 @@ func TestConnectivity(t *testing.T) {
 
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
 
-	// Unix socket paths must be short (less than 100 characters). This
-	// relative path is short.
 	relativeSocketPath := "testdata/gitaly.socket"
 	require.NoError(t, os.RemoveAll(relativeSocketPath))
 	require.NoError(t, os.Symlink(socketPath, relativeSocketPath))
