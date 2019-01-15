@@ -26,12 +26,21 @@ func (*server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesConta
 
 func listBranchNamesContainingCommit(in *gitalypb.ListBranchNamesContainingCommitRequest, stream gitalypb.RefService_ListBranchNamesContainingCommitServer) error {
 	chunk := chunker.New(&branchNamesContainingCommitSender{stream: stream})
-	args := []string{fmt.Sprintf("--contains=%s", in.GetCommitId())}
-	if in.GetLimit() != 0 {
-		args = append(args, fmt.Sprintf("--count=%d", in.GetLimit()))
-	}
 
-	return listRefNames(stream.Context(), chunk, "refs/heads", in.Repository, args)
+	return listRefNames(stream.Context(), chunk, "refs/heads", in.Repository, containingArgs(in))
+}
+
+type containingRequest interface {
+	GetCommitId() string
+	GetLimit() uint32
+}
+
+func containingArgs(req containingRequest) []string {
+	args := []string{fmt.Sprintf("--contains=%s", req.GetCommitId())}
+	if limit := req.GetLimit(); limit != 0 {
+		args = append(args, fmt.Sprintf("--count=%d", limit))
+	}
+	return args
 }
 
 type branchNamesContainingCommitSender struct {
@@ -64,12 +73,7 @@ func (*server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingC
 func listTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingCommitRequest, stream gitalypb.RefService_ListTagNamesContainingCommitServer) error {
 	chunk := chunker.New(&tagNamesContainingCommitSender{stream: stream})
 
-	args := []string{fmt.Sprintf("--contains=%s", in.GetCommitId())}
-	if in.GetLimit() != 0 {
-		args = append(args, fmt.Sprintf("--count=%d", in.GetLimit()))
-	}
-
-	return listRefNames(stream.Context(), chunk, "refs/tags", in.Repository, args)
+	return listRefNames(stream.Context(), chunk, "refs/tags", in.Repository, containingArgs(in))
 }
 
 type tagNamesContainingCommitSender struct {
