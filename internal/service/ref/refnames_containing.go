@@ -17,17 +17,13 @@ func (*server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesConta
 		return helper.ErrInvalidArgument(err)
 	}
 
-	if err := listBranchNamesContainingCommit(in, stream); err != nil {
+	chunk := chunker.New(&branchNamesContainingCommitSender{stream: stream})
+	ctx := stream.Context()
+	if err := listRefNames(ctx, chunk, "refs/heads", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
 	return nil
-}
-
-func listBranchNamesContainingCommit(in *gitalypb.ListBranchNamesContainingCommitRequest, stream gitalypb.RefService_ListBranchNamesContainingCommitServer) error {
-	chunk := chunker.New(&branchNamesContainingCommitSender{stream: stream})
-
-	return listRefNames(stream.Context(), chunk, "refs/heads", in.Repository, containingArgs(in))
 }
 
 type containingRequest interface {
@@ -63,17 +59,13 @@ func (*server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingC
 		return helper.ErrInvalidArgument(err)
 	}
 
-	if err := listTagNamesContainingCommit(in, stream); err != nil {
+	chunk := chunker.New(&tagNamesContainingCommitSender{stream: stream})
+	ctx := stream.Context()
+	if err := listRefNames(ctx, chunk, "refs/tags", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
 	return nil
-}
-
-func listTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingCommitRequest, stream gitalypb.RefService_ListTagNamesContainingCommitServer) error {
-	chunk := chunker.New(&tagNamesContainingCommitSender{stream: stream})
-
-	return listRefNames(stream.Context(), chunk, "refs/tags", in.Repository, containingArgs(in))
 }
 
 type tagNamesContainingCommitSender struct {
