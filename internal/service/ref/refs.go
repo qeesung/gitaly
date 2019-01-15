@@ -30,6 +30,10 @@ type findRefsOpts struct {
 }
 
 func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repository, patterns []string, opts *findRefsOpts) error {
+	if opts == nil {
+		opts = &findRefsOpts{}
+	}
+
 	baseArgs := []string{"for-each-ref"}
 
 	var args []string
@@ -50,16 +54,6 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repositor
 	}
 
 	return cmd.Wait()
-}
-
-// FindAllBranchNames creates a stream of ref names for all branches in the given repository
-func (s *server) FindAllBranchNames(in *gitalypb.FindAllBranchNamesRequest, stream gitalypb.RefService_FindAllBranchNamesServer) error {
-	return findRefs(stream.Context(), newFindAllBranchNamesWriter(stream), in.Repository, []string{"refs/heads"}, &findRefsOpts{})
-}
-
-// FindAllTagNames creates a stream of ref names for all tags in the given repository
-func (s *server) FindAllTagNames(in *gitalypb.FindAllTagNamesRequest, stream gitalypb.RefService_FindAllTagNamesServer) error {
-	return findRefs(stream.Context(), newFindAllTagNamesWriter(stream), in.Repository, []string{"refs/tags"}, &findRefsOpts{})
 }
 
 func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.RefService_FindAllTagsServer) error {
@@ -279,66 +273,4 @@ func findAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefSer
 	writer := newFindAllBranchesWriter(stream, c)
 
 	return findRefs(ctx, writer, in.Repository, patterns, opts)
-}
-
-// ListBranchNamesContainingCommit returns a maximum of in.GetLimit() Branch names
-// which contain the SHA1 passed as argument
-func (*server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesContainingCommitRequest, stream gitalypb.RefService_ListBranchNamesContainingCommitServer) error {
-	if err := git.ValidateCommitID(in.GetCommitId()); err != nil {
-		return helper.ErrInvalidArgument(err)
-	}
-
-	if err := listBranchNamesContainingCommit(in, stream); err != nil {
-		return helper.ErrInternal(err)
-	}
-
-	return nil
-}
-
-func listBranchNamesContainingCommit(in *gitalypb.ListBranchNamesContainingCommitRequest, stream gitalypb.RefService_ListBranchNamesContainingCommitServer) error {
-	args := []string{fmt.Sprintf("--contains=%s", in.GetCommitId()), "--format=%(refname:strip=2)"}
-	if in.GetLimit() != 0 {
-		args = append(args, fmt.Sprintf("--count=%d", in.GetLimit()))
-	}
-
-	writer := func(refs [][]byte) error {
-		return stream.Send(&gitalypb.ListBranchNamesContainingCommitResponse{BranchNames: refs})
-	}
-
-	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/heads"},
-		&findRefsOpts{
-			cmdArgs: args,
-			delim:   []byte("\n"),
-		})
-}
-
-// ListTagNamesContainingCommit returns a maximum of in.GetLimit() Tag names
-// which contain the SHA1 passed as argument
-func (*server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingCommitRequest, stream gitalypb.RefService_ListTagNamesContainingCommitServer) error {
-	if err := git.ValidateCommitID(in.GetCommitId()); err != nil {
-		return helper.ErrInvalidArgument(err)
-	}
-
-	if err := listTagNamesContainingCommit(in, stream); err != nil {
-		return helper.ErrInternal(err)
-	}
-
-	return nil
-}
-
-func listTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingCommitRequest, stream gitalypb.RefService_ListTagNamesContainingCommitServer) error {
-	args := []string{fmt.Sprintf("--contains=%s", in.GetCommitId()), "--format=%(refname:strip=2)"}
-	if in.GetLimit() != 0 {
-		args = append(args, fmt.Sprintf("--count=%d", in.GetLimit()))
-	}
-
-	writer := func(refs [][]byte) error {
-		return stream.Send(&gitalypb.ListTagNamesContainingCommitResponse{TagNames: refs})
-	}
-
-	return findRefs(stream.Context(), writer, in.Repository, []string{"refs/tags"},
-		&findRefsOpts{
-			cmdArgs: args,
-			delim:   []byte("\n"),
-		})
 }
