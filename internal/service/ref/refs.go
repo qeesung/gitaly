@@ -30,10 +30,6 @@ type findRefsOpts struct {
 }
 
 func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repository, patterns []string, opts *findRefsOpts) error {
-	if opts == nil {
-		opts = &findRefsOpts{}
-	}
-
 	baseArgs := []string{"for-each-ref"}
 
 	var args []string
