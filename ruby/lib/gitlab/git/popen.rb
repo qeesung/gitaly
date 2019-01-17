@@ -20,21 +20,27 @@ module Gitlab
 
           # stderr and stdout pipes can block if stderr/stdout aren't drained: https://bugs.ruby-lang.org/issues/9082
           # Mimic what Ruby does with capture3: https://github.com/ruby/ruby/blob/1ec544695fa02d714180ef9c34e755027b6a2103/lib/open3.rb#L257-L273
-          err_reader = thread_reader(stderr)
-
-          yield(stdin) if block_given?
-          stdin.close
-
-          if lazy_block
-            cmd_output = lazy_block.call(stdout.lazy)
-            cmd_status = 0
-            break
-          else
-            cmd_output << stdout.read
+          err_reader = Thread.new do
+            stderr.read
           end
 
-          cmd_output << err_reader.value if include_stderr
-          cmd_status = wait_thr.value.exitstatus
+          begin
+            yield(stdin) if block_given?
+            stdin.close
+
+            if lazy_block
+              cmd_output = lazy_block.call(stdout.lazy)
+              cmd_status = 0
+              break
+            else
+              cmd_output << stdout.read
+            end
+
+            cmd_output << err_reader.value if include_stderr
+            cmd_status = wait_thr.value.exitstatus
+          ensure
+            err_reader.kill
+          end
         end
 
         [cmd_output, cmd_status]
@@ -54,8 +60,8 @@ module Gitlab
         pid = Process.spawn(vars, *cmd, out: wout, err: werr, chdir: path, pgroup: true)
         # stderr and stdout pipes can block if stderr/stdout aren't drained: https://bugs.ruby-lang.org/issues/9082
         # Mimic what Ruby does with capture3: https://github.com/ruby/ruby/blob/1ec544695fa02d714180ef9c34e755027b6a2103/lib/open3.rb#L257-L273
-        out_reader = thread_reader(rout)
-        err_reader = thread_reader(rerr)
+        out_reader = Thread.new { rout.read }
+        err_reader = Thread.new { rerr.read }
 
         begin
           # close write ends so we could read them
@@ -76,7 +82,10 @@ module Gitlab
           wout.close unless wout.closed?
           werr.close unless werr.closed?
 
+          out_reader.kill
           rout.close
+
+          err_reader.kill
           rerr.close
         end
       end
@@ -99,17 +108,6 @@ module Gitlab
         Process.kill("KILL", -pid)
         Process.wait(pid)
       rescue Errno::ESRCH
-      end
-
-      def thread_reader(io)
-        Thread.new do
-          begin
-            io.read
-          rescue IOError
-            # If io is closed in another thread we get IOError. This happens on
-            # error return paths. Ignore so that logs don't get cluttered.
-          end
-        end
       end
     end
   end
