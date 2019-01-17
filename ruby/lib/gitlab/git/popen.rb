@@ -20,9 +20,7 @@ module Gitlab
 
           # stderr and stdout pipes can block if stderr/stdout aren't drained: https://bugs.ruby-lang.org/issues/9082
           # Mimic what Ruby does with capture3: https://github.com/ruby/ruby/blob/1ec544695fa02d714180ef9c34e755027b6a2103/lib/open3.rb#L257-L273
-          err_reader = Thread.new do
-            stderr.read
-          end
+          err_reader = Thread.new { stderr.read }
 
           begin
             yield(stdin) if block_given?
