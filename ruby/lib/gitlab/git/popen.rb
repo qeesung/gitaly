@@ -37,6 +37,9 @@ module Gitlab
             cmd_output << err_reader.value if include_stderr
             cmd_status = wait_thr.value.exitstatus
           ensure
+            # When Popen3.open3 returns, the stderr reader gets closed, which causes
+            # an exception in the err_reader thread. Kill the thread before
+            # returning from Popen3.open3.
             err_reader.kill
           end
         end
@@ -80,6 +83,9 @@ module Gitlab
           wout.close unless wout.closed?
           werr.close unless werr.closed?
 
+          # rout is shared with out_reader. To prevent an exception in that
+          # thread, kill the thread before closing rout. The same goes for rerr
+          # below.
           out_reader.kill
           rout.close
 
