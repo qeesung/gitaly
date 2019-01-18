@@ -58,9 +58,13 @@ func commitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalyp
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
 	return &gitalypb.CommitStatsResponse{
 		Oid:       commit.Id,
 		Additions: added,
 		Deletions: deleted,
-	}, nil
+	}, cmd.Wait()
 }
