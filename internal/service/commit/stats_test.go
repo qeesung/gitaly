@@ -40,6 +40,12 @@ func TestCommitStatsSuccess(t *testing.T) {
 			additions: 27,
 			deletions: 59,
 		},
+		{
+			revision:  []byte("60ecb67"),
+			oid:       "60ecb67744cb56576c30214ff52294f8ce2def98",
+			additions: 1,
+			deletions: 0,
+		},
 	}
 
 	for _, tc := range tests {
