@@ -3,6 +3,7 @@ module GitalyServer
     include Utils
     include Gitlab::EncodingHelper
 
+    # TODO remove in gitlab 12.0, this is implemented in Go now
     def commit_stats(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
       revision = request.revision unless request.revision.empty?

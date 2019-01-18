@@ -1,0 +1,5 @@
+---
+title: Rewrite CommitStats in Go
+merge_request:
+author:
+type: performance
