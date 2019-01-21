@@ -96,7 +96,8 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, updater.Wait())
 
 	// check the ref was removed
-	testhelper.AssertCommitNotFound(t, ctx, testRepo, ref)
+	_, err = log.GetCommit(ctx, testRepo, ref)
+	require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
 }
 
 func TestBulkOperation(t *testing.T) {
@@ -141,5 +142,6 @@ func TestContextCancelAbortsRefChanges(t *testing.T) {
 	require.Error(t, updater.Wait())
 
 	// check the ref doesn't exist
-	testhelper.AssertCommitNotFound(t, ctx, testRepo, ref)
+	_, err = log.GetCommit(ctx, testRepo, ref)
+	require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
 }
