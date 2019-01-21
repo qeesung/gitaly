@@ -43,7 +43,6 @@ func TestCreate(t *testing.T) {
 	// check the ref was created
 	commit, logErr := log.GetCommit(ctx, testRepo, ref)
 	require.NoError(t, logErr)
-	require.NotNil(t, commit, "reference was not created")
 	require.Equal(t, commit.Id, sha, "reference was created with the wrong SHA")
 }
 
@@ -63,7 +62,6 @@ func TestUpdate(t *testing.T) {
 	// Sanity check: ensure the ref exists before we start
 	commit, logErr := log.GetCommit(ctx, testRepo, ref)
 	require.NoError(t, logErr)
-	require.NotNil(t, commit, "%s does not exist in the test repository", ref)
 	require.NotEqual(t, commit.Id, sha, "%s points to HEAD: %s in the test repository", ref, sha)
 
 	require.NoError(t, updater.Update(ref, sha, ""))
@@ -72,7 +70,6 @@ func TestUpdate(t *testing.T) {
 	// check the ref was updated
 	commit, logErr = log.GetCommit(ctx, testRepo, ref)
 	require.NoError(t, logErr)
-	require.NotNil(t, commit)
 	require.Equal(t, commit.Id, sha, "reference was not updated")
 
 	// since ref has been updated to HEAD, we know that it does not point to HEAD^. So, HEAD^ is an invalid "old value" for updating ref
@@ -83,7 +80,6 @@ func TestUpdate(t *testing.T) {
 	// check the ref was not updated
 	commit, logErr = log.GetCommit(ctx, testRepo, ref)
 	require.NoError(t, logErr)
-	require.NotNil(t, commit)
 	require.NotEqual(t, commit.Id, parentCommit.Id, "reference was updated when it shouldn't have been")
 }
 
@@ -100,9 +96,7 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, updater.Wait())
 
 	// check the ref was removed
-	commit, logErr := log.GetCommit(ctx, testRepo, ref)
-	require.NoError(t, logErr)
-	require.Nil(t, commit, "reference was not removed")
+	testhelper.AssertCommitNotFound(t, ctx, testRepo, ref)
 }
 
 func TestBulkOperation(t *testing.T) {
@@ -147,7 +141,5 @@ func TestContextCancelAbortsRefChanges(t *testing.T) {
 	require.Error(t, updater.Wait())
 
 	// check the ref doesn't exist
-	commit, logErr := log.GetCommit(ctx, testRepo, ref)
-	require.NoError(t, logErr)
-	require.Nil(t, commit, "Reference was created even though the process was aborted")
+	testhelper.AssertCommitNotFound(t, ctx, testRepo, ref)
 }

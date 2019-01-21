@@ -31,10 +31,6 @@ func GetCommit(ctx context.Context, repo *gitalypb.Repository, revision string) 
 func GetCommitCatfile(c *catfile.Batch, revision string) (*gitalypb.GitCommit, error) {
 	info, err := c.Info(revision + "^{commit}")
 	if err != nil {
-		if catfile.IsNotFound(err) {
-			return nil, nil
-		}
-
 		return nil, err
 	}
 

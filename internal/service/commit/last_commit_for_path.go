@@ -21,11 +21,11 @@ func (s *server) LastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 	}
 
 	commit, err := log.LastCommitForPath(ctx, in.GetRepository(), string(in.GetRevision()), path)
-	if err != nil {
-		return nil, err
+	if log.IsNotFound(err) {
+		return &gitalypb.LastCommitForPathResponse{}, nil
 	}
 
-	return &gitalypb.LastCommitForPathResponse{Commit: commit}, nil
+	return &gitalypb.LastCommitForPathResponse{Commit: commit}, err
 }
 
 func validateLastCommitForPathRequest(in *gitalypb.LastCommitForPathRequest) error {

@@ -159,9 +159,7 @@ func TestUnlink(t *testing.T) {
 			require.Equal(t, tc.code, helper.GrpcCode(err))
 
 			if tc.code == codes.OK {
-				commit, err := log.GetCommit(ctx, testRepo, poolCommitID)
-				require.NoError(t, err)
-				require.Nil(t, commit)
+				testhelper.AssertCommitNotFound(t, ctx, testRepo, poolCommitID)
 
 				remotes := testhelper.MustRunCommand(t, nil, "git", "-C", pool.FullPath(), "remote")
 				require.Len(t, remotes, 0)

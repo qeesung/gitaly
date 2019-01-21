@@ -2,12 +2,17 @@ package testhelper
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 )
 
 // CreateCommitOpts holds extra options for CreateCommit.
@@ -86,4 +91,10 @@ func CreateCommitInAlternateObjectDirectory(t *testing.T, repoPath string, cmd *
 	}
 
 	return currentHead[:len(currentHead)-1], altObjectsDir
+}
+
+// AssertCommitNotFound asserts that the named commit cannot be found
+func AssertCommitNotFound(t *testing.T, ctx context.Context, repo *gitalypb.Repository, revision string) {
+	_, err := log.GetCommit(ctx, repo, revision)
+	require.True(t, log.IsNotFound(err), "expected 'not found' error when looking up commit %q, got %v", revision, err)
 }

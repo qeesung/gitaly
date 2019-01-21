@@ -19,12 +19,11 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 
 	for _, oid := range in.Oid {
 		commit, err := gitlog.GetCommitCatfile(c, oid)
+		if catfile.IsNotFound(err) {
+			continue
+		}
 		if err != nil {
 			return err
-		}
-
-		if commit == nil {
-			continue
 		}
 
 		if err := sender.Send(commit); err != nil {

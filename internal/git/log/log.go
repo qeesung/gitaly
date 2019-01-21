@@ -10,6 +10,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 )
 
+// IsNotFound tests if an error is a "not found" error.
+func IsNotFound(err error) bool { return catfile.IsNotFound(err) }
+
 // Parser holds necessary state for parsing a git log stream
 type Parser struct {
 	scanner       *bufio.Scanner
