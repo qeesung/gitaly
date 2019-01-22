@@ -49,13 +49,24 @@ func commitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalyp
 			return nil, fmt.Errorf("invalid numstat line %q", scanner.Text())
 		}
 
-		if add64, err := strconv.ParseInt(split[0], 10, 32); err == nil {
-			added += int32(add64)
+		if split[0] == "-" && split[1] == "-" {
+			// binary file
+			continue
 		}
 
-		if del64, err := strconv.ParseInt(split[1], 10, 32); err == nil {
-			deleted += int32(del64)
+		add64, err := strconv.ParseInt(split[0], 10, 32)
+		if err != nil {
+			return nil, err
 		}
+
+		added += int32(add64)
+
+		del64, err := strconv.ParseInt(split[1], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		deleted += int32(del64)
 	}
 
 	if err := scanner.Err(); err != nil {
