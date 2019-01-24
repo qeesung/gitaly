@@ -11,9 +11,9 @@ import (
 
 // FindAllBranchNames creates a stream of ref names for all branches in the given repository
 func (s *server) FindAllBranchNames(in *gitalypb.FindAllBranchNamesRequest, stream gitalypb.RefService_FindAllBranchNamesServer) error {
-	chunk := chunker.New(&findAllBranchNamesSender{stream: stream})
+	sender := chunker.New(&findAllBranchNamesSender{stream: stream})
 
-	return listRefNames(stream.Context(), chunk, "refs/heads", in.Repository, nil)
+	return listRefNames(stream.Context(), sender, "refs/heads", in.Repository, nil)
 }
 
 type findAllBranchNamesSender struct {
@@ -31,9 +31,9 @@ func (ts *findAllBranchNamesSender) Send() error {
 
 // FindAllTagNames creates a stream of ref names for all tags in the given repository
 func (s *server) FindAllTagNames(in *gitalypb.FindAllTagNamesRequest, stream gitalypb.RefService_FindAllTagNamesServer) error {
-	chunk := chunker.New(&findAllTagNamesSender{stream: stream})
+	sender := chunker.New(&findAllTagNamesSender{stream: stream})
 
-	return listRefNames(stream.Context(), chunk, "refs/tags", in.Repository, nil)
+	return listRefNames(stream.Context(), sender, "refs/tags", in.Repository, nil)
 }
 
 type findAllTagNamesSender struct {
@@ -49,7 +49,7 @@ func (ts *findAllTagNamesSender) Send() error {
 	return ts.stream.Send(&gitalypb.FindAllTagNamesResponse{Names: ts.tagNames})
 }
 
-func listRefNames(ctx context.Context, chunk *chunker.Chunker, prefix string, repo *gitalypb.Repository, extraArgs []string) error {
+func listRefNames(ctx context.Context, sender *chunker.Chunker, prefix string, repo *gitalypb.Repository, extraArgs []string) error {
 	args := []string{
 		"for-each-ref",
 		"--format=%(refname)",
@@ -64,7 +64,7 @@ func listRefNames(ctx context.Context, chunk *chunker.Chunker, prefix string, re
 
 	scanner := bufio.NewScanner(cmd)
 	for scanner.Scan() {
-		if err := chunk.Send(scanner.Bytes()); err != nil {
+		if err := sender.Send(scanner.Bytes()); err != nil {
 			return err
 		}
 	}
@@ -73,5 +73,5 @@ func listRefNames(ctx context.Context, chunk *chunker.Chunker, prefix string, re
 		return err
 	}
 
-	return chunk.Flush()
+	return sender.Flush()
 }

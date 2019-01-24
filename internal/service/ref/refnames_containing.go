@@ -17,9 +17,9 @@ func (*server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesConta
 		return helper.ErrInvalidArgument(err)
 	}
 
-	chunk := chunker.New(&branchNamesContainingCommitSender{stream: stream})
+	sender := chunker.New(&branchNamesContainingCommitSender{stream: stream})
 	ctx := stream.Context()
-	if err := listRefNames(ctx, chunk, "refs/heads", in.Repository, containingArgs(in)); err != nil {
+	if err := listRefNames(ctx, sender, "refs/heads", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
@@ -59,9 +59,9 @@ func (*server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingC
 		return helper.ErrInvalidArgument(err)
 	}
 
-	chunk := chunker.New(&tagNamesContainingCommitSender{stream: stream})
+	sender := chunker.New(&tagNamesContainingCommitSender{stream: stream})
 	ctx := stream.Context()
-	if err := listRefNames(ctx, chunk, "refs/tags", in.Repository, containingArgs(in)); err != nil {
+	if err := listRefNames(ctx, sender, "refs/tags", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
