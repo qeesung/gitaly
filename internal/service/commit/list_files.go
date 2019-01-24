@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"google.golang.org/grpc/codes"
 )
 
@@ -52,7 +52,7 @@ func listFiles(repo *gitalypb.Repository, revision string, stream gitalypb.Commi
 		return err
 	}
 
-	sender := chunker.New(&listFilesSender{stream: stream})
+	sender := chunk.New(&listFilesSender{stream: stream})
 
 	for parser := lstree.NewParser(cmd); ; {
 		entry, err := parser.NextEntry()
@@ -82,6 +82,6 @@ type listFilesSender struct {
 
 func (s *listFilesSender) Reset()      { s.response = &gitalypb.ListFilesResponse{} }
 func (s *listFilesSender) Send() error { return s.stream.Send(s.response) }
-func (s *listFilesSender) Append(it chunker.Item) {
+func (s *listFilesSender) Append(it chunk.Item) {
 	s.response.Paths = append(s.response.Paths, it.([]byte))
 }

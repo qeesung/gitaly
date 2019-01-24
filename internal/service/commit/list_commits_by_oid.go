@@ -4,7 +4,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 )
 
 func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream gitalypb.CommitService_ListCommitsByOidServer) error {
@@ -15,7 +15,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 		return err
 	}
 
-	sender := chunker.New(&commitsByOidSender{stream: stream})
+	sender := chunk.New(&commitsByOidSender{stream: stream})
 
 	for _, oid := range in.Oid {
 		commit, err := gitlog.GetCommitCatfile(c, oid)
@@ -40,7 +40,7 @@ type commitsByOidSender struct {
 	stream   gitalypb.CommitService_ListCommitsByOidServer
 }
 
-func (c *commitsByOidSender) Append(it chunker.Item) {
+func (c *commitsByOidSender) Append(it chunk.Item) {
 	c.response.Commits = append(c.response.Commits, it.(*gitalypb.GitCommit))
 }
 

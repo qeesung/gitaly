@@ -7,7 +7,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 )
 
 // ListBranchNamesContainingCommit returns a maximum of in.GetLimit() Branch names
@@ -17,9 +17,9 @@ func (*server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesConta
 		return helper.ErrInvalidArgument(err)
 	}
 
-	sender := chunker.New(&branchNamesContainingCommitSender{stream: stream})
+	chunker := chunk.New(&branchNamesContainingCommitSender{stream: stream})
 	ctx := stream.Context()
-	if err := listRefNames(ctx, sender, "refs/heads", in.Repository, containingArgs(in)); err != nil {
+	if err := listRefNames(ctx, chunker, "refs/heads", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
@@ -45,7 +45,7 @@ type branchNamesContainingCommitSender struct {
 }
 
 func (bs *branchNamesContainingCommitSender) Reset() { bs.branchNames = nil }
-func (bs *branchNamesContainingCommitSender) Append(it chunker.Item) {
+func (bs *branchNamesContainingCommitSender) Append(it chunk.Item) {
 	bs.branchNames = append(bs.branchNames, stripPrefix(it, "refs/heads/"))
 }
 func (bs *branchNamesContainingCommitSender) Send() error {
@@ -59,9 +59,9 @@ func (*server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingC
 		return helper.ErrInvalidArgument(err)
 	}
 
-	sender := chunker.New(&tagNamesContainingCommitSender{stream: stream})
+	chunker := chunk.New(&tagNamesContainingCommitSender{stream: stream})
 	ctx := stream.Context()
-	if err := listRefNames(ctx, sender, "refs/tags", in.Repository, containingArgs(in)); err != nil {
+	if err := listRefNames(ctx, chunker, "refs/tags", in.Repository, containingArgs(in)); err != nil {
 		return helper.ErrInternal(err)
 	}
 
@@ -74,13 +74,13 @@ type tagNamesContainingCommitSender struct {
 }
 
 func (ts *tagNamesContainingCommitSender) Reset() { ts.tagNames = nil }
-func (ts *tagNamesContainingCommitSender) Append(it chunker.Item) {
+func (ts *tagNamesContainingCommitSender) Append(it chunk.Item) {
 	ts.tagNames = append(ts.tagNames, stripPrefix(it, "refs/tags/"))
 }
 func (ts *tagNamesContainingCommitSender) Send() error {
 	return ts.stream.Send(&gitalypb.ListTagNamesContainingCommitResponse{TagNames: ts.tagNames})
 }
 
-func stripPrefix(it chunker.Item, prefix string) []byte {
+func stripPrefix(it chunk.Item, prefix string) []byte {
 	return bytes.TrimPrefix(it.([]byte), []byte(prefix))
 }

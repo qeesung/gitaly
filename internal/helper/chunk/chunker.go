@@ -1,4 +1,4 @@
-package chunker
+package chunk
 
 // Item could be e.g. a commit in an RPC that returns a chunked stream of
 // commits.

@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunker"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -63,7 +63,7 @@ func sendTreeEntries(stream gitalypb.CommitService_GetTreeEntriesServer, c *catf
 		}
 	}
 
-	sender := chunker.New(&treeEntriesSender{stream: stream})
+	sender := chunk.New(&treeEntriesSender{stream: stream})
 	for _, e := range entries {
 		sender.Send(e)
 	}
@@ -76,7 +76,7 @@ type treeEntriesSender struct {
 	stream   gitalypb.CommitService_GetTreeEntriesServer
 }
 
-func (c *treeEntriesSender) Append(it chunker.Item) {
+func (c *treeEntriesSender) Append(it chunk.Item) {
 	c.response.Entries = append(c.response.Entries, it.(*gitalypb.TreeEntry))
 }
 
