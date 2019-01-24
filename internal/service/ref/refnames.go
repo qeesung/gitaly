@@ -69,6 +69,10 @@ func listRefNames(ctx context.Context, sender *chunker.Chunker, prefix string, r
 		}
 	}
 
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+
 	if err := scanner.Err(); err != nil {
 		return err
 	}
