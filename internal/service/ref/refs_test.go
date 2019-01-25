@@ -118,9 +118,6 @@ func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
 	}
 
 	for _, branch := range testRefs {
-		if len(branch) == 0 {
-			continue
-		}
 		require.Contains(t, names, []byte(branch), "branch missing from response: %q", branch)
 	}
 }

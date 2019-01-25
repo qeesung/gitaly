@@ -1,8 +1,8 @@
 package ref
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -82,5 +82,5 @@ func (ts *tagNamesContainingCommitSender) Send() error {
 }
 
 func stripPrefix(it chunk.Item, prefix string) []byte {
-	return bytes.TrimPrefix(it.([]byte), []byte(prefix))
+	return []byte(strings.TrimPrefix(it.(string), prefix))
 }

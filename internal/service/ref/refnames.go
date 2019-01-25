@@ -23,7 +23,7 @@ type findAllBranchNamesSender struct {
 
 func (ts *findAllBranchNamesSender) Reset() { ts.branchNames = nil }
 func (ts *findAllBranchNamesSender) Append(it chunk.Item) {
-	ts.branchNames = append(ts.branchNames, it.([]byte))
+	ts.branchNames = append(ts.branchNames, []byte(it.(string)))
 }
 func (ts *findAllBranchNamesSender) Send() error {
 	return ts.stream.Send(&gitalypb.FindAllBranchNamesResponse{Names: ts.branchNames})
@@ -43,7 +43,7 @@ type findAllTagNamesSender struct {
 
 func (ts *findAllTagNamesSender) Reset() { ts.tagNames = nil }
 func (ts *findAllTagNamesSender) Append(it chunk.Item) {
-	ts.tagNames = append(ts.tagNames, it.([]byte))
+	ts.tagNames = append(ts.tagNames, []byte(it.(string)))
 }
 func (ts *findAllTagNamesSender) Send() error {
 	return ts.stream.Send(&gitalypb.FindAllTagNamesResponse{Names: ts.tagNames})
@@ -64,7 +64,10 @@ func listRefNames(ctx context.Context, chunker *chunk.Chunker, prefix string, re
 
 	scanner := bufio.NewScanner(cmd)
 	for scanner.Scan() {
-		if err := chunker.Send(scanner.Bytes()); err != nil {
+		// Important: don't use scanner.Bytes() because the slice will become
+		// invalid on the next loop iteration. Instead, use scanner.Text() to
+		// force a copy.
+		if err := chunker.Send(scanner.Text()); err != nil {
 			return err
 		}
 	}
