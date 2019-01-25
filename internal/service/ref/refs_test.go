@@ -60,11 +60,7 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 	expectedBranches, err := ioutil.ReadFile("testdata/branches.txt")
 	require.NoError(t, err)
 
-	for _, branch := range bytes.Split(expectedBranches, []byte("\n")) {
-		if len(branch) == 0 {
-			continue
-		}
-
+	for _, branch := range bytes.Split(bytes.TrimSpace(expectedBranches), []byte("\n")) {
 		require.Contains(t, names, branch)
 	}
 }
@@ -87,8 +83,9 @@ func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
 
 	// We want to create enough refs to overflow the default bufio.Scanner
 	// buffer. Such an overflow will cause scanner.Bytes() to become invalid
-	// at some point, which is a bug we want to avoid.
-	// https://gitlab.com/gitlab-org/gitaly/issues/1473
+	// at some point. That is expected behavior, but our tests did not
+	// trigger it, so we got away with naively using scanner.Bytes() and
+	// causing a bug: https://gitlab.com/gitlab-org/gitaly/issues/1473.
 	refSizeLowerBound := 100
 	numRefs := 2 * bufio.MaxScanTokenSize / refSizeLowerBound
 
