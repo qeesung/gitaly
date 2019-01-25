@@ -85,11 +85,18 @@ func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
 	updater, err := updateref.New(ctx, testRepo)
 	require.NoError(t, err)
 
+	// We want to create enough refs to overflow the default bufio.Scanner
+	// buffer. Such an overflow will cause scanner.Bytes() to become invalid
+	// at some point, which is a bug we want to avoid.
+	// https://gitlab.com/gitlab-org/gitaly/issues/1473
 	refSizeLowerBound := 100
 	numRefs := 2 * bufio.MaxScanTokenSize / refSizeLowerBound
+
 	var testRefs []string
 	for i := 0; i < numRefs; i++ {
 		refName := fmt.Sprintf("refs/heads/test-%0100d", i)
+		require.True(t, len(refName) > refSizeLowerBound, "ref %q must be larger than %d", refName, refSizeLowerBound)
+
 		require.NoError(t, updater.Create(refName, "HEAD"))
 		testRefs = append(testRefs, refName)
 	}
