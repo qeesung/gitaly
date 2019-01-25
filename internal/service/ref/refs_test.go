@@ -1,8 +1,10 @@
 package ref
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
@@ -56,10 +59,69 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 		}
 		names = append(names, r.GetNames()...)
 	}
-	for _, branch := range []string{"master", "100%branch", "improve/awesome", "'test'"} {
-		if !containsRef(names, "refs/heads/"+branch) {
-			t.Fatalf("Expected to find branch %q in all branch names", branch)
+
+	expectedBranches, err := ioutil.ReadFile("testdata/branches.txt")
+	require.NoError(t, err)
+
+	for _, branch := range bytes.Split(expectedBranches, []byte("\n")) {
+		if len(branch) == 0 {
+			continue
 		}
+		require.Contains(t, names, branch)
+	}
+}
+
+func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
+	server, serverSocketPath := runRefServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newRefServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	updater, err := updateref.New(ctx, testRepo)
+	require.NoError(t, err)
+
+	refSizeLowerBound := 100
+	numRefs := 2 * bufio.MaxScanTokenSize / refSizeLowerBound
+	var testRefs []string
+	for i := 0; i < numRefs; i++ {
+		refName := fmt.Sprintf("refs/heads/test-%0100d", i)
+		require.NoError(t, updater.Create(refName, "HEAD"))
+		testRefs = append(testRefs, refName)
+	}
+
+	require.NoError(t, updater.Wait())
+
+	rpcRequest := &gitalypb.FindAllBranchNamesRequest{Repository: testRepo}
+
+	c, err := client.FindAllBranchNames(ctx, rpcRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var names [][]byte
+	for {
+		r, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, r.GetNames()...)
+	}
+
+	for _, branch := range testRefs {
+		if len(branch) == 0 {
+			continue
+		}
+		require.Contains(t, names, []byte(branch), "branch missing from response: %q", branch)
 	}
 }
 
