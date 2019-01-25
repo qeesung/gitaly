@@ -44,9 +44,7 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c, err := client.FindAllBranchNames(ctx, rpcRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	var names [][]byte
 	for {
@@ -54,9 +52,8 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
+
 		names = append(names, r.GetNames()...)
 	}
 
@@ -67,6 +64,7 @@ func TestSuccessfulFindAllBranchNames(t *testing.T) {
 		if len(branch) == 0 {
 			continue
 		}
+
 		require.Contains(t, names, branch)
 	}
 }
@@ -101,9 +99,7 @@ func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
 	rpcRequest := &gitalypb.FindAllBranchNamesRequest{Repository: testRepo}
 
 	c, err := client.FindAllBranchNames(ctx, rpcRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	var names [][]byte
 	for {
@@ -111,9 +107,8 @@ func TestFindAllBranchNamesVeryLargeResponse(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
+
 		names = append(names, r.GetNames()...)
 	}
 
