@@ -5,9 +5,8 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type commitsBetweenSender struct {
@@ -24,15 +23,28 @@ func (sender *commitsBetweenSender) Send() error {
 }
 
 func (s *server) CommitsBetween(in *gitalypb.CommitsBetweenRequest, stream gitalypb.CommitService_CommitsBetweenServer) error {
-	if err := git.ValidateRevision(in.GetFrom()); err != nil {
-		return status.Errorf(codes.InvalidArgument, "CommitsBetween: from: %v", err)
-	}
-	if err := git.ValidateRevision(in.GetTo()); err != nil {
-		return status.Errorf(codes.InvalidArgument, "CommitsBetween: to: %v", err)
+	if err := validateCommitsBetween(in); err != nil {
+		return helper.ErrInvalidArgument(err)
 	}
 
 	sender := &commitsBetweenSender{stream: stream}
 	revisionRange := fmt.Sprintf("%s..%s", in.GetFrom(), in.GetTo())
 
-	return sendCommits(stream.Context(), sender, in.GetRepository(), []string{revisionRange}, nil, "--reverse")
+	if err := sendCommits(stream.Context(), sender, in.GetRepository(), []string{revisionRange}, nil, "--reverse"); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func validateCommitsBetween(in *gitalypb.CommitsBetweenRequest) error {
+	if err := git.ValidateRevision(in.GetFrom()); err != nil {
+		return fmt.Errorf("from: %v", err)
+	}
+
+	if err := git.ValidateRevision(in.GetTo()); err != nil {
+		return fmt.Errorf("to: %v", err)
+	}
+
+	return nil
 }
