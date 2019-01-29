@@ -5,12 +5,22 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type commitsBetweenSender struct {
-	stream gitalypb.CommitService_CommitsBetweenServer
+	stream  gitalypb.CommitService_CommitsBetweenServer
+	commits []*gitalypb.GitCommit
+}
+
+func (sender *commitsBetweenSender) Reset() { sender.commits = nil }
+func (sender *commitsBetweenSender) Append(it chunk.Item) {
+	sender.commits = append(sender.commits, it.(*gitalypb.GitCommit))
+}
+func (sender *commitsBetweenSender) Send() error {
+	return sender.stream.Send(&gitalypb.CommitsBetweenResponse{Commits: sender.commits})
 }
 
 func (s *server) CommitsBetween(in *gitalypb.CommitsBetweenRequest, stream gitalypb.CommitService_CommitsBetweenServer) error {
@@ -21,12 +31,8 @@ func (s *server) CommitsBetween(in *gitalypb.CommitsBetweenRequest, stream gital
 		return status.Errorf(codes.InvalidArgument, "CommitsBetween: to: %v", err)
 	}
 
-	sender := &commitsBetweenSender{stream}
+	sender := &commitsBetweenSender{stream: stream}
 	revisionRange := fmt.Sprintf("%s..%s", in.GetFrom(), in.GetTo())
 
 	return sendCommits(stream.Context(), sender, in.GetRepository(), []string{revisionRange}, nil, "--reverse")
-}
-
-func (sender *commitsBetweenSender) Send(commits []*gitalypb.GitCommit) error {
-	return sender.stream.Send(&gitalypb.CommitsBetweenResponse{Commits: commits})
 }

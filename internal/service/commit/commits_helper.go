@@ -6,15 +6,10 @@ import (
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 )
 
-type commitsSender interface {
-	Send([]*gitalypb.GitCommit) error
-}
-
-const commitsPerChunk = 20
-
-func sendCommits(ctx context.Context, sender commitsSender, repo *gitalypb.Repository, revisionRange []string, paths []string, extraArgs ...string) error {
+func sendCommits(ctx context.Context, sender chunk.Sender, repo *gitalypb.Repository, revisionRange []string, paths []string, extraArgs ...string) error {
 	cmd, err := log.GitLogCommand(ctx, repo, revisionRange, paths, extraArgs...)
 	if err != nil {
 		return err
@@ -25,26 +20,18 @@ func sendCommits(ctx context.Context, sender commitsSender, repo *gitalypb.Repos
 		return err
 	}
 
-	var commits []*gitalypb.GitCommit
-
+	chunker := chunk.New(sender)
 	for logParser.Parse() {
-		commit := logParser.Commit()
-
-		if len(commits) >= commitsPerChunk {
-			if err := sender.Send(commits); err != nil {
-				return err
-			}
-			commits = nil
+		if err := chunker.Send(logParser.Commit()); err != nil {
+			return err
 		}
-
-		commits = append(commits, commit)
 	}
 
 	if err := logParser.Err(); err != nil {
 		return err
 	}
 
-	if err := sender.Send(commits); err != nil {
+	if err := chunker.Flush(); err != nil {
 		return err
 	}
 

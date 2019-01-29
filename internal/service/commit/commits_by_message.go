@@ -4,12 +4,22 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type commitsByMessageSender struct {
-	stream gitalypb.CommitService_CommitsByMessageServer
+	stream  gitalypb.CommitService_CommitsByMessageServer
+	commits []*gitalypb.GitCommit
+}
+
+func (sender *commitsByMessageSender) Reset() { sender.commits = nil }
+func (sender *commitsByMessageSender) Append(it chunk.Item) {
+	sender.commits = append(sender.commits, it.(*gitalypb.GitCommit))
+}
+func (sender *commitsByMessageSender) Send() error {
+	return sender.stream.Send(&gitalypb.CommitsByMessageResponse{Commits: sender.commits})
 }
 
 func (s *server) CommitsByMessage(in *gitalypb.CommitsByMessageRequest, stream gitalypb.CommitService_CommitsByMessageServer) error {
@@ -18,7 +28,7 @@ func (s *server) CommitsByMessage(in *gitalypb.CommitsByMessageRequest, stream g
 	}
 
 	ctx := stream.Context()
-	sender := &commitsByMessageSender{stream}
+	sender := &commitsByMessageSender{stream: stream}
 
 	gitLogExtraOptions := []string{
 		"--grep=" + in.GetQuery(),
@@ -58,8 +68,4 @@ func validateCommitsByMessageRequest(in *gitalypb.CommitsByMessageRequest) error
 	}
 
 	return nil
-}
-
-func (sender *commitsByMessageSender) Send(commits []*gitalypb.GitCommit) error {
-	return sender.stream.Send(&gitalypb.CommitsByMessageResponse{Commits: commits})
 }
