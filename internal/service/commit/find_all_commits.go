@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // We declare this function in variables so that we can override them in our tests
@@ -27,6 +26,28 @@ func (sender *findAllCommitsSender) Send() error {
 }
 
 func (s *server) FindAllCommits(in *gitalypb.FindAllCommitsRequest, stream gitalypb.CommitService_FindAllCommitsServer) error {
+	var revisions []string
+	if len(in.GetRevision()) == 0 {
+		branchNames, err := _findBranchNamesFunc(stream.Context(), in.Repository)
+		if err != nil {
+			return helper.ErrInvalidArgument(err)
+		}
+
+		for _, branch := range branchNames {
+			revisions = append(revisions, string(branch))
+		}
+	} else {
+		revisions = []string{string(in.GetRevision())}
+	}
+
+	if err := findAllCommits(in, stream, revisions); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func findAllCommits(in *gitalypb.FindAllCommitsRequest, stream gitalypb.CommitService_FindAllCommitsServer, revisions []string) error {
 	sender := &findAllCommitsSender{stream: stream}
 
 	var gitLogExtraOptions []string
@@ -43,20 +64,6 @@ func (s *server) FindAllCommits(in *gitalypb.FindAllCommitsRequest, stream gital
 		gitLogExtraOptions = append(gitLogExtraOptions, "--date-order")
 	case gitalypb.FindAllCommitsRequest_TOPO:
 		gitLogExtraOptions = append(gitLogExtraOptions, "--topo-order")
-	}
-
-	var revisions []string
-	if len(in.GetRevision()) == 0 {
-		branchNames, err := _findBranchNamesFunc(stream.Context(), in.Repository)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "FindAllCommits: %v", err)
-		}
-
-		for _, branch := range branchNames {
-			revisions = append(revisions, string(branch))
-		}
-	} else {
-		revisions = []string{string(in.GetRevision())}
 	}
 
 	return sendCommits(stream.Context(), sender, in.GetRepository(), revisions, nil, gitLogExtraOptions...)
