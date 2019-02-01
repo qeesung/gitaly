@@ -229,6 +229,12 @@
 			"versionExact": "v1.0.1"
 		},
 		{
+			"checksumSHA1": "603wOI+hKduL75jXGGxfLKP5GE4=",
+			"path": "github.com/mwitkow/grpc-proxy/proxy",
+			"revision": "0f1106ef9c766333b9acb4b81e705da4bade7215",
+			"revisionTime": "2018-10-17T16:41:39Z"
+		},
+		{
 			"checksumSHA1": "jqEjDv//suCrQUg8iOGI7oxwfRU=",
 			"path": "github.com/opentracing/opentracing-go",
 			"revision": "be550b025b433cdfa2f11efb962afa2ea3c4d967",
@@ -505,18 +511,18 @@
 		{
 			"checksumSHA1": "R6fNN36q3UydLODupK0vdx9h/CY=",
 			"path": "gitlab.com/gitlab-org/labkit/correlation",
-			"revision": "2a3e1f5415a890402696dcbb2c31b5a79c17b579",
-			"revisionTime": "2019-01-08T10:46:58Z",
-			"version": "master",
-			"versionExact": "master"
-		},
-		{
-			"checksumSHA1": "R6fNN36q3UydLODupK0vdx9h/CY=",
-			"path": "gitlab.com/gitlab-org/labkit/correlation",
 			"revision": "9c613f6d8258a1b55701079bf9b358147aea139e",
 			"revisionTime": "2018-12-20T16:08:28Z",
 			"version": "=d-tracing",
 			"versionExact": "d-tracing"
+		},
+		{
+			"checksumSHA1": "R6fNN36q3UydLODupK0vdx9h/CY=",
+			"path": "gitlab.com/gitlab-org/labkit/correlation",
+			"revision": "2a3e1f5415a890402696dcbb2c31b5a79c17b579",
+			"revisionTime": "2019-01-08T10:46:58Z",
+			"version": "master",
+			"versionExact": "master"
 		},
 		{
 			"checksumSHA1": "UFBFulprWZHuL9GHhjCKoHXm+Ww=",
