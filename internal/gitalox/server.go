@@ -42,21 +42,20 @@ func newDirector() *director {
 }
 
 // streamDirector determines which downstream servers receive requests
-func (d *director) streamDirector() proxy.StreamDirector {
-	return func(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
-		// TODO
-		return nil, nil, nil
-	}
+func (d *director) streamDirector(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
+	// For phase 1, we need to route messages based on the storage location
+	// to the appropriate Gitaly node.
+	return nil, nil, nil
 }
 
 // NewServer returns an initialized Gitalox proxy server for the given gRPC
 // server
 func NewServer(grpcOpts []grpc.ServerOption) *Server {
 	dir := newDirector()
-	grpcOpts = append(grpcOpts, proxyRequiredOpts(director)...)
+	grpcOpts = append(grpcOpts, proxyRequiredOpts(dir.streamDirector)...)
 
 	return &Server{
-		s:        grpc.NewServer(opts...),
+		s:        grpc.NewServer(grpcOpts...),
 		director: newDirector(),
 	}
 }
@@ -65,17 +64,17 @@ func NewServer(grpcOpts []grpc.ServerOption) *Server {
 // in the proxy for a downstream Gitaly node
 var ErrStorageLocExists = errors.New("storage location already registered")
 
-func (srv *Server) RegisterStorageNode(storageLoc string, node gitalypb.RepositoryServiceClient) error {
-	srv.storage.RLock()
-	_, ok := srv.storage.nodes[storageLoc]
+func (dir *director) RegisterStorageNode(storageLoc string, node gitalypb.RepositoryServiceClient) error {
+	dir.RLock()
+	_, ok := dir.nodes[storageLoc]
 	if ok {
 		return ErrStorageLocExists
 	}
-	srv.storage.RUnlock()
+	dir.RUnlock()
 
-	srv.storage.Lock()
-	srv.storage.nodes[storageLoc] = node
-	srv.storage.Unlock()
+	dir.Lock()
+	dir.nodes[storageLoc] = node
+	dir.Unlock()
 
 	return nil
 }
@@ -89,7 +88,25 @@ func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
 
 func (srv *Server) Start(ctx context.Context, lis net.Listener) error {
 	gitalypb.RegisterRepositoryServiceServer(srv.s, &dummyRepoService{})
-	srv.s.Serve(lis)
 
-	return nil
+	errQ := make(chan error)
+	go func() {
+		errQ <- srv.s.Serve(lis)
+	}()
+
+	var err error
+
+	select {
+	case <-ctx.Done():
+		srv.s.GracefulStop()
+
+		err = <-errQ
+		if err == nil {
+			err = ctx.Err()
+		}
+	case err = <-errQ:
+		break
+	}
+
+	return err
 }
