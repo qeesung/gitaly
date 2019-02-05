@@ -1,6 +1,6 @@
-/*Package gitalox is a Gitaly reverse proxy for transparently routing gRPC
+/*Package praefect is a Gitaly reverse proxy for transparently routing gRPC
 calls to a set of Gitaly services.*/
-package gitalox
+package praefect
 
 import (
 	"context"
@@ -16,49 +16,45 @@ import (
 )
 
 // Logger is a simple interface that allows loggers to be dependency injected
-// into the gitalox server
+// into the praefect server
 type Logger interface {
 	Debugf(format string, args ...interface{})
 }
 
-// Server is a gitalox server
+// Server is a praefect server
 type Server struct {
-	*Director
+	*Coordinator
 	s   *grpc.Server
 	log Logger
 }
 
-// Director takes care of directing client requests to the appropriate
+// Coordinator takes care of directing client requests to the appropriate
 // downstream server
-//
-// TODO: director probably needs to handle dialing, or another entity
-// needs to handle dialing to ensure keep alives and redialing logic
-// exist for when downstream connections are severed.
-type Director struct {
+type Coordinator struct {
 	log   Logger
 	lock  sync.RWMutex
 	nodes map[string]*grpc.ClientConn
 }
 
-func NewDirector(l Logger) *Director {
-	return &Director{
+func NewDirector(l Logger) *Coordinator {
+	return &Coordinator{
 		log:   l,
 		nodes: make(map[string]*grpc.ClientConn),
 	}
 }
 
 // streamDirector determines which downstream servers receive requests
-func (d *Director) streamDirector(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
+func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
 	// For phase 1, we need to route messages based on the storage location
 	// to the appropriate Gitaly node.
-	d.log.Debugf("Stream director received method %s", fullMethodName)
+	c.log.Debugf("Stream director received method %s", fullMethodName)
 
 	// TODO: obtain storage location dynamically from RPC request message
 	storageLoc := "test"
 
-	d.lock.RLock()
-	cc, ok := d.nodes[storageLoc]
-	d.lock.RUnlock()
+	c.lock.RLock()
+	cc, ok := c.nodes[storageLoc]
+	c.lock.RUnlock()
 
 	if !ok {
 		err := status.Error(
@@ -74,12 +70,12 @@ func (d *Director) streamDirector(ctx context.Context, fullMethodName string) (c
 // NewServer returns an initialized Gitalox gPRC proxy server configured
 // with the provided gRPC server options
 func NewServer(grpcOpts []grpc.ServerOption, l Logger) *Server {
-	dir := NewDirector(l)
-	grpcOpts = append(grpcOpts, proxyRequiredOpts(dir.streamDirector)...)
+	c := NewDirector(l)
+	grpcOpts = append(grpcOpts, proxyRequiredOpts(c.streamDirector)...)
 
 	return &Server{
-		s:        grpc.NewServer(grpcOpts...),
-		Director: dir,
+		s:           grpc.NewServer(grpcOpts...),
+		Coordinator: c,
 	}
 }
 
@@ -89,18 +85,22 @@ var ErrStorageLocExists = errors.New("storage location already registered")
 
 // RegisterNode will direct traffic to the supplied downstream connection when the storage location
 // is encountered.
-func (dir *Director) RegisterNode(storageLoc string, node *grpc.ClientConn) error {
-	dir.lock.RLock()
-	_, ok := dir.nodes[storageLoc]
-	dir.lock.RUnlock()
+//
+// TODO: Coordinator probably needs to handle dialing, or another entity
+// needs to handle dialing to ensure keep alives and redialing logic
+// exist for when downstream connections are severed.
+func (c *Coordinator) RegisterNode(storageLoc string, node *grpc.ClientConn) error {
+	c.lock.RLock()
+	_, ok := c.nodes[storageLoc]
+	c.lock.RUnlock()
 
 	if ok {
 		return ErrStorageLocExists
 	}
 
-	dir.lock.Lock()
-	dir.nodes[storageLoc] = node
-	dir.lock.Unlock()
+	c.lock.Lock()
+	c.nodes[storageLoc] = node
+	c.lock.Unlock()
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package gitalox_test
+package praefect_test
 
 import (
 	"context"
@@ -9,12 +9,12 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/gitalox"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect"
 	"google.golang.org/grpc"
 )
 
 func TestServerRouting(t *testing.T) {
-	loxSrv := gitalox.NewServer(nil, testLogger{t})
+	loxSrv := praefect.NewServer(nil, testLogger{t})
 
 	listener, port := listenAvailPort(t)
 	t.Logf("proxy listening on port %d", port)
@@ -79,7 +79,7 @@ func (tl testLogger) Debugf(format string, args ...interface{}) {
 // initializes and returns a client to downstream server, downstream server, and cleanup function
 func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServiceServer, func()) {
 	// setup mock server
-	m := &mockDownstreamRepoSvc{
+	m := &mockRepoSvc{
 		srv: grpc.NewServer(),
 	}
 	gitalypb.RegisterRepositoryServiceServer(m.srv, m)
