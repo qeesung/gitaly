@@ -36,7 +36,8 @@ type Coordinator struct {
 	nodes map[string]*grpc.ClientConn
 }
 
-func NewDirector(l Logger) *Coordinator {
+// newCoordinator returns a new Coordinator that utilizes the provided logger
+func newCoordinator(l Logger) *Coordinator {
 	return &Coordinator{
 		log:   l,
 		nodes: make(map[string]*grpc.ClientConn),
@@ -70,7 +71,7 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string)
 // NewServer returns an initialized Gitalox gPRC proxy server configured
 // with the provided gRPC server options
 func NewServer(grpcOpts []grpc.ServerOption, l Logger) *Server {
-	c := NewDirector(l)
+	c := newCoordinator(l)
 	grpcOpts = append(grpcOpts, proxyRequiredOpts(c.streamDirector)...)
 
 	return &Server{
@@ -112,26 +113,28 @@ func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
 	}
 }
 
-// Starts Gitalox gRPC proxy server listening at the provided listener.
-// Function will block until the context is cancelled or an
+// Start will start the praefect gRPC proxy server listening at the provided
+// listener. Function will block until the server is stopped or an
 // unrecoverable error occurs.
-func (srv *Server) Start(ctx context.Context, lis net.Listener) error {
-	//gitalypb.RegisterRepositoryServiceServer(srv.s, &noopRepoSvc{})
+func (srv *Server) Start(lis net.Listener) error {
+	return srv.s.Serve(lis)
+}
 
-	errQ := make(chan error)
+// Shutdown will attempt a graceful shutdown of the grpc server. If unable
+// to gracefully shutdown within the context deadline, it will then
+// forcefully shutdown the server and return a context cancellation error.
+func (srv *Server) Shutdown(ctx context.Context) error {
+	done := make(chan struct{})
 	go func() {
-		errQ <- srv.s.Serve(lis)
+		srv.s.GracefulStop()
+		close(done)
 	}()
-
-	var err error
 
 	select {
 	case <-ctx.Done():
-		srv.s.GracefulStop()
-		return <-errQ
-	case err = <-errQ:
-		return err
+		srv.s.Stop()
+		return ctx.Err()
+	case <-done:
+		return nil
 	}
-
-	return err
 }

@@ -15,19 +15,16 @@ import (
 )
 
 func TestServerRouting(t *testing.T) {
-	loxSrv := praefect.NewServer(nil, testLogger{t})
+	prf := praefect.NewServer(nil, testLogger{t})
 
 	listener, port := listenAvailPort(t)
 	t.Logf("proxy listening on port %d", port)
 	defer listener.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	errQ := make(chan error)
 
 	go func() {
-		errQ <- loxSrv.Start(ctx, listener)
+		errQ <- prf.Start(listener)
 	}()
 
 	cc, err := dialLocalPort(t, port)
@@ -39,17 +36,20 @@ func TestServerRouting(t *testing.T) {
 	mCli, _, cleanup := newMockDownstream(t)
 	defer cleanup() // clean up mock downstream server resources
 
-	loxSrv.RegisterNode("test", mCli)
+	prf.RegisterNode("test", mCli)
 
 	gCli := gitalypb.NewRepositoryServiceClient(cc)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	resp, err := gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
 	if err != nil {
 		t.Fatalf("unable to invoke RPC on proxy downstream: %s", err)
 	}
-
 	t.Logf("CalculateChecksum response: %#v", resp)
 
-	cancel()
+	t.Logf("Shutdown compelted: %s", prf.Shutdown(ctx))
 	t.Logf("Server teminated: %s", <-errQ)
 }
 
@@ -95,17 +95,20 @@ func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServ
 		tb.Fatalf("unable to dial to mock downstream: %s", err)
 	}
 
-	cleanup := func() {
-		lis.Close()
-		m.srv.GracefulStop()
-		cc.Close()
-	}
-
 	errQ := make(chan error)
 
 	go func() {
 		errQ <- m.srv.Serve(lis)
 	}()
+
+	cleanup := func() {
+		m.srv.GracefulStop()
+		lis.Close()
+		cc.Close()
+		if err := <-errQ; err != nil {
+			tb.Fatalf("received non nil error from mock repo service: %s", err)
+		}
+	}
 
 	return cc, m, cleanup
 }
