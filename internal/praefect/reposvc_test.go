@@ -14,7 +14,7 @@ type mockRepoSvc struct {
 }
 
 func (m *mockRepoSvc) RepositoryExists(context.Context, *gitalypb.RepositoryExistsRequest) (*gitalypb.RepositoryExistsResponse, error) {
-	return nil, nil
+	return &gitalypb.RepositoryExistsResponse{}, nil
 }
 
 func (m *mockRepoSvc) RepackIncremental(context.Context, *gitalypb.RepackIncrementalRequest) (*gitalypb.RepackIncrementalResponse, error) {

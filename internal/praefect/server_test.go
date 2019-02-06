@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mwitkow/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
@@ -41,7 +42,7 @@ func TestServerRouting(t *testing.T) {
 	loxSrv.RegisterNode("test", mCli)
 
 	gCli := gitalypb.NewRepositoryServiceClient(cc)
-	resp, err := gCli.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{})
+	resp, err := gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
 	if err != nil {
 		t.Fatalf("unable to invoke RPC on proxy downstream: %s", err)
 	}
@@ -64,7 +65,10 @@ func listenAvailPort(tb testing.TB) (net.Listener, int) {
 func dialLocalPort(tb testing.TB, port int) (*grpc.ClientConn, error) {
 	return client.Dial(
 		fmt.Sprintf("tcp://localhost:%d", port),
-		[]grpc.DialOption{grpc.WithBlock()},
+		[]grpc.DialOption{
+			grpc.WithBlock(),
+			grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
+		},
 	)
 }
 
