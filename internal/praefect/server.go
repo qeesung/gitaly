@@ -21,13 +21,6 @@ type Logger interface {
 	Debugf(format string, args ...interface{})
 }
 
-// Server is a praefect server
-type Server struct {
-	*Coordinator
-	s   *grpc.Server
-	log Logger
-}
-
 // Coordinator takes care of directing client requests to the appropriate
 // downstream server
 type Coordinator struct {
@@ -66,6 +59,12 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string)
 	}
 
 	return ctx, cc, nil
+}
+
+// Server is a praefect server
+type Server struct {
+	*Coordinator
+	s *grpc.Server
 }
 
 // NewServer returns an initialized Gitalox gPRC proxy server configured
