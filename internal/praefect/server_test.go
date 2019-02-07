@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mwitkow/grpc-proxy/proxy"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
@@ -28,9 +29,7 @@ func TestServerRouting(t *testing.T) {
 	}()
 
 	cc, err := dialLocalPort(t, port)
-	if err != nil {
-		t.Fatalf("client unable to dial to local port %d: %s", port, err)
-	}
+	require.NoError(t, err)
 	defer cc.Close()
 
 	mCli, _, cleanup := newMockDownstream(t)
@@ -44,9 +43,7 @@ func TestServerRouting(t *testing.T) {
 	defer cancel()
 
 	resp, err := gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
-	if err != nil {
-		t.Fatalf("unable to invoke RPC on proxy downstream: %s", err)
-	}
+	require.NoError(t, err)
 	t.Logf("CalculateChecksum response: %#v", resp)
 
 	t.Logf("Shutdown compelted: %s", prf.Shutdown(ctx))
@@ -55,9 +52,7 @@ func TestServerRouting(t *testing.T) {
 
 func listenAvailPort(tb testing.TB) (net.Listener, int) {
 	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		tb.Fatalf("unable to listen on available TCP port: %q", err)
-	}
+	require.NoError(tb, err)
 
 	return listener, listener.Addr().(*net.TCPAddr).Port
 }
@@ -91,9 +86,7 @@ func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServ
 
 	// set up client to mock server
 	cc, err := dialLocalPort(tb, port)
-	if err != nil {
-		tb.Fatalf("unable to dial to mock downstream: %s", err)
-	}
+	require.NoError(tb, err)
 
 	errQ := make(chan error)
 
@@ -105,9 +98,7 @@ func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServ
 		m.srv.GracefulStop()
 		lis.Close()
 		cc.Close()
-		if err := <-errQ; err != nil {
-			tb.Fatalf("received non nil error from mock repo service: %s", err)
-		}
+		require.NoError(tb, <-errQ)
 	}
 
 	return cc, m, cleanup
