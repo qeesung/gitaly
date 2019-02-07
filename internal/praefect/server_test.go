@@ -28,7 +28,8 @@ func TestServerRouting(t *testing.T) {
 		errQ <- prf.Start(listener)
 	}()
 
-	cc, err := dialLocalPort(t, port)
+	// dial client to proxy
+	cc, err := dialLocalPort(t, port, false)
 	require.NoError(t, err)
 	defer cc.Close()
 
@@ -57,13 +58,20 @@ func listenAvailPort(tb testing.TB) (net.Listener, int) {
 	return listener, listener.Addr().(*net.TCPAddr).Port
 }
 
-func dialLocalPort(tb testing.TB, port int) (*grpc.ClientConn, error) {
+func dialLocalPort(tb testing.TB, port int, backend bool) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithBlock(),
+	}
+	if backend {
+		opts = append(
+			opts,
+			grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
+		)
+	}
+
 	return client.Dial(
 		fmt.Sprintf("tcp://localhost:%d", port),
-		[]grpc.DialOption{
-			grpc.WithBlock(),
-			grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
-		},
+		opts,
 	)
 }
 
@@ -84,8 +92,8 @@ func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServ
 	gitalypb.RegisterRepositoryServiceServer(m.srv, m)
 	lis, port := listenAvailPort(tb)
 
-	// set up client to mock server
-	cc, err := dialLocalPort(tb, port)
+	// dial praefect to backend service
+	cc, err := dialLocalPort(tb, port, true)
 	require.NoError(tb, err)
 
 	errQ := make(chan error)
