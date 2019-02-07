@@ -294,6 +294,14 @@ Now you can run the one test you're interested in:
 go test -count 1 -run TestRepositoryExists ./internal/service/repository
 ```
 
+When writing tests, prefer using using [testify]'s [require], and [assert] as
+methods to set expectations over functions like `t.Fatal()` and others directly
+called on `testing.T`.
+
+[testify]: https://github.com/stretchr/testify
+[require]: https://github.com/stretchr/testify/tree/master/require
+[assert]: https://github.com/stretchr/testify/tree/master/assert
+
 #### Rspec tests
 
 It is possible to write end-to-end Rspec tests that run against a full
