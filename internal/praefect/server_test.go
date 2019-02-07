@@ -42,12 +42,12 @@ func TestServerRouting(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	resp, err := gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
+	_, err = gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
 	require.NoError(t, err)
-	t.Logf("CalculateChecksum response: %#v", resp)
 
-	t.Logf("Shutdown compelted: %s", prf.Shutdown(ctx))
-	t.Logf("Server teminated: %s", <-errQ)
+	err = prf.Shutdown(ctx)
+	require.NoError(t, err)
+	require.NoError(t, <-errQ)
 }
 
 func listenAvailPort(tb testing.TB) (net.Listener, int) {
