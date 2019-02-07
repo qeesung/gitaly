@@ -53,7 +53,7 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string)
 
 	if !ok {
 		err := status.Error(
-			codes.NotFound,
+			codes.FailedPrecondition,
 			fmt.Sprintf("no downstream node for storage location %q", storageLoc),
 		)
 		return nil, nil, err
