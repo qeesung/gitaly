@@ -22,7 +22,8 @@ type Logger interface {
 }
 
 // Coordinator takes care of directing client requests to the appropriate
-// downstream server
+// downstream server. The coordinator is thread safe; concurrent calls to
+// register nodes are safe.
 type Coordinator struct {
 	log   Logger
 	lock  sync.RWMutex
