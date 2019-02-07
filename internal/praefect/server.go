@@ -67,7 +67,7 @@ type Server struct {
 	s *grpc.Server
 }
 
-// NewServer returns an initialized Gitalox gPRC proxy server configured
+// NewServer returns an initialized praefect gPRC proxy server configured
 // with the provided gRPC server options
 func NewServer(grpcOpts []grpc.ServerOption, l Logger) *Server {
 	c := newCoordinator(l)
