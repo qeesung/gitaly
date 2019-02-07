@@ -89,20 +89,10 @@ var ErrStorageLocExists = errors.New("storage location already registered")
 // TODO: Coordinator probably needs to handle dialing, or another entity
 // needs to handle dialing to ensure keep alives and redialing logic
 // exist for when downstream connections are severed.
-func (c *Coordinator) RegisterNode(storageLoc string, node *grpc.ClientConn) error {
-	c.lock.RLock()
-	_, ok := c.nodes[storageLoc]
-	c.lock.RUnlock()
-
-	if ok {
-		return ErrStorageLocExists
-	}
-
+func (c *Coordinator) RegisterNode(storageLoc string, node *grpc.ClientConn) {
 	c.lock.Lock()
 	c.nodes[storageLoc] = node
 	c.lock.Unlock()
-
-	return nil
 }
 
 func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
