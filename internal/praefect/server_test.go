@@ -29,21 +29,19 @@ func TestServerRouting(t *testing.T) {
 	}()
 
 	// dial client to proxy
-	cc, err := dialLocalPort(t, port, false)
-	require.NoError(t, err)
+	cc := dialLocalPort(t, port, false)
 	defer cc.Close()
+	gCli := gitalypb.NewRepositoryServiceClient(cc)
 
 	mCli, _, cleanup := newMockDownstream(t)
 	defer cleanup() // clean up mock downstream server resources
 
 	prf.RegisterNode("test", mCli)
 
-	gCli := gitalypb.NewRepositoryServiceClient(cc)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err = gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
+	_, err := gCli.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{})
 	require.NoError(t, err)
 
 	err = prf.Shutdown(ctx)
@@ -58,7 +56,7 @@ func listenAvailPort(tb testing.TB) (net.Listener, int) {
 	return listener, listener.Addr().(*net.TCPAddr).Port
 }
 
-func dialLocalPort(tb testing.TB, port int, backend bool) (*grpc.ClientConn, error) {
+func dialLocalPort(tb testing.TB, port int, backend bool) *grpc.ClientConn {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}
@@ -69,10 +67,13 @@ func dialLocalPort(tb testing.TB, port int, backend bool) (*grpc.ClientConn, err
 		)
 	}
 
-	return client.Dial(
+	cc, err := client.Dial(
 		fmt.Sprintf("tcp://localhost:%d", port),
 		opts,
 	)
+	require.NoError(tb, err)
+
+	return cc
 }
 
 type testLogger struct {
@@ -93,8 +94,7 @@ func newMockDownstream(tb testing.TB) (*grpc.ClientConn, gitalypb.RepositoryServ
 	lis, port := listenAvailPort(tb)
 
 	// dial praefect to backend service
-	cc, err := dialLocalPort(tb, port, true)
-	require.NoError(tb, err)
+	cc := dialLocalPort(tb, port, true)
 
 	errQ := make(chan error)
 
