@@ -294,7 +294,7 @@ Now you can run the one test you're interested in:
 go test -count 1 -run TestRepositoryExists ./internal/service/repository
 ```
 
-When writing tests, prefer using using [testify]'s [require], and [assert] as
+When writing tests, prefer using [testify]'s [require], and [assert] as
 methods to set expectations over functions like `t.Fatal()` and others directly
 called on `testing.T`.
 
