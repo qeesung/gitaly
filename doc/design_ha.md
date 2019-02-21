@@ -11,6 +11,9 @@ The following terminology may be used within the context of the Gitaly HA projec
     - etymology: from Latin praefectus for _a person appointed to any of various positions of command, authority, or superintendence, as a chief magistrate in ancient Rome or the chief administrative official of a department of France or Italy._
     - [pronounced _pree-fect_](https://www.youtube.com/watch?v=MHszCZjPmTQ)
 - Node (TODO: we probably need a similar latin name here) - performs the actual git read/write operations to/from disk. Has no knowledge of shards/prafects/coordinators just as the Gitaly service existed prior to HA.
+- RPC categories (#1496):
+    - Accessor - a side effect free (or read-only) RPC; does not modify the git repo (!228)
+    - Mutator - an RPC that modifies the data in the git repo (!228)
 
 ## Design
 The high level design takes a reverse proxy approach to fanning out write requests to the appropriate nodes:
