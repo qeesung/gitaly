@@ -133,6 +133,7 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 
 ## Presentations
 
-- [Git Paris meetup, 2017-02-22](https://docs.google.com/presentation/d/19OZUalFMIDM8WujXrrIyCuVb_oVeaUzpb-UdGThOvAo/edit?usp=sharing) a high-level overview of what our plans are and where we are.
+- [How Gitaly fits into GitLab, part 1 (video), 2019-02-21](https://drive.google.com/file/d/1aKlbPVbKr7MueNIyNeIRZIX2u0K4lKQB/view?usp=sharing) a 1-hour training video for contributors new to GitLab and Gitaly. Contents: overview of GitLab backend processes, gitlab-rails deep dive: Gitaly config in gitlab-rails, SQL data model, overview of how Gitaly calls get made via GitalyClient.call.
 - [Gitaly Basics, 2017-05-01](https://docs.google.com/presentation/d/1cLslUbXVkniOaeJ-r3s5AYF0kQep8VeNfvs0XSGrpA0/edit#slide=id.g1c73db867d_0_0)
 - [Infrastructure Team Update 2017-05-11](https://about.gitlab.com/2017/05/11/functional-group-updates/#infrastructure-team)
+- [Git Paris meetup, 2017-02-22](https://docs.google.com/presentation/d/19OZUalFMIDM8WujXrrIyCuVb_oVeaUzpb-UdGThOvAo/edit?usp=sharing) a high-level overview of what our plans are and where we are.
