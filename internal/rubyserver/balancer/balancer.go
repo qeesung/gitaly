@@ -77,7 +77,7 @@ type builder struct {
 
 	// testingTriggerRestart is for testing only. It causes b.monitor(...) to
 	// re-execute.
-	testingTriggerRestart chan time.Time
+	testingTriggerRestart chan struct{}
 }
 
 // ConfigureBuilder changes the configuration of the global balancer
@@ -105,9 +105,9 @@ func newBuilder() *builder {
 		removeAddress:         make(chan addressRemoval),
 		addressUpdates:        make(chan addressUpdate),
 		configUpdate:          make(chan config),
-		testingTriggerRestart: make(chan time.Time),
+		testingTriggerRestart: make(chan struct{}),
 	}
-	go b.monitor(time.Now())
+	go b.monitor()
 
 	return b
 }
@@ -128,10 +128,15 @@ func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.Bu
 // monitor serves address list requests and handles address updates. The
 // lastRemoval argument should be time.Now() but in testing it helps to
 // override it.
-func (b *builder) monitor(lastRemoval time.Time) {
+func (b *builder) monitor() {
 	p := newPool()
 	notify := make(chan struct{})
 	cfg := <-b.configUpdate
+
+	// At this point, there has been no previous removal command yet, so the
+	// "last removal" is undefined. We want it to default to "long enough
+	// ago".
+	lastRemoval := time.Now().Add(-2 * cfg.removeDelay)
 
 	// This channel is intentionally nil so that our 'select' below won't
 	// send messages to it. We do this to prevent sending out invalid (empty)
@@ -172,8 +177,8 @@ func (b *builder) monitor(lastRemoval time.Time) {
 			notify = broadcast(notify)
 		case cfg = <-b.configUpdate:
 			// We have received a config update
-		case t := <-b.testingTriggerRestart:
-			go b.monitor(t)
+		case <-b.testingTriggerRestart:
+			go b.monitor()
 			b.configUpdate <- cfg
 			return
 		}
