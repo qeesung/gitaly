@@ -75,9 +75,9 @@ type builder struct {
 	addressUpdates chan addressUpdate
 	configUpdate   chan config
 
-	// testingRestart is for testing only. The time value it is the reset
-	// value for the "lastRemoval" time in the monitor.
-	testingRestart chan time.Time
+	// testingTriggerRestart is for testing only. It causes b.monitor(...) to
+	// re-execute.
+	testingTriggerRestart chan time.Time
 }
 
 // ConfigureBuilder changes the configuration of the global balancer
@@ -101,11 +101,11 @@ func ConfigureBuilder(numAddrs int, removeDelay time.Duration) {
 
 func newBuilder() *builder {
 	b := &builder{
-		addAddress:     make(chan string),
-		removeAddress:  make(chan addressRemoval),
-		addressUpdates: make(chan addressUpdate),
-		configUpdate:   make(chan config),
-		testingRestart: make(chan time.Time),
+		addAddress:            make(chan string),
+		removeAddress:         make(chan addressRemoval),
+		addressUpdates:        make(chan addressUpdate),
+		configUpdate:          make(chan config),
+		testingTriggerRestart: make(chan time.Time),
 	}
 	go b.monitor(time.Now())
 
@@ -172,7 +172,7 @@ func (b *builder) monitor(lastRemoval time.Time) {
 			notify = broadcast(notify)
 		case cfg = <-b.configUpdate:
 			// We have received a config update
-		case t := <-b.testingRestart:
+		case t := <-b.testingTriggerRestart:
 			go b.monitor(t)
 			b.configUpdate <- cfg
 			return
