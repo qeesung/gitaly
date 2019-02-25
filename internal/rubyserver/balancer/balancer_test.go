@@ -155,7 +155,7 @@ func TestRemovals(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			lbBuilder.testingRestart <- time.Now().Add(-1 * time.Minute) // pretend last address removal was 1 minute ago
+			lbBuilder.testingRestart <- time.Now().Add(-2 * removeDelay)
 
 			for i, a := range tc.actions {
 				if a.add != "" {
@@ -221,7 +221,7 @@ func (tcc *testClientConn) ConfigUpdates() []string {
 func configureBuilderTest(numAddrs int) []string {
 	delay := 1 * time.Millisecond
 	ConfigureBuilder(numAddrs, delay)
-	lbBuilder.testingRestart <- time.Now().Add(-1 * time.Minute) // pretend last address removal was 1 minute ago
+	lbBuilder.testingRestart <- time.Now().Add(-2 * delay)
 
 	var addrs []string
 	for i := 0; i < numAddrs; i++ {
