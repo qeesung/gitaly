@@ -90,7 +90,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := metadata.NewOutgoingContext(ctxOuter, md)
-			headerRequest := headerRequest(tc.repo, user, tc.branchName, commitFilesMessage, authorName, authorEmail)
+			headerRequest := headerRequest(tc.repo, user, tc.branchName, commitFilesMessage)
 			actionsRequest1 := createFileHeaderRequest(filePath)
 			actionsRequest2 := actionContentRequest("My")
 			actionsRequest3 := actionContentRequest(" content")
@@ -130,6 +130,11 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	}
 }
 
+var (
+	authorName  = []byte("Jane Doe")
+	authorEmail = []byte("janedoe@gitlab.com")
+)
+
 func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 	server, serverSocketPath := runFullServer(t)
 	defer server.Stop()
@@ -143,8 +148,6 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 	branchName := "master"
 	previousFilePath := "README"
 	filePath := "NEWREADME"
-	authorName := []byte("Jane Doe")
-	authorEmail := []byte("janedoe@gitlab.com")
 
 	for i, tc := range []struct {
 		content string
@@ -162,7 +165,7 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 			origFileContent := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "show", branchName+":"+previousFilePath)
 			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 			ctx := metadata.NewOutgoingContext(ctxOuter, md)
-			headerRequest := headerRequest(testRepo, user, branchName, commitFilesMessage, authorName, authorEmail)
+			headerRequest := headerRequest(testRepo, user, branchName, commitFilesMessage)
 			actionsRequest1 := moveFileHeaderRequest(previousFilePath, filePath, tc.infer)
 
 			stream, err := client.UserCommitFiles(ctx)
@@ -207,7 +210,7 @@ func TestFailedUserCommitFilesRequestDueToHooks(t *testing.T) {
 
 	branchName := "feature"
 	filePath := "my/file.txt"
-	headerRequest := headerRequest(testRepo, user, branchName, commitFilesMessage, nil, nil)
+	headerRequest := headerRequest(testRepo, user, branchName, commitFilesMessage)
 	actionsRequest1 := createFileHeaderRequest(filePath)
 	actionsRequest2 := actionContentRequest("My content")
 	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' -\nexit 1")
@@ -258,7 +261,7 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 		{
 			desc: "file already exists",
 			requests: []*gitalypb.UserCommitFilesRequest{
-				headerRequest(testRepo, user, "feature", commitFilesMessage, nil, nil),
+				headerRequest(testRepo, user, "feature", commitFilesMessage),
 				createFileHeaderRequest("README.md"),
 				actionContentRequest("This file already exists"),
 			},
@@ -267,7 +270,7 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 		{
 			desc: "file doesn't exists",
 			requests: []*gitalypb.UserCommitFilesRequest{
-				headerRequest(testRepo, user, "feature", commitFilesMessage, nil, nil),
+				headerRequest(testRepo, user, "feature", commitFilesMessage),
 				chmodFileHeaderRequest("documents/story.txt", true),
 			},
 			indexError: "A file with this name doesn't exist",
@@ -275,7 +278,7 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 		{
 			desc: "dir already exists",
 			requests: []*gitalypb.UserCommitFilesRequest{
-				headerRequest(testRepo, user, "utf-dir", commitFilesMessage, nil, nil),
+				headerRequest(testRepo, user, "utf-dir", commitFilesMessage),
 				actionRequest(&gitalypb.UserCommitFilesAction{
 					UserCommitFilesActionPayload: &gitalypb.UserCommitFilesAction_Header{
 						Header: &gitalypb.UserCommitFilesActionHeader{
@@ -329,19 +332,19 @@ func TestFailedUserCommitFilesRequest(t *testing.T) {
 	}{
 		{
 			desc: "empty Repository",
-			req:  headerRequest(nil, user, branchName, commitFilesMessage, nil, nil),
+			req:  headerRequest(nil, user, branchName, commitFilesMessage),
 		},
 		{
 			desc: "empty User",
-			req:  headerRequest(testRepo, nil, branchName, commitFilesMessage, nil, nil),
+			req:  headerRequest(testRepo, nil, branchName, commitFilesMessage),
 		},
 		{
 			desc: "empty BranchName",
-			req:  headerRequest(testRepo, user, "", commitFilesMessage, nil, nil),
+			req:  headerRequest(testRepo, user, "", commitFilesMessage),
 		},
 		{
 			desc: "empty CommitMessage",
-			req:  headerRequest(testRepo, user, branchName, nil, nil, nil),
+			req:  headerRequest(testRepo, user, branchName, nil),
 		},
 	}
 
@@ -359,7 +362,7 @@ func TestFailedUserCommitFilesRequest(t *testing.T) {
 	}
 }
 
-func headerRequest(repo *gitalypb.Repository, user *gitalypb.User, branchName string, commitMessage, authorName, authorEmail []byte) *gitalypb.UserCommitFilesRequest {
+func headerRequest(repo *gitalypb.Repository, user *gitalypb.User, branchName string, commitMessage []byte) *gitalypb.UserCommitFilesRequest {
 	return &gitalypb.UserCommitFilesRequest{
 		UserCommitFilesRequestPayload: &gitalypb.UserCommitFilesRequest_Header{
 			Header: &gitalypb.UserCommitFilesRequestHeader{
