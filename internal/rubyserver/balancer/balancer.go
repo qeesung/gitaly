@@ -125,9 +125,7 @@ func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.Bu
 	return newGitalyResolver(cc, b.addressUpdates), nil
 }
 
-// monitor serves address list requests and handles address updates. The
-// lastRemoval argument should be time.Now() but in testing it helps to
-// override it.
+// monitor serves address list requests and handles address updates.
 func (b *builder) monitor() {
 	p := newPool()
 	notify := make(chan struct{})
