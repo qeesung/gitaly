@@ -91,6 +91,8 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := metadata.NewOutgoingContext(ctxOuter, md)
 			headerRequest := headerRequest(tc.repo, user, tc.branchName, commitFilesMessage)
+			setAuthorAndEmail(headerRequest, authorName, authorEmail)
+
 			actionsRequest1 := createFileHeaderRequest(filePath)
 			actionsRequest2 := actionContentRequest("My")
 			actionsRequest3 := actionContentRequest(" content")
@@ -130,10 +132,11 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	}
 }
 
-var (
-	authorName  = []byte("Jane Doe")
-	authorEmail = []byte("janedoe@gitlab.com")
-)
+func setAuthorAndEmail(headerRequest *gitalypb.UserCommitFilesRequest, authorName, authorEmail []byte) {
+	header := headerRequest.UserCommitFilesRequestPayload.(*gitalypb.UserCommitFilesRequest_Header).Header
+	header.CommitAuthorName = authorName
+	header.CommitAuthorEmail = authorEmail
+}
 
 func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 	server, serverSocketPath := runFullServer(t)
@@ -148,6 +151,8 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 	branchName := "master"
 	previousFilePath := "README"
 	filePath := "NEWREADME"
+	authorName := []byte("Jane Doe")
+	authorEmail := []byte("janedoe@gitlab.com")
 
 	for i, tc := range []struct {
 		content string
@@ -166,6 +171,7 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 			ctx := metadata.NewOutgoingContext(ctxOuter, md)
 			headerRequest := headerRequest(testRepo, user, branchName, commitFilesMessage)
+			setAuthorAndEmail(headerRequest, authorName, authorEmail)
 			actionsRequest1 := moveFileHeaderRequest(previousFilePath, filePath, tc.infer)
 
 			stream, err := client.UserCommitFiles(ctx)
@@ -366,14 +372,12 @@ func headerRequest(repo *gitalypb.Repository, user *gitalypb.User, branchName st
 	return &gitalypb.UserCommitFilesRequest{
 		UserCommitFilesRequestPayload: &gitalypb.UserCommitFilesRequest_Header{
 			Header: &gitalypb.UserCommitFilesRequestHeader{
-				Repository:        repo,
-				User:              user,
-				BranchName:        []byte(branchName),
-				CommitMessage:     commitMessage,
-				CommitAuthorName:  authorName,
-				CommitAuthorEmail: authorEmail,
-				StartBranchName:   nil,
-				StartRepository:   nil,
+				Repository:      repo,
+				User:            user,
+				BranchName:      []byte(branchName),
+				CommitMessage:   commitMessage,
+				StartBranchName: nil,
+				StartRepository: nil,
 			},
 		},
 	}
