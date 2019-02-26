@@ -136,7 +136,7 @@ func (b *builder) monitor() {
 	// At this point, there has been no previous removal command yet, so the
 	// "last removal" is undefined. We want it to default to "long enough
 	// ago".
-	lastRemoval := time.Now().Add(-1000 * cfg.removeDelay)
+	lastRemoval := time.Now().Add(-1 * time.Hour)
 
 	// This channel is intentionally nil so that our 'select' below won't
 	// send messages to it. We do this to prevent sending out invalid (empty)
