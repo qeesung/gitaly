@@ -14,8 +14,6 @@ type simpleUnaryUnaryCallback func(context.Context, *mock.SimpleRequest) (*mock.
 //go:generate protoc --go_out=plugins=grpc:. mock/mock.proto
 //go:generate goimports -w mock/mock.pb.go
 type mockSvc struct {
-
-	// fields starting with 'm' allow us to change the RPC method behavior
 	simpleUnaryUnary simpleUnaryUnaryCallback
 }
 
