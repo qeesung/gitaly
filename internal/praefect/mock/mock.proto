@@ -1,0 +1,20 @@
+/*
+This file is a mock gRPC service used for validating the various types of
+gRPC methods that Praefect is expected to reverse proxy. It is intended to keep
+tests simple and keep Praefect decoupled from specific gRPC services.
+*/
+syntax = "proto3";
+
+package mock;
+
+message SimpleRequest {
+	int32 value = 1;
+}
+message SimpleResponse {
+	int32 value = 2;
+}
+
+service SimpleService {
+  // SimpleUnaryUnary is a simple unary request with unary response
+  rpc SimpleUnaryUnary(SimpleRequest) returns (SimpleResponse) {}
+}
