@@ -1,0 +1,5 @@
+---
+title: Allow debugging ruby tests with pry
+merge_request: 1102
+author:
+type: added

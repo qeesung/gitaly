@@ -28,6 +28,7 @@ group :development, :test do
   gem 'rspec-parameterized', require: false
   gem 'timecop', require: false
   gem 'factory_bot', require: false
+  gem 'pry', '~> 0.12.2', require: false
 
   # gitlab-shell spec gems
   gem 'listen', '~> 0.5.0'
