@@ -12,6 +12,7 @@ type simpleUnaryUnaryCallback func(context.Context, *mock.SimpleRequest) (*mock.
 // gRPC stub can be updated via go generate:
 //
 //go:generate protoc --go_out=plugins=grpc:. mock/mock.proto
+//go:generate goimports -w mock/mock.pb.go
 type mockSvc struct {
 
 	// fields starting with 'm' allow us to change the RPC method behavior
