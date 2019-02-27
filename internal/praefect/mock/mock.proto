@@ -18,3 +18,4 @@ service SimpleService {
   // SimpleUnaryUnary is a simple unary request with unary response
   rpc SimpleUnaryUnary(SimpleRequest) returns (SimpleResponse) {}
 }
+
