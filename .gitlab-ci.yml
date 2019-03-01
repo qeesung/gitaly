@@ -114,10 +114,6 @@ test:go1.10-git2.18-ruby-2.5:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.5-golang-1.10-git-2.18
 
-test:go1.10-git2.18-ruby-2.4:
-  <<: *test_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.4-golang-1.10-git-2.18
-
 test:proxy:
   <<: *test_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.5-golang-1.10-git-2.18

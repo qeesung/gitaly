@@ -1,0 +1,5 @@
+---
+title: Stop running tests on Ruby 2.4
+merge_request: 1113
+author:
+type: other
