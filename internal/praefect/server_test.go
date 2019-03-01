@@ -26,9 +26,10 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 		callback simpleUnaryUnaryCallback
 
 		// all inputs and outputs for RPC SimpleUnaryUnary
-		request    *mock.SimpleRequest
-		expectResp *mock.SimpleResponse
-		expectErr  error
+		request       *mock.SimpleRequest
+		expectResp    *mock.SimpleResponse
+		expectErrStr  string
+		expectErrCode int
 	}{
 		{
 			name:     "simple request with response",
@@ -70,8 +71,10 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 			defer cancel()
 
 			resp, err := cli.SimpleUnaryUnary(ctx, tt.request)
+			if err != nil {
+				require.EqualError(t, err, tt.expectErrStr)
+			}
 			require.Equal(t, tt.expectResp, resp)
-			require.Equal(t, tt.expectErr, err)
 
 			err = prf.Shutdown(ctx)
 			require.NoError(t, err)
@@ -89,7 +92,7 @@ func callbackIncrement(_ context.Context, req *mock.SimpleRequest) (*mock.Simple
 func TestRegisteringSecondStorageLocation(t *testing.T) {
 	prf := praefect.NewServer(nil, testLogger{t})
 
-	mCli, _, cleanup := newMockDownstream(t)
+	mCli, cleanup := newMockDownstream(t, nil)
 	defer cleanup() // clean up mock downstream server resources
 
 	assert.NoError(t, prf.RegisterNode("1", mCli))
@@ -133,7 +136,7 @@ func (tl testLogger) Debugf(format string, args ...interface{}) {
 }
 
 // initializes and returns a client to downstream server, downstream server, and cleanup function
-func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (*grpc.ClientConn, func()) {
+func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (string, func()) {
 	// setup mock server
 	m := &mockSvc{
 		simpleUnaryUnary: callback,
@@ -144,7 +147,6 @@ func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (*grpc.
 
 	// client to backend service
 	lis, port := listenAvailPort(tb)
-	cc := dialLocalPort(tb, port, true)
 
 	errQ := make(chan error)
 
@@ -155,7 +157,6 @@ func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (*grpc.
 	cleanup := func() {
 		srv.GracefulStop()
 		lis.Close()
-		cc.Close()
 
 		// If the server is shutdown before Serve() is called on it
 		// the Serve() calls will return the ErrServerStopped
@@ -164,5 +165,5 @@ func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (*grpc.
 		}
 	}
 
-	return cc, cleanup
+	return fmt.Sprintf("tcp://localhost:%d", port), cleanup
 }
