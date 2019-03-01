@@ -96,7 +96,11 @@ func TestGetRawChanges(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			req := &gitalypb.GetRawChangesRequest{testRepo, tc.oldRev, tc.newRev}
+			req := &gitalypb.GetRawChangesRequest{
+				Repository:   testRepo,
+				FromRevision: tc.oldRev,
+				ToRevision:   tc.newRev,
+			}
 
 			stream, err := client.GetRawChanges(ctx, req)
 			require.NoError(t, err)
@@ -200,7 +204,12 @@ func TestGetRawChangesFailures(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			req := &gitalypb.GetRawChangesRequest{testRepo, tc.oldRev, tc.newRev}
+			req := &gitalypb.GetRawChangesRequest{
+				Repository:   testRepo,
+				FromRevision: tc.oldRev,
+				ToRevision:   tc.newRev,
+			}
+
 			if tc.omitRepository {
 				req.Repository = nil
 			}
@@ -231,7 +240,11 @@ func TestGetRawChangesManyFiles(t *testing.T) {
 	defer cancel()
 
 	initCommit := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
-	req := &gitalypb.GetRawChangesRequest{testRepo, initCommit, "many_files"}
+	req := &gitalypb.GetRawChangesRequest{
+		Repository:   testRepo,
+		FromRevision: initCommit,
+		ToRevision:   "many_files",
+	}
 
 	c, err := client.GetRawChanges(ctx, req)
 	require.NoError(t, err)
@@ -255,9 +268,9 @@ func TestGetRawChangesMappingOperations(t *testing.T) {
 	defer cancel()
 
 	req := &gitalypb.GetRawChangesRequest{
-		testRepo,
-		"1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
-		"94bb47ca1297b7b3731ff2a36923640991e9236f",
+		Repository:   testRepo,
+		FromRevision: "1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
+		ToRevision:   "94bb47ca1297b7b3731ff2a36923640991e9236f",
 	}
 
 	c, err := client.GetRawChanges(ctx, req)

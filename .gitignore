@@ -16,3 +16,4 @@ cmd/gitaly-ssh/gitaly-ssh
 *.socket
 git-env
 /gitaly-debug
+/praefect

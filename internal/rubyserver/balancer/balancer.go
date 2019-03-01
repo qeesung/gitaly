@@ -75,8 +75,9 @@ type builder struct {
 	addressUpdates chan addressUpdate
 	configUpdate   chan config
 
-	// for testing only
-	testingRestart chan struct{}
+	// testingTriggerRestart is for testing only. It causes b.monitor(...) to
+	// re-execute.
+	testingTriggerRestart chan struct{}
 }
 
 // ConfigureBuilder changes the configuration of the global balancer
@@ -100,11 +101,11 @@ func ConfigureBuilder(numAddrs int, removeDelay time.Duration) {
 
 func newBuilder() *builder {
 	b := &builder{
-		addAddress:     make(chan string),
-		removeAddress:  make(chan addressRemoval),
-		addressUpdates: make(chan addressUpdate),
-		configUpdate:   make(chan config),
-		testingRestart: make(chan struct{}),
+		addAddress:            make(chan string),
+		removeAddress:         make(chan addressRemoval),
+		addressUpdates:        make(chan addressUpdate),
+		configUpdate:          make(chan config),
+		testingTriggerRestart: make(chan struct{}),
 	}
 	go b.monitor()
 
@@ -129,7 +130,11 @@ func (b *builder) monitor() {
 	p := newPool()
 	notify := make(chan struct{})
 	cfg := <-b.configUpdate
-	lastRemoval := time.Now()
+
+	// At this point, there has been no previous removal command yet, so the
+	// "last removal" is undefined. We want it to default to "long enough
+	// ago".
+	lastRemoval := time.Now().Add(-1 * time.Hour)
 
 	// This channel is intentionally nil so that our 'select' below won't
 	// send messages to it. We do this to prevent sending out invalid (empty)
@@ -170,7 +175,7 @@ func (b *builder) monitor() {
 			notify = broadcast(notify)
 		case cfg = <-b.configUpdate:
 			// We have received a config update
-		case <-b.testingRestart:
+		case <-b.testingTriggerRestart:
 			go b.monitor()
 			b.configUpdate <- cfg
 			return

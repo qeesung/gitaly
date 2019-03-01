@@ -17,21 +17,49 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type SSHUploadPackRequest struct {
 	// 'repository' must be present in the first message.
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// A chunk of raw data to be copied to 'git upload-pack' standard input
 	Stdin []byte `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
-	GitConfigOptions []string `protobuf:"bytes,4,rep,name=git_config_options,json=gitConfigOptions" json:"git_config_options,omitempty"`
+	GitConfigOptions []string `protobuf:"bytes,4,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
 	// Git protocol version
-	GitProtocol string `protobuf:"bytes,5,opt,name=git_protocol,json=gitProtocol" json:"git_protocol,omitempty"`
+	GitProtocol          string   `protobuf:"bytes,5,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SSHUploadPackRequest) Reset()                    { *m = SSHUploadPackRequest{} }
-func (m *SSHUploadPackRequest) String() string            { return proto.CompactTextString(m) }
-func (*SSHUploadPackRequest) ProtoMessage()               {}
-func (*SSHUploadPackRequest) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{0} }
+func (m *SSHUploadPackRequest) Reset()         { *m = SSHUploadPackRequest{} }
+func (m *SSHUploadPackRequest) String() string { return proto.CompactTextString(m) }
+func (*SSHUploadPackRequest) ProtoMessage()    {}
+func (*SSHUploadPackRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{0}
+}
+func (m *SSHUploadPackRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHUploadPackRequest.Unmarshal(m, b)
+}
+func (m *SSHUploadPackRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHUploadPackRequest.Marshal(b, m, deterministic)
+}
+func (dst *SSHUploadPackRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHUploadPackRequest.Merge(dst, src)
+}
+func (m *SSHUploadPackRequest) XXX_Size() int {
+	return xxx_messageInfo_SSHUploadPackRequest.Size(m)
+}
+func (m *SSHUploadPackRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHUploadPackRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHUploadPackRequest proto.InternalMessageInfo
 
 func (m *SSHUploadPackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -68,13 +96,35 @@ type SSHUploadPackResponse struct {
 	Stderr []byte `protobuf:"bytes,2,opt,name=stderr,proto3" json:"stderr,omitempty"`
 	// This field may be nil. This is intentional: only when the remote
 	// command has finished can we return its exit status.
-	ExitStatus *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus" json:"exit_status,omitempty"`
+	ExitStatus           *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus,proto3" json:"exit_status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *SSHUploadPackResponse) Reset()                    { *m = SSHUploadPackResponse{} }
-func (m *SSHUploadPackResponse) String() string            { return proto.CompactTextString(m) }
-func (*SSHUploadPackResponse) ProtoMessage()               {}
-func (*SSHUploadPackResponse) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{1} }
+func (m *SSHUploadPackResponse) Reset()         { *m = SSHUploadPackResponse{} }
+func (m *SSHUploadPackResponse) String() string { return proto.CompactTextString(m) }
+func (*SSHUploadPackResponse) ProtoMessage()    {}
+func (*SSHUploadPackResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{1}
+}
+func (m *SSHUploadPackResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHUploadPackResponse.Unmarshal(m, b)
+}
+func (m *SSHUploadPackResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHUploadPackResponse.Marshal(b, m, deterministic)
+}
+func (dst *SSHUploadPackResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHUploadPackResponse.Merge(dst, src)
+}
+func (m *SSHUploadPackResponse) XXX_Size() int {
+	return xxx_messageInfo_SSHUploadPackResponse.Size(m)
+}
+func (m *SSHUploadPackResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHUploadPackResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHUploadPackResponse proto.InternalMessageInfo
 
 func (m *SSHUploadPackResponse) GetStdout() []byte {
 	if m != nil {
@@ -99,24 +149,46 @@ func (m *SSHUploadPackResponse) GetExitStatus() *ExitStatus {
 
 type SSHReceivePackRequest struct {
 	// 'repository' must be present in the first message.
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// A chunk of raw data to be copied to 'git upload-pack' standard input
 	Stdin []byte `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
 	// Contents of GL_ID, GL_REPOSITORY, and GL_USERNAME environment variables
 	// for 'git receive-pack'
-	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId" json:"gl_id,omitempty"`
-	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository" json:"gl_repository,omitempty"`
-	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername" json:"gl_username,omitempty"`
+	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository,proto3" json:"gl_repository,omitempty"`
+	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
 	// Git protocol version
-	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol" json:"git_protocol,omitempty"`
+	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
-	GitConfigOptions []string `protobuf:"bytes,7,rep,name=git_config_options,json=gitConfigOptions" json:"git_config_options,omitempty"`
+	GitConfigOptions     []string `protobuf:"bytes,7,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SSHReceivePackRequest) Reset()                    { *m = SSHReceivePackRequest{} }
-func (m *SSHReceivePackRequest) String() string            { return proto.CompactTextString(m) }
-func (*SSHReceivePackRequest) ProtoMessage()               {}
-func (*SSHReceivePackRequest) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{2} }
+func (m *SSHReceivePackRequest) Reset()         { *m = SSHReceivePackRequest{} }
+func (m *SSHReceivePackRequest) String() string { return proto.CompactTextString(m) }
+func (*SSHReceivePackRequest) ProtoMessage()    {}
+func (*SSHReceivePackRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{2}
+}
+func (m *SSHReceivePackRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHReceivePackRequest.Unmarshal(m, b)
+}
+func (m *SSHReceivePackRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHReceivePackRequest.Marshal(b, m, deterministic)
+}
+func (dst *SSHReceivePackRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHReceivePackRequest.Merge(dst, src)
+}
+func (m *SSHReceivePackRequest) XXX_Size() int {
+	return xxx_messageInfo_SSHReceivePackRequest.Size(m)
+}
+func (m *SSHReceivePackRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHReceivePackRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHReceivePackRequest proto.InternalMessageInfo
 
 func (m *SSHReceivePackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -174,13 +246,35 @@ type SSHReceivePackResponse struct {
 	Stderr []byte `protobuf:"bytes,2,opt,name=stderr,proto3" json:"stderr,omitempty"`
 	// This field may be nil. This is intentional: only when the remote
 	// command has finished can we return its exit status.
-	ExitStatus *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus" json:"exit_status,omitempty"`
+	ExitStatus           *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus,proto3" json:"exit_status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *SSHReceivePackResponse) Reset()                    { *m = SSHReceivePackResponse{} }
-func (m *SSHReceivePackResponse) String() string            { return proto.CompactTextString(m) }
-func (*SSHReceivePackResponse) ProtoMessage()               {}
-func (*SSHReceivePackResponse) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{3} }
+func (m *SSHReceivePackResponse) Reset()         { *m = SSHReceivePackResponse{} }
+func (m *SSHReceivePackResponse) String() string { return proto.CompactTextString(m) }
+func (*SSHReceivePackResponse) ProtoMessage()    {}
+func (*SSHReceivePackResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{3}
+}
+func (m *SSHReceivePackResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHReceivePackResponse.Unmarshal(m, b)
+}
+func (m *SSHReceivePackResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHReceivePackResponse.Marshal(b, m, deterministic)
+}
+func (dst *SSHReceivePackResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHReceivePackResponse.Merge(dst, src)
+}
+func (m *SSHReceivePackResponse) XXX_Size() int {
+	return xxx_messageInfo_SSHReceivePackResponse.Size(m)
+}
+func (m *SSHReceivePackResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHReceivePackResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHReceivePackResponse proto.InternalMessageInfo
 
 func (m *SSHReceivePackResponse) GetStdout() []byte {
 	if m != nil {
@@ -205,15 +299,37 @@ func (m *SSHReceivePackResponse) GetExitStatus() *ExitStatus {
 
 type SSHUploadArchiveRequest struct {
 	// 'repository' must be present in the first message.
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// A chunk of raw data to be copied to 'git upload-archive' standard input
-	Stdin []byte `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
+	Stdin                []byte   `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SSHUploadArchiveRequest) Reset()                    { *m = SSHUploadArchiveRequest{} }
-func (m *SSHUploadArchiveRequest) String() string            { return proto.CompactTextString(m) }
-func (*SSHUploadArchiveRequest) ProtoMessage()               {}
-func (*SSHUploadArchiveRequest) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{4} }
+func (m *SSHUploadArchiveRequest) Reset()         { *m = SSHUploadArchiveRequest{} }
+func (m *SSHUploadArchiveRequest) String() string { return proto.CompactTextString(m) }
+func (*SSHUploadArchiveRequest) ProtoMessage()    {}
+func (*SSHUploadArchiveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{4}
+}
+func (m *SSHUploadArchiveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHUploadArchiveRequest.Unmarshal(m, b)
+}
+func (m *SSHUploadArchiveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHUploadArchiveRequest.Marshal(b, m, deterministic)
+}
+func (dst *SSHUploadArchiveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHUploadArchiveRequest.Merge(dst, src)
+}
+func (m *SSHUploadArchiveRequest) XXX_Size() int {
+	return xxx_messageInfo_SSHUploadArchiveRequest.Size(m)
+}
+func (m *SSHUploadArchiveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHUploadArchiveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHUploadArchiveRequest proto.InternalMessageInfo
 
 func (m *SSHUploadArchiveRequest) GetRepository() *Repository {
 	if m != nil {
@@ -235,13 +351,35 @@ type SSHUploadArchiveResponse struct {
 	// A chunk of raw data from 'git upload-archive' standard error
 	Stderr []byte `protobuf:"bytes,2,opt,name=stderr,proto3" json:"stderr,omitempty"`
 	// This value will only be set on the last message
-	ExitStatus *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus" json:"exit_status,omitempty"`
+	ExitStatus           *ExitStatus `protobuf:"bytes,3,opt,name=exit_status,json=exitStatus,proto3" json:"exit_status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *SSHUploadArchiveResponse) Reset()                    { *m = SSHUploadArchiveResponse{} }
-func (m *SSHUploadArchiveResponse) String() string            { return proto.CompactTextString(m) }
-func (*SSHUploadArchiveResponse) ProtoMessage()               {}
-func (*SSHUploadArchiveResponse) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{5} }
+func (m *SSHUploadArchiveResponse) Reset()         { *m = SSHUploadArchiveResponse{} }
+func (m *SSHUploadArchiveResponse) String() string { return proto.CompactTextString(m) }
+func (*SSHUploadArchiveResponse) ProtoMessage()    {}
+func (*SSHUploadArchiveResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ssh_22394c3f711a1084, []int{5}
+}
+func (m *SSHUploadArchiveResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SSHUploadArchiveResponse.Unmarshal(m, b)
+}
+func (m *SSHUploadArchiveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SSHUploadArchiveResponse.Marshal(b, m, deterministic)
+}
+func (dst *SSHUploadArchiveResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SSHUploadArchiveResponse.Merge(dst, src)
+}
+func (m *SSHUploadArchiveResponse) XXX_Size() int {
+	return xxx_messageInfo_SSHUploadArchiveResponse.Size(m)
+}
+func (m *SSHUploadArchiveResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SSHUploadArchiveResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SSHUploadArchiveResponse proto.InternalMessageInfo
 
 func (m *SSHUploadArchiveResponse) GetStdout() []byte {
 	if m != nil {
@@ -281,8 +419,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for SSHService service
-
+// SSHServiceClient is the client API for SSHService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SSHServiceClient interface {
 	// To forward 'git upload-pack' to Gitaly for SSH sessions
 	SSHUploadPack(ctx context.Context, opts ...grpc.CallOption) (SSHService_SSHUploadPackClient, error)
@@ -301,7 +440,7 @@ func NewSSHServiceClient(cc *grpc.ClientConn) SSHServiceClient {
 }
 
 func (c *sSHServiceClient) SSHUploadPack(ctx context.Context, opts ...grpc.CallOption) (SSHService_SSHUploadPackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SSHService_serviceDesc.Streams[0], c.cc, "/gitaly.SSHService/SSHUploadPack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SSHService_serviceDesc.Streams[0], "/gitaly.SSHService/SSHUploadPack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +471,7 @@ func (x *sSHServiceSSHUploadPackClient) Recv() (*SSHUploadPackResponse, error) {
 }
 
 func (c *sSHServiceClient) SSHReceivePack(ctx context.Context, opts ...grpc.CallOption) (SSHService_SSHReceivePackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SSHService_serviceDesc.Streams[1], c.cc, "/gitaly.SSHService/SSHReceivePack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SSHService_serviceDesc.Streams[1], "/gitaly.SSHService/SSHReceivePack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +502,7 @@ func (x *sSHServiceSSHReceivePackClient) Recv() (*SSHReceivePackResponse, error)
 }
 
 func (c *sSHServiceClient) SSHUploadArchive(ctx context.Context, opts ...grpc.CallOption) (SSHService_SSHUploadArchiveClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SSHService_serviceDesc.Streams[2], c.cc, "/gitaly.SSHService/SSHUploadArchive", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SSHService_serviceDesc.Streams[2], "/gitaly.SSHService/SSHUploadArchive", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -393,8 +532,7 @@ func (x *sSHServiceSSHUploadArchiveClient) Recv() (*SSHUploadArchiveResponse, er
 	return m, nil
 }
 
-// Server API for SSHService service
-
+// SSHServiceServer is the server API for SSHService service.
 type SSHServiceServer interface {
 	// To forward 'git upload-pack' to Gitaly for SSH sessions
 	SSHUploadPack(SSHService_SSHUploadPackServer) error
@@ -513,9 +651,9 @@ var _SSHService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "ssh.proto",
 }
 
-func init() { proto.RegisterFile("ssh.proto", fileDescriptor15) }
+func init() { proto.RegisterFile("ssh.proto", fileDescriptor_ssh_22394c3f711a1084) }
 
-var fileDescriptor15 = []byte{
+var fileDescriptor_ssh_22394c3f711a1084 = []byte{
 	// 452 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
 	0x10, 0xc5, 0x89, 0x13, 0xc8, 0xc4, 0x45, 0xd1, 0xd2, 0x16, 0x2b, 0x02, 0x6a, 0xcc, 0xc5, 0x07,

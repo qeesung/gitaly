@@ -1,0 +1,40 @@
+def changelog_entry
+  @changelog_entry ||=
+    begin
+      file = git.added_files.find { |path| path =~ %r{\Achangelogs/unreleased/} }
+
+      YAML.safe_load(File.read(file))
+    rescue
+      # The changelog danger file will handle this
+      {}
+    end
+end
+
+required_labels = []
+
+GITALY_TEAM = %w[jacobvosmaer-gitlab johncai pokstad1 zj]
+
+if GITALY_TEAM.include?(gitlab.mr_author) && !gitlab.mr_labels.include?("Gitaly")
+  required_labels << "Gitaly"
+end
+
+TYPE_TO_LABEL = {
+  'added' => 'feature',
+  'fixed' => 'bug',
+  'changed' => 'backstage',
+  'deprecated' => 'backstage',
+  'security' => 'security',
+  'removed' => 'backstage',
+  'performance' => 'performance',
+  'other' => 'backstage',
+}
+
+required_labels << TYPE_TO_LABEL[changelog_entry["type"]]
+
+gitlab.api.update_merge_request(
+  gitlab.mr_json['project_id'],
+  gitlab.mr_json['iid'],
+  labels: (gitlab.mr_labels | required_labels).join(",")
+)
+
+# vim: ft=ruby

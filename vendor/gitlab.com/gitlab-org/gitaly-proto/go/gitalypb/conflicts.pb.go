@@ -17,16 +17,44 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type ListConflictFilesRequest struct {
-	Repository     *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	OurCommitOid   string      `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid" json:"our_commit_oid,omitempty"`
-	TheirCommitOid string      `protobuf:"bytes,3,opt,name=their_commit_oid,json=theirCommitOid" json:"their_commit_oid,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	OurCommitOid         string      `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid,proto3" json:"our_commit_oid,omitempty"`
+	TheirCommitOid       string      `protobuf:"bytes,3,opt,name=their_commit_oid,json=theirCommitOid,proto3" json:"their_commit_oid,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ListConflictFilesRequest) Reset()                    { *m = ListConflictFilesRequest{} }
-func (m *ListConflictFilesRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListConflictFilesRequest) ProtoMessage()               {}
-func (*ListConflictFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (m *ListConflictFilesRequest) Reset()         { *m = ListConflictFilesRequest{} }
+func (m *ListConflictFilesRequest) String() string { return proto.CompactTextString(m) }
+func (*ListConflictFilesRequest) ProtoMessage()    {}
+func (*ListConflictFilesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{0}
+}
+func (m *ListConflictFilesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListConflictFilesRequest.Unmarshal(m, b)
+}
+func (m *ListConflictFilesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListConflictFilesRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListConflictFilesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListConflictFilesRequest.Merge(dst, src)
+}
+func (m *ListConflictFilesRequest) XXX_Size() int {
+	return xxx_messageInfo_ListConflictFilesRequest.Size(m)
+}
+func (m *ListConflictFilesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListConflictFilesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListConflictFilesRequest proto.InternalMessageInfo
 
 func (m *ListConflictFilesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -50,17 +78,39 @@ func (m *ListConflictFilesRequest) GetTheirCommitOid() string {
 }
 
 type ConflictFileHeader struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitOid  string      `protobuf:"bytes,2,opt,name=commit_oid,json=commitOid" json:"commit_oid,omitempty"`
-	TheirPath  []byte      `protobuf:"bytes,3,opt,name=their_path,json=theirPath,proto3" json:"their_path,omitempty"`
-	OurPath    []byte      `protobuf:"bytes,4,opt,name=our_path,json=ourPath,proto3" json:"our_path,omitempty"`
-	OurMode    int32       `protobuf:"varint,5,opt,name=our_mode,json=ourMode" json:"our_mode,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitOid            string      `protobuf:"bytes,2,opt,name=commit_oid,json=commitOid,proto3" json:"commit_oid,omitempty"`
+	TheirPath            []byte      `protobuf:"bytes,3,opt,name=their_path,json=theirPath,proto3" json:"their_path,omitempty"`
+	OurPath              []byte      `protobuf:"bytes,4,opt,name=our_path,json=ourPath,proto3" json:"our_path,omitempty"`
+	OurMode              int32       `protobuf:"varint,5,opt,name=our_mode,json=ourMode,proto3" json:"our_mode,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ConflictFileHeader) Reset()                    { *m = ConflictFileHeader{} }
-func (m *ConflictFileHeader) String() string            { return proto.CompactTextString(m) }
-func (*ConflictFileHeader) ProtoMessage()               {}
-func (*ConflictFileHeader) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
+func (m *ConflictFileHeader) Reset()         { *m = ConflictFileHeader{} }
+func (m *ConflictFileHeader) String() string { return proto.CompactTextString(m) }
+func (*ConflictFileHeader) ProtoMessage()    {}
+func (*ConflictFileHeader) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{1}
+}
+func (m *ConflictFileHeader) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ConflictFileHeader.Unmarshal(m, b)
+}
+func (m *ConflictFileHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ConflictFileHeader.Marshal(b, m, deterministic)
+}
+func (dst *ConflictFileHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConflictFileHeader.Merge(dst, src)
+}
+func (m *ConflictFileHeader) XXX_Size() int {
+	return xxx_messageInfo_ConflictFileHeader.Size(m)
+}
+func (m *ConflictFileHeader) XXX_DiscardUnknown() {
+	xxx_messageInfo_ConflictFileHeader.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ConflictFileHeader proto.InternalMessageInfo
 
 func (m *ConflictFileHeader) GetRepository() *Repository {
 	if m != nil {
@@ -101,24 +151,50 @@ type ConflictFile struct {
 	// Types that are valid to be assigned to ConflictFilePayload:
 	//	*ConflictFile_Header
 	//	*ConflictFile_Content
-	ConflictFilePayload isConflictFile_ConflictFilePayload `protobuf_oneof:"conflict_file_payload"`
+	ConflictFilePayload  isConflictFile_ConflictFilePayload `protobuf_oneof:"conflict_file_payload"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
 }
 
-func (m *ConflictFile) Reset()                    { *m = ConflictFile{} }
-func (m *ConflictFile) String() string            { return proto.CompactTextString(m) }
-func (*ConflictFile) ProtoMessage()               {}
-func (*ConflictFile) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
+func (m *ConflictFile) Reset()         { *m = ConflictFile{} }
+func (m *ConflictFile) String() string { return proto.CompactTextString(m) }
+func (*ConflictFile) ProtoMessage()    {}
+func (*ConflictFile) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{2}
+}
+func (m *ConflictFile) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ConflictFile.Unmarshal(m, b)
+}
+func (m *ConflictFile) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ConflictFile.Marshal(b, m, deterministic)
+}
+func (dst *ConflictFile) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConflictFile.Merge(dst, src)
+}
+func (m *ConflictFile) XXX_Size() int {
+	return xxx_messageInfo_ConflictFile.Size(m)
+}
+func (m *ConflictFile) XXX_DiscardUnknown() {
+	xxx_messageInfo_ConflictFile.DiscardUnknown(m)
+}
 
-type isConflictFile_ConflictFilePayload interface{ isConflictFile_ConflictFilePayload() }
+var xxx_messageInfo_ConflictFile proto.InternalMessageInfo
+
+type isConflictFile_ConflictFilePayload interface {
+	isConflictFile_ConflictFilePayload()
+}
 
 type ConflictFile_Header struct {
-	Header *ConflictFileHeader `protobuf:"bytes,1,opt,name=header,oneof"`
+	Header *ConflictFileHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
+
 type ConflictFile_Content struct {
 	Content []byte `protobuf:"bytes,2,opt,name=content,proto3,oneof"`
 }
 
-func (*ConflictFile_Header) isConflictFile_ConflictFilePayload()  {}
+func (*ConflictFile_Header) isConflictFile_ConflictFilePayload() {}
+
 func (*ConflictFile_Content) isConflictFile_ConflictFilePayload() {}
 
 func (m *ConflictFile) GetConflictFilePayload() isConflictFile_ConflictFilePayload {
@@ -198,11 +274,11 @@ func _ConflictFile_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.ConflictFilePayload.(type) {
 	case *ConflictFile_Header:
 		s := proto.Size(x.Header)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *ConflictFile_Content:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Content)))
 		n += len(x.Content)
 	case nil:
@@ -213,13 +289,35 @@ func _ConflictFile_OneofSizer(msg proto.Message) (n int) {
 }
 
 type ListConflictFilesResponse struct {
-	Files []*ConflictFile `protobuf:"bytes,1,rep,name=files" json:"files,omitempty"`
+	Files                []*ConflictFile `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
 }
 
-func (m *ListConflictFilesResponse) Reset()                    { *m = ListConflictFilesResponse{} }
-func (m *ListConflictFilesResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListConflictFilesResponse) ProtoMessage()               {}
-func (*ListConflictFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
+func (m *ListConflictFilesResponse) Reset()         { *m = ListConflictFilesResponse{} }
+func (m *ListConflictFilesResponse) String() string { return proto.CompactTextString(m) }
+func (*ListConflictFilesResponse) ProtoMessage()    {}
+func (*ListConflictFilesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{3}
+}
+func (m *ListConflictFilesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListConflictFilesResponse.Unmarshal(m, b)
+}
+func (m *ListConflictFilesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListConflictFilesResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListConflictFilesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListConflictFilesResponse.Merge(dst, src)
+}
+func (m *ListConflictFilesResponse) XXX_Size() int {
+	return xxx_messageInfo_ListConflictFilesResponse.Size(m)
+}
+func (m *ListConflictFilesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListConflictFilesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListConflictFilesResponse proto.InternalMessageInfo
 
 func (m *ListConflictFilesResponse) GetFiles() []*ConflictFile {
 	if m != nil {
@@ -229,20 +327,42 @@ func (m *ListConflictFilesResponse) GetFiles() []*ConflictFile {
 }
 
 type ResolveConflictsRequestHeader struct {
-	Repository       *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	OurCommitOid     string      `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid" json:"our_commit_oid,omitempty"`
-	TargetRepository *Repository `protobuf:"bytes,3,opt,name=target_repository,json=targetRepository" json:"target_repository,omitempty"`
-	TheirCommitOid   string      `protobuf:"bytes,4,opt,name=their_commit_oid,json=theirCommitOid" json:"their_commit_oid,omitempty"`
-	SourceBranch     []byte      `protobuf:"bytes,5,opt,name=source_branch,json=sourceBranch,proto3" json:"source_branch,omitempty"`
-	TargetBranch     []byte      `protobuf:"bytes,6,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
-	CommitMessage    []byte      `protobuf:"bytes,7,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
-	User             *User       `protobuf:"bytes,8,opt,name=user" json:"user,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	OurCommitOid         string      `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid,proto3" json:"our_commit_oid,omitempty"`
+	TargetRepository     *Repository `protobuf:"bytes,3,opt,name=target_repository,json=targetRepository,proto3" json:"target_repository,omitempty"`
+	TheirCommitOid       string      `protobuf:"bytes,4,opt,name=their_commit_oid,json=theirCommitOid,proto3" json:"their_commit_oid,omitempty"`
+	SourceBranch         []byte      `protobuf:"bytes,5,opt,name=source_branch,json=sourceBranch,proto3" json:"source_branch,omitempty"`
+	TargetBranch         []byte      `protobuf:"bytes,6,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
+	CommitMessage        []byte      `protobuf:"bytes,7,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	User                 *User       `protobuf:"bytes,8,opt,name=user,proto3" json:"user,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ResolveConflictsRequestHeader) Reset()                    { *m = ResolveConflictsRequestHeader{} }
-func (m *ResolveConflictsRequestHeader) String() string            { return proto.CompactTextString(m) }
-func (*ResolveConflictsRequestHeader) ProtoMessage()               {}
-func (*ResolveConflictsRequestHeader) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
+func (m *ResolveConflictsRequestHeader) Reset()         { *m = ResolveConflictsRequestHeader{} }
+func (m *ResolveConflictsRequestHeader) String() string { return proto.CompactTextString(m) }
+func (*ResolveConflictsRequestHeader) ProtoMessage()    {}
+func (*ResolveConflictsRequestHeader) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{4}
+}
+func (m *ResolveConflictsRequestHeader) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResolveConflictsRequestHeader.Unmarshal(m, b)
+}
+func (m *ResolveConflictsRequestHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResolveConflictsRequestHeader.Marshal(b, m, deterministic)
+}
+func (dst *ResolveConflictsRequestHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveConflictsRequestHeader.Merge(dst, src)
+}
+func (m *ResolveConflictsRequestHeader) XXX_Size() int {
+	return xxx_messageInfo_ResolveConflictsRequestHeader.Size(m)
+}
+func (m *ResolveConflictsRequestHeader) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveConflictsRequestHeader.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveConflictsRequestHeader proto.InternalMessageInfo
 
 func (m *ResolveConflictsRequestHeader) GetRepository() *Repository {
 	if m != nil {
@@ -305,23 +425,49 @@ type ResolveConflictsRequest struct {
 	//	*ResolveConflictsRequest_Header
 	//	*ResolveConflictsRequest_FilesJson
 	ResolveConflictsRequestPayload isResolveConflictsRequest_ResolveConflictsRequestPayload `protobuf_oneof:"resolve_conflicts_request_payload"`
+	XXX_NoUnkeyedLiteral           struct{}                                                 `json:"-"`
+	XXX_unrecognized               []byte                                                   `json:"-"`
+	XXX_sizecache                  int32                                                    `json:"-"`
 }
 
-func (m *ResolveConflictsRequest) Reset()                    { *m = ResolveConflictsRequest{} }
-func (m *ResolveConflictsRequest) String() string            { return proto.CompactTextString(m) }
-func (*ResolveConflictsRequest) ProtoMessage()               {}
-func (*ResolveConflictsRequest) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{5} }
+func (m *ResolveConflictsRequest) Reset()         { *m = ResolveConflictsRequest{} }
+func (m *ResolveConflictsRequest) String() string { return proto.CompactTextString(m) }
+func (*ResolveConflictsRequest) ProtoMessage()    {}
+func (*ResolveConflictsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{5}
+}
+func (m *ResolveConflictsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResolveConflictsRequest.Unmarshal(m, b)
+}
+func (m *ResolveConflictsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResolveConflictsRequest.Marshal(b, m, deterministic)
+}
+func (dst *ResolveConflictsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveConflictsRequest.Merge(dst, src)
+}
+func (m *ResolveConflictsRequest) XXX_Size() int {
+	return xxx_messageInfo_ResolveConflictsRequest.Size(m)
+}
+func (m *ResolveConflictsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveConflictsRequest.DiscardUnknown(m)
+}
 
-type isResolveConflictsRequest_ResolveConflictsRequestPayload interface{ isResolveConflictsRequest_ResolveConflictsRequestPayload() }
+var xxx_messageInfo_ResolveConflictsRequest proto.InternalMessageInfo
+
+type isResolveConflictsRequest_ResolveConflictsRequestPayload interface {
+	isResolveConflictsRequest_ResolveConflictsRequestPayload()
+}
 
 type ResolveConflictsRequest_Header struct {
-	Header *ResolveConflictsRequestHeader `protobuf:"bytes,1,opt,name=header,oneof"`
+	Header *ResolveConflictsRequestHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
+
 type ResolveConflictsRequest_FilesJson struct {
 	FilesJson []byte `protobuf:"bytes,2,opt,name=files_json,json=filesJson,proto3,oneof"`
 }
 
-func (*ResolveConflictsRequest_Header) isResolveConflictsRequest_ResolveConflictsRequestPayload()    {}
+func (*ResolveConflictsRequest_Header) isResolveConflictsRequest_ResolveConflictsRequestPayload() {}
+
 func (*ResolveConflictsRequest_FilesJson) isResolveConflictsRequest_ResolveConflictsRequestPayload() {}
 
 func (m *ResolveConflictsRequest) GetResolveConflictsRequestPayload() isResolveConflictsRequest_ResolveConflictsRequestPayload {
@@ -401,11 +547,11 @@ func _ResolveConflictsRequest_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.ResolveConflictsRequestPayload.(type) {
 	case *ResolveConflictsRequest_Header:
 		s := proto.Size(x.Header)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *ResolveConflictsRequest_FilesJson:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.FilesJson)))
 		n += len(x.FilesJson)
 	case nil:
@@ -416,13 +562,35 @@ func _ResolveConflictsRequest_OneofSizer(msg proto.Message) (n int) {
 }
 
 type ResolveConflictsResponse struct {
-	ResolutionError string `protobuf:"bytes,1,opt,name=resolution_error,json=resolutionError" json:"resolution_error,omitempty"`
+	ResolutionError      string   `protobuf:"bytes,1,opt,name=resolution_error,json=resolutionError,proto3" json:"resolution_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ResolveConflictsResponse) Reset()                    { *m = ResolveConflictsResponse{} }
-func (m *ResolveConflictsResponse) String() string            { return proto.CompactTextString(m) }
-func (*ResolveConflictsResponse) ProtoMessage()               {}
-func (*ResolveConflictsResponse) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{6} }
+func (m *ResolveConflictsResponse) Reset()         { *m = ResolveConflictsResponse{} }
+func (m *ResolveConflictsResponse) String() string { return proto.CompactTextString(m) }
+func (*ResolveConflictsResponse) ProtoMessage()    {}
+func (*ResolveConflictsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_conflicts_46d86b81eab9244c, []int{6}
+}
+func (m *ResolveConflictsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResolveConflictsResponse.Unmarshal(m, b)
+}
+func (m *ResolveConflictsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResolveConflictsResponse.Marshal(b, m, deterministic)
+}
+func (dst *ResolveConflictsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveConflictsResponse.Merge(dst, src)
+}
+func (m *ResolveConflictsResponse) XXX_Size() int {
+	return xxx_messageInfo_ResolveConflictsResponse.Size(m)
+}
+func (m *ResolveConflictsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveConflictsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveConflictsResponse proto.InternalMessageInfo
 
 func (m *ResolveConflictsResponse) GetResolutionError() string {
 	if m != nil {
@@ -449,8 +617,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for ConflictsService service
-
+// ConflictsServiceClient is the client API for ConflictsService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ConflictsServiceClient interface {
 	ListConflictFiles(ctx context.Context, in *ListConflictFilesRequest, opts ...grpc.CallOption) (ConflictsService_ListConflictFilesClient, error)
 	ResolveConflicts(ctx context.Context, opts ...grpc.CallOption) (ConflictsService_ResolveConflictsClient, error)
@@ -465,7 +634,7 @@ func NewConflictsServiceClient(cc *grpc.ClientConn) ConflictsServiceClient {
 }
 
 func (c *conflictsServiceClient) ListConflictFiles(ctx context.Context, in *ListConflictFilesRequest, opts ...grpc.CallOption) (ConflictsService_ListConflictFilesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_ConflictsService_serviceDesc.Streams[0], c.cc, "/gitaly.ConflictsService/ListConflictFiles", opts...)
+	stream, err := c.cc.NewStream(ctx, &_ConflictsService_serviceDesc.Streams[0], "/gitaly.ConflictsService/ListConflictFiles", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +666,7 @@ func (x *conflictsServiceListConflictFilesClient) Recv() (*ListConflictFilesResp
 }
 
 func (c *conflictsServiceClient) ResolveConflicts(ctx context.Context, opts ...grpc.CallOption) (ConflictsService_ResolveConflictsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_ConflictsService_serviceDesc.Streams[1], c.cc, "/gitaly.ConflictsService/ResolveConflicts", opts...)
+	stream, err := c.cc.NewStream(ctx, &_ConflictsService_serviceDesc.Streams[1], "/gitaly.ConflictsService/ResolveConflicts", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -530,8 +699,7 @@ func (x *conflictsServiceResolveConflictsClient) CloseAndRecv() (*ResolveConflic
 	return m, nil
 }
 
-// Server API for ConflictsService service
-
+// ConflictsServiceServer is the server API for ConflictsService service.
 type ConflictsServiceServer interface {
 	ListConflictFiles(*ListConflictFilesRequest, ConflictsService_ListConflictFilesServer) error
 	ResolveConflicts(ConflictsService_ResolveConflictsServer) error
@@ -607,9 +775,9 @@ var _ConflictsService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "conflicts.proto",
 }
 
-func init() { proto.RegisterFile("conflicts.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("conflicts.proto", fileDescriptor_conflicts_46d86b81eab9244c) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor_conflicts_46d86b81eab9244c = []byte{
 	// 575 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x94, 0xd1, 0x6a, 0x13, 0x41,
 	0x14, 0x86, 0xbb, 0x6d, 0x93, 0x34, 0xa7, 0xdb, 0x34, 0x1d, 0x94, 0x6e, 0x03, 0xa1, 0xdb, 0xad,

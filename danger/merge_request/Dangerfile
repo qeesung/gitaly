@@ -1,0 +1,17 @@
+unless gitlab.mr_title[0] == gitlab.mr_title[0].upcase
+  warn("Please capitalize the merge request title")
+end
+
+if gitlab.mr_body.empty?
+  fail("Please provide a merge request description")
+end
+
+unless gitlab.mr_json["assignee"]
+  warn "This merge request does not have any assignee yet. Setting an assignee clarifies who needs to take action on the merge request at any given time."
+end
+
+if gitlab.mr_title.length > 72
+  warn "The title of this merge requests it too long"
+end
+
+# vim: ft=ruby

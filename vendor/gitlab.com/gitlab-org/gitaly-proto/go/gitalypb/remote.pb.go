@@ -17,18 +17,46 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type AddRemoteRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Name       string      `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
-	Url        string      `protobuf:"bytes,3,opt,name=url" json:"url,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Name       string      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Url        string      `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
 	// If any, the remote is configured as a mirror with those mappings
-	MirrorRefmaps []string `protobuf:"bytes,5,rep,name=mirror_refmaps,json=mirrorRefmaps" json:"mirror_refmaps,omitempty"`
+	MirrorRefmaps        []string `protobuf:"bytes,5,rep,name=mirror_refmaps,json=mirrorRefmaps,proto3" json:"mirror_refmaps,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *AddRemoteRequest) Reset()                    { *m = AddRemoteRequest{} }
-func (m *AddRemoteRequest) String() string            { return proto.CompactTextString(m) }
-func (*AddRemoteRequest) ProtoMessage()               {}
-func (*AddRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
+func (m *AddRemoteRequest) Reset()         { *m = AddRemoteRequest{} }
+func (m *AddRemoteRequest) String() string { return proto.CompactTextString(m) }
+func (*AddRemoteRequest) ProtoMessage()    {}
+func (*AddRemoteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{0}
+}
+func (m *AddRemoteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AddRemoteRequest.Unmarshal(m, b)
+}
+func (m *AddRemoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AddRemoteRequest.Marshal(b, m, deterministic)
+}
+func (dst *AddRemoteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddRemoteRequest.Merge(dst, src)
+}
+func (m *AddRemoteRequest) XXX_Size() int {
+	return xxx_messageInfo_AddRemoteRequest.Size(m)
+}
+func (m *AddRemoteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AddRemoteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AddRemoteRequest proto.InternalMessageInfo
 
 func (m *AddRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -59,22 +87,66 @@ func (m *AddRemoteRequest) GetMirrorRefmaps() []string {
 }
 
 type AddRemoteResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *AddRemoteResponse) Reset()                    { *m = AddRemoteResponse{} }
-func (m *AddRemoteResponse) String() string            { return proto.CompactTextString(m) }
-func (*AddRemoteResponse) ProtoMessage()               {}
-func (*AddRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
+func (m *AddRemoteResponse) Reset()         { *m = AddRemoteResponse{} }
+func (m *AddRemoteResponse) String() string { return proto.CompactTextString(m) }
+func (*AddRemoteResponse) ProtoMessage()    {}
+func (*AddRemoteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{1}
+}
+func (m *AddRemoteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AddRemoteResponse.Unmarshal(m, b)
+}
+func (m *AddRemoteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AddRemoteResponse.Marshal(b, m, deterministic)
+}
+func (dst *AddRemoteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddRemoteResponse.Merge(dst, src)
+}
+func (m *AddRemoteResponse) XXX_Size() int {
+	return xxx_messageInfo_AddRemoteResponse.Size(m)
+}
+func (m *AddRemoteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_AddRemoteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AddRemoteResponse proto.InternalMessageInfo
 
 type RemoveRemoteRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Name       string      `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Name                 string      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RemoveRemoteRequest) Reset()                    { *m = RemoveRemoteRequest{} }
-func (m *RemoveRemoteRequest) String() string            { return proto.CompactTextString(m) }
-func (*RemoveRemoteRequest) ProtoMessage()               {}
-func (*RemoveRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{2} }
+func (m *RemoveRemoteRequest) Reset()         { *m = RemoveRemoteRequest{} }
+func (m *RemoveRemoteRequest) String() string { return proto.CompactTextString(m) }
+func (*RemoveRemoteRequest) ProtoMessage()    {}
+func (*RemoveRemoteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{2}
+}
+func (m *RemoveRemoteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveRemoteRequest.Unmarshal(m, b)
+}
+func (m *RemoveRemoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveRemoteRequest.Marshal(b, m, deterministic)
+}
+func (dst *RemoveRemoteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveRemoteRequest.Merge(dst, src)
+}
+func (m *RemoveRemoteRequest) XXX_Size() int {
+	return xxx_messageInfo_RemoveRemoteRequest.Size(m)
+}
+func (m *RemoveRemoteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveRemoteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoveRemoteRequest proto.InternalMessageInfo
 
 func (m *RemoveRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -91,13 +163,35 @@ func (m *RemoveRemoteRequest) GetName() string {
 }
 
 type RemoveRemoteResponse struct {
-	Result bool `protobuf:"varint,1,opt,name=result" json:"result,omitempty"`
+	Result               bool     `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RemoveRemoteResponse) Reset()                    { *m = RemoveRemoteResponse{} }
-func (m *RemoveRemoteResponse) String() string            { return proto.CompactTextString(m) }
-func (*RemoveRemoteResponse) ProtoMessage()               {}
-func (*RemoveRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{3} }
+func (m *RemoveRemoteResponse) Reset()         { *m = RemoveRemoteResponse{} }
+func (m *RemoveRemoteResponse) String() string { return proto.CompactTextString(m) }
+func (*RemoveRemoteResponse) ProtoMessage()    {}
+func (*RemoveRemoteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{3}
+}
+func (m *RemoveRemoteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveRemoteResponse.Unmarshal(m, b)
+}
+func (m *RemoveRemoteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveRemoteResponse.Marshal(b, m, deterministic)
+}
+func (dst *RemoveRemoteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveRemoteResponse.Merge(dst, src)
+}
+func (m *RemoveRemoteResponse) XXX_Size() int {
+	return xxx_messageInfo_RemoveRemoteResponse.Size(m)
+}
+func (m *RemoveRemoteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveRemoteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoveRemoteResponse proto.InternalMessageInfo
 
 func (m *RemoveRemoteResponse) GetResult() bool {
 	if m != nil {
@@ -107,14 +201,36 @@ func (m *RemoveRemoteResponse) GetResult() bool {
 }
 
 type FetchInternalRemoteRequest struct {
-	Repository       *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	RemoteRepository *Repository `protobuf:"bytes,2,opt,name=remote_repository,json=remoteRepository" json:"remote_repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	RemoteRepository     *Repository `protobuf:"bytes,2,opt,name=remote_repository,json=remoteRepository,proto3" json:"remote_repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FetchInternalRemoteRequest) Reset()                    { *m = FetchInternalRemoteRequest{} }
-func (m *FetchInternalRemoteRequest) String() string            { return proto.CompactTextString(m) }
-func (*FetchInternalRemoteRequest) ProtoMessage()               {}
-func (*FetchInternalRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{4} }
+func (m *FetchInternalRemoteRequest) Reset()         { *m = FetchInternalRemoteRequest{} }
+func (m *FetchInternalRemoteRequest) String() string { return proto.CompactTextString(m) }
+func (*FetchInternalRemoteRequest) ProtoMessage()    {}
+func (*FetchInternalRemoteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{4}
+}
+func (m *FetchInternalRemoteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchInternalRemoteRequest.Unmarshal(m, b)
+}
+func (m *FetchInternalRemoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchInternalRemoteRequest.Marshal(b, m, deterministic)
+}
+func (dst *FetchInternalRemoteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchInternalRemoteRequest.Merge(dst, src)
+}
+func (m *FetchInternalRemoteRequest) XXX_Size() int {
+	return xxx_messageInfo_FetchInternalRemoteRequest.Size(m)
+}
+func (m *FetchInternalRemoteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchInternalRemoteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchInternalRemoteRequest proto.InternalMessageInfo
 
 func (m *FetchInternalRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -131,13 +247,35 @@ func (m *FetchInternalRemoteRequest) GetRemoteRepository() *Repository {
 }
 
 type FetchInternalRemoteResponse struct {
-	Result bool `protobuf:"varint,1,opt,name=result" json:"result,omitempty"`
+	Result               bool     `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FetchInternalRemoteResponse) Reset()                    { *m = FetchInternalRemoteResponse{} }
-func (m *FetchInternalRemoteResponse) String() string            { return proto.CompactTextString(m) }
-func (*FetchInternalRemoteResponse) ProtoMessage()               {}
-func (*FetchInternalRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{5} }
+func (m *FetchInternalRemoteResponse) Reset()         { *m = FetchInternalRemoteResponse{} }
+func (m *FetchInternalRemoteResponse) String() string { return proto.CompactTextString(m) }
+func (*FetchInternalRemoteResponse) ProtoMessage()    {}
+func (*FetchInternalRemoteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{5}
+}
+func (m *FetchInternalRemoteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchInternalRemoteResponse.Unmarshal(m, b)
+}
+func (m *FetchInternalRemoteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchInternalRemoteResponse.Marshal(b, m, deterministic)
+}
+func (dst *FetchInternalRemoteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchInternalRemoteResponse.Merge(dst, src)
+}
+func (m *FetchInternalRemoteResponse) XXX_Size() int {
+	return xxx_messageInfo_FetchInternalRemoteResponse.Size(m)
+}
+func (m *FetchInternalRemoteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchInternalRemoteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchInternalRemoteResponse proto.InternalMessageInfo
 
 func (m *FetchInternalRemoteResponse) GetResult() bool {
 	if m != nil {
@@ -147,17 +285,39 @@ func (m *FetchInternalRemoteResponse) GetResult() bool {
 }
 
 type UpdateRemoteMirrorRequest struct {
-	Repository           *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	RefName              string      `protobuf:"bytes,2,opt,name=ref_name,json=refName" json:"ref_name,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	RefName              string      `protobuf:"bytes,2,opt,name=ref_name,json=refName,proto3" json:"ref_name,omitempty"`
 	OnlyBranchesMatching [][]byte    `protobuf:"bytes,3,rep,name=only_branches_matching,json=onlyBranchesMatching,proto3" json:"only_branches_matching,omitempty"`
-	SshKey               string      `protobuf:"bytes,4,opt,name=ssh_key,json=sshKey" json:"ssh_key,omitempty"`
-	KnownHosts           string      `protobuf:"bytes,5,opt,name=known_hosts,json=knownHosts" json:"known_hosts,omitempty"`
+	SshKey               string      `protobuf:"bytes,4,opt,name=ssh_key,json=sshKey,proto3" json:"ssh_key,omitempty"`
+	KnownHosts           string      `protobuf:"bytes,5,opt,name=known_hosts,json=knownHosts,proto3" json:"known_hosts,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UpdateRemoteMirrorRequest) Reset()                    { *m = UpdateRemoteMirrorRequest{} }
-func (m *UpdateRemoteMirrorRequest) String() string            { return proto.CompactTextString(m) }
-func (*UpdateRemoteMirrorRequest) ProtoMessage()               {}
-func (*UpdateRemoteMirrorRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{6} }
+func (m *UpdateRemoteMirrorRequest) Reset()         { *m = UpdateRemoteMirrorRequest{} }
+func (m *UpdateRemoteMirrorRequest) String() string { return proto.CompactTextString(m) }
+func (*UpdateRemoteMirrorRequest) ProtoMessage()    {}
+func (*UpdateRemoteMirrorRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{6}
+}
+func (m *UpdateRemoteMirrorRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UpdateRemoteMirrorRequest.Unmarshal(m, b)
+}
+func (m *UpdateRemoteMirrorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UpdateRemoteMirrorRequest.Marshal(b, m, deterministic)
+}
+func (dst *UpdateRemoteMirrorRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateRemoteMirrorRequest.Merge(dst, src)
+}
+func (m *UpdateRemoteMirrorRequest) XXX_Size() int {
+	return xxx_messageInfo_UpdateRemoteMirrorRequest.Size(m)
+}
+func (m *UpdateRemoteMirrorRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateRemoteMirrorRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateRemoteMirrorRequest proto.InternalMessageInfo
 
 func (m *UpdateRemoteMirrorRequest) GetRepository() *Repository {
 	if m != nil {
@@ -195,21 +355,65 @@ func (m *UpdateRemoteMirrorRequest) GetKnownHosts() string {
 }
 
 type UpdateRemoteMirrorResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UpdateRemoteMirrorResponse) Reset()                    { *m = UpdateRemoteMirrorResponse{} }
-func (m *UpdateRemoteMirrorResponse) String() string            { return proto.CompactTextString(m) }
-func (*UpdateRemoteMirrorResponse) ProtoMessage()               {}
-func (*UpdateRemoteMirrorResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{7} }
+func (m *UpdateRemoteMirrorResponse) Reset()         { *m = UpdateRemoteMirrorResponse{} }
+func (m *UpdateRemoteMirrorResponse) String() string { return proto.CompactTextString(m) }
+func (*UpdateRemoteMirrorResponse) ProtoMessage()    {}
+func (*UpdateRemoteMirrorResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{7}
+}
+func (m *UpdateRemoteMirrorResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UpdateRemoteMirrorResponse.Unmarshal(m, b)
+}
+func (m *UpdateRemoteMirrorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UpdateRemoteMirrorResponse.Marshal(b, m, deterministic)
+}
+func (dst *UpdateRemoteMirrorResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateRemoteMirrorResponse.Merge(dst, src)
+}
+func (m *UpdateRemoteMirrorResponse) XXX_Size() int {
+	return xxx_messageInfo_UpdateRemoteMirrorResponse.Size(m)
+}
+func (m *UpdateRemoteMirrorResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateRemoteMirrorResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateRemoteMirrorResponse proto.InternalMessageInfo
 
 type FindRemoteRepositoryRequest struct {
-	Remote string `protobuf:"bytes,1,opt,name=remote" json:"remote,omitempty"`
+	Remote               string   `protobuf:"bytes,1,opt,name=remote,proto3" json:"remote,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindRemoteRepositoryRequest) Reset()                    { *m = FindRemoteRepositoryRequest{} }
-func (m *FindRemoteRepositoryRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindRemoteRepositoryRequest) ProtoMessage()               {}
-func (*FindRemoteRepositoryRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{8} }
+func (m *FindRemoteRepositoryRequest) Reset()         { *m = FindRemoteRepositoryRequest{} }
+func (m *FindRemoteRepositoryRequest) String() string { return proto.CompactTextString(m) }
+func (*FindRemoteRepositoryRequest) ProtoMessage()    {}
+func (*FindRemoteRepositoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{8}
+}
+func (m *FindRemoteRepositoryRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRemoteRepositoryRequest.Unmarshal(m, b)
+}
+func (m *FindRemoteRepositoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRemoteRepositoryRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindRemoteRepositoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRemoteRepositoryRequest.Merge(dst, src)
+}
+func (m *FindRemoteRepositoryRequest) XXX_Size() int {
+	return xxx_messageInfo_FindRemoteRepositoryRequest.Size(m)
+}
+func (m *FindRemoteRepositoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRemoteRepositoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRemoteRepositoryRequest proto.InternalMessageInfo
 
 func (m *FindRemoteRepositoryRequest) GetRemote() string {
 	if m != nil {
@@ -221,13 +425,35 @@ func (m *FindRemoteRepositoryRequest) GetRemote() string {
 // This migth throw a GRPC Unavailable code, to signal the request failure
 // is transient.
 type FindRemoteRepositoryResponse struct {
-	Exists bool `protobuf:"varint,1,opt,name=exists" json:"exists,omitempty"`
+	Exists               bool     `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindRemoteRepositoryResponse) Reset()                    { *m = FindRemoteRepositoryResponse{} }
-func (m *FindRemoteRepositoryResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindRemoteRepositoryResponse) ProtoMessage()               {}
-func (*FindRemoteRepositoryResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{9} }
+func (m *FindRemoteRepositoryResponse) Reset()         { *m = FindRemoteRepositoryResponse{} }
+func (m *FindRemoteRepositoryResponse) String() string { return proto.CompactTextString(m) }
+func (*FindRemoteRepositoryResponse) ProtoMessage()    {}
+func (*FindRemoteRepositoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{9}
+}
+func (m *FindRemoteRepositoryResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRemoteRepositoryResponse.Unmarshal(m, b)
+}
+func (m *FindRemoteRepositoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRemoteRepositoryResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindRemoteRepositoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRemoteRepositoryResponse.Merge(dst, src)
+}
+func (m *FindRemoteRepositoryResponse) XXX_Size() int {
+	return xxx_messageInfo_FindRemoteRepositoryResponse.Size(m)
+}
+func (m *FindRemoteRepositoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRemoteRepositoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRemoteRepositoryResponse proto.InternalMessageInfo
 
 func (m *FindRemoteRepositoryResponse) GetExists() bool {
 	if m != nil {
@@ -237,14 +463,36 @@ func (m *FindRemoteRepositoryResponse) GetExists() bool {
 }
 
 type FindRemoteRootRefRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Remote     string      `protobuf:"bytes,2,opt,name=remote" json:"remote,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Remote               string      `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindRemoteRootRefRequest) Reset()                    { *m = FindRemoteRootRefRequest{} }
-func (m *FindRemoteRootRefRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindRemoteRootRefRequest) ProtoMessage()               {}
-func (*FindRemoteRootRefRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{10} }
+func (m *FindRemoteRootRefRequest) Reset()         { *m = FindRemoteRootRefRequest{} }
+func (m *FindRemoteRootRefRequest) String() string { return proto.CompactTextString(m) }
+func (*FindRemoteRootRefRequest) ProtoMessage()    {}
+func (*FindRemoteRootRefRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{10}
+}
+func (m *FindRemoteRootRefRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRemoteRootRefRequest.Unmarshal(m, b)
+}
+func (m *FindRemoteRootRefRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRemoteRootRefRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindRemoteRootRefRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRemoteRootRefRequest.Merge(dst, src)
+}
+func (m *FindRemoteRootRefRequest) XXX_Size() int {
+	return xxx_messageInfo_FindRemoteRootRefRequest.Size(m)
+}
+func (m *FindRemoteRootRefRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRemoteRootRefRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRemoteRootRefRequest proto.InternalMessageInfo
 
 func (m *FindRemoteRootRefRequest) GetRepository() *Repository {
 	if m != nil {
@@ -261,13 +509,35 @@ func (m *FindRemoteRootRefRequest) GetRemote() string {
 }
 
 type FindRemoteRootRefResponse struct {
-	Ref string `protobuf:"bytes,1,opt,name=ref" json:"ref,omitempty"`
+	Ref                  string   `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindRemoteRootRefResponse) Reset()                    { *m = FindRemoteRootRefResponse{} }
-func (m *FindRemoteRootRefResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindRemoteRootRefResponse) ProtoMessage()               {}
-func (*FindRemoteRootRefResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{11} }
+func (m *FindRemoteRootRefResponse) Reset()         { *m = FindRemoteRootRefResponse{} }
+func (m *FindRemoteRootRefResponse) String() string { return proto.CompactTextString(m) }
+func (*FindRemoteRootRefResponse) ProtoMessage()    {}
+func (*FindRemoteRootRefResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{11}
+}
+func (m *FindRemoteRootRefResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRemoteRootRefResponse.Unmarshal(m, b)
+}
+func (m *FindRemoteRootRefResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRemoteRootRefResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindRemoteRootRefResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRemoteRootRefResponse.Merge(dst, src)
+}
+func (m *FindRemoteRootRefResponse) XXX_Size() int {
+	return xxx_messageInfo_FindRemoteRootRefResponse.Size(m)
+}
+func (m *FindRemoteRootRefResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRemoteRootRefResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRemoteRootRefResponse proto.InternalMessageInfo
 
 func (m *FindRemoteRootRefResponse) GetRef() string {
 	if m != nil {
@@ -277,13 +547,35 @@ func (m *FindRemoteRootRefResponse) GetRef() string {
 }
 
 type ListRemotesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ListRemotesRequest) Reset()                    { *m = ListRemotesRequest{} }
-func (m *ListRemotesRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListRemotesRequest) ProtoMessage()               {}
-func (*ListRemotesRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{12} }
+func (m *ListRemotesRequest) Reset()         { *m = ListRemotesRequest{} }
+func (m *ListRemotesRequest) String() string { return proto.CompactTextString(m) }
+func (*ListRemotesRequest) ProtoMessage()    {}
+func (*ListRemotesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{12}
+}
+func (m *ListRemotesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListRemotesRequest.Unmarshal(m, b)
+}
+func (m *ListRemotesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListRemotesRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListRemotesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListRemotesRequest.Merge(dst, src)
+}
+func (m *ListRemotesRequest) XXX_Size() int {
+	return xxx_messageInfo_ListRemotesRequest.Size(m)
+}
+func (m *ListRemotesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListRemotesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListRemotesRequest proto.InternalMessageInfo
 
 func (m *ListRemotesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -293,13 +585,35 @@ func (m *ListRemotesRequest) GetRepository() *Repository {
 }
 
 type ListRemotesResponse struct {
-	Remotes []*ListRemotesResponse_Remote `protobuf:"bytes,1,rep,name=remotes" json:"remotes,omitempty"`
+	Remotes              []*ListRemotesResponse_Remote `protobuf:"bytes,1,rep,name=remotes,proto3" json:"remotes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
+	XXX_unrecognized     []byte                        `json:"-"`
+	XXX_sizecache        int32                         `json:"-"`
 }
 
-func (m *ListRemotesResponse) Reset()                    { *m = ListRemotesResponse{} }
-func (m *ListRemotesResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListRemotesResponse) ProtoMessage()               {}
-func (*ListRemotesResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{13} }
+func (m *ListRemotesResponse) Reset()         { *m = ListRemotesResponse{} }
+func (m *ListRemotesResponse) String() string { return proto.CompactTextString(m) }
+func (*ListRemotesResponse) ProtoMessage()    {}
+func (*ListRemotesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{13}
+}
+func (m *ListRemotesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListRemotesResponse.Unmarshal(m, b)
+}
+func (m *ListRemotesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListRemotesResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListRemotesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListRemotesResponse.Merge(dst, src)
+}
+func (m *ListRemotesResponse) XXX_Size() int {
+	return xxx_messageInfo_ListRemotesResponse.Size(m)
+}
+func (m *ListRemotesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListRemotesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListRemotesResponse proto.InternalMessageInfo
 
 func (m *ListRemotesResponse) GetRemotes() []*ListRemotesResponse_Remote {
 	if m != nil {
@@ -309,15 +623,37 @@ func (m *ListRemotesResponse) GetRemotes() []*ListRemotesResponse_Remote {
 }
 
 type ListRemotesResponse_Remote struct {
-	Name     string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	FetchUrl string `protobuf:"bytes,2,opt,name=fetch_url,json=fetchUrl" json:"fetch_url,omitempty"`
-	PushUrl  string `protobuf:"bytes,3,opt,name=push_url,json=pushUrl" json:"push_url,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	FetchUrl             string   `protobuf:"bytes,2,opt,name=fetch_url,json=fetchUrl,proto3" json:"fetch_url,omitempty"`
+	PushUrl              string   `protobuf:"bytes,3,opt,name=push_url,json=pushUrl,proto3" json:"push_url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListRemotesResponse_Remote) Reset()                    { *m = ListRemotesResponse_Remote{} }
-func (m *ListRemotesResponse_Remote) String() string            { return proto.CompactTextString(m) }
-func (*ListRemotesResponse_Remote) ProtoMessage()               {}
-func (*ListRemotesResponse_Remote) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{13, 0} }
+func (m *ListRemotesResponse_Remote) Reset()         { *m = ListRemotesResponse_Remote{} }
+func (m *ListRemotesResponse_Remote) String() string { return proto.CompactTextString(m) }
+func (*ListRemotesResponse_Remote) ProtoMessage()    {}
+func (*ListRemotesResponse_Remote) Descriptor() ([]byte, []int) {
+	return fileDescriptor_remote_51ab93dc1564c9c6, []int{13, 0}
+}
+func (m *ListRemotesResponse_Remote) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListRemotesResponse_Remote.Unmarshal(m, b)
+}
+func (m *ListRemotesResponse_Remote) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListRemotesResponse_Remote.Marshal(b, m, deterministic)
+}
+func (dst *ListRemotesResponse_Remote) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListRemotesResponse_Remote.Merge(dst, src)
+}
+func (m *ListRemotesResponse_Remote) XXX_Size() int {
+	return xxx_messageInfo_ListRemotesResponse_Remote.Size(m)
+}
+func (m *ListRemotesResponse_Remote) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListRemotesResponse_Remote.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListRemotesResponse_Remote proto.InternalMessageInfo
 
 func (m *ListRemotesResponse_Remote) GetName() string {
 	if m != nil {
@@ -366,8 +702,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for RemoteService service
-
+// RemoteServiceClient is the client API for RemoteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RemoteServiceClient interface {
 	AddRemote(ctx context.Context, in *AddRemoteRequest, opts ...grpc.CallOption) (*AddRemoteResponse, error)
 	FetchInternalRemote(ctx context.Context, in *FetchInternalRemoteRequest, opts ...grpc.CallOption) (*FetchInternalRemoteResponse, error)
@@ -388,7 +725,7 @@ func NewRemoteServiceClient(cc *grpc.ClientConn) RemoteServiceClient {
 
 func (c *remoteServiceClient) AddRemote(ctx context.Context, in *AddRemoteRequest, opts ...grpc.CallOption) (*AddRemoteResponse, error) {
 	out := new(AddRemoteResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RemoteService/AddRemote", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RemoteService/AddRemote", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +734,7 @@ func (c *remoteServiceClient) AddRemote(ctx context.Context, in *AddRemoteReques
 
 func (c *remoteServiceClient) FetchInternalRemote(ctx context.Context, in *FetchInternalRemoteRequest, opts ...grpc.CallOption) (*FetchInternalRemoteResponse, error) {
 	out := new(FetchInternalRemoteResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RemoteService/FetchInternalRemote", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RemoteService/FetchInternalRemote", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +743,7 @@ func (c *remoteServiceClient) FetchInternalRemote(ctx context.Context, in *Fetch
 
 func (c *remoteServiceClient) RemoveRemote(ctx context.Context, in *RemoveRemoteRequest, opts ...grpc.CallOption) (*RemoveRemoteResponse, error) {
 	out := new(RemoveRemoteResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RemoteService/RemoveRemote", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RemoteService/RemoveRemote", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +751,7 @@ func (c *remoteServiceClient) RemoveRemote(ctx context.Context, in *RemoveRemote
 }
 
 func (c *remoteServiceClient) UpdateRemoteMirror(ctx context.Context, opts ...grpc.CallOption) (RemoteService_UpdateRemoteMirrorClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RemoteService_serviceDesc.Streams[0], c.cc, "/gitaly.RemoteService/UpdateRemoteMirror", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RemoteService_serviceDesc.Streams[0], "/gitaly.RemoteService/UpdateRemoteMirror", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +786,7 @@ func (x *remoteServiceUpdateRemoteMirrorClient) CloseAndRecv() (*UpdateRemoteMir
 
 func (c *remoteServiceClient) FindRemoteRepository(ctx context.Context, in *FindRemoteRepositoryRequest, opts ...grpc.CallOption) (*FindRemoteRepositoryResponse, error) {
 	out := new(FindRemoteRepositoryResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RemoteService/FindRemoteRepository", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RemoteService/FindRemoteRepository", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +795,7 @@ func (c *remoteServiceClient) FindRemoteRepository(ctx context.Context, in *Find
 
 func (c *remoteServiceClient) FindRemoteRootRef(ctx context.Context, in *FindRemoteRootRefRequest, opts ...grpc.CallOption) (*FindRemoteRootRefResponse, error) {
 	out := new(FindRemoteRootRefResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RemoteService/FindRemoteRootRef", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RemoteService/FindRemoteRootRef", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +803,7 @@ func (c *remoteServiceClient) FindRemoteRootRef(ctx context.Context, in *FindRem
 }
 
 func (c *remoteServiceClient) ListRemotes(ctx context.Context, in *ListRemotesRequest, opts ...grpc.CallOption) (RemoteService_ListRemotesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RemoteService_serviceDesc.Streams[1], c.cc, "/gitaly.RemoteService/ListRemotes", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RemoteService_serviceDesc.Streams[1], "/gitaly.RemoteService/ListRemotes", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -497,8 +834,7 @@ func (x *remoteServiceListRemotesClient) Recv() (*ListRemotesResponse, error) {
 	return m, nil
 }
 
-// Server API for RemoteService service
-
+// RemoteServiceServer is the server API for RemoteService service.
 type RemoteServiceServer interface {
 	AddRemote(context.Context, *AddRemoteRequest) (*AddRemoteResponse, error)
 	FetchInternalRemote(context.Context, *FetchInternalRemoteRequest) (*FetchInternalRemoteResponse, error)
@@ -690,9 +1026,9 @@ var _RemoteService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "remote.proto",
 }
 
-func init() { proto.RegisterFile("remote.proto", fileDescriptor10) }
+func init() { proto.RegisterFile("remote.proto", fileDescriptor_remote_51ab93dc1564c9c6) }
 
-var fileDescriptor10 = []byte{
+var fileDescriptor_remote_51ab93dc1564c9c6 = []byte{
 	// 672 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x55, 0xcb, 0x6e, 0xd3, 0x4c,
 	0x14, 0xae, 0xeb, 0x34, 0x97, 0x93, 0xf4, 0x57, 0x3a, 0xa9, 0xfa, 0x3b, 0x4e, 0x25, 0xd2, 0x01,

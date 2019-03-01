@@ -5,6 +5,7 @@ require 'timecop'
 require 'test_repo_helper'
 require 'rspec-parameterized'
 require 'factory_bot'
+require 'pry'
 
 # Load these helpers first, since they're required by other helpers
 require File.join(__dir__, 'support/helpers/gitlab_shell_helper.rb')

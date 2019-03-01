@@ -3,51 +3,6 @@ module GitalyServer
     include Utils
     include Gitlab::EncodingHelper
 
-    # TODO remove in gitlab 12.0, this is implemented in Go now:
-    # https://gitlab.com/gitlab-org/gitaly/issues/1471
-    def commit_stats(request, call)
-      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-      revision = request.revision unless request.revision.empty?
-
-      commit = Gitlab::Git::Commit.find(repo, revision)
-
-      # In the odd case that the revision given doesn't exist we need to raise
-      # an exception. Since GitLab (currently) already does this for us we don't
-      # expect this to actually happen, just guarding against future code change
-      raise GRPC::Internal.new("commit not found for revision '#{revision}'") unless commit
-
-      stats = Gitlab::Git::CommitStats.new(repo, commit)
-
-      Gitaly::CommitStatsResponse.new(oid: stats.id, additions: stats.additions, deletions: stats.deletions)
-    end
-
-    def find_commits(request, call)
-      repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-      options = {
-        ref: request.revision,
-        limit: request.limit,
-        follow: request.follow,
-        skip_merges: request.skip_merges,
-        disable_walk: request.disable_walk,
-        offset: request.offset,
-        all: request.all
-      }
-      options[:path] = request.paths unless request.paths.empty?
-
-      options[:before] = Time.at(request.before.seconds).to_datetime if request.before
-      options[:after] = Time.at(request.after.seconds).to_datetime if request.after
-
-      Enumerator.new do |y|
-        # Send back 'pages' with 20 commits each
-        repository.raw_log(options).each_slice(20) do |rugged_commits|
-          commits = rugged_commits.map do |rugged_commit|
-            gitaly_commit_from_rugged(rugged_commit)
-          end
-          y.yield Gitaly::FindCommitsResponse.new(commits: commits)
-        end
-      end
-    end
-
     def filter_shas_with_signatures(_session, call)
       Enumerator.new do |y|
         repository = nil
@@ -91,28 +46,6 @@ module GitalyServer
             end
 
             msg = Gitaly::GetCommitSignaturesResponse.new
-          end
-        end
-      end
-    end
-
-    def get_commit_messages(request, call)
-      repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-
-      Enumerator.new do |y|
-        request.commit_ids.each do |commit_id|
-          commit = Gitlab::Git::Commit.find(repository, commit_id)
-          next unless commit
-
-          response = Gitaly::GetCommitMessagesResponse.new(commit_id: commit.id)
-          io = StringIO.new(commit.message)
-
-          while chunk = io.read(Gitlab.config.git.max_commit_or_tag_message_size)
-            response.message = chunk
-
-            y.yield response
-
-            response = Gitaly::GetCommitMessagesResponse.new
           end
         end
       end

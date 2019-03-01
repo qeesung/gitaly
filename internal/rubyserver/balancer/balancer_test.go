@@ -155,13 +155,7 @@ func TestRemovals(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			lbBuilder.testingRestart <- struct{}{}
-			bootSleep := 2 * removeDelay
-			if bootSleep == 0 {
-				bootSleep = 2 * time.Millisecond
-			}
-
-			time.Sleep(bootSleep) // wait for lastRemoval in monitor goroutine to be long enough ago
+			lbBuilder.testingTriggerRestart <- struct{}{}
 
 			for i, a := range tc.actions {
 				if a.add != "" {
@@ -227,8 +221,7 @@ func (tcc *testClientConn) ConfigUpdates() []string {
 func configureBuilderTest(numAddrs int) []string {
 	delay := 1 * time.Millisecond
 	ConfigureBuilder(numAddrs, delay)
-	lbBuilder.testingRestart <- struct{}{}
-	time.Sleep(2 * delay)
+	lbBuilder.testingTriggerRestart <- struct{}{}
 
 	var addrs []string
 	for i := 0; i < numAddrs; i++ {

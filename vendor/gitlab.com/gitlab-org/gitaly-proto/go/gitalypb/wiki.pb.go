@@ -17,18 +17,46 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type WikiCommitDetails struct {
-	Name     []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Email    []byte `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	Message  []byte `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	UserId   int32  `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
-	UserName []byte `protobuf:"bytes,5,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	Name                 []byte   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Email                []byte   `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Message              []byte   `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	UserId               int32    `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserName             []byte   `protobuf:"bytes,5,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiCommitDetails) Reset()                    { *m = WikiCommitDetails{} }
-func (m *WikiCommitDetails) String() string            { return proto.CompactTextString(m) }
-func (*WikiCommitDetails) ProtoMessage()               {}
-func (*WikiCommitDetails) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{0} }
+func (m *WikiCommitDetails) Reset()         { *m = WikiCommitDetails{} }
+func (m *WikiCommitDetails) String() string { return proto.CompactTextString(m) }
+func (*WikiCommitDetails) ProtoMessage()    {}
+func (*WikiCommitDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{0}
+}
+func (m *WikiCommitDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiCommitDetails.Unmarshal(m, b)
+}
+func (m *WikiCommitDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiCommitDetails.Marshal(b, m, deterministic)
+}
+func (dst *WikiCommitDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiCommitDetails.Merge(dst, src)
+}
+func (m *WikiCommitDetails) XXX_Size() int {
+	return xxx_messageInfo_WikiCommitDetails.Size(m)
+}
+func (m *WikiCommitDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiCommitDetails.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiCommitDetails proto.InternalMessageInfo
 
 func (m *WikiCommitDetails) GetName() []byte {
 	if m != nil {
@@ -66,14 +94,36 @@ func (m *WikiCommitDetails) GetUserName() []byte {
 }
 
 type WikiPageVersion struct {
-	Commit *GitCommit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
-	Format string     `protobuf:"bytes,2,opt,name=format" json:"format,omitempty"`
+	Commit               *GitCommit `protobuf:"bytes,1,opt,name=commit,proto3" json:"commit,omitempty"`
+	Format               string     `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
-func (m *WikiPageVersion) Reset()                    { *m = WikiPageVersion{} }
-func (m *WikiPageVersion) String() string            { return proto.CompactTextString(m) }
-func (*WikiPageVersion) ProtoMessage()               {}
-func (*WikiPageVersion) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{1} }
+func (m *WikiPageVersion) Reset()         { *m = WikiPageVersion{} }
+func (m *WikiPageVersion) String() string { return proto.CompactTextString(m) }
+func (*WikiPageVersion) ProtoMessage()    {}
+func (*WikiPageVersion) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{1}
+}
+func (m *WikiPageVersion) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiPageVersion.Unmarshal(m, b)
+}
+func (m *WikiPageVersion) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiPageVersion.Marshal(b, m, deterministic)
+}
+func (dst *WikiPageVersion) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiPageVersion.Merge(dst, src)
+}
+func (m *WikiPageVersion) XXX_Size() int {
+	return xxx_messageInfo_WikiPageVersion.Size(m)
+}
+func (m *WikiPageVersion) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiPageVersion.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiPageVersion proto.InternalMessageInfo
 
 func (m *WikiPageVersion) GetCommit() *GitCommit {
 	if m != nil {
@@ -91,21 +141,43 @@ func (m *WikiPageVersion) GetFormat() string {
 
 type WikiPage struct {
 	// These fields are only present in the first message of a WikiPage stream
-	Version    *WikiPageVersion `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
-	Format     string           `protobuf:"bytes,2,opt,name=format" json:"format,omitempty"`
+	Version    *WikiPageVersion `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Format     string           `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
 	Title      []byte           `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	UrlPath    string           `protobuf:"bytes,4,opt,name=url_path,json=urlPath" json:"url_path,omitempty"`
+	UrlPath    string           `protobuf:"bytes,4,opt,name=url_path,json=urlPath,proto3" json:"url_path,omitempty"`
 	Path       []byte           `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
 	Name       []byte           `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Historical bool             `protobuf:"varint,7,opt,name=historical" json:"historical,omitempty"`
+	Historical bool             `protobuf:"varint,7,opt,name=historical,proto3" json:"historical,omitempty"`
 	// This field is present in all messages of a WikiPage stream
-	RawData []byte `protobuf:"bytes,8,opt,name=raw_data,json=rawData,proto3" json:"raw_data,omitempty"`
+	RawData              []byte   `protobuf:"bytes,8,opt,name=raw_data,json=rawData,proto3" json:"raw_data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiPage) Reset()                    { *m = WikiPage{} }
-func (m *WikiPage) String() string            { return proto.CompactTextString(m) }
-func (*WikiPage) ProtoMessage()               {}
-func (*WikiPage) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{2} }
+func (m *WikiPage) Reset()         { *m = WikiPage{} }
+func (m *WikiPage) String() string { return proto.CompactTextString(m) }
+func (*WikiPage) ProtoMessage()    {}
+func (*WikiPage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{2}
+}
+func (m *WikiPage) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiPage.Unmarshal(m, b)
+}
+func (m *WikiPage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiPage.Marshal(b, m, deterministic)
+}
+func (dst *WikiPage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiPage.Merge(dst, src)
+}
+func (m *WikiPage) XXX_Size() int {
+	return xxx_messageInfo_WikiPage.Size(m)
+}
+func (m *WikiPage) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiPage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiPage proto.InternalMessageInfo
 
 func (m *WikiPage) GetVersion() *WikiPageVersion {
 	if m != nil {
@@ -164,16 +236,38 @@ func (m *WikiPage) GetRawData() []byte {
 }
 
 type WikiGetPageVersionsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	PagePath   []byte      `protobuf:"bytes,2,opt,name=page_path,json=pagePath,proto3" json:"page_path,omitempty"`
-	Page       int32       `protobuf:"varint,3,opt,name=page" json:"page,omitempty"`
-	PerPage    int32       `protobuf:"varint,4,opt,name=per_page,json=perPage" json:"per_page,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	PagePath             []byte      `protobuf:"bytes,2,opt,name=page_path,json=pagePath,proto3" json:"page_path,omitempty"`
+	Page                 int32       `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PerPage              int32       `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WikiGetPageVersionsRequest) Reset()                    { *m = WikiGetPageVersionsRequest{} }
-func (m *WikiGetPageVersionsRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetPageVersionsRequest) ProtoMessage()               {}
-func (*WikiGetPageVersionsRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{3} }
+func (m *WikiGetPageVersionsRequest) Reset()         { *m = WikiGetPageVersionsRequest{} }
+func (m *WikiGetPageVersionsRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiGetPageVersionsRequest) ProtoMessage()    {}
+func (*WikiGetPageVersionsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{3}
+}
+func (m *WikiGetPageVersionsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetPageVersionsRequest.Unmarshal(m, b)
+}
+func (m *WikiGetPageVersionsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetPageVersionsRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetPageVersionsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetPageVersionsRequest.Merge(dst, src)
+}
+func (m *WikiGetPageVersionsRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiGetPageVersionsRequest.Size(m)
+}
+func (m *WikiGetPageVersionsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetPageVersionsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetPageVersionsRequest proto.InternalMessageInfo
 
 func (m *WikiGetPageVersionsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -204,13 +298,35 @@ func (m *WikiGetPageVersionsRequest) GetPerPage() int32 {
 }
 
 type WikiGetPageVersionsResponse struct {
-	Versions []*WikiPageVersion `protobuf:"bytes,1,rep,name=versions" json:"versions,omitempty"`
+	Versions             []*WikiPageVersion `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-func (m *WikiGetPageVersionsResponse) Reset()                    { *m = WikiGetPageVersionsResponse{} }
-func (m *WikiGetPageVersionsResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetPageVersionsResponse) ProtoMessage()               {}
-func (*WikiGetPageVersionsResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{4} }
+func (m *WikiGetPageVersionsResponse) Reset()         { *m = WikiGetPageVersionsResponse{} }
+func (m *WikiGetPageVersionsResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiGetPageVersionsResponse) ProtoMessage()    {}
+func (*WikiGetPageVersionsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{4}
+}
+func (m *WikiGetPageVersionsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetPageVersionsResponse.Unmarshal(m, b)
+}
+func (m *WikiGetPageVersionsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetPageVersionsResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetPageVersionsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetPageVersionsResponse.Merge(dst, src)
+}
+func (m *WikiGetPageVersionsResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiGetPageVersionsResponse.Size(m)
+}
+func (m *WikiGetPageVersionsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetPageVersionsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetPageVersionsResponse proto.InternalMessageInfo
 
 func (m *WikiGetPageVersionsResponse) GetVersions() []*WikiPageVersion {
 	if m != nil {
@@ -222,18 +338,40 @@ func (m *WikiGetPageVersionsResponse) GetVersions() []*WikiPageVersion {
 // This message is sent in a stream because the 'content' field may be large.
 type WikiWritePageRequest struct {
 	// These following fields are only present in the first message.
-	Repository    *Repository        `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository    *Repository        `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	Name          []byte             `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Format        string             `protobuf:"bytes,3,opt,name=format" json:"format,omitempty"`
-	CommitDetails *WikiCommitDetails `protobuf:"bytes,4,opt,name=commit_details,json=commitDetails" json:"commit_details,omitempty"`
+	Format        string             `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"`
+	CommitDetails *WikiCommitDetails `protobuf:"bytes,4,opt,name=commit_details,json=commitDetails,proto3" json:"commit_details,omitempty"`
 	// This field is present in all messages.
-	Content []byte `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
+	Content              []byte   `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiWritePageRequest) Reset()                    { *m = WikiWritePageRequest{} }
-func (m *WikiWritePageRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiWritePageRequest) ProtoMessage()               {}
-func (*WikiWritePageRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{5} }
+func (m *WikiWritePageRequest) Reset()         { *m = WikiWritePageRequest{} }
+func (m *WikiWritePageRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiWritePageRequest) ProtoMessage()    {}
+func (*WikiWritePageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{5}
+}
+func (m *WikiWritePageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiWritePageRequest.Unmarshal(m, b)
+}
+func (m *WikiWritePageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiWritePageRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiWritePageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiWritePageRequest.Merge(dst, src)
+}
+func (m *WikiWritePageRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiWritePageRequest.Size(m)
+}
+func (m *WikiWritePageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiWritePageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiWritePageRequest proto.InternalMessageInfo
 
 func (m *WikiWritePageRequest) GetRepository() *Repository {
 	if m != nil {
@@ -271,13 +409,35 @@ func (m *WikiWritePageRequest) GetContent() []byte {
 }
 
 type WikiWritePageResponse struct {
-	DuplicateError []byte `protobuf:"bytes,1,opt,name=duplicate_error,json=duplicateError,proto3" json:"duplicate_error,omitempty"`
+	DuplicateError       []byte   `protobuf:"bytes,1,opt,name=duplicate_error,json=duplicateError,proto3" json:"duplicate_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiWritePageResponse) Reset()                    { *m = WikiWritePageResponse{} }
-func (m *WikiWritePageResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiWritePageResponse) ProtoMessage()               {}
-func (*WikiWritePageResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{6} }
+func (m *WikiWritePageResponse) Reset()         { *m = WikiWritePageResponse{} }
+func (m *WikiWritePageResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiWritePageResponse) ProtoMessage()    {}
+func (*WikiWritePageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{6}
+}
+func (m *WikiWritePageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiWritePageResponse.Unmarshal(m, b)
+}
+func (m *WikiWritePageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiWritePageResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiWritePageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiWritePageResponse.Merge(dst, src)
+}
+func (m *WikiWritePageResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiWritePageResponse.Size(m)
+}
+func (m *WikiWritePageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiWritePageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiWritePageResponse proto.InternalMessageInfo
 
 func (m *WikiWritePageResponse) GetDuplicateError() []byte {
 	if m != nil {
@@ -288,19 +448,41 @@ func (m *WikiWritePageResponse) GetDuplicateError() []byte {
 
 type WikiUpdatePageRequest struct {
 	// There fields are only present in the first message of the stream
-	Repository    *Repository        `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository    *Repository        `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	PagePath      []byte             `protobuf:"bytes,2,opt,name=page_path,json=pagePath,proto3" json:"page_path,omitempty"`
 	Title         []byte             `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Format        string             `protobuf:"bytes,4,opt,name=format" json:"format,omitempty"`
-	CommitDetails *WikiCommitDetails `protobuf:"bytes,5,opt,name=commit_details,json=commitDetails" json:"commit_details,omitempty"`
+	Format        string             `protobuf:"bytes,4,opt,name=format,proto3" json:"format,omitempty"`
+	CommitDetails *WikiCommitDetails `protobuf:"bytes,5,opt,name=commit_details,json=commitDetails,proto3" json:"commit_details,omitempty"`
 	// This field is present in all messages
-	Content []byte `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	Content              []byte   `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiUpdatePageRequest) Reset()                    { *m = WikiUpdatePageRequest{} }
-func (m *WikiUpdatePageRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiUpdatePageRequest) ProtoMessage()               {}
-func (*WikiUpdatePageRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{7} }
+func (m *WikiUpdatePageRequest) Reset()         { *m = WikiUpdatePageRequest{} }
+func (m *WikiUpdatePageRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiUpdatePageRequest) ProtoMessage()    {}
+func (*WikiUpdatePageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{7}
+}
+func (m *WikiUpdatePageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiUpdatePageRequest.Unmarshal(m, b)
+}
+func (m *WikiUpdatePageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiUpdatePageRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiUpdatePageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiUpdatePageRequest.Merge(dst, src)
+}
+func (m *WikiUpdatePageRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiUpdatePageRequest.Size(m)
+}
+func (m *WikiUpdatePageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiUpdatePageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiUpdatePageRequest proto.InternalMessageInfo
 
 func (m *WikiUpdatePageRequest) GetRepository() *Repository {
 	if m != nil {
@@ -345,13 +527,35 @@ func (m *WikiUpdatePageRequest) GetContent() []byte {
 }
 
 type WikiUpdatePageResponse struct {
-	Error []byte `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	Error                []byte   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiUpdatePageResponse) Reset()                    { *m = WikiUpdatePageResponse{} }
-func (m *WikiUpdatePageResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiUpdatePageResponse) ProtoMessage()               {}
-func (*WikiUpdatePageResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{8} }
+func (m *WikiUpdatePageResponse) Reset()         { *m = WikiUpdatePageResponse{} }
+func (m *WikiUpdatePageResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiUpdatePageResponse) ProtoMessage()    {}
+func (*WikiUpdatePageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{8}
+}
+func (m *WikiUpdatePageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiUpdatePageResponse.Unmarshal(m, b)
+}
+func (m *WikiUpdatePageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiUpdatePageResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiUpdatePageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiUpdatePageResponse.Merge(dst, src)
+}
+func (m *WikiUpdatePageResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiUpdatePageResponse.Size(m)
+}
+func (m *WikiUpdatePageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiUpdatePageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiUpdatePageResponse proto.InternalMessageInfo
 
 func (m *WikiUpdatePageResponse) GetError() []byte {
 	if m != nil {
@@ -361,15 +565,37 @@ func (m *WikiUpdatePageResponse) GetError() []byte {
 }
 
 type WikiDeletePageRequest struct {
-	Repository    *Repository        `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	PagePath      []byte             `protobuf:"bytes,2,opt,name=page_path,json=pagePath,proto3" json:"page_path,omitempty"`
-	CommitDetails *WikiCommitDetails `protobuf:"bytes,3,opt,name=commit_details,json=commitDetails" json:"commit_details,omitempty"`
+	Repository           *Repository        `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	PagePath             []byte             `protobuf:"bytes,2,opt,name=page_path,json=pagePath,proto3" json:"page_path,omitempty"`
+	CommitDetails        *WikiCommitDetails `protobuf:"bytes,3,opt,name=commit_details,json=commitDetails,proto3" json:"commit_details,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-func (m *WikiDeletePageRequest) Reset()                    { *m = WikiDeletePageRequest{} }
-func (m *WikiDeletePageRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiDeletePageRequest) ProtoMessage()               {}
-func (*WikiDeletePageRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{9} }
+func (m *WikiDeletePageRequest) Reset()         { *m = WikiDeletePageRequest{} }
+func (m *WikiDeletePageRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiDeletePageRequest) ProtoMessage()    {}
+func (*WikiDeletePageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{9}
+}
+func (m *WikiDeletePageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiDeletePageRequest.Unmarshal(m, b)
+}
+func (m *WikiDeletePageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiDeletePageRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiDeletePageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiDeletePageRequest.Merge(dst, src)
+}
+func (m *WikiDeletePageRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiDeletePageRequest.Size(m)
+}
+func (m *WikiDeletePageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiDeletePageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiDeletePageRequest proto.InternalMessageInfo
 
 func (m *WikiDeletePageRequest) GetRepository() *Repository {
 	if m != nil {
@@ -393,24 +619,68 @@ func (m *WikiDeletePageRequest) GetCommitDetails() *WikiCommitDetails {
 }
 
 type WikiDeletePageResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiDeletePageResponse) Reset()                    { *m = WikiDeletePageResponse{} }
-func (m *WikiDeletePageResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiDeletePageResponse) ProtoMessage()               {}
-func (*WikiDeletePageResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{10} }
+func (m *WikiDeletePageResponse) Reset()         { *m = WikiDeletePageResponse{} }
+func (m *WikiDeletePageResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiDeletePageResponse) ProtoMessage()    {}
+func (*WikiDeletePageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{10}
+}
+func (m *WikiDeletePageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiDeletePageResponse.Unmarshal(m, b)
+}
+func (m *WikiDeletePageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiDeletePageResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiDeletePageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiDeletePageResponse.Merge(dst, src)
+}
+func (m *WikiDeletePageResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiDeletePageResponse.Size(m)
+}
+func (m *WikiDeletePageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiDeletePageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiDeletePageResponse proto.InternalMessageInfo
 
 type WikiFindPageRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Title      []byte      `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Revision   []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
-	Directory  []byte      `protobuf:"bytes,4,opt,name=directory,proto3" json:"directory,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Title                []byte      `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Revision             []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Directory            []byte      `protobuf:"bytes,4,opt,name=directory,proto3" json:"directory,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WikiFindPageRequest) Reset()                    { *m = WikiFindPageRequest{} }
-func (m *WikiFindPageRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiFindPageRequest) ProtoMessage()               {}
-func (*WikiFindPageRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{11} }
+func (m *WikiFindPageRequest) Reset()         { *m = WikiFindPageRequest{} }
+func (m *WikiFindPageRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiFindPageRequest) ProtoMessage()    {}
+func (*WikiFindPageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{11}
+}
+func (m *WikiFindPageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiFindPageRequest.Unmarshal(m, b)
+}
+func (m *WikiFindPageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiFindPageRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiFindPageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiFindPageRequest.Merge(dst, src)
+}
+func (m *WikiFindPageRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiFindPageRequest.Size(m)
+}
+func (m *WikiFindPageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiFindPageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiFindPageRequest proto.InternalMessageInfo
 
 func (m *WikiFindPageRequest) GetRepository() *Repository {
 	if m != nil {
@@ -443,13 +713,35 @@ func (m *WikiFindPageRequest) GetDirectory() []byte {
 // WikiFindPageResponse is a stream because we need multiple WikiPage
 // messages to send the raw_data field.
 type WikiFindPageResponse struct {
-	Page *WikiPage `protobuf:"bytes,1,opt,name=page" json:"page,omitempty"`
+	Page                 *WikiPage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *WikiFindPageResponse) Reset()                    { *m = WikiFindPageResponse{} }
-func (m *WikiFindPageResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiFindPageResponse) ProtoMessage()               {}
-func (*WikiFindPageResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{12} }
+func (m *WikiFindPageResponse) Reset()         { *m = WikiFindPageResponse{} }
+func (m *WikiFindPageResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiFindPageResponse) ProtoMessage()    {}
+func (*WikiFindPageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{12}
+}
+func (m *WikiFindPageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiFindPageResponse.Unmarshal(m, b)
+}
+func (m *WikiFindPageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiFindPageResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiFindPageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiFindPageResponse.Merge(dst, src)
+}
+func (m *WikiFindPageResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiFindPageResponse.Size(m)
+}
+func (m *WikiFindPageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiFindPageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiFindPageResponse proto.InternalMessageInfo
 
 func (m *WikiFindPageResponse) GetPage() *WikiPage {
 	if m != nil {
@@ -459,16 +751,38 @@ func (m *WikiFindPageResponse) GetPage() *WikiPage {
 }
 
 type WikiFindFileRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	Name       []byte      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional: revision
-	Revision []byte `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision             []byte   `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiFindFileRequest) Reset()                    { *m = WikiFindFileRequest{} }
-func (m *WikiFindFileRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiFindFileRequest) ProtoMessage()               {}
-func (*WikiFindFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{13} }
+func (m *WikiFindFileRequest) Reset()         { *m = WikiFindFileRequest{} }
+func (m *WikiFindFileRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiFindFileRequest) ProtoMessage()    {}
+func (*WikiFindFileRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{13}
+}
+func (m *WikiFindFileRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiFindFileRequest.Unmarshal(m, b)
+}
+func (m *WikiFindFileRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiFindFileRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiFindFileRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiFindFileRequest.Merge(dst, src)
+}
+func (m *WikiFindFileRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiFindFileRequest.Size(m)
+}
+func (m *WikiFindFileRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiFindFileRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiFindFileRequest proto.InternalMessageInfo
 
 func (m *WikiFindFileRequest) GetRepository() *Repository {
 	if m != nil {
@@ -493,16 +807,38 @@ func (m *WikiFindFileRequest) GetRevision() []byte {
 
 type WikiFindFileResponse struct {
 	// If 'name' is empty, the file was not found.
-	Name     []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	MimeType string `protobuf:"bytes,2,opt,name=mime_type,json=mimeType" json:"mime_type,omitempty"`
-	RawData  []byte `protobuf:"bytes,3,opt,name=raw_data,json=rawData,proto3" json:"raw_data,omitempty"`
-	Path     []byte `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	Name                 []byte   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MimeType             string   `protobuf:"bytes,2,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	RawData              []byte   `protobuf:"bytes,3,opt,name=raw_data,json=rawData,proto3" json:"raw_data,omitempty"`
+	Path                 []byte   `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiFindFileResponse) Reset()                    { *m = WikiFindFileResponse{} }
-func (m *WikiFindFileResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiFindFileResponse) ProtoMessage()               {}
-func (*WikiFindFileResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{14} }
+func (m *WikiFindFileResponse) Reset()         { *m = WikiFindFileResponse{} }
+func (m *WikiFindFileResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiFindFileResponse) ProtoMessage()    {}
+func (*WikiFindFileResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{14}
+}
+func (m *WikiFindFileResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiFindFileResponse.Unmarshal(m, b)
+}
+func (m *WikiFindFileResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiFindFileResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiFindFileResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiFindFileResponse.Merge(dst, src)
+}
+func (m *WikiFindFileResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiFindFileResponse.Size(m)
+}
+func (m *WikiFindFileResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiFindFileResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiFindFileResponse proto.InternalMessageInfo
 
 func (m *WikiFindFileResponse) GetName() []byte {
 	if m != nil {
@@ -533,15 +869,37 @@ func (m *WikiFindFileResponse) GetPath() []byte {
 }
 
 type WikiGetAllPagesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Passing 0 means no limit is applied
-	Limit uint32 `protobuf:"varint,2,opt,name=limit" json:"limit,omitempty"`
+	Limit                uint32   `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiGetAllPagesRequest) Reset()                    { *m = WikiGetAllPagesRequest{} }
-func (m *WikiGetAllPagesRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetAllPagesRequest) ProtoMessage()               {}
-func (*WikiGetAllPagesRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{15} }
+func (m *WikiGetAllPagesRequest) Reset()         { *m = WikiGetAllPagesRequest{} }
+func (m *WikiGetAllPagesRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiGetAllPagesRequest) ProtoMessage()    {}
+func (*WikiGetAllPagesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{15}
+}
+func (m *WikiGetAllPagesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetAllPagesRequest.Unmarshal(m, b)
+}
+func (m *WikiGetAllPagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetAllPagesRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetAllPagesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetAllPagesRequest.Merge(dst, src)
+}
+func (m *WikiGetAllPagesRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiGetAllPagesRequest.Size(m)
+}
+func (m *WikiGetAllPagesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetAllPagesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetAllPagesRequest proto.InternalMessageInfo
 
 func (m *WikiGetAllPagesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -559,15 +917,37 @@ func (m *WikiGetAllPagesRequest) GetLimit() uint32 {
 
 // The WikiGetAllPagesResponse stream is a concatenation of WikiPage streams
 type WikiGetAllPagesResponse struct {
-	Page *WikiPage `protobuf:"bytes,1,opt,name=page" json:"page,omitempty"`
+	Page *WikiPage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	// When end_of_page is true it signals a change of page for the next Response message (if any)
-	EndOfPage bool `protobuf:"varint,2,opt,name=end_of_page,json=endOfPage" json:"end_of_page,omitempty"`
+	EndOfPage            bool     `protobuf:"varint,2,opt,name=end_of_page,json=endOfPage,proto3" json:"end_of_page,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiGetAllPagesResponse) Reset()                    { *m = WikiGetAllPagesResponse{} }
-func (m *WikiGetAllPagesResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetAllPagesResponse) ProtoMessage()               {}
-func (*WikiGetAllPagesResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{16} }
+func (m *WikiGetAllPagesResponse) Reset()         { *m = WikiGetAllPagesResponse{} }
+func (m *WikiGetAllPagesResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiGetAllPagesResponse) ProtoMessage()    {}
+func (*WikiGetAllPagesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{16}
+}
+func (m *WikiGetAllPagesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetAllPagesResponse.Unmarshal(m, b)
+}
+func (m *WikiGetAllPagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetAllPagesResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetAllPagesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetAllPagesResponse.Merge(dst, src)
+}
+func (m *WikiGetAllPagesResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiGetAllPagesResponse.Size(m)
+}
+func (m *WikiGetAllPagesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetAllPagesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetAllPagesResponse proto.InternalMessageInfo
 
 func (m *WikiGetAllPagesResponse) GetPage() *WikiPage {
 	if m != nil {
@@ -584,16 +964,38 @@ func (m *WikiGetAllPagesResponse) GetEndOfPage() bool {
 }
 
 type WikiGetFormattedDataRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Title      []byte      `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Revision   []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
-	Directory  []byte      `protobuf:"bytes,4,opt,name=directory,proto3" json:"directory,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Title                []byte      `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Revision             []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Directory            []byte      `protobuf:"bytes,4,opt,name=directory,proto3" json:"directory,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WikiGetFormattedDataRequest) Reset()                    { *m = WikiGetFormattedDataRequest{} }
-func (m *WikiGetFormattedDataRequest) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetFormattedDataRequest) ProtoMessage()               {}
-func (*WikiGetFormattedDataRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{17} }
+func (m *WikiGetFormattedDataRequest) Reset()         { *m = WikiGetFormattedDataRequest{} }
+func (m *WikiGetFormattedDataRequest) String() string { return proto.CompactTextString(m) }
+func (*WikiGetFormattedDataRequest) ProtoMessage()    {}
+func (*WikiGetFormattedDataRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{17}
+}
+func (m *WikiGetFormattedDataRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetFormattedDataRequest.Unmarshal(m, b)
+}
+func (m *WikiGetFormattedDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetFormattedDataRequest.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetFormattedDataRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetFormattedDataRequest.Merge(dst, src)
+}
+func (m *WikiGetFormattedDataRequest) XXX_Size() int {
+	return xxx_messageInfo_WikiGetFormattedDataRequest.Size(m)
+}
+func (m *WikiGetFormattedDataRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetFormattedDataRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetFormattedDataRequest proto.InternalMessageInfo
 
 func (m *WikiGetFormattedDataRequest) GetRepository() *Repository {
 	if m != nil {
@@ -624,13 +1026,35 @@ func (m *WikiGetFormattedDataRequest) GetDirectory() []byte {
 }
 
 type WikiGetFormattedDataResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WikiGetFormattedDataResponse) Reset()                    { *m = WikiGetFormattedDataResponse{} }
-func (m *WikiGetFormattedDataResponse) String() string            { return proto.CompactTextString(m) }
-func (*WikiGetFormattedDataResponse) ProtoMessage()               {}
-func (*WikiGetFormattedDataResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{18} }
+func (m *WikiGetFormattedDataResponse) Reset()         { *m = WikiGetFormattedDataResponse{} }
+func (m *WikiGetFormattedDataResponse) String() string { return proto.CompactTextString(m) }
+func (*WikiGetFormattedDataResponse) ProtoMessage()    {}
+func (*WikiGetFormattedDataResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_wiki_1d32eab65dda3828, []int{18}
+}
+func (m *WikiGetFormattedDataResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WikiGetFormattedDataResponse.Unmarshal(m, b)
+}
+func (m *WikiGetFormattedDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WikiGetFormattedDataResponse.Marshal(b, m, deterministic)
+}
+func (dst *WikiGetFormattedDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WikiGetFormattedDataResponse.Merge(dst, src)
+}
+func (m *WikiGetFormattedDataResponse) XXX_Size() int {
+	return xxx_messageInfo_WikiGetFormattedDataResponse.Size(m)
+}
+func (m *WikiGetFormattedDataResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WikiGetFormattedDataResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WikiGetFormattedDataResponse proto.InternalMessageInfo
 
 func (m *WikiGetFormattedDataResponse) GetData() []byte {
 	if m != nil {
@@ -669,8 +1093,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for WikiService service
-
+// WikiServiceClient is the client API for WikiService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type WikiServiceClient interface {
 	WikiGetPageVersions(ctx context.Context, in *WikiGetPageVersionsRequest, opts ...grpc.CallOption) (WikiService_WikiGetPageVersionsClient, error)
 	WikiWritePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiWritePageClient, error)
@@ -692,7 +1117,7 @@ func NewWikiServiceClient(cc *grpc.ClientConn) WikiServiceClient {
 }
 
 func (c *wikiServiceClient) WikiGetPageVersions(ctx context.Context, in *WikiGetPageVersionsRequest, opts ...grpc.CallOption) (WikiService_WikiGetPageVersionsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[0], c.cc, "/gitaly.WikiService/WikiGetPageVersions", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[0], "/gitaly.WikiService/WikiGetPageVersions", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -724,7 +1149,7 @@ func (x *wikiServiceWikiGetPageVersionsClient) Recv() (*WikiGetPageVersionsRespo
 }
 
 func (c *wikiServiceClient) WikiWritePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiWritePageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[1], c.cc, "/gitaly.WikiService/WikiWritePage", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[1], "/gitaly.WikiService/WikiWritePage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +1183,7 @@ func (x *wikiServiceWikiWritePageClient) CloseAndRecv() (*WikiWritePageResponse,
 }
 
 func (c *wikiServiceClient) WikiUpdatePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiUpdatePageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[2], c.cc, "/gitaly.WikiService/WikiUpdatePage", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[2], "/gitaly.WikiService/WikiUpdatePage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -793,7 +1218,7 @@ func (x *wikiServiceWikiUpdatePageClient) CloseAndRecv() (*WikiUpdatePageRespons
 
 func (c *wikiServiceClient) WikiDeletePage(ctx context.Context, in *WikiDeletePageRequest, opts ...grpc.CallOption) (*WikiDeletePageResponse, error) {
 	out := new(WikiDeletePageResponse)
-	err := grpc.Invoke(ctx, "/gitaly.WikiService/WikiDeletePage", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.WikiService/WikiDeletePage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +1226,7 @@ func (c *wikiServiceClient) WikiDeletePage(ctx context.Context, in *WikiDeletePa
 }
 
 func (c *wikiServiceClient) WikiFindPage(ctx context.Context, in *WikiFindPageRequest, opts ...grpc.CallOption) (WikiService_WikiFindPageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[3], c.cc, "/gitaly.WikiService/WikiFindPage", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[3], "/gitaly.WikiService/WikiFindPage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -833,7 +1258,7 @@ func (x *wikiServiceWikiFindPageClient) Recv() (*WikiFindPageResponse, error) {
 }
 
 func (c *wikiServiceClient) WikiFindFile(ctx context.Context, in *WikiFindFileRequest, opts ...grpc.CallOption) (WikiService_WikiFindFileClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[4], c.cc, "/gitaly.WikiService/WikiFindFile", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[4], "/gitaly.WikiService/WikiFindFile", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +1290,7 @@ func (x *wikiServiceWikiFindFileClient) Recv() (*WikiFindFileResponse, error) {
 }
 
 func (c *wikiServiceClient) WikiGetAllPages(ctx context.Context, in *WikiGetAllPagesRequest, opts ...grpc.CallOption) (WikiService_WikiGetAllPagesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[5], c.cc, "/gitaly.WikiService/WikiGetAllPages", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[5], "/gitaly.WikiService/WikiGetAllPages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -897,7 +1322,7 @@ func (x *wikiServiceWikiGetAllPagesClient) Recv() (*WikiGetAllPagesResponse, err
 }
 
 func (c *wikiServiceClient) WikiGetFormattedData(ctx context.Context, in *WikiGetFormattedDataRequest, opts ...grpc.CallOption) (WikiService_WikiGetFormattedDataClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_WikiService_serviceDesc.Streams[6], c.cc, "/gitaly.WikiService/WikiGetFormattedData", opts...)
+	stream, err := c.cc.NewStream(ctx, &_WikiService_serviceDesc.Streams[6], "/gitaly.WikiService/WikiGetFormattedData", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -928,8 +1353,7 @@ func (x *wikiServiceWikiGetFormattedDataClient) Recv() (*WikiGetFormattedDataRes
 	return m, nil
 }
 
-// Server API for WikiService service
-
+// WikiServiceServer is the server API for WikiService service.
 type WikiServiceServer interface {
 	WikiGetPageVersions(*WikiGetPageVersionsRequest, WikiService_WikiGetPageVersionsServer) error
 	WikiWritePage(WikiService_WikiWritePageServer) error
@@ -1170,9 +1594,9 @@ var _WikiService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "wiki.proto",
 }
 
-func init() { proto.RegisterFile("wiki.proto", fileDescriptor17) }
+func init() { proto.RegisterFile("wiki.proto", fileDescriptor_wiki_1d32eab65dda3828) }
 
-var fileDescriptor17 = []byte{
+var fileDescriptor_wiki_1d32eab65dda3828 = []byte{
 	// 937 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x57, 0xcd, 0x6e, 0xe4, 0x44,
 	0x10, 0x5e, 0x67, 0xfe, 0x3c, 0x95, 0x9f, 0x65, 0x9b, 0x65, 0xe3, 0x75, 0x42, 0x88, 0x9a, 0x95,

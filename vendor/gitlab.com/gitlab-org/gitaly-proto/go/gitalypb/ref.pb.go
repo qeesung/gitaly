@@ -6,7 +6,7 @@ package gitalypb
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_protobuf "github.com/golang/protobuf/ptypes/timestamp"
+import timestamp "github.com/golang/protobuf/ptypes/timestamp"
 
 import (
 	context "golang.org/x/net/context"
@@ -17,6 +17,12 @@ import (
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type FindLocalBranchesRequest_SortBy int32
 
@@ -41,7 +47,7 @@ func (x FindLocalBranchesRequest_SortBy) String() string {
 	return proto.EnumName(FindLocalBranchesRequest_SortBy_name, int32(x))
 }
 func (FindLocalBranchesRequest_SortBy) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{10, 0}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{10, 0}
 }
 
 type CreateBranchResponse_Status int32
@@ -70,21 +76,43 @@ func (x CreateBranchResponse_Status) String() string {
 	return proto.EnumName(CreateBranchResponse_Status_name, int32(x))
 }
 func (CreateBranchResponse_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{21, 0}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{21, 0}
 }
 
 type ListNewBlobsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Limit the number of revs to be returned fro mgit-rev-list
 	// If the limit is set to zero, all items will be returned
-	Limit uint32 `protobuf:"varint,3,opt,name=limit" json:"limit,omitempty"`
+	Limit                uint32   `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListNewBlobsRequest) Reset()                    { *m = ListNewBlobsRequest{} }
-func (m *ListNewBlobsRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListNewBlobsRequest) ProtoMessage()               {}
-func (*ListNewBlobsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (m *ListNewBlobsRequest) Reset()         { *m = ListNewBlobsRequest{} }
+func (m *ListNewBlobsRequest) String() string { return proto.CompactTextString(m) }
+func (*ListNewBlobsRequest) ProtoMessage()    {}
+func (*ListNewBlobsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{0}
+}
+func (m *ListNewBlobsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListNewBlobsRequest.Unmarshal(m, b)
+}
+func (m *ListNewBlobsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNewBlobsRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListNewBlobsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNewBlobsRequest.Merge(dst, src)
+}
+func (m *ListNewBlobsRequest) XXX_Size() int {
+	return xxx_messageInfo_ListNewBlobsRequest.Size(m)
+}
+func (m *ListNewBlobsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNewBlobsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNewBlobsRequest proto.InternalMessageInfo
 
 func (m *ListNewBlobsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -108,13 +136,35 @@ func (m *ListNewBlobsRequest) GetLimit() uint32 {
 }
 
 type ListNewBlobsResponse struct {
-	NewBlobObjects []*NewBlobObject `protobuf:"bytes,1,rep,name=new_blob_objects,json=newBlobObjects" json:"new_blob_objects,omitempty"`
+	NewBlobObjects       []*NewBlobObject `protobuf:"bytes,1,rep,name=new_blob_objects,json=newBlobObjects,proto3" json:"new_blob_objects,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
-func (m *ListNewBlobsResponse) Reset()                    { *m = ListNewBlobsResponse{} }
-func (m *ListNewBlobsResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListNewBlobsResponse) ProtoMessage()               {}
-func (*ListNewBlobsResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (m *ListNewBlobsResponse) Reset()         { *m = ListNewBlobsResponse{} }
+func (m *ListNewBlobsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListNewBlobsResponse) ProtoMessage()    {}
+func (*ListNewBlobsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{1}
+}
+func (m *ListNewBlobsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListNewBlobsResponse.Unmarshal(m, b)
+}
+func (m *ListNewBlobsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNewBlobsResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListNewBlobsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNewBlobsResponse.Merge(dst, src)
+}
+func (m *ListNewBlobsResponse) XXX_Size() int {
+	return xxx_messageInfo_ListNewBlobsResponse.Size(m)
+}
+func (m *ListNewBlobsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNewBlobsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNewBlobsResponse proto.InternalMessageInfo
 
 func (m *ListNewBlobsResponse) GetNewBlobObjects() []*NewBlobObject {
 	if m != nil {
@@ -124,13 +174,35 @@ func (m *ListNewBlobsResponse) GetNewBlobObjects() []*NewBlobObject {
 }
 
 type FindDefaultBranchNameRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindDefaultBranchNameRequest) Reset()                    { *m = FindDefaultBranchNameRequest{} }
-func (m *FindDefaultBranchNameRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindDefaultBranchNameRequest) ProtoMessage()               {}
-func (*FindDefaultBranchNameRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (m *FindDefaultBranchNameRequest) Reset()         { *m = FindDefaultBranchNameRequest{} }
+func (m *FindDefaultBranchNameRequest) String() string { return proto.CompactTextString(m) }
+func (*FindDefaultBranchNameRequest) ProtoMessage()    {}
+func (*FindDefaultBranchNameRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{2}
+}
+func (m *FindDefaultBranchNameRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindDefaultBranchNameRequest.Unmarshal(m, b)
+}
+func (m *FindDefaultBranchNameRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindDefaultBranchNameRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindDefaultBranchNameRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindDefaultBranchNameRequest.Merge(dst, src)
+}
+func (m *FindDefaultBranchNameRequest) XXX_Size() int {
+	return xxx_messageInfo_FindDefaultBranchNameRequest.Size(m)
+}
+func (m *FindDefaultBranchNameRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindDefaultBranchNameRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindDefaultBranchNameRequest proto.InternalMessageInfo
 
 func (m *FindDefaultBranchNameRequest) GetRepository() *Repository {
 	if m != nil {
@@ -140,13 +212,35 @@ func (m *FindDefaultBranchNameRequest) GetRepository() *Repository {
 }
 
 type FindDefaultBranchNameResponse struct {
-	Name []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name                 []byte   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindDefaultBranchNameResponse) Reset()                    { *m = FindDefaultBranchNameResponse{} }
-func (m *FindDefaultBranchNameResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindDefaultBranchNameResponse) ProtoMessage()               {}
-func (*FindDefaultBranchNameResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (m *FindDefaultBranchNameResponse) Reset()         { *m = FindDefaultBranchNameResponse{} }
+func (m *FindDefaultBranchNameResponse) String() string { return proto.CompactTextString(m) }
+func (*FindDefaultBranchNameResponse) ProtoMessage()    {}
+func (*FindDefaultBranchNameResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{3}
+}
+func (m *FindDefaultBranchNameResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindDefaultBranchNameResponse.Unmarshal(m, b)
+}
+func (m *FindDefaultBranchNameResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindDefaultBranchNameResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindDefaultBranchNameResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindDefaultBranchNameResponse.Merge(dst, src)
+}
+func (m *FindDefaultBranchNameResponse) XXX_Size() int {
+	return xxx_messageInfo_FindDefaultBranchNameResponse.Size(m)
+}
+func (m *FindDefaultBranchNameResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindDefaultBranchNameResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindDefaultBranchNameResponse proto.InternalMessageInfo
 
 func (m *FindDefaultBranchNameResponse) GetName() []byte {
 	if m != nil {
@@ -156,13 +250,35 @@ func (m *FindDefaultBranchNameResponse) GetName() []byte {
 }
 
 type FindAllBranchNamesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindAllBranchNamesRequest) Reset()                    { *m = FindAllBranchNamesRequest{} }
-func (m *FindAllBranchNamesRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllBranchNamesRequest) ProtoMessage()               {}
-func (*FindAllBranchNamesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (m *FindAllBranchNamesRequest) Reset()         { *m = FindAllBranchNamesRequest{} }
+func (m *FindAllBranchNamesRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllBranchNamesRequest) ProtoMessage()    {}
+func (*FindAllBranchNamesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{4}
+}
+func (m *FindAllBranchNamesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllBranchNamesRequest.Unmarshal(m, b)
+}
+func (m *FindAllBranchNamesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllBranchNamesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllBranchNamesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllBranchNamesRequest.Merge(dst, src)
+}
+func (m *FindAllBranchNamesRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllBranchNamesRequest.Size(m)
+}
+func (m *FindAllBranchNamesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllBranchNamesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllBranchNamesRequest proto.InternalMessageInfo
 
 func (m *FindAllBranchNamesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -172,13 +288,35 @@ func (m *FindAllBranchNamesRequest) GetRepository() *Repository {
 }
 
 type FindAllBranchNamesResponse struct {
-	Names [][]byte `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	Names                [][]byte `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindAllBranchNamesResponse) Reset()                    { *m = FindAllBranchNamesResponse{} }
-func (m *FindAllBranchNamesResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllBranchNamesResponse) ProtoMessage()               {}
-func (*FindAllBranchNamesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{5} }
+func (m *FindAllBranchNamesResponse) Reset()         { *m = FindAllBranchNamesResponse{} }
+func (m *FindAllBranchNamesResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllBranchNamesResponse) ProtoMessage()    {}
+func (*FindAllBranchNamesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{5}
+}
+func (m *FindAllBranchNamesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllBranchNamesResponse.Unmarshal(m, b)
+}
+func (m *FindAllBranchNamesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllBranchNamesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllBranchNamesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllBranchNamesResponse.Merge(dst, src)
+}
+func (m *FindAllBranchNamesResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllBranchNamesResponse.Size(m)
+}
+func (m *FindAllBranchNamesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllBranchNamesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllBranchNamesResponse proto.InternalMessageInfo
 
 func (m *FindAllBranchNamesResponse) GetNames() [][]byte {
 	if m != nil {
@@ -188,13 +326,35 @@ func (m *FindAllBranchNamesResponse) GetNames() [][]byte {
 }
 
 type FindAllTagNamesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindAllTagNamesRequest) Reset()                    { *m = FindAllTagNamesRequest{} }
-func (m *FindAllTagNamesRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllTagNamesRequest) ProtoMessage()               {}
-func (*FindAllTagNamesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{6} }
+func (m *FindAllTagNamesRequest) Reset()         { *m = FindAllTagNamesRequest{} }
+func (m *FindAllTagNamesRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllTagNamesRequest) ProtoMessage()    {}
+func (*FindAllTagNamesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{6}
+}
+func (m *FindAllTagNamesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllTagNamesRequest.Unmarshal(m, b)
+}
+func (m *FindAllTagNamesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllTagNamesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllTagNamesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllTagNamesRequest.Merge(dst, src)
+}
+func (m *FindAllTagNamesRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllTagNamesRequest.Size(m)
+}
+func (m *FindAllTagNamesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllTagNamesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllTagNamesRequest proto.InternalMessageInfo
 
 func (m *FindAllTagNamesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -204,13 +364,35 @@ func (m *FindAllTagNamesRequest) GetRepository() *Repository {
 }
 
 type FindAllTagNamesResponse struct {
-	Names [][]byte `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	Names                [][]byte `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindAllTagNamesResponse) Reset()                    { *m = FindAllTagNamesResponse{} }
-func (m *FindAllTagNamesResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllTagNamesResponse) ProtoMessage()               {}
-func (*FindAllTagNamesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{7} }
+func (m *FindAllTagNamesResponse) Reset()         { *m = FindAllTagNamesResponse{} }
+func (m *FindAllTagNamesResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllTagNamesResponse) ProtoMessage()    {}
+func (*FindAllTagNamesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{7}
+}
+func (m *FindAllTagNamesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllTagNamesResponse.Unmarshal(m, b)
+}
+func (m *FindAllTagNamesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllTagNamesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllTagNamesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllTagNamesResponse.Merge(dst, src)
+}
+func (m *FindAllTagNamesResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllTagNamesResponse.Size(m)
+}
+func (m *FindAllTagNamesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllTagNamesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllTagNamesResponse proto.InternalMessageInfo
 
 func (m *FindAllTagNamesResponse) GetNames() [][]byte {
 	if m != nil {
@@ -220,17 +402,39 @@ func (m *FindAllTagNamesResponse) GetNames() [][]byte {
 }
 
 type FindRefNameRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Require that the resulting ref contains this commit as an ancestor
-	CommitId string `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	CommitId string `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Example prefix: "refs/heads/". Type bytes because that is the type of ref names.
-	Prefix []byte `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Prefix               []byte   `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindRefNameRequest) Reset()                    { *m = FindRefNameRequest{} }
-func (m *FindRefNameRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindRefNameRequest) ProtoMessage()               {}
-func (*FindRefNameRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{8} }
+func (m *FindRefNameRequest) Reset()         { *m = FindRefNameRequest{} }
+func (m *FindRefNameRequest) String() string { return proto.CompactTextString(m) }
+func (*FindRefNameRequest) ProtoMessage()    {}
+func (*FindRefNameRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{8}
+}
+func (m *FindRefNameRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRefNameRequest.Unmarshal(m, b)
+}
+func (m *FindRefNameRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRefNameRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindRefNameRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRefNameRequest.Merge(dst, src)
+}
+func (m *FindRefNameRequest) XXX_Size() int {
+	return xxx_messageInfo_FindRefNameRequest.Size(m)
+}
+func (m *FindRefNameRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRefNameRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRefNameRequest proto.InternalMessageInfo
 
 func (m *FindRefNameRequest) GetRepository() *Repository {
 	if m != nil {
@@ -255,13 +459,35 @@ func (m *FindRefNameRequest) GetPrefix() []byte {
 
 type FindRefNameResponse struct {
 	// Example name: "refs/heads/master". Cannot assume UTF8, so the type is bytes.
-	Name []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name                 []byte   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindRefNameResponse) Reset()                    { *m = FindRefNameResponse{} }
-func (m *FindRefNameResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindRefNameResponse) ProtoMessage()               {}
-func (*FindRefNameResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{9} }
+func (m *FindRefNameResponse) Reset()         { *m = FindRefNameResponse{} }
+func (m *FindRefNameResponse) String() string { return proto.CompactTextString(m) }
+func (*FindRefNameResponse) ProtoMessage()    {}
+func (*FindRefNameResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{9}
+}
+func (m *FindRefNameResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindRefNameResponse.Unmarshal(m, b)
+}
+func (m *FindRefNameResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindRefNameResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindRefNameResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindRefNameResponse.Merge(dst, src)
+}
+func (m *FindRefNameResponse) XXX_Size() int {
+	return xxx_messageInfo_FindRefNameResponse.Size(m)
+}
+func (m *FindRefNameResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindRefNameResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindRefNameResponse proto.InternalMessageInfo
 
 func (m *FindRefNameResponse) GetName() []byte {
 	if m != nil {
@@ -271,14 +497,36 @@ func (m *FindRefNameResponse) GetName() []byte {
 }
 
 type FindLocalBranchesRequest struct {
-	Repository *Repository                     `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	SortBy     FindLocalBranchesRequest_SortBy `protobuf:"varint,2,opt,name=sort_by,json=sortBy,enum=gitaly.FindLocalBranchesRequest_SortBy" json:"sort_by,omitempty"`
+	Repository           *Repository                     `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	SortBy               FindLocalBranchesRequest_SortBy `protobuf:"varint,2,opt,name=sort_by,json=sortBy,proto3,enum=gitaly.FindLocalBranchesRequest_SortBy" json:"sort_by,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
+	XXX_unrecognized     []byte                          `json:"-"`
+	XXX_sizecache        int32                           `json:"-"`
 }
 
-func (m *FindLocalBranchesRequest) Reset()                    { *m = FindLocalBranchesRequest{} }
-func (m *FindLocalBranchesRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindLocalBranchesRequest) ProtoMessage()               {}
-func (*FindLocalBranchesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{10} }
+func (m *FindLocalBranchesRequest) Reset()         { *m = FindLocalBranchesRequest{} }
+func (m *FindLocalBranchesRequest) String() string { return proto.CompactTextString(m) }
+func (*FindLocalBranchesRequest) ProtoMessage()    {}
+func (*FindLocalBranchesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{10}
+}
+func (m *FindLocalBranchesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLocalBranchesRequest.Unmarshal(m, b)
+}
+func (m *FindLocalBranchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLocalBranchesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindLocalBranchesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLocalBranchesRequest.Merge(dst, src)
+}
+func (m *FindLocalBranchesRequest) XXX_Size() int {
+	return xxx_messageInfo_FindLocalBranchesRequest.Size(m)
+}
+func (m *FindLocalBranchesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLocalBranchesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLocalBranchesRequest proto.InternalMessageInfo
 
 func (m *FindLocalBranchesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -295,13 +543,35 @@ func (m *FindLocalBranchesRequest) GetSortBy() FindLocalBranchesRequest_SortBy {
 }
 
 type FindLocalBranchesResponse struct {
-	Branches []*FindLocalBranchResponse `protobuf:"bytes,1,rep,name=branches" json:"branches,omitempty"`
+	Branches             []*FindLocalBranchResponse `protobuf:"bytes,1,rep,name=branches,proto3" json:"branches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                   `json:"-"`
+	XXX_unrecognized     []byte                     `json:"-"`
+	XXX_sizecache        int32                      `json:"-"`
 }
 
-func (m *FindLocalBranchesResponse) Reset()                    { *m = FindLocalBranchesResponse{} }
-func (m *FindLocalBranchesResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindLocalBranchesResponse) ProtoMessage()               {}
-func (*FindLocalBranchesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{11} }
+func (m *FindLocalBranchesResponse) Reset()         { *m = FindLocalBranchesResponse{} }
+func (m *FindLocalBranchesResponse) String() string { return proto.CompactTextString(m) }
+func (*FindLocalBranchesResponse) ProtoMessage()    {}
+func (*FindLocalBranchesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{11}
+}
+func (m *FindLocalBranchesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLocalBranchesResponse.Unmarshal(m, b)
+}
+func (m *FindLocalBranchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLocalBranchesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindLocalBranchesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLocalBranchesResponse.Merge(dst, src)
+}
+func (m *FindLocalBranchesResponse) XXX_Size() int {
+	return xxx_messageInfo_FindLocalBranchesResponse.Size(m)
+}
+func (m *FindLocalBranchesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLocalBranchesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLocalBranchesResponse proto.InternalMessageInfo
 
 func (m *FindLocalBranchesResponse) GetBranches() []*FindLocalBranchResponse {
 	if m != nil {
@@ -311,17 +581,39 @@ func (m *FindLocalBranchesResponse) GetBranches() []*FindLocalBranchResponse {
 }
 
 type FindLocalBranchResponse struct {
-	Name            []byte                       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	CommitId        string                       `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
-	CommitSubject   []byte                       `protobuf:"bytes,3,opt,name=commit_subject,json=commitSubject,proto3" json:"commit_subject,omitempty"`
-	CommitAuthor    *FindLocalBranchCommitAuthor `protobuf:"bytes,4,opt,name=commit_author,json=commitAuthor" json:"commit_author,omitempty"`
-	CommitCommitter *FindLocalBranchCommitAuthor `protobuf:"bytes,5,opt,name=commit_committer,json=commitCommitter" json:"commit_committer,omitempty"`
+	Name                 []byte                       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	CommitId             string                       `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	CommitSubject        []byte                       `protobuf:"bytes,3,opt,name=commit_subject,json=commitSubject,proto3" json:"commit_subject,omitempty"`
+	CommitAuthor         *FindLocalBranchCommitAuthor `protobuf:"bytes,4,opt,name=commit_author,json=commitAuthor,proto3" json:"commit_author,omitempty"`
+	CommitCommitter      *FindLocalBranchCommitAuthor `protobuf:"bytes,5,opt,name=commit_committer,json=commitCommitter,proto3" json:"commit_committer,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
+	XXX_unrecognized     []byte                       `json:"-"`
+	XXX_sizecache        int32                        `json:"-"`
 }
 
-func (m *FindLocalBranchResponse) Reset()                    { *m = FindLocalBranchResponse{} }
-func (m *FindLocalBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindLocalBranchResponse) ProtoMessage()               {}
-func (*FindLocalBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{12} }
+func (m *FindLocalBranchResponse) Reset()         { *m = FindLocalBranchResponse{} }
+func (m *FindLocalBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*FindLocalBranchResponse) ProtoMessage()    {}
+func (*FindLocalBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{12}
+}
+func (m *FindLocalBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLocalBranchResponse.Unmarshal(m, b)
+}
+func (m *FindLocalBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLocalBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindLocalBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLocalBranchResponse.Merge(dst, src)
+}
+func (m *FindLocalBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_FindLocalBranchResponse.Size(m)
+}
+func (m *FindLocalBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLocalBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLocalBranchResponse proto.InternalMessageInfo
 
 func (m *FindLocalBranchResponse) GetName() []byte {
 	if m != nil {
@@ -359,15 +651,37 @@ func (m *FindLocalBranchResponse) GetCommitCommitter() *FindLocalBranchCommitAut
 }
 
 type FindLocalBranchCommitAuthor struct {
-	Name  []byte                     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Email []byte                     `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	Date  *google_protobuf.Timestamp `protobuf:"bytes,3,opt,name=date" json:"date,omitempty"`
+	Name                 []byte               `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Email                []byte               `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Date                 *timestamp.Timestamp `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *FindLocalBranchCommitAuthor) Reset()                    { *m = FindLocalBranchCommitAuthor{} }
-func (m *FindLocalBranchCommitAuthor) String() string            { return proto.CompactTextString(m) }
-func (*FindLocalBranchCommitAuthor) ProtoMessage()               {}
-func (*FindLocalBranchCommitAuthor) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{13} }
+func (m *FindLocalBranchCommitAuthor) Reset()         { *m = FindLocalBranchCommitAuthor{} }
+func (m *FindLocalBranchCommitAuthor) String() string { return proto.CompactTextString(m) }
+func (*FindLocalBranchCommitAuthor) ProtoMessage()    {}
+func (*FindLocalBranchCommitAuthor) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{13}
+}
+func (m *FindLocalBranchCommitAuthor) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLocalBranchCommitAuthor.Unmarshal(m, b)
+}
+func (m *FindLocalBranchCommitAuthor) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLocalBranchCommitAuthor.Marshal(b, m, deterministic)
+}
+func (dst *FindLocalBranchCommitAuthor) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLocalBranchCommitAuthor.Merge(dst, src)
+}
+func (m *FindLocalBranchCommitAuthor) XXX_Size() int {
+	return xxx_messageInfo_FindLocalBranchCommitAuthor.Size(m)
+}
+func (m *FindLocalBranchCommitAuthor) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLocalBranchCommitAuthor.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLocalBranchCommitAuthor proto.InternalMessageInfo
 
 func (m *FindLocalBranchCommitAuthor) GetName() []byte {
 	if m != nil {
@@ -383,7 +697,7 @@ func (m *FindLocalBranchCommitAuthor) GetEmail() []byte {
 	return nil
 }
 
-func (m *FindLocalBranchCommitAuthor) GetDate() *google_protobuf.Timestamp {
+func (m *FindLocalBranchCommitAuthor) GetDate() *timestamp.Timestamp {
 	if m != nil {
 		return m.Date
 	}
@@ -391,18 +705,40 @@ func (m *FindLocalBranchCommitAuthor) GetDate() *google_protobuf.Timestamp {
 }
 
 type FindAllBranchesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Only return branches that are merged into root ref
-	MergedOnly bool `protobuf:"varint,2,opt,name=merged_only,json=mergedOnly" json:"merged_only,omitempty"`
+	MergedOnly bool `protobuf:"varint,2,opt,name=merged_only,json=mergedOnly,proto3" json:"merged_only,omitempty"`
 	// If merged_only is true, this is a list of branches from which we
 	// return those merged into the root ref
-	MergedBranches [][]byte `protobuf:"bytes,3,rep,name=merged_branches,json=mergedBranches,proto3" json:"merged_branches,omitempty"`
+	MergedBranches       [][]byte `protobuf:"bytes,3,rep,name=merged_branches,json=mergedBranches,proto3" json:"merged_branches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindAllBranchesRequest) Reset()                    { *m = FindAllBranchesRequest{} }
-func (m *FindAllBranchesRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllBranchesRequest) ProtoMessage()               {}
-func (*FindAllBranchesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{14} }
+func (m *FindAllBranchesRequest) Reset()         { *m = FindAllBranchesRequest{} }
+func (m *FindAllBranchesRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllBranchesRequest) ProtoMessage()    {}
+func (*FindAllBranchesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{14}
+}
+func (m *FindAllBranchesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllBranchesRequest.Unmarshal(m, b)
+}
+func (m *FindAllBranchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllBranchesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllBranchesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllBranchesRequest.Merge(dst, src)
+}
+func (m *FindAllBranchesRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllBranchesRequest.Size(m)
+}
+func (m *FindAllBranchesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllBranchesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllBranchesRequest proto.InternalMessageInfo
 
 func (m *FindAllBranchesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -426,13 +762,35 @@ func (m *FindAllBranchesRequest) GetMergedBranches() [][]byte {
 }
 
 type FindAllBranchesResponse struct {
-	Branches []*FindAllBranchesResponse_Branch `protobuf:"bytes,1,rep,name=branches" json:"branches,omitempty"`
+	Branches             []*FindAllBranchesResponse_Branch `protobuf:"bytes,1,rep,name=branches,proto3" json:"branches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
 }
 
-func (m *FindAllBranchesResponse) Reset()                    { *m = FindAllBranchesResponse{} }
-func (m *FindAllBranchesResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllBranchesResponse) ProtoMessage()               {}
-func (*FindAllBranchesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{15} }
+func (m *FindAllBranchesResponse) Reset()         { *m = FindAllBranchesResponse{} }
+func (m *FindAllBranchesResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllBranchesResponse) ProtoMessage()    {}
+func (*FindAllBranchesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{15}
+}
+func (m *FindAllBranchesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllBranchesResponse.Unmarshal(m, b)
+}
+func (m *FindAllBranchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllBranchesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllBranchesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllBranchesResponse.Merge(dst, src)
+}
+func (m *FindAllBranchesResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllBranchesResponse.Size(m)
+}
+func (m *FindAllBranchesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllBranchesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllBranchesResponse proto.InternalMessageInfo
 
 func (m *FindAllBranchesResponse) GetBranches() []*FindAllBranchesResponse_Branch {
 	if m != nil {
@@ -442,16 +800,36 @@ func (m *FindAllBranchesResponse) GetBranches() []*FindAllBranchesResponse_Branc
 }
 
 type FindAllBranchesResponse_Branch struct {
-	Name   []byte     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Target *GitCommit `protobuf:"bytes,2,opt,name=target" json:"target,omitempty"`
+	Name                 []byte     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Target               *GitCommit `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *FindAllBranchesResponse_Branch) Reset()         { *m = FindAllBranchesResponse_Branch{} }
 func (m *FindAllBranchesResponse_Branch) String() string { return proto.CompactTextString(m) }
 func (*FindAllBranchesResponse_Branch) ProtoMessage()    {}
 func (*FindAllBranchesResponse_Branch) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{15, 0}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{15, 0}
 }
+func (m *FindAllBranchesResponse_Branch) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllBranchesResponse_Branch.Unmarshal(m, b)
+}
+func (m *FindAllBranchesResponse_Branch) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllBranchesResponse_Branch.Marshal(b, m, deterministic)
+}
+func (dst *FindAllBranchesResponse_Branch) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllBranchesResponse_Branch.Merge(dst, src)
+}
+func (m *FindAllBranchesResponse_Branch) XXX_Size() int {
+	return xxx_messageInfo_FindAllBranchesResponse_Branch.Size(m)
+}
+func (m *FindAllBranchesResponse_Branch) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllBranchesResponse_Branch.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllBranchesResponse_Branch proto.InternalMessageInfo
 
 func (m *FindAllBranchesResponse_Branch) GetName() []byte {
 	if m != nil {
@@ -468,13 +846,35 @@ func (m *FindAllBranchesResponse_Branch) GetTarget() *GitCommit {
 }
 
 type FindAllTagsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindAllTagsRequest) Reset()                    { *m = FindAllTagsRequest{} }
-func (m *FindAllTagsRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllTagsRequest) ProtoMessage()               {}
-func (*FindAllTagsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{16} }
+func (m *FindAllTagsRequest) Reset()         { *m = FindAllTagsRequest{} }
+func (m *FindAllTagsRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllTagsRequest) ProtoMessage()    {}
+func (*FindAllTagsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{16}
+}
+func (m *FindAllTagsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllTagsRequest.Unmarshal(m, b)
+}
+func (m *FindAllTagsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllTagsRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllTagsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllTagsRequest.Merge(dst, src)
+}
+func (m *FindAllTagsRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllTagsRequest.Size(m)
+}
+func (m *FindAllTagsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllTagsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllTagsRequest proto.InternalMessageInfo
 
 func (m *FindAllTagsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -484,13 +884,35 @@ func (m *FindAllTagsRequest) GetRepository() *Repository {
 }
 
 type FindAllTagsResponse struct {
-	Tags []*Tag `protobuf:"bytes,1,rep,name=tags" json:"tags,omitempty"`
+	Tags                 []*Tag   `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindAllTagsResponse) Reset()                    { *m = FindAllTagsResponse{} }
-func (m *FindAllTagsResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllTagsResponse) ProtoMessage()               {}
-func (*FindAllTagsResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{17} }
+func (m *FindAllTagsResponse) Reset()         { *m = FindAllTagsResponse{} }
+func (m *FindAllTagsResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllTagsResponse) ProtoMessage()    {}
+func (*FindAllTagsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{17}
+}
+func (m *FindAllTagsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllTagsResponse.Unmarshal(m, b)
+}
+func (m *FindAllTagsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllTagsResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllTagsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllTagsResponse.Merge(dst, src)
+}
+func (m *FindAllTagsResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllTagsResponse.Size(m)
+}
+func (m *FindAllTagsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllTagsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllTagsResponse proto.InternalMessageInfo
 
 func (m *FindAllTagsResponse) GetTags() []*Tag {
 	if m != nil {
@@ -500,15 +922,37 @@ func (m *FindAllTagsResponse) GetTags() []*Tag {
 }
 
 type RefExistsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Any ref, e.g. 'refs/heads/master' or 'refs/tags/v1.0.1'. Must start with 'refs/'.
-	Ref []byte `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Ref                  []byte   `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RefExistsRequest) Reset()                    { *m = RefExistsRequest{} }
-func (m *RefExistsRequest) String() string            { return proto.CompactTextString(m) }
-func (*RefExistsRequest) ProtoMessage()               {}
-func (*RefExistsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{18} }
+func (m *RefExistsRequest) Reset()         { *m = RefExistsRequest{} }
+func (m *RefExistsRequest) String() string { return proto.CompactTextString(m) }
+func (*RefExistsRequest) ProtoMessage()    {}
+func (*RefExistsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{18}
+}
+func (m *RefExistsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RefExistsRequest.Unmarshal(m, b)
+}
+func (m *RefExistsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RefExistsRequest.Marshal(b, m, deterministic)
+}
+func (dst *RefExistsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RefExistsRequest.Merge(dst, src)
+}
+func (m *RefExistsRequest) XXX_Size() int {
+	return xxx_messageInfo_RefExistsRequest.Size(m)
+}
+func (m *RefExistsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RefExistsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RefExistsRequest proto.InternalMessageInfo
 
 func (m *RefExistsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -525,13 +969,35 @@ func (m *RefExistsRequest) GetRef() []byte {
 }
 
 type RefExistsResponse struct {
-	Value bool `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+	Value                bool     `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RefExistsResponse) Reset()                    { *m = RefExistsResponse{} }
-func (m *RefExistsResponse) String() string            { return proto.CompactTextString(m) }
-func (*RefExistsResponse) ProtoMessage()               {}
-func (*RefExistsResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{19} }
+func (m *RefExistsResponse) Reset()         { *m = RefExistsResponse{} }
+func (m *RefExistsResponse) String() string { return proto.CompactTextString(m) }
+func (*RefExistsResponse) ProtoMessage()    {}
+func (*RefExistsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{19}
+}
+func (m *RefExistsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RefExistsResponse.Unmarshal(m, b)
+}
+func (m *RefExistsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RefExistsResponse.Marshal(b, m, deterministic)
+}
+func (dst *RefExistsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RefExistsResponse.Merge(dst, src)
+}
+func (m *RefExistsResponse) XXX_Size() int {
+	return xxx_messageInfo_RefExistsResponse.Size(m)
+}
+func (m *RefExistsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RefExistsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RefExistsResponse proto.InternalMessageInfo
 
 func (m *RefExistsResponse) GetValue() bool {
 	if m != nil {
@@ -541,15 +1007,37 @@ func (m *RefExistsResponse) GetValue() bool {
 }
 
 type CreateBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Name       []byte      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	StartPoint []byte      `protobuf:"bytes,3,opt,name=start_point,json=startPoint,proto3" json:"start_point,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Name                 []byte      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	StartPoint           []byte      `protobuf:"bytes,3,opt,name=start_point,json=startPoint,proto3" json:"start_point,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateBranchRequest) Reset()                    { *m = CreateBranchRequest{} }
-func (m *CreateBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*CreateBranchRequest) ProtoMessage()               {}
-func (*CreateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{20} }
+func (m *CreateBranchRequest) Reset()         { *m = CreateBranchRequest{} }
+func (m *CreateBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateBranchRequest) ProtoMessage()    {}
+func (*CreateBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{20}
+}
+func (m *CreateBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateBranchRequest.Unmarshal(m, b)
+}
+func (m *CreateBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateBranchRequest.Merge(dst, src)
+}
+func (m *CreateBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateBranchRequest.Size(m)
+}
+func (m *CreateBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateBranchRequest proto.InternalMessageInfo
 
 func (m *CreateBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -573,14 +1061,36 @@ func (m *CreateBranchRequest) GetStartPoint() []byte {
 }
 
 type CreateBranchResponse struct {
-	Status CreateBranchResponse_Status `protobuf:"varint,1,opt,name=status,enum=gitaly.CreateBranchResponse_Status" json:"status,omitempty"`
-	Branch *Branch                     `protobuf:"bytes,2,opt,name=branch" json:"branch,omitempty"`
+	Status               CreateBranchResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=gitaly.CreateBranchResponse_Status" json:"status,omitempty"`
+	Branch               *Branch                     `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
+	XXX_unrecognized     []byte                      `json:"-"`
+	XXX_sizecache        int32                       `json:"-"`
 }
 
-func (m *CreateBranchResponse) Reset()                    { *m = CreateBranchResponse{} }
-func (m *CreateBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*CreateBranchResponse) ProtoMessage()               {}
-func (*CreateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{21} }
+func (m *CreateBranchResponse) Reset()         { *m = CreateBranchResponse{} }
+func (m *CreateBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateBranchResponse) ProtoMessage()    {}
+func (*CreateBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{21}
+}
+func (m *CreateBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateBranchResponse.Unmarshal(m, b)
+}
+func (m *CreateBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateBranchResponse.Merge(dst, src)
+}
+func (m *CreateBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateBranchResponse.Size(m)
+}
+func (m *CreateBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateBranchResponse proto.InternalMessageInfo
 
 func (m *CreateBranchResponse) GetStatus() CreateBranchResponse_Status {
 	if m != nil {
@@ -597,14 +1107,36 @@ func (m *CreateBranchResponse) GetBranch() *Branch {
 }
 
 type DeleteBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Name       []byte      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Name                 []byte      `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *DeleteBranchRequest) Reset()                    { *m = DeleteBranchRequest{} }
-func (m *DeleteBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*DeleteBranchRequest) ProtoMessage()               {}
-func (*DeleteBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{22} }
+func (m *DeleteBranchRequest) Reset()         { *m = DeleteBranchRequest{} }
+func (m *DeleteBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteBranchRequest) ProtoMessage()    {}
+func (*DeleteBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{22}
+}
+func (m *DeleteBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteBranchRequest.Unmarshal(m, b)
+}
+func (m *DeleteBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *DeleteBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteBranchRequest.Merge(dst, src)
+}
+func (m *DeleteBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteBranchRequest.Size(m)
+}
+func (m *DeleteBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteBranchRequest proto.InternalMessageInfo
 
 func (m *DeleteBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -622,23 +1154,67 @@ func (m *DeleteBranchRequest) GetName() []byte {
 
 // Not clear if we need to do status signaling; we can add fields later.
 type DeleteBranchResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteBranchResponse) Reset()                    { *m = DeleteBranchResponse{} }
-func (m *DeleteBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*DeleteBranchResponse) ProtoMessage()               {}
-func (*DeleteBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{23} }
+func (m *DeleteBranchResponse) Reset()         { *m = DeleteBranchResponse{} }
+func (m *DeleteBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteBranchResponse) ProtoMessage()    {}
+func (*DeleteBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{23}
+}
+func (m *DeleteBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteBranchResponse.Unmarshal(m, b)
+}
+func (m *DeleteBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *DeleteBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteBranchResponse.Merge(dst, src)
+}
+func (m *DeleteBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteBranchResponse.Size(m)
+}
+func (m *DeleteBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteBranchResponse proto.InternalMessageInfo
 
 type FindBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Name can be 'master' but also 'refs/heads/master'
-	Name []byte `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Name                 []byte   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindBranchRequest) Reset()                    { *m = FindBranchRequest{} }
-func (m *FindBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindBranchRequest) ProtoMessage()               {}
-func (*FindBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{24} }
+func (m *FindBranchRequest) Reset()         { *m = FindBranchRequest{} }
+func (m *FindBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*FindBranchRequest) ProtoMessage()    {}
+func (*FindBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{24}
+}
+func (m *FindBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindBranchRequest.Unmarshal(m, b)
+}
+func (m *FindBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindBranchRequest.Merge(dst, src)
+}
+func (m *FindBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_FindBranchRequest.Size(m)
+}
+func (m *FindBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindBranchRequest proto.InternalMessageInfo
 
 func (m *FindBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -655,13 +1231,35 @@ func (m *FindBranchRequest) GetName() []byte {
 }
 
 type FindBranchResponse struct {
-	Branch *Branch `protobuf:"bytes,1,opt,name=branch" json:"branch,omitempty"`
+	Branch               *Branch  `protobuf:"bytes,1,opt,name=branch,proto3" json:"branch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindBranchResponse) Reset()                    { *m = FindBranchResponse{} }
-func (m *FindBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindBranchResponse) ProtoMessage()               {}
-func (*FindBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{25} }
+func (m *FindBranchResponse) Reset()         { *m = FindBranchResponse{} }
+func (m *FindBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*FindBranchResponse) ProtoMessage()    {}
+func (*FindBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{25}
+}
+func (m *FindBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindBranchResponse.Unmarshal(m, b)
+}
+func (m *FindBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindBranchResponse.Merge(dst, src)
+}
+func (m *FindBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_FindBranchResponse.Size(m)
+}
+func (m *FindBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindBranchResponse proto.InternalMessageInfo
 
 func (m *FindBranchResponse) GetBranch() *Branch {
 	if m != nil {
@@ -671,16 +1269,38 @@ func (m *FindBranchResponse) GetBranch() *Branch {
 }
 
 type DeleteRefsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// The following two fields are mutually exclusive
-	ExceptWithPrefix [][]byte `protobuf:"bytes,2,rep,name=except_with_prefix,json=exceptWithPrefix,proto3" json:"except_with_prefix,omitempty"`
-	Refs             [][]byte `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
+	ExceptWithPrefix     [][]byte `protobuf:"bytes,2,rep,name=except_with_prefix,json=exceptWithPrefix,proto3" json:"except_with_prefix,omitempty"`
+	Refs                 [][]byte `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteRefsRequest) Reset()                    { *m = DeleteRefsRequest{} }
-func (m *DeleteRefsRequest) String() string            { return proto.CompactTextString(m) }
-func (*DeleteRefsRequest) ProtoMessage()               {}
-func (*DeleteRefsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{26} }
+func (m *DeleteRefsRequest) Reset()         { *m = DeleteRefsRequest{} }
+func (m *DeleteRefsRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteRefsRequest) ProtoMessage()    {}
+func (*DeleteRefsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{26}
+}
+func (m *DeleteRefsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteRefsRequest.Unmarshal(m, b)
+}
+func (m *DeleteRefsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteRefsRequest.Marshal(b, m, deterministic)
+}
+func (dst *DeleteRefsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteRefsRequest.Merge(dst, src)
+}
+func (m *DeleteRefsRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteRefsRequest.Size(m)
+}
+func (m *DeleteRefsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteRefsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteRefsRequest proto.InternalMessageInfo
 
 func (m *DeleteRefsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -704,13 +1324,35 @@ func (m *DeleteRefsRequest) GetRefs() [][]byte {
 }
 
 type DeleteRefsResponse struct {
-	GitError string `protobuf:"bytes,1,opt,name=git_error,json=gitError" json:"git_error,omitempty"`
+	GitError             string   `protobuf:"bytes,1,opt,name=git_error,json=gitError,proto3" json:"git_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteRefsResponse) Reset()                    { *m = DeleteRefsResponse{} }
-func (m *DeleteRefsResponse) String() string            { return proto.CompactTextString(m) }
-func (*DeleteRefsResponse) ProtoMessage()               {}
-func (*DeleteRefsResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{27} }
+func (m *DeleteRefsResponse) Reset()         { *m = DeleteRefsResponse{} }
+func (m *DeleteRefsResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteRefsResponse) ProtoMessage()    {}
+func (*DeleteRefsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{27}
+}
+func (m *DeleteRefsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteRefsResponse.Unmarshal(m, b)
+}
+func (m *DeleteRefsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteRefsResponse.Marshal(b, m, deterministic)
+}
+func (dst *DeleteRefsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteRefsResponse.Merge(dst, src)
+}
+func (m *DeleteRefsResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteRefsResponse.Size(m)
+}
+func (m *DeleteRefsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteRefsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteRefsResponse proto.InternalMessageInfo
 
 func (m *DeleteRefsResponse) GetGitError() string {
 	if m != nil {
@@ -720,11 +1362,14 @@ func (m *DeleteRefsResponse) GetGitError() string {
 }
 
 type ListBranchNamesContainingCommitRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Limit the number of tag names to be returned
 	// If the limit is set to zero, all items will be returned
-	Limit uint32 `protobuf:"varint,3,opt,name=limit" json:"limit,omitempty"`
+	Limit                uint32   `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ListBranchNamesContainingCommitRequest) Reset() {
@@ -733,8 +1378,25 @@ func (m *ListBranchNamesContainingCommitRequest) Reset() {
 func (m *ListBranchNamesContainingCommitRequest) String() string { return proto.CompactTextString(m) }
 func (*ListBranchNamesContainingCommitRequest) ProtoMessage()    {}
 func (*ListBranchNamesContainingCommitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{28}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{28}
 }
+func (m *ListBranchNamesContainingCommitRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListBranchNamesContainingCommitRequest.Unmarshal(m, b)
+}
+func (m *ListBranchNamesContainingCommitRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListBranchNamesContainingCommitRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListBranchNamesContainingCommitRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListBranchNamesContainingCommitRequest.Merge(dst, src)
+}
+func (m *ListBranchNamesContainingCommitRequest) XXX_Size() int {
+	return xxx_messageInfo_ListBranchNamesContainingCommitRequest.Size(m)
+}
+func (m *ListBranchNamesContainingCommitRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListBranchNamesContainingCommitRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListBranchNamesContainingCommitRequest proto.InternalMessageInfo
 
 func (m *ListBranchNamesContainingCommitRequest) GetRepository() *Repository {
 	if m != nil {
@@ -758,7 +1420,10 @@ func (m *ListBranchNamesContainingCommitRequest) GetLimit() uint32 {
 }
 
 type ListBranchNamesContainingCommitResponse struct {
-	BranchNames [][]byte `protobuf:"bytes,2,rep,name=branch_names,json=branchNames,proto3" json:"branch_names,omitempty"`
+	BranchNames          [][]byte `protobuf:"bytes,2,rep,name=branch_names,json=branchNames,proto3" json:"branch_names,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ListBranchNamesContainingCommitResponse) Reset() {
@@ -767,8 +1432,25 @@ func (m *ListBranchNamesContainingCommitResponse) Reset() {
 func (m *ListBranchNamesContainingCommitResponse) String() string { return proto.CompactTextString(m) }
 func (*ListBranchNamesContainingCommitResponse) ProtoMessage()    {}
 func (*ListBranchNamesContainingCommitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{29}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{29}
 }
+func (m *ListBranchNamesContainingCommitResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListBranchNamesContainingCommitResponse.Unmarshal(m, b)
+}
+func (m *ListBranchNamesContainingCommitResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListBranchNamesContainingCommitResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListBranchNamesContainingCommitResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListBranchNamesContainingCommitResponse.Merge(dst, src)
+}
+func (m *ListBranchNamesContainingCommitResponse) XXX_Size() int {
+	return xxx_messageInfo_ListBranchNamesContainingCommitResponse.Size(m)
+}
+func (m *ListBranchNamesContainingCommitResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListBranchNamesContainingCommitResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListBranchNamesContainingCommitResponse proto.InternalMessageInfo
 
 func (m *ListBranchNamesContainingCommitResponse) GetBranchNames() [][]byte {
 	if m != nil {
@@ -778,19 +1460,39 @@ func (m *ListBranchNamesContainingCommitResponse) GetBranchNames() [][]byte {
 }
 
 type ListTagNamesContainingCommitRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Limit the number of tag names to be returned
 	// If the limit is set to zero, all items will be returned
-	Limit uint32 `protobuf:"varint,3,opt,name=limit" json:"limit,omitempty"`
+	Limit                uint32   `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ListTagNamesContainingCommitRequest) Reset()         { *m = ListTagNamesContainingCommitRequest{} }
 func (m *ListTagNamesContainingCommitRequest) String() string { return proto.CompactTextString(m) }
 func (*ListTagNamesContainingCommitRequest) ProtoMessage()    {}
 func (*ListTagNamesContainingCommitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{30}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{30}
 }
+func (m *ListTagNamesContainingCommitRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListTagNamesContainingCommitRequest.Unmarshal(m, b)
+}
+func (m *ListTagNamesContainingCommitRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListTagNamesContainingCommitRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListTagNamesContainingCommitRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListTagNamesContainingCommitRequest.Merge(dst, src)
+}
+func (m *ListTagNamesContainingCommitRequest) XXX_Size() int {
+	return xxx_messageInfo_ListTagNamesContainingCommitRequest.Size(m)
+}
+func (m *ListTagNamesContainingCommitRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListTagNamesContainingCommitRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListTagNamesContainingCommitRequest proto.InternalMessageInfo
 
 func (m *ListTagNamesContainingCommitRequest) GetRepository() *Repository {
 	if m != nil {
@@ -814,15 +1516,35 @@ func (m *ListTagNamesContainingCommitRequest) GetLimit() uint32 {
 }
 
 type ListTagNamesContainingCommitResponse struct {
-	TagNames [][]byte `protobuf:"bytes,2,rep,name=tag_names,json=tagNames,proto3" json:"tag_names,omitempty"`
+	TagNames             [][]byte `protobuf:"bytes,2,rep,name=tag_names,json=tagNames,proto3" json:"tag_names,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ListTagNamesContainingCommitResponse) Reset()         { *m = ListTagNamesContainingCommitResponse{} }
 func (m *ListTagNamesContainingCommitResponse) String() string { return proto.CompactTextString(m) }
 func (*ListTagNamesContainingCommitResponse) ProtoMessage()    {}
 func (*ListTagNamesContainingCommitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{31}
+	return fileDescriptor_ref_15e26c5c2600d751, []int{31}
 }
+func (m *ListTagNamesContainingCommitResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListTagNamesContainingCommitResponse.Unmarshal(m, b)
+}
+func (m *ListTagNamesContainingCommitResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListTagNamesContainingCommitResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListTagNamesContainingCommitResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListTagNamesContainingCommitResponse.Merge(dst, src)
+}
+func (m *ListTagNamesContainingCommitResponse) XXX_Size() int {
+	return xxx_messageInfo_ListTagNamesContainingCommitResponse.Size(m)
+}
+func (m *ListTagNamesContainingCommitResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListTagNamesContainingCommitResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListTagNamesContainingCommitResponse proto.InternalMessageInfo
 
 func (m *ListTagNamesContainingCommitResponse) GetTagNames() [][]byte {
 	if m != nil {
@@ -832,14 +1554,36 @@ func (m *ListTagNamesContainingCommitResponse) GetTagNames() [][]byte {
 }
 
 type GetTagMessagesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	TagIds     []string    `protobuf:"bytes,3,rep,name=tag_ids,json=tagIds" json:"tag_ids,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	TagIds               []string    `protobuf:"bytes,3,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetTagMessagesRequest) Reset()                    { *m = GetTagMessagesRequest{} }
-func (m *GetTagMessagesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetTagMessagesRequest) ProtoMessage()               {}
-func (*GetTagMessagesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{32} }
+func (m *GetTagMessagesRequest) Reset()         { *m = GetTagMessagesRequest{} }
+func (m *GetTagMessagesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetTagMessagesRequest) ProtoMessage()    {}
+func (*GetTagMessagesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{32}
+}
+func (m *GetTagMessagesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetTagMessagesRequest.Unmarshal(m, b)
+}
+func (m *GetTagMessagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetTagMessagesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetTagMessagesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTagMessagesRequest.Merge(dst, src)
+}
+func (m *GetTagMessagesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetTagMessagesRequest.Size(m)
+}
+func (m *GetTagMessagesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTagMessagesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTagMessagesRequest proto.InternalMessageInfo
 
 func (m *GetTagMessagesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -858,13 +1602,35 @@ func (m *GetTagMessagesRequest) GetTagIds() []string {
 type GetTagMessagesResponse struct {
 	Message []byte `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Only present for a new tag message
-	TagId string `protobuf:"bytes,3,opt,name=tag_id,json=tagId" json:"tag_id,omitempty"`
+	TagId                string   `protobuf:"bytes,3,opt,name=tag_id,json=tagId,proto3" json:"tag_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetTagMessagesResponse) Reset()                    { *m = GetTagMessagesResponse{} }
-func (m *GetTagMessagesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetTagMessagesResponse) ProtoMessage()               {}
-func (*GetTagMessagesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{33} }
+func (m *GetTagMessagesResponse) Reset()         { *m = GetTagMessagesResponse{} }
+func (m *GetTagMessagesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetTagMessagesResponse) ProtoMessage()    {}
+func (*GetTagMessagesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{33}
+}
+func (m *GetTagMessagesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetTagMessagesResponse.Unmarshal(m, b)
+}
+func (m *GetTagMessagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetTagMessagesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetTagMessagesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTagMessagesResponse.Merge(dst, src)
+}
+func (m *GetTagMessagesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetTagMessagesResponse.Size(m)
+}
+func (m *GetTagMessagesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTagMessagesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTagMessagesResponse proto.InternalMessageInfo
 
 func (m *GetTagMessagesResponse) GetMessage() []byte {
 	if m != nil {
@@ -881,14 +1647,36 @@ func (m *GetTagMessagesResponse) GetTagId() string {
 }
 
 type ListNewCommitsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId             string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ListNewCommitsRequest) Reset()                    { *m = ListNewCommitsRequest{} }
-func (m *ListNewCommitsRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListNewCommitsRequest) ProtoMessage()               {}
-func (*ListNewCommitsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{34} }
+func (m *ListNewCommitsRequest) Reset()         { *m = ListNewCommitsRequest{} }
+func (m *ListNewCommitsRequest) String() string { return proto.CompactTextString(m) }
+func (*ListNewCommitsRequest) ProtoMessage()    {}
+func (*ListNewCommitsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{34}
+}
+func (m *ListNewCommitsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListNewCommitsRequest.Unmarshal(m, b)
+}
+func (m *ListNewCommitsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNewCommitsRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListNewCommitsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNewCommitsRequest.Merge(dst, src)
+}
+func (m *ListNewCommitsRequest) XXX_Size() int {
+	return xxx_messageInfo_ListNewCommitsRequest.Size(m)
+}
+func (m *ListNewCommitsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNewCommitsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNewCommitsRequest proto.InternalMessageInfo
 
 func (m *ListNewCommitsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -905,13 +1693,35 @@ func (m *ListNewCommitsRequest) GetCommitId() string {
 }
 
 type ListNewCommitsResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *ListNewCommitsResponse) Reset()                    { *m = ListNewCommitsResponse{} }
-func (m *ListNewCommitsResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListNewCommitsResponse) ProtoMessage()               {}
-func (*ListNewCommitsResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{35} }
+func (m *ListNewCommitsResponse) Reset()         { *m = ListNewCommitsResponse{} }
+func (m *ListNewCommitsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListNewCommitsResponse) ProtoMessage()    {}
+func (*ListNewCommitsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{35}
+}
+func (m *ListNewCommitsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListNewCommitsResponse.Unmarshal(m, b)
+}
+func (m *ListNewCommitsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNewCommitsResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListNewCommitsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNewCommitsResponse.Merge(dst, src)
+}
+func (m *ListNewCommitsResponse) XXX_Size() int {
+	return xxx_messageInfo_ListNewCommitsResponse.Size(m)
+}
+func (m *ListNewCommitsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNewCommitsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNewCommitsResponse proto.InternalMessageInfo
 
 func (m *ListNewCommitsResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -921,14 +1731,36 @@ func (m *ListNewCommitsResponse) GetCommits() []*GitCommit {
 }
 
 type FindAllRemoteBranchesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	RemoteName string      `protobuf:"bytes,2,opt,name=remote_name,json=remoteName" json:"remote_name,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	RemoteName           string      `protobuf:"bytes,2,opt,name=remote_name,json=remoteName,proto3" json:"remote_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindAllRemoteBranchesRequest) Reset()                    { *m = FindAllRemoteBranchesRequest{} }
-func (m *FindAllRemoteBranchesRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllRemoteBranchesRequest) ProtoMessage()               {}
-func (*FindAllRemoteBranchesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{36} }
+func (m *FindAllRemoteBranchesRequest) Reset()         { *m = FindAllRemoteBranchesRequest{} }
+func (m *FindAllRemoteBranchesRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllRemoteBranchesRequest) ProtoMessage()    {}
+func (*FindAllRemoteBranchesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{36}
+}
+func (m *FindAllRemoteBranchesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllRemoteBranchesRequest.Unmarshal(m, b)
+}
+func (m *FindAllRemoteBranchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllRemoteBranchesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllRemoteBranchesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllRemoteBranchesRequest.Merge(dst, src)
+}
+func (m *FindAllRemoteBranchesRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllRemoteBranchesRequest.Size(m)
+}
+func (m *FindAllRemoteBranchesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllRemoteBranchesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllRemoteBranchesRequest proto.InternalMessageInfo
 
 func (m *FindAllRemoteBranchesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -945,13 +1777,35 @@ func (m *FindAllRemoteBranchesRequest) GetRemoteName() string {
 }
 
 type FindAllRemoteBranchesResponse struct {
-	Branches []*Branch `protobuf:"bytes,1,rep,name=branches" json:"branches,omitempty"`
+	Branches             []*Branch `protobuf:"bytes,1,rep,name=branches,proto3" json:"branches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *FindAllRemoteBranchesResponse) Reset()                    { *m = FindAllRemoteBranchesResponse{} }
-func (m *FindAllRemoteBranchesResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllRemoteBranchesResponse) ProtoMessage()               {}
-func (*FindAllRemoteBranchesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{37} }
+func (m *FindAllRemoteBranchesResponse) Reset()         { *m = FindAllRemoteBranchesResponse{} }
+func (m *FindAllRemoteBranchesResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllRemoteBranchesResponse) ProtoMessage()    {}
+func (*FindAllRemoteBranchesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ref_15e26c5c2600d751, []int{37}
+}
+func (m *FindAllRemoteBranchesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllRemoteBranchesResponse.Unmarshal(m, b)
+}
+func (m *FindAllRemoteBranchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllRemoteBranchesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllRemoteBranchesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllRemoteBranchesResponse.Merge(dst, src)
+}
+func (m *FindAllRemoteBranchesResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllRemoteBranchesResponse.Size(m)
+}
+func (m *FindAllRemoteBranchesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllRemoteBranchesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllRemoteBranchesResponse proto.InternalMessageInfo
 
 func (m *FindAllRemoteBranchesResponse) GetBranches() []*Branch {
 	if m != nil {
@@ -1012,8 +1866,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for RefService service
-
+// RefServiceClient is the client API for RefService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RefServiceClient interface {
 	FindDefaultBranchName(ctx context.Context, in *FindDefaultBranchNameRequest, opts ...grpc.CallOption) (*FindDefaultBranchNameResponse, error)
 	FindAllBranchNames(ctx context.Context, in *FindAllBranchNamesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchNamesClient, error)
@@ -1048,7 +1903,7 @@ func NewRefServiceClient(cc *grpc.ClientConn) RefServiceClient {
 
 func (c *refServiceClient) FindDefaultBranchName(ctx context.Context, in *FindDefaultBranchNameRequest, opts ...grpc.CallOption) (*FindDefaultBranchNameResponse, error) {
 	out := new(FindDefaultBranchNameResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/FindDefaultBranchName", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/FindDefaultBranchName", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1056,7 +1911,7 @@ func (c *refServiceClient) FindDefaultBranchName(ctx context.Context, in *FindDe
 }
 
 func (c *refServiceClient) FindAllBranchNames(ctx context.Context, in *FindAllBranchNamesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchNamesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[0], c.cc, "/gitaly.RefService/FindAllBranchNames", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[0], "/gitaly.RefService/FindAllBranchNames", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1088,7 +1943,7 @@ func (x *refServiceFindAllBranchNamesClient) Recv() (*FindAllBranchNamesResponse
 }
 
 func (c *refServiceClient) FindAllTagNames(ctx context.Context, in *FindAllTagNamesRequest, opts ...grpc.CallOption) (RefService_FindAllTagNamesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[1], c.cc, "/gitaly.RefService/FindAllTagNames", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[1], "/gitaly.RefService/FindAllTagNames", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1121,7 +1976,7 @@ func (x *refServiceFindAllTagNamesClient) Recv() (*FindAllTagNamesResponse, erro
 
 func (c *refServiceClient) FindRefName(ctx context.Context, in *FindRefNameRequest, opts ...grpc.CallOption) (*FindRefNameResponse, error) {
 	out := new(FindRefNameResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/FindRefName", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/FindRefName", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1129,7 +1984,7 @@ func (c *refServiceClient) FindRefName(ctx context.Context, in *FindRefNameReque
 }
 
 func (c *refServiceClient) FindLocalBranches(ctx context.Context, in *FindLocalBranchesRequest, opts ...grpc.CallOption) (RefService_FindLocalBranchesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[2], c.cc, "/gitaly.RefService/FindLocalBranches", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[2], "/gitaly.RefService/FindLocalBranches", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1161,7 +2016,7 @@ func (x *refServiceFindLocalBranchesClient) Recv() (*FindLocalBranchesResponse, 
 }
 
 func (c *refServiceClient) FindAllBranches(ctx context.Context, in *FindAllBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[3], c.cc, "/gitaly.RefService/FindAllBranches", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[3], "/gitaly.RefService/FindAllBranches", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1193,7 +2048,7 @@ func (x *refServiceFindAllBranchesClient) Recv() (*FindAllBranchesResponse, erro
 }
 
 func (c *refServiceClient) FindAllTags(ctx context.Context, in *FindAllTagsRequest, opts ...grpc.CallOption) (RefService_FindAllTagsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[4], c.cc, "/gitaly.RefService/FindAllTags", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[4], "/gitaly.RefService/FindAllTags", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1225,7 +2080,7 @@ func (x *refServiceFindAllTagsClient) Recv() (*FindAllTagsResponse, error) {
 }
 
 func (c *refServiceClient) FindAllRemoteBranches(ctx context.Context, in *FindAllRemoteBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllRemoteBranchesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[5], c.cc, "/gitaly.RefService/FindAllRemoteBranches", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[5], "/gitaly.RefService/FindAllRemoteBranches", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1258,7 +2113,7 @@ func (x *refServiceFindAllRemoteBranchesClient) Recv() (*FindAllRemoteBranchesRe
 
 func (c *refServiceClient) RefExists(ctx context.Context, in *RefExistsRequest, opts ...grpc.CallOption) (*RefExistsResponse, error) {
 	out := new(RefExistsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/RefExists", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/RefExists", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1267,7 +2122,7 @@ func (c *refServiceClient) RefExists(ctx context.Context, in *RefExistsRequest, 
 
 func (c *refServiceClient) CreateBranch(ctx context.Context, in *CreateBranchRequest, opts ...grpc.CallOption) (*CreateBranchResponse, error) {
 	out := new(CreateBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/CreateBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/CreateBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1276,7 +2131,7 @@ func (c *refServiceClient) CreateBranch(ctx context.Context, in *CreateBranchReq
 
 func (c *refServiceClient) DeleteBranch(ctx context.Context, in *DeleteBranchRequest, opts ...grpc.CallOption) (*DeleteBranchResponse, error) {
 	out := new(DeleteBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/DeleteBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/DeleteBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1285,7 +2140,7 @@ func (c *refServiceClient) DeleteBranch(ctx context.Context, in *DeleteBranchReq
 
 func (c *refServiceClient) FindBranch(ctx context.Context, in *FindBranchRequest, opts ...grpc.CallOption) (*FindBranchResponse, error) {
 	out := new(FindBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/FindBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/FindBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1294,7 +2149,7 @@ func (c *refServiceClient) FindBranch(ctx context.Context, in *FindBranchRequest
 
 func (c *refServiceClient) DeleteRefs(ctx context.Context, in *DeleteRefsRequest, opts ...grpc.CallOption) (*DeleteRefsResponse, error) {
 	out := new(DeleteRefsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RefService/DeleteRefs", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/DeleteRefs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1302,7 +2157,7 @@ func (c *refServiceClient) DeleteRefs(ctx context.Context, in *DeleteRefsRequest
 }
 
 func (c *refServiceClient) ListBranchNamesContainingCommit(ctx context.Context, in *ListBranchNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListBranchNamesContainingCommitClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[6], c.cc, "/gitaly.RefService/ListBranchNamesContainingCommit", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[6], "/gitaly.RefService/ListBranchNamesContainingCommit", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1334,7 +2189,7 @@ func (x *refServiceListBranchNamesContainingCommitClient) Recv() (*ListBranchNam
 }
 
 func (c *refServiceClient) ListTagNamesContainingCommit(ctx context.Context, in *ListTagNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListTagNamesContainingCommitClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[7], c.cc, "/gitaly.RefService/ListTagNamesContainingCommit", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[7], "/gitaly.RefService/ListTagNamesContainingCommit", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1366,7 +2221,7 @@ func (x *refServiceListTagNamesContainingCommitClient) Recv() (*ListTagNamesCont
 }
 
 func (c *refServiceClient) GetTagMessages(ctx context.Context, in *GetTagMessagesRequest, opts ...grpc.CallOption) (RefService_GetTagMessagesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[8], c.cc, "/gitaly.RefService/GetTagMessages", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[8], "/gitaly.RefService/GetTagMessages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1398,7 +2253,7 @@ func (x *refServiceGetTagMessagesClient) Recv() (*GetTagMessagesResponse, error)
 }
 
 func (c *refServiceClient) ListNewCommits(ctx context.Context, in *ListNewCommitsRequest, opts ...grpc.CallOption) (RefService_ListNewCommitsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[9], c.cc, "/gitaly.RefService/ListNewCommits", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[9], "/gitaly.RefService/ListNewCommits", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1430,7 +2285,7 @@ func (x *refServiceListNewCommitsClient) Recv() (*ListNewCommitsResponse, error)
 }
 
 func (c *refServiceClient) ListNewBlobs(ctx context.Context, in *ListNewBlobsRequest, opts ...grpc.CallOption) (RefService_ListNewBlobsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RefService_serviceDesc.Streams[10], c.cc, "/gitaly.RefService/ListNewBlobs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RefService_serviceDesc.Streams[10], "/gitaly.RefService/ListNewBlobs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1461,8 +2316,7 @@ func (x *refServiceListNewBlobsClient) Recv() (*ListNewBlobsResponse, error) {
 	return m, nil
 }
 
-// Server API for RefService service
-
+// RefServiceServer is the server API for RefService service.
 type RefServiceServer interface {
 	FindDefaultBranchName(context.Context, *FindDefaultBranchNameRequest) (*FindDefaultBranchNameResponse, error)
 	FindAllBranchNames(*FindAllBranchNamesRequest, RefService_FindAllBranchNamesServer) error
@@ -1941,9 +2795,9 @@ var _RefService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "ref.proto",
 }
 
-func init() { proto.RegisterFile("ref.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("ref.proto", fileDescriptor_ref_15e26c5c2600d751) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor_ref_15e26c5c2600d751 = []byte{
 	// 1539 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0x5b, 0x6f, 0xdb, 0xc6,
 	0x12, 0x36, 0x65, 0x5b, 0x96, 0x46, 0x8a, 0x4c, 0xaf, 0x2f, 0x51, 0xe8, 0x24, 0x76, 0x36, 0x37,

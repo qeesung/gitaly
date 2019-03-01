@@ -4,12 +4,19 @@ package praefect
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/mwitkow/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/cancelhandler"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
+	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
+	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,8 +32,13 @@ type Logger interface {
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
 type Coordinator struct {
-	log   Logger
-	lock  sync.RWMutex
+	log  Logger
+	lock sync.RWMutex
+
+	// Nodes will in the first interations have only one key, which limits
+	// the praefect to serve only 1 distinct set of Gitaly nodes.
+	// One limitation is that each server needs the same amount of disk
+	// space in case of full replication.
 	nodes map[string]*grpc.ClientConn
 }
 
@@ -44,17 +56,23 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string)
 	// to the appropriate Gitaly node.
 	c.log.Debugf("Stream director received method %s", fullMethodName)
 
-	// TODO: obtain storage location dynamically from RPC request message
-	storageLoc := "test"
-
 	c.lock.RLock()
-	cc, ok := c.nodes[storageLoc]
+
+	var cc *grpc.ClientConn
+	storageLoc := ""
+	// We only need the first node, as there's only one storage location per
+	// praefect at this time
+	for k, v := range c.nodes {
+		storageLoc = k
+		cc = v
+		break
+	}
 	c.lock.RUnlock()
 
-	if !ok {
+	if storageLoc == "" {
 		err := status.Error(
 			codes.FailedPrecondition,
-			fmt.Sprintf("no downstream node for storage location %q", storageLoc),
+			"no downstream node registered",
 		)
 		return nil, nil, err
 	}
@@ -72,7 +90,29 @@ type Server struct {
 // with the provided gRPC server options
 func NewServer(grpcOpts []grpc.ServerOption, l Logger) *Server {
 	c := newCoordinator(l)
+
 	grpcOpts = append(grpcOpts, proxyRequiredOpts(c.streamDirector)...)
+	grpcOpts = append(grpcOpts, []grpc.ServerOption{
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
+			grpc_prometheus.StreamServerInterceptor,
+			cancelhandler.Stream, // Should be below LogHandler
+			grpctracing.StreamServerTracingInterceptor(),
+			// Panic handler should remain last so that application panics will be
+			// converted to errors and logged
+			panichandler.StreamPanicHandler,
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
+			metadatahandler.UnaryInterceptor,
+			grpc_prometheus.UnaryServerInterceptor,
+			cancelhandler.Unary, // Should be below LogHandler
+			grpctracing.UnaryServerTracingInterceptor(),
+			// Panic handler should remain last so that application panics will be
+			// converted to errors and logged
+			panichandler.UnaryPanicHandler,
+		)),
+	}...)
 
 	return &Server{
 		s:           grpc.NewServer(grpcOpts...),
@@ -80,20 +120,27 @@ func NewServer(grpcOpts []grpc.ServerOption, l Logger) *Server {
 	}
 }
 
-// ErrStorageLocExists indicates a storage location has already been registered
-// in the proxy for a downstream Gitaly node
-var ErrStorageLocExists = errors.New("storage location already registered")
-
 // RegisterNode will direct traffic to the supplied downstream connection when the storage location
 // is encountered.
-//
-// TODO: Coordinator probably needs to handle dialing, or another entity
-// needs to handle dialing to ensure keep alives and redialing logic
-// exist for when downstream connections are severed.
-func (c *Coordinator) RegisterNode(storageLoc string, node *grpc.ClientConn) {
+func (c *Coordinator) RegisterNode(storageLoc, listenAddr string) error {
+	conn, err := client.Dial(listenAddr,
+		[]grpc.DialOption{grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec()))},
+	)
+	if err != nil {
+		return err
+	}
+
 	c.lock.Lock()
-	c.nodes[storageLoc] = node
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+
+	if _, ok := c.nodes[storageLoc]; !ok && len(c.nodes) > 0 {
+		conn.Close()
+		return fmt.Errorf("error: registering %s failed, only one storage location per server is supported", storageLoc)
+	}
+
+	c.nodes[storageLoc] = conn
+
+	return nil
 }
 
 func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {

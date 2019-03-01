@@ -17,15 +17,43 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type ListDirectoriesRequest struct {
-	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName" json:"storage_name,omitempty"`
-	Depth       uint32 `protobuf:"varint,2,opt,name=depth" json:"depth,omitempty"`
+	StorageName          string   `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	Depth                uint32   `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListDirectoriesRequest) Reset()                    { *m = ListDirectoriesRequest{} }
-func (m *ListDirectoriesRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListDirectoriesRequest) ProtoMessage()               {}
-func (*ListDirectoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{0} }
+func (m *ListDirectoriesRequest) Reset()         { *m = ListDirectoriesRequest{} }
+func (m *ListDirectoriesRequest) String() string { return proto.CompactTextString(m) }
+func (*ListDirectoriesRequest) ProtoMessage()    {}
+func (*ListDirectoriesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_storage_40b92399a791179d, []int{0}
+}
+func (m *ListDirectoriesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListDirectoriesRequest.Unmarshal(m, b)
+}
+func (m *ListDirectoriesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListDirectoriesRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListDirectoriesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListDirectoriesRequest.Merge(dst, src)
+}
+func (m *ListDirectoriesRequest) XXX_Size() int {
+	return xxx_messageInfo_ListDirectoriesRequest.Size(m)
+}
+func (m *ListDirectoriesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListDirectoriesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListDirectoriesRequest proto.InternalMessageInfo
 
 func (m *ListDirectoriesRequest) GetStorageName() string {
 	if m != nil {
@@ -42,13 +70,35 @@ func (m *ListDirectoriesRequest) GetDepth() uint32 {
 }
 
 type ListDirectoriesResponse struct {
-	Paths []string `protobuf:"bytes,1,rep,name=paths" json:"paths,omitempty"`
+	Paths                []string `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListDirectoriesResponse) Reset()                    { *m = ListDirectoriesResponse{} }
-func (m *ListDirectoriesResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListDirectoriesResponse) ProtoMessage()               {}
-func (*ListDirectoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{1} }
+func (m *ListDirectoriesResponse) Reset()         { *m = ListDirectoriesResponse{} }
+func (m *ListDirectoriesResponse) String() string { return proto.CompactTextString(m) }
+func (*ListDirectoriesResponse) ProtoMessage()    {}
+func (*ListDirectoriesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_storage_40b92399a791179d, []int{1}
+}
+func (m *ListDirectoriesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListDirectoriesResponse.Unmarshal(m, b)
+}
+func (m *ListDirectoriesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListDirectoriesResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListDirectoriesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListDirectoriesResponse.Merge(dst, src)
+}
+func (m *ListDirectoriesResponse) XXX_Size() int {
+	return xxx_messageInfo_ListDirectoriesResponse.Size(m)
+}
+func (m *ListDirectoriesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListDirectoriesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListDirectoriesResponse proto.InternalMessageInfo
 
 func (m *ListDirectoriesResponse) GetPaths() []string {
 	if m != nil {
@@ -58,13 +108,35 @@ func (m *ListDirectoriesResponse) GetPaths() []string {
 }
 
 type DeleteAllRepositoriesRequest struct {
-	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName" json:"storage_name,omitempty"`
+	StorageName          string   `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteAllRepositoriesRequest) Reset()                    { *m = DeleteAllRepositoriesRequest{} }
-func (m *DeleteAllRepositoriesRequest) String() string            { return proto.CompactTextString(m) }
-func (*DeleteAllRepositoriesRequest) ProtoMessage()               {}
-func (*DeleteAllRepositoriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{2} }
+func (m *DeleteAllRepositoriesRequest) Reset()         { *m = DeleteAllRepositoriesRequest{} }
+func (m *DeleteAllRepositoriesRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteAllRepositoriesRequest) ProtoMessage()    {}
+func (*DeleteAllRepositoriesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_storage_40b92399a791179d, []int{2}
+}
+func (m *DeleteAllRepositoriesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteAllRepositoriesRequest.Unmarshal(m, b)
+}
+func (m *DeleteAllRepositoriesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteAllRepositoriesRequest.Marshal(b, m, deterministic)
+}
+func (dst *DeleteAllRepositoriesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteAllRepositoriesRequest.Merge(dst, src)
+}
+func (m *DeleteAllRepositoriesRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteAllRepositoriesRequest.Size(m)
+}
+func (m *DeleteAllRepositoriesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteAllRepositoriesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteAllRepositoriesRequest proto.InternalMessageInfo
 
 func (m *DeleteAllRepositoriesRequest) GetStorageName() string {
 	if m != nil {
@@ -74,12 +146,34 @@ func (m *DeleteAllRepositoriesRequest) GetStorageName() string {
 }
 
 type DeleteAllRepositoriesResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteAllRepositoriesResponse) Reset()                    { *m = DeleteAllRepositoriesResponse{} }
-func (m *DeleteAllRepositoriesResponse) String() string            { return proto.CompactTextString(m) }
-func (*DeleteAllRepositoriesResponse) ProtoMessage()               {}
-func (*DeleteAllRepositoriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{3} }
+func (m *DeleteAllRepositoriesResponse) Reset()         { *m = DeleteAllRepositoriesResponse{} }
+func (m *DeleteAllRepositoriesResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteAllRepositoriesResponse) ProtoMessage()    {}
+func (*DeleteAllRepositoriesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_storage_40b92399a791179d, []int{3}
+}
+func (m *DeleteAllRepositoriesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteAllRepositoriesResponse.Unmarshal(m, b)
+}
+func (m *DeleteAllRepositoriesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteAllRepositoriesResponse.Marshal(b, m, deterministic)
+}
+func (dst *DeleteAllRepositoriesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteAllRepositoriesResponse.Merge(dst, src)
+}
+func (m *DeleteAllRepositoriesResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteAllRepositoriesResponse.Size(m)
+}
+func (m *DeleteAllRepositoriesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteAllRepositoriesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteAllRepositoriesResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*ListDirectoriesRequest)(nil), "gitaly.ListDirectoriesRequest")
@@ -96,8 +190,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for StorageService service
-
+// StorageServiceClient is the client API for StorageService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type StorageServiceClient interface {
 	ListDirectories(ctx context.Context, in *ListDirectoriesRequest, opts ...grpc.CallOption) (StorageService_ListDirectoriesClient, error)
 	DeleteAllRepositories(ctx context.Context, in *DeleteAllRepositoriesRequest, opts ...grpc.CallOption) (*DeleteAllRepositoriesResponse, error)
@@ -112,7 +207,7 @@ func NewStorageServiceClient(cc *grpc.ClientConn) StorageServiceClient {
 }
 
 func (c *storageServiceClient) ListDirectories(ctx context.Context, in *ListDirectoriesRequest, opts ...grpc.CallOption) (StorageService_ListDirectoriesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_StorageService_serviceDesc.Streams[0], c.cc, "/gitaly.StorageService/ListDirectories", opts...)
+	stream, err := c.cc.NewStream(ctx, &_StorageService_serviceDesc.Streams[0], "/gitaly.StorageService/ListDirectories", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,15 +240,14 @@ func (x *storageServiceListDirectoriesClient) Recv() (*ListDirectoriesResponse, 
 
 func (c *storageServiceClient) DeleteAllRepositories(ctx context.Context, in *DeleteAllRepositoriesRequest, opts ...grpc.CallOption) (*DeleteAllRepositoriesResponse, error) {
 	out := new(DeleteAllRepositoriesResponse)
-	err := grpc.Invoke(ctx, "/gitaly.StorageService/DeleteAllRepositories", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.StorageService/DeleteAllRepositories", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for StorageService service
-
+// StorageServiceServer is the server API for StorageService service.
 type StorageServiceServer interface {
 	ListDirectories(*ListDirectoriesRequest, StorageService_ListDirectoriesServer) error
 	DeleteAllRepositories(context.Context, *DeleteAllRepositoriesRequest) (*DeleteAllRepositoriesResponse, error)
@@ -221,9 +315,9 @@ var _StorageService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "storage.proto",
 }
 
-func init() { proto.RegisterFile("storage.proto", fileDescriptor16) }
+func init() { proto.RegisterFile("storage.proto", fileDescriptor_storage_40b92399a791179d) }
 
-var fileDescriptor16 = []byte{
+var fileDescriptor_storage_40b92399a791179d = []byte{
 	// 238 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2d, 0x2e, 0xc9, 0x2f,
 	0x4a, 0x4c, 0x4f, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x4b, 0xcf, 0x2c, 0x49, 0xcc,

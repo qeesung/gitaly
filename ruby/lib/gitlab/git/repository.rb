@@ -573,21 +573,6 @@ module Gitlab
         end
       end
 
-      def raw_log(options)
-        sha =
-          unless options[:all]
-            actual_ref = options[:ref] || root_ref
-            begin
-              sha_from_ref(actual_ref)
-            rescue Rugged::OdbError, Rugged::InvalidError, Rugged::ReferenceError
-              # Return an empty array if the ref wasn't found
-              return []
-            end
-          end
-
-        log_by_shell(sha, options)
-      end
-
       def with_repo_branch_commit(start_repository, start_branch_name)
         Gitlab::Git.check_namespace!(start_repository)
         start_repository = RemoteRepository.new(start_repository) unless start_repository.is_a?(RemoteRepository)
@@ -908,44 +893,6 @@ module Gitlab
         end.compact
 
         sort_branches(branches, sort_by)
-      end
-
-      def log_by_shell(sha, options)
-        limit = options[:limit].to_i
-        offset = options[:offset].to_i
-        use_follow_flag = options[:follow] && options[:path].present?
-
-        # We will perform the offset in Ruby because --follow doesn't play well with --skip.
-        # See: https://gitlab.com/gitlab-org/gitlab-ce/issues/3574#note_3040520
-        offset_in_ruby = use_follow_flag && options[:offset].present?
-        limit += offset if offset_in_ruby
-
-        cmd = %w[log]
-        cmd << "--max-count=#{limit}"
-        cmd << '--format=%H'
-        cmd << "--skip=#{offset}" unless offset_in_ruby
-        cmd << '--follow' if use_follow_flag
-        cmd << '--no-merges' if options[:skip_merges]
-        cmd << "--after=#{options[:after].iso8601}" if options[:after]
-        cmd << "--before=#{options[:before].iso8601}" if options[:before]
-
-        if options[:all]
-          cmd += %w[--all --reverse]
-        else
-          cmd << sha
-        end
-
-        # :path can be a string or an array of strings
-        if options[:path].present?
-          cmd << '--'
-          cmd += Array(options[:path])
-        end
-
-        # Disable stderr because Git can show warnings that corrupt the output stream
-        raw_output, _status = run_git(cmd, include_stderr: false)
-        lines = offset_in_ruby ? raw_output.lines.drop(offset) : raw_output.lines
-
-        lines.map! { |c| Rugged::Commit.new(rugged, c.strip) }
       end
 
       def build_git_cmd(*args)

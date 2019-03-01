@@ -38,13 +38,6 @@ module GitalyServer
       Gitaly::FetchRemoteResponse.new
     end
 
-    def write_ref(request, call)
-      Gitlab::Git::Repository.from_gitaly(request.repository, call)
-                             .write_ref(request.ref, request.revision, old_ref: request.old_revision)
-
-      Gitaly::WriteRefResponse.new
-    end
-
     def write_config(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
 

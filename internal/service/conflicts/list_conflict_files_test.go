@@ -4,6 +4,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -85,7 +86,12 @@ end
 	}
 
 	receivedFiles := getConflictFiles(t, c)
-	require.Equal(t, expectedFiles, receivedFiles)
+	require.Len(t, receivedFiles, len(expectedFiles))
+
+	for i := 0; i < len(expectedFiles); i++ {
+		require.True(t, proto.Equal(receivedFiles[i].header, expectedFiles[i].header))
+		require.Equal(t, receivedFiles[i].content, expectedFiles[i].content)
+	}
 }
 
 func TestListConflictFilesFailedPrecondition(t *testing.T) {

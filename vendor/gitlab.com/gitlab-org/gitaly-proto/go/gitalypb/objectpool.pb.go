@@ -17,14 +17,42 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type ObjectPool struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ObjectPool) Reset()                    { *m = ObjectPool{} }
-func (m *ObjectPool) String() string            { return proto.CompactTextString(m) }
-func (*ObjectPool) ProtoMessage()               {}
-func (*ObjectPool) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+func (m *ObjectPool) Reset()         { *m = ObjectPool{} }
+func (m *ObjectPool) String() string { return proto.CompactTextString(m) }
+func (*ObjectPool) ProtoMessage()    {}
+func (*ObjectPool) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{0}
+}
+func (m *ObjectPool) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ObjectPool.Unmarshal(m, b)
+}
+func (m *ObjectPool) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ObjectPool.Marshal(b, m, deterministic)
+}
+func (dst *ObjectPool) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ObjectPool.Merge(dst, src)
+}
+func (m *ObjectPool) XXX_Size() int {
+	return xxx_messageInfo_ObjectPool.Size(m)
+}
+func (m *ObjectPool) XXX_DiscardUnknown() {
+	xxx_messageInfo_ObjectPool.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ObjectPool proto.InternalMessageInfo
 
 func (m *ObjectPool) GetRepository() *Repository {
 	if m != nil {
@@ -36,14 +64,36 @@ func (m *ObjectPool) GetRepository() *Repository {
 // Creates an object pool from the repository. The client is responsible for
 // joining this pool later with this repository.
 type CreateObjectPoolRequest struct {
-	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool" json:"object_pool,omitempty"`
-	Origin     *Repository `protobuf:"bytes,2,opt,name=origin" json:"origin,omitempty"`
+	ObjectPool           *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
+	Origin               *Repository `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateObjectPoolRequest) Reset()                    { *m = CreateObjectPoolRequest{} }
-func (m *CreateObjectPoolRequest) String() string            { return proto.CompactTextString(m) }
-func (*CreateObjectPoolRequest) ProtoMessage()               {}
-func (*CreateObjectPoolRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
+func (m *CreateObjectPoolRequest) Reset()         { *m = CreateObjectPoolRequest{} }
+func (m *CreateObjectPoolRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateObjectPoolRequest) ProtoMessage()    {}
+func (*CreateObjectPoolRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{1}
+}
+func (m *CreateObjectPoolRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateObjectPoolRequest.Unmarshal(m, b)
+}
+func (m *CreateObjectPoolRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateObjectPoolRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateObjectPoolRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateObjectPoolRequest.Merge(dst, src)
+}
+func (m *CreateObjectPoolRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateObjectPoolRequest.Size(m)
+}
+func (m *CreateObjectPoolRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateObjectPoolRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateObjectPoolRequest proto.InternalMessageInfo
 
 func (m *CreateObjectPoolRequest) GetObjectPool() *ObjectPool {
 	if m != nil {
@@ -60,23 +110,67 @@ func (m *CreateObjectPoolRequest) GetOrigin() *Repository {
 }
 
 type CreateObjectPoolResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateObjectPoolResponse) Reset()                    { *m = CreateObjectPoolResponse{} }
-func (m *CreateObjectPoolResponse) String() string            { return proto.CompactTextString(m) }
-func (*CreateObjectPoolResponse) ProtoMessage()               {}
-func (*CreateObjectPoolResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
+func (m *CreateObjectPoolResponse) Reset()         { *m = CreateObjectPoolResponse{} }
+func (m *CreateObjectPoolResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateObjectPoolResponse) ProtoMessage()    {}
+func (*CreateObjectPoolResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{2}
+}
+func (m *CreateObjectPoolResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateObjectPoolResponse.Unmarshal(m, b)
+}
+func (m *CreateObjectPoolResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateObjectPoolResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateObjectPoolResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateObjectPoolResponse.Merge(dst, src)
+}
+func (m *CreateObjectPoolResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateObjectPoolResponse.Size(m)
+}
+func (m *CreateObjectPoolResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateObjectPoolResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateObjectPoolResponse proto.InternalMessageInfo
 
 // Removes the directory from disk, caller is responsible for leaving the object
 // pool before calling this RPC
 type DeleteObjectPoolRequest struct {
-	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool" json:"object_pool,omitempty"`
+	ObjectPool           *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *DeleteObjectPoolRequest) Reset()                    { *m = DeleteObjectPoolRequest{} }
-func (m *DeleteObjectPoolRequest) String() string            { return proto.CompactTextString(m) }
-func (*DeleteObjectPoolRequest) ProtoMessage()               {}
-func (*DeleteObjectPoolRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
+func (m *DeleteObjectPoolRequest) Reset()         { *m = DeleteObjectPoolRequest{} }
+func (m *DeleteObjectPoolRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteObjectPoolRequest) ProtoMessage()    {}
+func (*DeleteObjectPoolRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{3}
+}
+func (m *DeleteObjectPoolRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteObjectPoolRequest.Unmarshal(m, b)
+}
+func (m *DeleteObjectPoolRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteObjectPoolRequest.Marshal(b, m, deterministic)
+}
+func (dst *DeleteObjectPoolRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteObjectPoolRequest.Merge(dst, src)
+}
+func (m *DeleteObjectPoolRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteObjectPoolRequest.Size(m)
+}
+func (m *DeleteObjectPoolRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteObjectPoolRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteObjectPoolRequest proto.InternalMessageInfo
 
 func (m *DeleteObjectPoolRequest) GetObjectPool() *ObjectPool {
 	if m != nil {
@@ -86,24 +180,66 @@ func (m *DeleteObjectPoolRequest) GetObjectPool() *ObjectPool {
 }
 
 type DeleteObjectPoolResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteObjectPoolResponse) Reset()                    { *m = DeleteObjectPoolResponse{} }
-func (m *DeleteObjectPoolResponse) String() string            { return proto.CompactTextString(m) }
-func (*DeleteObjectPoolResponse) ProtoMessage()               {}
-func (*DeleteObjectPoolResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
+func (m *DeleteObjectPoolResponse) Reset()         { *m = DeleteObjectPoolResponse{} }
+func (m *DeleteObjectPoolResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteObjectPoolResponse) ProtoMessage()    {}
+func (*DeleteObjectPoolResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{4}
+}
+func (m *DeleteObjectPoolResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteObjectPoolResponse.Unmarshal(m, b)
+}
+func (m *DeleteObjectPoolResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteObjectPoolResponse.Marshal(b, m, deterministic)
+}
+func (dst *DeleteObjectPoolResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteObjectPoolResponse.Merge(dst, src)
+}
+func (m *DeleteObjectPoolResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteObjectPoolResponse.Size(m)
+}
+func (m *DeleteObjectPoolResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteObjectPoolResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteObjectPoolResponse proto.InternalMessageInfo
 
 type LinkRepositoryToObjectPoolRequest struct {
-	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool" json:"object_pool,omitempty"`
-	Repository *Repository `protobuf:"bytes,2,opt,name=repository" json:"repository,omitempty"`
+	ObjectPool           *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
+	Repository           *Repository `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *LinkRepositoryToObjectPoolRequest) Reset()         { *m = LinkRepositoryToObjectPoolRequest{} }
 func (m *LinkRepositoryToObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*LinkRepositoryToObjectPoolRequest) ProtoMessage()    {}
 func (*LinkRepositoryToObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor7, []int{5}
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{5}
 }
+func (m *LinkRepositoryToObjectPoolRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolRequest.Unmarshal(m, b)
+}
+func (m *LinkRepositoryToObjectPoolRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolRequest.Marshal(b, m, deterministic)
+}
+func (dst *LinkRepositoryToObjectPoolRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LinkRepositoryToObjectPoolRequest.Merge(dst, src)
+}
+func (m *LinkRepositoryToObjectPoolRequest) XXX_Size() int {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolRequest.Size(m)
+}
+func (m *LinkRepositoryToObjectPoolRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LinkRepositoryToObjectPoolRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LinkRepositoryToObjectPoolRequest proto.InternalMessageInfo
 
 func (m *LinkRepositoryToObjectPoolRequest) GetObjectPool() *ObjectPool {
 	if m != nil {
@@ -120,28 +256,68 @@ func (m *LinkRepositoryToObjectPoolRequest) GetRepository() *Repository {
 }
 
 type LinkRepositoryToObjectPoolResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *LinkRepositoryToObjectPoolResponse) Reset()         { *m = LinkRepositoryToObjectPoolResponse{} }
 func (m *LinkRepositoryToObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*LinkRepositoryToObjectPoolResponse) ProtoMessage()    {}
 func (*LinkRepositoryToObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor7, []int{6}
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{6}
 }
+func (m *LinkRepositoryToObjectPoolResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolResponse.Unmarshal(m, b)
+}
+func (m *LinkRepositoryToObjectPoolResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolResponse.Marshal(b, m, deterministic)
+}
+func (dst *LinkRepositoryToObjectPoolResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LinkRepositoryToObjectPoolResponse.Merge(dst, src)
+}
+func (m *LinkRepositoryToObjectPoolResponse) XXX_Size() int {
+	return xxx_messageInfo_LinkRepositoryToObjectPoolResponse.Size(m)
+}
+func (m *LinkRepositoryToObjectPoolResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_LinkRepositoryToObjectPoolResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LinkRepositoryToObjectPoolResponse proto.InternalMessageInfo
 
 // This RPC doesn't require the ObjectPool as it will remove the alternates file
 // from the pool participant. The caller is responsible no data loss occurs.
 type UnlinkRepositoryFromObjectPoolRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	ObjectPool *ObjectPool `protobuf:"bytes,2,opt,name=object_pool,json=objectPool" json:"object_pool,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	ObjectPool           *ObjectPool `protobuf:"bytes,2,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *UnlinkRepositoryFromObjectPoolRequest) Reset()         { *m = UnlinkRepositoryFromObjectPoolRequest{} }
 func (m *UnlinkRepositoryFromObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*UnlinkRepositoryFromObjectPoolRequest) ProtoMessage()    {}
 func (*UnlinkRepositoryFromObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor7, []int{7}
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{7}
 }
+func (m *UnlinkRepositoryFromObjectPoolRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.Unmarshal(m, b)
+}
+func (m *UnlinkRepositoryFromObjectPoolRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.Marshal(b, m, deterministic)
+}
+func (dst *UnlinkRepositoryFromObjectPoolRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.Merge(dst, src)
+}
+func (m *UnlinkRepositoryFromObjectPoolRequest) XXX_Size() int {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.Size(m)
+}
+func (m *UnlinkRepositoryFromObjectPoolRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest proto.InternalMessageInfo
 
 func (m *UnlinkRepositoryFromObjectPoolRequest) GetRepository() *Repository {
 	if m != nil {
@@ -158,6 +334,9 @@ func (m *UnlinkRepositoryFromObjectPoolRequest) GetObjectPool() *ObjectPool {
 }
 
 type UnlinkRepositoryFromObjectPoolResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *UnlinkRepositoryFromObjectPoolResponse) Reset() {
@@ -166,17 +345,56 @@ func (m *UnlinkRepositoryFromObjectPoolResponse) Reset() {
 func (m *UnlinkRepositoryFromObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*UnlinkRepositoryFromObjectPoolResponse) ProtoMessage()    {}
 func (*UnlinkRepositoryFromObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor7, []int{8}
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{8}
 }
+func (m *UnlinkRepositoryFromObjectPoolResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.Unmarshal(m, b)
+}
+func (m *UnlinkRepositoryFromObjectPoolResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.Marshal(b, m, deterministic)
+}
+func (dst *UnlinkRepositoryFromObjectPoolResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.Merge(dst, src)
+}
+func (m *UnlinkRepositoryFromObjectPoolResponse) XXX_Size() int {
+	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.Size(m)
+}
+func (m *UnlinkRepositoryFromObjectPoolResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse proto.InternalMessageInfo
 
 type ReduplicateRepositoryRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ReduplicateRepositoryRequest) Reset()                    { *m = ReduplicateRepositoryRequest{} }
-func (m *ReduplicateRepositoryRequest) String() string            { return proto.CompactTextString(m) }
-func (*ReduplicateRepositoryRequest) ProtoMessage()               {}
-func (*ReduplicateRepositoryRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{9} }
+func (m *ReduplicateRepositoryRequest) Reset()         { *m = ReduplicateRepositoryRequest{} }
+func (m *ReduplicateRepositoryRequest) String() string { return proto.CompactTextString(m) }
+func (*ReduplicateRepositoryRequest) ProtoMessage()    {}
+func (*ReduplicateRepositoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{9}
+}
+func (m *ReduplicateRepositoryRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ReduplicateRepositoryRequest.Unmarshal(m, b)
+}
+func (m *ReduplicateRepositoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ReduplicateRepositoryRequest.Marshal(b, m, deterministic)
+}
+func (dst *ReduplicateRepositoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ReduplicateRepositoryRequest.Merge(dst, src)
+}
+func (m *ReduplicateRepositoryRequest) XXX_Size() int {
+	return xxx_messageInfo_ReduplicateRepositoryRequest.Size(m)
+}
+func (m *ReduplicateRepositoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ReduplicateRepositoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ReduplicateRepositoryRequest proto.InternalMessageInfo
 
 func (m *ReduplicateRepositoryRequest) GetRepository() *Repository {
 	if m != nil {
@@ -186,12 +404,34 @@ func (m *ReduplicateRepositoryRequest) GetRepository() *Repository {
 }
 
 type ReduplicateRepositoryResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ReduplicateRepositoryResponse) Reset()                    { *m = ReduplicateRepositoryResponse{} }
-func (m *ReduplicateRepositoryResponse) String() string            { return proto.CompactTextString(m) }
-func (*ReduplicateRepositoryResponse) ProtoMessage()               {}
-func (*ReduplicateRepositoryResponse) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{10} }
+func (m *ReduplicateRepositoryResponse) Reset()         { *m = ReduplicateRepositoryResponse{} }
+func (m *ReduplicateRepositoryResponse) String() string { return proto.CompactTextString(m) }
+func (*ReduplicateRepositoryResponse) ProtoMessage()    {}
+func (*ReduplicateRepositoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_objectpool_68ee011b582d5b68, []int{10}
+}
+func (m *ReduplicateRepositoryResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ReduplicateRepositoryResponse.Unmarshal(m, b)
+}
+func (m *ReduplicateRepositoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ReduplicateRepositoryResponse.Marshal(b, m, deterministic)
+}
+func (dst *ReduplicateRepositoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ReduplicateRepositoryResponse.Merge(dst, src)
+}
+func (m *ReduplicateRepositoryResponse) XXX_Size() int {
+	return xxx_messageInfo_ReduplicateRepositoryResponse.Size(m)
+}
+func (m *ReduplicateRepositoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ReduplicateRepositoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ReduplicateRepositoryResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*ObjectPool)(nil), "gitaly.ObjectPool")
@@ -215,8 +455,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for ObjectPoolService service
-
+// ObjectPoolServiceClient is the client API for ObjectPoolService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ObjectPoolServiceClient interface {
 	CreateObjectPool(ctx context.Context, in *CreateObjectPoolRequest, opts ...grpc.CallOption) (*CreateObjectPoolResponse, error)
 	DeleteObjectPool(ctx context.Context, in *DeleteObjectPoolRequest, opts ...grpc.CallOption) (*DeleteObjectPoolResponse, error)
@@ -236,7 +477,7 @@ func NewObjectPoolServiceClient(cc *grpc.ClientConn) ObjectPoolServiceClient {
 
 func (c *objectPoolServiceClient) CreateObjectPool(ctx context.Context, in *CreateObjectPoolRequest, opts ...grpc.CallOption) (*CreateObjectPoolResponse, error) {
 	out := new(CreateObjectPoolResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ObjectPoolService/CreateObjectPool", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ObjectPoolService/CreateObjectPool", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +486,7 @@ func (c *objectPoolServiceClient) CreateObjectPool(ctx context.Context, in *Crea
 
 func (c *objectPoolServiceClient) DeleteObjectPool(ctx context.Context, in *DeleteObjectPoolRequest, opts ...grpc.CallOption) (*DeleteObjectPoolResponse, error) {
 	out := new(DeleteObjectPoolResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ObjectPoolService/DeleteObjectPool", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ObjectPoolService/DeleteObjectPool", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +495,7 @@ func (c *objectPoolServiceClient) DeleteObjectPool(ctx context.Context, in *Dele
 
 func (c *objectPoolServiceClient) LinkRepositoryToObjectPool(ctx context.Context, in *LinkRepositoryToObjectPoolRequest, opts ...grpc.CallOption) (*LinkRepositoryToObjectPoolResponse, error) {
 	out := new(LinkRepositoryToObjectPoolResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ObjectPoolService/LinkRepositoryToObjectPool", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ObjectPoolService/LinkRepositoryToObjectPool", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +504,7 @@ func (c *objectPoolServiceClient) LinkRepositoryToObjectPool(ctx context.Context
 
 func (c *objectPoolServiceClient) UnlinkRepositoryFromObjectPool(ctx context.Context, in *UnlinkRepositoryFromObjectPoolRequest, opts ...grpc.CallOption) (*UnlinkRepositoryFromObjectPoolResponse, error) {
 	out := new(UnlinkRepositoryFromObjectPoolResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ObjectPoolService/UnlinkRepositoryFromObjectPool", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ObjectPoolService/UnlinkRepositoryFromObjectPool", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -272,15 +513,14 @@ func (c *objectPoolServiceClient) UnlinkRepositoryFromObjectPool(ctx context.Con
 
 func (c *objectPoolServiceClient) ReduplicateRepository(ctx context.Context, in *ReduplicateRepositoryRequest, opts ...grpc.CallOption) (*ReduplicateRepositoryResponse, error) {
 	out := new(ReduplicateRepositoryResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ObjectPoolService/ReduplicateRepository", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ObjectPoolService/ReduplicateRepository", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for ObjectPoolService service
-
+// ObjectPoolServiceServer is the server API for ObjectPoolService service.
 type ObjectPoolServiceServer interface {
 	CreateObjectPool(context.Context, *CreateObjectPoolRequest) (*CreateObjectPoolResponse, error)
 	DeleteObjectPool(context.Context, *DeleteObjectPoolRequest) (*DeleteObjectPoolResponse, error)
@@ -413,9 +653,9 @@ var _ObjectPoolService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "objectpool.proto",
 }
 
-func init() { proto.RegisterFile("objectpool.proto", fileDescriptor7) }
+func init() { proto.RegisterFile("objectpool.proto", fileDescriptor_objectpool_68ee011b582d5b68) }
 
-var fileDescriptor7 = []byte{
+var fileDescriptor_objectpool_68ee011b582d5b68 = []byte{
 	// 377 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x94, 0x41, 0x4f, 0xc2, 0x40,
 	0x10, 0x85, 0x29, 0x31, 0x1c, 0x06, 0x0f, 0xb8, 0x89, 0x81, 0x34, 0x2a, 0xd8, 0x80, 0x41, 0x12,

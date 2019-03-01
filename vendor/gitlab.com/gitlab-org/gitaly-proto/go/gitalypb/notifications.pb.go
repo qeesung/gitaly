@@ -17,14 +17,42 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type PostReceiveRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *PostReceiveRequest) Reset()                    { *m = PostReceiveRequest{} }
-func (m *PostReceiveRequest) String() string            { return proto.CompactTextString(m) }
-func (*PostReceiveRequest) ProtoMessage()               {}
-func (*PostReceiveRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (m *PostReceiveRequest) Reset()         { *m = PostReceiveRequest{} }
+func (m *PostReceiveRequest) String() string { return proto.CompactTextString(m) }
+func (*PostReceiveRequest) ProtoMessage()    {}
+func (*PostReceiveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_notifications_671e57d33093424c, []int{0}
+}
+func (m *PostReceiveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostReceiveRequest.Unmarshal(m, b)
+}
+func (m *PostReceiveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostReceiveRequest.Marshal(b, m, deterministic)
+}
+func (dst *PostReceiveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostReceiveRequest.Merge(dst, src)
+}
+func (m *PostReceiveRequest) XXX_Size() int {
+	return xxx_messageInfo_PostReceiveRequest.Size(m)
+}
+func (m *PostReceiveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostReceiveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostReceiveRequest proto.InternalMessageInfo
 
 func (m *PostReceiveRequest) GetRepository() *Repository {
 	if m != nil {
@@ -34,12 +62,34 @@ func (m *PostReceiveRequest) GetRepository() *Repository {
 }
 
 type PostReceiveResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PostReceiveResponse) Reset()                    { *m = PostReceiveResponse{} }
-func (m *PostReceiveResponse) String() string            { return proto.CompactTextString(m) }
-func (*PostReceiveResponse) ProtoMessage()               {}
-func (*PostReceiveResponse) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
+func (m *PostReceiveResponse) Reset()         { *m = PostReceiveResponse{} }
+func (m *PostReceiveResponse) String() string { return proto.CompactTextString(m) }
+func (*PostReceiveResponse) ProtoMessage()    {}
+func (*PostReceiveResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_notifications_671e57d33093424c, []int{1}
+}
+func (m *PostReceiveResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostReceiveResponse.Unmarshal(m, b)
+}
+func (m *PostReceiveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostReceiveResponse.Marshal(b, m, deterministic)
+}
+func (dst *PostReceiveResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostReceiveResponse.Merge(dst, src)
+}
+func (m *PostReceiveResponse) XXX_Size() int {
+	return xxx_messageInfo_PostReceiveResponse.Size(m)
+}
+func (m *PostReceiveResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostReceiveResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostReceiveResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*PostReceiveRequest)(nil), "gitaly.PostReceiveRequest")
@@ -54,8 +104,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for NotificationService service
-
+// NotificationServiceClient is the client API for NotificationService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type NotificationServiceClient interface {
 	PostReceive(ctx context.Context, in *PostReceiveRequest, opts ...grpc.CallOption) (*PostReceiveResponse, error)
 }
@@ -70,15 +121,14 @@ func NewNotificationServiceClient(cc *grpc.ClientConn) NotificationServiceClient
 
 func (c *notificationServiceClient) PostReceive(ctx context.Context, in *PostReceiveRequest, opts ...grpc.CallOption) (*PostReceiveResponse, error) {
 	out := new(PostReceiveResponse)
-	err := grpc.Invoke(ctx, "/gitaly.NotificationService/PostReceive", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.NotificationService/PostReceive", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for NotificationService service
-
+// NotificationServiceServer is the server API for NotificationService service.
 type NotificationServiceServer interface {
 	PostReceive(context.Context, *PostReceiveRequest) (*PostReceiveResponse, error)
 }
@@ -118,9 +168,9 @@ var _NotificationService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "notifications.proto",
 }
 
-func init() { proto.RegisterFile("notifications.proto", fileDescriptor6) }
+func init() { proto.RegisterFile("notifications.proto", fileDescriptor_notifications_671e57d33093424c) }
 
-var fileDescriptor6 = []byte{
+var fileDescriptor_notifications_671e57d33093424c = []byte{
 	// 170 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xce, 0xcb, 0x2f, 0xc9,
 	0x4c, 0xcb, 0x4c, 0x4e, 0x2c, 0xc9, 0xcc, 0xcf, 0x2b, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17,

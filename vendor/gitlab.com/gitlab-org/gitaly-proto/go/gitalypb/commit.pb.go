@@ -6,7 +6,7 @@ package gitalypb
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_protobuf "github.com/golang/protobuf/ptypes/timestamp"
+import timestamp "github.com/golang/protobuf/ptypes/timestamp"
 
 import (
 	context "golang.org/x/net/context"
@@ -17,6 +17,12 @@ import (
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type TreeEntryResponse_ObjectType int32
 
@@ -44,7 +50,7 @@ func (x TreeEntryResponse_ObjectType) String() string {
 	return proto.EnumName(TreeEntryResponse_ObjectType_name, int32(x))
 }
 func (TreeEntryResponse_ObjectType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{5, 0}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{5, 0}
 }
 
 type TreeEntry_EntryType int32
@@ -69,7 +75,9 @@ var TreeEntry_EntryType_value = map[string]int32{
 func (x TreeEntry_EntryType) String() string {
 	return proto.EnumName(TreeEntry_EntryType_name, int32(x))
 }
-func (TreeEntry_EntryType) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{12, 0} }
+func (TreeEntry_EntryType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{12, 0}
+}
 
 type FindAllCommitsRequest_Order int32
 
@@ -94,18 +102,40 @@ func (x FindAllCommitsRequest_Order) String() string {
 	return proto.EnumName(FindAllCommitsRequest_Order_name, int32(x))
 }
 func (FindAllCommitsRequest_Order) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{21, 0}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{21, 0}
 }
 
 type CommitStatsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitStatsRequest) Reset()                    { *m = CommitStatsRequest{} }
-func (m *CommitStatsRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitStatsRequest) ProtoMessage()               {}
-func (*CommitStatsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (m *CommitStatsRequest) Reset()         { *m = CommitStatsRequest{} }
+func (m *CommitStatsRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitStatsRequest) ProtoMessage()    {}
+func (*CommitStatsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{0}
+}
+func (m *CommitStatsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitStatsRequest.Unmarshal(m, b)
+}
+func (m *CommitStatsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitStatsRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitStatsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitStatsRequest.Merge(dst, src)
+}
+func (m *CommitStatsRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitStatsRequest.Size(m)
+}
+func (m *CommitStatsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitStatsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitStatsRequest proto.InternalMessageInfo
 
 func (m *CommitStatsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -123,15 +153,37 @@ func (m *CommitStatsRequest) GetRevision() []byte {
 
 type CommitStatsResponse struct {
 	// OID is the commit. Empty means not found
-	Oid       string `protobuf:"bytes,1,opt,name=oid" json:"oid,omitempty"`
-	Additions int32  `protobuf:"varint,2,opt,name=additions" json:"additions,omitempty"`
-	Deletions int32  `protobuf:"varint,3,opt,name=deletions" json:"deletions,omitempty"`
+	Oid                  string   `protobuf:"bytes,1,opt,name=oid,proto3" json:"oid,omitempty"`
+	Additions            int32    `protobuf:"varint,2,opt,name=additions,proto3" json:"additions,omitempty"`
+	Deletions            int32    `protobuf:"varint,3,opt,name=deletions,proto3" json:"deletions,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitStatsResponse) Reset()                    { *m = CommitStatsResponse{} }
-func (m *CommitStatsResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitStatsResponse) ProtoMessage()               {}
-func (*CommitStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (m *CommitStatsResponse) Reset()         { *m = CommitStatsResponse{} }
+func (m *CommitStatsResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitStatsResponse) ProtoMessage()    {}
+func (*CommitStatsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{1}
+}
+func (m *CommitStatsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitStatsResponse.Unmarshal(m, b)
+}
+func (m *CommitStatsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitStatsResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitStatsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitStatsResponse.Merge(dst, src)
+}
+func (m *CommitStatsResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitStatsResponse.Size(m)
+}
+func (m *CommitStatsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitStatsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitStatsResponse proto.InternalMessageInfo
 
 func (m *CommitStatsResponse) GetOid() string {
 	if m != nil {
@@ -155,15 +207,37 @@ func (m *CommitStatsResponse) GetDeletions() int32 {
 }
 
 type CommitIsAncestorRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	AncestorId string      `protobuf:"bytes,2,opt,name=ancestor_id,json=ancestorId" json:"ancestor_id,omitempty"`
-	ChildId    string      `protobuf:"bytes,3,opt,name=child_id,json=childId" json:"child_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	AncestorId           string      `protobuf:"bytes,2,opt,name=ancestor_id,json=ancestorId,proto3" json:"ancestor_id,omitempty"`
+	ChildId              string      `protobuf:"bytes,3,opt,name=child_id,json=childId,proto3" json:"child_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitIsAncestorRequest) Reset()                    { *m = CommitIsAncestorRequest{} }
-func (m *CommitIsAncestorRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitIsAncestorRequest) ProtoMessage()               {}
-func (*CommitIsAncestorRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
+func (m *CommitIsAncestorRequest) Reset()         { *m = CommitIsAncestorRequest{} }
+func (m *CommitIsAncestorRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitIsAncestorRequest) ProtoMessage()    {}
+func (*CommitIsAncestorRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{2}
+}
+func (m *CommitIsAncestorRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitIsAncestorRequest.Unmarshal(m, b)
+}
+func (m *CommitIsAncestorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitIsAncestorRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitIsAncestorRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitIsAncestorRequest.Merge(dst, src)
+}
+func (m *CommitIsAncestorRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitIsAncestorRequest.Size(m)
+}
+func (m *CommitIsAncestorRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitIsAncestorRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitIsAncestorRequest proto.InternalMessageInfo
 
 func (m *CommitIsAncestorRequest) GetRepository() *Repository {
 	if m != nil {
@@ -187,13 +261,35 @@ func (m *CommitIsAncestorRequest) GetChildId() string {
 }
 
 type CommitIsAncestorResponse struct {
-	Value bool `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+	Value                bool     `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitIsAncestorResponse) Reset()                    { *m = CommitIsAncestorResponse{} }
-func (m *CommitIsAncestorResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitIsAncestorResponse) ProtoMessage()               {}
-func (*CommitIsAncestorResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
+func (m *CommitIsAncestorResponse) Reset()         { *m = CommitIsAncestorResponse{} }
+func (m *CommitIsAncestorResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitIsAncestorResponse) ProtoMessage()    {}
+func (*CommitIsAncestorResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{3}
+}
+func (m *CommitIsAncestorResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitIsAncestorResponse.Unmarshal(m, b)
+}
+func (m *CommitIsAncestorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitIsAncestorResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitIsAncestorResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitIsAncestorResponse.Merge(dst, src)
+}
+func (m *CommitIsAncestorResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitIsAncestorResponse.Size(m)
+}
+func (m *CommitIsAncestorResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitIsAncestorResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitIsAncestorResponse proto.InternalMessageInfo
 
 func (m *CommitIsAncestorResponse) GetValue() bool {
 	if m != nil {
@@ -203,18 +299,40 @@ func (m *CommitIsAncestorResponse) GetValue() bool {
 }
 
 type TreeEntryRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// commit ID or refname
 	Revision []byte `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	// entry path relative to repository root
-	Path  []byte `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Limit int64  `protobuf:"varint,4,opt,name=limit" json:"limit,omitempty"`
+	Path                 []byte   `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Limit                int64    `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *TreeEntryRequest) Reset()                    { *m = TreeEntryRequest{} }
-func (m *TreeEntryRequest) String() string            { return proto.CompactTextString(m) }
-func (*TreeEntryRequest) ProtoMessage()               {}
-func (*TreeEntryRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
+func (m *TreeEntryRequest) Reset()         { *m = TreeEntryRequest{} }
+func (m *TreeEntryRequest) String() string { return proto.CompactTextString(m) }
+func (*TreeEntryRequest) ProtoMessage()    {}
+func (*TreeEntryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{4}
+}
+func (m *TreeEntryRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TreeEntryRequest.Unmarshal(m, b)
+}
+func (m *TreeEntryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TreeEntryRequest.Marshal(b, m, deterministic)
+}
+func (dst *TreeEntryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TreeEntryRequest.Merge(dst, src)
+}
+func (m *TreeEntryRequest) XXX_Size() int {
+	return xxx_messageInfo_TreeEntryRequest.Size(m)
+}
+func (m *TreeEntryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TreeEntryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TreeEntryRequest proto.InternalMessageInfo
 
 func (m *TreeEntryRequest) GetRepository() *Repository {
 	if m != nil {
@@ -245,20 +363,42 @@ func (m *TreeEntryRequest) GetLimit() int64 {
 }
 
 type TreeEntryResponse struct {
-	Type TreeEntryResponse_ObjectType `protobuf:"varint,1,opt,name=type,enum=gitaly.TreeEntryResponse_ObjectType" json:"type,omitempty"`
+	Type TreeEntryResponse_ObjectType `protobuf:"varint,1,opt,name=type,proto3,enum=gitaly.TreeEntryResponse_ObjectType" json:"type,omitempty"`
 	// SHA1 object ID
-	Oid  string `protobuf:"bytes,2,opt,name=oid" json:"oid,omitempty"`
-	Size int64  `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
+	Oid  string `protobuf:"bytes,2,opt,name=oid,proto3" json:"oid,omitempty"`
+	Size int64  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
 	// file mode
-	Mode int32 `protobuf:"varint,4,opt,name=mode" json:"mode,omitempty"`
+	Mode int32 `protobuf:"varint,4,opt,name=mode,proto3" json:"mode,omitempty"`
 	// raw object contents
-	Data []byte `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *TreeEntryResponse) Reset()                    { *m = TreeEntryResponse{} }
-func (m *TreeEntryResponse) String() string            { return proto.CompactTextString(m) }
-func (*TreeEntryResponse) ProtoMessage()               {}
-func (*TreeEntryResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
+func (m *TreeEntryResponse) Reset()         { *m = TreeEntryResponse{} }
+func (m *TreeEntryResponse) String() string { return proto.CompactTextString(m) }
+func (*TreeEntryResponse) ProtoMessage()    {}
+func (*TreeEntryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{5}
+}
+func (m *TreeEntryResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TreeEntryResponse.Unmarshal(m, b)
+}
+func (m *TreeEntryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TreeEntryResponse.Marshal(b, m, deterministic)
+}
+func (dst *TreeEntryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TreeEntryResponse.Merge(dst, src)
+}
+func (m *TreeEntryResponse) XXX_Size() int {
+	return xxx_messageInfo_TreeEntryResponse.Size(m)
+}
+func (m *TreeEntryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TreeEntryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TreeEntryResponse proto.InternalMessageInfo
 
 func (m *TreeEntryResponse) GetType() TreeEntryResponse_ObjectType {
 	if m != nil {
@@ -296,15 +436,37 @@ func (m *TreeEntryResponse) GetData() []byte {
 }
 
 type CommitsBetweenRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	From       []byte      `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
-	To         []byte      `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	From                 []byte      `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	To                   []byte      `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitsBetweenRequest) Reset()                    { *m = CommitsBetweenRequest{} }
-func (m *CommitsBetweenRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitsBetweenRequest) ProtoMessage()               {}
-func (*CommitsBetweenRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{6} }
+func (m *CommitsBetweenRequest) Reset()         { *m = CommitsBetweenRequest{} }
+func (m *CommitsBetweenRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitsBetweenRequest) ProtoMessage()    {}
+func (*CommitsBetweenRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{6}
+}
+func (m *CommitsBetweenRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitsBetweenRequest.Unmarshal(m, b)
+}
+func (m *CommitsBetweenRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitsBetweenRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitsBetweenRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitsBetweenRequest.Merge(dst, src)
+}
+func (m *CommitsBetweenRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitsBetweenRequest.Size(m)
+}
+func (m *CommitsBetweenRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitsBetweenRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitsBetweenRequest proto.InternalMessageInfo
 
 func (m *CommitsBetweenRequest) GetRepository() *Repository {
 	if m != nil {
@@ -328,13 +490,35 @@ func (m *CommitsBetweenRequest) GetTo() []byte {
 }
 
 type CommitsBetweenResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *CommitsBetweenResponse) Reset()                    { *m = CommitsBetweenResponse{} }
-func (m *CommitsBetweenResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitsBetweenResponse) ProtoMessage()               {}
-func (*CommitsBetweenResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{7} }
+func (m *CommitsBetweenResponse) Reset()         { *m = CommitsBetweenResponse{} }
+func (m *CommitsBetweenResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitsBetweenResponse) ProtoMessage()    {}
+func (*CommitsBetweenResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{7}
+}
+func (m *CommitsBetweenResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitsBetweenResponse.Unmarshal(m, b)
+}
+func (m *CommitsBetweenResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitsBetweenResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitsBetweenResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitsBetweenResponse.Merge(dst, src)
+}
+func (m *CommitsBetweenResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitsBetweenResponse.Size(m)
+}
+func (m *CommitsBetweenResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitsBetweenResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitsBetweenResponse proto.InternalMessageInfo
 
 func (m *CommitsBetweenResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -344,20 +528,42 @@ func (m *CommitsBetweenResponse) GetCommits() []*GitCommit {
 }
 
 type CountCommitsRequest struct {
-	Repository *Repository                `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte                     `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	After      *google_protobuf.Timestamp `protobuf:"bytes,3,opt,name=after" json:"after,omitempty"`
-	Before     *google_protobuf.Timestamp `protobuf:"bytes,4,opt,name=before" json:"before,omitempty"`
-	Path       []byte                     `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
-	MaxCount   int32                      `protobuf:"varint,6,opt,name=max_count,json=maxCount" json:"max_count,omitempty"`
+	Repository *Repository          `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision   []byte               `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	After      *timestamp.Timestamp `protobuf:"bytes,3,opt,name=after,proto3" json:"after,omitempty"`
+	Before     *timestamp.Timestamp `protobuf:"bytes,4,opt,name=before,proto3" json:"before,omitempty"`
+	Path       []byte               `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	MaxCount   int32                `protobuf:"varint,6,opt,name=max_count,json=maxCount,proto3" json:"max_count,omitempty"`
 	// all and revision are mutually exclusive
-	All bool `protobuf:"varint,7,opt,name=all" json:"all,omitempty"`
+	All                  bool     `protobuf:"varint,7,opt,name=all,proto3" json:"all,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CountCommitsRequest) Reset()                    { *m = CountCommitsRequest{} }
-func (m *CountCommitsRequest) String() string            { return proto.CompactTextString(m) }
-func (*CountCommitsRequest) ProtoMessage()               {}
-func (*CountCommitsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{8} }
+func (m *CountCommitsRequest) Reset()         { *m = CountCommitsRequest{} }
+func (m *CountCommitsRequest) String() string { return proto.CompactTextString(m) }
+func (*CountCommitsRequest) ProtoMessage()    {}
+func (*CountCommitsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{8}
+}
+func (m *CountCommitsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CountCommitsRequest.Unmarshal(m, b)
+}
+func (m *CountCommitsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CountCommitsRequest.Marshal(b, m, deterministic)
+}
+func (dst *CountCommitsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CountCommitsRequest.Merge(dst, src)
+}
+func (m *CountCommitsRequest) XXX_Size() int {
+	return xxx_messageInfo_CountCommitsRequest.Size(m)
+}
+func (m *CountCommitsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CountCommitsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CountCommitsRequest proto.InternalMessageInfo
 
 func (m *CountCommitsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -373,14 +579,14 @@ func (m *CountCommitsRequest) GetRevision() []byte {
 	return nil
 }
 
-func (m *CountCommitsRequest) GetAfter() *google_protobuf.Timestamp {
+func (m *CountCommitsRequest) GetAfter() *timestamp.Timestamp {
 	if m != nil {
 		return m.After
 	}
 	return nil
 }
 
-func (m *CountCommitsRequest) GetBefore() *google_protobuf.Timestamp {
+func (m *CountCommitsRequest) GetBefore() *timestamp.Timestamp {
 	if m != nil {
 		return m.Before
 	}
@@ -409,13 +615,35 @@ func (m *CountCommitsRequest) GetAll() bool {
 }
 
 type CountCommitsResponse struct {
-	Count int32 `protobuf:"varint,1,opt,name=count" json:"count,omitempty"`
+	Count                int32    `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CountCommitsResponse) Reset()                    { *m = CountCommitsResponse{} }
-func (m *CountCommitsResponse) String() string            { return proto.CompactTextString(m) }
-func (*CountCommitsResponse) ProtoMessage()               {}
-func (*CountCommitsResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{9} }
+func (m *CountCommitsResponse) Reset()         { *m = CountCommitsResponse{} }
+func (m *CountCommitsResponse) String() string { return proto.CompactTextString(m) }
+func (*CountCommitsResponse) ProtoMessage()    {}
+func (*CountCommitsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{9}
+}
+func (m *CountCommitsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CountCommitsResponse.Unmarshal(m, b)
+}
+func (m *CountCommitsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CountCommitsResponse.Marshal(b, m, deterministic)
+}
+func (dst *CountCommitsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CountCommitsResponse.Merge(dst, src)
+}
+func (m *CountCommitsResponse) XXX_Size() int {
+	return xxx_messageInfo_CountCommitsResponse.Size(m)
+}
+func (m *CountCommitsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CountCommitsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CountCommitsResponse proto.InternalMessageInfo
 
 func (m *CountCommitsResponse) GetCount() int32 {
 	if m != nil {
@@ -425,16 +653,38 @@ func (m *CountCommitsResponse) GetCount() int32 {
 }
 
 type CountDivergingCommitsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	From       []byte      `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
-	To         []byte      `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
-	MaxCount   int32       `protobuf:"varint,7,opt,name=max_count,json=maxCount" json:"max_count,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	From                 []byte      `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	To                   []byte      `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	MaxCount             int32       `protobuf:"varint,7,opt,name=max_count,json=maxCount,proto3" json:"max_count,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CountDivergingCommitsRequest) Reset()                    { *m = CountDivergingCommitsRequest{} }
-func (m *CountDivergingCommitsRequest) String() string            { return proto.CompactTextString(m) }
-func (*CountDivergingCommitsRequest) ProtoMessage()               {}
-func (*CountDivergingCommitsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{10} }
+func (m *CountDivergingCommitsRequest) Reset()         { *m = CountDivergingCommitsRequest{} }
+func (m *CountDivergingCommitsRequest) String() string { return proto.CompactTextString(m) }
+func (*CountDivergingCommitsRequest) ProtoMessage()    {}
+func (*CountDivergingCommitsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{10}
+}
+func (m *CountDivergingCommitsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CountDivergingCommitsRequest.Unmarshal(m, b)
+}
+func (m *CountDivergingCommitsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CountDivergingCommitsRequest.Marshal(b, m, deterministic)
+}
+func (dst *CountDivergingCommitsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CountDivergingCommitsRequest.Merge(dst, src)
+}
+func (m *CountDivergingCommitsRequest) XXX_Size() int {
+	return xxx_messageInfo_CountDivergingCommitsRequest.Size(m)
+}
+func (m *CountDivergingCommitsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CountDivergingCommitsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CountDivergingCommitsRequest proto.InternalMessageInfo
 
 func (m *CountDivergingCommitsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -465,14 +715,36 @@ func (m *CountDivergingCommitsRequest) GetMaxCount() int32 {
 }
 
 type CountDivergingCommitsResponse struct {
-	LeftCount  int32 `protobuf:"varint,1,opt,name=left_count,json=leftCount" json:"left_count,omitempty"`
-	RightCount int32 `protobuf:"varint,2,opt,name=right_count,json=rightCount" json:"right_count,omitempty"`
+	LeftCount            int32    `protobuf:"varint,1,opt,name=left_count,json=leftCount,proto3" json:"left_count,omitempty"`
+	RightCount           int32    `protobuf:"varint,2,opt,name=right_count,json=rightCount,proto3" json:"right_count,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CountDivergingCommitsResponse) Reset()                    { *m = CountDivergingCommitsResponse{} }
-func (m *CountDivergingCommitsResponse) String() string            { return proto.CompactTextString(m) }
-func (*CountDivergingCommitsResponse) ProtoMessage()               {}
-func (*CountDivergingCommitsResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{11} }
+func (m *CountDivergingCommitsResponse) Reset()         { *m = CountDivergingCommitsResponse{} }
+func (m *CountDivergingCommitsResponse) String() string { return proto.CompactTextString(m) }
+func (*CountDivergingCommitsResponse) ProtoMessage()    {}
+func (*CountDivergingCommitsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{11}
+}
+func (m *CountDivergingCommitsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CountDivergingCommitsResponse.Unmarshal(m, b)
+}
+func (m *CountDivergingCommitsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CountDivergingCommitsResponse.Marshal(b, m, deterministic)
+}
+func (dst *CountDivergingCommitsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CountDivergingCommitsResponse.Merge(dst, src)
+}
+func (m *CountDivergingCommitsResponse) XXX_Size() int {
+	return xxx_messageInfo_CountDivergingCommitsResponse.Size(m)
+}
+func (m *CountDivergingCommitsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CountDivergingCommitsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CountDivergingCommitsResponse proto.InternalMessageInfo
 
 func (m *CountDivergingCommitsResponse) GetLeftCount() int32 {
 	if m != nil {
@@ -490,24 +762,46 @@ func (m *CountDivergingCommitsResponse) GetRightCount() int32 {
 
 type TreeEntry struct {
 	// OID of the object this tree entry points to
-	Oid string `protobuf:"bytes,1,opt,name=oid" json:"oid,omitempty"`
+	Oid string `protobuf:"bytes,1,opt,name=oid,proto3" json:"oid,omitempty"`
 	// OID of the tree attached to commit_oid
-	RootOid string `protobuf:"bytes,2,opt,name=root_oid,json=rootOid" json:"root_oid,omitempty"`
+	RootOid string `protobuf:"bytes,2,opt,name=root_oid,json=rootOid,proto3" json:"root_oid,omitempty"`
 	// Path relative to repository root
 	Path []byte              `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Type TreeEntry_EntryType `protobuf:"varint,4,opt,name=type,enum=gitaly.TreeEntry_EntryType" json:"type,omitempty"`
+	Type TreeEntry_EntryType `protobuf:"varint,4,opt,name=type,proto3,enum=gitaly.TreeEntry_EntryType" json:"type,omitempty"`
 	// File mode e.g. 0644
-	Mode int32 `protobuf:"varint,5,opt,name=mode" json:"mode,omitempty"`
+	Mode int32 `protobuf:"varint,5,opt,name=mode,proto3" json:"mode,omitempty"`
 	// The commit object via which this entry was retrieved
-	CommitOid string `protobuf:"bytes,6,opt,name=commit_oid,json=commitOid" json:"commit_oid,omitempty"`
+	CommitOid string `protobuf:"bytes,6,opt,name=commit_oid,json=commitOid,proto3" json:"commit_oid,omitempty"`
 	// Relative path of the first subdir that doesn't have only one directory descendant
-	FlatPath []byte `protobuf:"bytes,7,opt,name=flat_path,json=flatPath,proto3" json:"flat_path,omitempty"`
+	FlatPath             []byte   `protobuf:"bytes,7,opt,name=flat_path,json=flatPath,proto3" json:"flat_path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *TreeEntry) Reset()                    { *m = TreeEntry{} }
-func (m *TreeEntry) String() string            { return proto.CompactTextString(m) }
-func (*TreeEntry) ProtoMessage()               {}
-func (*TreeEntry) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{12} }
+func (m *TreeEntry) Reset()         { *m = TreeEntry{} }
+func (m *TreeEntry) String() string { return proto.CompactTextString(m) }
+func (*TreeEntry) ProtoMessage()    {}
+func (*TreeEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{12}
+}
+func (m *TreeEntry) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TreeEntry.Unmarshal(m, b)
+}
+func (m *TreeEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TreeEntry.Marshal(b, m, deterministic)
+}
+func (dst *TreeEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TreeEntry.Merge(dst, src)
+}
+func (m *TreeEntry) XXX_Size() int {
+	return xxx_messageInfo_TreeEntry.Size(m)
+}
+func (m *TreeEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_TreeEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TreeEntry proto.InternalMessageInfo
 
 func (m *TreeEntry) GetOid() string {
 	if m != nil {
@@ -559,16 +853,38 @@ func (m *TreeEntry) GetFlatPath() []byte {
 }
 
 type GetTreeEntriesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Path       []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Recursive  bool        `protobuf:"varint,4,opt,name=recursive" json:"recursive,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Path                 []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Recursive            bool        `protobuf:"varint,4,opt,name=recursive,proto3" json:"recursive,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetTreeEntriesRequest) Reset()                    { *m = GetTreeEntriesRequest{} }
-func (m *GetTreeEntriesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetTreeEntriesRequest) ProtoMessage()               {}
-func (*GetTreeEntriesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{13} }
+func (m *GetTreeEntriesRequest) Reset()         { *m = GetTreeEntriesRequest{} }
+func (m *GetTreeEntriesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetTreeEntriesRequest) ProtoMessage()    {}
+func (*GetTreeEntriesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{13}
+}
+func (m *GetTreeEntriesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetTreeEntriesRequest.Unmarshal(m, b)
+}
+func (m *GetTreeEntriesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetTreeEntriesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetTreeEntriesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTreeEntriesRequest.Merge(dst, src)
+}
+func (m *GetTreeEntriesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetTreeEntriesRequest.Size(m)
+}
+func (m *GetTreeEntriesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTreeEntriesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTreeEntriesRequest proto.InternalMessageInfo
 
 func (m *GetTreeEntriesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -599,13 +915,35 @@ func (m *GetTreeEntriesRequest) GetRecursive() bool {
 }
 
 type GetTreeEntriesResponse struct {
-	Entries []*TreeEntry `protobuf:"bytes,1,rep,name=entries" json:"entries,omitempty"`
+	Entries              []*TreeEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *GetTreeEntriesResponse) Reset()                    { *m = GetTreeEntriesResponse{} }
-func (m *GetTreeEntriesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetTreeEntriesResponse) ProtoMessage()               {}
-func (*GetTreeEntriesResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{14} }
+func (m *GetTreeEntriesResponse) Reset()         { *m = GetTreeEntriesResponse{} }
+func (m *GetTreeEntriesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetTreeEntriesResponse) ProtoMessage()    {}
+func (*GetTreeEntriesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{14}
+}
+func (m *GetTreeEntriesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetTreeEntriesResponse.Unmarshal(m, b)
+}
+func (m *GetTreeEntriesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetTreeEntriesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetTreeEntriesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTreeEntriesResponse.Merge(dst, src)
+}
+func (m *GetTreeEntriesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetTreeEntriesResponse.Size(m)
+}
+func (m *GetTreeEntriesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetTreeEntriesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetTreeEntriesResponse proto.InternalMessageInfo
 
 func (m *GetTreeEntriesResponse) GetEntries() []*TreeEntry {
 	if m != nil {
@@ -615,14 +953,36 @@ func (m *GetTreeEntriesResponse) GetEntries() []*TreeEntry {
 }
 
 type ListFilesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ListFilesRequest) Reset()                    { *m = ListFilesRequest{} }
-func (m *ListFilesRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListFilesRequest) ProtoMessage()               {}
-func (*ListFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{15} }
+func (m *ListFilesRequest) Reset()         { *m = ListFilesRequest{} }
+func (m *ListFilesRequest) String() string { return proto.CompactTextString(m) }
+func (*ListFilesRequest) ProtoMessage()    {}
+func (*ListFilesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{15}
+}
+func (m *ListFilesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListFilesRequest.Unmarshal(m, b)
+}
+func (m *ListFilesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListFilesRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListFilesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListFilesRequest.Merge(dst, src)
+}
+func (m *ListFilesRequest) XXX_Size() int {
+	return xxx_messageInfo_ListFilesRequest.Size(m)
+}
+func (m *ListFilesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListFilesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListFilesRequest proto.InternalMessageInfo
 
 func (m *ListFilesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -641,13 +1001,35 @@ func (m *ListFilesRequest) GetRevision() []byte {
 // A single 'page' of the paginated response
 type ListFilesResponse struct {
 	// Remember to force encoding utf-8 on the client side
-	Paths [][]byte `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	Paths                [][]byte `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListFilesResponse) Reset()                    { *m = ListFilesResponse{} }
-func (m *ListFilesResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListFilesResponse) ProtoMessage()               {}
-func (*ListFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{16} }
+func (m *ListFilesResponse) Reset()         { *m = ListFilesResponse{} }
+func (m *ListFilesResponse) String() string { return proto.CompactTextString(m) }
+func (*ListFilesResponse) ProtoMessage()    {}
+func (*ListFilesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{16}
+}
+func (m *ListFilesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListFilesResponse.Unmarshal(m, b)
+}
+func (m *ListFilesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListFilesResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListFilesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListFilesResponse.Merge(dst, src)
+}
+func (m *ListFilesResponse) XXX_Size() int {
+	return xxx_messageInfo_ListFilesResponse.Size(m)
+}
+func (m *ListFilesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListFilesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListFilesResponse proto.InternalMessageInfo
 
 func (m *ListFilesResponse) GetPaths() [][]byte {
 	if m != nil {
@@ -657,14 +1039,36 @@ func (m *ListFilesResponse) GetPaths() [][]byte {
 }
 
 type FindCommitRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindCommitRequest) Reset()                    { *m = FindCommitRequest{} }
-func (m *FindCommitRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindCommitRequest) ProtoMessage()               {}
-func (*FindCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{17} }
+func (m *FindCommitRequest) Reset()         { *m = FindCommitRequest{} }
+func (m *FindCommitRequest) String() string { return proto.CompactTextString(m) }
+func (*FindCommitRequest) ProtoMessage()    {}
+func (*FindCommitRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{17}
+}
+func (m *FindCommitRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindCommitRequest.Unmarshal(m, b)
+}
+func (m *FindCommitRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindCommitRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindCommitRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindCommitRequest.Merge(dst, src)
+}
+func (m *FindCommitRequest) XXX_Size() int {
+	return xxx_messageInfo_FindCommitRequest.Size(m)
+}
+func (m *FindCommitRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindCommitRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindCommitRequest proto.InternalMessageInfo
 
 func (m *FindCommitRequest) GetRepository() *Repository {
 	if m != nil {
@@ -682,13 +1086,35 @@ func (m *FindCommitRequest) GetRevision() []byte {
 
 type FindCommitResponse struct {
 	// commit is nil when the commit was not found
-	Commit *GitCommit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
+	Commit               *GitCommit `protobuf:"bytes,1,opt,name=commit,proto3" json:"commit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
-func (m *FindCommitResponse) Reset()                    { *m = FindCommitResponse{} }
-func (m *FindCommitResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindCommitResponse) ProtoMessage()               {}
-func (*FindCommitResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{18} }
+func (m *FindCommitResponse) Reset()         { *m = FindCommitResponse{} }
+func (m *FindCommitResponse) String() string { return proto.CompactTextString(m) }
+func (*FindCommitResponse) ProtoMessage()    {}
+func (*FindCommitResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{18}
+}
+func (m *FindCommitResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindCommitResponse.Unmarshal(m, b)
+}
+func (m *FindCommitResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindCommitResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindCommitResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindCommitResponse.Merge(dst, src)
+}
+func (m *FindCommitResponse) XXX_Size() int {
+	return xxx_messageInfo_FindCommitResponse.Size(m)
+}
+func (m *FindCommitResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindCommitResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindCommitResponse proto.InternalMessageInfo
 
 func (m *FindCommitResponse) GetCommit() *GitCommit {
 	if m != nil {
@@ -698,14 +1124,36 @@ func (m *FindCommitResponse) GetCommit() *GitCommit {
 }
 
 type ListCommitsByOidRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Oid        []string    `protobuf:"bytes,2,rep,name=oid" json:"oid,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Oid                  []string    `protobuf:"bytes,2,rep,name=oid,proto3" json:"oid,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ListCommitsByOidRequest) Reset()                    { *m = ListCommitsByOidRequest{} }
-func (m *ListCommitsByOidRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListCommitsByOidRequest) ProtoMessage()               {}
-func (*ListCommitsByOidRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{19} }
+func (m *ListCommitsByOidRequest) Reset()         { *m = ListCommitsByOidRequest{} }
+func (m *ListCommitsByOidRequest) String() string { return proto.CompactTextString(m) }
+func (*ListCommitsByOidRequest) ProtoMessage()    {}
+func (*ListCommitsByOidRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{19}
+}
+func (m *ListCommitsByOidRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListCommitsByOidRequest.Unmarshal(m, b)
+}
+func (m *ListCommitsByOidRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListCommitsByOidRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListCommitsByOidRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListCommitsByOidRequest.Merge(dst, src)
+}
+func (m *ListCommitsByOidRequest) XXX_Size() int {
+	return xxx_messageInfo_ListCommitsByOidRequest.Size(m)
+}
+func (m *ListCommitsByOidRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListCommitsByOidRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListCommitsByOidRequest proto.InternalMessageInfo
 
 func (m *ListCommitsByOidRequest) GetRepository() *Repository {
 	if m != nil {
@@ -722,13 +1170,35 @@ func (m *ListCommitsByOidRequest) GetOid() []string {
 }
 
 type ListCommitsByOidResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *ListCommitsByOidResponse) Reset()                    { *m = ListCommitsByOidResponse{} }
-func (m *ListCommitsByOidResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListCommitsByOidResponse) ProtoMessage()               {}
-func (*ListCommitsByOidResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{20} }
+func (m *ListCommitsByOidResponse) Reset()         { *m = ListCommitsByOidResponse{} }
+func (m *ListCommitsByOidResponse) String() string { return proto.CompactTextString(m) }
+func (*ListCommitsByOidResponse) ProtoMessage()    {}
+func (*ListCommitsByOidResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{20}
+}
+func (m *ListCommitsByOidResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListCommitsByOidResponse.Unmarshal(m, b)
+}
+func (m *ListCommitsByOidResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListCommitsByOidResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListCommitsByOidResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListCommitsByOidResponse.Merge(dst, src)
+}
+func (m *ListCommitsByOidResponse) XXX_Size() int {
+	return xxx_messageInfo_ListCommitsByOidResponse.Size(m)
+}
+func (m *ListCommitsByOidResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListCommitsByOidResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListCommitsByOidResponse proto.InternalMessageInfo
 
 func (m *ListCommitsByOidResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -738,18 +1208,40 @@ func (m *ListCommitsByOidResponse) GetCommits() []*GitCommit {
 }
 
 type FindAllCommitsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// When nil, return all commits reachable by any branch in the repo
-	Revision []byte                      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	MaxCount int32                       `protobuf:"varint,3,opt,name=max_count,json=maxCount" json:"max_count,omitempty"`
-	Skip     int32                       `protobuf:"varint,4,opt,name=skip" json:"skip,omitempty"`
-	Order    FindAllCommitsRequest_Order `protobuf:"varint,5,opt,name=order,enum=gitaly.FindAllCommitsRequest_Order" json:"order,omitempty"`
+	Revision             []byte                      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	MaxCount             int32                       `protobuf:"varint,3,opt,name=max_count,json=maxCount,proto3" json:"max_count,omitempty"`
+	Skip                 int32                       `protobuf:"varint,4,opt,name=skip,proto3" json:"skip,omitempty"`
+	Order                FindAllCommitsRequest_Order `protobuf:"varint,5,opt,name=order,proto3,enum=gitaly.FindAllCommitsRequest_Order" json:"order,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
+	XXX_unrecognized     []byte                      `json:"-"`
+	XXX_sizecache        int32                       `json:"-"`
 }
 
-func (m *FindAllCommitsRequest) Reset()                    { *m = FindAllCommitsRequest{} }
-func (m *FindAllCommitsRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindAllCommitsRequest) ProtoMessage()               {}
-func (*FindAllCommitsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{21} }
+func (m *FindAllCommitsRequest) Reset()         { *m = FindAllCommitsRequest{} }
+func (m *FindAllCommitsRequest) String() string { return proto.CompactTextString(m) }
+func (*FindAllCommitsRequest) ProtoMessage()    {}
+func (*FindAllCommitsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{21}
+}
+func (m *FindAllCommitsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllCommitsRequest.Unmarshal(m, b)
+}
+func (m *FindAllCommitsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllCommitsRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindAllCommitsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllCommitsRequest.Merge(dst, src)
+}
+func (m *FindAllCommitsRequest) XXX_Size() int {
+	return xxx_messageInfo_FindAllCommitsRequest.Size(m)
+}
+func (m *FindAllCommitsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllCommitsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllCommitsRequest proto.InternalMessageInfo
 
 func (m *FindAllCommitsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -788,13 +1280,35 @@ func (m *FindAllCommitsRequest) GetOrder() FindAllCommitsRequest_Order {
 
 // A single 'page' of the result set
 type FindAllCommitsResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *FindAllCommitsResponse) Reset()                    { *m = FindAllCommitsResponse{} }
-func (m *FindAllCommitsResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindAllCommitsResponse) ProtoMessage()               {}
-func (*FindAllCommitsResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{22} }
+func (m *FindAllCommitsResponse) Reset()         { *m = FindAllCommitsResponse{} }
+func (m *FindAllCommitsResponse) String() string { return proto.CompactTextString(m) }
+func (*FindAllCommitsResponse) ProtoMessage()    {}
+func (*FindAllCommitsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{22}
+}
+func (m *FindAllCommitsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindAllCommitsResponse.Unmarshal(m, b)
+}
+func (m *FindAllCommitsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindAllCommitsResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindAllCommitsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindAllCommitsResponse.Merge(dst, src)
+}
+func (m *FindAllCommitsResponse) XXX_Size() int {
+	return xxx_messageInfo_FindAllCommitsResponse.Size(m)
+}
+func (m *FindAllCommitsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindAllCommitsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindAllCommitsResponse proto.InternalMessageInfo
 
 func (m *FindAllCommitsResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -804,24 +1318,46 @@ func (m *FindAllCommitsResponse) GetCommits() []*GitCommit {
 }
 
 type FindCommitsRequest struct {
-	Repository  *Repository                `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision    []byte                     `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Limit       int32                      `protobuf:"varint,3,opt,name=limit" json:"limit,omitempty"`
-	Offset      int32                      `protobuf:"varint,4,opt,name=offset" json:"offset,omitempty"`
-	Paths       [][]byte                   `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
-	Follow      bool                       `protobuf:"varint,6,opt,name=follow" json:"follow,omitempty"`
-	SkipMerges  bool                       `protobuf:"varint,7,opt,name=skip_merges,json=skipMerges" json:"skip_merges,omitempty"`
-	DisableWalk bool                       `protobuf:"varint,8,opt,name=disable_walk,json=disableWalk" json:"disable_walk,omitempty"`
-	After       *google_protobuf.Timestamp `protobuf:"bytes,9,opt,name=after" json:"after,omitempty"`
-	Before      *google_protobuf.Timestamp `protobuf:"bytes,10,opt,name=before" json:"before,omitempty"`
+	Repository  *Repository          `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision    []byte               `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Limit       int32                `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset      int32                `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
+	Paths       [][]byte             `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
+	Follow      bool                 `protobuf:"varint,6,opt,name=follow,proto3" json:"follow,omitempty"`
+	SkipMerges  bool                 `protobuf:"varint,7,opt,name=skip_merges,json=skipMerges,proto3" json:"skip_merges,omitempty"`
+	DisableWalk bool                 `protobuf:"varint,8,opt,name=disable_walk,json=disableWalk,proto3" json:"disable_walk,omitempty"`
+	After       *timestamp.Timestamp `protobuf:"bytes,9,opt,name=after,proto3" json:"after,omitempty"`
+	Before      *timestamp.Timestamp `protobuf:"bytes,10,opt,name=before,proto3" json:"before,omitempty"`
 	// all and revision are mutually exclusive
-	All bool `protobuf:"varint,11,opt,name=all" json:"all,omitempty"`
+	All                  bool     `protobuf:"varint,11,opt,name=all,proto3" json:"all,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindCommitsRequest) Reset()                    { *m = FindCommitsRequest{} }
-func (m *FindCommitsRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindCommitsRequest) ProtoMessage()               {}
-func (*FindCommitsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{23} }
+func (m *FindCommitsRequest) Reset()         { *m = FindCommitsRequest{} }
+func (m *FindCommitsRequest) String() string { return proto.CompactTextString(m) }
+func (*FindCommitsRequest) ProtoMessage()    {}
+func (*FindCommitsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{23}
+}
+func (m *FindCommitsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindCommitsRequest.Unmarshal(m, b)
+}
+func (m *FindCommitsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindCommitsRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindCommitsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindCommitsRequest.Merge(dst, src)
+}
+func (m *FindCommitsRequest) XXX_Size() int {
+	return xxx_messageInfo_FindCommitsRequest.Size(m)
+}
+func (m *FindCommitsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindCommitsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindCommitsRequest proto.InternalMessageInfo
 
 func (m *FindCommitsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -879,14 +1415,14 @@ func (m *FindCommitsRequest) GetDisableWalk() bool {
 	return false
 }
 
-func (m *FindCommitsRequest) GetAfter() *google_protobuf.Timestamp {
+func (m *FindCommitsRequest) GetAfter() *timestamp.Timestamp {
 	if m != nil {
 		return m.After
 	}
 	return nil
 }
 
-func (m *FindCommitsRequest) GetBefore() *google_protobuf.Timestamp {
+func (m *FindCommitsRequest) GetBefore() *timestamp.Timestamp {
 	if m != nil {
 		return m.Before
 	}
@@ -902,13 +1438,35 @@ func (m *FindCommitsRequest) GetAll() bool {
 
 // A single 'page' of the result set
 type FindCommitsResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *FindCommitsResponse) Reset()                    { *m = FindCommitsResponse{} }
-func (m *FindCommitsResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindCommitsResponse) ProtoMessage()               {}
-func (*FindCommitsResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{24} }
+func (m *FindCommitsResponse) Reset()         { *m = FindCommitsResponse{} }
+func (m *FindCommitsResponse) String() string { return proto.CompactTextString(m) }
+func (*FindCommitsResponse) ProtoMessage()    {}
+func (*FindCommitsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{24}
+}
+func (m *FindCommitsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindCommitsResponse.Unmarshal(m, b)
+}
+func (m *FindCommitsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindCommitsResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindCommitsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindCommitsResponse.Merge(dst, src)
+}
+func (m *FindCommitsResponse) XXX_Size() int {
+	return xxx_messageInfo_FindCommitsResponse.Size(m)
+}
+func (m *FindCommitsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindCommitsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindCommitsResponse proto.InternalMessageInfo
 
 func (m *FindCommitsResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -918,14 +1476,36 @@ func (m *FindCommitsResponse) GetCommits() []*GitCommit {
 }
 
 type CommitLanguagesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitLanguagesRequest) Reset()                    { *m = CommitLanguagesRequest{} }
-func (m *CommitLanguagesRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitLanguagesRequest) ProtoMessage()               {}
-func (*CommitLanguagesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{25} }
+func (m *CommitLanguagesRequest) Reset()         { *m = CommitLanguagesRequest{} }
+func (m *CommitLanguagesRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitLanguagesRequest) ProtoMessage()    {}
+func (*CommitLanguagesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{25}
+}
+func (m *CommitLanguagesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitLanguagesRequest.Unmarshal(m, b)
+}
+func (m *CommitLanguagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitLanguagesRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitLanguagesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitLanguagesRequest.Merge(dst, src)
+}
+func (m *CommitLanguagesRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitLanguagesRequest.Size(m)
+}
+func (m *CommitLanguagesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitLanguagesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitLanguagesRequest proto.InternalMessageInfo
 
 func (m *CommitLanguagesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -942,13 +1522,35 @@ func (m *CommitLanguagesRequest) GetRevision() []byte {
 }
 
 type CommitLanguagesResponse struct {
-	Languages []*CommitLanguagesResponse_Language `protobuf:"bytes,1,rep,name=languages" json:"languages,omitempty"`
+	Languages            []*CommitLanguagesResponse_Language `protobuf:"bytes,1,rep,name=languages,proto3" json:"languages,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                            `json:"-"`
+	XXX_unrecognized     []byte                              `json:"-"`
+	XXX_sizecache        int32                               `json:"-"`
 }
 
-func (m *CommitLanguagesResponse) Reset()                    { *m = CommitLanguagesResponse{} }
-func (m *CommitLanguagesResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitLanguagesResponse) ProtoMessage()               {}
-func (*CommitLanguagesResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{26} }
+func (m *CommitLanguagesResponse) Reset()         { *m = CommitLanguagesResponse{} }
+func (m *CommitLanguagesResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitLanguagesResponse) ProtoMessage()    {}
+func (*CommitLanguagesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{26}
+}
+func (m *CommitLanguagesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitLanguagesResponse.Unmarshal(m, b)
+}
+func (m *CommitLanguagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitLanguagesResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitLanguagesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitLanguagesResponse.Merge(dst, src)
+}
+func (m *CommitLanguagesResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitLanguagesResponse.Size(m)
+}
+func (m *CommitLanguagesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitLanguagesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitLanguagesResponse proto.InternalMessageInfo
 
 func (m *CommitLanguagesResponse) GetLanguages() []*CommitLanguagesResponse_Language {
 	if m != nil {
@@ -958,17 +1560,37 @@ func (m *CommitLanguagesResponse) GetLanguages() []*CommitLanguagesResponse_Lang
 }
 
 type CommitLanguagesResponse_Language struct {
-	Name  string  `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Share float32 `protobuf:"fixed32,2,opt,name=share" json:"share,omitempty"`
-	Color string  `protobuf:"bytes,3,opt,name=color" json:"color,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Share                float32  `protobuf:"fixed32,2,opt,name=share,proto3" json:"share,omitempty"`
+	Color                string   `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CommitLanguagesResponse_Language) Reset()         { *m = CommitLanguagesResponse_Language{} }
 func (m *CommitLanguagesResponse_Language) String() string { return proto.CompactTextString(m) }
 func (*CommitLanguagesResponse_Language) ProtoMessage()    {}
 func (*CommitLanguagesResponse_Language) Descriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{26, 0}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{26, 0}
 }
+func (m *CommitLanguagesResponse_Language) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitLanguagesResponse_Language.Unmarshal(m, b)
+}
+func (m *CommitLanguagesResponse_Language) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitLanguagesResponse_Language.Marshal(b, m, deterministic)
+}
+func (dst *CommitLanguagesResponse_Language) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitLanguagesResponse_Language.Merge(dst, src)
+}
+func (m *CommitLanguagesResponse_Language) XXX_Size() int {
+	return xxx_messageInfo_CommitLanguagesResponse_Language.Size(m)
+}
+func (m *CommitLanguagesResponse_Language) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitLanguagesResponse_Language.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitLanguagesResponse_Language proto.InternalMessageInfo
 
 func (m *CommitLanguagesResponse_Language) GetName() string {
 	if m != nil {
@@ -992,15 +1614,37 @@ func (m *CommitLanguagesResponse_Language) GetColor() string {
 }
 
 type RawBlameRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Path       []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Path                 []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RawBlameRequest) Reset()                    { *m = RawBlameRequest{} }
-func (m *RawBlameRequest) String() string            { return proto.CompactTextString(m) }
-func (*RawBlameRequest) ProtoMessage()               {}
-func (*RawBlameRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{27} }
+func (m *RawBlameRequest) Reset()         { *m = RawBlameRequest{} }
+func (m *RawBlameRequest) String() string { return proto.CompactTextString(m) }
+func (*RawBlameRequest) ProtoMessage()    {}
+func (*RawBlameRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{27}
+}
+func (m *RawBlameRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawBlameRequest.Unmarshal(m, b)
+}
+func (m *RawBlameRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawBlameRequest.Marshal(b, m, deterministic)
+}
+func (dst *RawBlameRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawBlameRequest.Merge(dst, src)
+}
+func (m *RawBlameRequest) XXX_Size() int {
+	return xxx_messageInfo_RawBlameRequest.Size(m)
+}
+func (m *RawBlameRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawBlameRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawBlameRequest proto.InternalMessageInfo
 
 func (m *RawBlameRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1024,13 +1668,35 @@ func (m *RawBlameRequest) GetPath() []byte {
 }
 
 type RawBlameResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RawBlameResponse) Reset()                    { *m = RawBlameResponse{} }
-func (m *RawBlameResponse) String() string            { return proto.CompactTextString(m) }
-func (*RawBlameResponse) ProtoMessage()               {}
-func (*RawBlameResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{28} }
+func (m *RawBlameResponse) Reset()         { *m = RawBlameResponse{} }
+func (m *RawBlameResponse) String() string { return proto.CompactTextString(m) }
+func (*RawBlameResponse) ProtoMessage()    {}
+func (*RawBlameResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{28}
+}
+func (m *RawBlameResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawBlameResponse.Unmarshal(m, b)
+}
+func (m *RawBlameResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawBlameResponse.Marshal(b, m, deterministic)
+}
+func (dst *RawBlameResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawBlameResponse.Merge(dst, src)
+}
+func (m *RawBlameResponse) XXX_Size() int {
+	return xxx_messageInfo_RawBlameResponse.Size(m)
+}
+func (m *RawBlameResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawBlameResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawBlameResponse proto.InternalMessageInfo
 
 func (m *RawBlameResponse) GetData() []byte {
 	if m != nil {
@@ -1040,15 +1706,37 @@ func (m *RawBlameResponse) GetData() []byte {
 }
 
 type LastCommitForPathRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Path       []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Path                 []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *LastCommitForPathRequest) Reset()                    { *m = LastCommitForPathRequest{} }
-func (m *LastCommitForPathRequest) String() string            { return proto.CompactTextString(m) }
-func (*LastCommitForPathRequest) ProtoMessage()               {}
-func (*LastCommitForPathRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{29} }
+func (m *LastCommitForPathRequest) Reset()         { *m = LastCommitForPathRequest{} }
+func (m *LastCommitForPathRequest) String() string { return proto.CompactTextString(m) }
+func (*LastCommitForPathRequest) ProtoMessage()    {}
+func (*LastCommitForPathRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{29}
+}
+func (m *LastCommitForPathRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LastCommitForPathRequest.Unmarshal(m, b)
+}
+func (m *LastCommitForPathRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LastCommitForPathRequest.Marshal(b, m, deterministic)
+}
+func (dst *LastCommitForPathRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LastCommitForPathRequest.Merge(dst, src)
+}
+func (m *LastCommitForPathRequest) XXX_Size() int {
+	return xxx_messageInfo_LastCommitForPathRequest.Size(m)
+}
+func (m *LastCommitForPathRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LastCommitForPathRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LastCommitForPathRequest proto.InternalMessageInfo
 
 func (m *LastCommitForPathRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1073,13 +1761,35 @@ func (m *LastCommitForPathRequest) GetPath() []byte {
 
 type LastCommitForPathResponse struct {
 	// commit is nil when the commit was not found
-	Commit *GitCommit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
+	Commit               *GitCommit `protobuf:"bytes,1,opt,name=commit,proto3" json:"commit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
-func (m *LastCommitForPathResponse) Reset()                    { *m = LastCommitForPathResponse{} }
-func (m *LastCommitForPathResponse) String() string            { return proto.CompactTextString(m) }
-func (*LastCommitForPathResponse) ProtoMessage()               {}
-func (*LastCommitForPathResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{30} }
+func (m *LastCommitForPathResponse) Reset()         { *m = LastCommitForPathResponse{} }
+func (m *LastCommitForPathResponse) String() string { return proto.CompactTextString(m) }
+func (*LastCommitForPathResponse) ProtoMessage()    {}
+func (*LastCommitForPathResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{30}
+}
+func (m *LastCommitForPathResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LastCommitForPathResponse.Unmarshal(m, b)
+}
+func (m *LastCommitForPathResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LastCommitForPathResponse.Marshal(b, m, deterministic)
+}
+func (dst *LastCommitForPathResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LastCommitForPathResponse.Merge(dst, src)
+}
+func (m *LastCommitForPathResponse) XXX_Size() int {
+	return xxx_messageInfo_LastCommitForPathResponse.Size(m)
+}
+func (m *LastCommitForPathResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_LastCommitForPathResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LastCommitForPathResponse proto.InternalMessageInfo
 
 func (m *LastCommitForPathResponse) GetCommit() *GitCommit {
 	if m != nil {
@@ -1089,18 +1799,40 @@ func (m *LastCommitForPathResponse) GetCommit() *GitCommit {
 }
 
 type ListLastCommitsForTreeRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   string      `protobuf:"bytes,2,opt,name=revision" json:"revision,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision   string      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	Path       []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
 	// limit == -1 will get the last commit for all paths
-	Limit  int32 `protobuf:"varint,4,opt,name=limit" json:"limit,omitempty"`
-	Offset int32 `protobuf:"varint,5,opt,name=offset" json:"offset,omitempty"`
+	Limit                int32    `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset               int32    `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ListLastCommitsForTreeRequest) Reset()                    { *m = ListLastCommitsForTreeRequest{} }
-func (m *ListLastCommitsForTreeRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListLastCommitsForTreeRequest) ProtoMessage()               {}
-func (*ListLastCommitsForTreeRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{31} }
+func (m *ListLastCommitsForTreeRequest) Reset()         { *m = ListLastCommitsForTreeRequest{} }
+func (m *ListLastCommitsForTreeRequest) String() string { return proto.CompactTextString(m) }
+func (*ListLastCommitsForTreeRequest) ProtoMessage()    {}
+func (*ListLastCommitsForTreeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{31}
+}
+func (m *ListLastCommitsForTreeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListLastCommitsForTreeRequest.Unmarshal(m, b)
+}
+func (m *ListLastCommitsForTreeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListLastCommitsForTreeRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListLastCommitsForTreeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListLastCommitsForTreeRequest.Merge(dst, src)
+}
+func (m *ListLastCommitsForTreeRequest) XXX_Size() int {
+	return xxx_messageInfo_ListLastCommitsForTreeRequest.Size(m)
+}
+func (m *ListLastCommitsForTreeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListLastCommitsForTreeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListLastCommitsForTreeRequest proto.InternalMessageInfo
 
 func (m *ListLastCommitsForTreeRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1138,13 +1870,35 @@ func (m *ListLastCommitsForTreeRequest) GetOffset() int32 {
 }
 
 type ListLastCommitsForTreeResponse struct {
-	Commits []*ListLastCommitsForTreeResponse_CommitForTree `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*ListLastCommitsForTreeResponse_CommitForTree `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                        `json:"-"`
+	XXX_unrecognized     []byte                                          `json:"-"`
+	XXX_sizecache        int32                                           `json:"-"`
 }
 
-func (m *ListLastCommitsForTreeResponse) Reset()                    { *m = ListLastCommitsForTreeResponse{} }
-func (m *ListLastCommitsForTreeResponse) String() string            { return proto.CompactTextString(m) }
-func (*ListLastCommitsForTreeResponse) ProtoMessage()               {}
-func (*ListLastCommitsForTreeResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{32} }
+func (m *ListLastCommitsForTreeResponse) Reset()         { *m = ListLastCommitsForTreeResponse{} }
+func (m *ListLastCommitsForTreeResponse) String() string { return proto.CompactTextString(m) }
+func (*ListLastCommitsForTreeResponse) ProtoMessage()    {}
+func (*ListLastCommitsForTreeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{32}
+}
+func (m *ListLastCommitsForTreeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse.Unmarshal(m, b)
+}
+func (m *ListLastCommitsForTreeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse.Marshal(b, m, deterministic)
+}
+func (dst *ListLastCommitsForTreeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListLastCommitsForTreeResponse.Merge(dst, src)
+}
+func (m *ListLastCommitsForTreeResponse) XXX_Size() int {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse.Size(m)
+}
+func (m *ListLastCommitsForTreeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListLastCommitsForTreeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListLastCommitsForTreeResponse proto.InternalMessageInfo
 
 func (m *ListLastCommitsForTreeResponse) GetCommits() []*ListLastCommitsForTreeResponse_CommitForTree {
 	if m != nil {
@@ -1154,8 +1908,11 @@ func (m *ListLastCommitsForTreeResponse) GetCommits() []*ListLastCommitsForTreeR
 }
 
 type ListLastCommitsForTreeResponse_CommitForTree struct {
-	Commit *GitCommit `protobuf:"bytes,2,opt,name=commit" json:"commit,omitempty"`
-	Path   string     `protobuf:"bytes,3,opt,name=path" json:"path,omitempty"`
+	Commit               *GitCommit `protobuf:"bytes,2,opt,name=commit,proto3" json:"commit,omitempty"`
+	Path                 string     `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *ListLastCommitsForTreeResponse_CommitForTree) Reset() {
@@ -1166,8 +1923,25 @@ func (m *ListLastCommitsForTreeResponse_CommitForTree) String() string {
 }
 func (*ListLastCommitsForTreeResponse_CommitForTree) ProtoMessage() {}
 func (*ListLastCommitsForTreeResponse_CommitForTree) Descriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{32, 0}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{32, 0}
 }
+func (m *ListLastCommitsForTreeResponse_CommitForTree) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.Unmarshal(m, b)
+}
+func (m *ListLastCommitsForTreeResponse_CommitForTree) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.Marshal(b, m, deterministic)
+}
+func (dst *ListLastCommitsForTreeResponse_CommitForTree) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.Merge(dst, src)
+}
+func (m *ListLastCommitsForTreeResponse_CommitForTree) XXX_Size() int {
+	return xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.Size(m)
+}
+func (m *ListLastCommitsForTreeResponse_CommitForTree) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree proto.InternalMessageInfo
 
 func (m *ListLastCommitsForTreeResponse_CommitForTree) GetCommit() *GitCommit {
 	if m != nil {
@@ -1184,18 +1958,40 @@ func (m *ListLastCommitsForTreeResponse_CommitForTree) GetPath() string {
 }
 
 type CommitsByMessageRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Offset     int32       `protobuf:"varint,3,opt,name=offset" json:"offset,omitempty"`
-	Limit      int32       `protobuf:"varint,4,opt,name=limit" json:"limit,omitempty"`
-	Path       []byte      `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
-	Query      string      `protobuf:"bytes,6,opt,name=query" json:"query,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Offset               int32       `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	Limit                int32       `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Path                 []byte      `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	Query                string      `protobuf:"bytes,6,opt,name=query,proto3" json:"query,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitsByMessageRequest) Reset()                    { *m = CommitsByMessageRequest{} }
-func (m *CommitsByMessageRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitsByMessageRequest) ProtoMessage()               {}
-func (*CommitsByMessageRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{33} }
+func (m *CommitsByMessageRequest) Reset()         { *m = CommitsByMessageRequest{} }
+func (m *CommitsByMessageRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitsByMessageRequest) ProtoMessage()    {}
+func (*CommitsByMessageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{33}
+}
+func (m *CommitsByMessageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitsByMessageRequest.Unmarshal(m, b)
+}
+func (m *CommitsByMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitsByMessageRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitsByMessageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitsByMessageRequest.Merge(dst, src)
+}
+func (m *CommitsByMessageRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitsByMessageRequest.Size(m)
+}
+func (m *CommitsByMessageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitsByMessageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitsByMessageRequest proto.InternalMessageInfo
 
 func (m *CommitsByMessageRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1241,13 +2037,35 @@ func (m *CommitsByMessageRequest) GetQuery() string {
 
 // One 'page' of the paginated response of CommitsByMessage
 type CommitsByMessageResponse struct {
-	Commits []*GitCommit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+	Commits              []*GitCommit `protobuf:"bytes,1,rep,name=commits,proto3" json:"commits,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *CommitsByMessageResponse) Reset()                    { *m = CommitsByMessageResponse{} }
-func (m *CommitsByMessageResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitsByMessageResponse) ProtoMessage()               {}
-func (*CommitsByMessageResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{34} }
+func (m *CommitsByMessageResponse) Reset()         { *m = CommitsByMessageResponse{} }
+func (m *CommitsByMessageResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitsByMessageResponse) ProtoMessage()    {}
+func (*CommitsByMessageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{34}
+}
+func (m *CommitsByMessageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitsByMessageResponse.Unmarshal(m, b)
+}
+func (m *CommitsByMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitsByMessageResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitsByMessageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitsByMessageResponse.Merge(dst, src)
+}
+func (m *CommitsByMessageResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitsByMessageResponse.Size(m)
+}
+func (m *CommitsByMessageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitsByMessageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitsByMessageResponse proto.InternalMessageInfo
 
 func (m *CommitsByMessageResponse) GetCommits() []*GitCommit {
 	if m != nil {
@@ -1257,16 +2075,36 @@ func (m *CommitsByMessageResponse) GetCommits() []*GitCommit {
 }
 
 type FilterShasWithSignaturesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Shas       [][]byte    `protobuf:"bytes,2,rep,name=shas,proto3" json:"shas,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Shas                 [][]byte    `protobuf:"bytes,2,rep,name=shas,proto3" json:"shas,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *FilterShasWithSignaturesRequest) Reset()         { *m = FilterShasWithSignaturesRequest{} }
 func (m *FilterShasWithSignaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*FilterShasWithSignaturesRequest) ProtoMessage()    {}
 func (*FilterShasWithSignaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{35}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{35}
 }
+func (m *FilterShasWithSignaturesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FilterShasWithSignaturesRequest.Unmarshal(m, b)
+}
+func (m *FilterShasWithSignaturesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FilterShasWithSignaturesRequest.Marshal(b, m, deterministic)
+}
+func (dst *FilterShasWithSignaturesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FilterShasWithSignaturesRequest.Merge(dst, src)
+}
+func (m *FilterShasWithSignaturesRequest) XXX_Size() int {
+	return xxx_messageInfo_FilterShasWithSignaturesRequest.Size(m)
+}
+func (m *FilterShasWithSignaturesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FilterShasWithSignaturesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FilterShasWithSignaturesRequest proto.InternalMessageInfo
 
 func (m *FilterShasWithSignaturesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1283,15 +2121,35 @@ func (m *FilterShasWithSignaturesRequest) GetShas() [][]byte {
 }
 
 type FilterShasWithSignaturesResponse struct {
-	Shas [][]byte `protobuf:"bytes,1,rep,name=shas,proto3" json:"shas,omitempty"`
+	Shas                 [][]byte `protobuf:"bytes,1,rep,name=shas,proto3" json:"shas,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *FilterShasWithSignaturesResponse) Reset()         { *m = FilterShasWithSignaturesResponse{} }
 func (m *FilterShasWithSignaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*FilterShasWithSignaturesResponse) ProtoMessage()    {}
 func (*FilterShasWithSignaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{36}
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{36}
 }
+func (m *FilterShasWithSignaturesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FilterShasWithSignaturesResponse.Unmarshal(m, b)
+}
+func (m *FilterShasWithSignaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FilterShasWithSignaturesResponse.Marshal(b, m, deterministic)
+}
+func (dst *FilterShasWithSignaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FilterShasWithSignaturesResponse.Merge(dst, src)
+}
+func (m *FilterShasWithSignaturesResponse) XXX_Size() int {
+	return xxx_messageInfo_FilterShasWithSignaturesResponse.Size(m)
+}
+func (m *FilterShasWithSignaturesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FilterShasWithSignaturesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FilterShasWithSignaturesResponse proto.InternalMessageInfo
 
 func (m *FilterShasWithSignaturesResponse) GetShas() [][]byte {
 	if m != nil {
@@ -1301,14 +2159,36 @@ func (m *FilterShasWithSignaturesResponse) GetShas() [][]byte {
 }
 
 type ExtractCommitSignatureRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId             string      `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ExtractCommitSignatureRequest) Reset()                    { *m = ExtractCommitSignatureRequest{} }
-func (m *ExtractCommitSignatureRequest) String() string            { return proto.CompactTextString(m) }
-func (*ExtractCommitSignatureRequest) ProtoMessage()               {}
-func (*ExtractCommitSignatureRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{37} }
+func (m *ExtractCommitSignatureRequest) Reset()         { *m = ExtractCommitSignatureRequest{} }
+func (m *ExtractCommitSignatureRequest) String() string { return proto.CompactTextString(m) }
+func (*ExtractCommitSignatureRequest) ProtoMessage()    {}
+func (*ExtractCommitSignatureRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{37}
+}
+func (m *ExtractCommitSignatureRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExtractCommitSignatureRequest.Unmarshal(m, b)
+}
+func (m *ExtractCommitSignatureRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExtractCommitSignatureRequest.Marshal(b, m, deterministic)
+}
+func (dst *ExtractCommitSignatureRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExtractCommitSignatureRequest.Merge(dst, src)
+}
+func (m *ExtractCommitSignatureRequest) XXX_Size() int {
+	return xxx_messageInfo_ExtractCommitSignatureRequest.Size(m)
+}
+func (m *ExtractCommitSignatureRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExtractCommitSignatureRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExtractCommitSignatureRequest proto.InternalMessageInfo
 
 func (m *ExtractCommitSignatureRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1327,14 +2207,36 @@ func (m *ExtractCommitSignatureRequest) GetCommitId() string {
 // Either of the 'signature' and 'signed_text' fields may be present. It
 // is up to the caller to stitch them together.
 type ExtractCommitSignatureResponse struct {
-	Signature  []byte `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
-	SignedText []byte `protobuf:"bytes,2,opt,name=signed_text,json=signedText,proto3" json:"signed_text,omitempty"`
+	Signature            []byte   `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
+	SignedText           []byte   `protobuf:"bytes,2,opt,name=signed_text,json=signedText,proto3" json:"signed_text,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ExtractCommitSignatureResponse) Reset()                    { *m = ExtractCommitSignatureResponse{} }
-func (m *ExtractCommitSignatureResponse) String() string            { return proto.CompactTextString(m) }
-func (*ExtractCommitSignatureResponse) ProtoMessage()               {}
-func (*ExtractCommitSignatureResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{38} }
+func (m *ExtractCommitSignatureResponse) Reset()         { *m = ExtractCommitSignatureResponse{} }
+func (m *ExtractCommitSignatureResponse) String() string { return proto.CompactTextString(m) }
+func (*ExtractCommitSignatureResponse) ProtoMessage()    {}
+func (*ExtractCommitSignatureResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{38}
+}
+func (m *ExtractCommitSignatureResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExtractCommitSignatureResponse.Unmarshal(m, b)
+}
+func (m *ExtractCommitSignatureResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExtractCommitSignatureResponse.Marshal(b, m, deterministic)
+}
+func (dst *ExtractCommitSignatureResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExtractCommitSignatureResponse.Merge(dst, src)
+}
+func (m *ExtractCommitSignatureResponse) XXX_Size() int {
+	return xxx_messageInfo_ExtractCommitSignatureResponse.Size(m)
+}
+func (m *ExtractCommitSignatureResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExtractCommitSignatureResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExtractCommitSignatureResponse proto.InternalMessageInfo
 
 func (m *ExtractCommitSignatureResponse) GetSignature() []byte {
 	if m != nil {
@@ -1351,14 +2253,36 @@ func (m *ExtractCommitSignatureResponse) GetSignedText() []byte {
 }
 
 type GetCommitSignaturesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitIds  []string    `protobuf:"bytes,2,rep,name=commit_ids,json=commitIds" json:"commit_ids,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitIds            []string    `protobuf:"bytes,2,rep,name=commit_ids,json=commitIds,proto3" json:"commit_ids,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetCommitSignaturesRequest) Reset()                    { *m = GetCommitSignaturesRequest{} }
-func (m *GetCommitSignaturesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetCommitSignaturesRequest) ProtoMessage()               {}
-func (*GetCommitSignaturesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{39} }
+func (m *GetCommitSignaturesRequest) Reset()         { *m = GetCommitSignaturesRequest{} }
+func (m *GetCommitSignaturesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetCommitSignaturesRequest) ProtoMessage()    {}
+func (*GetCommitSignaturesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{39}
+}
+func (m *GetCommitSignaturesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetCommitSignaturesRequest.Unmarshal(m, b)
+}
+func (m *GetCommitSignaturesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetCommitSignaturesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetCommitSignaturesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetCommitSignaturesRequest.Merge(dst, src)
+}
+func (m *GetCommitSignaturesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetCommitSignaturesRequest.Size(m)
+}
+func (m *GetCommitSignaturesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetCommitSignaturesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetCommitSignaturesRequest proto.InternalMessageInfo
 
 func (m *GetCommitSignaturesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1376,16 +2300,38 @@ func (m *GetCommitSignaturesRequest) GetCommitIds() []string {
 
 type GetCommitSignaturesResponse struct {
 	// Only present for a new commit signature data.
-	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// See ExtractCommitSignatureResponse above for how these fields should be handled.
-	Signature  []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
-	SignedText []byte `protobuf:"bytes,3,opt,name=signed_text,json=signedText,proto3" json:"signed_text,omitempty"`
+	Signature            []byte   `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	SignedText           []byte   `protobuf:"bytes,3,opt,name=signed_text,json=signedText,proto3" json:"signed_text,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetCommitSignaturesResponse) Reset()                    { *m = GetCommitSignaturesResponse{} }
-func (m *GetCommitSignaturesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetCommitSignaturesResponse) ProtoMessage()               {}
-func (*GetCommitSignaturesResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{40} }
+func (m *GetCommitSignaturesResponse) Reset()         { *m = GetCommitSignaturesResponse{} }
+func (m *GetCommitSignaturesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetCommitSignaturesResponse) ProtoMessage()    {}
+func (*GetCommitSignaturesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{40}
+}
+func (m *GetCommitSignaturesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetCommitSignaturesResponse.Unmarshal(m, b)
+}
+func (m *GetCommitSignaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetCommitSignaturesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetCommitSignaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetCommitSignaturesResponse.Merge(dst, src)
+}
+func (m *GetCommitSignaturesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetCommitSignaturesResponse.Size(m)
+}
+func (m *GetCommitSignaturesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetCommitSignaturesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetCommitSignaturesResponse proto.InternalMessageInfo
 
 func (m *GetCommitSignaturesResponse) GetCommitId() string {
 	if m != nil {
@@ -1409,14 +2355,36 @@ func (m *GetCommitSignaturesResponse) GetSignedText() []byte {
 }
 
 type GetCommitMessagesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitIds  []string    `protobuf:"bytes,2,rep,name=commit_ids,json=commitIds" json:"commit_ids,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitIds            []string    `protobuf:"bytes,2,rep,name=commit_ids,json=commitIds,proto3" json:"commit_ids,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetCommitMessagesRequest) Reset()                    { *m = GetCommitMessagesRequest{} }
-func (m *GetCommitMessagesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetCommitMessagesRequest) ProtoMessage()               {}
-func (*GetCommitMessagesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{41} }
+func (m *GetCommitMessagesRequest) Reset()         { *m = GetCommitMessagesRequest{} }
+func (m *GetCommitMessagesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetCommitMessagesRequest) ProtoMessage()    {}
+func (*GetCommitMessagesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{41}
+}
+func (m *GetCommitMessagesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetCommitMessagesRequest.Unmarshal(m, b)
+}
+func (m *GetCommitMessagesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetCommitMessagesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetCommitMessagesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetCommitMessagesRequest.Merge(dst, src)
+}
+func (m *GetCommitMessagesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetCommitMessagesRequest.Size(m)
+}
+func (m *GetCommitMessagesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetCommitMessagesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetCommitMessagesRequest proto.InternalMessageInfo
 
 func (m *GetCommitMessagesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1434,14 +2402,36 @@ func (m *GetCommitMessagesRequest) GetCommitIds() []string {
 
 type GetCommitMessagesResponse struct {
 	// Only present for a new commit message
-	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
-	Message  []byte `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	CommitId             string   `protobuf:"bytes,1,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	Message              []byte   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetCommitMessagesResponse) Reset()                    { *m = GetCommitMessagesResponse{} }
-func (m *GetCommitMessagesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetCommitMessagesResponse) ProtoMessage()               {}
-func (*GetCommitMessagesResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{42} }
+func (m *GetCommitMessagesResponse) Reset()         { *m = GetCommitMessagesResponse{} }
+func (m *GetCommitMessagesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetCommitMessagesResponse) ProtoMessage()    {}
+func (*GetCommitMessagesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_commit_ab0cc8c8e149b4af, []int{42}
+}
+func (m *GetCommitMessagesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetCommitMessagesResponse.Unmarshal(m, b)
+}
+func (m *GetCommitMessagesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetCommitMessagesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetCommitMessagesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetCommitMessagesResponse.Merge(dst, src)
+}
+func (m *GetCommitMessagesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetCommitMessagesResponse.Size(m)
+}
+func (m *GetCommitMessagesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetCommitMessagesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetCommitMessagesResponse proto.InternalMessageInfo
 
 func (m *GetCommitMessagesResponse) GetCommitId() string {
 	if m != nil {
@@ -1516,8 +2506,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for CommitService service
-
+// CommitServiceClient is the client API for CommitService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CommitServiceClient interface {
 	CommitIsAncestor(ctx context.Context, in *CommitIsAncestorRequest, opts ...grpc.CallOption) (*CommitIsAncestorResponse, error)
 	TreeEntry(ctx context.Context, in *TreeEntryRequest, opts ...grpc.CallOption) (CommitService_TreeEntryClient, error)
@@ -1556,7 +2547,7 @@ func NewCommitServiceClient(cc *grpc.ClientConn) CommitServiceClient {
 
 func (c *commitServiceClient) CommitIsAncestor(ctx context.Context, in *CommitIsAncestorRequest, opts ...grpc.CallOption) (*CommitIsAncestorResponse, error) {
 	out := new(CommitIsAncestorResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/CommitIsAncestor", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/CommitIsAncestor", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1564,7 +2555,7 @@ func (c *commitServiceClient) CommitIsAncestor(ctx context.Context, in *CommitIs
 }
 
 func (c *commitServiceClient) TreeEntry(ctx context.Context, in *TreeEntryRequest, opts ...grpc.CallOption) (CommitService_TreeEntryClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[0], c.cc, "/gitaly.CommitService/TreeEntry", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[0], "/gitaly.CommitService/TreeEntry", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1596,7 +2587,7 @@ func (x *commitServiceTreeEntryClient) Recv() (*TreeEntryResponse, error) {
 }
 
 func (c *commitServiceClient) CommitsBetween(ctx context.Context, in *CommitsBetweenRequest, opts ...grpc.CallOption) (CommitService_CommitsBetweenClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[1], c.cc, "/gitaly.CommitService/CommitsBetween", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[1], "/gitaly.CommitService/CommitsBetween", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1629,7 +2620,7 @@ func (x *commitServiceCommitsBetweenClient) Recv() (*CommitsBetweenResponse, err
 
 func (c *commitServiceClient) CountCommits(ctx context.Context, in *CountCommitsRequest, opts ...grpc.CallOption) (*CountCommitsResponse, error) {
 	out := new(CountCommitsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/CountCommits", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/CountCommits", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1638,7 +2629,7 @@ func (c *commitServiceClient) CountCommits(ctx context.Context, in *CountCommits
 
 func (c *commitServiceClient) CountDivergingCommits(ctx context.Context, in *CountDivergingCommitsRequest, opts ...grpc.CallOption) (*CountDivergingCommitsResponse, error) {
 	out := new(CountDivergingCommitsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/CountDivergingCommits", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/CountDivergingCommits", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1646,7 +2637,7 @@ func (c *commitServiceClient) CountDivergingCommits(ctx context.Context, in *Cou
 }
 
 func (c *commitServiceClient) GetTreeEntries(ctx context.Context, in *GetTreeEntriesRequest, opts ...grpc.CallOption) (CommitService_GetTreeEntriesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[2], c.cc, "/gitaly.CommitService/GetTreeEntries", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[2], "/gitaly.CommitService/GetTreeEntries", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1678,7 +2669,7 @@ func (x *commitServiceGetTreeEntriesClient) Recv() (*GetTreeEntriesResponse, err
 }
 
 func (c *commitServiceClient) ListFiles(ctx context.Context, in *ListFilesRequest, opts ...grpc.CallOption) (CommitService_ListFilesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[3], c.cc, "/gitaly.CommitService/ListFiles", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[3], "/gitaly.CommitService/ListFiles", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1711,7 +2702,7 @@ func (x *commitServiceListFilesClient) Recv() (*ListFilesResponse, error) {
 
 func (c *commitServiceClient) FindCommit(ctx context.Context, in *FindCommitRequest, opts ...grpc.CallOption) (*FindCommitResponse, error) {
 	out := new(FindCommitResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/FindCommit", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/FindCommit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1720,7 +2711,7 @@ func (c *commitServiceClient) FindCommit(ctx context.Context, in *FindCommitRequ
 
 func (c *commitServiceClient) CommitStats(ctx context.Context, in *CommitStatsRequest, opts ...grpc.CallOption) (*CommitStatsResponse, error) {
 	out := new(CommitStatsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/CommitStats", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/CommitStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1728,7 +2719,7 @@ func (c *commitServiceClient) CommitStats(ctx context.Context, in *CommitStatsRe
 }
 
 func (c *commitServiceClient) FindAllCommits(ctx context.Context, in *FindAllCommitsRequest, opts ...grpc.CallOption) (CommitService_FindAllCommitsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[4], c.cc, "/gitaly.CommitService/FindAllCommits", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[4], "/gitaly.CommitService/FindAllCommits", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1760,7 +2751,7 @@ func (x *commitServiceFindAllCommitsClient) Recv() (*FindAllCommitsResponse, err
 }
 
 func (c *commitServiceClient) FindCommits(ctx context.Context, in *FindCommitsRequest, opts ...grpc.CallOption) (CommitService_FindCommitsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[5], c.cc, "/gitaly.CommitService/FindCommits", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[5], "/gitaly.CommitService/FindCommits", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1793,7 +2784,7 @@ func (x *commitServiceFindCommitsClient) Recv() (*FindCommitsResponse, error) {
 
 func (c *commitServiceClient) CommitLanguages(ctx context.Context, in *CommitLanguagesRequest, opts ...grpc.CallOption) (*CommitLanguagesResponse, error) {
 	out := new(CommitLanguagesResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/CommitLanguages", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/CommitLanguages", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1801,7 +2792,7 @@ func (c *commitServiceClient) CommitLanguages(ctx context.Context, in *CommitLan
 }
 
 func (c *commitServiceClient) RawBlame(ctx context.Context, in *RawBlameRequest, opts ...grpc.CallOption) (CommitService_RawBlameClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[6], c.cc, "/gitaly.CommitService/RawBlame", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[6], "/gitaly.CommitService/RawBlame", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1834,7 +2825,7 @@ func (x *commitServiceRawBlameClient) Recv() (*RawBlameResponse, error) {
 
 func (c *commitServiceClient) LastCommitForPath(ctx context.Context, in *LastCommitForPathRequest, opts ...grpc.CallOption) (*LastCommitForPathResponse, error) {
 	out := new(LastCommitForPathResponse)
-	err := grpc.Invoke(ctx, "/gitaly.CommitService/LastCommitForPath", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.CommitService/LastCommitForPath", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1842,7 +2833,7 @@ func (c *commitServiceClient) LastCommitForPath(ctx context.Context, in *LastCom
 }
 
 func (c *commitServiceClient) ListLastCommitsForTree(ctx context.Context, in *ListLastCommitsForTreeRequest, opts ...grpc.CallOption) (CommitService_ListLastCommitsForTreeClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[7], c.cc, "/gitaly.CommitService/ListLastCommitsForTree", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[7], "/gitaly.CommitService/ListLastCommitsForTree", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1874,7 +2865,7 @@ func (x *commitServiceListLastCommitsForTreeClient) Recv() (*ListLastCommitsForT
 }
 
 func (c *commitServiceClient) CommitsByMessage(ctx context.Context, in *CommitsByMessageRequest, opts ...grpc.CallOption) (CommitService_CommitsByMessageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[8], c.cc, "/gitaly.CommitService/CommitsByMessage", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[8], "/gitaly.CommitService/CommitsByMessage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1906,7 +2897,7 @@ func (x *commitServiceCommitsByMessageClient) Recv() (*CommitsByMessageResponse,
 }
 
 func (c *commitServiceClient) ListCommitsByOid(ctx context.Context, in *ListCommitsByOidRequest, opts ...grpc.CallOption) (CommitService_ListCommitsByOidClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[9], c.cc, "/gitaly.CommitService/ListCommitsByOid", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[9], "/gitaly.CommitService/ListCommitsByOid", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1938,7 +2929,7 @@ func (x *commitServiceListCommitsByOidClient) Recv() (*ListCommitsByOidResponse,
 }
 
 func (c *commitServiceClient) FilterShasWithSignatures(ctx context.Context, opts ...grpc.CallOption) (CommitService_FilterShasWithSignaturesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[10], c.cc, "/gitaly.CommitService/FilterShasWithSignatures", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[10], "/gitaly.CommitService/FilterShasWithSignatures", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1969,7 +2960,7 @@ func (x *commitServiceFilterShasWithSignaturesClient) Recv() (*FilterShasWithSig
 }
 
 func (c *commitServiceClient) ExtractCommitSignature(ctx context.Context, in *ExtractCommitSignatureRequest, opts ...grpc.CallOption) (CommitService_ExtractCommitSignatureClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[11], c.cc, "/gitaly.CommitService/ExtractCommitSignature", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[11], "/gitaly.CommitService/ExtractCommitSignature", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2001,7 +2992,7 @@ func (x *commitServiceExtractCommitSignatureClient) Recv() (*ExtractCommitSignat
 }
 
 func (c *commitServiceClient) GetCommitSignatures(ctx context.Context, in *GetCommitSignaturesRequest, opts ...grpc.CallOption) (CommitService_GetCommitSignaturesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[12], c.cc, "/gitaly.CommitService/GetCommitSignatures", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[12], "/gitaly.CommitService/GetCommitSignatures", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2033,7 +3024,7 @@ func (x *commitServiceGetCommitSignaturesClient) Recv() (*GetCommitSignaturesRes
 }
 
 func (c *commitServiceClient) GetCommitMessages(ctx context.Context, in *GetCommitMessagesRequest, opts ...grpc.CallOption) (CommitService_GetCommitMessagesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_CommitService_serviceDesc.Streams[13], c.cc, "/gitaly.CommitService/GetCommitMessages", opts...)
+	stream, err := c.cc.NewStream(ctx, &_CommitService_serviceDesc.Streams[13], "/gitaly.CommitService/GetCommitMessages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2064,8 +3055,7 @@ func (x *commitServiceGetCommitMessagesClient) Recv() (*GetCommitMessagesRespons
 	return m, nil
 }
 
-// Server API for CommitService service
-
+// CommitServiceServer is the server API for CommitService service.
 type CommitServiceServer interface {
 	CommitIsAncestor(context.Context, *CommitIsAncestorRequest) (*CommitIsAncestorResponse, error)
 	TreeEntry(*TreeEntryRequest, CommitService_TreeEntryServer) error
@@ -2632,9 +3622,9 @@ var _CommitService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "commit.proto",
 }
 
-func init() { proto.RegisterFile("commit.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("commit.proto", fileDescriptor_commit_ab0cc8c8e149b4af) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor_commit_ab0cc8c8e149b4af = []byte{
 	// 1879 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0x5b, 0x6f, 0xdb, 0xc8,
 	0x15, 0x36, 0x75, 0xe7, 0x91, 0xeb, 0x95, 0x27, 0x37, 0x99, 0xb6, 0x63, 0xef, 0xec, 0x66, 0xeb,

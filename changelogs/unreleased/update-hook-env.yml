@@ -1,5 +1,0 @@
----
-title: Pass GL_PROTOCOL and GL_REPOSITORY to update hook
-merge_request: 1082
-author:
-type: fixed

@@ -133,12 +133,6 @@ module Gitlab
         diff
       end
 
-      def has_zero_stats?
-        stats.total.zero?
-      rescue
-        true
-      end
-
       def no_commit_message
         "--no commit message"
       end
@@ -155,10 +149,6 @@ module Gitlab
 
       def parents
         parent_ids.map { |oid| self.class.find(@repository, oid) }.compact
-      end
-
-      def stats
-        Gitlab::Git::CommitStats.new(@repository, self)
       end
 
       def message

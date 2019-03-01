@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mwitkow/grpc-proxy/proxy"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
@@ -85,6 +86,17 @@ func callbackIncrement(_ context.Context, req *mock.SimpleRequest) (*mock.Simple
 	}, nil
 }
 
+func TestRegisteringSecondStorageLocation(t *testing.T) {
+	prf := praefect.NewServer(nil, testLogger{t})
+
+	mCli, _, cleanup := newMockDownstream(t)
+	defer cleanup() // clean up mock downstream server resources
+
+	assert.NoError(t, prf.RegisterNode("1", mCli))
+	assert.Error(t, prf.RegisterNode("2", mCli))
+
+}
+
 func listenAvailPort(tb testing.TB) (net.Listener, int) {
 	listener, err := net.Listen("tcp", ":0")
 	require.NoError(tb, err)
@@ -144,7 +156,12 @@ func newMockDownstream(tb testing.TB, callback simpleUnaryUnaryCallback) (*grpc.
 		srv.GracefulStop()
 		lis.Close()
 		cc.Close()
-		require.NoError(tb, <-errQ)
+
+		// If the server is shutdown before Serve() is called on it
+		// the Serve() calls will return the ErrServerStopped
+		if err := <-errQ; err != nil && err != grpc.ErrServerStopped {
+			require.NoError(tb, err)
+		}
 	}
 
 	return cc, cleanup

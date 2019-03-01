@@ -17,6 +17,12 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type GetArchiveRequest_Format int32
 
 const (
@@ -43,7 +49,7 @@ func (x GetArchiveRequest_Format) String() string {
 	return proto.EnumName(GetArchiveRequest_Format_name, int32(x))
 }
 func (GetArchiveRequest_Format) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{18, 0}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{18, 0}
 }
 
 type GetRawChangesResponse_RawChange_Operation int32
@@ -81,17 +87,39 @@ func (x GetRawChangesResponse_RawChange_Operation) String() string {
 	return proto.EnumName(GetRawChangesResponse_RawChange_Operation_name, int32(x))
 }
 func (GetRawChangesResponse_RawChange_Operation) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{63, 0, 0}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{63, 0, 0}
 }
 
 type RepositoryExistsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RepositoryExistsRequest) Reset()                    { *m = RepositoryExistsRequest{} }
-func (m *RepositoryExistsRequest) String() string            { return proto.CompactTextString(m) }
-func (*RepositoryExistsRequest) ProtoMessage()               {}
-func (*RepositoryExistsRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
+func (m *RepositoryExistsRequest) Reset()         { *m = RepositoryExistsRequest{} }
+func (m *RepositoryExistsRequest) String() string { return proto.CompactTextString(m) }
+func (*RepositoryExistsRequest) ProtoMessage()    {}
+func (*RepositoryExistsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{0}
+}
+func (m *RepositoryExistsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepositoryExistsRequest.Unmarshal(m, b)
+}
+func (m *RepositoryExistsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepositoryExistsRequest.Marshal(b, m, deterministic)
+}
+func (dst *RepositoryExistsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepositoryExistsRequest.Merge(dst, src)
+}
+func (m *RepositoryExistsRequest) XXX_Size() int {
+	return xxx_messageInfo_RepositoryExistsRequest.Size(m)
+}
+func (m *RepositoryExistsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepositoryExistsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepositoryExistsRequest proto.InternalMessageInfo
 
 func (m *RepositoryExistsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -101,13 +129,35 @@ func (m *RepositoryExistsRequest) GetRepository() *Repository {
 }
 
 type RepositoryExistsResponse struct {
-	Exists bool `protobuf:"varint,1,opt,name=exists" json:"exists,omitempty"`
+	Exists               bool     `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RepositoryExistsResponse) Reset()                    { *m = RepositoryExistsResponse{} }
-func (m *RepositoryExistsResponse) String() string            { return proto.CompactTextString(m) }
-func (*RepositoryExistsResponse) ProtoMessage()               {}
-func (*RepositoryExistsResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
+func (m *RepositoryExistsResponse) Reset()         { *m = RepositoryExistsResponse{} }
+func (m *RepositoryExistsResponse) String() string { return proto.CompactTextString(m) }
+func (*RepositoryExistsResponse) ProtoMessage()    {}
+func (*RepositoryExistsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{1}
+}
+func (m *RepositoryExistsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepositoryExistsResponse.Unmarshal(m, b)
+}
+func (m *RepositoryExistsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepositoryExistsResponse.Marshal(b, m, deterministic)
+}
+func (dst *RepositoryExistsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepositoryExistsResponse.Merge(dst, src)
+}
+func (m *RepositoryExistsResponse) XXX_Size() int {
+	return xxx_messageInfo_RepositoryExistsResponse.Size(m)
+}
+func (m *RepositoryExistsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepositoryExistsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepositoryExistsResponse proto.InternalMessageInfo
 
 func (m *RepositoryExistsResponse) GetExists() bool {
 	if m != nil {
@@ -117,13 +167,35 @@ func (m *RepositoryExistsResponse) GetExists() bool {
 }
 
 type RepackIncrementalRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RepackIncrementalRequest) Reset()                    { *m = RepackIncrementalRequest{} }
-func (m *RepackIncrementalRequest) String() string            { return proto.CompactTextString(m) }
-func (*RepackIncrementalRequest) ProtoMessage()               {}
-func (*RepackIncrementalRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{2} }
+func (m *RepackIncrementalRequest) Reset()         { *m = RepackIncrementalRequest{} }
+func (m *RepackIncrementalRequest) String() string { return proto.CompactTextString(m) }
+func (*RepackIncrementalRequest) ProtoMessage()    {}
+func (*RepackIncrementalRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{2}
+}
+func (m *RepackIncrementalRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepackIncrementalRequest.Unmarshal(m, b)
+}
+func (m *RepackIncrementalRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepackIncrementalRequest.Marshal(b, m, deterministic)
+}
+func (dst *RepackIncrementalRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepackIncrementalRequest.Merge(dst, src)
+}
+func (m *RepackIncrementalRequest) XXX_Size() int {
+	return xxx_messageInfo_RepackIncrementalRequest.Size(m)
+}
+func (m *RepackIncrementalRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepackIncrementalRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepackIncrementalRequest proto.InternalMessageInfo
 
 func (m *RepackIncrementalRequest) GetRepository() *Repository {
 	if m != nil {
@@ -133,22 +205,66 @@ func (m *RepackIncrementalRequest) GetRepository() *Repository {
 }
 
 type RepackIncrementalResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RepackIncrementalResponse) Reset()                    { *m = RepackIncrementalResponse{} }
-func (m *RepackIncrementalResponse) String() string            { return proto.CompactTextString(m) }
-func (*RepackIncrementalResponse) ProtoMessage()               {}
-func (*RepackIncrementalResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{3} }
+func (m *RepackIncrementalResponse) Reset()         { *m = RepackIncrementalResponse{} }
+func (m *RepackIncrementalResponse) String() string { return proto.CompactTextString(m) }
+func (*RepackIncrementalResponse) ProtoMessage()    {}
+func (*RepackIncrementalResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{3}
+}
+func (m *RepackIncrementalResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepackIncrementalResponse.Unmarshal(m, b)
+}
+func (m *RepackIncrementalResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepackIncrementalResponse.Marshal(b, m, deterministic)
+}
+func (dst *RepackIncrementalResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepackIncrementalResponse.Merge(dst, src)
+}
+func (m *RepackIncrementalResponse) XXX_Size() int {
+	return xxx_messageInfo_RepackIncrementalResponse.Size(m)
+}
+func (m *RepackIncrementalResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepackIncrementalResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepackIncrementalResponse proto.InternalMessageInfo
 
 type RepackFullRequest struct {
-	Repository   *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CreateBitmap bool        `protobuf:"varint,2,opt,name=create_bitmap,json=createBitmap" json:"create_bitmap,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CreateBitmap         bool        `protobuf:"varint,2,opt,name=create_bitmap,json=createBitmap,proto3" json:"create_bitmap,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RepackFullRequest) Reset()                    { *m = RepackFullRequest{} }
-func (m *RepackFullRequest) String() string            { return proto.CompactTextString(m) }
-func (*RepackFullRequest) ProtoMessage()               {}
-func (*RepackFullRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{4} }
+func (m *RepackFullRequest) Reset()         { *m = RepackFullRequest{} }
+func (m *RepackFullRequest) String() string { return proto.CompactTextString(m) }
+func (*RepackFullRequest) ProtoMessage()    {}
+func (*RepackFullRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{4}
+}
+func (m *RepackFullRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepackFullRequest.Unmarshal(m, b)
+}
+func (m *RepackFullRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepackFullRequest.Marshal(b, m, deterministic)
+}
+func (dst *RepackFullRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepackFullRequest.Merge(dst, src)
+}
+func (m *RepackFullRequest) XXX_Size() int {
+	return xxx_messageInfo_RepackFullRequest.Size(m)
+}
+func (m *RepackFullRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepackFullRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepackFullRequest proto.InternalMessageInfo
 
 func (m *RepackFullRequest) GetRepository() *Repository {
 	if m != nil {
@@ -165,22 +281,66 @@ func (m *RepackFullRequest) GetCreateBitmap() bool {
 }
 
 type RepackFullResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RepackFullResponse) Reset()                    { *m = RepackFullResponse{} }
-func (m *RepackFullResponse) String() string            { return proto.CompactTextString(m) }
-func (*RepackFullResponse) ProtoMessage()               {}
-func (*RepackFullResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{5} }
+func (m *RepackFullResponse) Reset()         { *m = RepackFullResponse{} }
+func (m *RepackFullResponse) String() string { return proto.CompactTextString(m) }
+func (*RepackFullResponse) ProtoMessage()    {}
+func (*RepackFullResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{5}
+}
+func (m *RepackFullResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepackFullResponse.Unmarshal(m, b)
+}
+func (m *RepackFullResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepackFullResponse.Marshal(b, m, deterministic)
+}
+func (dst *RepackFullResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepackFullResponse.Merge(dst, src)
+}
+func (m *RepackFullResponse) XXX_Size() int {
+	return xxx_messageInfo_RepackFullResponse.Size(m)
+}
+func (m *RepackFullResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepackFullResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepackFullResponse proto.InternalMessageInfo
 
 type GarbageCollectRequest struct {
-	Repository   *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CreateBitmap bool        `protobuf:"varint,2,opt,name=create_bitmap,json=createBitmap" json:"create_bitmap,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CreateBitmap         bool        `protobuf:"varint,2,opt,name=create_bitmap,json=createBitmap,proto3" json:"create_bitmap,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GarbageCollectRequest) Reset()                    { *m = GarbageCollectRequest{} }
-func (m *GarbageCollectRequest) String() string            { return proto.CompactTextString(m) }
-func (*GarbageCollectRequest) ProtoMessage()               {}
-func (*GarbageCollectRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{6} }
+func (m *GarbageCollectRequest) Reset()         { *m = GarbageCollectRequest{} }
+func (m *GarbageCollectRequest) String() string { return proto.CompactTextString(m) }
+func (*GarbageCollectRequest) ProtoMessage()    {}
+func (*GarbageCollectRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{6}
+}
+func (m *GarbageCollectRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GarbageCollectRequest.Unmarshal(m, b)
+}
+func (m *GarbageCollectRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GarbageCollectRequest.Marshal(b, m, deterministic)
+}
+func (dst *GarbageCollectRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GarbageCollectRequest.Merge(dst, src)
+}
+func (m *GarbageCollectRequest) XXX_Size() int {
+	return xxx_messageInfo_GarbageCollectRequest.Size(m)
+}
+func (m *GarbageCollectRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GarbageCollectRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GarbageCollectRequest proto.InternalMessageInfo
 
 func (m *GarbageCollectRequest) GetRepository() *Repository {
 	if m != nil {
@@ -197,21 +357,65 @@ func (m *GarbageCollectRequest) GetCreateBitmap() bool {
 }
 
 type GarbageCollectResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GarbageCollectResponse) Reset()                    { *m = GarbageCollectResponse{} }
-func (m *GarbageCollectResponse) String() string            { return proto.CompactTextString(m) }
-func (*GarbageCollectResponse) ProtoMessage()               {}
-func (*GarbageCollectResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{7} }
+func (m *GarbageCollectResponse) Reset()         { *m = GarbageCollectResponse{} }
+func (m *GarbageCollectResponse) String() string { return proto.CompactTextString(m) }
+func (*GarbageCollectResponse) ProtoMessage()    {}
+func (*GarbageCollectResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{7}
+}
+func (m *GarbageCollectResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GarbageCollectResponse.Unmarshal(m, b)
+}
+func (m *GarbageCollectResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GarbageCollectResponse.Marshal(b, m, deterministic)
+}
+func (dst *GarbageCollectResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GarbageCollectResponse.Merge(dst, src)
+}
+func (m *GarbageCollectResponse) XXX_Size() int {
+	return xxx_messageInfo_GarbageCollectResponse.Size(m)
+}
+func (m *GarbageCollectResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GarbageCollectResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GarbageCollectResponse proto.InternalMessageInfo
 
 type CleanupRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CleanupRequest) Reset()                    { *m = CleanupRequest{} }
-func (m *CleanupRequest) String() string            { return proto.CompactTextString(m) }
-func (*CleanupRequest) ProtoMessage()               {}
-func (*CleanupRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{8} }
+func (m *CleanupRequest) Reset()         { *m = CleanupRequest{} }
+func (m *CleanupRequest) String() string { return proto.CompactTextString(m) }
+func (*CleanupRequest) ProtoMessage()    {}
+func (*CleanupRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{8}
+}
+func (m *CleanupRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CleanupRequest.Unmarshal(m, b)
+}
+func (m *CleanupRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CleanupRequest.Marshal(b, m, deterministic)
+}
+func (dst *CleanupRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CleanupRequest.Merge(dst, src)
+}
+func (m *CleanupRequest) XXX_Size() int {
+	return xxx_messageInfo_CleanupRequest.Size(m)
+}
+func (m *CleanupRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CleanupRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CleanupRequest proto.InternalMessageInfo
 
 func (m *CleanupRequest) GetRepository() *Repository {
 	if m != nil {
@@ -221,21 +425,65 @@ func (m *CleanupRequest) GetRepository() *Repository {
 }
 
 type CleanupResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CleanupResponse) Reset()                    { *m = CleanupResponse{} }
-func (m *CleanupResponse) String() string            { return proto.CompactTextString(m) }
-func (*CleanupResponse) ProtoMessage()               {}
-func (*CleanupResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{9} }
+func (m *CleanupResponse) Reset()         { *m = CleanupResponse{} }
+func (m *CleanupResponse) String() string { return proto.CompactTextString(m) }
+func (*CleanupResponse) ProtoMessage()    {}
+func (*CleanupResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{9}
+}
+func (m *CleanupResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CleanupResponse.Unmarshal(m, b)
+}
+func (m *CleanupResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CleanupResponse.Marshal(b, m, deterministic)
+}
+func (dst *CleanupResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CleanupResponse.Merge(dst, src)
+}
+func (m *CleanupResponse) XXX_Size() int {
+	return xxx_messageInfo_CleanupResponse.Size(m)
+}
+func (m *CleanupResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CleanupResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CleanupResponse proto.InternalMessageInfo
 
 type RepositorySizeRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RepositorySizeRequest) Reset()                    { *m = RepositorySizeRequest{} }
-func (m *RepositorySizeRequest) String() string            { return proto.CompactTextString(m) }
-func (*RepositorySizeRequest) ProtoMessage()               {}
-func (*RepositorySizeRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{10} }
+func (m *RepositorySizeRequest) Reset()         { *m = RepositorySizeRequest{} }
+func (m *RepositorySizeRequest) String() string { return proto.CompactTextString(m) }
+func (*RepositorySizeRequest) ProtoMessage()    {}
+func (*RepositorySizeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{10}
+}
+func (m *RepositorySizeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepositorySizeRequest.Unmarshal(m, b)
+}
+func (m *RepositorySizeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepositorySizeRequest.Marshal(b, m, deterministic)
+}
+func (dst *RepositorySizeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepositorySizeRequest.Merge(dst, src)
+}
+func (m *RepositorySizeRequest) XXX_Size() int {
+	return xxx_messageInfo_RepositorySizeRequest.Size(m)
+}
+func (m *RepositorySizeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepositorySizeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepositorySizeRequest proto.InternalMessageInfo
 
 func (m *RepositorySizeRequest) GetRepository() *Repository {
 	if m != nil {
@@ -246,13 +494,35 @@ func (m *RepositorySizeRequest) GetRepository() *Repository {
 
 type RepositorySizeResponse struct {
 	// Repository size in kilobytes
-	Size int64 `protobuf:"varint,1,opt,name=size" json:"size,omitempty"`
+	Size                 int64    `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RepositorySizeResponse) Reset()                    { *m = RepositorySizeResponse{} }
-func (m *RepositorySizeResponse) String() string            { return proto.CompactTextString(m) }
-func (*RepositorySizeResponse) ProtoMessage()               {}
-func (*RepositorySizeResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{11} }
+func (m *RepositorySizeResponse) Reset()         { *m = RepositorySizeResponse{} }
+func (m *RepositorySizeResponse) String() string { return proto.CompactTextString(m) }
+func (*RepositorySizeResponse) ProtoMessage()    {}
+func (*RepositorySizeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{11}
+}
+func (m *RepositorySizeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepositorySizeResponse.Unmarshal(m, b)
+}
+func (m *RepositorySizeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepositorySizeResponse.Marshal(b, m, deterministic)
+}
+func (dst *RepositorySizeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepositorySizeResponse.Merge(dst, src)
+}
+func (m *RepositorySizeResponse) XXX_Size() int {
+	return xxx_messageInfo_RepositorySizeResponse.Size(m)
+}
+func (m *RepositorySizeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepositorySizeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepositorySizeResponse proto.InternalMessageInfo
 
 func (m *RepositorySizeResponse) GetSize() int64 {
 	if m != nil {
@@ -262,14 +532,36 @@ func (m *RepositorySizeResponse) GetSize() int64 {
 }
 
 type ApplyGitattributesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *ApplyGitattributesRequest) Reset()                    { *m = ApplyGitattributesRequest{} }
-func (m *ApplyGitattributesRequest) String() string            { return proto.CompactTextString(m) }
-func (*ApplyGitattributesRequest) ProtoMessage()               {}
-func (*ApplyGitattributesRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{12} }
+func (m *ApplyGitattributesRequest) Reset()         { *m = ApplyGitattributesRequest{} }
+func (m *ApplyGitattributesRequest) String() string { return proto.CompactTextString(m) }
+func (*ApplyGitattributesRequest) ProtoMessage()    {}
+func (*ApplyGitattributesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{12}
+}
+func (m *ApplyGitattributesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ApplyGitattributesRequest.Unmarshal(m, b)
+}
+func (m *ApplyGitattributesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ApplyGitattributesRequest.Marshal(b, m, deterministic)
+}
+func (dst *ApplyGitattributesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplyGitattributesRequest.Merge(dst, src)
+}
+func (m *ApplyGitattributesRequest) XXX_Size() int {
+	return xxx_messageInfo_ApplyGitattributesRequest.Size(m)
+}
+func (m *ApplyGitattributesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplyGitattributesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplyGitattributesRequest proto.InternalMessageInfo
 
 func (m *ApplyGitattributesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -286,28 +578,72 @@ func (m *ApplyGitattributesRequest) GetRevision() []byte {
 }
 
 type ApplyGitattributesResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ApplyGitattributesResponse) Reset()                    { *m = ApplyGitattributesResponse{} }
-func (m *ApplyGitattributesResponse) String() string            { return proto.CompactTextString(m) }
-func (*ApplyGitattributesResponse) ProtoMessage()               {}
-func (*ApplyGitattributesResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{13} }
+func (m *ApplyGitattributesResponse) Reset()         { *m = ApplyGitattributesResponse{} }
+func (m *ApplyGitattributesResponse) String() string { return proto.CompactTextString(m) }
+func (*ApplyGitattributesResponse) ProtoMessage()    {}
+func (*ApplyGitattributesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{13}
+}
+func (m *ApplyGitattributesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ApplyGitattributesResponse.Unmarshal(m, b)
+}
+func (m *ApplyGitattributesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ApplyGitattributesResponse.Marshal(b, m, deterministic)
+}
+func (dst *ApplyGitattributesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplyGitattributesResponse.Merge(dst, src)
+}
+func (m *ApplyGitattributesResponse) XXX_Size() int {
+	return xxx_messageInfo_ApplyGitattributesResponse.Size(m)
+}
+func (m *ApplyGitattributesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplyGitattributesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplyGitattributesResponse proto.InternalMessageInfo
 
 type FetchRemoteRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Remote     string      `protobuf:"bytes,2,opt,name=remote" json:"remote,omitempty"`
-	Force      bool        `protobuf:"varint,3,opt,name=force" json:"force,omitempty"`
-	NoTags     bool        `protobuf:"varint,4,opt,name=no_tags,json=noTags" json:"no_tags,omitempty"`
-	Timeout    int32       `protobuf:"varint,5,opt,name=timeout" json:"timeout,omitempty"`
-	SshKey     string      `protobuf:"bytes,6,opt,name=ssh_key,json=sshKey" json:"ssh_key,omitempty"`
-	KnownHosts string      `protobuf:"bytes,7,opt,name=known_hosts,json=knownHosts" json:"known_hosts,omitempty"`
-	NoPrune    bool        `protobuf:"varint,9,opt,name=no_prune,json=noPrune" json:"no_prune,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Remote               string      `protobuf:"bytes,2,opt,name=remote,proto3" json:"remote,omitempty"`
+	Force                bool        `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	NoTags               bool        `protobuf:"varint,4,opt,name=no_tags,json=noTags,proto3" json:"no_tags,omitempty"`
+	Timeout              int32       `protobuf:"varint,5,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	SshKey               string      `protobuf:"bytes,6,opt,name=ssh_key,json=sshKey,proto3" json:"ssh_key,omitempty"`
+	KnownHosts           string      `protobuf:"bytes,7,opt,name=known_hosts,json=knownHosts,proto3" json:"known_hosts,omitempty"`
+	NoPrune              bool        `protobuf:"varint,9,opt,name=no_prune,json=noPrune,proto3" json:"no_prune,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FetchRemoteRequest) Reset()                    { *m = FetchRemoteRequest{} }
-func (m *FetchRemoteRequest) String() string            { return proto.CompactTextString(m) }
-func (*FetchRemoteRequest) ProtoMessage()               {}
-func (*FetchRemoteRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{14} }
+func (m *FetchRemoteRequest) Reset()         { *m = FetchRemoteRequest{} }
+func (m *FetchRemoteRequest) String() string { return proto.CompactTextString(m) }
+func (*FetchRemoteRequest) ProtoMessage()    {}
+func (*FetchRemoteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{14}
+}
+func (m *FetchRemoteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchRemoteRequest.Unmarshal(m, b)
+}
+func (m *FetchRemoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchRemoteRequest.Marshal(b, m, deterministic)
+}
+func (dst *FetchRemoteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchRemoteRequest.Merge(dst, src)
+}
+func (m *FetchRemoteRequest) XXX_Size() int {
+	return xxx_messageInfo_FetchRemoteRequest.Size(m)
+}
+func (m *FetchRemoteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchRemoteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchRemoteRequest proto.InternalMessageInfo
 
 func (m *FetchRemoteRequest) GetRepository() *Repository {
 	if m != nil {
@@ -366,21 +702,65 @@ func (m *FetchRemoteRequest) GetNoPrune() bool {
 }
 
 type FetchRemoteResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FetchRemoteResponse) Reset()                    { *m = FetchRemoteResponse{} }
-func (m *FetchRemoteResponse) String() string            { return proto.CompactTextString(m) }
-func (*FetchRemoteResponse) ProtoMessage()               {}
-func (*FetchRemoteResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{15} }
+func (m *FetchRemoteResponse) Reset()         { *m = FetchRemoteResponse{} }
+func (m *FetchRemoteResponse) String() string { return proto.CompactTextString(m) }
+func (*FetchRemoteResponse) ProtoMessage()    {}
+func (*FetchRemoteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{15}
+}
+func (m *FetchRemoteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchRemoteResponse.Unmarshal(m, b)
+}
+func (m *FetchRemoteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchRemoteResponse.Marshal(b, m, deterministic)
+}
+func (dst *FetchRemoteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchRemoteResponse.Merge(dst, src)
+}
+func (m *FetchRemoteResponse) XXX_Size() int {
+	return xxx_messageInfo_FetchRemoteResponse.Size(m)
+}
+func (m *FetchRemoteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchRemoteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchRemoteResponse proto.InternalMessageInfo
 
 type CreateRepositoryRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateRepositoryRequest) Reset()                    { *m = CreateRepositoryRequest{} }
-func (m *CreateRepositoryRequest) String() string            { return proto.CompactTextString(m) }
-func (*CreateRepositoryRequest) ProtoMessage()               {}
-func (*CreateRepositoryRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{16} }
+func (m *CreateRepositoryRequest) Reset()         { *m = CreateRepositoryRequest{} }
+func (m *CreateRepositoryRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateRepositoryRequest) ProtoMessage()    {}
+func (*CreateRepositoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{16}
+}
+func (m *CreateRepositoryRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryRequest.Unmarshal(m, b)
+}
+func (m *CreateRepositoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryRequest.Merge(dst, src)
+}
+func (m *CreateRepositoryRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryRequest.Size(m)
+}
+func (m *CreateRepositoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryRequest proto.InternalMessageInfo
 
 func (m *CreateRepositoryRequest) GetRepository() *Repository {
 	if m != nil {
@@ -390,24 +770,68 @@ func (m *CreateRepositoryRequest) GetRepository() *Repository {
 }
 
 type CreateRepositoryResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateRepositoryResponse) Reset()                    { *m = CreateRepositoryResponse{} }
-func (m *CreateRepositoryResponse) String() string            { return proto.CompactTextString(m) }
-func (*CreateRepositoryResponse) ProtoMessage()               {}
-func (*CreateRepositoryResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{17} }
+func (m *CreateRepositoryResponse) Reset()         { *m = CreateRepositoryResponse{} }
+func (m *CreateRepositoryResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateRepositoryResponse) ProtoMessage()    {}
+func (*CreateRepositoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{17}
+}
+func (m *CreateRepositoryResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryResponse.Unmarshal(m, b)
+}
+func (m *CreateRepositoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryResponse.Merge(dst, src)
+}
+func (m *CreateRepositoryResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryResponse.Size(m)
+}
+func (m *CreateRepositoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryResponse proto.InternalMessageInfo
 
 type GetArchiveRequest struct {
-	Repository *Repository              `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	CommitId   string                   `protobuf:"bytes,2,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
-	Prefix     string                   `protobuf:"bytes,3,opt,name=prefix" json:"prefix,omitempty"`
-	Format     GetArchiveRequest_Format `protobuf:"varint,4,opt,name=format,enum=gitaly.GetArchiveRequest_Format" json:"format,omitempty"`
+	Repository           *Repository              `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	CommitId             string                   `protobuf:"bytes,2,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	Prefix               string                   `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Format               GetArchiveRequest_Format `protobuf:"varint,4,opt,name=format,proto3,enum=gitaly.GetArchiveRequest_Format" json:"format,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
-func (m *GetArchiveRequest) Reset()                    { *m = GetArchiveRequest{} }
-func (m *GetArchiveRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetArchiveRequest) ProtoMessage()               {}
-func (*GetArchiveRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{18} }
+func (m *GetArchiveRequest) Reset()         { *m = GetArchiveRequest{} }
+func (m *GetArchiveRequest) String() string { return proto.CompactTextString(m) }
+func (*GetArchiveRequest) ProtoMessage()    {}
+func (*GetArchiveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{18}
+}
+func (m *GetArchiveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetArchiveRequest.Unmarshal(m, b)
+}
+func (m *GetArchiveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetArchiveRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetArchiveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArchiveRequest.Merge(dst, src)
+}
+func (m *GetArchiveRequest) XXX_Size() int {
+	return xxx_messageInfo_GetArchiveRequest.Size(m)
+}
+func (m *GetArchiveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetArchiveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetArchiveRequest proto.InternalMessageInfo
 
 func (m *GetArchiveRequest) GetRepository() *Repository {
 	if m != nil {
@@ -438,13 +862,35 @@ func (m *GetArchiveRequest) GetFormat() GetArchiveRequest_Format {
 }
 
 type GetArchiveResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetArchiveResponse) Reset()                    { *m = GetArchiveResponse{} }
-func (m *GetArchiveResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetArchiveResponse) ProtoMessage()               {}
-func (*GetArchiveResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{19} }
+func (m *GetArchiveResponse) Reset()         { *m = GetArchiveResponse{} }
+func (m *GetArchiveResponse) String() string { return proto.CompactTextString(m) }
+func (*GetArchiveResponse) ProtoMessage()    {}
+func (*GetArchiveResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{19}
+}
+func (m *GetArchiveResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetArchiveResponse.Unmarshal(m, b)
+}
+func (m *GetArchiveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetArchiveResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetArchiveResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetArchiveResponse.Merge(dst, src)
+}
+func (m *GetArchiveResponse) XXX_Size() int {
+	return xxx_messageInfo_GetArchiveResponse.Size(m)
+}
+func (m *GetArchiveResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetArchiveResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetArchiveResponse proto.InternalMessageInfo
 
 func (m *GetArchiveResponse) GetData() []byte {
 	if m != nil {
@@ -454,13 +900,35 @@ func (m *GetArchiveResponse) GetData() []byte {
 }
 
 type HasLocalBranchesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *HasLocalBranchesRequest) Reset()                    { *m = HasLocalBranchesRequest{} }
-func (m *HasLocalBranchesRequest) String() string            { return proto.CompactTextString(m) }
-func (*HasLocalBranchesRequest) ProtoMessage()               {}
-func (*HasLocalBranchesRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{20} }
+func (m *HasLocalBranchesRequest) Reset()         { *m = HasLocalBranchesRequest{} }
+func (m *HasLocalBranchesRequest) String() string { return proto.CompactTextString(m) }
+func (*HasLocalBranchesRequest) ProtoMessage()    {}
+func (*HasLocalBranchesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{20}
+}
+func (m *HasLocalBranchesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HasLocalBranchesRequest.Unmarshal(m, b)
+}
+func (m *HasLocalBranchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HasLocalBranchesRequest.Marshal(b, m, deterministic)
+}
+func (dst *HasLocalBranchesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HasLocalBranchesRequest.Merge(dst, src)
+}
+func (m *HasLocalBranchesRequest) XXX_Size() int {
+	return xxx_messageInfo_HasLocalBranchesRequest.Size(m)
+}
+func (m *HasLocalBranchesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_HasLocalBranchesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HasLocalBranchesRequest proto.InternalMessageInfo
 
 func (m *HasLocalBranchesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -470,13 +938,35 @@ func (m *HasLocalBranchesRequest) GetRepository() *Repository {
 }
 
 type HasLocalBranchesResponse struct {
-	Value bool `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+	Value                bool     `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *HasLocalBranchesResponse) Reset()                    { *m = HasLocalBranchesResponse{} }
-func (m *HasLocalBranchesResponse) String() string            { return proto.CompactTextString(m) }
-func (*HasLocalBranchesResponse) ProtoMessage()               {}
-func (*HasLocalBranchesResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{21} }
+func (m *HasLocalBranchesResponse) Reset()         { *m = HasLocalBranchesResponse{} }
+func (m *HasLocalBranchesResponse) String() string { return proto.CompactTextString(m) }
+func (*HasLocalBranchesResponse) ProtoMessage()    {}
+func (*HasLocalBranchesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{21}
+}
+func (m *HasLocalBranchesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HasLocalBranchesResponse.Unmarshal(m, b)
+}
+func (m *HasLocalBranchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HasLocalBranchesResponse.Marshal(b, m, deterministic)
+}
+func (dst *HasLocalBranchesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HasLocalBranchesResponse.Merge(dst, src)
+}
+func (m *HasLocalBranchesResponse) XXX_Size() int {
+	return xxx_messageInfo_HasLocalBranchesResponse.Size(m)
+}
+func (m *HasLocalBranchesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_HasLocalBranchesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HasLocalBranchesResponse proto.InternalMessageInfo
 
 func (m *HasLocalBranchesResponse) GetValue() bool {
 	if m != nil {
@@ -486,16 +976,38 @@ func (m *HasLocalBranchesResponse) GetValue() bool {
 }
 
 type FetchSourceBranchRequest struct {
-	Repository       *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	SourceRepository *Repository `protobuf:"bytes,2,opt,name=source_repository,json=sourceRepository" json:"source_repository,omitempty"`
-	SourceBranch     []byte      `protobuf:"bytes,3,opt,name=source_branch,json=sourceBranch,proto3" json:"source_branch,omitempty"`
-	TargetRef        []byte      `protobuf:"bytes,4,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	SourceRepository     *Repository `protobuf:"bytes,2,opt,name=source_repository,json=sourceRepository,proto3" json:"source_repository,omitempty"`
+	SourceBranch         []byte      `protobuf:"bytes,3,opt,name=source_branch,json=sourceBranch,proto3" json:"source_branch,omitempty"`
+	TargetRef            []byte      `protobuf:"bytes,4,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FetchSourceBranchRequest) Reset()                    { *m = FetchSourceBranchRequest{} }
-func (m *FetchSourceBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*FetchSourceBranchRequest) ProtoMessage()               {}
-func (*FetchSourceBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{22} }
+func (m *FetchSourceBranchRequest) Reset()         { *m = FetchSourceBranchRequest{} }
+func (m *FetchSourceBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*FetchSourceBranchRequest) ProtoMessage()    {}
+func (*FetchSourceBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{22}
+}
+func (m *FetchSourceBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchSourceBranchRequest.Unmarshal(m, b)
+}
+func (m *FetchSourceBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchSourceBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *FetchSourceBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchSourceBranchRequest.Merge(dst, src)
+}
+func (m *FetchSourceBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_FetchSourceBranchRequest.Size(m)
+}
+func (m *FetchSourceBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchSourceBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchSourceBranchRequest proto.InternalMessageInfo
 
 func (m *FetchSourceBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -526,13 +1038,35 @@ func (m *FetchSourceBranchRequest) GetTargetRef() []byte {
 }
 
 type FetchSourceBranchResponse struct {
-	Result bool `protobuf:"varint,1,opt,name=result" json:"result,omitempty"`
+	Result               bool     `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FetchSourceBranchResponse) Reset()                    { *m = FetchSourceBranchResponse{} }
-func (m *FetchSourceBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*FetchSourceBranchResponse) ProtoMessage()               {}
-func (*FetchSourceBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{23} }
+func (m *FetchSourceBranchResponse) Reset()         { *m = FetchSourceBranchResponse{} }
+func (m *FetchSourceBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*FetchSourceBranchResponse) ProtoMessage()    {}
+func (*FetchSourceBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{23}
+}
+func (m *FetchSourceBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FetchSourceBranchResponse.Unmarshal(m, b)
+}
+func (m *FetchSourceBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FetchSourceBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *FetchSourceBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FetchSourceBranchResponse.Merge(dst, src)
+}
+func (m *FetchSourceBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_FetchSourceBranchResponse.Size(m)
+}
+func (m *FetchSourceBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FetchSourceBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FetchSourceBranchResponse proto.InternalMessageInfo
 
 func (m *FetchSourceBranchResponse) GetResult() bool {
 	if m != nil {
@@ -542,13 +1076,35 @@ func (m *FetchSourceBranchResponse) GetResult() bool {
 }
 
 type FsckRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FsckRequest) Reset()                    { *m = FsckRequest{} }
-func (m *FsckRequest) String() string            { return proto.CompactTextString(m) }
-func (*FsckRequest) ProtoMessage()               {}
-func (*FsckRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{24} }
+func (m *FsckRequest) Reset()         { *m = FsckRequest{} }
+func (m *FsckRequest) String() string { return proto.CompactTextString(m) }
+func (*FsckRequest) ProtoMessage()    {}
+func (*FsckRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{24}
+}
+func (m *FsckRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FsckRequest.Unmarshal(m, b)
+}
+func (m *FsckRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FsckRequest.Marshal(b, m, deterministic)
+}
+func (dst *FsckRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FsckRequest.Merge(dst, src)
+}
+func (m *FsckRequest) XXX_Size() int {
+	return xxx_messageInfo_FsckRequest.Size(m)
+}
+func (m *FsckRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FsckRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FsckRequest proto.InternalMessageInfo
 
 func (m *FsckRequest) GetRepository() *Repository {
 	if m != nil {
@@ -558,13 +1114,35 @@ func (m *FsckRequest) GetRepository() *Repository {
 }
 
 type FsckResponse struct {
-	Error []byte `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	Error                []byte   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FsckResponse) Reset()                    { *m = FsckResponse{} }
-func (m *FsckResponse) String() string            { return proto.CompactTextString(m) }
-func (*FsckResponse) ProtoMessage()               {}
-func (*FsckResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{25} }
+func (m *FsckResponse) Reset()         { *m = FsckResponse{} }
+func (m *FsckResponse) String() string { return proto.CompactTextString(m) }
+func (*FsckResponse) ProtoMessage()    {}
+func (*FsckResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{25}
+}
+func (m *FsckResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FsckResponse.Unmarshal(m, b)
+}
+func (m *FsckResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FsckResponse.Marshal(b, m, deterministic)
+}
+func (dst *FsckResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FsckResponse.Merge(dst, src)
+}
+func (m *FsckResponse) XXX_Size() int {
+	return xxx_messageInfo_FsckResponse.Size(m)
+}
+func (m *FsckResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FsckResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FsckResponse proto.InternalMessageInfo
 
 func (m *FsckResponse) GetError() []byte {
 	if m != nil {
@@ -574,17 +1152,39 @@ func (m *FsckResponse) GetError() []byte {
 }
 
 type WriteRefRequest struct {
-	Repository  *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Ref         []byte      `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
-	Revision    []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
-	OldRevision []byte      `protobuf:"bytes,4,opt,name=old_revision,json=oldRevision,proto3" json:"old_revision,omitempty"`
-	Force       bool        `protobuf:"varint,5,opt,name=force" json:"force,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Ref                  []byte      `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Revision             []byte      `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	OldRevision          []byte      `protobuf:"bytes,4,opt,name=old_revision,json=oldRevision,proto3" json:"old_revision,omitempty"`
+	Force                bool        `protobuf:"varint,5,opt,name=force,proto3" json:"force,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WriteRefRequest) Reset()                    { *m = WriteRefRequest{} }
-func (m *WriteRefRequest) String() string            { return proto.CompactTextString(m) }
-func (*WriteRefRequest) ProtoMessage()               {}
-func (*WriteRefRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{26} }
+func (m *WriteRefRequest) Reset()         { *m = WriteRefRequest{} }
+func (m *WriteRefRequest) String() string { return proto.CompactTextString(m) }
+func (*WriteRefRequest) ProtoMessage()    {}
+func (*WriteRefRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{26}
+}
+func (m *WriteRefRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteRefRequest.Unmarshal(m, b)
+}
+func (m *WriteRefRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteRefRequest.Marshal(b, m, deterministic)
+}
+func (dst *WriteRefRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteRefRequest.Merge(dst, src)
+}
+func (m *WriteRefRequest) XXX_Size() int {
+	return xxx_messageInfo_WriteRefRequest.Size(m)
+}
+func (m *WriteRefRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteRefRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteRefRequest proto.InternalMessageInfo
 
 func (m *WriteRefRequest) GetRepository() *Repository {
 	if m != nil {
@@ -622,25 +1222,69 @@ func (m *WriteRefRequest) GetForce() bool {
 }
 
 type WriteRefResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WriteRefResponse) Reset()                    { *m = WriteRefResponse{} }
-func (m *WriteRefResponse) String() string            { return proto.CompactTextString(m) }
-func (*WriteRefResponse) ProtoMessage()               {}
-func (*WriteRefResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{27} }
+func (m *WriteRefResponse) Reset()         { *m = WriteRefResponse{} }
+func (m *WriteRefResponse) String() string { return proto.CompactTextString(m) }
+func (*WriteRefResponse) ProtoMessage()    {}
+func (*WriteRefResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{27}
+}
+func (m *WriteRefResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteRefResponse.Unmarshal(m, b)
+}
+func (m *WriteRefResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteRefResponse.Marshal(b, m, deterministic)
+}
+func (dst *WriteRefResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteRefResponse.Merge(dst, src)
+}
+func (m *WriteRefResponse) XXX_Size() int {
+	return xxx_messageInfo_WriteRefResponse.Size(m)
+}
+func (m *WriteRefResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteRefResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteRefResponse proto.InternalMessageInfo
 
 type FindMergeBaseRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// We use a repeated field because rugged supports finding a base
 	// for more than 2 revisions, so if we needed that in the future we don't
 	// need to change the protocol.
-	Revisions [][]byte `protobuf:"bytes,2,rep,name=revisions,proto3" json:"revisions,omitempty"`
+	Revisions            [][]byte `protobuf:"bytes,2,rep,name=revisions,proto3" json:"revisions,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindMergeBaseRequest) Reset()                    { *m = FindMergeBaseRequest{} }
-func (m *FindMergeBaseRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindMergeBaseRequest) ProtoMessage()               {}
-func (*FindMergeBaseRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{28} }
+func (m *FindMergeBaseRequest) Reset()         { *m = FindMergeBaseRequest{} }
+func (m *FindMergeBaseRequest) String() string { return proto.CompactTextString(m) }
+func (*FindMergeBaseRequest) ProtoMessage()    {}
+func (*FindMergeBaseRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{28}
+}
+func (m *FindMergeBaseRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindMergeBaseRequest.Unmarshal(m, b)
+}
+func (m *FindMergeBaseRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindMergeBaseRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindMergeBaseRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindMergeBaseRequest.Merge(dst, src)
+}
+func (m *FindMergeBaseRequest) XXX_Size() int {
+	return xxx_messageInfo_FindMergeBaseRequest.Size(m)
+}
+func (m *FindMergeBaseRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindMergeBaseRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindMergeBaseRequest proto.InternalMessageInfo
 
 func (m *FindMergeBaseRequest) GetRepository() *Repository {
 	if m != nil {
@@ -657,13 +1301,35 @@ func (m *FindMergeBaseRequest) GetRevisions() [][]byte {
 }
 
 type FindMergeBaseResponse struct {
-	Base string `protobuf:"bytes,1,opt,name=base" json:"base,omitempty"`
+	Base                 string   `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindMergeBaseResponse) Reset()                    { *m = FindMergeBaseResponse{} }
-func (m *FindMergeBaseResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindMergeBaseResponse) ProtoMessage()               {}
-func (*FindMergeBaseResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{29} }
+func (m *FindMergeBaseResponse) Reset()         { *m = FindMergeBaseResponse{} }
+func (m *FindMergeBaseResponse) String() string { return proto.CompactTextString(m) }
+func (*FindMergeBaseResponse) ProtoMessage()    {}
+func (*FindMergeBaseResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{29}
+}
+func (m *FindMergeBaseResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindMergeBaseResponse.Unmarshal(m, b)
+}
+func (m *FindMergeBaseResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindMergeBaseResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindMergeBaseResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindMergeBaseResponse.Merge(dst, src)
+}
+func (m *FindMergeBaseResponse) XXX_Size() int {
+	return xxx_messageInfo_FindMergeBaseResponse.Size(m)
+}
+func (m *FindMergeBaseResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindMergeBaseResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindMergeBaseResponse proto.InternalMessageInfo
 
 func (m *FindMergeBaseResponse) GetBase() string {
 	if m != nil {
@@ -673,14 +1339,36 @@ func (m *FindMergeBaseResponse) GetBase() string {
 }
 
 type CreateForkRequest struct {
-	Repository       *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	SourceRepository *Repository `protobuf:"bytes,2,opt,name=source_repository,json=sourceRepository" json:"source_repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	SourceRepository     *Repository `protobuf:"bytes,2,opt,name=source_repository,json=sourceRepository,proto3" json:"source_repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateForkRequest) Reset()                    { *m = CreateForkRequest{} }
-func (m *CreateForkRequest) String() string            { return proto.CompactTextString(m) }
-func (*CreateForkRequest) ProtoMessage()               {}
-func (*CreateForkRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{30} }
+func (m *CreateForkRequest) Reset()         { *m = CreateForkRequest{} }
+func (m *CreateForkRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateForkRequest) ProtoMessage()    {}
+func (*CreateForkRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{30}
+}
+func (m *CreateForkRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateForkRequest.Unmarshal(m, b)
+}
+func (m *CreateForkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateForkRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateForkRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateForkRequest.Merge(dst, src)
+}
+func (m *CreateForkRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateForkRequest.Size(m)
+}
+func (m *CreateForkRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateForkRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateForkRequest proto.InternalMessageInfo
 
 func (m *CreateForkRequest) GetRepository() *Repository {
 	if m != nil {
@@ -697,22 +1385,66 @@ func (m *CreateForkRequest) GetSourceRepository() *Repository {
 }
 
 type CreateForkResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateForkResponse) Reset()                    { *m = CreateForkResponse{} }
-func (m *CreateForkResponse) String() string            { return proto.CompactTextString(m) }
-func (*CreateForkResponse) ProtoMessage()               {}
-func (*CreateForkResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{31} }
+func (m *CreateForkResponse) Reset()         { *m = CreateForkResponse{} }
+func (m *CreateForkResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateForkResponse) ProtoMessage()    {}
+func (*CreateForkResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{31}
+}
+func (m *CreateForkResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateForkResponse.Unmarshal(m, b)
+}
+func (m *CreateForkResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateForkResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateForkResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateForkResponse.Merge(dst, src)
+}
+func (m *CreateForkResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateForkResponse.Size(m)
+}
+func (m *CreateForkResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateForkResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateForkResponse proto.InternalMessageInfo
 
 type IsRebaseInProgressRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	RebaseId   string      `protobuf:"bytes,2,opt,name=rebase_id,json=rebaseId" json:"rebase_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	RebaseId             string      `protobuf:"bytes,2,opt,name=rebase_id,json=rebaseId,proto3" json:"rebase_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *IsRebaseInProgressRequest) Reset()                    { *m = IsRebaseInProgressRequest{} }
-func (m *IsRebaseInProgressRequest) String() string            { return proto.CompactTextString(m) }
-func (*IsRebaseInProgressRequest) ProtoMessage()               {}
-func (*IsRebaseInProgressRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{32} }
+func (m *IsRebaseInProgressRequest) Reset()         { *m = IsRebaseInProgressRequest{} }
+func (m *IsRebaseInProgressRequest) String() string { return proto.CompactTextString(m) }
+func (*IsRebaseInProgressRequest) ProtoMessage()    {}
+func (*IsRebaseInProgressRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{32}
+}
+func (m *IsRebaseInProgressRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IsRebaseInProgressRequest.Unmarshal(m, b)
+}
+func (m *IsRebaseInProgressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IsRebaseInProgressRequest.Marshal(b, m, deterministic)
+}
+func (dst *IsRebaseInProgressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IsRebaseInProgressRequest.Merge(dst, src)
+}
+func (m *IsRebaseInProgressRequest) XXX_Size() int {
+	return xxx_messageInfo_IsRebaseInProgressRequest.Size(m)
+}
+func (m *IsRebaseInProgressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_IsRebaseInProgressRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IsRebaseInProgressRequest proto.InternalMessageInfo
 
 func (m *IsRebaseInProgressRequest) GetRepository() *Repository {
 	if m != nil {
@@ -729,13 +1461,35 @@ func (m *IsRebaseInProgressRequest) GetRebaseId() string {
 }
 
 type IsRebaseInProgressResponse struct {
-	InProgress bool `protobuf:"varint,1,opt,name=in_progress,json=inProgress" json:"in_progress,omitempty"`
+	InProgress           bool     `protobuf:"varint,1,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *IsRebaseInProgressResponse) Reset()                    { *m = IsRebaseInProgressResponse{} }
-func (m *IsRebaseInProgressResponse) String() string            { return proto.CompactTextString(m) }
-func (*IsRebaseInProgressResponse) ProtoMessage()               {}
-func (*IsRebaseInProgressResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{33} }
+func (m *IsRebaseInProgressResponse) Reset()         { *m = IsRebaseInProgressResponse{} }
+func (m *IsRebaseInProgressResponse) String() string { return proto.CompactTextString(m) }
+func (*IsRebaseInProgressResponse) ProtoMessage()    {}
+func (*IsRebaseInProgressResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{33}
+}
+func (m *IsRebaseInProgressResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IsRebaseInProgressResponse.Unmarshal(m, b)
+}
+func (m *IsRebaseInProgressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IsRebaseInProgressResponse.Marshal(b, m, deterministic)
+}
+func (dst *IsRebaseInProgressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IsRebaseInProgressResponse.Merge(dst, src)
+}
+func (m *IsRebaseInProgressResponse) XXX_Size() int {
+	return xxx_messageInfo_IsRebaseInProgressResponse.Size(m)
+}
+func (m *IsRebaseInProgressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_IsRebaseInProgressResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IsRebaseInProgressResponse proto.InternalMessageInfo
 
 func (m *IsRebaseInProgressResponse) GetInProgress() bool {
 	if m != nil {
@@ -745,14 +1499,36 @@ func (m *IsRebaseInProgressResponse) GetInProgress() bool {
 }
 
 type IsSquashInProgressRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	SquashId   string      `protobuf:"bytes,2,opt,name=squash_id,json=squashId" json:"squash_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	SquashId             string      `protobuf:"bytes,2,opt,name=squash_id,json=squashId,proto3" json:"squash_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *IsSquashInProgressRequest) Reset()                    { *m = IsSquashInProgressRequest{} }
-func (m *IsSquashInProgressRequest) String() string            { return proto.CompactTextString(m) }
-func (*IsSquashInProgressRequest) ProtoMessage()               {}
-func (*IsSquashInProgressRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{34} }
+func (m *IsSquashInProgressRequest) Reset()         { *m = IsSquashInProgressRequest{} }
+func (m *IsSquashInProgressRequest) String() string { return proto.CompactTextString(m) }
+func (*IsSquashInProgressRequest) ProtoMessage()    {}
+func (*IsSquashInProgressRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{34}
+}
+func (m *IsSquashInProgressRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IsSquashInProgressRequest.Unmarshal(m, b)
+}
+func (m *IsSquashInProgressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IsSquashInProgressRequest.Marshal(b, m, deterministic)
+}
+func (dst *IsSquashInProgressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IsSquashInProgressRequest.Merge(dst, src)
+}
+func (m *IsSquashInProgressRequest) XXX_Size() int {
+	return xxx_messageInfo_IsSquashInProgressRequest.Size(m)
+}
+func (m *IsSquashInProgressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_IsSquashInProgressRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IsSquashInProgressRequest proto.InternalMessageInfo
 
 func (m *IsSquashInProgressRequest) GetRepository() *Repository {
 	if m != nil {
@@ -769,13 +1545,35 @@ func (m *IsSquashInProgressRequest) GetSquashId() string {
 }
 
 type IsSquashInProgressResponse struct {
-	InProgress bool `protobuf:"varint,1,opt,name=in_progress,json=inProgress" json:"in_progress,omitempty"`
+	InProgress           bool     `protobuf:"varint,1,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *IsSquashInProgressResponse) Reset()                    { *m = IsSquashInProgressResponse{} }
-func (m *IsSquashInProgressResponse) String() string            { return proto.CompactTextString(m) }
-func (*IsSquashInProgressResponse) ProtoMessage()               {}
-func (*IsSquashInProgressResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{35} }
+func (m *IsSquashInProgressResponse) Reset()         { *m = IsSquashInProgressResponse{} }
+func (m *IsSquashInProgressResponse) String() string { return proto.CompactTextString(m) }
+func (*IsSquashInProgressResponse) ProtoMessage()    {}
+func (*IsSquashInProgressResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{35}
+}
+func (m *IsSquashInProgressResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IsSquashInProgressResponse.Unmarshal(m, b)
+}
+func (m *IsSquashInProgressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IsSquashInProgressResponse.Marshal(b, m, deterministic)
+}
+func (dst *IsSquashInProgressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IsSquashInProgressResponse.Merge(dst, src)
+}
+func (m *IsSquashInProgressResponse) XXX_Size() int {
+	return xxx_messageInfo_IsSquashInProgressResponse.Size(m)
+}
+func (m *IsSquashInProgressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_IsSquashInProgressResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IsSquashInProgressResponse proto.InternalMessageInfo
 
 func (m *IsSquashInProgressResponse) GetInProgress() bool {
 	if m != nil {
@@ -785,16 +1583,36 @@ func (m *IsSquashInProgressResponse) GetInProgress() bool {
 }
 
 type CreateRepositoryFromURLRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Url        string      `protobuf:"bytes,2,opt,name=url" json:"url,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Url                  string      `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *CreateRepositoryFromURLRequest) Reset()         { *m = CreateRepositoryFromURLRequest{} }
 func (m *CreateRepositoryFromURLRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromURLRequest) ProtoMessage()    {}
 func (*CreateRepositoryFromURLRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{36}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{36}
 }
+func (m *CreateRepositoryFromURLRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromURLRequest.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromURLRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromURLRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromURLRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromURLRequest.Merge(dst, src)
+}
+func (m *CreateRepositoryFromURLRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromURLRequest.Size(m)
+}
+func (m *CreateRepositoryFromURLRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromURLRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromURLRequest proto.InternalMessageInfo
 
 func (m *CreateRepositoryFromURLRequest) GetRepository() *Repository {
 	if m != nil {
@@ -811,23 +1629,65 @@ func (m *CreateRepositoryFromURLRequest) GetUrl() string {
 }
 
 type CreateRepositoryFromURLResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CreateRepositoryFromURLResponse) Reset()         { *m = CreateRepositoryFromURLResponse{} }
 func (m *CreateRepositoryFromURLResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromURLResponse) ProtoMessage()    {}
 func (*CreateRepositoryFromURLResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{37}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{37}
 }
+func (m *CreateRepositoryFromURLResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromURLResponse.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromURLResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromURLResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromURLResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromURLResponse.Merge(dst, src)
+}
+func (m *CreateRepositoryFromURLResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromURLResponse.Size(m)
+}
+func (m *CreateRepositoryFromURLResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromURLResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromURLResponse proto.InternalMessageInfo
 
 type CreateBundleRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateBundleRequest) Reset()                    { *m = CreateBundleRequest{} }
-func (m *CreateBundleRequest) String() string            { return proto.CompactTextString(m) }
-func (*CreateBundleRequest) ProtoMessage()               {}
-func (*CreateBundleRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{38} }
+func (m *CreateBundleRequest) Reset()         { *m = CreateBundleRequest{} }
+func (m *CreateBundleRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateBundleRequest) ProtoMessage()    {}
+func (*CreateBundleRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{38}
+}
+func (m *CreateBundleRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateBundleRequest.Unmarshal(m, b)
+}
+func (m *CreateBundleRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateBundleRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateBundleRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateBundleRequest.Merge(dst, src)
+}
+func (m *CreateBundleRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateBundleRequest.Size(m)
+}
+func (m *CreateBundleRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateBundleRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateBundleRequest proto.InternalMessageInfo
 
 func (m *CreateBundleRequest) GetRepository() *Repository {
 	if m != nil {
@@ -837,13 +1697,35 @@ func (m *CreateBundleRequest) GetRepository() *Repository {
 }
 
 type CreateBundleResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateBundleResponse) Reset()                    { *m = CreateBundleResponse{} }
-func (m *CreateBundleResponse) String() string            { return proto.CompactTextString(m) }
-func (*CreateBundleResponse) ProtoMessage()               {}
-func (*CreateBundleResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{39} }
+func (m *CreateBundleResponse) Reset()         { *m = CreateBundleResponse{} }
+func (m *CreateBundleResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateBundleResponse) ProtoMessage()    {}
+func (*CreateBundleResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{39}
+}
+func (m *CreateBundleResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateBundleResponse.Unmarshal(m, b)
+}
+func (m *CreateBundleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateBundleResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateBundleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateBundleResponse.Merge(dst, src)
+}
+func (m *CreateBundleResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateBundleResponse.Size(m)
+}
+func (m *CreateBundleResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateBundleResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateBundleResponse proto.InternalMessageInfo
 
 func (m *CreateBundleResponse) GetData() []byte {
 	if m != nil {
@@ -853,14 +1735,36 @@ func (m *CreateBundleResponse) GetData() []byte {
 }
 
 type WriteConfigRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	FullPath   string      `protobuf:"bytes,2,opt,name=full_path,json=fullPath" json:"full_path,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	FullPath             string      `protobuf:"bytes,2,opt,name=full_path,json=fullPath,proto3" json:"full_path,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WriteConfigRequest) Reset()                    { *m = WriteConfigRequest{} }
-func (m *WriteConfigRequest) String() string            { return proto.CompactTextString(m) }
-func (*WriteConfigRequest) ProtoMessage()               {}
-func (*WriteConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{40} }
+func (m *WriteConfigRequest) Reset()         { *m = WriteConfigRequest{} }
+func (m *WriteConfigRequest) String() string { return proto.CompactTextString(m) }
+func (*WriteConfigRequest) ProtoMessage()    {}
+func (*WriteConfigRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{40}
+}
+func (m *WriteConfigRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteConfigRequest.Unmarshal(m, b)
+}
+func (m *WriteConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteConfigRequest.Marshal(b, m, deterministic)
+}
+func (dst *WriteConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteConfigRequest.Merge(dst, src)
+}
+func (m *WriteConfigRequest) XXX_Size() int {
+	return xxx_messageInfo_WriteConfigRequest.Size(m)
+}
+func (m *WriteConfigRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteConfigRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteConfigRequest proto.InternalMessageInfo
 
 func (m *WriteConfigRequest) GetRepository() *Repository {
 	if m != nil {
@@ -877,13 +1781,35 @@ func (m *WriteConfigRequest) GetFullPath() string {
 }
 
 type WriteConfigResponse struct {
-	Error []byte `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	Error                []byte   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WriteConfigResponse) Reset()                    { *m = WriteConfigResponse{} }
-func (m *WriteConfigResponse) String() string            { return proto.CompactTextString(m) }
-func (*WriteConfigResponse) ProtoMessage()               {}
-func (*WriteConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{41} }
+func (m *WriteConfigResponse) Reset()         { *m = WriteConfigResponse{} }
+func (m *WriteConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*WriteConfigResponse) ProtoMessage()    {}
+func (*WriteConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{41}
+}
+func (m *WriteConfigResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteConfigResponse.Unmarshal(m, b)
+}
+func (m *WriteConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteConfigResponse.Marshal(b, m, deterministic)
+}
+func (dst *WriteConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteConfigResponse.Merge(dst, src)
+}
+func (m *WriteConfigResponse) XXX_Size() int {
+	return xxx_messageInfo_WriteConfigResponse.Size(m)
+}
+func (m *WriteConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteConfigResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteConfigResponse proto.InternalMessageInfo
 
 func (m *WriteConfigResponse) GetError() []byte {
 	if m != nil {
@@ -893,14 +1819,36 @@ func (m *WriteConfigResponse) GetError() []byte {
 }
 
 type SetConfigRequest struct {
-	Repository *Repository               `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Entries    []*SetConfigRequest_Entry `protobuf:"bytes,2,rep,name=entries" json:"entries,omitempty"`
+	Repository           *Repository               `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Entries              []*SetConfigRequest_Entry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
-func (m *SetConfigRequest) Reset()                    { *m = SetConfigRequest{} }
-func (m *SetConfigRequest) String() string            { return proto.CompactTextString(m) }
-func (*SetConfigRequest) ProtoMessage()               {}
-func (*SetConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{42} }
+func (m *SetConfigRequest) Reset()         { *m = SetConfigRequest{} }
+func (m *SetConfigRequest) String() string { return proto.CompactTextString(m) }
+func (*SetConfigRequest) ProtoMessage()    {}
+func (*SetConfigRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{42}
+}
+func (m *SetConfigRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SetConfigRequest.Unmarshal(m, b)
+}
+func (m *SetConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SetConfigRequest.Marshal(b, m, deterministic)
+}
+func (dst *SetConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetConfigRequest.Merge(dst, src)
+}
+func (m *SetConfigRequest) XXX_Size() int {
+	return xxx_messageInfo_SetConfigRequest.Size(m)
+}
+func (m *SetConfigRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetConfigRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SetConfigRequest proto.InternalMessageInfo
 
 func (m *SetConfigRequest) GetRepository() *Repository {
 	if m != nil {
@@ -917,47 +1865,75 @@ func (m *SetConfigRequest) GetEntries() []*SetConfigRequest_Entry {
 }
 
 type SetConfigRequest_Entry struct {
-	Key string `protobuf:"bytes,1,opt,name=key" json:"key,omitempty"`
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// Types that are valid to be assigned to Value:
 	//	*SetConfigRequest_Entry_ValueStr
 	//	*SetConfigRequest_Entry_ValueInt32
 	//	*SetConfigRequest_Entry_ValueBool
-	Value isSetConfigRequest_Entry_Value `protobuf_oneof:"value"`
+	Value                isSetConfigRequest_Entry_Value `protobuf_oneof:"value"`
+	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
+	XXX_unrecognized     []byte                         `json:"-"`
+	XXX_sizecache        int32                          `json:"-"`
 }
 
-func (m *SetConfigRequest_Entry) Reset()                    { *m = SetConfigRequest_Entry{} }
-func (m *SetConfigRequest_Entry) String() string            { return proto.CompactTextString(m) }
-func (*SetConfigRequest_Entry) ProtoMessage()               {}
-func (*SetConfigRequest_Entry) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{42, 0} }
-
-type isSetConfigRequest_Entry_Value interface{ isSetConfigRequest_Entry_Value() }
-
-type SetConfigRequest_Entry_ValueStr struct {
-	ValueStr string `protobuf:"bytes,2,opt,name=value_str,json=valueStr,oneof"`
+func (m *SetConfigRequest_Entry) Reset()         { *m = SetConfigRequest_Entry{} }
+func (m *SetConfigRequest_Entry) String() string { return proto.CompactTextString(m) }
+func (*SetConfigRequest_Entry) ProtoMessage()    {}
+func (*SetConfigRequest_Entry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{42, 0}
 }
-type SetConfigRequest_Entry_ValueInt32 struct {
-	ValueInt32 int32 `protobuf:"varint,3,opt,name=value_int32,json=valueInt32,oneof"`
+func (m *SetConfigRequest_Entry) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SetConfigRequest_Entry.Unmarshal(m, b)
 }
-type SetConfigRequest_Entry_ValueBool struct {
-	ValueBool bool `protobuf:"varint,4,opt,name=value_bool,json=valueBool,oneof"`
+func (m *SetConfigRequest_Entry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SetConfigRequest_Entry.Marshal(b, m, deterministic)
+}
+func (dst *SetConfigRequest_Entry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetConfigRequest_Entry.Merge(dst, src)
+}
+func (m *SetConfigRequest_Entry) XXX_Size() int {
+	return xxx_messageInfo_SetConfigRequest_Entry.Size(m)
+}
+func (m *SetConfigRequest_Entry) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetConfigRequest_Entry.DiscardUnknown(m)
 }
 
-func (*SetConfigRequest_Entry_ValueStr) isSetConfigRequest_Entry_Value()   {}
-func (*SetConfigRequest_Entry_ValueInt32) isSetConfigRequest_Entry_Value() {}
-func (*SetConfigRequest_Entry_ValueBool) isSetConfigRequest_Entry_Value()  {}
-
-func (m *SetConfigRequest_Entry) GetValue() isSetConfigRequest_Entry_Value {
-	if m != nil {
-		return m.Value
-	}
-	return nil
-}
+var xxx_messageInfo_SetConfigRequest_Entry proto.InternalMessageInfo
 
 func (m *SetConfigRequest_Entry) GetKey() string {
 	if m != nil {
 		return m.Key
 	}
 	return ""
+}
+
+type isSetConfigRequest_Entry_Value interface {
+	isSetConfigRequest_Entry_Value()
+}
+
+type SetConfigRequest_Entry_ValueStr struct {
+	ValueStr string `protobuf:"bytes,2,opt,name=value_str,json=valueStr,proto3,oneof"`
+}
+
+type SetConfigRequest_Entry_ValueInt32 struct {
+	ValueInt32 int32 `protobuf:"varint,3,opt,name=value_int32,json=valueInt32,proto3,oneof"`
+}
+
+type SetConfigRequest_Entry_ValueBool struct {
+	ValueBool bool `protobuf:"varint,4,opt,name=value_bool,json=valueBool,proto3,oneof"`
+}
+
+func (*SetConfigRequest_Entry_ValueStr) isSetConfigRequest_Entry_Value() {}
+
+func (*SetConfigRequest_Entry_ValueInt32) isSetConfigRequest_Entry_Value() {}
+
+func (*SetConfigRequest_Entry_ValueBool) isSetConfigRequest_Entry_Value() {}
+
+func (m *SetConfigRequest_Entry) GetValue() isSetConfigRequest_Entry_Value {
+	if m != nil {
+		return m.Value
+	}
+	return nil
 }
 
 func (m *SetConfigRequest_Entry) GetValueStr() string {
@@ -1048,14 +2024,14 @@ func _SetConfigRequest_Entry_OneofSizer(msg proto.Message) (n int) {
 	// value
 	switch x := m.Value.(type) {
 	case *SetConfigRequest_Entry_ValueStr:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.ValueStr)))
 		n += len(x.ValueStr)
 	case *SetConfigRequest_Entry_ValueInt32:
-		n += proto.SizeVarint(3<<3 | proto.WireVarint)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(x.ValueInt32))
 	case *SetConfigRequest_Entry_ValueBool:
-		n += proto.SizeVarint(4<<3 | proto.WireVarint)
+		n += 1 // tag and wire
 		n += 1
 	case nil:
 	default:
@@ -1065,22 +2041,66 @@ func _SetConfigRequest_Entry_OneofSizer(msg proto.Message) (n int) {
 }
 
 type SetConfigResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SetConfigResponse) Reset()                    { *m = SetConfigResponse{} }
-func (m *SetConfigResponse) String() string            { return proto.CompactTextString(m) }
-func (*SetConfigResponse) ProtoMessage()               {}
-func (*SetConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{43} }
+func (m *SetConfigResponse) Reset()         { *m = SetConfigResponse{} }
+func (m *SetConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*SetConfigResponse) ProtoMessage()    {}
+func (*SetConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{43}
+}
+func (m *SetConfigResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SetConfigResponse.Unmarshal(m, b)
+}
+func (m *SetConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SetConfigResponse.Marshal(b, m, deterministic)
+}
+func (dst *SetConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetConfigResponse.Merge(dst, src)
+}
+func (m *SetConfigResponse) XXX_Size() int {
+	return xxx_messageInfo_SetConfigResponse.Size(m)
+}
+func (m *SetConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetConfigResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SetConfigResponse proto.InternalMessageInfo
 
 type DeleteConfigRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Keys       []string    `protobuf:"bytes,2,rep,name=keys" json:"keys,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Keys                 []string    `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *DeleteConfigRequest) Reset()                    { *m = DeleteConfigRequest{} }
-func (m *DeleteConfigRequest) String() string            { return proto.CompactTextString(m) }
-func (*DeleteConfigRequest) ProtoMessage()               {}
-func (*DeleteConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{44} }
+func (m *DeleteConfigRequest) Reset()         { *m = DeleteConfigRequest{} }
+func (m *DeleteConfigRequest) String() string { return proto.CompactTextString(m) }
+func (*DeleteConfigRequest) ProtoMessage()    {}
+func (*DeleteConfigRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{44}
+}
+func (m *DeleteConfigRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteConfigRequest.Unmarshal(m, b)
+}
+func (m *DeleteConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteConfigRequest.Marshal(b, m, deterministic)
+}
+func (dst *DeleteConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteConfigRequest.Merge(dst, src)
+}
+func (m *DeleteConfigRequest) XXX_Size() int {
+	return xxx_messageInfo_DeleteConfigRequest.Size(m)
+}
+func (m *DeleteConfigRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteConfigRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteConfigRequest proto.InternalMessageInfo
 
 func (m *DeleteConfigRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1097,22 +2117,66 @@ func (m *DeleteConfigRequest) GetKeys() []string {
 }
 
 type DeleteConfigResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DeleteConfigResponse) Reset()                    { *m = DeleteConfigResponse{} }
-func (m *DeleteConfigResponse) String() string            { return proto.CompactTextString(m) }
-func (*DeleteConfigResponse) ProtoMessage()               {}
-func (*DeleteConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{45} }
+func (m *DeleteConfigResponse) Reset()         { *m = DeleteConfigResponse{} }
+func (m *DeleteConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*DeleteConfigResponse) ProtoMessage()    {}
+func (*DeleteConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{45}
+}
+func (m *DeleteConfigResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeleteConfigResponse.Unmarshal(m, b)
+}
+func (m *DeleteConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeleteConfigResponse.Marshal(b, m, deterministic)
+}
+func (dst *DeleteConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteConfigResponse.Merge(dst, src)
+}
+func (m *DeleteConfigResponse) XXX_Size() int {
+	return xxx_messageInfo_DeleteConfigResponse.Size(m)
+}
+func (m *DeleteConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteConfigResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteConfigResponse proto.InternalMessageInfo
 
 type RestoreCustomHooksRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Data       []byte      `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Data                 []byte      `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RestoreCustomHooksRequest) Reset()                    { *m = RestoreCustomHooksRequest{} }
-func (m *RestoreCustomHooksRequest) String() string            { return proto.CompactTextString(m) }
-func (*RestoreCustomHooksRequest) ProtoMessage()               {}
-func (*RestoreCustomHooksRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{46} }
+func (m *RestoreCustomHooksRequest) Reset()         { *m = RestoreCustomHooksRequest{} }
+func (m *RestoreCustomHooksRequest) String() string { return proto.CompactTextString(m) }
+func (*RestoreCustomHooksRequest) ProtoMessage()    {}
+func (*RestoreCustomHooksRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{46}
+}
+func (m *RestoreCustomHooksRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RestoreCustomHooksRequest.Unmarshal(m, b)
+}
+func (m *RestoreCustomHooksRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RestoreCustomHooksRequest.Marshal(b, m, deterministic)
+}
+func (dst *RestoreCustomHooksRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RestoreCustomHooksRequest.Merge(dst, src)
+}
+func (m *RestoreCustomHooksRequest) XXX_Size() int {
+	return xxx_messageInfo_RestoreCustomHooksRequest.Size(m)
+}
+func (m *RestoreCustomHooksRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RestoreCustomHooksRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RestoreCustomHooksRequest proto.InternalMessageInfo
 
 func (m *RestoreCustomHooksRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1129,21 +2193,65 @@ func (m *RestoreCustomHooksRequest) GetData() []byte {
 }
 
 type RestoreCustomHooksResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RestoreCustomHooksResponse) Reset()                    { *m = RestoreCustomHooksResponse{} }
-func (m *RestoreCustomHooksResponse) String() string            { return proto.CompactTextString(m) }
-func (*RestoreCustomHooksResponse) ProtoMessage()               {}
-func (*RestoreCustomHooksResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{47} }
+func (m *RestoreCustomHooksResponse) Reset()         { *m = RestoreCustomHooksResponse{} }
+func (m *RestoreCustomHooksResponse) String() string { return proto.CompactTextString(m) }
+func (*RestoreCustomHooksResponse) ProtoMessage()    {}
+func (*RestoreCustomHooksResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{47}
+}
+func (m *RestoreCustomHooksResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RestoreCustomHooksResponse.Unmarshal(m, b)
+}
+func (m *RestoreCustomHooksResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RestoreCustomHooksResponse.Marshal(b, m, deterministic)
+}
+func (dst *RestoreCustomHooksResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RestoreCustomHooksResponse.Merge(dst, src)
+}
+func (m *RestoreCustomHooksResponse) XXX_Size() int {
+	return xxx_messageInfo_RestoreCustomHooksResponse.Size(m)
+}
+func (m *RestoreCustomHooksResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RestoreCustomHooksResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RestoreCustomHooksResponse proto.InternalMessageInfo
 
 type BackupCustomHooksRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *BackupCustomHooksRequest) Reset()                    { *m = BackupCustomHooksRequest{} }
-func (m *BackupCustomHooksRequest) String() string            { return proto.CompactTextString(m) }
-func (*BackupCustomHooksRequest) ProtoMessage()               {}
-func (*BackupCustomHooksRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{48} }
+func (m *BackupCustomHooksRequest) Reset()         { *m = BackupCustomHooksRequest{} }
+func (m *BackupCustomHooksRequest) String() string { return proto.CompactTextString(m) }
+func (*BackupCustomHooksRequest) ProtoMessage()    {}
+func (*BackupCustomHooksRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{48}
+}
+func (m *BackupCustomHooksRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BackupCustomHooksRequest.Unmarshal(m, b)
+}
+func (m *BackupCustomHooksRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BackupCustomHooksRequest.Marshal(b, m, deterministic)
+}
+func (dst *BackupCustomHooksRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BackupCustomHooksRequest.Merge(dst, src)
+}
+func (m *BackupCustomHooksRequest) XXX_Size() int {
+	return xxx_messageInfo_BackupCustomHooksRequest.Size(m)
+}
+func (m *BackupCustomHooksRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BackupCustomHooksRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BackupCustomHooksRequest proto.InternalMessageInfo
 
 func (m *BackupCustomHooksRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1153,13 +2261,35 @@ func (m *BackupCustomHooksRequest) GetRepository() *Repository {
 }
 
 type BackupCustomHooksResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *BackupCustomHooksResponse) Reset()                    { *m = BackupCustomHooksResponse{} }
-func (m *BackupCustomHooksResponse) String() string            { return proto.CompactTextString(m) }
-func (*BackupCustomHooksResponse) ProtoMessage()               {}
-func (*BackupCustomHooksResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{49} }
+func (m *BackupCustomHooksResponse) Reset()         { *m = BackupCustomHooksResponse{} }
+func (m *BackupCustomHooksResponse) String() string { return proto.CompactTextString(m) }
+func (*BackupCustomHooksResponse) ProtoMessage()    {}
+func (*BackupCustomHooksResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{49}
+}
+func (m *BackupCustomHooksResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BackupCustomHooksResponse.Unmarshal(m, b)
+}
+func (m *BackupCustomHooksResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BackupCustomHooksResponse.Marshal(b, m, deterministic)
+}
+func (dst *BackupCustomHooksResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BackupCustomHooksResponse.Merge(dst, src)
+}
+func (m *BackupCustomHooksResponse) XXX_Size() int {
+	return xxx_messageInfo_BackupCustomHooksResponse.Size(m)
+}
+func (m *BackupCustomHooksResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BackupCustomHooksResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BackupCustomHooksResponse proto.InternalMessageInfo
 
 func (m *BackupCustomHooksResponse) GetData() []byte {
 	if m != nil {
@@ -1170,16 +2300,36 @@ func (m *BackupCustomHooksResponse) GetData() []byte {
 
 type CreateRepositoryFromBundleRequest struct {
 	// Only available on the first message
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Data       []byte      `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Data                 []byte      `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *CreateRepositoryFromBundleRequest) Reset()         { *m = CreateRepositoryFromBundleRequest{} }
 func (m *CreateRepositoryFromBundleRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromBundleRequest) ProtoMessage()    {}
 func (*CreateRepositoryFromBundleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{50}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{50}
 }
+func (m *CreateRepositoryFromBundleRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromBundleRequest.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromBundleRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromBundleRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromBundleRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromBundleRequest.Merge(dst, src)
+}
+func (m *CreateRepositoryFromBundleRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromBundleRequest.Size(m)
+}
+func (m *CreateRepositoryFromBundleRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromBundleRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromBundleRequest proto.InternalMessageInfo
 
 func (m *CreateRepositoryFromBundleRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1196,23 +2346,65 @@ func (m *CreateRepositoryFromBundleRequest) GetData() []byte {
 }
 
 type CreateRepositoryFromBundleResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CreateRepositoryFromBundleResponse) Reset()         { *m = CreateRepositoryFromBundleResponse{} }
 func (m *CreateRepositoryFromBundleResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromBundleResponse) ProtoMessage()    {}
 func (*CreateRepositoryFromBundleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{51}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{51}
 }
+func (m *CreateRepositoryFromBundleResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromBundleResponse.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromBundleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromBundleResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromBundleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromBundleResponse.Merge(dst, src)
+}
+func (m *CreateRepositoryFromBundleResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromBundleResponse.Size(m)
+}
+func (m *CreateRepositoryFromBundleResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromBundleResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromBundleResponse proto.InternalMessageInfo
 
 type FindLicenseRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *FindLicenseRequest) Reset()                    { *m = FindLicenseRequest{} }
-func (m *FindLicenseRequest) String() string            { return proto.CompactTextString(m) }
-func (*FindLicenseRequest) ProtoMessage()               {}
-func (*FindLicenseRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{52} }
+func (m *FindLicenseRequest) Reset()         { *m = FindLicenseRequest{} }
+func (m *FindLicenseRequest) String() string { return proto.CompactTextString(m) }
+func (*FindLicenseRequest) ProtoMessage()    {}
+func (*FindLicenseRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{52}
+}
+func (m *FindLicenseRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLicenseRequest.Unmarshal(m, b)
+}
+func (m *FindLicenseRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLicenseRequest.Marshal(b, m, deterministic)
+}
+func (dst *FindLicenseRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLicenseRequest.Merge(dst, src)
+}
+func (m *FindLicenseRequest) XXX_Size() int {
+	return xxx_messageInfo_FindLicenseRequest.Size(m)
+}
+func (m *FindLicenseRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLicenseRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLicenseRequest proto.InternalMessageInfo
 
 func (m *FindLicenseRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1222,13 +2414,35 @@ func (m *FindLicenseRequest) GetRepository() *Repository {
 }
 
 type FindLicenseResponse struct {
-	LicenseShortName string `protobuf:"bytes,1,opt,name=license_short_name,json=licenseShortName" json:"license_short_name,omitempty"`
+	LicenseShortName     string   `protobuf:"bytes,1,opt,name=license_short_name,json=licenseShortName,proto3" json:"license_short_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FindLicenseResponse) Reset()                    { *m = FindLicenseResponse{} }
-func (m *FindLicenseResponse) String() string            { return proto.CompactTextString(m) }
-func (*FindLicenseResponse) ProtoMessage()               {}
-func (*FindLicenseResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{53} }
+func (m *FindLicenseResponse) Reset()         { *m = FindLicenseResponse{} }
+func (m *FindLicenseResponse) String() string { return proto.CompactTextString(m) }
+func (*FindLicenseResponse) ProtoMessage()    {}
+func (*FindLicenseResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{53}
+}
+func (m *FindLicenseResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FindLicenseResponse.Unmarshal(m, b)
+}
+func (m *FindLicenseResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FindLicenseResponse.Marshal(b, m, deterministic)
+}
+func (dst *FindLicenseResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FindLicenseResponse.Merge(dst, src)
+}
+func (m *FindLicenseResponse) XXX_Size() int {
+	return xxx_messageInfo_FindLicenseResponse.Size(m)
+}
+func (m *FindLicenseResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_FindLicenseResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FindLicenseResponse proto.InternalMessageInfo
 
 func (m *FindLicenseResponse) GetLicenseShortName() string {
 	if m != nil {
@@ -1238,13 +2452,35 @@ func (m *FindLicenseResponse) GetLicenseShortName() string {
 }
 
 type GetInfoAttributesRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetInfoAttributesRequest) Reset()                    { *m = GetInfoAttributesRequest{} }
-func (m *GetInfoAttributesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetInfoAttributesRequest) ProtoMessage()               {}
-func (*GetInfoAttributesRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{54} }
+func (m *GetInfoAttributesRequest) Reset()         { *m = GetInfoAttributesRequest{} }
+func (m *GetInfoAttributesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetInfoAttributesRequest) ProtoMessage()    {}
+func (*GetInfoAttributesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{54}
+}
+func (m *GetInfoAttributesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetInfoAttributesRequest.Unmarshal(m, b)
+}
+func (m *GetInfoAttributesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetInfoAttributesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetInfoAttributesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetInfoAttributesRequest.Merge(dst, src)
+}
+func (m *GetInfoAttributesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetInfoAttributesRequest.Size(m)
+}
+func (m *GetInfoAttributesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetInfoAttributesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetInfoAttributesRequest proto.InternalMessageInfo
 
 func (m *GetInfoAttributesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1254,13 +2490,35 @@ func (m *GetInfoAttributesRequest) GetRepository() *Repository {
 }
 
 type GetInfoAttributesResponse struct {
-	Attributes []byte `protobuf:"bytes,1,opt,name=attributes,proto3" json:"attributes,omitempty"`
+	Attributes           []byte   `protobuf:"bytes,1,opt,name=attributes,proto3" json:"attributes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetInfoAttributesResponse) Reset()                    { *m = GetInfoAttributesResponse{} }
-func (m *GetInfoAttributesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetInfoAttributesResponse) ProtoMessage()               {}
-func (*GetInfoAttributesResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{55} }
+func (m *GetInfoAttributesResponse) Reset()         { *m = GetInfoAttributesResponse{} }
+func (m *GetInfoAttributesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetInfoAttributesResponse) ProtoMessage()    {}
+func (*GetInfoAttributesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{55}
+}
+func (m *GetInfoAttributesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetInfoAttributesResponse.Unmarshal(m, b)
+}
+func (m *GetInfoAttributesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetInfoAttributesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetInfoAttributesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetInfoAttributesResponse.Merge(dst, src)
+}
+func (m *GetInfoAttributesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetInfoAttributesResponse.Size(m)
+}
+func (m *GetInfoAttributesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetInfoAttributesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetInfoAttributesResponse proto.InternalMessageInfo
 
 func (m *GetInfoAttributesResponse) GetAttributes() []byte {
 	if m != nil {
@@ -1270,13 +2528,35 @@ func (m *GetInfoAttributesResponse) GetAttributes() []byte {
 }
 
 type CalculateChecksumRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CalculateChecksumRequest) Reset()                    { *m = CalculateChecksumRequest{} }
-func (m *CalculateChecksumRequest) String() string            { return proto.CompactTextString(m) }
-func (*CalculateChecksumRequest) ProtoMessage()               {}
-func (*CalculateChecksumRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{56} }
+func (m *CalculateChecksumRequest) Reset()         { *m = CalculateChecksumRequest{} }
+func (m *CalculateChecksumRequest) String() string { return proto.CompactTextString(m) }
+func (*CalculateChecksumRequest) ProtoMessage()    {}
+func (*CalculateChecksumRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{56}
+}
+func (m *CalculateChecksumRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CalculateChecksumRequest.Unmarshal(m, b)
+}
+func (m *CalculateChecksumRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CalculateChecksumRequest.Marshal(b, m, deterministic)
+}
+func (dst *CalculateChecksumRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CalculateChecksumRequest.Merge(dst, src)
+}
+func (m *CalculateChecksumRequest) XXX_Size() int {
+	return xxx_messageInfo_CalculateChecksumRequest.Size(m)
+}
+func (m *CalculateChecksumRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CalculateChecksumRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CalculateChecksumRequest proto.InternalMessageInfo
 
 func (m *CalculateChecksumRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1286,13 +2566,35 @@ func (m *CalculateChecksumRequest) GetRepository() *Repository {
 }
 
 type CalculateChecksumResponse struct {
-	Checksum string `protobuf:"bytes,1,opt,name=checksum" json:"checksum,omitempty"`
+	Checksum             string   `protobuf:"bytes,1,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CalculateChecksumResponse) Reset()                    { *m = CalculateChecksumResponse{} }
-func (m *CalculateChecksumResponse) String() string            { return proto.CompactTextString(m) }
-func (*CalculateChecksumResponse) ProtoMessage()               {}
-func (*CalculateChecksumResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{57} }
+func (m *CalculateChecksumResponse) Reset()         { *m = CalculateChecksumResponse{} }
+func (m *CalculateChecksumResponse) String() string { return proto.CompactTextString(m) }
+func (*CalculateChecksumResponse) ProtoMessage()    {}
+func (*CalculateChecksumResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{57}
+}
+func (m *CalculateChecksumResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CalculateChecksumResponse.Unmarshal(m, b)
+}
+func (m *CalculateChecksumResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CalculateChecksumResponse.Marshal(b, m, deterministic)
+}
+func (dst *CalculateChecksumResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CalculateChecksumResponse.Merge(dst, src)
+}
+func (m *CalculateChecksumResponse) XXX_Size() int {
+	return xxx_messageInfo_CalculateChecksumResponse.Size(m)
+}
+func (m *CalculateChecksumResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CalculateChecksumResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CalculateChecksumResponse proto.InternalMessageInfo
 
 func (m *CalculateChecksumResponse) GetChecksum() string {
 	if m != nil {
@@ -1302,13 +2604,35 @@ func (m *CalculateChecksumResponse) GetChecksum() string {
 }
 
 type GetSnapshotRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetSnapshotRequest) Reset()                    { *m = GetSnapshotRequest{} }
-func (m *GetSnapshotRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetSnapshotRequest) ProtoMessage()               {}
-func (*GetSnapshotRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{58} }
+func (m *GetSnapshotRequest) Reset()         { *m = GetSnapshotRequest{} }
+func (m *GetSnapshotRequest) String() string { return proto.CompactTextString(m) }
+func (*GetSnapshotRequest) ProtoMessage()    {}
+func (*GetSnapshotRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{58}
+}
+func (m *GetSnapshotRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetSnapshotRequest.Unmarshal(m, b)
+}
+func (m *GetSnapshotRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetSnapshotRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetSnapshotRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetSnapshotRequest.Merge(dst, src)
+}
+func (m *GetSnapshotRequest) XXX_Size() int {
+	return xxx_messageInfo_GetSnapshotRequest.Size(m)
+}
+func (m *GetSnapshotRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetSnapshotRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetSnapshotRequest proto.InternalMessageInfo
 
 func (m *GetSnapshotRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1318,13 +2642,35 @@ func (m *GetSnapshotRequest) GetRepository() *Repository {
 }
 
 type GetSnapshotResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetSnapshotResponse) Reset()                    { *m = GetSnapshotResponse{} }
-func (m *GetSnapshotResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetSnapshotResponse) ProtoMessage()               {}
-func (*GetSnapshotResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{59} }
+func (m *GetSnapshotResponse) Reset()         { *m = GetSnapshotResponse{} }
+func (m *GetSnapshotResponse) String() string { return proto.CompactTextString(m) }
+func (*GetSnapshotResponse) ProtoMessage()    {}
+func (*GetSnapshotResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{59}
+}
+func (m *GetSnapshotResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetSnapshotResponse.Unmarshal(m, b)
+}
+func (m *GetSnapshotResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetSnapshotResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetSnapshotResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetSnapshotResponse.Merge(dst, src)
+}
+func (m *GetSnapshotResponse) XXX_Size() int {
+	return xxx_messageInfo_GetSnapshotResponse.Size(m)
+}
+func (m *GetSnapshotResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetSnapshotResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetSnapshotResponse proto.InternalMessageInfo
 
 func (m *GetSnapshotResponse) GetData() []byte {
 	if m != nil {
@@ -1334,17 +2680,37 @@ func (m *GetSnapshotResponse) GetData() []byte {
 }
 
 type CreateRepositoryFromSnapshotRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	HttpUrl    string      `protobuf:"bytes,2,opt,name=http_url,json=httpUrl" json:"http_url,omitempty"`
-	HttpAuth   string      `protobuf:"bytes,3,opt,name=http_auth,json=httpAuth" json:"http_auth,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	HttpUrl              string      `protobuf:"bytes,2,opt,name=http_url,json=httpUrl,proto3" json:"http_url,omitempty"`
+	HttpAuth             string      `protobuf:"bytes,3,opt,name=http_auth,json=httpAuth,proto3" json:"http_auth,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *CreateRepositoryFromSnapshotRequest) Reset()         { *m = CreateRepositoryFromSnapshotRequest{} }
 func (m *CreateRepositoryFromSnapshotRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromSnapshotRequest) ProtoMessage()    {}
 func (*CreateRepositoryFromSnapshotRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{60}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{60}
 }
+func (m *CreateRepositoryFromSnapshotRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotRequest.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromSnapshotRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromSnapshotRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromSnapshotRequest.Merge(dst, src)
+}
+func (m *CreateRepositoryFromSnapshotRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotRequest.Size(m)
+}
+func (m *CreateRepositoryFromSnapshotRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromSnapshotRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromSnapshotRequest proto.InternalMessageInfo
 
 func (m *CreateRepositoryFromSnapshotRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1368,25 +2734,67 @@ func (m *CreateRepositoryFromSnapshotRequest) GetHttpAuth() string {
 }
 
 type CreateRepositoryFromSnapshotResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CreateRepositoryFromSnapshotResponse) Reset()         { *m = CreateRepositoryFromSnapshotResponse{} }
 func (m *CreateRepositoryFromSnapshotResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateRepositoryFromSnapshotResponse) ProtoMessage()    {}
 func (*CreateRepositoryFromSnapshotResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{61}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{61}
 }
+func (m *CreateRepositoryFromSnapshotResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotResponse.Unmarshal(m, b)
+}
+func (m *CreateRepositoryFromSnapshotResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotResponse.Marshal(b, m, deterministic)
+}
+func (dst *CreateRepositoryFromSnapshotResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRepositoryFromSnapshotResponse.Merge(dst, src)
+}
+func (m *CreateRepositoryFromSnapshotResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateRepositoryFromSnapshotResponse.Size(m)
+}
+func (m *CreateRepositoryFromSnapshotResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRepositoryFromSnapshotResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateRepositoryFromSnapshotResponse proto.InternalMessageInfo
 
 type GetRawChangesRequest struct {
-	Repository   *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	FromRevision string      `protobuf:"bytes,2,opt,name=from_revision,json=fromRevision" json:"from_revision,omitempty"`
-	ToRevision   string      `protobuf:"bytes,3,opt,name=to_revision,json=toRevision" json:"to_revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	FromRevision         string      `protobuf:"bytes,2,opt,name=from_revision,json=fromRevision,proto3" json:"from_revision,omitempty"`
+	ToRevision           string      `protobuf:"bytes,3,opt,name=to_revision,json=toRevision,proto3" json:"to_revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *GetRawChangesRequest) Reset()                    { *m = GetRawChangesRequest{} }
-func (m *GetRawChangesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetRawChangesRequest) ProtoMessage()               {}
-func (*GetRawChangesRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{62} }
+func (m *GetRawChangesRequest) Reset()         { *m = GetRawChangesRequest{} }
+func (m *GetRawChangesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetRawChangesRequest) ProtoMessage()    {}
+func (*GetRawChangesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{62}
+}
+func (m *GetRawChangesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetRawChangesRequest.Unmarshal(m, b)
+}
+func (m *GetRawChangesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetRawChangesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetRawChangesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRawChangesRequest.Merge(dst, src)
+}
+func (m *GetRawChangesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetRawChangesRequest.Size(m)
+}
+func (m *GetRawChangesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRawChangesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRawChangesRequest proto.InternalMessageInfo
 
 func (m *GetRawChangesRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1410,13 +2818,35 @@ func (m *GetRawChangesRequest) GetToRevision() string {
 }
 
 type GetRawChangesResponse struct {
-	RawChanges []*GetRawChangesResponse_RawChange `protobuf:"bytes,1,rep,name=raw_changes,json=rawChanges" json:"raw_changes,omitempty"`
+	RawChanges           []*GetRawChangesResponse_RawChange `protobuf:"bytes,1,rep,name=raw_changes,json=rawChanges,proto3" json:"raw_changes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
 }
 
-func (m *GetRawChangesResponse) Reset()                    { *m = GetRawChangesResponse{} }
-func (m *GetRawChangesResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetRawChangesResponse) ProtoMessage()               {}
-func (*GetRawChangesResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{63} }
+func (m *GetRawChangesResponse) Reset()         { *m = GetRawChangesResponse{} }
+func (m *GetRawChangesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetRawChangesResponse) ProtoMessage()    {}
+func (*GetRawChangesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{63}
+}
+func (m *GetRawChangesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetRawChangesResponse.Unmarshal(m, b)
+}
+func (m *GetRawChangesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetRawChangesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetRawChangesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRawChangesResponse.Merge(dst, src)
+}
+func (m *GetRawChangesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetRawChangesResponse.Size(m)
+}
+func (m *GetRawChangesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRawChangesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRawChangesResponse proto.InternalMessageInfo
 
 func (m *GetRawChangesResponse) GetRawChanges() []*GetRawChangesResponse_RawChange {
 	if m != nil {
@@ -1426,22 +2856,42 @@ func (m *GetRawChangesResponse) GetRawChanges() []*GetRawChangesResponse_RawChan
 }
 
 type GetRawChangesResponse_RawChange struct {
-	BlobId       string                                    `protobuf:"bytes,1,opt,name=blob_id,json=blobId" json:"blob_id,omitempty"`
-	Size         int64                                     `protobuf:"varint,2,opt,name=size" json:"size,omitempty"`
-	NewPath      string                                    `protobuf:"bytes,3,opt,name=new_path,json=newPath" json:"new_path,omitempty"`
-	OldPath      string                                    `protobuf:"bytes,4,opt,name=old_path,json=oldPath" json:"old_path,omitempty"`
-	Operation    GetRawChangesResponse_RawChange_Operation `protobuf:"varint,5,opt,name=operation,enum=gitaly.GetRawChangesResponse_RawChange_Operation" json:"operation,omitempty"`
-	RawOperation string                                    `protobuf:"bytes,6,opt,name=raw_operation,json=rawOperation" json:"raw_operation,omitempty"`
-	OldMode      int32                                     `protobuf:"varint,7,opt,name=old_mode,json=oldMode" json:"old_mode,omitempty"`
-	NewMode      int32                                     `protobuf:"varint,8,opt,name=new_mode,json=newMode" json:"new_mode,omitempty"`
+	BlobId               string                                    `protobuf:"bytes,1,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
+	Size                 int64                                     `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	NewPath              string                                    `protobuf:"bytes,3,opt,name=new_path,json=newPath,proto3" json:"new_path,omitempty"`
+	OldPath              string                                    `protobuf:"bytes,4,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`
+	Operation            GetRawChangesResponse_RawChange_Operation `protobuf:"varint,5,opt,name=operation,proto3,enum=gitaly.GetRawChangesResponse_RawChange_Operation" json:"operation,omitempty"`
+	RawOperation         string                                    `protobuf:"bytes,6,opt,name=raw_operation,json=rawOperation,proto3" json:"raw_operation,omitempty"`
+	OldMode              int32                                     `protobuf:"varint,7,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
+	NewMode              int32                                     `protobuf:"varint,8,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                  `json:"-"`
+	XXX_unrecognized     []byte                                    `json:"-"`
+	XXX_sizecache        int32                                     `json:"-"`
 }
 
 func (m *GetRawChangesResponse_RawChange) Reset()         { *m = GetRawChangesResponse_RawChange{} }
 func (m *GetRawChangesResponse_RawChange) String() string { return proto.CompactTextString(m) }
 func (*GetRawChangesResponse_RawChange) ProtoMessage()    {}
 func (*GetRawChangesResponse_RawChange) Descriptor() ([]byte, []int) {
-	return fileDescriptor11, []int{63, 0}
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{63, 0}
 }
+func (m *GetRawChangesResponse_RawChange) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetRawChangesResponse_RawChange.Unmarshal(m, b)
+}
+func (m *GetRawChangesResponse_RawChange) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetRawChangesResponse_RawChange.Marshal(b, m, deterministic)
+}
+func (dst *GetRawChangesResponse_RawChange) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRawChangesResponse_RawChange.Merge(dst, src)
+}
+func (m *GetRawChangesResponse_RawChange) XXX_Size() int {
+	return xxx_messageInfo_GetRawChangesResponse_RawChange.Size(m)
+}
+func (m *GetRawChangesResponse_RawChange) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRawChangesResponse_RawChange.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRawChangesResponse_RawChange proto.InternalMessageInfo
 
 func (m *GetRawChangesResponse_RawChange) GetBlobId() string {
 	if m != nil {
@@ -1500,15 +2950,37 @@ func (m *GetRawChangesResponse_RawChange) GetNewMode() int32 {
 }
 
 type SearchFilesByNameRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Query      string      `protobuf:"bytes,2,opt,name=query" json:"query,omitempty"`
-	Ref        []byte      `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Query                string      `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Ref                  []byte      `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *SearchFilesByNameRequest) Reset()                    { *m = SearchFilesByNameRequest{} }
-func (m *SearchFilesByNameRequest) String() string            { return proto.CompactTextString(m) }
-func (*SearchFilesByNameRequest) ProtoMessage()               {}
-func (*SearchFilesByNameRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{64} }
+func (m *SearchFilesByNameRequest) Reset()         { *m = SearchFilesByNameRequest{} }
+func (m *SearchFilesByNameRequest) String() string { return proto.CompactTextString(m) }
+func (*SearchFilesByNameRequest) ProtoMessage()    {}
+func (*SearchFilesByNameRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{64}
+}
+func (m *SearchFilesByNameRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SearchFilesByNameRequest.Unmarshal(m, b)
+}
+func (m *SearchFilesByNameRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SearchFilesByNameRequest.Marshal(b, m, deterministic)
+}
+func (dst *SearchFilesByNameRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchFilesByNameRequest.Merge(dst, src)
+}
+func (m *SearchFilesByNameRequest) XXX_Size() int {
+	return xxx_messageInfo_SearchFilesByNameRequest.Size(m)
+}
+func (m *SearchFilesByNameRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchFilesByNameRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchFilesByNameRequest proto.InternalMessageInfo
 
 func (m *SearchFilesByNameRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1532,13 +3004,35 @@ func (m *SearchFilesByNameRequest) GetRef() []byte {
 }
 
 type SearchFilesByNameResponse struct {
-	Files [][]byte `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	Files                [][]byte `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SearchFilesByNameResponse) Reset()                    { *m = SearchFilesByNameResponse{} }
-func (m *SearchFilesByNameResponse) String() string            { return proto.CompactTextString(m) }
-func (*SearchFilesByNameResponse) ProtoMessage()               {}
-func (*SearchFilesByNameResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{65} }
+func (m *SearchFilesByNameResponse) Reset()         { *m = SearchFilesByNameResponse{} }
+func (m *SearchFilesByNameResponse) String() string { return proto.CompactTextString(m) }
+func (*SearchFilesByNameResponse) ProtoMessage()    {}
+func (*SearchFilesByNameResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{65}
+}
+func (m *SearchFilesByNameResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SearchFilesByNameResponse.Unmarshal(m, b)
+}
+func (m *SearchFilesByNameResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SearchFilesByNameResponse.Marshal(b, m, deterministic)
+}
+func (dst *SearchFilesByNameResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchFilesByNameResponse.Merge(dst, src)
+}
+func (m *SearchFilesByNameResponse) XXX_Size() int {
+	return xxx_messageInfo_SearchFilesByNameResponse.Size(m)
+}
+func (m *SearchFilesByNameResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchFilesByNameResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchFilesByNameResponse proto.InternalMessageInfo
 
 func (m *SearchFilesByNameResponse) GetFiles() [][]byte {
 	if m != nil {
@@ -1548,16 +3042,38 @@ func (m *SearchFilesByNameResponse) GetFiles() [][]byte {
 }
 
 type SearchFilesByContentRequest struct {
-	Repository      *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Query           string      `protobuf:"bytes,2,opt,name=query" json:"query,omitempty"`
-	Ref             []byte      `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
-	ChunkedResponse bool        `protobuf:"varint,4,opt,name=chunked_response,json=chunkedResponse" json:"chunked_response,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Query                string      `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Ref                  []byte      `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	ChunkedResponse      bool        `protobuf:"varint,4,opt,name=chunked_response,json=chunkedResponse,proto3" json:"chunked_response,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *SearchFilesByContentRequest) Reset()                    { *m = SearchFilesByContentRequest{} }
-func (m *SearchFilesByContentRequest) String() string            { return proto.CompactTextString(m) }
-func (*SearchFilesByContentRequest) ProtoMessage()               {}
-func (*SearchFilesByContentRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{66} }
+func (m *SearchFilesByContentRequest) Reset()         { *m = SearchFilesByContentRequest{} }
+func (m *SearchFilesByContentRequest) String() string { return proto.CompactTextString(m) }
+func (*SearchFilesByContentRequest) ProtoMessage()    {}
+func (*SearchFilesByContentRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{66}
+}
+func (m *SearchFilesByContentRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SearchFilesByContentRequest.Unmarshal(m, b)
+}
+func (m *SearchFilesByContentRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SearchFilesByContentRequest.Marshal(b, m, deterministic)
+}
+func (dst *SearchFilesByContentRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchFilesByContentRequest.Merge(dst, src)
+}
+func (m *SearchFilesByContentRequest) XXX_Size() int {
+	return xxx_messageInfo_SearchFilesByContentRequest.Size(m)
+}
+func (m *SearchFilesByContentRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchFilesByContentRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchFilesByContentRequest proto.InternalMessageInfo
 
 func (m *SearchFilesByContentRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1588,15 +3104,37 @@ func (m *SearchFilesByContentRequest) GetChunkedResponse() bool {
 }
 
 type SearchFilesByContentResponse struct {
-	Matches    [][]byte `protobuf:"bytes,1,rep,name=matches,proto3" json:"matches,omitempty"`
-	MatchData  []byte   `protobuf:"bytes,2,opt,name=match_data,json=matchData,proto3" json:"match_data,omitempty"`
-	EndOfMatch bool     `protobuf:"varint,3,opt,name=end_of_match,json=endOfMatch" json:"end_of_match,omitempty"`
+	Matches              [][]byte `protobuf:"bytes,1,rep,name=matches,proto3" json:"matches,omitempty"`
+	MatchData            []byte   `protobuf:"bytes,2,opt,name=match_data,json=matchData,proto3" json:"match_data,omitempty"`
+	EndOfMatch           bool     `protobuf:"varint,3,opt,name=end_of_match,json=endOfMatch,proto3" json:"end_of_match,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SearchFilesByContentResponse) Reset()                    { *m = SearchFilesByContentResponse{} }
-func (m *SearchFilesByContentResponse) String() string            { return proto.CompactTextString(m) }
-func (*SearchFilesByContentResponse) ProtoMessage()               {}
-func (*SearchFilesByContentResponse) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{67} }
+func (m *SearchFilesByContentResponse) Reset()         { *m = SearchFilesByContentResponse{} }
+func (m *SearchFilesByContentResponse) String() string { return proto.CompactTextString(m) }
+func (*SearchFilesByContentResponse) ProtoMessage()    {}
+func (*SearchFilesByContentResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_service_66c8cbe78ed9256e, []int{67}
+}
+func (m *SearchFilesByContentResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SearchFilesByContentResponse.Unmarshal(m, b)
+}
+func (m *SearchFilesByContentResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SearchFilesByContentResponse.Marshal(b, m, deterministic)
+}
+func (dst *SearchFilesByContentResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchFilesByContentResponse.Merge(dst, src)
+}
+func (m *SearchFilesByContentResponse) XXX_Size() int {
+	return xxx_messageInfo_SearchFilesByContentResponse.Size(m)
+}
+func (m *SearchFilesByContentResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchFilesByContentResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchFilesByContentResponse proto.InternalMessageInfo
 
 func (m *SearchFilesByContentResponse) GetMatches() [][]byte {
 	if m != nil {
@@ -1702,8 +3240,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for RepositoryService service
-
+// RepositoryServiceClient is the client API for RepositoryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RepositoryServiceClient interface {
 	RepositoryExists(ctx context.Context, in *RepositoryExistsRequest, opts ...grpc.CallOption) (*RepositoryExistsResponse, error)
 	RepackIncremental(ctx context.Context, in *RepackIncrementalRequest, opts ...grpc.CallOption) (*RepackIncrementalResponse, error)
@@ -1751,7 +3290,7 @@ func NewRepositoryServiceClient(cc *grpc.ClientConn) RepositoryServiceClient {
 
 func (c *repositoryServiceClient) RepositoryExists(ctx context.Context, in *RepositoryExistsRequest, opts ...grpc.CallOption) (*RepositoryExistsResponse, error) {
 	out := new(RepositoryExistsResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/RepositoryExists", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RepositoryExists", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1760,7 +3299,7 @@ func (c *repositoryServiceClient) RepositoryExists(ctx context.Context, in *Repo
 
 func (c *repositoryServiceClient) RepackIncremental(ctx context.Context, in *RepackIncrementalRequest, opts ...grpc.CallOption) (*RepackIncrementalResponse, error) {
 	out := new(RepackIncrementalResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/RepackIncremental", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RepackIncremental", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1769,7 +3308,7 @@ func (c *repositoryServiceClient) RepackIncremental(ctx context.Context, in *Rep
 
 func (c *repositoryServiceClient) RepackFull(ctx context.Context, in *RepackFullRequest, opts ...grpc.CallOption) (*RepackFullResponse, error) {
 	out := new(RepackFullResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/RepackFull", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RepackFull", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1778,7 +3317,7 @@ func (c *repositoryServiceClient) RepackFull(ctx context.Context, in *RepackFull
 
 func (c *repositoryServiceClient) GarbageCollect(ctx context.Context, in *GarbageCollectRequest, opts ...grpc.CallOption) (*GarbageCollectResponse, error) {
 	out := new(GarbageCollectResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/GarbageCollect", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/GarbageCollect", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1787,7 +3326,7 @@ func (c *repositoryServiceClient) GarbageCollect(ctx context.Context, in *Garbag
 
 func (c *repositoryServiceClient) RepositorySize(ctx context.Context, in *RepositorySizeRequest, opts ...grpc.CallOption) (*RepositorySizeResponse, error) {
 	out := new(RepositorySizeResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/RepositorySize", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RepositorySize", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1796,7 +3335,7 @@ func (c *repositoryServiceClient) RepositorySize(ctx context.Context, in *Reposi
 
 func (c *repositoryServiceClient) ApplyGitattributes(ctx context.Context, in *ApplyGitattributesRequest, opts ...grpc.CallOption) (*ApplyGitattributesResponse, error) {
 	out := new(ApplyGitattributesResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/ApplyGitattributes", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/ApplyGitattributes", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1805,7 +3344,7 @@ func (c *repositoryServiceClient) ApplyGitattributes(ctx context.Context, in *Ap
 
 func (c *repositoryServiceClient) FetchRemote(ctx context.Context, in *FetchRemoteRequest, opts ...grpc.CallOption) (*FetchRemoteResponse, error) {
 	out := new(FetchRemoteResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/FetchRemote", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FetchRemote", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1814,7 +3353,7 @@ func (c *repositoryServiceClient) FetchRemote(ctx context.Context, in *FetchRemo
 
 func (c *repositoryServiceClient) CreateRepository(ctx context.Context, in *CreateRepositoryRequest, opts ...grpc.CallOption) (*CreateRepositoryResponse, error) {
 	out := new(CreateRepositoryResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepository", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepository", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1822,7 +3361,7 @@ func (c *repositoryServiceClient) CreateRepository(ctx context.Context, in *Crea
 }
 
 func (c *repositoryServiceClient) GetArchive(ctx context.Context, in *GetArchiveRequest, opts ...grpc.CallOption) (RepositoryService_GetArchiveClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[0], c.cc, "/gitaly.RepositoryService/GetArchive", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[0], "/gitaly.RepositoryService/GetArchive", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1855,7 +3394,7 @@ func (x *repositoryServiceGetArchiveClient) Recv() (*GetArchiveResponse, error) 
 
 func (c *repositoryServiceClient) HasLocalBranches(ctx context.Context, in *HasLocalBranchesRequest, opts ...grpc.CallOption) (*HasLocalBranchesResponse, error) {
 	out := new(HasLocalBranchesResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/HasLocalBranches", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/HasLocalBranches", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1864,7 +3403,7 @@ func (c *repositoryServiceClient) HasLocalBranches(ctx context.Context, in *HasL
 
 func (c *repositoryServiceClient) FetchSourceBranch(ctx context.Context, in *FetchSourceBranchRequest, opts ...grpc.CallOption) (*FetchSourceBranchResponse, error) {
 	out := new(FetchSourceBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/FetchSourceBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FetchSourceBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1873,7 +3412,7 @@ func (c *repositoryServiceClient) FetchSourceBranch(ctx context.Context, in *Fet
 
 func (c *repositoryServiceClient) Fsck(ctx context.Context, in *FsckRequest, opts ...grpc.CallOption) (*FsckResponse, error) {
 	out := new(FsckResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/Fsck", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/Fsck", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1882,7 +3421,7 @@ func (c *repositoryServiceClient) Fsck(ctx context.Context, in *FsckRequest, opt
 
 func (c *repositoryServiceClient) WriteRef(ctx context.Context, in *WriteRefRequest, opts ...grpc.CallOption) (*WriteRefResponse, error) {
 	out := new(WriteRefResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/WriteRef", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/WriteRef", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1891,7 +3430,7 @@ func (c *repositoryServiceClient) WriteRef(ctx context.Context, in *WriteRefRequ
 
 func (c *repositoryServiceClient) FindMergeBase(ctx context.Context, in *FindMergeBaseRequest, opts ...grpc.CallOption) (*FindMergeBaseResponse, error) {
 	out := new(FindMergeBaseResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/FindMergeBase", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FindMergeBase", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1900,7 +3439,7 @@ func (c *repositoryServiceClient) FindMergeBase(ctx context.Context, in *FindMer
 
 func (c *repositoryServiceClient) CreateFork(ctx context.Context, in *CreateForkRequest, opts ...grpc.CallOption) (*CreateForkResponse, error) {
 	out := new(CreateForkResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/CreateFork", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CreateFork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1909,7 +3448,7 @@ func (c *repositoryServiceClient) CreateFork(ctx context.Context, in *CreateFork
 
 func (c *repositoryServiceClient) IsRebaseInProgress(ctx context.Context, in *IsRebaseInProgressRequest, opts ...grpc.CallOption) (*IsRebaseInProgressResponse, error) {
 	out := new(IsRebaseInProgressResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/IsRebaseInProgress", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/IsRebaseInProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1918,7 +3457,7 @@ func (c *repositoryServiceClient) IsRebaseInProgress(ctx context.Context, in *Is
 
 func (c *repositoryServiceClient) IsSquashInProgress(ctx context.Context, in *IsSquashInProgressRequest, opts ...grpc.CallOption) (*IsSquashInProgressResponse, error) {
 	out := new(IsSquashInProgressResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/IsSquashInProgress", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/IsSquashInProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1927,7 +3466,7 @@ func (c *repositoryServiceClient) IsSquashInProgress(ctx context.Context, in *Is
 
 func (c *repositoryServiceClient) CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error) {
 	out := new(CreateRepositoryFromURLResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepositoryFromURL", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepositoryFromURL", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1935,7 +3474,7 @@ func (c *repositoryServiceClient) CreateRepositoryFromURL(ctx context.Context, i
 }
 
 func (c *repositoryServiceClient) CreateBundle(ctx context.Context, in *CreateBundleRequest, opts ...grpc.CallOption) (RepositoryService_CreateBundleClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[1], c.cc, "/gitaly.RepositoryService/CreateBundle", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[1], "/gitaly.RepositoryService/CreateBundle", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1967,7 +3506,7 @@ func (x *repositoryServiceCreateBundleClient) Recv() (*CreateBundleResponse, err
 }
 
 func (c *repositoryServiceClient) CreateRepositoryFromBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateRepositoryFromBundleClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[2], c.cc, "/gitaly.RepositoryService/CreateRepositoryFromBundle", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[2], "/gitaly.RepositoryService/CreateRepositoryFromBundle", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2002,7 +3541,7 @@ func (x *repositoryServiceCreateRepositoryFromBundleClient) CloseAndRecv() (*Cre
 
 func (c *repositoryServiceClient) WriteConfig(ctx context.Context, in *WriteConfigRequest, opts ...grpc.CallOption) (*WriteConfigResponse, error) {
 	out := new(WriteConfigResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/WriteConfig", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/WriteConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2011,7 +3550,7 @@ func (c *repositoryServiceClient) WriteConfig(ctx context.Context, in *WriteConf
 
 func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error) {
 	out := new(SetConfigResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/SetConfig", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/SetConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2020,7 +3559,7 @@ func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRe
 
 func (c *repositoryServiceClient) DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error) {
 	out := new(DeleteConfigResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/DeleteConfig", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/DeleteConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2029,7 +3568,7 @@ func (c *repositoryServiceClient) DeleteConfig(ctx context.Context, in *DeleteCo
 
 func (c *repositoryServiceClient) FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error) {
 	out := new(FindLicenseResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/FindLicense", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FindLicense", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2037,7 +3576,7 @@ func (c *repositoryServiceClient) FindLicense(ctx context.Context, in *FindLicen
 }
 
 func (c *repositoryServiceClient) GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[3], c.cc, "/gitaly.RepositoryService/GetInfoAttributes", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[3], "/gitaly.RepositoryService/GetInfoAttributes", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2070,7 +3609,7 @@ func (x *repositoryServiceGetInfoAttributesClient) Recv() (*GetInfoAttributesRes
 
 func (c *repositoryServiceClient) CalculateChecksum(ctx context.Context, in *CalculateChecksumRequest, opts ...grpc.CallOption) (*CalculateChecksumResponse, error) {
 	out := new(CalculateChecksumResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/CalculateChecksum", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CalculateChecksum", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2079,7 +3618,7 @@ func (c *repositoryServiceClient) CalculateChecksum(ctx context.Context, in *Cal
 
 func (c *repositoryServiceClient) Cleanup(ctx context.Context, in *CleanupRequest, opts ...grpc.CallOption) (*CleanupResponse, error) {
 	out := new(CleanupResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/Cleanup", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/Cleanup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2087,7 +3626,7 @@ func (c *repositoryServiceClient) Cleanup(ctx context.Context, in *CleanupReques
 }
 
 func (c *repositoryServiceClient) GetSnapshot(ctx context.Context, in *GetSnapshotRequest, opts ...grpc.CallOption) (RepositoryService_GetSnapshotClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[4], c.cc, "/gitaly.RepositoryService/GetSnapshot", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[4], "/gitaly.RepositoryService/GetSnapshot", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2120,7 +3659,7 @@ func (x *repositoryServiceGetSnapshotClient) Recv() (*GetSnapshotResponse, error
 
 func (c *repositoryServiceClient) CreateRepositoryFromSnapshot(ctx context.Context, in *CreateRepositoryFromSnapshotRequest, opts ...grpc.CallOption) (*CreateRepositoryFromSnapshotResponse, error) {
 	out := new(CreateRepositoryFromSnapshotResponse)
-	err := grpc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepositoryFromSnapshot", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepositoryFromSnapshot", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2128,7 +3667,7 @@ func (c *repositoryServiceClient) CreateRepositoryFromSnapshot(ctx context.Conte
 }
 
 func (c *repositoryServiceClient) GetRawChanges(ctx context.Context, in *GetRawChangesRequest, opts ...grpc.CallOption) (RepositoryService_GetRawChangesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[5], c.cc, "/gitaly.RepositoryService/GetRawChanges", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[5], "/gitaly.RepositoryService/GetRawChanges", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2160,7 +3699,7 @@ func (x *repositoryServiceGetRawChangesClient) Recv() (*GetRawChangesResponse, e
 }
 
 func (c *repositoryServiceClient) SearchFilesByContent(ctx context.Context, in *SearchFilesByContentRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByContentClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[6], c.cc, "/gitaly.RepositoryService/SearchFilesByContent", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[6], "/gitaly.RepositoryService/SearchFilesByContent", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2192,7 +3731,7 @@ func (x *repositoryServiceSearchFilesByContentClient) Recv() (*SearchFilesByCont
 }
 
 func (c *repositoryServiceClient) SearchFilesByName(ctx context.Context, in *SearchFilesByNameRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByNameClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[7], c.cc, "/gitaly.RepositoryService/SearchFilesByName", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[7], "/gitaly.RepositoryService/SearchFilesByName", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2224,7 +3763,7 @@ func (x *repositoryServiceSearchFilesByNameClient) Recv() (*SearchFilesByNameRes
 }
 
 func (c *repositoryServiceClient) RestoreCustomHooks(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_RestoreCustomHooksClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[8], c.cc, "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[8], "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2258,7 +3797,7 @@ func (x *repositoryServiceRestoreCustomHooksClient) CloseAndRecv() (*RestoreCust
 }
 
 func (c *repositoryServiceClient) BackupCustomHooks(ctx context.Context, in *BackupCustomHooksRequest, opts ...grpc.CallOption) (RepositoryService_BackupCustomHooksClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_RepositoryService_serviceDesc.Streams[9], c.cc, "/gitaly.RepositoryService/BackupCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &_RepositoryService_serviceDesc.Streams[9], "/gitaly.RepositoryService/BackupCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2289,8 +3828,7 @@ func (x *repositoryServiceBackupCustomHooksClient) Recv() (*BackupCustomHooksRes
 	return m, nil
 }
 
-// Server API for RepositoryService service
-
+// RepositoryServiceServer is the server API for RepositoryService service.
 type RepositoryServiceServer interface {
 	RepositoryExists(context.Context, *RepositoryExistsRequest) (*RepositoryExistsResponse, error)
 	RepackIncremental(context.Context, *RepackIncrementalRequest) (*RepackIncrementalResponse, error)
@@ -3140,9 +4678,11 @@ var _RepositoryService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "repository-service.proto",
 }
 
-func init() { proto.RegisterFile("repository-service.proto", fileDescriptor11) }
+func init() {
+	proto.RegisterFile("repository-service.proto", fileDescriptor_repository_service_66c8cbe78ed9256e)
+}
 
-var fileDescriptor11 = []byte{
+var fileDescriptor_repository_service_66c8cbe78ed9256e = []byte{
 	// 2419 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x5a, 0xef, 0x6e, 0xdb, 0xc8,
 	0x11, 0x97, 0x6c, 0xcb, 0x92, 0x46, 0x4a, 0x22, 0xaf, 0x1d, 0x47, 0x66, 0x9c, 0xd8, 0x61, 0x82,

@@ -168,29 +168,6 @@ describe Gitlab::Git::Commit do
     end
   end
 
-  describe '#stats' do
-    subject { commit.stats }
-
-    describe '#additions' do
-      subject { super().additions }
-      it { is_expected.to eq(11) }
-    end
-
-    describe '#deletions' do
-      subject { super().deletions }
-      it { is_expected.to eq(6) }
-    end
-
-    describe '#total' do
-      subject { super().total }
-      it { is_expected.to eq(17) }
-    end
-  end
-
-  describe '#has_zero_stats?' do
-    it { expect(commit.has_zero_stats?).to eq(false) }
-  end
-
   describe '#to_hash' do
     let(:hash) { commit.to_hash }
     subject { hash }

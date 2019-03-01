@@ -17,32 +17,60 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type CommitDiffRequest struct {
-	Repository             *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	LeftCommitId           string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId" json:"left_commit_id,omitempty"`
-	RightCommitId          string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId" json:"right_commit_id,omitempty"`
-	IgnoreWhitespaceChange bool        `protobuf:"varint,4,opt,name=ignore_whitespace_change,json=ignoreWhitespaceChange" json:"ignore_whitespace_change,omitempty"`
+	Repository             *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	LeftCommitId           string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	RightCommitId          string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	IgnoreWhitespaceChange bool        `protobuf:"varint,4,opt,name=ignore_whitespace_change,json=ignoreWhitespaceChange,proto3" json:"ignore_whitespace_change,omitempty"`
 	Paths                  [][]byte    `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
-	CollapseDiffs          bool        `protobuf:"varint,6,opt,name=collapse_diffs,json=collapseDiffs" json:"collapse_diffs,omitempty"`
-	EnforceLimits          bool        `protobuf:"varint,7,opt,name=enforce_limits,json=enforceLimits" json:"enforce_limits,omitempty"`
+	CollapseDiffs          bool        `protobuf:"varint,6,opt,name=collapse_diffs,json=collapseDiffs,proto3" json:"collapse_diffs,omitempty"`
+	EnforceLimits          bool        `protobuf:"varint,7,opt,name=enforce_limits,json=enforceLimits,proto3" json:"enforce_limits,omitempty"`
 	// These limits are only enforced when enforce_limits == true.
-	MaxFiles int32 `protobuf:"varint,8,opt,name=max_files,json=maxFiles" json:"max_files,omitempty"`
-	MaxLines int32 `protobuf:"varint,9,opt,name=max_lines,json=maxLines" json:"max_lines,omitempty"`
-	MaxBytes int32 `protobuf:"varint,10,opt,name=max_bytes,json=maxBytes" json:"max_bytes,omitempty"`
+	MaxFiles int32 `protobuf:"varint,8,opt,name=max_files,json=maxFiles,proto3" json:"max_files,omitempty"`
+	MaxLines int32 `protobuf:"varint,9,opt,name=max_lines,json=maxLines,proto3" json:"max_lines,omitempty"`
+	MaxBytes int32 `protobuf:"varint,10,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
 	// Limitation of a single diff patch,
 	// patches surpassing this limit are pruned by default.
 	// If this is 0 you will get back empty patches.
-	MaxPatchBytes int32 `protobuf:"varint,14,opt,name=max_patch_bytes,json=maxPatchBytes" json:"max_patch_bytes,omitempty"`
+	MaxPatchBytes int32 `protobuf:"varint,14,opt,name=max_patch_bytes,json=maxPatchBytes,proto3" json:"max_patch_bytes,omitempty"`
 	// These limits are only enforced if collapse_diffs == true.
-	SafeMaxFiles int32 `protobuf:"varint,11,opt,name=safe_max_files,json=safeMaxFiles" json:"safe_max_files,omitempty"`
-	SafeMaxLines int32 `protobuf:"varint,12,opt,name=safe_max_lines,json=safeMaxLines" json:"safe_max_lines,omitempty"`
-	SafeMaxBytes int32 `protobuf:"varint,13,opt,name=safe_max_bytes,json=safeMaxBytes" json:"safe_max_bytes,omitempty"`
+	SafeMaxFiles         int32    `protobuf:"varint,11,opt,name=safe_max_files,json=safeMaxFiles,proto3" json:"safe_max_files,omitempty"`
+	SafeMaxLines         int32    `protobuf:"varint,12,opt,name=safe_max_lines,json=safeMaxLines,proto3" json:"safe_max_lines,omitempty"`
+	SafeMaxBytes         int32    `protobuf:"varint,13,opt,name=safe_max_bytes,json=safeMaxBytes,proto3" json:"safe_max_bytes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitDiffRequest) Reset()                    { *m = CommitDiffRequest{} }
-func (m *CommitDiffRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitDiffRequest) ProtoMessage()               {}
-func (*CommitDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (m *CommitDiffRequest) Reset()         { *m = CommitDiffRequest{} }
+func (m *CommitDiffRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitDiffRequest) ProtoMessage()    {}
+func (*CommitDiffRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{0}
+}
+func (m *CommitDiffRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitDiffRequest.Unmarshal(m, b)
+}
+func (m *CommitDiffRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitDiffRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitDiffRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitDiffRequest.Merge(dst, src)
+}
+func (m *CommitDiffRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitDiffRequest.Size(m)
+}
+func (m *CommitDiffRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitDiffRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitDiffRequest proto.InternalMessageInfo
 
 func (m *CommitDiffRequest) GetRepository() *Repository {
 	if m != nil {
@@ -147,28 +175,50 @@ type CommitDiffResponse struct {
 	FromPath []byte `protobuf:"bytes,1,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
 	ToPath   []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
 	// Blob ID as returned via `git diff --full-index`
-	FromId       string `protobuf:"bytes,3,opt,name=from_id,json=fromId" json:"from_id,omitempty"`
-	ToId         string `protobuf:"bytes,4,opt,name=to_id,json=toId" json:"to_id,omitempty"`
-	OldMode      int32  `protobuf:"varint,5,opt,name=old_mode,json=oldMode" json:"old_mode,omitempty"`
-	NewMode      int32  `protobuf:"varint,6,opt,name=new_mode,json=newMode" json:"new_mode,omitempty"`
-	Binary       bool   `protobuf:"varint,7,opt,name=binary" json:"binary,omitempty"`
+	FromId       string `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	ToId         string `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	OldMode      int32  `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
+	NewMode      int32  `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
+	Binary       bool   `protobuf:"varint,7,opt,name=binary,proto3" json:"binary,omitempty"`
 	RawPatchData []byte `protobuf:"bytes,9,opt,name=raw_patch_data,json=rawPatchData,proto3" json:"raw_patch_data,omitempty"`
-	EndOfPatch   bool   `protobuf:"varint,10,opt,name=end_of_patch,json=endOfPatch" json:"end_of_patch,omitempty"`
+	EndOfPatch   bool   `protobuf:"varint,10,opt,name=end_of_patch,json=endOfPatch,proto3" json:"end_of_patch,omitempty"`
 	// Indicates the diff file at which we overflow according to the limitations sent,
 	// in which case only this attribute will be set.
-	OverflowMarker bool `protobuf:"varint,11,opt,name=overflow_marker,json=overflowMarker" json:"overflow_marker,omitempty"`
+	OverflowMarker bool `protobuf:"varint,11,opt,name=overflow_marker,json=overflowMarker,proto3" json:"overflow_marker,omitempty"`
 	// Indicates the patch surpassed a "safe" limit and was therefore pruned, but
 	// the client may still request the full patch on a separate request.
-	Collapsed bool `protobuf:"varint,12,opt,name=collapsed" json:"collapsed,omitempty"`
+	Collapsed bool `protobuf:"varint,12,opt,name=collapsed,proto3" json:"collapsed,omitempty"`
 	// Indicates the patch was pruned since it surpassed a hard limit, and can
 	// therefore not be expanded.
-	TooLarge bool `protobuf:"varint,13,opt,name=too_large,json=tooLarge" json:"too_large,omitempty"`
+	TooLarge             bool     `protobuf:"varint,13,opt,name=too_large,json=tooLarge,proto3" json:"too_large,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitDiffResponse) Reset()                    { *m = CommitDiffResponse{} }
-func (m *CommitDiffResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitDiffResponse) ProtoMessage()               {}
-func (*CommitDiffResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (m *CommitDiffResponse) Reset()         { *m = CommitDiffResponse{} }
+func (m *CommitDiffResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitDiffResponse) ProtoMessage()    {}
+func (*CommitDiffResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{1}
+}
+func (m *CommitDiffResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitDiffResponse.Unmarshal(m, b)
+}
+func (m *CommitDiffResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitDiffResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitDiffResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitDiffResponse.Merge(dst, src)
+}
+func (m *CommitDiffResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitDiffResponse.Size(m)
+}
+func (m *CommitDiffResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitDiffResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitDiffResponse proto.InternalMessageInfo
 
 func (m *CommitDiffResponse) GetFromPath() []byte {
 	if m != nil {
@@ -255,16 +305,38 @@ func (m *CommitDiffResponse) GetTooLarge() bool {
 }
 
 type CommitDeltaRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId" json:"right_commit_id,omitempty"`
-	Paths         [][]byte    `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	LeftCommitId         string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	RightCommitId        string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	Paths                [][]byte    `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitDeltaRequest) Reset()                    { *m = CommitDeltaRequest{} }
-func (m *CommitDeltaRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitDeltaRequest) ProtoMessage()               {}
-func (*CommitDeltaRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
+func (m *CommitDeltaRequest) Reset()         { *m = CommitDeltaRequest{} }
+func (m *CommitDeltaRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitDeltaRequest) ProtoMessage()    {}
+func (*CommitDeltaRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{2}
+}
+func (m *CommitDeltaRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitDeltaRequest.Unmarshal(m, b)
+}
+func (m *CommitDeltaRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitDeltaRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitDeltaRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitDeltaRequest.Merge(dst, src)
+}
+func (m *CommitDeltaRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitDeltaRequest.Size(m)
+}
+func (m *CommitDeltaRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitDeltaRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitDeltaRequest proto.InternalMessageInfo
 
 func (m *CommitDeltaRequest) GetRepository() *Repository {
 	if m != nil {
@@ -298,16 +370,38 @@ type CommitDelta struct {
 	FromPath []byte `protobuf:"bytes,1,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
 	ToPath   []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
 	// Blob ID as returned via `git diff --full-index`
-	FromId  string `protobuf:"bytes,3,opt,name=from_id,json=fromId" json:"from_id,omitempty"`
-	ToId    string `protobuf:"bytes,4,opt,name=to_id,json=toId" json:"to_id,omitempty"`
-	OldMode int32  `protobuf:"varint,5,opt,name=old_mode,json=oldMode" json:"old_mode,omitempty"`
-	NewMode int32  `protobuf:"varint,6,opt,name=new_mode,json=newMode" json:"new_mode,omitempty"`
+	FromId               string   `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	ToId                 string   `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	OldMode              int32    `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
+	NewMode              int32    `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitDelta) Reset()                    { *m = CommitDelta{} }
-func (m *CommitDelta) String() string            { return proto.CompactTextString(m) }
-func (*CommitDelta) ProtoMessage()               {}
-func (*CommitDelta) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
+func (m *CommitDelta) Reset()         { *m = CommitDelta{} }
+func (m *CommitDelta) String() string { return proto.CompactTextString(m) }
+func (*CommitDelta) ProtoMessage()    {}
+func (*CommitDelta) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{3}
+}
+func (m *CommitDelta) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitDelta.Unmarshal(m, b)
+}
+func (m *CommitDelta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitDelta.Marshal(b, m, deterministic)
+}
+func (dst *CommitDelta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitDelta.Merge(dst, src)
+}
+func (m *CommitDelta) XXX_Size() int {
+	return xxx_messageInfo_CommitDelta.Size(m)
+}
+func (m *CommitDelta) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitDelta.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitDelta proto.InternalMessageInfo
 
 func (m *CommitDelta) GetFromPath() []byte {
 	if m != nil {
@@ -352,13 +446,35 @@ func (m *CommitDelta) GetNewMode() int32 {
 }
 
 type CommitDeltaResponse struct {
-	Deltas []*CommitDelta `protobuf:"bytes,1,rep,name=deltas" json:"deltas,omitempty"`
+	Deltas               []*CommitDelta `protobuf:"bytes,1,rep,name=deltas,proto3" json:"deltas,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *CommitDeltaResponse) Reset()                    { *m = CommitDeltaResponse{} }
-func (m *CommitDeltaResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitDeltaResponse) ProtoMessage()               {}
-func (*CommitDeltaResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{4} }
+func (m *CommitDeltaResponse) Reset()         { *m = CommitDeltaResponse{} }
+func (m *CommitDeltaResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitDeltaResponse) ProtoMessage()    {}
+func (*CommitDeltaResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{4}
+}
+func (m *CommitDeltaResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitDeltaResponse.Unmarshal(m, b)
+}
+func (m *CommitDeltaResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitDeltaResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitDeltaResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitDeltaResponse.Merge(dst, src)
+}
+func (m *CommitDeltaResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitDeltaResponse.Size(m)
+}
+func (m *CommitDeltaResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitDeltaResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitDeltaResponse proto.InternalMessageInfo
 
 func (m *CommitDeltaResponse) GetDeltas() []*CommitDelta {
 	if m != nil {
@@ -368,14 +484,36 @@ func (m *CommitDeltaResponse) GetDeltas() []*CommitDelta {
 }
 
 type CommitPatchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	Revision   []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CommitPatchRequest) Reset()                    { *m = CommitPatchRequest{} }
-func (m *CommitPatchRequest) String() string            { return proto.CompactTextString(m) }
-func (*CommitPatchRequest) ProtoMessage()               {}
-func (*CommitPatchRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{5} }
+func (m *CommitPatchRequest) Reset()         { *m = CommitPatchRequest{} }
+func (m *CommitPatchRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitPatchRequest) ProtoMessage()    {}
+func (*CommitPatchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{5}
+}
+func (m *CommitPatchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitPatchRequest.Unmarshal(m, b)
+}
+func (m *CommitPatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitPatchRequest.Marshal(b, m, deterministic)
+}
+func (dst *CommitPatchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitPatchRequest.Merge(dst, src)
+}
+func (m *CommitPatchRequest) XXX_Size() int {
+	return xxx_messageInfo_CommitPatchRequest.Size(m)
+}
+func (m *CommitPatchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitPatchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitPatchRequest proto.InternalMessageInfo
 
 func (m *CommitPatchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -392,13 +530,35 @@ func (m *CommitPatchRequest) GetRevision() []byte {
 }
 
 type CommitPatchResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommitPatchResponse) Reset()                    { *m = CommitPatchResponse{} }
-func (m *CommitPatchResponse) String() string            { return proto.CompactTextString(m) }
-func (*CommitPatchResponse) ProtoMessage()               {}
-func (*CommitPatchResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{6} }
+func (m *CommitPatchResponse) Reset()         { *m = CommitPatchResponse{} }
+func (m *CommitPatchResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitPatchResponse) ProtoMessage()    {}
+func (*CommitPatchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{6}
+}
+func (m *CommitPatchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CommitPatchResponse.Unmarshal(m, b)
+}
+func (m *CommitPatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CommitPatchResponse.Marshal(b, m, deterministic)
+}
+func (dst *CommitPatchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitPatchResponse.Merge(dst, src)
+}
+func (m *CommitPatchResponse) XXX_Size() int {
+	return xxx_messageInfo_CommitPatchResponse.Size(m)
+}
+func (m *CommitPatchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitPatchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CommitPatchResponse proto.InternalMessageInfo
 
 func (m *CommitPatchResponse) GetData() []byte {
 	if m != nil {
@@ -408,15 +568,37 @@ func (m *CommitPatchResponse) GetData() []byte {
 }
 
 type RawDiffRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId" json:"right_commit_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	LeftCommitId         string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	RightCommitId        string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RawDiffRequest) Reset()                    { *m = RawDiffRequest{} }
-func (m *RawDiffRequest) String() string            { return proto.CompactTextString(m) }
-func (*RawDiffRequest) ProtoMessage()               {}
-func (*RawDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{7} }
+func (m *RawDiffRequest) Reset()         { *m = RawDiffRequest{} }
+func (m *RawDiffRequest) String() string { return proto.CompactTextString(m) }
+func (*RawDiffRequest) ProtoMessage()    {}
+func (*RawDiffRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{7}
+}
+func (m *RawDiffRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawDiffRequest.Unmarshal(m, b)
+}
+func (m *RawDiffRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawDiffRequest.Marshal(b, m, deterministic)
+}
+func (dst *RawDiffRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawDiffRequest.Merge(dst, src)
+}
+func (m *RawDiffRequest) XXX_Size() int {
+	return xxx_messageInfo_RawDiffRequest.Size(m)
+}
+func (m *RawDiffRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawDiffRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawDiffRequest proto.InternalMessageInfo
 
 func (m *RawDiffRequest) GetRepository() *Repository {
 	if m != nil {
@@ -440,13 +622,35 @@ func (m *RawDiffRequest) GetRightCommitId() string {
 }
 
 type RawDiffResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RawDiffResponse) Reset()                    { *m = RawDiffResponse{} }
-func (m *RawDiffResponse) String() string            { return proto.CompactTextString(m) }
-func (*RawDiffResponse) ProtoMessage()               {}
-func (*RawDiffResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{8} }
+func (m *RawDiffResponse) Reset()         { *m = RawDiffResponse{} }
+func (m *RawDiffResponse) String() string { return proto.CompactTextString(m) }
+func (*RawDiffResponse) ProtoMessage()    {}
+func (*RawDiffResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{8}
+}
+func (m *RawDiffResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawDiffResponse.Unmarshal(m, b)
+}
+func (m *RawDiffResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawDiffResponse.Marshal(b, m, deterministic)
+}
+func (dst *RawDiffResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawDiffResponse.Merge(dst, src)
+}
+func (m *RawDiffResponse) XXX_Size() int {
+	return xxx_messageInfo_RawDiffResponse.Size(m)
+}
+func (m *RawDiffResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawDiffResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawDiffResponse proto.InternalMessageInfo
 
 func (m *RawDiffResponse) GetData() []byte {
 	if m != nil {
@@ -456,15 +660,37 @@ func (m *RawDiffResponse) GetData() []byte {
 }
 
 type RawPatchRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId" json:"right_commit_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	LeftCommitId         string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	RightCommitId        string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *RawPatchRequest) Reset()                    { *m = RawPatchRequest{} }
-func (m *RawPatchRequest) String() string            { return proto.CompactTextString(m) }
-func (*RawPatchRequest) ProtoMessage()               {}
-func (*RawPatchRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{9} }
+func (m *RawPatchRequest) Reset()         { *m = RawPatchRequest{} }
+func (m *RawPatchRequest) String() string { return proto.CompactTextString(m) }
+func (*RawPatchRequest) ProtoMessage()    {}
+func (*RawPatchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{9}
+}
+func (m *RawPatchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawPatchRequest.Unmarshal(m, b)
+}
+func (m *RawPatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawPatchRequest.Marshal(b, m, deterministic)
+}
+func (dst *RawPatchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawPatchRequest.Merge(dst, src)
+}
+func (m *RawPatchRequest) XXX_Size() int {
+	return xxx_messageInfo_RawPatchRequest.Size(m)
+}
+func (m *RawPatchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawPatchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawPatchRequest proto.InternalMessageInfo
 
 func (m *RawPatchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -488,13 +714,35 @@ func (m *RawPatchRequest) GetRightCommitId() string {
 }
 
 type RawPatchResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RawPatchResponse) Reset()                    { *m = RawPatchResponse{} }
-func (m *RawPatchResponse) String() string            { return proto.CompactTextString(m) }
-func (*RawPatchResponse) ProtoMessage()               {}
-func (*RawPatchResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{10} }
+func (m *RawPatchResponse) Reset()         { *m = RawPatchResponse{} }
+func (m *RawPatchResponse) String() string { return proto.CompactTextString(m) }
+func (*RawPatchResponse) ProtoMessage()    {}
+func (*RawPatchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{10}
+}
+func (m *RawPatchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RawPatchResponse.Unmarshal(m, b)
+}
+func (m *RawPatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RawPatchResponse.Marshal(b, m, deterministic)
+}
+func (dst *RawPatchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RawPatchResponse.Merge(dst, src)
+}
+func (m *RawPatchResponse) XXX_Size() int {
+	return xxx_messageInfo_RawPatchResponse.Size(m)
+}
+func (m *RawPatchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_RawPatchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RawPatchResponse proto.InternalMessageInfo
 
 func (m *RawPatchResponse) GetData() []byte {
 	if m != nil {
@@ -504,15 +752,37 @@ func (m *RawPatchResponse) GetData() []byte {
 }
 
 type DiffStatsRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId" json:"right_commit_id,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	LeftCommitId         string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	RightCommitId        string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *DiffStatsRequest) Reset()                    { *m = DiffStatsRequest{} }
-func (m *DiffStatsRequest) String() string            { return proto.CompactTextString(m) }
-func (*DiffStatsRequest) ProtoMessage()               {}
-func (*DiffStatsRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{11} }
+func (m *DiffStatsRequest) Reset()         { *m = DiffStatsRequest{} }
+func (m *DiffStatsRequest) String() string { return proto.CompactTextString(m) }
+func (*DiffStatsRequest) ProtoMessage()    {}
+func (*DiffStatsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{11}
+}
+func (m *DiffStatsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DiffStatsRequest.Unmarshal(m, b)
+}
+func (m *DiffStatsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DiffStatsRequest.Marshal(b, m, deterministic)
+}
+func (dst *DiffStatsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DiffStatsRequest.Merge(dst, src)
+}
+func (m *DiffStatsRequest) XXX_Size() int {
+	return xxx_messageInfo_DiffStatsRequest.Size(m)
+}
+func (m *DiffStatsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DiffStatsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DiffStatsRequest proto.InternalMessageInfo
 
 func (m *DiffStatsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -536,15 +806,37 @@ func (m *DiffStatsRequest) GetRightCommitId() string {
 }
 
 type DiffStats struct {
-	Path      []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Additions int32  `protobuf:"varint,2,opt,name=additions" json:"additions,omitempty"`
-	Deletions int32  `protobuf:"varint,3,opt,name=deletions" json:"deletions,omitempty"`
+	Path                 []byte   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Additions            int32    `protobuf:"varint,2,opt,name=additions,proto3" json:"additions,omitempty"`
+	Deletions            int32    `protobuf:"varint,3,opt,name=deletions,proto3" json:"deletions,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DiffStats) Reset()                    { *m = DiffStats{} }
-func (m *DiffStats) String() string            { return proto.CompactTextString(m) }
-func (*DiffStats) ProtoMessage()               {}
-func (*DiffStats) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{12} }
+func (m *DiffStats) Reset()         { *m = DiffStats{} }
+func (m *DiffStats) String() string { return proto.CompactTextString(m) }
+func (*DiffStats) ProtoMessage()    {}
+func (*DiffStats) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{12}
+}
+func (m *DiffStats) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DiffStats.Unmarshal(m, b)
+}
+func (m *DiffStats) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DiffStats.Marshal(b, m, deterministic)
+}
+func (dst *DiffStats) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DiffStats.Merge(dst, src)
+}
+func (m *DiffStats) XXX_Size() int {
+	return xxx_messageInfo_DiffStats.Size(m)
+}
+func (m *DiffStats) XXX_DiscardUnknown() {
+	xxx_messageInfo_DiffStats.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DiffStats proto.InternalMessageInfo
 
 func (m *DiffStats) GetPath() []byte {
 	if m != nil {
@@ -568,13 +860,35 @@ func (m *DiffStats) GetDeletions() int32 {
 }
 
 type DiffStatsResponse struct {
-	Stats []*DiffStats `protobuf:"bytes,1,rep,name=stats" json:"stats,omitempty"`
+	Stats                []*DiffStats `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *DiffStatsResponse) Reset()                    { *m = DiffStatsResponse{} }
-func (m *DiffStatsResponse) String() string            { return proto.CompactTextString(m) }
-func (*DiffStatsResponse) ProtoMessage()               {}
-func (*DiffStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{13} }
+func (m *DiffStatsResponse) Reset()         { *m = DiffStatsResponse{} }
+func (m *DiffStatsResponse) String() string { return proto.CompactTextString(m) }
+func (*DiffStatsResponse) ProtoMessage()    {}
+func (*DiffStatsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_diff_068a9eeeafb93491, []int{13}
+}
+func (m *DiffStatsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DiffStatsResponse.Unmarshal(m, b)
+}
+func (m *DiffStatsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DiffStatsResponse.Marshal(b, m, deterministic)
+}
+func (dst *DiffStatsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DiffStatsResponse.Merge(dst, src)
+}
+func (m *DiffStatsResponse) XXX_Size() int {
+	return xxx_messageInfo_DiffStatsResponse.Size(m)
+}
+func (m *DiffStatsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DiffStatsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DiffStatsResponse proto.InternalMessageInfo
 
 func (m *DiffStatsResponse) GetStats() []*DiffStats {
 	if m != nil {
@@ -608,8 +922,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for DiffService service
-
+// DiffServiceClient is the client API for DiffService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DiffServiceClient interface {
 	// Returns stream of CommitDiffResponse with patches chunked over messages
 	CommitDiff(ctx context.Context, in *CommitDiffRequest, opts ...grpc.CallOption) (DiffService_CommitDiffClient, error)
@@ -630,7 +945,7 @@ func NewDiffServiceClient(cc *grpc.ClientConn) DiffServiceClient {
 }
 
 func (c *diffServiceClient) CommitDiff(ctx context.Context, in *CommitDiffRequest, opts ...grpc.CallOption) (DiffService_CommitDiffClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[0], c.cc, "/gitaly.DiffService/CommitDiff", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[0], "/gitaly.DiffService/CommitDiff", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -662,7 +977,7 @@ func (x *diffServiceCommitDiffClient) Recv() (*CommitDiffResponse, error) {
 }
 
 func (c *diffServiceClient) CommitDelta(ctx context.Context, in *CommitDeltaRequest, opts ...grpc.CallOption) (DiffService_CommitDeltaClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[1], c.cc, "/gitaly.DiffService/CommitDelta", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[1], "/gitaly.DiffService/CommitDelta", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +1009,7 @@ func (x *diffServiceCommitDeltaClient) Recv() (*CommitDeltaResponse, error) {
 }
 
 func (c *diffServiceClient) CommitPatch(ctx context.Context, in *CommitPatchRequest, opts ...grpc.CallOption) (DiffService_CommitPatchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[2], c.cc, "/gitaly.DiffService/CommitPatch", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[2], "/gitaly.DiffService/CommitPatch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -726,7 +1041,7 @@ func (x *diffServiceCommitPatchClient) Recv() (*CommitPatchResponse, error) {
 }
 
 func (c *diffServiceClient) RawDiff(ctx context.Context, in *RawDiffRequest, opts ...grpc.CallOption) (DiffService_RawDiffClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[3], c.cc, "/gitaly.DiffService/RawDiff", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[3], "/gitaly.DiffService/RawDiff", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +1073,7 @@ func (x *diffServiceRawDiffClient) Recv() (*RawDiffResponse, error) {
 }
 
 func (c *diffServiceClient) RawPatch(ctx context.Context, in *RawPatchRequest, opts ...grpc.CallOption) (DiffService_RawPatchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[4], c.cc, "/gitaly.DiffService/RawPatch", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[4], "/gitaly.DiffService/RawPatch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -790,7 +1105,7 @@ func (x *diffServiceRawPatchClient) Recv() (*RawPatchResponse, error) {
 }
 
 func (c *diffServiceClient) DiffStats(ctx context.Context, in *DiffStatsRequest, opts ...grpc.CallOption) (DiffService_DiffStatsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_DiffService_serviceDesc.Streams[5], c.cc, "/gitaly.DiffService/DiffStats", opts...)
+	stream, err := c.cc.NewStream(ctx, &_DiffService_serviceDesc.Streams[5], "/gitaly.DiffService/DiffStats", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -821,8 +1136,7 @@ func (x *diffServiceDiffStatsClient) Recv() (*DiffStatsResponse, error) {
 	return m, nil
 }
 
-// Server API for DiffService service
-
+// DiffServiceServer is the server API for DiffService service.
 type DiffServiceServer interface {
 	// Returns stream of CommitDiffResponse with patches chunked over messages
 	CommitDiff(*CommitDiffRequest, DiffService_CommitDiffServer) error
@@ -1003,9 +1317,9 @@ var _DiffService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "diff.proto",
 }
 
-func init() { proto.RegisterFile("diff.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("diff.proto", fileDescriptor_diff_068a9eeeafb93491) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor_diff_068a9eeeafb93491 = []byte{
 	// 864 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x56, 0xcb, 0x6e, 0x23, 0x45,
 	0x14, 0xa5, 0xe3, 0x47, 0xda, 0xd7, 0x1d, 0x27, 0xa9, 0xa0, 0x4c, 0xc7, 0xc3, 0xc2, 0x6a, 0xcd,

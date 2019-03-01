@@ -17,18 +17,46 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type InfoRefsRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
-	GitConfigOptions []string `protobuf:"bytes,2,rep,name=git_config_options,json=gitConfigOptions" json:"git_config_options,omitempty"`
+	GitConfigOptions []string `protobuf:"bytes,2,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
 	// Git protocol version
-	GitProtocol string `protobuf:"bytes,3,opt,name=git_protocol,json=gitProtocol" json:"git_protocol,omitempty"`
+	GitProtocol          string   `protobuf:"bytes,3,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *InfoRefsRequest) Reset()                    { *m = InfoRefsRequest{} }
-func (m *InfoRefsRequest) String() string            { return proto.CompactTextString(m) }
-func (*InfoRefsRequest) ProtoMessage()               {}
-func (*InfoRefsRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{0} }
+func (m *InfoRefsRequest) Reset()         { *m = InfoRefsRequest{} }
+func (m *InfoRefsRequest) String() string { return proto.CompactTextString(m) }
+func (*InfoRefsRequest) ProtoMessage()    {}
+func (*InfoRefsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{0}
+}
+func (m *InfoRefsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InfoRefsRequest.Unmarshal(m, b)
+}
+func (m *InfoRefsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InfoRefsRequest.Marshal(b, m, deterministic)
+}
+func (dst *InfoRefsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InfoRefsRequest.Merge(dst, src)
+}
+func (m *InfoRefsRequest) XXX_Size() int {
+	return xxx_messageInfo_InfoRefsRequest.Size(m)
+}
+func (m *InfoRefsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_InfoRefsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InfoRefsRequest proto.InternalMessageInfo
 
 func (m *InfoRefsRequest) GetRepository() *Repository {
 	if m != nil {
@@ -52,13 +80,35 @@ func (m *InfoRefsRequest) GetGitProtocol() string {
 }
 
 type InfoRefsResponse struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *InfoRefsResponse) Reset()                    { *m = InfoRefsResponse{} }
-func (m *InfoRefsResponse) String() string            { return proto.CompactTextString(m) }
-func (*InfoRefsResponse) ProtoMessage()               {}
-func (*InfoRefsResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{1} }
+func (m *InfoRefsResponse) Reset()         { *m = InfoRefsResponse{} }
+func (m *InfoRefsResponse) String() string { return proto.CompactTextString(m) }
+func (*InfoRefsResponse) ProtoMessage()    {}
+func (*InfoRefsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{1}
+}
+func (m *InfoRefsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InfoRefsResponse.Unmarshal(m, b)
+}
+func (m *InfoRefsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InfoRefsResponse.Marshal(b, m, deterministic)
+}
+func (dst *InfoRefsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InfoRefsResponse.Merge(dst, src)
+}
+func (m *InfoRefsResponse) XXX_Size() int {
+	return xxx_messageInfo_InfoRefsResponse.Size(m)
+}
+func (m *InfoRefsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_InfoRefsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InfoRefsResponse proto.InternalMessageInfo
 
 func (m *InfoRefsResponse) GetData() []byte {
 	if m != nil {
@@ -69,19 +119,41 @@ func (m *InfoRefsResponse) GetData() []byte {
 
 type PostUploadPackRequest struct {
 	// repository should only be present in the first message of the stream
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Raw data to be copied to stdin of 'git upload-pack'
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
-	GitConfigOptions []string `protobuf:"bytes,3,rep,name=git_config_options,json=gitConfigOptions" json:"git_config_options,omitempty"`
+	GitConfigOptions []string `protobuf:"bytes,3,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
 	// Git protocol version
-	GitProtocol string `protobuf:"bytes,4,opt,name=git_protocol,json=gitProtocol" json:"git_protocol,omitempty"`
+	GitProtocol          string   `protobuf:"bytes,4,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PostUploadPackRequest) Reset()                    { *m = PostUploadPackRequest{} }
-func (m *PostUploadPackRequest) String() string            { return proto.CompactTextString(m) }
-func (*PostUploadPackRequest) ProtoMessage()               {}
-func (*PostUploadPackRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{2} }
+func (m *PostUploadPackRequest) Reset()         { *m = PostUploadPackRequest{} }
+func (m *PostUploadPackRequest) String() string { return proto.CompactTextString(m) }
+func (*PostUploadPackRequest) ProtoMessage()    {}
+func (*PostUploadPackRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{2}
+}
+func (m *PostUploadPackRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostUploadPackRequest.Unmarshal(m, b)
+}
+func (m *PostUploadPackRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostUploadPackRequest.Marshal(b, m, deterministic)
+}
+func (dst *PostUploadPackRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostUploadPackRequest.Merge(dst, src)
+}
+func (m *PostUploadPackRequest) XXX_Size() int {
+	return xxx_messageInfo_PostUploadPackRequest.Size(m)
+}
+func (m *PostUploadPackRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostUploadPackRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostUploadPackRequest proto.InternalMessageInfo
 
 func (m *PostUploadPackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -113,13 +185,35 @@ func (m *PostUploadPackRequest) GetGitProtocol() string {
 
 type PostUploadPackResponse struct {
 	// Raw data from stdout of 'git upload-pack'
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PostUploadPackResponse) Reset()                    { *m = PostUploadPackResponse{} }
-func (m *PostUploadPackResponse) String() string            { return proto.CompactTextString(m) }
-func (*PostUploadPackResponse) ProtoMessage()               {}
-func (*PostUploadPackResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{3} }
+func (m *PostUploadPackResponse) Reset()         { *m = PostUploadPackResponse{} }
+func (m *PostUploadPackResponse) String() string { return proto.CompactTextString(m) }
+func (*PostUploadPackResponse) ProtoMessage()    {}
+func (*PostUploadPackResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{3}
+}
+func (m *PostUploadPackResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostUploadPackResponse.Unmarshal(m, b)
+}
+func (m *PostUploadPackResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostUploadPackResponse.Marshal(b, m, deterministic)
+}
+func (dst *PostUploadPackResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostUploadPackResponse.Merge(dst, src)
+}
+func (m *PostUploadPackResponse) XXX_Size() int {
+	return xxx_messageInfo_PostUploadPackResponse.Size(m)
+}
+func (m *PostUploadPackResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostUploadPackResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostUploadPackResponse proto.InternalMessageInfo
 
 func (m *PostUploadPackResponse) GetData() []byte {
 	if m != nil {
@@ -130,24 +224,46 @@ func (m *PostUploadPackResponse) GetData() []byte {
 
 type PostReceivePackRequest struct {
 	// repository should only be present in the first message of the stream
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Raw data to be copied to stdin of 'git receive-pack'
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	// gl_id, gl_repository, and gl_username become env variables, used by the Git {pre,post}-receive
 	// hooks. They should only be present in the first message of the stream.
-	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId" json:"gl_id,omitempty"`
-	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository" json:"gl_repository,omitempty"`
-	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername" json:"gl_username,omitempty"`
+	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository,proto3" json:"gl_repository,omitempty"`
+	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
 	// Git protocol version
-	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol" json:"git_protocol,omitempty"`
+	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
-	GitConfigOptions []string `protobuf:"bytes,7,rep,name=git_config_options,json=gitConfigOptions" json:"git_config_options,omitempty"`
+	GitConfigOptions     []string `protobuf:"bytes,7,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PostReceivePackRequest) Reset()                    { *m = PostReceivePackRequest{} }
-func (m *PostReceivePackRequest) String() string            { return proto.CompactTextString(m) }
-func (*PostReceivePackRequest) ProtoMessage()               {}
-func (*PostReceivePackRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{4} }
+func (m *PostReceivePackRequest) Reset()         { *m = PostReceivePackRequest{} }
+func (m *PostReceivePackRequest) String() string { return proto.CompactTextString(m) }
+func (*PostReceivePackRequest) ProtoMessage()    {}
+func (*PostReceivePackRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{4}
+}
+func (m *PostReceivePackRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostReceivePackRequest.Unmarshal(m, b)
+}
+func (m *PostReceivePackRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostReceivePackRequest.Marshal(b, m, deterministic)
+}
+func (dst *PostReceivePackRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostReceivePackRequest.Merge(dst, src)
+}
+func (m *PostReceivePackRequest) XXX_Size() int {
+	return xxx_messageInfo_PostReceivePackRequest.Size(m)
+}
+func (m *PostReceivePackRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostReceivePackRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostReceivePackRequest proto.InternalMessageInfo
 
 func (m *PostReceivePackRequest) GetRepository() *Repository {
 	if m != nil {
@@ -200,13 +316,35 @@ func (m *PostReceivePackRequest) GetGitConfigOptions() []string {
 
 type PostReceivePackResponse struct {
 	// Raw data from stdout of 'git receive-pack'
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PostReceivePackResponse) Reset()                    { *m = PostReceivePackResponse{} }
-func (m *PostReceivePackResponse) String() string            { return proto.CompactTextString(m) }
-func (*PostReceivePackResponse) ProtoMessage()               {}
-func (*PostReceivePackResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{5} }
+func (m *PostReceivePackResponse) Reset()         { *m = PostReceivePackResponse{} }
+func (m *PostReceivePackResponse) String() string { return proto.CompactTextString(m) }
+func (*PostReceivePackResponse) ProtoMessage()    {}
+func (*PostReceivePackResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_smarthttp_135d2a4f87c9c40a, []int{5}
+}
+func (m *PostReceivePackResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PostReceivePackResponse.Unmarshal(m, b)
+}
+func (m *PostReceivePackResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PostReceivePackResponse.Marshal(b, m, deterministic)
+}
+func (dst *PostReceivePackResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostReceivePackResponse.Merge(dst, src)
+}
+func (m *PostReceivePackResponse) XXX_Size() int {
+	return xxx_messageInfo_PostReceivePackResponse.Size(m)
+}
+func (m *PostReceivePackResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostReceivePackResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostReceivePackResponse proto.InternalMessageInfo
 
 func (m *PostReceivePackResponse) GetData() []byte {
 	if m != nil {
@@ -232,8 +370,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for SmartHTTPService service
-
+// SmartHTTPServiceClient is the client API for SmartHTTPService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SmartHTTPServiceClient interface {
 	// The response body for GET /info/refs?service=git-upload-pack
 	InfoRefsUploadPack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTPService_InfoRefsUploadPackClient, error)
@@ -254,7 +393,7 @@ func NewSmartHTTPServiceClient(cc *grpc.ClientConn) SmartHTTPServiceClient {
 }
 
 func (c *smartHTTPServiceClient) InfoRefsUploadPack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTPService_InfoRefsUploadPackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTPService_serviceDesc.Streams[0], c.cc, "/gitaly.SmartHTTPService/InfoRefsUploadPack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SmartHTTPService_serviceDesc.Streams[0], "/gitaly.SmartHTTPService/InfoRefsUploadPack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +425,7 @@ func (x *smartHTTPServiceInfoRefsUploadPackClient) Recv() (*InfoRefsResponse, er
 }
 
 func (c *smartHTTPServiceClient) InfoRefsReceivePack(ctx context.Context, in *InfoRefsRequest, opts ...grpc.CallOption) (SmartHTTPService_InfoRefsReceivePackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTPService_serviceDesc.Streams[1], c.cc, "/gitaly.SmartHTTPService/InfoRefsReceivePack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SmartHTTPService_serviceDesc.Streams[1], "/gitaly.SmartHTTPService/InfoRefsReceivePack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +457,7 @@ func (x *smartHTTPServiceInfoRefsReceivePackClient) Recv() (*InfoRefsResponse, e
 }
 
 func (c *smartHTTPServiceClient) PostUploadPack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTPService_PostUploadPackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTPService_serviceDesc.Streams[2], c.cc, "/gitaly.SmartHTTPService/PostUploadPack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SmartHTTPService_serviceDesc.Streams[2], "/gitaly.SmartHTTPService/PostUploadPack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +488,7 @@ func (x *smartHTTPServicePostUploadPackClient) Recv() (*PostUploadPackResponse, 
 }
 
 func (c *smartHTTPServiceClient) PostReceivePack(ctx context.Context, opts ...grpc.CallOption) (SmartHTTPService_PostReceivePackClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SmartHTTPService_serviceDesc.Streams[3], c.cc, "/gitaly.SmartHTTPService/PostReceivePack", opts...)
+	stream, err := c.cc.NewStream(ctx, &_SmartHTTPService_serviceDesc.Streams[3], "/gitaly.SmartHTTPService/PostReceivePack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -379,8 +518,7 @@ func (x *smartHTTPServicePostReceivePackClient) Recv() (*PostReceivePackResponse
 	return m, nil
 }
 
-// Server API for SmartHTTPService service
-
+// SmartHTTPServiceServer is the server API for SmartHTTPService service.
 type SmartHTTPServiceServer interface {
 	// The response body for GET /info/refs?service=git-upload-pack
 	InfoRefsUploadPack(*InfoRefsRequest, SmartHTTPService_InfoRefsUploadPackServer) error
@@ -521,9 +659,9 @@ var _SmartHTTPService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "smarthttp.proto",
 }
 
-func init() { proto.RegisterFile("smarthttp.proto", fileDescriptor14) }
+func init() { proto.RegisterFile("smarthttp.proto", fileDescriptor_smarthttp_135d2a4f87c9c40a) }
 
-var fileDescriptor14 = []byte{
+var fileDescriptor_smarthttp_135d2a4f87c9c40a = []byte{
 	// 423 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x53, 0xd1, 0x8a, 0xd3, 0x40,
 	0x14, 0x75, 0xd2, 0x6e, 0x65, 0x6f, 0xa3, 0x2d, 0x77, 0xd1, 0x0d, 0x01, 0xdd, 0x1a, 0x41, 0xf2,

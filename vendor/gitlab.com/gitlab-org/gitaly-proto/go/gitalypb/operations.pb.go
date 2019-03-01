@@ -17,6 +17,12 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type UserCommitFilesActionHeader_ActionType int32
 
 const (
@@ -49,20 +55,42 @@ func (x UserCommitFilesActionHeader_ActionType) String() string {
 	return proto.EnumName(UserCommitFilesActionHeader_ActionType_name, int32(x))
 }
 func (UserCommitFilesActionHeader_ActionType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor8, []int{21, 0}
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{21, 0}
 }
 
 type UserCreateBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	BranchName []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	User       *User       `protobuf:"bytes,3,opt,name=user" json:"user,omitempty"`
-	StartPoint []byte      `protobuf:"bytes,4,opt,name=start_point,json=startPoint,proto3" json:"start_point,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	User                 *User       `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	StartPoint           []byte      `protobuf:"bytes,4,opt,name=start_point,json=startPoint,proto3" json:"start_point,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserCreateBranchRequest) Reset()                    { *m = UserCreateBranchRequest{} }
-func (m *UserCreateBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserCreateBranchRequest) ProtoMessage()               {}
-func (*UserCreateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
+func (m *UserCreateBranchRequest) Reset()         { *m = UserCreateBranchRequest{} }
+func (m *UserCreateBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserCreateBranchRequest) ProtoMessage()    {}
+func (*UserCreateBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{0}
+}
+func (m *UserCreateBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCreateBranchRequest.Unmarshal(m, b)
+}
+func (m *UserCreateBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCreateBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserCreateBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCreateBranchRequest.Merge(dst, src)
+}
+func (m *UserCreateBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserCreateBranchRequest.Size(m)
+}
+func (m *UserCreateBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCreateBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCreateBranchRequest proto.InternalMessageInfo
 
 func (m *UserCreateBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -93,16 +121,38 @@ func (m *UserCreateBranchRequest) GetStartPoint() []byte {
 }
 
 type UserCreateBranchResponse struct {
-	Branch *Branch `protobuf:"bytes,1,opt,name=branch" json:"branch,omitempty"`
+	Branch *Branch `protobuf:"bytes,1,opt,name=branch,proto3" json:"branch,omitempty"`
 	// Error returned by the pre-receive hook. If no error was thrown,
 	// it's the empty string ("")
-	PreReceiveError string `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserCreateBranchResponse) Reset()                    { *m = UserCreateBranchResponse{} }
-func (m *UserCreateBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserCreateBranchResponse) ProtoMessage()               {}
-func (*UserCreateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
+func (m *UserCreateBranchResponse) Reset()         { *m = UserCreateBranchResponse{} }
+func (m *UserCreateBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserCreateBranchResponse) ProtoMessage()    {}
+func (*UserCreateBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{1}
+}
+func (m *UserCreateBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCreateBranchResponse.Unmarshal(m, b)
+}
+func (m *UserCreateBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCreateBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserCreateBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCreateBranchResponse.Merge(dst, src)
+}
+func (m *UserCreateBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserCreateBranchResponse.Size(m)
+}
+func (m *UserCreateBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCreateBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCreateBranchResponse proto.InternalMessageInfo
 
 func (m *UserCreateBranchResponse) GetBranch() *Branch {
 	if m != nil {
@@ -119,17 +169,39 @@ func (m *UserCreateBranchResponse) GetPreReceiveError() string {
 }
 
 type UserUpdateBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	BranchName []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	User       *User       `protobuf:"bytes,3,opt,name=user" json:"user,omitempty"`
-	Newrev     []byte      `protobuf:"bytes,4,opt,name=newrev,proto3" json:"newrev,omitempty"`
-	Oldrev     []byte      `protobuf:"bytes,5,opt,name=oldrev,proto3" json:"oldrev,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	User                 *User       `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	Newrev               []byte      `protobuf:"bytes,4,opt,name=newrev,proto3" json:"newrev,omitempty"`
+	Oldrev               []byte      `protobuf:"bytes,5,opt,name=oldrev,proto3" json:"oldrev,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserUpdateBranchRequest) Reset()                    { *m = UserUpdateBranchRequest{} }
-func (m *UserUpdateBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserUpdateBranchRequest) ProtoMessage()               {}
-func (*UserUpdateBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
+func (m *UserUpdateBranchRequest) Reset()         { *m = UserUpdateBranchRequest{} }
+func (m *UserUpdateBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserUpdateBranchRequest) ProtoMessage()    {}
+func (*UserUpdateBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{2}
+}
+func (m *UserUpdateBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserUpdateBranchRequest.Unmarshal(m, b)
+}
+func (m *UserUpdateBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserUpdateBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserUpdateBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserUpdateBranchRequest.Merge(dst, src)
+}
+func (m *UserUpdateBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserUpdateBranchRequest.Size(m)
+}
+func (m *UserUpdateBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserUpdateBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserUpdateBranchRequest proto.InternalMessageInfo
 
 func (m *UserUpdateBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -167,13 +239,35 @@ func (m *UserUpdateBranchRequest) GetOldrev() []byte {
 }
 
 type UserUpdateBranchResponse struct {
-	PreReceiveError string `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserUpdateBranchResponse) Reset()                    { *m = UserUpdateBranchResponse{} }
-func (m *UserUpdateBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserUpdateBranchResponse) ProtoMessage()               {}
-func (*UserUpdateBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
+func (m *UserUpdateBranchResponse) Reset()         { *m = UserUpdateBranchResponse{} }
+func (m *UserUpdateBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserUpdateBranchResponse) ProtoMessage()    {}
+func (*UserUpdateBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{3}
+}
+func (m *UserUpdateBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserUpdateBranchResponse.Unmarshal(m, b)
+}
+func (m *UserUpdateBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserUpdateBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserUpdateBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserUpdateBranchResponse.Merge(dst, src)
+}
+func (m *UserUpdateBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserUpdateBranchResponse.Size(m)
+}
+func (m *UserUpdateBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserUpdateBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserUpdateBranchResponse proto.InternalMessageInfo
 
 func (m *UserUpdateBranchResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -183,15 +277,37 @@ func (m *UserUpdateBranchResponse) GetPreReceiveError() string {
 }
 
 type UserDeleteBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	BranchName []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	User       *User       `protobuf:"bytes,3,opt,name=user" json:"user,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,2,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	User                 *User       `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserDeleteBranchRequest) Reset()                    { *m = UserDeleteBranchRequest{} }
-func (m *UserDeleteBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserDeleteBranchRequest) ProtoMessage()               {}
-func (*UserDeleteBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
+func (m *UserDeleteBranchRequest) Reset()         { *m = UserDeleteBranchRequest{} }
+func (m *UserDeleteBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserDeleteBranchRequest) ProtoMessage()    {}
+func (*UserDeleteBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{4}
+}
+func (m *UserDeleteBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserDeleteBranchRequest.Unmarshal(m, b)
+}
+func (m *UserDeleteBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserDeleteBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserDeleteBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserDeleteBranchRequest.Merge(dst, src)
+}
+func (m *UserDeleteBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserDeleteBranchRequest.Size(m)
+}
+func (m *UserDeleteBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserDeleteBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserDeleteBranchRequest proto.InternalMessageInfo
 
 func (m *UserDeleteBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -215,13 +331,35 @@ func (m *UserDeleteBranchRequest) GetUser() *User {
 }
 
 type UserDeleteBranchResponse struct {
-	PreReceiveError string `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserDeleteBranchResponse) Reset()                    { *m = UserDeleteBranchResponse{} }
-func (m *UserDeleteBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserDeleteBranchResponse) ProtoMessage()               {}
-func (*UserDeleteBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
+func (m *UserDeleteBranchResponse) Reset()         { *m = UserDeleteBranchResponse{} }
+func (m *UserDeleteBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserDeleteBranchResponse) ProtoMessage()    {}
+func (*UserDeleteBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{5}
+}
+func (m *UserDeleteBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserDeleteBranchResponse.Unmarshal(m, b)
+}
+func (m *UserDeleteBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserDeleteBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserDeleteBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserDeleteBranchResponse.Merge(dst, src)
+}
+func (m *UserDeleteBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserDeleteBranchResponse.Size(m)
+}
+func (m *UserDeleteBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserDeleteBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserDeleteBranchResponse proto.InternalMessageInfo
 
 func (m *UserDeleteBranchResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -231,15 +369,37 @@ func (m *UserDeleteBranchResponse) GetPreReceiveError() string {
 }
 
 type UserDeleteTagRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	TagName    []byte      `protobuf:"bytes,2,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
-	User       *User       `protobuf:"bytes,3,opt,name=user" json:"user,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	TagName              []byte      `protobuf:"bytes,2,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
+	User                 *User       `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserDeleteTagRequest) Reset()                    { *m = UserDeleteTagRequest{} }
-func (m *UserDeleteTagRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserDeleteTagRequest) ProtoMessage()               {}
-func (*UserDeleteTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{6} }
+func (m *UserDeleteTagRequest) Reset()         { *m = UserDeleteTagRequest{} }
+func (m *UserDeleteTagRequest) String() string { return proto.CompactTextString(m) }
+func (*UserDeleteTagRequest) ProtoMessage()    {}
+func (*UserDeleteTagRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{6}
+}
+func (m *UserDeleteTagRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserDeleteTagRequest.Unmarshal(m, b)
+}
+func (m *UserDeleteTagRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserDeleteTagRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserDeleteTagRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserDeleteTagRequest.Merge(dst, src)
+}
+func (m *UserDeleteTagRequest) XXX_Size() int {
+	return xxx_messageInfo_UserDeleteTagRequest.Size(m)
+}
+func (m *UserDeleteTagRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserDeleteTagRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserDeleteTagRequest proto.InternalMessageInfo
 
 func (m *UserDeleteTagRequest) GetRepository() *Repository {
 	if m != nil {
@@ -263,13 +423,35 @@ func (m *UserDeleteTagRequest) GetUser() *User {
 }
 
 type UserDeleteTagResponse struct {
-	PreReceiveError string `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,1,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserDeleteTagResponse) Reset()                    { *m = UserDeleteTagResponse{} }
-func (m *UserDeleteTagResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserDeleteTagResponse) ProtoMessage()               {}
-func (*UserDeleteTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{7} }
+func (m *UserDeleteTagResponse) Reset()         { *m = UserDeleteTagResponse{} }
+func (m *UserDeleteTagResponse) String() string { return proto.CompactTextString(m) }
+func (*UserDeleteTagResponse) ProtoMessage()    {}
+func (*UserDeleteTagResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{7}
+}
+func (m *UserDeleteTagResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserDeleteTagResponse.Unmarshal(m, b)
+}
+func (m *UserDeleteTagResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserDeleteTagResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserDeleteTagResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserDeleteTagResponse.Merge(dst, src)
+}
+func (m *UserDeleteTagResponse) XXX_Size() int {
+	return xxx_messageInfo_UserDeleteTagResponse.Size(m)
+}
+func (m *UserDeleteTagResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserDeleteTagResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserDeleteTagResponse proto.InternalMessageInfo
 
 func (m *UserDeleteTagResponse) GetPreReceiveError() string {
 	if m != nil {
@@ -279,17 +461,39 @@ func (m *UserDeleteTagResponse) GetPreReceiveError() string {
 }
 
 type UserCreateTagRequest struct {
-	Repository     *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	TagName        []byte      `protobuf:"bytes,2,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
-	User           *User       `protobuf:"bytes,3,opt,name=user" json:"user,omitempty"`
-	TargetRevision []byte      `protobuf:"bytes,4,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	Message        []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	TagName              []byte      `protobuf:"bytes,2,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
+	User                 *User       `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	TargetRevision       []byte      `protobuf:"bytes,4,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
+	Message              []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserCreateTagRequest) Reset()                    { *m = UserCreateTagRequest{} }
-func (m *UserCreateTagRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserCreateTagRequest) ProtoMessage()               {}
-func (*UserCreateTagRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{8} }
+func (m *UserCreateTagRequest) Reset()         { *m = UserCreateTagRequest{} }
+func (m *UserCreateTagRequest) String() string { return proto.CompactTextString(m) }
+func (*UserCreateTagRequest) ProtoMessage()    {}
+func (*UserCreateTagRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{8}
+}
+func (m *UserCreateTagRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCreateTagRequest.Unmarshal(m, b)
+}
+func (m *UserCreateTagRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCreateTagRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserCreateTagRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCreateTagRequest.Merge(dst, src)
+}
+func (m *UserCreateTagRequest) XXX_Size() int {
+	return xxx_messageInfo_UserCreateTagRequest.Size(m)
+}
+func (m *UserCreateTagRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCreateTagRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCreateTagRequest proto.InternalMessageInfo
 
 func (m *UserCreateTagRequest) GetRepository() *Repository {
 	if m != nil {
@@ -327,15 +531,37 @@ func (m *UserCreateTagRequest) GetMessage() []byte {
 }
 
 type UserCreateTagResponse struct {
-	Tag             *Tag   `protobuf:"bytes,1,opt,name=tag" json:"tag,omitempty"`
-	Exists          bool   `protobuf:"varint,2,opt,name=exists" json:"exists,omitempty"`
-	PreReceiveError string `protobuf:"bytes,3,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	Tag                  *Tag     `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Exists               bool     `protobuf:"varint,2,opt,name=exists,proto3" json:"exists,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,3,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserCreateTagResponse) Reset()                    { *m = UserCreateTagResponse{} }
-func (m *UserCreateTagResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserCreateTagResponse) ProtoMessage()               {}
-func (*UserCreateTagResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{9} }
+func (m *UserCreateTagResponse) Reset()         { *m = UserCreateTagResponse{} }
+func (m *UserCreateTagResponse) String() string { return proto.CompactTextString(m) }
+func (*UserCreateTagResponse) ProtoMessage()    {}
+func (*UserCreateTagResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{9}
+}
+func (m *UserCreateTagResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCreateTagResponse.Unmarshal(m, b)
+}
+func (m *UserCreateTagResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCreateTagResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserCreateTagResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCreateTagResponse.Merge(dst, src)
+}
+func (m *UserCreateTagResponse) XXX_Size() int {
+	return xxx_messageInfo_UserCreateTagResponse.Size(m)
+}
+func (m *UserCreateTagResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCreateTagResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCreateTagResponse proto.InternalMessageInfo
 
 func (m *UserCreateTagResponse) GetTag() *Tag {
 	if m != nil {
@@ -360,20 +586,42 @@ func (m *UserCreateTagResponse) GetPreReceiveError() string {
 
 type UserMergeBranchRequest struct {
 	// First message
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User       *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	CommitId   string      `protobuf:"bytes,3,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User       *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	CommitId   string      `protobuf:"bytes,3,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	Branch     []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
 	Message    []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	// Second message
 	// Tell the server to apply the merge to the branch
-	Apply bool `protobuf:"varint,6,opt,name=apply" json:"apply,omitempty"`
+	Apply                bool     `protobuf:"varint,6,opt,name=apply,proto3" json:"apply,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserMergeBranchRequest) Reset()                    { *m = UserMergeBranchRequest{} }
-func (m *UserMergeBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserMergeBranchRequest) ProtoMessage()               {}
-func (*UserMergeBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{10} }
+func (m *UserMergeBranchRequest) Reset()         { *m = UserMergeBranchRequest{} }
+func (m *UserMergeBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserMergeBranchRequest) ProtoMessage()    {}
+func (*UserMergeBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{10}
+}
+func (m *UserMergeBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserMergeBranchRequest.Unmarshal(m, b)
+}
+func (m *UserMergeBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserMergeBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserMergeBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserMergeBranchRequest.Merge(dst, src)
+}
+func (m *UserMergeBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserMergeBranchRequest.Size(m)
+}
+func (m *UserMergeBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserMergeBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserMergeBranchRequest proto.InternalMessageInfo
 
 func (m *UserMergeBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -420,17 +668,39 @@ func (m *UserMergeBranchRequest) GetApply() bool {
 type UserMergeBranchResponse struct {
 	// First message
 	// The merge commit the branch will be updated to. The caller can still abort the merge.
-	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Second message
 	// If set, the merge has been applied to the branch.
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,3,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,3,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserMergeBranchResponse) Reset()                    { *m = UserMergeBranchResponse{} }
-func (m *UserMergeBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserMergeBranchResponse) ProtoMessage()               {}
-func (*UserMergeBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{11} }
+func (m *UserMergeBranchResponse) Reset()         { *m = UserMergeBranchResponse{} }
+func (m *UserMergeBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserMergeBranchResponse) ProtoMessage()    {}
+func (*UserMergeBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{11}
+}
+func (m *UserMergeBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserMergeBranchResponse.Unmarshal(m, b)
+}
+func (m *UserMergeBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserMergeBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserMergeBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserMergeBranchResponse.Merge(dst, src)
+}
+func (m *UserMergeBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserMergeBranchResponse.Size(m)
+}
+func (m *UserMergeBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserMergeBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserMergeBranchResponse proto.InternalMessageInfo
 
 func (m *UserMergeBranchResponse) GetCommitId() string {
 	if m != nil {
@@ -454,9 +724,9 @@ func (m *UserMergeBranchResponse) GetPreReceiveError() string {
 }
 
 type UserMergeToRefRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User       *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	SourceSha  string      `protobuf:"bytes,3,opt,name=source_sha,json=sourceSha" json:"source_sha,omitempty"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User       *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	SourceSha  string      `protobuf:"bytes,3,opt,name=source_sha,json=sourceSha,proto3" json:"source_sha,omitempty"`
 	Branch     []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
 	// The merge of source_sha and branch has target_ref as target.
 	//
@@ -464,14 +734,36 @@ type UserMergeToRefRequest struct {
 	// and branch. That is, if a second request comes in, target_ref
 	// will lose its previous state and be updated to the latest merge
 	// between source_sha and branch.
-	TargetRef []byte `protobuf:"bytes,5,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
-	Message   []byte `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	TargetRef            []byte   `protobuf:"bytes,5,opt,name=target_ref,json=targetRef,proto3" json:"target_ref,omitempty"`
+	Message              []byte   `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserMergeToRefRequest) Reset()                    { *m = UserMergeToRefRequest{} }
-func (m *UserMergeToRefRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserMergeToRefRequest) ProtoMessage()               {}
-func (*UserMergeToRefRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{12} }
+func (m *UserMergeToRefRequest) Reset()         { *m = UserMergeToRefRequest{} }
+func (m *UserMergeToRefRequest) String() string { return proto.CompactTextString(m) }
+func (*UserMergeToRefRequest) ProtoMessage()    {}
+func (*UserMergeToRefRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{12}
+}
+func (m *UserMergeToRefRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserMergeToRefRequest.Unmarshal(m, b)
+}
+func (m *UserMergeToRefRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserMergeToRefRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserMergeToRefRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserMergeToRefRequest.Merge(dst, src)
+}
+func (m *UserMergeToRefRequest) XXX_Size() int {
+	return xxx_messageInfo_UserMergeToRefRequest.Size(m)
+}
+func (m *UserMergeToRefRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserMergeToRefRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserMergeToRefRequest proto.InternalMessageInfo
 
 func (m *UserMergeToRefRequest) GetRepository() *Repository {
 	if m != nil {
@@ -516,14 +808,36 @@ func (m *UserMergeToRefRequest) GetMessage() []byte {
 }
 
 type UserMergeToRefResponse struct {
-	CommitId        string `protobuf:"bytes,1,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
-	PreReceiveError string `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	CommitId             string   `protobuf:"bytes,1,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserMergeToRefResponse) Reset()                    { *m = UserMergeToRefResponse{} }
-func (m *UserMergeToRefResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserMergeToRefResponse) ProtoMessage()               {}
-func (*UserMergeToRefResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{13} }
+func (m *UserMergeToRefResponse) Reset()         { *m = UserMergeToRefResponse{} }
+func (m *UserMergeToRefResponse) String() string { return proto.CompactTextString(m) }
+func (*UserMergeToRefResponse) ProtoMessage()    {}
+func (*UserMergeToRefResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{13}
+}
+func (m *UserMergeToRefResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserMergeToRefResponse.Unmarshal(m, b)
+}
+func (m *UserMergeToRefResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserMergeToRefResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserMergeToRefResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserMergeToRefResponse.Merge(dst, src)
+}
+func (m *UserMergeToRefResponse) XXX_Size() int {
+	return xxx_messageInfo_UserMergeToRefResponse.Size(m)
+}
+func (m *UserMergeToRefResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserMergeToRefResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserMergeToRefResponse proto.InternalMessageInfo
 
 func (m *UserMergeToRefResponse) GetCommitId() string {
 	if m != nil {
@@ -541,17 +855,39 @@ func (m *UserMergeToRefResponse) GetPreReceiveError() string {
 
 type OperationBranchUpdate struct {
 	// If this string is non-empty the branch has been updated.
-	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
+	CommitId string `protobuf:"bytes,1,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
 	// Used for cache invalidation in GitLab
-	RepoCreated bool `protobuf:"varint,2,opt,name=repo_created,json=repoCreated" json:"repo_created,omitempty"`
+	RepoCreated bool `protobuf:"varint,2,opt,name=repo_created,json=repoCreated,proto3" json:"repo_created,omitempty"`
 	// Used for cache invalidation in GitLab
-	BranchCreated bool `protobuf:"varint,3,opt,name=branch_created,json=branchCreated" json:"branch_created,omitempty"`
+	BranchCreated        bool     `protobuf:"varint,3,opt,name=branch_created,json=branchCreated,proto3" json:"branch_created,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *OperationBranchUpdate) Reset()                    { *m = OperationBranchUpdate{} }
-func (m *OperationBranchUpdate) String() string            { return proto.CompactTextString(m) }
-func (*OperationBranchUpdate) ProtoMessage()               {}
-func (*OperationBranchUpdate) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{14} }
+func (m *OperationBranchUpdate) Reset()         { *m = OperationBranchUpdate{} }
+func (m *OperationBranchUpdate) String() string { return proto.CompactTextString(m) }
+func (*OperationBranchUpdate) ProtoMessage()    {}
+func (*OperationBranchUpdate) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{14}
+}
+func (m *OperationBranchUpdate) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_OperationBranchUpdate.Unmarshal(m, b)
+}
+func (m *OperationBranchUpdate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_OperationBranchUpdate.Marshal(b, m, deterministic)
+}
+func (dst *OperationBranchUpdate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OperationBranchUpdate.Merge(dst, src)
+}
+func (m *OperationBranchUpdate) XXX_Size() int {
+	return xxx_messageInfo_OperationBranchUpdate.Size(m)
+}
+func (m *OperationBranchUpdate) XXX_DiscardUnknown() {
+	xxx_messageInfo_OperationBranchUpdate.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_OperationBranchUpdate proto.InternalMessageInfo
 
 func (m *OperationBranchUpdate) GetCommitId() string {
 	if m != nil {
@@ -575,16 +911,38 @@ func (m *OperationBranchUpdate) GetBranchCreated() bool {
 }
 
 type UserFFBranchRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User       *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	CommitId   string      `protobuf:"bytes,3,opt,name=commit_id,json=commitId" json:"commit_id,omitempty"`
-	Branch     []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	CommitId             string      `protobuf:"bytes,3,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	Branch               []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserFFBranchRequest) Reset()                    { *m = UserFFBranchRequest{} }
-func (m *UserFFBranchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserFFBranchRequest) ProtoMessage()               {}
-func (*UserFFBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{15} }
+func (m *UserFFBranchRequest) Reset()         { *m = UserFFBranchRequest{} }
+func (m *UserFFBranchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserFFBranchRequest) ProtoMessage()    {}
+func (*UserFFBranchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{15}
+}
+func (m *UserFFBranchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserFFBranchRequest.Unmarshal(m, b)
+}
+func (m *UserFFBranchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserFFBranchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserFFBranchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserFFBranchRequest.Merge(dst, src)
+}
+func (m *UserFFBranchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserFFBranchRequest.Size(m)
+}
+func (m *UserFFBranchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserFFBranchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserFFBranchRequest proto.InternalMessageInfo
 
 func (m *UserFFBranchRequest) GetRepository() *Repository {
 	if m != nil {
@@ -615,14 +973,36 @@ func (m *UserFFBranchRequest) GetBranch() []byte {
 }
 
 type UserFFBranchResponse struct {
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserFFBranchResponse) Reset()                    { *m = UserFFBranchResponse{} }
-func (m *UserFFBranchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserFFBranchResponse) ProtoMessage()               {}
-func (*UserFFBranchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{16} }
+func (m *UserFFBranchResponse) Reset()         { *m = UserFFBranchResponse{} }
+func (m *UserFFBranchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserFFBranchResponse) ProtoMessage()    {}
+func (*UserFFBranchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{16}
+}
+func (m *UserFFBranchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserFFBranchResponse.Unmarshal(m, b)
+}
+func (m *UserFFBranchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserFFBranchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserFFBranchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserFFBranchResponse.Merge(dst, src)
+}
+func (m *UserFFBranchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserFFBranchResponse.Size(m)
+}
+func (m *UserFFBranchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserFFBranchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserFFBranchResponse proto.InternalMessageInfo
 
 func (m *UserFFBranchResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -639,19 +1019,41 @@ func (m *UserFFBranchResponse) GetPreReceiveError() string {
 }
 
 type UserCherryPickRequest struct {
-	Repository      *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User            *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	Commit          *GitCommit  `protobuf:"bytes,3,opt,name=commit" json:"commit,omitempty"`
-	BranchName      []byte      `protobuf:"bytes,4,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	Message         []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	StartBranchName []byte      `protobuf:"bytes,6,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
-	StartRepository *Repository `protobuf:"bytes,7,opt,name=start_repository,json=startRepository" json:"start_repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	Commit               *GitCommit  `protobuf:"bytes,3,opt,name=commit,proto3" json:"commit,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,4,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	Message              []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	StartBranchName      []byte      `protobuf:"bytes,6,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
+	StartRepository      *Repository `protobuf:"bytes,7,opt,name=start_repository,json=startRepository,proto3" json:"start_repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserCherryPickRequest) Reset()                    { *m = UserCherryPickRequest{} }
-func (m *UserCherryPickRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserCherryPickRequest) ProtoMessage()               {}
-func (*UserCherryPickRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{17} }
+func (m *UserCherryPickRequest) Reset()         { *m = UserCherryPickRequest{} }
+func (m *UserCherryPickRequest) String() string { return proto.CompactTextString(m) }
+func (*UserCherryPickRequest) ProtoMessage()    {}
+func (*UserCherryPickRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{17}
+}
+func (m *UserCherryPickRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCherryPickRequest.Unmarshal(m, b)
+}
+func (m *UserCherryPickRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCherryPickRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserCherryPickRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCherryPickRequest.Merge(dst, src)
+}
+func (m *UserCherryPickRequest) XXX_Size() int {
+	return xxx_messageInfo_UserCherryPickRequest.Size(m)
+}
+func (m *UserCherryPickRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCherryPickRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCherryPickRequest proto.InternalMessageInfo
 
 func (m *UserCherryPickRequest) GetRepository() *Repository {
 	if m != nil {
@@ -703,16 +1105,38 @@ func (m *UserCherryPickRequest) GetStartRepository() *Repository {
 }
 
 type UserCherryPickResponse struct {
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	CreateTreeError string                 `protobuf:"bytes,2,opt,name=create_tree_error,json=createTreeError" json:"create_tree_error,omitempty"`
-	CommitError     string                 `protobuf:"bytes,3,opt,name=commit_error,json=commitError" json:"commit_error,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	CreateTreeError      string                 `protobuf:"bytes,2,opt,name=create_tree_error,json=createTreeError,proto3" json:"create_tree_error,omitempty"`
+	CommitError          string                 `protobuf:"bytes,3,opt,name=commit_error,json=commitError,proto3" json:"commit_error,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserCherryPickResponse) Reset()                    { *m = UserCherryPickResponse{} }
-func (m *UserCherryPickResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserCherryPickResponse) ProtoMessage()               {}
-func (*UserCherryPickResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{18} }
+func (m *UserCherryPickResponse) Reset()         { *m = UserCherryPickResponse{} }
+func (m *UserCherryPickResponse) String() string { return proto.CompactTextString(m) }
+func (*UserCherryPickResponse) ProtoMessage()    {}
+func (*UserCherryPickResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{18}
+}
+func (m *UserCherryPickResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCherryPickResponse.Unmarshal(m, b)
+}
+func (m *UserCherryPickResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCherryPickResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserCherryPickResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCherryPickResponse.Merge(dst, src)
+}
+func (m *UserCherryPickResponse) XXX_Size() int {
+	return xxx_messageInfo_UserCherryPickResponse.Size(m)
+}
+func (m *UserCherryPickResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCherryPickResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCherryPickResponse proto.InternalMessageInfo
 
 func (m *UserCherryPickResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -743,19 +1167,41 @@ func (m *UserCherryPickResponse) GetPreReceiveError() string {
 }
 
 type UserRevertRequest struct {
-	Repository      *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User            *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	Commit          *GitCommit  `protobuf:"bytes,3,opt,name=commit" json:"commit,omitempty"`
-	BranchName      []byte      `protobuf:"bytes,4,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	Message         []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	StartBranchName []byte      `protobuf:"bytes,6,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
-	StartRepository *Repository `protobuf:"bytes,7,opt,name=start_repository,json=startRepository" json:"start_repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	Commit               *GitCommit  `protobuf:"bytes,3,opt,name=commit,proto3" json:"commit,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,4,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	Message              []byte      `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	StartBranchName      []byte      `protobuf:"bytes,6,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
+	StartRepository      *Repository `protobuf:"bytes,7,opt,name=start_repository,json=startRepository,proto3" json:"start_repository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserRevertRequest) Reset()                    { *m = UserRevertRequest{} }
-func (m *UserRevertRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserRevertRequest) ProtoMessage()               {}
-func (*UserRevertRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{19} }
+func (m *UserRevertRequest) Reset()         { *m = UserRevertRequest{} }
+func (m *UserRevertRequest) String() string { return proto.CompactTextString(m) }
+func (*UserRevertRequest) ProtoMessage()    {}
+func (*UserRevertRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{19}
+}
+func (m *UserRevertRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserRevertRequest.Unmarshal(m, b)
+}
+func (m *UserRevertRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserRevertRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserRevertRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserRevertRequest.Merge(dst, src)
+}
+func (m *UserRevertRequest) XXX_Size() int {
+	return xxx_messageInfo_UserRevertRequest.Size(m)
+}
+func (m *UserRevertRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserRevertRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserRevertRequest proto.InternalMessageInfo
 
 func (m *UserRevertRequest) GetRepository() *Repository {
 	if m != nil {
@@ -807,16 +1253,38 @@ func (m *UserRevertRequest) GetStartRepository() *Repository {
 }
 
 type UserRevertResponse struct {
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	CreateTreeError string                 `protobuf:"bytes,2,opt,name=create_tree_error,json=createTreeError" json:"create_tree_error,omitempty"`
-	CommitError     string                 `protobuf:"bytes,3,opt,name=commit_error,json=commitError" json:"commit_error,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	CreateTreeError      string                 `protobuf:"bytes,2,opt,name=create_tree_error,json=createTreeError,proto3" json:"create_tree_error,omitempty"`
+	CommitError          string                 `protobuf:"bytes,3,opt,name=commit_error,json=commitError,proto3" json:"commit_error,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,4,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserRevertResponse) Reset()                    { *m = UserRevertResponse{} }
-func (m *UserRevertResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserRevertResponse) ProtoMessage()               {}
-func (*UserRevertResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{20} }
+func (m *UserRevertResponse) Reset()         { *m = UserRevertResponse{} }
+func (m *UserRevertResponse) String() string { return proto.CompactTextString(m) }
+func (*UserRevertResponse) ProtoMessage()    {}
+func (*UserRevertResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{20}
+}
+func (m *UserRevertResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserRevertResponse.Unmarshal(m, b)
+}
+func (m *UserRevertResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserRevertResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserRevertResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserRevertResponse.Merge(dst, src)
+}
+func (m *UserRevertResponse) XXX_Size() int {
+	return xxx_messageInfo_UserRevertResponse.Size(m)
+}
+func (m *UserRevertResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserRevertResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserRevertResponse proto.InternalMessageInfo
 
 func (m *UserRevertResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -847,21 +1315,43 @@ func (m *UserRevertResponse) GetPreReceiveError() string {
 }
 
 type UserCommitFilesActionHeader struct {
-	Action          UserCommitFilesActionHeader_ActionType `protobuf:"varint,1,opt,name=action,enum=gitaly.UserCommitFilesActionHeader_ActionType" json:"action,omitempty"`
+	Action          UserCommitFilesActionHeader_ActionType `protobuf:"varint,1,opt,name=action,proto3,enum=gitaly.UserCommitFilesActionHeader_ActionType" json:"action,omitempty"`
 	FilePath        []byte                                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
 	PreviousPath    []byte                                 `protobuf:"bytes,3,opt,name=previous_path,json=previousPath,proto3" json:"previous_path,omitempty"`
-	Base64Content   bool                                   `protobuf:"varint,4,opt,name=base64_content,json=base64Content" json:"base64_content,omitempty"`
-	ExecuteFilemode bool                                   `protobuf:"varint,5,opt,name=execute_filemode,json=executeFilemode" json:"execute_filemode,omitempty"`
+	Base64Content   bool                                   `protobuf:"varint,4,opt,name=base64_content,json=base64Content,proto3" json:"base64_content,omitempty"`
+	ExecuteFilemode bool                                   `protobuf:"varint,5,opt,name=execute_filemode,json=executeFilemode,proto3" json:"execute_filemode,omitempty"`
 	// Move actions that change the file path, but not its content, should set
 	// infer_content to true instead of populating the content field. Ignored for
 	// other action types.
-	InferContent bool `protobuf:"varint,6,opt,name=infer_content,json=inferContent" json:"infer_content,omitempty"`
+	InferContent         bool     `protobuf:"varint,6,opt,name=infer_content,json=inferContent,proto3" json:"infer_content,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserCommitFilesActionHeader) Reset()                    { *m = UserCommitFilesActionHeader{} }
-func (m *UserCommitFilesActionHeader) String() string            { return proto.CompactTextString(m) }
-func (*UserCommitFilesActionHeader) ProtoMessage()               {}
-func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{21} }
+func (m *UserCommitFilesActionHeader) Reset()         { *m = UserCommitFilesActionHeader{} }
+func (m *UserCommitFilesActionHeader) String() string { return proto.CompactTextString(m) }
+func (*UserCommitFilesActionHeader) ProtoMessage()    {}
+func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{21}
+}
+func (m *UserCommitFilesActionHeader) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCommitFilesActionHeader.Unmarshal(m, b)
+}
+func (m *UserCommitFilesActionHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCommitFilesActionHeader.Marshal(b, m, deterministic)
+}
+func (dst *UserCommitFilesActionHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCommitFilesActionHeader.Merge(dst, src)
+}
+func (m *UserCommitFilesActionHeader) XXX_Size() int {
+	return xxx_messageInfo_UserCommitFilesActionHeader.Size(m)
+}
+func (m *UserCommitFilesActionHeader) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCommitFilesActionHeader.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCommitFilesActionHeader proto.InternalMessageInfo
 
 func (m *UserCommitFilesActionHeader) GetAction() UserCommitFilesActionHeader_ActionType {
 	if m != nil {
@@ -910,23 +1400,49 @@ type UserCommitFilesAction struct {
 	//	*UserCommitFilesAction_Header
 	//	*UserCommitFilesAction_Content
 	UserCommitFilesActionPayload isUserCommitFilesAction_UserCommitFilesActionPayload `protobuf_oneof:"user_commit_files_action_payload"`
+	XXX_NoUnkeyedLiteral         struct{}                                             `json:"-"`
+	XXX_unrecognized             []byte                                               `json:"-"`
+	XXX_sizecache                int32                                                `json:"-"`
 }
 
-func (m *UserCommitFilesAction) Reset()                    { *m = UserCommitFilesAction{} }
-func (m *UserCommitFilesAction) String() string            { return proto.CompactTextString(m) }
-func (*UserCommitFilesAction) ProtoMessage()               {}
-func (*UserCommitFilesAction) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{22} }
+func (m *UserCommitFilesAction) Reset()         { *m = UserCommitFilesAction{} }
+func (m *UserCommitFilesAction) String() string { return proto.CompactTextString(m) }
+func (*UserCommitFilesAction) ProtoMessage()    {}
+func (*UserCommitFilesAction) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{22}
+}
+func (m *UserCommitFilesAction) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCommitFilesAction.Unmarshal(m, b)
+}
+func (m *UserCommitFilesAction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCommitFilesAction.Marshal(b, m, deterministic)
+}
+func (dst *UserCommitFilesAction) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCommitFilesAction.Merge(dst, src)
+}
+func (m *UserCommitFilesAction) XXX_Size() int {
+	return xxx_messageInfo_UserCommitFilesAction.Size(m)
+}
+func (m *UserCommitFilesAction) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCommitFilesAction.DiscardUnknown(m)
+}
 
-type isUserCommitFilesAction_UserCommitFilesActionPayload interface{ isUserCommitFilesAction_UserCommitFilesActionPayload() }
+var xxx_messageInfo_UserCommitFilesAction proto.InternalMessageInfo
+
+type isUserCommitFilesAction_UserCommitFilesActionPayload interface {
+	isUserCommitFilesAction_UserCommitFilesActionPayload()
+}
 
 type UserCommitFilesAction_Header struct {
-	Header *UserCommitFilesActionHeader `protobuf:"bytes,1,opt,name=header,oneof"`
+	Header *UserCommitFilesActionHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
+
 type UserCommitFilesAction_Content struct {
 	Content []byte `protobuf:"bytes,2,opt,name=content,proto3,oneof"`
 }
 
-func (*UserCommitFilesAction_Header) isUserCommitFilesAction_UserCommitFilesActionPayload()  {}
+func (*UserCommitFilesAction_Header) isUserCommitFilesAction_UserCommitFilesActionPayload() {}
+
 func (*UserCommitFilesAction_Content) isUserCommitFilesAction_UserCommitFilesActionPayload() {}
 
 func (m *UserCommitFilesAction) GetUserCommitFilesActionPayload() isUserCommitFilesAction_UserCommitFilesActionPayload {
@@ -1006,11 +1522,11 @@ func _UserCommitFilesAction_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.UserCommitFilesActionPayload.(type) {
 	case *UserCommitFilesAction_Header:
 		s := proto.Size(x.Header)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *UserCommitFilesAction_Content:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Content)))
 		n += len(x.Content)
 	case nil:
@@ -1021,20 +1537,43 @@ func _UserCommitFilesAction_OneofSizer(msg proto.Message) (n int) {
 }
 
 type UserCommitFilesRequestHeader struct {
-	Repository        *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User              *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	BranchName        []byte      `protobuf:"bytes,3,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
-	CommitMessage     []byte      `protobuf:"bytes,4,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
-	CommitAuthorName  []byte      `protobuf:"bytes,5,opt,name=commit_author_name,json=commitAuthorName,proto3" json:"commit_author_name,omitempty"`
-	CommitAuthorEmail []byte      `protobuf:"bytes,6,opt,name=commit_author_email,json=commitAuthorEmail,proto3" json:"commit_author_email,omitempty"`
-	StartBranchName   []byte      `protobuf:"bytes,7,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
-	StartRepository   *Repository `protobuf:"bytes,8,opt,name=start_repository,json=startRepository" json:"start_repository,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	BranchName           []byte      `protobuf:"bytes,3,opt,name=branch_name,json=branchName,proto3" json:"branch_name,omitempty"`
+	CommitMessage        []byte      `protobuf:"bytes,4,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	CommitAuthorName     []byte      `protobuf:"bytes,5,opt,name=commit_author_name,json=commitAuthorName,proto3" json:"commit_author_name,omitempty"`
+	CommitAuthorEmail    []byte      `protobuf:"bytes,6,opt,name=commit_author_email,json=commitAuthorEmail,proto3" json:"commit_author_email,omitempty"`
+	StartBranchName      []byte      `protobuf:"bytes,7,opt,name=start_branch_name,json=startBranchName,proto3" json:"start_branch_name,omitempty"`
+	StartRepository      *Repository `protobuf:"bytes,8,opt,name=start_repository,json=startRepository,proto3" json:"start_repository,omitempty"`
+	Force                bool        `protobuf:"varint,9,opt,name=force,proto3" json:"force,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserCommitFilesRequestHeader) Reset()                    { *m = UserCommitFilesRequestHeader{} }
-func (m *UserCommitFilesRequestHeader) String() string            { return proto.CompactTextString(m) }
-func (*UserCommitFilesRequestHeader) ProtoMessage()               {}
-func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{23} }
+func (m *UserCommitFilesRequestHeader) Reset()         { *m = UserCommitFilesRequestHeader{} }
+func (m *UserCommitFilesRequestHeader) String() string { return proto.CompactTextString(m) }
+func (*UserCommitFilesRequestHeader) ProtoMessage()    {}
+func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{23}
+}
+func (m *UserCommitFilesRequestHeader) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCommitFilesRequestHeader.Unmarshal(m, b)
+}
+func (m *UserCommitFilesRequestHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCommitFilesRequestHeader.Marshal(b, m, deterministic)
+}
+func (dst *UserCommitFilesRequestHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCommitFilesRequestHeader.Merge(dst, src)
+}
+func (m *UserCommitFilesRequestHeader) XXX_Size() int {
+	return xxx_messageInfo_UserCommitFilesRequestHeader.Size(m)
+}
+func (m *UserCommitFilesRequestHeader) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCommitFilesRequestHeader.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCommitFilesRequestHeader proto.InternalMessageInfo
 
 func (m *UserCommitFilesRequestHeader) GetRepository() *Repository {
 	if m != nil {
@@ -1092,28 +1631,61 @@ func (m *UserCommitFilesRequestHeader) GetStartRepository() *Repository {
 	return nil
 }
 
+func (m *UserCommitFilesRequestHeader) GetForce() bool {
+	if m != nil {
+		return m.Force
+	}
+	return false
+}
+
 type UserCommitFilesRequest struct {
 	// Types that are valid to be assigned to UserCommitFilesRequestPayload:
 	//	*UserCommitFilesRequest_Header
 	//	*UserCommitFilesRequest_Action
 	UserCommitFilesRequestPayload isUserCommitFilesRequest_UserCommitFilesRequestPayload `protobuf_oneof:"user_commit_files_request_payload"`
+	XXX_NoUnkeyedLiteral          struct{}                                               `json:"-"`
+	XXX_unrecognized              []byte                                                 `json:"-"`
+	XXX_sizecache                 int32                                                  `json:"-"`
 }
 
-func (m *UserCommitFilesRequest) Reset()                    { *m = UserCommitFilesRequest{} }
-func (m *UserCommitFilesRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserCommitFilesRequest) ProtoMessage()               {}
-func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{24} }
+func (m *UserCommitFilesRequest) Reset()         { *m = UserCommitFilesRequest{} }
+func (m *UserCommitFilesRequest) String() string { return proto.CompactTextString(m) }
+func (*UserCommitFilesRequest) ProtoMessage()    {}
+func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{24}
+}
+func (m *UserCommitFilesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCommitFilesRequest.Unmarshal(m, b)
+}
+func (m *UserCommitFilesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCommitFilesRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserCommitFilesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCommitFilesRequest.Merge(dst, src)
+}
+func (m *UserCommitFilesRequest) XXX_Size() int {
+	return xxx_messageInfo_UserCommitFilesRequest.Size(m)
+}
+func (m *UserCommitFilesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCommitFilesRequest.DiscardUnknown(m)
+}
 
-type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface{ isUserCommitFilesRequest_UserCommitFilesRequestPayload() }
+var xxx_messageInfo_UserCommitFilesRequest proto.InternalMessageInfo
+
+type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface {
+	isUserCommitFilesRequest_UserCommitFilesRequestPayload()
+}
 
 type UserCommitFilesRequest_Header struct {
-	Header *UserCommitFilesRequestHeader `protobuf:"bytes,1,opt,name=header,oneof"`
+	Header *UserCommitFilesRequestHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
+
 type UserCommitFilesRequest_Action struct {
-	Action *UserCommitFilesAction `protobuf:"bytes,2,opt,name=action,oneof"`
+	Action *UserCommitFilesAction `protobuf:"bytes,2,opt,name=action,proto3,oneof"`
 }
 
 func (*UserCommitFilesRequest_Header) isUserCommitFilesRequest_UserCommitFilesRequestPayload() {}
+
 func (*UserCommitFilesRequest_Action) isUserCommitFilesRequest_UserCommitFilesRequestPayload() {}
 
 func (m *UserCommitFilesRequest) GetUserCommitFilesRequestPayload() isUserCommitFilesRequest_UserCommitFilesRequestPayload {
@@ -1196,12 +1768,12 @@ func _UserCommitFilesRequest_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.UserCommitFilesRequestPayload.(type) {
 	case *UserCommitFilesRequest_Header:
 		s := proto.Size(x.Header)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *UserCommitFilesRequest_Action:
 		s := proto.Size(x.Action)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -1212,15 +1784,37 @@ func _UserCommitFilesRequest_OneofSizer(msg proto.Message) (n int) {
 }
 
 type UserCommitFilesResponse struct {
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	IndexError      string                 `protobuf:"bytes,2,opt,name=index_error,json=indexError" json:"index_error,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,3,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	IndexError           string                 `protobuf:"bytes,2,opt,name=index_error,json=indexError,proto3" json:"index_error,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,3,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserCommitFilesResponse) Reset()                    { *m = UserCommitFilesResponse{} }
-func (m *UserCommitFilesResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserCommitFilesResponse) ProtoMessage()               {}
-func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{25} }
+func (m *UserCommitFilesResponse) Reset()         { *m = UserCommitFilesResponse{} }
+func (m *UserCommitFilesResponse) String() string { return proto.CompactTextString(m) }
+func (*UserCommitFilesResponse) ProtoMessage()    {}
+func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{25}
+}
+func (m *UserCommitFilesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserCommitFilesResponse.Unmarshal(m, b)
+}
+func (m *UserCommitFilesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserCommitFilesResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserCommitFilesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserCommitFilesResponse.Merge(dst, src)
+}
+func (m *UserCommitFilesResponse) XXX_Size() int {
+	return xxx_messageInfo_UserCommitFilesResponse.Size(m)
+}
+func (m *UserCommitFilesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserCommitFilesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserCommitFilesResponse proto.InternalMessageInfo
 
 func (m *UserCommitFilesResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -1244,19 +1838,41 @@ func (m *UserCommitFilesResponse) GetPreReceiveError() string {
 }
 
 type UserRebaseRequest struct {
-	Repository       *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User             *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	RebaseId         string      `protobuf:"bytes,3,opt,name=rebase_id,json=rebaseId" json:"rebase_id,omitempty"`
-	Branch           []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	BranchSha        string      `protobuf:"bytes,5,opt,name=branch_sha,json=branchSha" json:"branch_sha,omitempty"`
-	RemoteRepository *Repository `protobuf:"bytes,6,opt,name=remote_repository,json=remoteRepository" json:"remote_repository,omitempty"`
-	RemoteBranch     []byte      `protobuf:"bytes,7,opt,name=remote_branch,json=remoteBranch,proto3" json:"remote_branch,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	RebaseId             string      `protobuf:"bytes,3,opt,name=rebase_id,json=rebaseId,proto3" json:"rebase_id,omitempty"`
+	Branch               []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	BranchSha            string      `protobuf:"bytes,5,opt,name=branch_sha,json=branchSha,proto3" json:"branch_sha,omitempty"`
+	RemoteRepository     *Repository `protobuf:"bytes,6,opt,name=remote_repository,json=remoteRepository,proto3" json:"remote_repository,omitempty"`
+	RemoteBranch         []byte      `protobuf:"bytes,7,opt,name=remote_branch,json=remoteBranch,proto3" json:"remote_branch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserRebaseRequest) Reset()                    { *m = UserRebaseRequest{} }
-func (m *UserRebaseRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserRebaseRequest) ProtoMessage()               {}
-func (*UserRebaseRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{26} }
+func (m *UserRebaseRequest) Reset()         { *m = UserRebaseRequest{} }
+func (m *UserRebaseRequest) String() string { return proto.CompactTextString(m) }
+func (*UserRebaseRequest) ProtoMessage()    {}
+func (*UserRebaseRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{26}
+}
+func (m *UserRebaseRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserRebaseRequest.Unmarshal(m, b)
+}
+func (m *UserRebaseRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserRebaseRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserRebaseRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserRebaseRequest.Merge(dst, src)
+}
+func (m *UserRebaseRequest) XXX_Size() int {
+	return xxx_messageInfo_UserRebaseRequest.Size(m)
+}
+func (m *UserRebaseRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserRebaseRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserRebaseRequest proto.InternalMessageInfo
 
 func (m *UserRebaseRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1308,15 +1924,37 @@ func (m *UserRebaseRequest) GetRemoteBranch() []byte {
 }
 
 type UserRebaseResponse struct {
-	RebaseSha       string `protobuf:"bytes,1,opt,name=rebase_sha,json=rebaseSha" json:"rebase_sha,omitempty"`
-	PreReceiveError string `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
-	GitError        string `protobuf:"bytes,3,opt,name=git_error,json=gitError" json:"git_error,omitempty"`
+	RebaseSha            string   `protobuf:"bytes,1,opt,name=rebase_sha,json=rebaseSha,proto3" json:"rebase_sha,omitempty"`
+	PreReceiveError      string   `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	GitError             string   `protobuf:"bytes,3,opt,name=git_error,json=gitError,proto3" json:"git_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserRebaseResponse) Reset()                    { *m = UserRebaseResponse{} }
-func (m *UserRebaseResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserRebaseResponse) ProtoMessage()               {}
-func (*UserRebaseResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{27} }
+func (m *UserRebaseResponse) Reset()         { *m = UserRebaseResponse{} }
+func (m *UserRebaseResponse) String() string { return proto.CompactTextString(m) }
+func (*UserRebaseResponse) ProtoMessage()    {}
+func (*UserRebaseResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{27}
+}
+func (m *UserRebaseResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserRebaseResponse.Unmarshal(m, b)
+}
+func (m *UserRebaseResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserRebaseResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserRebaseResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserRebaseResponse.Merge(dst, src)
+}
+func (m *UserRebaseResponse) XXX_Size() int {
+	return xxx_messageInfo_UserRebaseResponse.Size(m)
+}
+func (m *UserRebaseResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserRebaseResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserRebaseResponse proto.InternalMessageInfo
 
 func (m *UserRebaseResponse) GetRebaseSha() string {
 	if m != nil {
@@ -1340,20 +1978,42 @@ func (m *UserRebaseResponse) GetGitError() string {
 }
 
 type UserSquashRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User          *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	SquashId      string      `protobuf:"bytes,3,opt,name=squash_id,json=squashId" json:"squash_id,omitempty"`
-	Branch        []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	StartSha      string      `protobuf:"bytes,5,opt,name=start_sha,json=startSha" json:"start_sha,omitempty"`
-	EndSha        string      `protobuf:"bytes,6,opt,name=end_sha,json=endSha" json:"end_sha,omitempty"`
-	Author        *User       `protobuf:"bytes,7,opt,name=author" json:"author,omitempty"`
-	CommitMessage []byte      `protobuf:"bytes,8,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	SquashId             string      `protobuf:"bytes,3,opt,name=squash_id,json=squashId,proto3" json:"squash_id,omitempty"`
+	Branch               []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	StartSha             string      `protobuf:"bytes,5,opt,name=start_sha,json=startSha,proto3" json:"start_sha,omitempty"`
+	EndSha               string      `protobuf:"bytes,6,opt,name=end_sha,json=endSha,proto3" json:"end_sha,omitempty"`
+	Author               *User       `protobuf:"bytes,7,opt,name=author,proto3" json:"author,omitempty"`
+	CommitMessage        []byte      `protobuf:"bytes,8,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserSquashRequest) Reset()                    { *m = UserSquashRequest{} }
-func (m *UserSquashRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserSquashRequest) ProtoMessage()               {}
-func (*UserSquashRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{28} }
+func (m *UserSquashRequest) Reset()         { *m = UserSquashRequest{} }
+func (m *UserSquashRequest) String() string { return proto.CompactTextString(m) }
+func (*UserSquashRequest) ProtoMessage()    {}
+func (*UserSquashRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{28}
+}
+func (m *UserSquashRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserSquashRequest.Unmarshal(m, b)
+}
+func (m *UserSquashRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserSquashRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserSquashRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserSquashRequest.Merge(dst, src)
+}
+func (m *UserSquashRequest) XXX_Size() int {
+	return xxx_messageInfo_UserSquashRequest.Size(m)
+}
+func (m *UserSquashRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserSquashRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserSquashRequest proto.InternalMessageInfo
 
 func (m *UserSquashRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1412,14 +2072,36 @@ func (m *UserSquashRequest) GetCommitMessage() []byte {
 }
 
 type UserSquashResponse struct {
-	SquashSha string `protobuf:"bytes,1,opt,name=squash_sha,json=squashSha" json:"squash_sha,omitempty"`
-	GitError  string `protobuf:"bytes,3,opt,name=git_error,json=gitError" json:"git_error,omitempty"`
+	SquashSha            string   `protobuf:"bytes,1,opt,name=squash_sha,json=squashSha,proto3" json:"squash_sha,omitempty"`
+	GitError             string   `protobuf:"bytes,3,opt,name=git_error,json=gitError,proto3" json:"git_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *UserSquashResponse) Reset()                    { *m = UserSquashResponse{} }
-func (m *UserSquashResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserSquashResponse) ProtoMessage()               {}
-func (*UserSquashResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{29} }
+func (m *UserSquashResponse) Reset()         { *m = UserSquashResponse{} }
+func (m *UserSquashResponse) String() string { return proto.CompactTextString(m) }
+func (*UserSquashResponse) ProtoMessage()    {}
+func (*UserSquashResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{29}
+}
+func (m *UserSquashResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserSquashResponse.Unmarshal(m, b)
+}
+func (m *UserSquashResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserSquashResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserSquashResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserSquashResponse.Merge(dst, src)
+}
+func (m *UserSquashResponse) XXX_Size() int {
+	return xxx_messageInfo_UserSquashResponse.Size(m)
+}
+func (m *UserSquashResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserSquashResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserSquashResponse proto.InternalMessageInfo
 
 func (m *UserSquashResponse) GetSquashSha() string {
 	if m != nil {
@@ -1440,23 +2122,49 @@ type UserApplyPatchRequest struct {
 	//	*UserApplyPatchRequest_Header_
 	//	*UserApplyPatchRequest_Patches
 	UserApplyPatchRequestPayload isUserApplyPatchRequest_UserApplyPatchRequestPayload `protobuf_oneof:"user_apply_patch_request_payload"`
+	XXX_NoUnkeyedLiteral         struct{}                                             `json:"-"`
+	XXX_unrecognized             []byte                                               `json:"-"`
+	XXX_sizecache                int32                                                `json:"-"`
 }
 
-func (m *UserApplyPatchRequest) Reset()                    { *m = UserApplyPatchRequest{} }
-func (m *UserApplyPatchRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserApplyPatchRequest) ProtoMessage()               {}
-func (*UserApplyPatchRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{30} }
+func (m *UserApplyPatchRequest) Reset()         { *m = UserApplyPatchRequest{} }
+func (m *UserApplyPatchRequest) String() string { return proto.CompactTextString(m) }
+func (*UserApplyPatchRequest) ProtoMessage()    {}
+func (*UserApplyPatchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{30}
+}
+func (m *UserApplyPatchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserApplyPatchRequest.Unmarshal(m, b)
+}
+func (m *UserApplyPatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserApplyPatchRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserApplyPatchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserApplyPatchRequest.Merge(dst, src)
+}
+func (m *UserApplyPatchRequest) XXX_Size() int {
+	return xxx_messageInfo_UserApplyPatchRequest.Size(m)
+}
+func (m *UserApplyPatchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserApplyPatchRequest.DiscardUnknown(m)
+}
 
-type isUserApplyPatchRequest_UserApplyPatchRequestPayload interface{ isUserApplyPatchRequest_UserApplyPatchRequestPayload() }
+var xxx_messageInfo_UserApplyPatchRequest proto.InternalMessageInfo
+
+type isUserApplyPatchRequest_UserApplyPatchRequestPayload interface {
+	isUserApplyPatchRequest_UserApplyPatchRequestPayload()
+}
 
 type UserApplyPatchRequest_Header_ struct {
-	Header *UserApplyPatchRequest_Header `protobuf:"bytes,1,opt,name=header,oneof"`
+	Header *UserApplyPatchRequest_Header `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
+
 type UserApplyPatchRequest_Patches struct {
 	Patches []byte `protobuf:"bytes,2,opt,name=patches,proto3,oneof"`
 }
 
 func (*UserApplyPatchRequest_Header_) isUserApplyPatchRequest_UserApplyPatchRequestPayload() {}
+
 func (*UserApplyPatchRequest_Patches) isUserApplyPatchRequest_UserApplyPatchRequestPayload() {}
 
 func (m *UserApplyPatchRequest) GetUserApplyPatchRequestPayload() isUserApplyPatchRequest_UserApplyPatchRequestPayload {
@@ -1536,11 +2244,11 @@ func _UserApplyPatchRequest_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.UserApplyPatchRequestPayload.(type) {
 	case *UserApplyPatchRequest_Header_:
 		s := proto.Size(x.Header)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *UserApplyPatchRequest_Patches:
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Patches)))
 		n += len(x.Patches)
 	case nil:
@@ -1551,17 +2259,37 @@ func _UserApplyPatchRequest_OneofSizer(msg proto.Message) (n int) {
 }
 
 type UserApplyPatchRequest_Header struct {
-	Repository   *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User         *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	TargetBranch []byte      `protobuf:"bytes,3,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	TargetBranch         []byte      `protobuf:"bytes,3,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *UserApplyPatchRequest_Header) Reset()         { *m = UserApplyPatchRequest_Header{} }
 func (m *UserApplyPatchRequest_Header) String() string { return proto.CompactTextString(m) }
 func (*UserApplyPatchRequest_Header) ProtoMessage()    {}
 func (*UserApplyPatchRequest_Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor8, []int{30, 0}
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{30, 0}
 }
+func (m *UserApplyPatchRequest_Header) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserApplyPatchRequest_Header.Unmarshal(m, b)
+}
+func (m *UserApplyPatchRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserApplyPatchRequest_Header.Marshal(b, m, deterministic)
+}
+func (dst *UserApplyPatchRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserApplyPatchRequest_Header.Merge(dst, src)
+}
+func (m *UserApplyPatchRequest_Header) XXX_Size() int {
+	return xxx_messageInfo_UserApplyPatchRequest_Header.Size(m)
+}
+func (m *UserApplyPatchRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserApplyPatchRequest_Header.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserApplyPatchRequest_Header proto.InternalMessageInfo
 
 func (m *UserApplyPatchRequest_Header) GetRepository() *Repository {
 	if m != nil {
@@ -1585,13 +2313,35 @@ func (m *UserApplyPatchRequest_Header) GetTargetBranch() []byte {
 }
 
 type UserApplyPatchResponse struct {
-	BranchUpdate *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserApplyPatchResponse) Reset()                    { *m = UserApplyPatchResponse{} }
-func (m *UserApplyPatchResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserApplyPatchResponse) ProtoMessage()               {}
-func (*UserApplyPatchResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{31} }
+func (m *UserApplyPatchResponse) Reset()         { *m = UserApplyPatchResponse{} }
+func (m *UserApplyPatchResponse) String() string { return proto.CompactTextString(m) }
+func (*UserApplyPatchResponse) ProtoMessage()    {}
+func (*UserApplyPatchResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{31}
+}
+func (m *UserApplyPatchResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserApplyPatchResponse.Unmarshal(m, b)
+}
+func (m *UserApplyPatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserApplyPatchResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserApplyPatchResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserApplyPatchResponse.Merge(dst, src)
+}
+func (m *UserApplyPatchResponse) XXX_Size() int {
+	return xxx_messageInfo_UserApplyPatchResponse.Size(m)
+}
+func (m *UserApplyPatchResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserApplyPatchResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserApplyPatchResponse proto.InternalMessageInfo
 
 func (m *UserApplyPatchResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -1601,18 +2351,40 @@ func (m *UserApplyPatchResponse) GetBranchUpdate() *OperationBranchUpdate {
 }
 
 type UserUpdateSubmoduleRequest struct {
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository" json:"repository,omitempty"`
-	User          *User       `protobuf:"bytes,2,opt,name=user" json:"user,omitempty"`
-	CommitSha     string      `protobuf:"bytes,3,opt,name=commit_sha,json=commitSha" json:"commit_sha,omitempty"`
-	Branch        []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
-	Submodule     []byte      `protobuf:"bytes,5,opt,name=submodule,proto3" json:"submodule,omitempty"`
-	CommitMessage []byte      `protobuf:"bytes,6,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	User                 *User       `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	CommitSha            string      `protobuf:"bytes,3,opt,name=commit_sha,json=commitSha,proto3" json:"commit_sha,omitempty"`
+	Branch               []byte      `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	Submodule            []byte      `protobuf:"bytes,5,opt,name=submodule,proto3" json:"submodule,omitempty"`
+	CommitMessage        []byte      `protobuf:"bytes,6,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *UserUpdateSubmoduleRequest) Reset()                    { *m = UserUpdateSubmoduleRequest{} }
-func (m *UserUpdateSubmoduleRequest) String() string            { return proto.CompactTextString(m) }
-func (*UserUpdateSubmoduleRequest) ProtoMessage()               {}
-func (*UserUpdateSubmoduleRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{32} }
+func (m *UserUpdateSubmoduleRequest) Reset()         { *m = UserUpdateSubmoduleRequest{} }
+func (m *UserUpdateSubmoduleRequest) String() string { return proto.CompactTextString(m) }
+func (*UserUpdateSubmoduleRequest) ProtoMessage()    {}
+func (*UserUpdateSubmoduleRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{32}
+}
+func (m *UserUpdateSubmoduleRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserUpdateSubmoduleRequest.Unmarshal(m, b)
+}
+func (m *UserUpdateSubmoduleRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserUpdateSubmoduleRequest.Marshal(b, m, deterministic)
+}
+func (dst *UserUpdateSubmoduleRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserUpdateSubmoduleRequest.Merge(dst, src)
+}
+func (m *UserUpdateSubmoduleRequest) XXX_Size() int {
+	return xxx_messageInfo_UserUpdateSubmoduleRequest.Size(m)
+}
+func (m *UserUpdateSubmoduleRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserUpdateSubmoduleRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserUpdateSubmoduleRequest proto.InternalMessageInfo
 
 func (m *UserUpdateSubmoduleRequest) GetRepository() *Repository {
 	if m != nil {
@@ -1657,15 +2429,37 @@ func (m *UserUpdateSubmoduleRequest) GetCommitMessage() []byte {
 }
 
 type UserUpdateSubmoduleResponse struct {
-	BranchUpdate    *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate" json:"branch_update,omitempty"`
-	PreReceiveError string                 `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError" json:"pre_receive_error,omitempty"`
-	CommitError     string                 `protobuf:"bytes,4,opt,name=commit_error,json=commitError" json:"commit_error,omitempty"`
+	BranchUpdate         *OperationBranchUpdate `protobuf:"bytes,1,opt,name=branch_update,json=branchUpdate,proto3" json:"branch_update,omitempty"`
+	PreReceiveError      string                 `protobuf:"bytes,2,opt,name=pre_receive_error,json=preReceiveError,proto3" json:"pre_receive_error,omitempty"`
+	CommitError          string                 `protobuf:"bytes,4,opt,name=commit_error,json=commitError,proto3" json:"commit_error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *UserUpdateSubmoduleResponse) Reset()                    { *m = UserUpdateSubmoduleResponse{} }
-func (m *UserUpdateSubmoduleResponse) String() string            { return proto.CompactTextString(m) }
-func (*UserUpdateSubmoduleResponse) ProtoMessage()               {}
-func (*UserUpdateSubmoduleResponse) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{33} }
+func (m *UserUpdateSubmoduleResponse) Reset()         { *m = UserUpdateSubmoduleResponse{} }
+func (m *UserUpdateSubmoduleResponse) String() string { return proto.CompactTextString(m) }
+func (*UserUpdateSubmoduleResponse) ProtoMessage()    {}
+func (*UserUpdateSubmoduleResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_operations_c652ed28d9f91e3b, []int{33}
+}
+func (m *UserUpdateSubmoduleResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UserUpdateSubmoduleResponse.Unmarshal(m, b)
+}
+func (m *UserUpdateSubmoduleResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UserUpdateSubmoduleResponse.Marshal(b, m, deterministic)
+}
+func (dst *UserUpdateSubmoduleResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UserUpdateSubmoduleResponse.Merge(dst, src)
+}
+func (m *UserUpdateSubmoduleResponse) XXX_Size() int {
+	return xxx_messageInfo_UserUpdateSubmoduleResponse.Size(m)
+}
+func (m *UserUpdateSubmoduleResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UserUpdateSubmoduleResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UserUpdateSubmoduleResponse proto.InternalMessageInfo
 
 func (m *UserUpdateSubmoduleResponse) GetBranchUpdate() *OperationBranchUpdate {
 	if m != nil {
@@ -1735,8 +2529,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for OperationService service
-
+// OperationServiceClient is the client API for OperationService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type OperationServiceClient interface {
 	UserCreateBranch(ctx context.Context, in *UserCreateBranchRequest, opts ...grpc.CallOption) (*UserCreateBranchResponse, error)
 	UserUpdateBranch(ctx context.Context, in *UserUpdateBranchRequest, opts ...grpc.CallOption) (*UserUpdateBranchResponse, error)
@@ -1765,7 +2560,7 @@ func NewOperationServiceClient(cc *grpc.ClientConn) OperationServiceClient {
 
 func (c *operationServiceClient) UserCreateBranch(ctx context.Context, in *UserCreateBranchRequest, opts ...grpc.CallOption) (*UserCreateBranchResponse, error) {
 	out := new(UserCreateBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserCreateBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserCreateBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1774,7 +2569,7 @@ func (c *operationServiceClient) UserCreateBranch(ctx context.Context, in *UserC
 
 func (c *operationServiceClient) UserUpdateBranch(ctx context.Context, in *UserUpdateBranchRequest, opts ...grpc.CallOption) (*UserUpdateBranchResponse, error) {
 	out := new(UserUpdateBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserUpdateBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserUpdateBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1783,7 +2578,7 @@ func (c *operationServiceClient) UserUpdateBranch(ctx context.Context, in *UserU
 
 func (c *operationServiceClient) UserDeleteBranch(ctx context.Context, in *UserDeleteBranchRequest, opts ...grpc.CallOption) (*UserDeleteBranchResponse, error) {
 	out := new(UserDeleteBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserDeleteBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserDeleteBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1792,7 +2587,7 @@ func (c *operationServiceClient) UserDeleteBranch(ctx context.Context, in *UserD
 
 func (c *operationServiceClient) UserCreateTag(ctx context.Context, in *UserCreateTagRequest, opts ...grpc.CallOption) (*UserCreateTagResponse, error) {
 	out := new(UserCreateTagResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserCreateTag", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserCreateTag", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1801,7 +2596,7 @@ func (c *operationServiceClient) UserCreateTag(ctx context.Context, in *UserCrea
 
 func (c *operationServiceClient) UserDeleteTag(ctx context.Context, in *UserDeleteTagRequest, opts ...grpc.CallOption) (*UserDeleteTagResponse, error) {
 	out := new(UserDeleteTagResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserDeleteTag", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserDeleteTag", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1810,7 +2605,7 @@ func (c *operationServiceClient) UserDeleteTag(ctx context.Context, in *UserDele
 
 func (c *operationServiceClient) UserMergeToRef(ctx context.Context, in *UserMergeToRefRequest, opts ...grpc.CallOption) (*UserMergeToRefResponse, error) {
 	out := new(UserMergeToRefResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserMergeToRef", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserMergeToRef", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1818,7 +2613,7 @@ func (c *operationServiceClient) UserMergeToRef(ctx context.Context, in *UserMer
 }
 
 func (c *operationServiceClient) UserMergeBranch(ctx context.Context, opts ...grpc.CallOption) (OperationService_UserMergeBranchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_OperationService_serviceDesc.Streams[0], c.cc, "/gitaly.OperationService/UserMergeBranch", opts...)
+	stream, err := c.cc.NewStream(ctx, &_OperationService_serviceDesc.Streams[0], "/gitaly.OperationService/UserMergeBranch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1850,7 +2645,7 @@ func (x *operationServiceUserMergeBranchClient) Recv() (*UserMergeBranchResponse
 
 func (c *operationServiceClient) UserFFBranch(ctx context.Context, in *UserFFBranchRequest, opts ...grpc.CallOption) (*UserFFBranchResponse, error) {
 	out := new(UserFFBranchResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserFFBranch", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserFFBranch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1859,7 +2654,7 @@ func (c *operationServiceClient) UserFFBranch(ctx context.Context, in *UserFFBra
 
 func (c *operationServiceClient) UserCherryPick(ctx context.Context, in *UserCherryPickRequest, opts ...grpc.CallOption) (*UserCherryPickResponse, error) {
 	out := new(UserCherryPickResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserCherryPick", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserCherryPick", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1868,7 +2663,7 @@ func (c *operationServiceClient) UserCherryPick(ctx context.Context, in *UserChe
 
 func (c *operationServiceClient) UserRevert(ctx context.Context, in *UserRevertRequest, opts ...grpc.CallOption) (*UserRevertResponse, error) {
 	out := new(UserRevertResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserRevert", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserRevert", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1876,7 +2671,7 @@ func (c *operationServiceClient) UserRevert(ctx context.Context, in *UserRevertR
 }
 
 func (c *operationServiceClient) UserCommitFiles(ctx context.Context, opts ...grpc.CallOption) (OperationService_UserCommitFilesClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_OperationService_serviceDesc.Streams[1], c.cc, "/gitaly.OperationService/UserCommitFiles", opts...)
+	stream, err := c.cc.NewStream(ctx, &_OperationService_serviceDesc.Streams[1], "/gitaly.OperationService/UserCommitFiles", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1911,7 +2706,7 @@ func (x *operationServiceUserCommitFilesClient) CloseAndRecv() (*UserCommitFiles
 
 func (c *operationServiceClient) UserRebase(ctx context.Context, in *UserRebaseRequest, opts ...grpc.CallOption) (*UserRebaseResponse, error) {
 	out := new(UserRebaseResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserRebase", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserRebase", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1920,7 +2715,7 @@ func (c *operationServiceClient) UserRebase(ctx context.Context, in *UserRebaseR
 
 func (c *operationServiceClient) UserSquash(ctx context.Context, in *UserSquashRequest, opts ...grpc.CallOption) (*UserSquashResponse, error) {
 	out := new(UserSquashResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserSquash", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserSquash", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1928,7 +2723,7 @@ func (c *operationServiceClient) UserSquash(ctx context.Context, in *UserSquashR
 }
 
 func (c *operationServiceClient) UserApplyPatch(ctx context.Context, opts ...grpc.CallOption) (OperationService_UserApplyPatchClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_OperationService_serviceDesc.Streams[2], c.cc, "/gitaly.OperationService/UserApplyPatch", opts...)
+	stream, err := c.cc.NewStream(ctx, &_OperationService_serviceDesc.Streams[2], "/gitaly.OperationService/UserApplyPatch", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1963,15 +2758,14 @@ func (x *operationServiceUserApplyPatchClient) CloseAndRecv() (*UserApplyPatchRe
 
 func (c *operationServiceClient) UserUpdateSubmodule(ctx context.Context, in *UserUpdateSubmoduleRequest, opts ...grpc.CallOption) (*UserUpdateSubmoduleResponse, error) {
 	out := new(UserUpdateSubmoduleResponse)
-	err := grpc.Invoke(ctx, "/gitaly.OperationService/UserUpdateSubmodule", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.OperationService/UserUpdateSubmodule", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for OperationService service
-
+// OperationServiceServer is the server API for OperationService service.
 type OperationServiceServer interface {
 	UserCreateBranch(context.Context, *UserCreateBranchRequest) (*UserCreateBranchResponse, error)
 	UserUpdateBranch(context.Context, *UserUpdateBranchRequest) (*UserUpdateBranchResponse, error)
@@ -2362,122 +3156,122 @@ var _OperationService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "operations.proto",
 }
 
-func init() { proto.RegisterFile("operations.proto", fileDescriptor8) }
+func init() { proto.RegisterFile("operations.proto", fileDescriptor_operations_c652ed28d9f91e3b) }
 
-var fileDescriptor8 = []byte{
-	// 1809 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x59, 0xcd, 0x6f, 0x23, 0x4b,
-	0x11, 0xf7, 0xd8, 0xce, 0xc4, 0xa9, 0x38, 0x89, 0xd3, 0xef, 0x2b, 0xcf, 0x9b, 0x90, 0xbc, 0xc9,
-	0x7b, 0xb0, 0xbb, 0x42, 0x11, 0x0a, 0x08, 0x4e, 0x0b, 0xca, 0x87, 0x43, 0x76, 0x21, 0xbb, 0x61,
-	0x92, 0x2c, 0x1c, 0x90, 0x86, 0x89, 0xdd, 0xb1, 0x47, 0xd8, 0x9e, 0xd9, 0x9e, 0x71, 0xd8, 0x20,
-	0xc4, 0x05, 0x01, 0x57, 0x4e, 0xdc, 0x90, 0x40, 0xdc, 0x10, 0x17, 0x2e, 0x1c, 0x38, 0x20, 0xae,
-	0x70, 0xdd, 0x03, 0x27, 0xfe, 0x85, 0xbd, 0x71, 0x47, 0xdd, 0x55, 0xe3, 0x99, 0x9e, 0x19, 0x5b,
-	0xc9, 0x92, 0x68, 0x57, 0x88, 0x9b, 0xa7, 0xba, 0xba, 0xba, 0xea, 0x57, 0xd5, 0x55, 0xd5, 0x65,
-	0x68, 0xf8, 0x01, 0x17, 0x6e, 0xe4, 0xf9, 0xc3, 0x70, 0x2b, 0x10, 0x7e, 0xe4, 0x33, 0xb3, 0xeb,
-	0x45, 0x6e, 0xff, 0xaa, 0x59, 0x0f, 0x7b, 0xae, 0xe0, 0x1d, 0xa4, 0x5a, 0x7f, 0x32, 0xe0, 0xa3,
-	0xb3, 0x90, 0x8b, 0x3d, 0xc1, 0xdd, 0x88, 0xef, 0x0a, 0x77, 0xd8, 0xee, 0xd9, 0xfc, 0xc5, 0x88,
-	0x87, 0x11, 0xdb, 0x06, 0x10, 0x3c, 0xf0, 0x43, 0x2f, 0xf2, 0xc5, 0xd5, 0x8a, 0xb1, 0x61, 0xdc,
-	0x9f, 0xdf, 0x66, 0x5b, 0x28, 0x66, 0xcb, 0x1e, 0xaf, 0xd8, 0x29, 0x2e, 0xb6, 0x0e, 0xf3, 0xe7,
-	0x4a, 0x88, 0x33, 0x74, 0x07, 0x7c, 0xa5, 0xbc, 0x61, 0xdc, 0xaf, 0xdb, 0x80, 0xa4, 0xa7, 0xee,
-	0x80, 0xb3, 0x0d, 0xa8, 0x8e, 0x42, 0x2e, 0x56, 0x2a, 0x4a, 0x5c, 0x3d, 0x16, 0x27, 0x75, 0xb0,
-	0xd5, 0x8a, 0x14, 0x11, 0x46, 0xae, 0x88, 0x9c, 0xc0, 0xf7, 0x86, 0xd1, 0x4a, 0x15, 0x45, 0x28,
-	0xd2, 0xb1, 0xa4, 0x58, 0x43, 0x58, 0xc9, 0xab, 0x1c, 0x06, 0xfe, 0x30, 0xe4, 0xec, 0xf3, 0x60,
-	0xe2, 0x61, 0xa4, 0xef, 0x62, 0x7c, 0x00, 0xf1, 0xd1, 0x2a, 0x7b, 0x08, 0xcb, 0x81, 0xe0, 0x8e,
-	0xe0, 0x6d, 0xee, 0x5d, 0x72, 0x87, 0x0b, 0xe1, 0x0b, 0xa5, 0xed, 0x9c, 0xbd, 0x14, 0x08, 0x6e,
-	0x23, 0xbd, 0x25, 0xc9, 0xd6, 0xdf, 0x08, 0xa3, 0xb3, 0xa0, 0xf3, 0xae, 0x60, 0xf4, 0x21, 0x98,
-	0x43, 0xfe, 0x23, 0xc1, 0x2f, 0x09, 0x1e, 0xfa, 0x92, 0x74, 0xbf, 0xdf, 0x91, 0xf4, 0x19, 0xa4,
-	0xe3, 0x97, 0x75, 0x80, 0x90, 0xe9, 0x16, 0x10, 0x64, 0x85, 0x50, 0x18, 0xc5, 0x50, 0xfc, 0x8a,
-	0xa0, 0xd8, 0xe7, 0x7d, 0xfe, 0x6e, 0x40, 0x11, 0x9b, 0xa6, 0x6b, 0xf4, 0x06, 0xa6, 0xfd, 0xd2,
-	0x80, 0xf7, 0x13, 0x41, 0xa7, 0x6e, 0xf7, 0xbf, 0xb1, 0xeb, 0x63, 0xa8, 0x45, 0x6e, 0x37, 0x6d,
-	0xd4, 0x6c, 0xe4, 0x76, 0xaf, 0x69, 0xd1, 0x1e, 0x7c, 0x90, 0x51, 0xe4, 0x0d, 0xcc, 0xf9, 0x07,
-	0x99, 0x83, 0xb7, 0xe4, 0x2d, 0x9a, 0xc3, 0xbe, 0x00, 0x4b, 0x91, 0x2b, 0xba, 0x3c, 0x72, 0x04,
-	0xbf, 0xf4, 0x42, 0xcf, 0x1f, 0x52, 0xd0, 0x2e, 0x22, 0xd9, 0x26, 0x2a, 0x5b, 0x81, 0xd9, 0x01,
-	0x0f, 0x43, 0xb7, 0xcb, 0x29, 0x7a, 0xe3, 0x4f, 0xeb, 0xc7, 0x88, 0x48, 0xca, 0x16, 0x42, 0x64,
-	0x0d, 0x2a, 0x91, 0xdb, 0x25, 0x2b, 0xe6, 0xe3, 0xc3, 0x25, 0x87, 0xa4, 0xcb, 0xeb, 0xc0, 0x5f,
-	0x7a, 0x61, 0x14, 0x2a, 0xad, 0x6b, 0x36, 0x7d, 0x15, 0x03, 0x59, 0x29, 0x06, 0xf2, 0x95, 0x01,
-	0x1f, 0xca, 0xc3, 0x8f, 0xb8, 0xe8, 0xde, 0x42, 0xc4, 0xc7, 0x78, 0x95, 0x27, 0xe2, 0x75, 0x0f,
-	0xe6, 0xda, 0xfe, 0x60, 0xe0, 0x45, 0x8e, 0xd7, 0x21, 0xa5, 0x6a, 0x48, 0x78, 0xdc, 0x91, 0x16,
-	0x51, 0x7e, 0xa3, 0x8b, 0x4f, 0xf9, 0x6c, 0x22, 0x76, 0xec, 0x7d, 0x98, 0x71, 0x83, 0xa0, 0x7f,
-	0xb5, 0x62, 0x2a, 0x08, 0xf0, 0xc3, 0xfa, 0x23, 0x5d, 0x64, 0xcd, 0x2a, 0x02, 0x55, 0x53, 0xc0,
-	0xc8, 0x28, 0xb0, 0x0b, 0x0b, 0x74, 0x63, 0x47, 0x2a, 0x99, 0x90, 0xe3, 0xd7, 0x62, 0x43, 0x9e,
-	0xc5, 0x75, 0x07, 0x85, 0x62, 0xc6, 0xb1, 0xeb, 0xe7, 0xa9, 0xaf, 0x62, 0xf8, 0xab, 0x85, 0xf0,
-	0x3f, 0xa9, 0xd6, 0xca, 0x8d, 0x8a, 0xf5, 0x2f, 0x03, 0x23, 0x40, 0xa9, 0x7b, 0xea, 0xdb, 0xfc,
-	0xe2, 0x6e, 0x7d, 0xb0, 0x06, 0x10, 0xfa, 0x23, 0xd1, 0xe6, 0x4e, 0xd8, 0x73, 0xc9, 0x09, 0x73,
-	0x48, 0x39, 0xe9, 0xb9, 0x13, 0xbd, 0xb0, 0x06, 0x30, 0x0e, 0xf5, 0x0b, 0x72, 0xc4, 0x5c, 0x1c,
-	0xe5, 0x17, 0x69, 0x27, 0x99, 0x7a, 0x80, 0xbb, 0xa9, 0x18, 0x23, 0xf3, 0xae, 0xe3, 0x8c, 0x9b,
-	0x54, 0xb1, 0x9f, 0xc2, 0x07, 0x85, 0xbe, 0x99, 0x7e, 0xc2, 0x27, 0x50, 0x97, 0xc0, 0x39, 0x6d,
-	0x75, 0xf5, 0x3a, 0x74, 0x8f, 0xe6, 0x25, 0x0d, 0x6f, 0x63, 0x87, 0x7d, 0x06, 0x8b, 0x14, 0x11,
-	0x31, 0x53, 0x45, 0x31, 0x51, 0x9c, 0x10, 0x9b, 0xf5, 0x5b, 0x03, 0xde, 0x93, 0x36, 0x1e, 0x1c,
-	0xbc, 0xab, 0x97, 0xc8, 0xfa, 0x05, 0xe5, 0xcc, 0x44, 0x45, 0x72, 0x42, 0x2e, 0xe8, 0x8d, 0x5b,
-	0x0a, 0xfa, 0x09, 0xbe, 0xfa, 0x6b, 0x99, 0x12, 0x5e, 0x8f, 0x0b, 0x71, 0x75, 0xec, 0xb5, 0x7f,
-	0x78, 0xb7, 0x68, 0x3d, 0x00, 0x13, 0xc1, 0xa1, 0xdb, 0xbc, 0x1c, 0xf3, 0x7c, 0xd3, 0x8b, 0xf6,
-	0xd4, 0x82, 0x4d, 0x0c, 0xd9, 0x8a, 0x5d, 0xcd, 0x55, 0xec, 0xc9, 0x99, 0xe8, 0x21, 0x2c, 0x63,
-	0x63, 0x97, 0x16, 0x80, 0x17, 0x61, 0x49, 0x2d, 0xec, 0x26, 0x52, 0x1e, 0x41, 0x03, 0x79, 0x53,
-	0xd6, 0xce, 0x4e, 0xb4, 0x16, 0xb7, 0x27, 0x04, 0xeb, 0x9f, 0x94, 0xb4, 0xd3, 0x00, 0xde, 0xae,
-	0x2f, 0x31, 0xd6, 0x9d, 0x48, 0xf0, 0x8c, 0x2f, 0x71, 0xe1, 0x54, 0x70, 0xf4, 0xa5, 0xbc, 0x41,
-	0x14, 0x89, 0xe9, 0x32, 0x33, 0x8f, 0x34, 0x64, 0xb9, 0x41, 0x3e, 0xb4, 0xfe, 0x52, 0x86, 0x65,
-	0xe5, 0x39, 0x7e, 0xc9, 0xa5, 0xc9, 0xff, 0x0f, 0x8b, 0x1b, 0x84, 0xc5, 0x2b, 0x03, 0x58, 0x1a,
-	0xbc, 0xff, 0x8d, 0x90, 0xf8, 0x77, 0x19, 0xee, 0xa9, 0x60, 0x57, 0xfb, 0x0f, 0xbc, 0x3e, 0x0f,
-	0x77, 0xda, 0x52, 0xdd, 0x43, 0xee, 0x76, 0xb8, 0x60, 0x07, 0x60, 0xba, 0xea, 0x5b, 0xd9, 0xb5,
-	0xb8, 0xbd, 0x95, 0x76, 0xf5, 0x84, 0x4d, 0x5b, 0xf8, 0x71, 0x7a, 0x15, 0x70, 0x9b, 0x76, 0xcb,
-	0x9c, 0x7a, 0xe1, 0xf5, 0xb9, 0x13, 0xb8, 0x51, 0x8f, 0xda, 0xc0, 0x9a, 0x24, 0x1c, 0xbb, 0x51,
-	0x8f, 0x6d, 0xc2, 0x42, 0x20, 0xfb, 0x3b, 0x7f, 0x14, 0x22, 0x43, 0x45, 0x31, 0xd4, 0x63, 0xa2,
-	0x62, 0x92, 0xa5, 0xc2, 0x0d, 0xf9, 0x57, 0xbf, 0xe2, 0xb4, 0xfd, 0x61, 0xc4, 0xe9, 0x75, 0x27,
-	0x4b, 0x85, 0xa2, 0xee, 0x21, 0x91, 0x3d, 0x80, 0x06, 0x7f, 0xc9, 0xdb, 0xa3, 0x88, 0x3b, 0x52,
-	0xfe, 0xc0, 0xef, 0x60, 0xd0, 0xd4, 0xec, 0x25, 0xa2, 0x1f, 0x10, 0x59, 0x1e, 0xeb, 0x0d, 0x2f,
-	0xb8, 0x18, 0x0b, 0xc4, 0x2e, 0xa7, 0xae, 0x88, 0x24, 0xcf, 0x3a, 0x03, 0x48, 0xcc, 0x61, 0x00,
-	0xe6, 0x9e, 0xdd, 0xda, 0x39, 0x6d, 0x35, 0x4a, 0x6c, 0x11, 0x00, 0x7f, 0x3b, 0xfb, 0x8f, 0xed,
-	0x86, 0x21, 0xd7, 0xce, 0x8e, 0xf7, 0xe5, 0x5a, 0x99, 0xd5, 0xa0, 0x7a, 0xf4, 0xec, 0x79, 0xab,
-	0x51, 0x91, 0xd4, 0xfd, 0xd6, 0xb7, 0x5b, 0xa7, 0xad, 0x46, 0x95, 0xcd, 0xc1, 0xcc, 0xde, 0xe1,
-	0xd1, 0xb3, 0xfd, 0xc6, 0x8c, 0xf5, 0x6b, 0x6a, 0x4a, 0x72, 0x10, 0xb2, 0x47, 0x60, 0xf6, 0x14,
-	0x8c, 0x14, 0x49, 0x9b, 0xd7, 0x40, 0xfc, 0xb0, 0x64, 0xd3, 0x26, 0xd6, 0x84, 0xd9, 0xd8, 0x1c,
-	0x05, 0xf3, 0x61, 0xc9, 0x8e, 0x09, 0xbb, 0x16, 0x6c, 0xc8, 0xbb, 0xe9, 0x50, 0x00, 0x49, 0x7c,
-	0x42, 0x07, 0x1d, 0xe4, 0x04, 0xee, 0x55, 0xdf, 0x77, 0x3b, 0xd6, 0xcf, 0x2b, 0xb0, 0x9a, 0x39,
-	0x89, 0x12, 0x05, 0x45, 0xc4, 0xdd, 0xa4, 0x8b, 0x4c, 0x0e, 0xa8, 0xe4, 0x72, 0xc0, 0x67, 0xb0,
-	0x48, 0x6a, 0xc7, 0xa9, 0x00, 0xf3, 0xc4, 0x02, 0x52, 0x8f, 0x28, 0x21, 0x7c, 0x11, 0x18, 0xb1,
-	0xb9, 0xa3, 0xa8, 0xe7, 0x0b, 0x14, 0x87, 0x59, 0xa3, 0x81, 0x2b, 0x3b, 0x6a, 0x41, 0x09, 0xdd,
-	0x82, 0xf7, 0x74, 0x6e, 0x3e, 0x70, 0xbd, 0x3e, 0x25, 0x90, 0xe5, 0x34, 0x7b, 0x4b, 0x2e, 0x14,
-	0xa7, 0x9b, 0xd9, 0xeb, 0xa7, 0x9b, 0xda, 0xf5, 0xd3, 0xcd, 0x9f, 0xe3, 0x2a, 0x94, 0xf3, 0x03,
-	0xfb, 0x7a, 0x26, 0x42, 0x3e, 0x9d, 0x10, 0x21, 0x9a, 0xdf, 0x52, 0x21, 0xf2, 0xb5, 0xf1, 0x9d,
-	0x2e, 0xeb, 0xb9, 0xaa, 0x38, 0xc2, 0x4a, 0xf1, 0x25, 0xde, 0xdd, 0x84, 0x4f, 0xf2, 0xf1, 0x23,
-	0xf0, 0x94, 0x71, 0x00, 0xfd, 0x21, 0x9e, 0x0a, 0xa5, 0x15, 0xb9, 0xc5, 0x64, 0xb9, 0x0e, 0xf3,
-	0xde, 0xb0, 0xc3, 0x5f, 0x6a, 0x69, 0x12, 0x14, 0x69, 0x4a, 0xfa, 0x9b, 0xf0, 0x40, 0xfb, 0xfd,
-	0xb8, 0x22, 0xca, 0x2c, 0x72, 0xe7, 0x6d, 0xa5, 0x50, 0xc7, 0xa4, 0xda, 0x4a, 0x24, 0x4c, 0x79,
-	0x9b, 0xad, 0x01, 0x5d, 0x02, 0xf5, 0x98, 0x98, 0xc1, 0xc7, 0x04, 0x52, 0xe4, 0x63, 0xe2, 0x1b,
-	0xb0, 0x2c, 0xf8, 0xc0, 0x8f, 0x78, 0x3a, 0xca, 0xcc, 0x89, 0x0a, 0x37, 0x90, 0x39, 0xa1, 0xc8,
-	0x1c, 0x48, 0x02, 0xe8, 0x78, 0x8c, 0xe6, 0x3a, 0x12, 0xd1, 0x0d, 0xd6, 0x4f, 0xe2, 0xca, 0x87,
-	0x20, 0x8d, 0xdf, 0xcf, 0x40, 0xf6, 0x48, 0xd5, 0xb0, 0xf9, 0x27, 0x0b, 0xa5, 0x6a, 0x37, 0xe8,
-	0x59, 0x25, 0x34, 0xdd, 0x4c, 0x45, 0xab, 0x75, 0xa9, 0x9c, 0x59, 0xbf, 0x23, 0x1f, 0x9d, 0xbc,
-	0x18, 0xb9, 0xe1, 0xdd, 0xb7, 0xfe, 0xa1, 0x3a, 0x26, 0xe5, 0x23, 0x24, 0x4c, 0xf1, 0x91, 0xdc,
-	0xa4, 0x6e, 0x7a, 0xe2, 0xa2, 0x9a, 0x22, 0x48, 0x18, 0x3e, 0x82, 0x59, 0x3e, 0xec, 0xa8, 0x25,
-	0x53, 0x2d, 0x99, 0x7c, 0xd8, 0x91, 0x0b, 0x9f, 0x82, 0x89, 0x49, 0x87, 0x9a, 0x10, 0x5d, 0x1d,
-	0x5a, 0x2b, 0x48, 0x7b, 0xb5, 0x82, 0xb4, 0x67, 0x79, 0xe8, 0xa1, 0x18, 0xa2, 0xc4, 0x43, 0x64,
-	0x4d, 0xca, 0x43, 0x48, 0x91, 0x1a, 0x4c, 0x43, 0x1d, 0xdf, 0xce, 0x76, 0xde, 0x85, 0xd6, 0x6f,
-	0xe8, 0x7d, 0xb1, 0x13, 0x04, 0xfd, 0xab, 0x63, 0x37, 0x4a, 0x5e, 0x63, 0x53, 0xf3, 0x52, 0x8e,
-	0x7d, 0xab, 0xa8, 0x74, 0x05, 0x92, 0x81, 0x87, 0x49, 0xe9, 0x22, 0x42, 0xf3, 0x67, 0x06, 0x98,
-	0x77, 0x5a, 0x80, 0x36, 0x61, 0x81, 0x9e, 0xdf, 0xe4, 0x63, 0xea, 0x41, 0x90, 0x88, 0x17, 0x61,
-	0x5c, 0x40, 0xd5, 0x1c, 0xc4, 0x51, 0xba, 0xe5, 0xf2, 0xdf, 0xf7, 0x31, 0x6f, 0xa7, 0xed, 0xbd,
-	0xbd, 0xec, 0x67, 0xbd, 0x36, 0xa0, 0x99, 0x4c, 0x63, 0x4f, 0x46, 0xe7, 0x03, 0xbf, 0x33, 0xea,
-	0xf3, 0x3b, 0x9f, 0x68, 0x50, 0x10, 0xa6, 0x26, 0x1a, 0x48, 0x99, 0x36, 0xd1, 0x58, 0x85, 0xb9,
-	0x30, 0x56, 0x30, 0x1e, 0x68, 0x8c, 0x09, 0x05, 0x91, 0x6d, 0x16, 0x45, 0xf6, 0xdf, 0x0d, 0x6c,
-	0x50, 0x73, 0x06, 0xbf, 0x9d, 0xe7, 0x75, 0xae, 0xff, 0xae, 0xe6, 0xfa, 0xef, 0x27, 0xd5, 0x5a,
-	0xa5, 0x51, 0xb5, 0xf3, 0x2d, 0xfd, 0xf6, 0xeb, 0x39, 0x68, 0x8c, 0xf5, 0x39, 0xe1, 0xe2, 0xd2,
-	0x6b, 0x73, 0xf6, 0x5d, 0x68, 0x64, 0xff, 0x91, 0x60, 0xeb, 0x5a, 0x45, 0xce, 0xff, 0xbd, 0xd2,
-	0xdc, 0x98, 0xcc, 0x80, 0xb8, 0x58, 0xa5, 0x58, 0x70, 0x7a, 0x6e, 0xaf, 0x0b, 0x2e, 0xf8, 0x4f,
-	0x42, 0x17, 0x5c, 0x34, 0xf2, 0x4f, 0x04, 0xa7, 0xa7, 0xe6, 0xba, 0xe0, 0x82, 0x09, 0xbf, 0x2e,
-	0xb8, 0x68, 0xe0, 0x6e, 0x95, 0xd8, 0x53, 0x58, 0xd0, 0x46, 0xb5, 0x6c, 0x35, 0x6f, 0x66, 0x32,
-	0x8d, 0x6e, 0xae, 0x4d, 0x58, 0xcd, 0xca, 0x1b, 0x0f, 0xc3, 0x75, 0x79, 0xd9, 0x61, 0xbd, 0x2e,
-	0x2f, 0x37, 0x41, 0xb7, 0x4a, 0xec, 0x3b, 0xb0, 0xa8, 0x4f, 0xda, 0x98, 0xb6, 0x25, 0x37, 0x60,
-	0x6c, 0x7e, 0x6e, 0xd2, 0xf2, 0x58, 0xe4, 0xf7, 0x60, 0x29, 0x33, 0x4a, 0x65, 0xf9, 0x4d, 0x3a,
-	0x92, 0xeb, 0x13, 0xd7, 0x63, 0xa9, 0xf7, 0x8d, 0x2f, 0x19, 0xec, 0x5b, 0x50, 0x4f, 0xcf, 0xa3,
-	0xd8, 0xbd, 0xf4, 0xb6, 0xcc, 0x20, 0xad, 0xb9, 0x5a, 0xbc, 0x98, 0xb5, 0x3c, 0x19, 0x89, 0xe8,
-	0x96, 0xe7, 0x66, 0x4d, 0xba, 0xe5, 0xf9, 0x49, 0x8a, 0x55, 0x62, 0x2d, 0x80, 0xe4, 0x39, 0xcd,
-	0x3e, 0xd6, 0xd2, 0x4e, 0x7a, 0x3e, 0xd1, 0x6c, 0x16, 0x2d, 0x8d, 0xc5, 0x3c, 0x47, 0x00, 0x53,
-	0xdd, 0xa6, 0x0e, 0x60, 0xbe, 0x1f, 0xd6, 0x01, 0x2c, 0x68, 0x53, 0x25, 0x80, 0x89, 0x7a, 0xb2,
-	0x9f, 0xc9, 0xaa, 0x97, 0x6a, 0x16, 0xb3, 0xea, 0xa5, 0x5b, 0xa4, 0xc4, 0x4a, 0x2c, 0xcc, 0xba,
-	0x18, 0xad, 0x9f, 0xd1, 0xc5, 0xe8, 0x75, 0xdc, 0x2a, 0xb1, 0x13, 0xc4, 0x3f, 0x29, 0x2a, 0x3a,
-	0xfe, 0xb9, 0xe2, 0xaa, 0xe3, 0x9f, 0xaf, 0x45, 0xca, 0xc4, 0x1f, 0xe0, 0x50, 0x35, 0x93, 0x59,
-	0x99, 0x95, 0x4f, 0x01, 0xd9, 0x3a, 0xd3, 0xdc, 0x9c, 0xca, 0x13, 0x9f, 0x71, 0x6e, 0xaa, 0x3f,
-	0x8a, 0xbf, 0xfc, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xe0, 0x59, 0x6f, 0x01, 0x52, 0x1e, 0x00,
-	0x00,
+var fileDescriptor_operations_c652ed28d9f91e3b = []byte{
+	// 1824 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x59, 0xcd, 0x6f, 0x2b, 0x49,
+	0x11, 0xf7, 0xd8, 0xce, 0xc4, 0xae, 0x38, 0x89, 0xd3, 0xfb, 0xe5, 0xf5, 0x4b, 0x48, 0x76, 0xb2,
+	0x0b, 0x6f, 0x57, 0x28, 0x42, 0x01, 0xc1, 0x69, 0x41, 0xf9, 0x70, 0xc8, 0x2e, 0x64, 0x5f, 0x98,
+	0x24, 0x0b, 0x07, 0xa4, 0x61, 0x62, 0x77, 0xec, 0x11, 0xb6, 0x67, 0xb6, 0x67, 0x1c, 0x5e, 0x10,
+	0xe2, 0x82, 0x04, 0x57, 0x4e, 0x5c, 0x10, 0x12, 0x88, 0x1b, 0xe2, 0xc2, 0x85, 0x03, 0x07, 0xc4,
+	0x15, 0xae, 0xef, 0xc0, 0x89, 0x7f, 0xe1, 0xdd, 0xb8, 0xa3, 0xee, 0xaa, 0xf1, 0x4c, 0xcf, 0x8c,
+	0xad, 0xe4, 0x91, 0xe8, 0x3d, 0x21, 0x6e, 0x9e, 0xea, 0xea, 0xea, 0xaa, 0x5f, 0x55, 0x57, 0x55,
+	0x97, 0xa1, 0xe9, 0x07, 0x5c, 0xb8, 0x91, 0xe7, 0x8f, 0xc3, 0x9d, 0x40, 0xf8, 0x91, 0xcf, 0xcc,
+	0xbe, 0x17, 0xb9, 0xc3, 0x9b, 0x76, 0x23, 0x1c, 0xb8, 0x82, 0xf7, 0x90, 0x6a, 0xfd, 0xc9, 0x80,
+	0xb7, 0x2e, 0x42, 0x2e, 0x0e, 0x04, 0x77, 0x23, 0xbe, 0x2f, 0xdc, 0x71, 0x77, 0x60, 0xf3, 0xcf,
+	0x26, 0x3c, 0x8c, 0xd8, 0x2e, 0x80, 0xe0, 0x81, 0x1f, 0x7a, 0x91, 0x2f, 0x6e, 0x5a, 0xc6, 0x96,
+	0xf1, 0x78, 0x69, 0x97, 0xed, 0xa0, 0x98, 0x1d, 0x7b, 0xba, 0x62, 0xa7, 0xb8, 0xd8, 0x26, 0x2c,
+	0x5d, 0x2a, 0x21, 0xce, 0xd8, 0x1d, 0xf1, 0x56, 0x79, 0xcb, 0x78, 0xdc, 0xb0, 0x01, 0x49, 0x9f,
+	0xb8, 0x23, 0xce, 0xb6, 0xa0, 0x3a, 0x09, 0xb9, 0x68, 0x55, 0x94, 0xb8, 0x46, 0x2c, 0x4e, 0xea,
+	0x60, 0xab, 0x15, 0x29, 0x22, 0x8c, 0x5c, 0x11, 0x39, 0x81, 0xef, 0x8d, 0xa3, 0x56, 0x15, 0x45,
+	0x28, 0xd2, 0xa9, 0xa4, 0x58, 0x63, 0x68, 0xe5, 0x55, 0x0e, 0x03, 0x7f, 0x1c, 0x72, 0xf6, 0x79,
+	0x30, 0xf1, 0x30, 0xd2, 0x77, 0x25, 0x3e, 0x80, 0xf8, 0x68, 0x95, 0x7d, 0x00, 0x6b, 0x81, 0xe0,
+	0x8e, 0xe0, 0x5d, 0xee, 0x5d, 0x73, 0x87, 0x0b, 0xe1, 0x0b, 0xa5, 0x6d, 0xdd, 0x5e, 0x0d, 0x04,
+	0xb7, 0x91, 0xde, 0x91, 0x64, 0xeb, 0x6f, 0x84, 0xd1, 0x45, 0xd0, 0x7b, 0x55, 0x30, 0x7a, 0x13,
+	0xcc, 0x31, 0xff, 0x91, 0xe0, 0xd7, 0x04, 0x0f, 0x7d, 0x49, 0xba, 0x3f, 0xec, 0x49, 0xfa, 0x02,
+	0xd2, 0xf1, 0xcb, 0x3a, 0x42, 0xc8, 0x74, 0x0b, 0x08, 0xb2, 0x42, 0x28, 0x8c, 0x62, 0x28, 0x7e,
+	0x49, 0x50, 0x1c, 0xf2, 0x21, 0x7f, 0x35, 0xa0, 0x88, 0x4d, 0xd3, 0x35, 0x7a, 0x01, 0xd3, 0x7e,
+	0x61, 0xc0, 0xeb, 0x89, 0xa0, 0x73, 0xb7, 0xff, 0xdf, 0xd8, 0xf5, 0x36, 0xd4, 0x22, 0xb7, 0x9f,
+	0x36, 0x6a, 0x31, 0x72, 0xfb, 0xb7, 0xb4, 0xe8, 0x00, 0xde, 0xc8, 0x28, 0xf2, 0x02, 0xe6, 0xfc,
+	0x83, 0xcc, 0xc1, 0x5b, 0xf2, 0x12, 0xcd, 0x61, 0x5f, 0x80, 0xd5, 0xc8, 0x15, 0x7d, 0x1e, 0x39,
+	0x82, 0x5f, 0x7b, 0xa1, 0xe7, 0x8f, 0x29, 0x68, 0x57, 0x90, 0x6c, 0x13, 0x95, 0xb5, 0x60, 0x71,
+	0xc4, 0xc3, 0xd0, 0xed, 0x73, 0x8a, 0xde, 0xf8, 0xd3, 0xfa, 0x31, 0x22, 0x92, 0xb2, 0x85, 0x10,
+	0xd9, 0x80, 0x4a, 0xe4, 0xf6, 0xc9, 0x8a, 0xa5, 0xf8, 0x70, 0xc9, 0x21, 0xe9, 0xf2, 0x3a, 0xf0,
+	0xa7, 0x5e, 0x18, 0x85, 0x4a, 0xeb, 0x9a, 0x4d, 0x5f, 0xc5, 0x40, 0x56, 0x8a, 0x81, 0x7c, 0x66,
+	0xc0, 0x9b, 0xf2, 0xf0, 0x13, 0x2e, 0xfa, 0xf7, 0x10, 0xf1, 0x31, 0x5e, 0xe5, 0x99, 0x78, 0x3d,
+	0x82, 0x7a, 0xd7, 0x1f, 0x8d, 0xbc, 0xc8, 0xf1, 0x7a, 0xa4, 0x54, 0x0d, 0x09, 0x1f, 0xf5, 0xa4,
+	0x45, 0x94, 0xdf, 0xe8, 0xe2, 0x53, 0x3e, 0x9b, 0x89, 0x1d, 0x7b, 0x1d, 0x16, 0xdc, 0x20, 0x18,
+	0xde, 0xb4, 0x4c, 0x05, 0x01, 0x7e, 0x58, 0x7f, 0xa4, 0x8b, 0xac, 0x59, 0x45, 0xa0, 0x6a, 0x0a,
+	0x18, 0x19, 0x05, 0xf6, 0x61, 0x99, 0x6e, 0xec, 0x44, 0x25, 0x13, 0x72, 0xfc, 0x46, 0x6c, 0xc8,
+	0x93, 0xb8, 0xee, 0xa0, 0x50, 0xcc, 0x38, 0x76, 0xe3, 0x32, 0xf5, 0x55, 0x0c, 0x7f, 0xb5, 0x10,
+	0xfe, 0x8f, 0xab, 0xb5, 0x72, 0xb3, 0x62, 0xfd, 0xcb, 0xc0, 0x08, 0x50, 0xea, 0x9e, 0xfb, 0x36,
+	0xbf, 0x7a, 0x58, 0x1f, 0x6c, 0x00, 0x84, 0xfe, 0x44, 0x74, 0xb9, 0x13, 0x0e, 0x5c, 0x72, 0x42,
+	0x1d, 0x29, 0x67, 0x03, 0x77, 0xa6, 0x17, 0x36, 0x00, 0xa6, 0xa1, 0x7e, 0x45, 0x8e, 0xa8, 0xc7,
+	0x51, 0x7e, 0x95, 0x76, 0x92, 0xa9, 0x07, 0xb8, 0x9b, 0x8a, 0x31, 0x32, 0xef, 0x36, 0xce, 0xb8,
+	0x4b, 0x15, 0xfb, 0x29, 0xbc, 0x51, 0xe8, 0x9b, 0xf9, 0x27, 0xbc, 0x03, 0x0d, 0x09, 0x9c, 0xd3,
+	0x55, 0x57, 0xaf, 0x47, 0xf7, 0x68, 0x49, 0xd2, 0xf0, 0x36, 0xf6, 0xd8, 0x7b, 0xb0, 0x42, 0x11,
+	0x11, 0x33, 0x55, 0x14, 0x13, 0xc5, 0x09, 0xb1, 0x59, 0xbf, 0x35, 0xe0, 0x35, 0x69, 0xe3, 0xd1,
+	0xd1, 0xab, 0x7a, 0x89, 0xac, 0x9f, 0x53, 0xce, 0x4c, 0x54, 0x24, 0x27, 0xe4, 0x82, 0xde, 0xb8,
+	0xa7, 0xa0, 0x9f, 0xe1, 0xab, 0xbf, 0x96, 0x29, 0xe1, 0x0d, 0xb8, 0x10, 0x37, 0xa7, 0x5e, 0xf7,
+	0x87, 0x0f, 0x8b, 0xd6, 0xfb, 0x60, 0x22, 0x38, 0x74, 0x9b, 0xd7, 0x62, 0x9e, 0x6f, 0x7a, 0xd1,
+	0x81, 0x5a, 0xb0, 0x89, 0x21, 0x5b, 0xb1, 0xab, 0xb9, 0x8a, 0x3d, 0x3b, 0x13, 0x7d, 0x00, 0x6b,
+	0xd8, 0xd8, 0xa5, 0x05, 0xe0, 0x45, 0x58, 0x55, 0x0b, 0xfb, 0x89, 0x94, 0x0f, 0xa1, 0x89, 0xbc,
+	0x29, 0x6b, 0x17, 0x67, 0x5a, 0x8b, 0xdb, 0x13, 0x82, 0xf5, 0x4f, 0x4a, 0xda, 0x69, 0x00, 0xef,
+	0xd7, 0x97, 0x18, 0xeb, 0x4e, 0x24, 0x78, 0xc6, 0x97, 0xb8, 0x70, 0x2e, 0x38, 0xfa, 0x52, 0xde,
+	0x20, 0x8a, 0xc4, 0x74, 0x99, 0x59, 0x42, 0x1a, 0xb2, 0xdc, 0x21, 0x1f, 0x5a, 0x7f, 0x29, 0xc3,
+	0x9a, 0xf2, 0x1c, 0xbf, 0xe6, 0xd2, 0xe4, 0xff, 0x87, 0xc5, 0x1d, 0xc2, 0xe2, 0x99, 0x01, 0x2c,
+	0x0d, 0xde, 0xff, 0x46, 0x48, 0xfc, 0xbb, 0x0c, 0x8f, 0x54, 0xb0, 0xab, 0xfd, 0x47, 0xde, 0x90,
+	0x87, 0x7b, 0x5d, 0xa9, 0xee, 0x31, 0x77, 0x7b, 0x5c, 0xb0, 0x23, 0x30, 0x5d, 0xf5, 0xad, 0xec,
+	0x5a, 0xd9, 0xdd, 0x49, 0xbb, 0x7a, 0xc6, 0xa6, 0x1d, 0xfc, 0x38, 0xbf, 0x09, 0xb8, 0x4d, 0xbb,
+	0x65, 0x4e, 0xbd, 0xf2, 0x86, 0xdc, 0x09, 0xdc, 0x68, 0x40, 0x6d, 0x60, 0x4d, 0x12, 0x4e, 0xdd,
+	0x68, 0xc0, 0xb6, 0x61, 0x39, 0x90, 0xfd, 0x9d, 0x3f, 0x09, 0x91, 0xa1, 0xa2, 0x18, 0x1a, 0x31,
+	0x51, 0x31, 0xc9, 0x52, 0xe1, 0x86, 0xfc, 0xab, 0x5f, 0x71, 0xba, 0xfe, 0x38, 0xe2, 0xf4, 0xba,
+	0x93, 0xa5, 0x42, 0x51, 0x0f, 0x90, 0xc8, 0xde, 0x87, 0x26, 0x7f, 0xca, 0xbb, 0x93, 0x88, 0x3b,
+	0x52, 0xfe, 0xc8, 0xef, 0x61, 0xd0, 0xd4, 0xec, 0x55, 0xa2, 0x1f, 0x11, 0x59, 0x1e, 0xeb, 0x8d,
+	0xaf, 0xb8, 0x98, 0x0a, 0xc4, 0x2e, 0xa7, 0xa1, 0x88, 0x24, 0xcf, 0xba, 0x00, 0x48, 0xcc, 0x61,
+	0x00, 0xe6, 0x81, 0xdd, 0xd9, 0x3b, 0xef, 0x34, 0x4b, 0x6c, 0x05, 0x00, 0x7f, 0x3b, 0x87, 0x1f,
+	0xd9, 0x4d, 0x43, 0xae, 0x5d, 0x9c, 0x1e, 0xca, 0xb5, 0x32, 0xab, 0x41, 0xf5, 0xe4, 0xc9, 0xa7,
+	0x9d, 0x66, 0x45, 0x52, 0x0f, 0x3b, 0xdf, 0xee, 0x9c, 0x77, 0x9a, 0x55, 0x56, 0x87, 0x85, 0x83,
+	0xe3, 0x93, 0x27, 0x87, 0xcd, 0x05, 0xeb, 0x57, 0xd4, 0x94, 0xe4, 0x20, 0x64, 0x1f, 0x82, 0x39,
+	0x50, 0x30, 0x52, 0x24, 0x6d, 0xdf, 0x02, 0xf1, 0xe3, 0x92, 0x4d, 0x9b, 0x58, 0x1b, 0x16, 0x63,
+	0x73, 0x14, 0xcc, 0xc7, 0x25, 0x3b, 0x26, 0xec, 0x5b, 0xb0, 0x25, 0xef, 0xa6, 0x43, 0x01, 0x24,
+	0xf1, 0x09, 0x1d, 0x74, 0x90, 0x13, 0xb8, 0x37, 0x43, 0xdf, 0xed, 0x59, 0xbf, 0xae, 0xc0, 0x7a,
+	0xe6, 0x24, 0x4a, 0x14, 0x14, 0x11, 0x0f, 0x93, 0x2e, 0x32, 0x39, 0xa0, 0x92, 0xcb, 0x01, 0xef,
+	0xc1, 0x0a, 0xa9, 0x1d, 0xa7, 0x02, 0xcc, 0x13, 0xcb, 0x48, 0x3d, 0xa1, 0x84, 0xf0, 0x45, 0x60,
+	0xc4, 0xe6, 0x4e, 0xa2, 0x81, 0x2f, 0x50, 0x1c, 0x66, 0x8d, 0x26, 0xae, 0xec, 0xa9, 0x05, 0x25,
+	0x74, 0x07, 0x5e, 0xd3, 0xb9, 0xf9, 0xc8, 0xf5, 0x86, 0x94, 0x40, 0xd6, 0xd2, 0xec, 0x1d, 0xb9,
+	0x50, 0x9c, 0x6e, 0x16, 0x6f, 0x9f, 0x6e, 0x6a, 0xb7, 0x4e, 0x37, 0xb2, 0xf5, 0xbe, 0xf2, 0x45,
+	0x97, 0xb7, 0xea, 0xd8, 0x7a, 0xab, 0x0f, 0xeb, 0xcf, 0x71, 0x6d, 0xca, 0x79, 0x87, 0x7d, 0x3d,
+	0x13, 0x37, 0xef, 0xce, 0x88, 0x1b, 0xcd, 0x9b, 0xa9, 0xc0, 0xf9, 0xda, 0xf4, 0xa6, 0x97, 0xf5,
+	0x0c, 0x56, 0x1c, 0x77, 0xa5, 0xf8, 0x6a, 0xef, 0x6f, 0xc3, 0x3b, 0xf9, 0xa8, 0x12, 0x78, 0xca,
+	0x34, 0xac, 0xfe, 0x10, 0xcf, 0x8a, 0xd2, 0x8a, 0xdc, 0x63, 0x0a, 0xdd, 0x84, 0x25, 0x6f, 0xdc,
+	0xe3, 0x4f, 0xb5, 0xe4, 0x09, 0x8a, 0x34, 0x27, 0x29, 0xce, 0x78, 0xb6, 0xfd, 0x7e, 0x5a, 0x27,
+	0x65, 0x6e, 0x79, 0xf0, 0x66, 0x53, 0xa8, 0x63, 0x52, 0xcd, 0x26, 0x12, 0xe6, 0xbc, 0xd8, 0x36,
+	0x80, 0xae, 0x86, 0x7a, 0x62, 0x2c, 0xe0, 0x13, 0x03, 0x29, 0xf2, 0x89, 0xf1, 0x0d, 0x58, 0x13,
+	0x7c, 0xe4, 0x47, 0x3c, 0x1d, 0x7b, 0xe6, 0x4c, 0x85, 0x9b, 0xc8, 0x9c, 0x0a, 0xbe, 0x6d, 0x58,
+	0x26, 0x01, 0x74, 0x3c, 0xc6, 0x78, 0x03, 0x89, 0xe8, 0x06, 0xeb, 0x27, 0x71, 0x3d, 0x44, 0x90,
+	0xa6, 0xaf, 0x6a, 0x20, 0x7b, 0xa4, 0x6a, 0xf8, 0x24, 0x20, 0x0b, 0xa5, 0x6a, 0x77, 0xe8, 0x64,
+	0x25, 0x34, 0xfd, 0x4c, 0x9d, 0xab, 0xf5, 0xa9, 0xc8, 0x59, 0xbf, 0x23, 0x1f, 0x9d, 0x7d, 0x36,
+	0x71, 0xc3, 0x87, 0x7f, 0x10, 0x84, 0xea, 0x98, 0x94, 0x8f, 0x90, 0x30, 0xc7, 0x47, 0x72, 0x93,
+	0xba, 0xff, 0x89, 0x8b, 0x6a, 0x8a, 0x20, 0x61, 0x78, 0x0b, 0x16, 0xf9, 0xb8, 0xa7, 0x96, 0x4c,
+	0xb5, 0x64, 0xf2, 0x71, 0x4f, 0x2e, 0xbc, 0x0b, 0x26, 0xa6, 0x22, 0x6a, 0x4d, 0x74, 0x75, 0x68,
+	0xad, 0x20, 0x19, 0xd6, 0x0a, 0x92, 0xa1, 0xe5, 0xa1, 0x87, 0x62, 0x88, 0x12, 0x0f, 0x91, 0x35,
+	0x29, 0x0f, 0x21, 0x45, 0x6a, 0x30, 0x0f, 0x75, 0x7c, 0x51, 0xdb, 0x79, 0x17, 0x5a, 0xbf, 0xa1,
+	0x57, 0xc7, 0x5e, 0x10, 0x0c, 0x6f, 0x4e, 0xdd, 0x28, 0x79, 0xa3, 0xcd, 0xcd, 0x4b, 0x39, 0xf6,
+	0x9d, 0xa2, 0x82, 0x16, 0x48, 0x06, 0x1e, 0x26, 0x05, 0x8d, 0x08, 0xed, 0x9f, 0x19, 0x60, 0x3e,
+	0x68, 0x59, 0xda, 0x86, 0x65, 0x7a, 0x94, 0x93, 0x8f, 0xa9, 0x33, 0x41, 0x22, 0x5e, 0x84, 0x69,
+	0x59, 0x55, 0xd3, 0x11, 0x47, 0xe9, 0x96, 0xcb, 0x7f, 0xdf, 0xc7, 0xbc, 0x9d, 0xb6, 0xf7, 0xfe,
+	0xb2, 0x9f, 0xf5, 0xdc, 0x80, 0x76, 0x32, 0xa3, 0x3d, 0x9b, 0x5c, 0x8e, 0xfc, 0xde, 0x64, 0xc8,
+	0x1f, 0x7c, 0xce, 0x41, 0x41, 0x98, 0x9a, 0x73, 0x20, 0x65, 0xde, 0x9c, 0x63, 0x1d, 0xea, 0x61,
+	0xac, 0x60, 0x3c, 0xe6, 0x98, 0x12, 0x0a, 0x22, 0xdb, 0x2c, 0x8a, 0xec, 0xbf, 0x1b, 0xd8, 0xb6,
+	0xe6, 0x0c, 0x7e, 0x39, 0x8f, 0xee, 0x5c, 0x57, 0x5e, 0xcd, 0x75, 0xe5, 0x1f, 0x57, 0x6b, 0x95,
+	0x66, 0xd5, 0xce, 0x37, 0xfa, 0xbb, 0xcf, 0xeb, 0xd0, 0x9c, 0xea, 0x73, 0xc6, 0xc5, 0xb5, 0xd7,
+	0xe5, 0xec, 0xbb, 0xd0, 0xcc, 0xfe, 0x4f, 0xc1, 0x36, 0xb5, 0x8a, 0x9c, 0xff, 0xd3, 0xa5, 0xbd,
+	0x35, 0x9b, 0x01, 0x71, 0xb1, 0x4a, 0xb1, 0xe0, 0xf4, 0x34, 0x5f, 0x17, 0x5c, 0xf0, 0x4f, 0x85,
+	0x2e, 0xb8, 0xe8, 0x8f, 0x80, 0x44, 0x70, 0x7a, 0x96, 0xae, 0x0b, 0x2e, 0x98, 0xfb, 0xeb, 0x82,
+	0x8b, 0xc6, 0xf0, 0x56, 0x89, 0x7d, 0x02, 0xcb, 0xda, 0x00, 0x97, 0xad, 0xe7, 0xcd, 0x4c, 0x66,
+	0xd4, 0xed, 0x8d, 0x19, 0xab, 0x59, 0x79, 0xd3, 0x11, 0xb9, 0x2e, 0x2f, 0x3b, 0xc2, 0xd7, 0xe5,
+	0xe5, 0xe6, 0xea, 0x56, 0x89, 0x7d, 0x07, 0x56, 0xf4, 0xf9, 0x1b, 0xd3, 0xb6, 0xe4, 0xc6, 0x8e,
+	0xed, 0xcf, 0xcd, 0x5a, 0x9e, 0x8a, 0xfc, 0x1e, 0xac, 0x66, 0x06, 0xac, 0x2c, 0xbf, 0x49, 0x47,
+	0x72, 0x73, 0xe6, 0x7a, 0x2c, 0xf5, 0xb1, 0xf1, 0x25, 0x83, 0x7d, 0x0b, 0x1a, 0xe9, 0x29, 0x15,
+	0x7b, 0x94, 0xde, 0x96, 0x19, 0xaf, 0xb5, 0xd7, 0x8b, 0x17, 0xb3, 0x96, 0x27, 0x83, 0x12, 0xdd,
+	0xf2, 0xdc, 0x04, 0x4a, 0xb7, 0x3c, 0x3f, 0x5f, 0xb1, 0x4a, 0xac, 0x03, 0x90, 0x3c, 0xb2, 0xd9,
+	0xdb, 0x5a, 0xda, 0x49, 0x4f, 0x2d, 0xda, 0xed, 0xa2, 0xa5, 0xa9, 0x98, 0x4f, 0x11, 0xc0, 0x54,
+	0xb7, 0xa9, 0x03, 0x98, 0xef, 0x87, 0x75, 0x00, 0x0b, 0xda, 0x54, 0x09, 0x60, 0xa2, 0x9e, 0xec,
+	0x67, 0xb2, 0xea, 0xa5, 0x9a, 0xc5, 0xac, 0x7a, 0xe9, 0x16, 0x29, 0xb1, 0x12, 0x0b, 0xb3, 0x2e,
+	0x46, 0xeb, 0x67, 0x74, 0x31, 0x7a, 0x1d, 0xb7, 0x4a, 0xec, 0x0c, 0xf1, 0x4f, 0x8a, 0x8a, 0x8e,
+	0x7f, 0xae, 0xb8, 0xea, 0xf8, 0xe7, 0x6b, 0x91, 0x32, 0xf1, 0x07, 0x38, 0x6a, 0xcd, 0x64, 0x56,
+	0x66, 0xe5, 0x53, 0x40, 0xb6, 0xce, 0xb4, 0xb7, 0xe7, 0xf2, 0xc4, 0x67, 0x5c, 0x9a, 0xea, 0xef,
+	0xe3, 0x2f, 0xff, 0x27, 0x00, 0x00, 0xff, 0xff, 0x97, 0x87, 0xcf, 0x92, 0x68, 0x1e, 0x00, 0x00,
 }

@@ -17,24 +17,74 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type ServerInfoRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ServerInfoRequest) Reset()                    { *m = ServerInfoRequest{} }
-func (m *ServerInfoRequest) String() string            { return proto.CompactTextString(m) }
-func (*ServerInfoRequest) ProtoMessage()               {}
-func (*ServerInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
+func (m *ServerInfoRequest) Reset()         { *m = ServerInfoRequest{} }
+func (m *ServerInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*ServerInfoRequest) ProtoMessage()    {}
+func (*ServerInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_server_f514d4dfffd932d9, []int{0}
+}
+func (m *ServerInfoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServerInfoRequest.Unmarshal(m, b)
+}
+func (m *ServerInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServerInfoRequest.Marshal(b, m, deterministic)
+}
+func (dst *ServerInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServerInfoRequest.Merge(dst, src)
+}
+func (m *ServerInfoRequest) XXX_Size() int {
+	return xxx_messageInfo_ServerInfoRequest.Size(m)
+}
+func (m *ServerInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServerInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServerInfoRequest proto.InternalMessageInfo
 
 type ServerInfoResponse struct {
-	ServerVersion   string                              `protobuf:"bytes,1,opt,name=server_version,json=serverVersion" json:"server_version,omitempty"`
-	GitVersion      string                              `protobuf:"bytes,2,opt,name=git_version,json=gitVersion" json:"git_version,omitempty"`
-	StorageStatuses []*ServerInfoResponse_StorageStatus `protobuf:"bytes,3,rep,name=storage_statuses,json=storageStatuses" json:"storage_statuses,omitempty"`
+	ServerVersion        string                              `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	GitVersion           string                              `protobuf:"bytes,2,opt,name=git_version,json=gitVersion,proto3" json:"git_version,omitempty"`
+	StorageStatuses      []*ServerInfoResponse_StorageStatus `protobuf:"bytes,3,rep,name=storage_statuses,json=storageStatuses,proto3" json:"storage_statuses,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                            `json:"-"`
+	XXX_unrecognized     []byte                              `json:"-"`
+	XXX_sizecache        int32                               `json:"-"`
 }
 
-func (m *ServerInfoResponse) Reset()                    { *m = ServerInfoResponse{} }
-func (m *ServerInfoResponse) String() string            { return proto.CompactTextString(m) }
-func (*ServerInfoResponse) ProtoMessage()               {}
-func (*ServerInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
+func (m *ServerInfoResponse) Reset()         { *m = ServerInfoResponse{} }
+func (m *ServerInfoResponse) String() string { return proto.CompactTextString(m) }
+func (*ServerInfoResponse) ProtoMessage()    {}
+func (*ServerInfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_server_f514d4dfffd932d9, []int{1}
+}
+func (m *ServerInfoResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServerInfoResponse.Unmarshal(m, b)
+}
+func (m *ServerInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServerInfoResponse.Marshal(b, m, deterministic)
+}
+func (dst *ServerInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServerInfoResponse.Merge(dst, src)
+}
+func (m *ServerInfoResponse) XXX_Size() int {
+	return xxx_messageInfo_ServerInfoResponse.Size(m)
+}
+func (m *ServerInfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServerInfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServerInfoResponse proto.InternalMessageInfo
 
 func (m *ServerInfoResponse) GetServerVersion() string {
 	if m != nil {
@@ -58,17 +108,37 @@ func (m *ServerInfoResponse) GetStorageStatuses() []*ServerInfoResponse_StorageS
 }
 
 type ServerInfoResponse_StorageStatus struct {
-	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName" json:"storage_name,omitempty"`
-	Readable    bool   `protobuf:"varint,2,opt,name=readable" json:"readable,omitempty"`
-	Writeable   bool   `protobuf:"varint,3,opt,name=writeable" json:"writeable,omitempty"`
+	StorageName          string   `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	Readable             bool     `protobuf:"varint,2,opt,name=readable,proto3" json:"readable,omitempty"`
+	Writeable            bool     `protobuf:"varint,3,opt,name=writeable,proto3" json:"writeable,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ServerInfoResponse_StorageStatus) Reset()         { *m = ServerInfoResponse_StorageStatus{} }
 func (m *ServerInfoResponse_StorageStatus) String() string { return proto.CompactTextString(m) }
 func (*ServerInfoResponse_StorageStatus) ProtoMessage()    {}
 func (*ServerInfoResponse_StorageStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor12, []int{1, 0}
+	return fileDescriptor_server_f514d4dfffd932d9, []int{1, 0}
 }
+func (m *ServerInfoResponse_StorageStatus) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServerInfoResponse_StorageStatus.Unmarshal(m, b)
+}
+func (m *ServerInfoResponse_StorageStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServerInfoResponse_StorageStatus.Marshal(b, m, deterministic)
+}
+func (dst *ServerInfoResponse_StorageStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServerInfoResponse_StorageStatus.Merge(dst, src)
+}
+func (m *ServerInfoResponse_StorageStatus) XXX_Size() int {
+	return xxx_messageInfo_ServerInfoResponse_StorageStatus.Size(m)
+}
+func (m *ServerInfoResponse_StorageStatus) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServerInfoResponse_StorageStatus.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServerInfoResponse_StorageStatus proto.InternalMessageInfo
 
 func (m *ServerInfoResponse_StorageStatus) GetStorageName() string {
 	if m != nil {
@@ -105,8 +175,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for ServerService service
-
+// ServerServiceClient is the client API for ServerService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ServerServiceClient interface {
 	ServerInfo(ctx context.Context, in *ServerInfoRequest, opts ...grpc.CallOption) (*ServerInfoResponse, error)
 }
@@ -121,15 +192,14 @@ func NewServerServiceClient(cc *grpc.ClientConn) ServerServiceClient {
 
 func (c *serverServiceClient) ServerInfo(ctx context.Context, in *ServerInfoRequest, opts ...grpc.CallOption) (*ServerInfoResponse, error) {
 	out := new(ServerInfoResponse)
-	err := grpc.Invoke(ctx, "/gitaly.ServerService/ServerInfo", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/gitaly.ServerService/ServerInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for ServerService service
-
+// ServerServiceServer is the server API for ServerService service.
 type ServerServiceServer interface {
 	ServerInfo(context.Context, *ServerInfoRequest) (*ServerInfoResponse, error)
 }
@@ -169,9 +239,9 @@ var _ServerService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "server.proto",
 }
 
-func init() { proto.RegisterFile("server.proto", fileDescriptor12) }
+func init() { proto.RegisterFile("server.proto", fileDescriptor_server_f514d4dfffd932d9) }
 
-var fileDescriptor12 = []byte{
+var fileDescriptor_server_f514d4dfffd932d9 = []byte{
 	// 258 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0xcf, 0x4a, 0xc3, 0x40,
 	0x10, 0xc6, 0x6d, 0x03, 0xa5, 0x9d, 0x34, 0xfe, 0x19, 0x2f, 0x35, 0x08, 0xd6, 0x80, 0x90, 0x53,

@@ -1,0 +1,5 @@
+---
+title: Update Gitaly-Proto with protobuf go compiler 1.2
+merge_request: 1084
+author:
+type: other

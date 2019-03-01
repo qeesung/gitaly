@@ -132,7 +132,7 @@ func TestRemove(t *testing.T) {
 	require.NoError(t, pool.Create(ctx, testRepo))
 
 	req := &gitalypb.DeleteObjectPoolRequest{
-		pool.ToProto(),
+		ObjectPool: pool.ToProto(),
 	}
 
 	_, err = client.DeleteObjectPool(ctx, req)

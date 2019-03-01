@@ -1,5 +1,19 @@
 # Gitaly changelog
 
+## v1.22.0
+
+#### Fixed
+- Pass GL_PROTOCOL and GL_REPOSITORY to update hook
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1082
+
+#### Other
+- Support distributed tracing in child processes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1085
+
+#### Removed
+- Removing find_branch ruby implementation
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1096
+
 ## v1.21.0
 
 #### Added
