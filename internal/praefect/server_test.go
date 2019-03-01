@@ -26,10 +26,9 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 		callback simpleUnaryUnaryCallback
 
 		// all inputs and outputs for RPC SimpleUnaryUnary
-		request       *mock.SimpleRequest
-		expectResp    *mock.SimpleResponse
-		expectErrStr  string
-		expectErrCode int
+		request      *mock.SimpleRequest
+		expectResp   *mock.SimpleResponse
+		expectErrStr string
 	}{
 		{
 			name:     "simple request with response",
