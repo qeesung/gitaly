@@ -134,6 +134,13 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 
 ## Presentations
 
+-   [How Gitaly fits into GitLab, part 3 (video),
+    2019-03-07](https://drive.google.com/file/d/1G3xOpsblfYcCTyzv1Xe6Pg2Ce2TGriTb/view?usp=sharing)
+    a 1-hour training video for contributors new to GitLab and Gitaly.
+    Contents: a closer look at the final stage of `git push` where the
+    git hooks run and the refs get updated. Interaction between the git
+    hooks and GitLab internal API. The Git object quarantine mechanism.
+    Preview of Git HTTP (to be discussed next time).
 -   [How Gitaly fits into GitLab, part 2 (video),
     2019-02-28](https://drive.google.com/file/d/1SFvx49kJkMsvz8YD4chP0y_QJaygSiiH/view?usp=sharing)
     a 1-hour training video for contributors new to GitLab and Gitaly.
