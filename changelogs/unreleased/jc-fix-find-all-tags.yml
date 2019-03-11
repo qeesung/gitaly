@@ -1,0 +1,5 @@
+---
+title: Fix bug in FindAllTags when commit shas are used as tag names
+merge_request: 1119
+author:
+type: fixed
