@@ -25,7 +25,7 @@ TYPE_TO_LABEL = {
   'deprecated' => ['backstage'],
   'security' => ['security'],
   'removed' => ['backstage'],
-  'performance' => ['performance', 'feature'],
+  'performance' => ['performance', 'backstage'],
   'other' => ['backstage'],
   nil => []
 }
