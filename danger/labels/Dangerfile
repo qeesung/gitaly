@@ -19,17 +19,18 @@ if GITALY_TEAM.include?(gitlab.mr_author) && !gitlab.mr_labels.include?("Gitaly"
 end
 
 TYPE_TO_LABEL = {
-  'added' => 'feature',
-  'fixed' => 'bug',
-  'changed' => 'backstage',
-  'deprecated' => 'backstage',
-  'security' => 'security',
-  'removed' => 'backstage',
-  'performance' => 'performance',
-  'other' => 'backstage',
+  'added' => ['feature'],
+  'fixed' => ['bug'],
+  'changed' => ['backstage'],
+  'deprecated' => ['backstage'],
+  'security' => ['security'],
+  'removed' => ['backstage'],
+  'performance' => ['performance', 'feature'],
+  'other' => ['backstage'],
+  nil => []
 }
 
-required_labels << TYPE_TO_LABEL[changelog_entry["type"]]
+required_labels.concat(TYPE_TO_LABEL[changelog_entry["type"]])
 
 gitlab.api.update_merge_request(
   gitlab.mr_json['project_id'],
