@@ -138,13 +138,15 @@ func TestWriteString(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			_, err := WriteString(w, tc.in)
+			n, err := WriteString(w, tc.in)
 
 			if tc.fail {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+				return
 			}
+
+			require.NoError(t, err)
+			require.Equal(t, len(tc.in), n, "number of bytes written reported by WriteString")
 
 			require.Equal(t, tc.out, w.String())
 		})

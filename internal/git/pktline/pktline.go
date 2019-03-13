@@ -3,8 +3,6 @@ package pktline
 // Utility functions for working with the Git pkt-line format. See
 // https://github.com/git/git/blob/master/Documentation/technical/protocol-common.txt
 
-// TODO add tests https://gitlab.com/gitlab-org/gitaly/issues/1340
-
 import (
 	"bufio"
 	"bytes"
@@ -49,7 +47,8 @@ func WriteString(w io.Writer, str string) (int, error) {
 		return 0, fmt.Errorf("string too large: %d bytes", len(str))
 	}
 
-	return fmt.Fprintf(w, "%04x%s", pktLen, str)
+	_, err := fmt.Fprintf(w, "%04x%s", pktLen, str)
+	return len(str), err
 }
 
 // WriteFlush writes a pkt flush packet.
