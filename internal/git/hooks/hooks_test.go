@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,4 +24,15 @@ func TestPath(t *testing.T) {
 
 		require.Equal(t, "/override/hooks", Path())
 	})
+
+	t.Run("when an env override", func(t *testing.T) {
+		key := "GITALY_TESTING_HOOKS_DIRECTORY"
+		dir := "/override/hooks-from-env"
+
+		os.Setenv(key, dir)
+		defer os.Unsetenv(key)
+
+		require.Equal(t, dir, Path())
+	})
+
 }
