@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
@@ -24,6 +25,7 @@ func testMain(m *testing.M) int {
 
 	var err error
 
+	hooks.Override = "/does/not/exist"
 	testhelper.ConfigureRuby()
 	RubyServer, err = rubyserver.Start()
 	if err != nil {

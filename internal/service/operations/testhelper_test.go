@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -49,16 +48,9 @@ func testMain(m *testing.M) int {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer func(oldDir string) {
-		config.Config.GitlabShell.Dir = oldDir
-	}(config.Config.GitlabShell.Dir)
-	config.Config.GitlabShell.Dir = hookDir
-
-	if err := os.MkdirAll(hooks.Path(), 0755); err != nil {
-		log.Fatal(err)
-	}
 	defer os.RemoveAll(hookDir)
+
+	hooks.Override = hookDir
 
 	testhelper.ConfigureGitalySSH()
 

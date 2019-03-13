@@ -40,7 +40,7 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
   describe '.create_hooks' do
     let(:repo_path) { File.join(storage_path, 'hook-test.git') }
     let(:hooks_dir) { File.join(repo_path, 'hooks') }
-    let(:target_hooks_dir) { Gitlab::Git::Hook.directory }
+    let(:target_hooks_dir) { Gitlab::Git::Hook.legacy_hooks_directory }
     let(:existing_target) { File.join(repo_path, 'foobar') }
 
     before do

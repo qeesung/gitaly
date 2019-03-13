@@ -7,6 +7,10 @@ module Gitlab
         Gitlab.config.git.hooks_directory
       end
 
+      def self.legacy_hooks_directory
+        File.join(Gitlab.config.gitlab_shell.path, 'hooks')
+      end
+
       GL_PROTOCOL = 'web'
       attr_reader :name, :path, :repository
 

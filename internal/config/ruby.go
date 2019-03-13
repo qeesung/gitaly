@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -51,6 +52,12 @@ func ConfigureRuby() error {
 	minWorkers := 2
 	if Config.Ruby.NumWorkers < minWorkers {
 		Config.Ruby.NumWorkers = minWorkers
+	}
+
+	var err error
+	Config.Ruby.Dir, err = filepath.Abs(Config.Ruby.Dir)
+	if err != nil {
+		return err
 	}
 
 	return validateIsDirectory(Config.Ruby.Dir, "gitaly-ruby.dir")
