@@ -8,7 +8,7 @@ import (
 )
 
 // Override allows tests to control where the hooks directory is. Outside
-// consumers can also use the GITALY_TESTING_HOOKS_OVERRIDE environment
+// consumers can also use the GITALY_TESTING_NO_GIT_HOOKS environment
 // variable.
 var Override string
 
@@ -18,8 +18,8 @@ func Path() string {
 		return Override
 	}
 
-	if dir := os.Getenv("GITALY_TESTING_HOOKS_DIRECTORY"); len(dir) > 0 {
-		return dir
+	if os.Getenv("GITALY_TESTING_NO_GIT_HOOKS") == "1" {
+		return "/var/empty"
 	}
 
 	return path.Join(config.Config.Ruby.Dir, "git-hooks")

@@ -26,13 +26,12 @@ func TestPath(t *testing.T) {
 	})
 
 	t.Run("when an env override", func(t *testing.T) {
-		key := "GITALY_TESTING_HOOKS_DIRECTORY"
-		dir := "/override/hooks-from-env"
+		key := "GITALY_TESTING_NO_GIT_HOOKS"
 
-		os.Setenv(key, dir)
+		os.Setenv(key, "1")
 		defer os.Unsetenv(key)
 
-		require.Equal(t, dir, Path())
+		require.Equal(t, "/var/empty", Path())
 	})
 
 }
