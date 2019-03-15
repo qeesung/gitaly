@@ -3,6 +3,7 @@ package objectpool
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,8 @@ func TestLink(t *testing.T) {
 
 	content, err := ioutil.ReadFile(altPath)
 	require.NoError(t, err)
+
+	require.True(t, strings.HasPrefix(string(content), "../"), "expected %q to be relative path", content)
 
 	require.NoError(t, pool.Link(ctx, testRepo))
 
