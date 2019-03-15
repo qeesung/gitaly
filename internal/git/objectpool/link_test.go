@@ -31,8 +31,7 @@ func TestLink(t *testing.T) {
 
 	require.NoError(t, pool.Link(ctx, testRepo))
 
-	_, err = os.Stat(altPath)
-	require.False(t, os.IsNotExist(err))
+	require.FileExists(t, altPath, "alternates file must exist after Link")
 
 	content, err := ioutil.ReadFile(altPath)
 	require.NoError(t, err)
@@ -68,8 +67,8 @@ func TestUnlink(t *testing.T) {
 
 	require.NoError(t, pool.Create(ctx, testRepo))
 	require.NoError(t, pool.Link(ctx, testRepo))
-	_, err = os.Stat(altPath)
-	require.False(t, os.IsNotExist(err))
+
+	require.FileExists(t, altPath, "alternates file must exist after Link")
 
 	require.NoError(t, pool.Unlink(ctx, testRepo))
 	_, err = os.Stat(altPath)

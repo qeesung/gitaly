@@ -1,6 +1,8 @@
 package objectpool
 
 import (
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -68,14 +70,18 @@ func TestLink(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, err := client.LinkRepositoryToObjectPool(ctx, tc.req)
-			require.Equal(t, tc.code, helper.GrpcCode(err))
 
-			if tc.code == codes.OK {
-				commit, err := log.GetCommit(ctx, testRepo, poolCommitID)
-				require.NoError(t, err)
-				require.NotNil(t, commit)
-				require.Equal(t, poolCommitID, commit.Id)
+			if tc.code != codes.OK {
+				testhelper.RequireGrpcError(t, err, tc.code)
+				return
 			}
+
+			require.NoError(t, err, "error from LinkRepositoryToObjectPool")
+
+			commit, err := log.GetCommit(ctx, testRepo, poolCommitID)
+			require.NoError(t, err)
+			require.NotNil(t, commit)
+			require.Equal(t, poolCommitID, commit.Id)
 		})
 	}
 }
@@ -108,6 +114,45 @@ func TestLinkIdempotent(t *testing.T) {
 
 	_, err = client.LinkRepositoryToObjectPool(ctx, request)
 	require.NoError(t, err)
+}
+
+func TestLinkNoClobber(t *testing.T) {
+	server, serverSocketPath := runObjectPoolServer(t)
+	defer server.Stop()
+
+	client, conn := newObjectPoolClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	require.NoError(t, err)
+	defer pool.Remove(ctx)
+
+	require.NoError(t, pool.Create(ctx, testRepo))
+
+	alternatesFile := filepath.Join(testRepoPath, "objects/info/alternates")
+	testhelper.AssertFileNotExists(t, alternatesFile)
+
+	alternatesContent := "mock/objects\n"
+	require.NoError(t, ioutil.WriteFile(alternatesFile, []byte(alternatesContent), 0644))
+
+	request := &gitalypb.LinkRepositoryToObjectPoolRequest{
+		Repository: testRepo,
+		ObjectPool: pool.ToProto(),
+	}
+
+	_, err = client.LinkRepositoryToObjectPool(ctx, request)
+	require.Error(t, err)
+
+	contentAfter, err := ioutil.ReadFile(alternatesFile)
+	require.NoError(t, err)
+
+	require.Equal(t, alternatesContent, string(contentAfter))
 }
 
 func TestUnlink(t *testing.T) {
