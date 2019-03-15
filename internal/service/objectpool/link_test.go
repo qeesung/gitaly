@@ -29,8 +29,9 @@ func TestLink(t *testing.T) {
 
 	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
 	require.NoError(t, err)
-	defer pool.Remove(ctx)
-	require.NoError(t, pool.Create(ctx, testRepo))
+
+	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist at start of test")
+	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
 
 	// Mock object in the pool, which should be available to the pool members
 	// after linking
@@ -129,7 +130,7 @@ func TestLinkNoClobber(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -138,8 +139,8 @@ func TestLinkNoClobber(t *testing.T) {
 	alternatesFile := filepath.Join(testRepoPath, "objects/info/alternates")
 	testhelper.AssertFileNotExists(t, alternatesFile)
 
-	alternatesContent := "mock/objects\n"
-	require.NoError(t, ioutil.WriteFile(alternatesFile, []byte(alternatesContent), 0644))
+	contentBefore := "mock/objects\n"
+	require.NoError(t, ioutil.WriteFile(alternatesFile, []byte(contentBefore), 0644))
 
 	request := &gitalypb.LinkRepositoryToObjectPoolRequest{
 		Repository: testRepo,
@@ -152,7 +153,7 @@ func TestLinkNoClobber(t *testing.T) {
 	contentAfter, err := ioutil.ReadFile(alternatesFile)
 	require.NoError(t, err)
 
-	require.Equal(t, alternatesContent, string(contentAfter))
+	require.Equal(t, contentBefore, string(contentAfter), "contents of existing alternates file should not have changed")
 }
 
 func TestUnlink(t *testing.T) {
@@ -168,10 +169,12 @@ func TestUnlink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
-	defer pool.Remove(ctx)
-	require.NoError(t, pool.Create(ctx, testRepo))
+
+	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist prior to creation")
+	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
+
 	require.NoError(t, pool.Link(ctx, testRepo))
 
 	poolCommitID := testhelper.CreateCommit(t, pool.FullPath(), "pool-test-branch", nil)

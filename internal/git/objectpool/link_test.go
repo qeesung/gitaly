@@ -18,11 +18,11 @@ func TestLink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
-	defer pool.Remove(ctx)
 
-	require.NoError(t, pool.Create(ctx, testRepo))
+	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist prior to creation")
+	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
 
 	altPath, err := git.AlternatesPath(testRepo)
 	require.NoError(t, err)
