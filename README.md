@@ -134,6 +134,12 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 
 ## Presentations
 
+-   [How Gitaly fits into GitLab, part 4 (video),
+    2019-03-14](https://drive.google.com/file/d/1S-X1MvXMTEHJDIQWrabyROfVNOkmPxWH/view?usp=sharing)
+    a 1-hour training video for contributors new to GitLab and Gitaly.
+    Contents: intercepting Git HTTP traffic with mitmproxy, overview of
+    Git HTTP clone steps, code walk in gitlab-workhorse and gitlab-ce,
+    investigating internal workhorse API messages used for Git HTTP.
 -   [How Gitaly fits into GitLab, part 3 (video),
     2019-03-07](https://drive.google.com/file/d/1G3xOpsblfYcCTyzv1Xe6Pg2Ce2TGriTb/view?usp=sharing)
     a 1-hour training video for contributors new to GitLab and Gitaly.
