@@ -460,7 +460,7 @@ func GetRepositoryRefs(t *testing.T, repoPath string) string {
 // AssertFileNotExists asserts true if the file doesn't exist, false otherwise
 func AssertFileNotExists(t *testing.T, path string) {
 	_, err := os.Stat(path)
-	assert.True(t, os.IsNotExist(err))
+	assert.True(t, os.IsNotExist(err), "file should not exist: %s", path)
 }
 
 // NewTestObjectPoolName returns a random pool repository name.
