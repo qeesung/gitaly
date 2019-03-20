@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -224,7 +225,7 @@ func createCommit(t *testing.T, repoPath string, fileContents []byte) (oldHead s
 	committerEmail := "scrooge@mcduck.com"
 
 	// The latest commit ID on the remote repo
-	oldHead = strings.TrimSpace(string(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "master")))
+	oldHead = text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "master"))
 
 	changedFile := "README.md"
 	require.NoError(t, ioutil.WriteFile(path.Join(repoPath, changedFile), fileContents, 0644))
@@ -236,7 +237,7 @@ func createCommit(t *testing.T, repoPath string, fileContents []byte) (oldHead s
 		"commit", "-m", commitMsg)
 
 	// The commit ID we want to push to the remote repo
-	newHead = strings.TrimSpace(string(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "master")))
+	newHead = text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "master"))
 
 	return oldHead, newHead
 }

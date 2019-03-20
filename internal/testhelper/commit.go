@@ -6,10 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
 
 // CreateCommitOpts holds extra options for CreateCommit.
@@ -50,7 +50,7 @@ func CreateCommit(t *testing.T, repoPath, branchName string, opts *CreateCommitO
 		"commit-tree", "-F", "-", "-p", parentID, parentID + "^{tree}",
 	}
 	newCommit := MustRunCommand(t, stdin, "git", commitArgs...)
-	newCommitID := strings.TrimSpace(string(newCommit))
+	newCommitID := text.ChompBytes(newCommit)
 
 	MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref", "refs/heads/"+branchName, newCommitID)
 	return newCommitID

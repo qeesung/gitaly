@@ -3,12 +3,12 @@ package operations
 import (
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
@@ -168,7 +168,7 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 			defer exec.Command("git", "-C", testRepoPath, "tag", "-d", inputTagName).Run()
 
 			id := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", inputTagName)
-			testCase.expectedTag.Id = strings.TrimSpace(string(id))
+			testCase.expectedTag.Id = text.ChompBytes(id)
 
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedTag, response.Tag)

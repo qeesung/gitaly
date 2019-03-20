@@ -3,12 +3,12 @@ package operations_test
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
@@ -223,7 +223,7 @@ func TestSuccessfulUserCommitFilesRequestForceCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	mergeBaseOut := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "merge-base", targetBranchCommit.Id, startBranchCommit.Id)
-	mergeBaseID := strings.TrimSuffix(string(mergeBaseOut), "\n")
+	mergeBaseID := text.ChompBytes(mergeBaseOut)
 	require.NotEqual(t, mergeBaseID, targetBranchCommit.Id, "expected %s not to be an ancestor of %s", targetBranchCommit.Id, startBranchCommit.Id)
 
 	headerRequest := headerRequest(testRepo, user, targetBranchName, commitFilesMessage)

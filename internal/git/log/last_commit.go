@@ -3,13 +3,13 @@ package log
 import (
 	"context"
 	"io/ioutil"
-	"strings"
 
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
 
 // LastCommitForPath returns the last commit which modified path.
@@ -24,7 +24,7 @@ func LastCommitForPath(ctx context.Context, repo *gitalypb.Repository, revision 
 		return nil, err
 	}
 
-	return GetCommit(ctx, repo, strings.TrimSpace(string(commitID)))
+	return GetCommit(ctx, repo, text.ChompBytes(commitID))
 }
 
 // GitLogCommand returns a Command that executes git log with the given the arguments

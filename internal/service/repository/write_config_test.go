@@ -1,11 +1,11 @@
 package repository
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
@@ -50,7 +50,7 @@ func TestWriteConfigSuccessful(t *testing.T) {
 			require.Empty(t, string(c.GetError()))
 
 			actualConfig := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "gitlab.fullpath")
-			require.Equal(t, tc.setPath, strings.TrimRight(string(actualConfig), "\n"))
+			require.Equal(t, tc.setPath, text.ChompBytes(actualConfig))
 		})
 	}
 }

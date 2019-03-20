@@ -3,12 +3,12 @@ package wiki
 import (
 	"bytes"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -59,19 +59,19 @@ func TestWikiGetPageVersionsRequest(t *testing.T) {
 			versions: []*gitalypb.WikiPageVersion{
 				{
 					Commit: &gitalypb.GitCommit{
-						Id:        strings.TrimRight(string(v2cid), "\n"),
+						Id:        text.ChompBytes(v2cid),
 						Body:      []byte("Update WikiGétPageVersions"),
 						Subject:   []byte("Update WikiGétPageVersions"),
 						Author:    gitAuthor,
 						Committer: gitAuthor,
-						ParentIds: []string{strings.TrimRight(string(v1cid), "\n")},
+						ParentIds: []string{text.ChompBytes(v1cid)},
 						BodySize:  26,
 					},
 					Format: "markdown",
 				},
 				{
 					Commit: &gitalypb.GitCommit{
-						Id:        strings.TrimRight(string(v1cid), "\n"),
+						Id:        text.ChompBytes(v1cid),
 						Body:      []byte("Add WikiGétPageVersions"),
 						Subject:   []byte("Add WikiGétPageVersions"),
 						Author:    gitAuthor,

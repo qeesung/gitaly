@@ -4,11 +4,11 @@ import (
 	"context"
 	"io/ioutil"
 	"sort"
-	"strings"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 	"google.golang.org/grpc/codes"
@@ -86,5 +86,5 @@ func lookupRevision(ctx context.Context, repo *gitalypb.Repository, revision str
 		return "", err
 	}
 
-	return strings.TrimSpace(string(revParseBytes)), nil
+	return text.ChompBytes(revParseBytes), nil
 }

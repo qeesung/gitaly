@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
@@ -273,7 +274,7 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 			require.NoError(t, err, "consume EOF")
 
 			currentBranchHead := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", mergeBranchName)
-			require.Equal(t, mergeBranchHeadBefore, strings.TrimSpace(string(currentBranchHead)), "branch head updated")
+			require.Equal(t, mergeBranchHeadBefore, text.ChompBytes(currentBranchHead), "branch head updated")
 		})
 	}
 
@@ -315,7 +316,7 @@ func TestSuccessfulUserFFBranchRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedResponse, resp)
 	newBranchHead := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", branchName)
-	require.Equal(t, commitID, strings.TrimSpace(string(newBranchHead)), "branch head not updated")
+	require.Equal(t, commitID, text.ChompBytes(newBranchHead), "branch head not updated")
 }
 
 func TestFailedUserFFBranchRequest(t *testing.T) {
@@ -481,7 +482,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 		targetRef []byte
 		emptyRef  bool
 		sourceSha string
-		message   []byte
+		message   string
 	}{
 		{
 			desc:      "empty target ref merge",
@@ -490,7 +491,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 			targetRef: emptyTargetRef,
 			emptyRef:  true,
 			sourceSha: commitToMerge,
-			message:   []byte(mergeCommitMessage),
+			message:   mergeCommitMessage,
 		},
 		{
 			desc:      "existing target ref",
@@ -499,7 +500,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 			targetRef: existingTargetRef,
 			emptyRef:  false,
 			sourceSha: commitToMerge,
-			message:   []byte(mergeCommitMessage),
+			message:   mergeCommitMessage,
 		},
 	}
 
@@ -514,7 +515,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 				Branch:     testCase.branch,
 				TargetRef:  testCase.targetRef,
 				SourceSha:  testCase.sourceSha,
-				Message:    testCase.message,
+				Message:    []byte(testCase.message),
 			}
 
 			commitBeforeRefMerge, fetchRefBeforeMergeErr := gitlog.GetCommit(ctx, testRepo, string(testCase.targetRef))
@@ -533,7 +534,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 			// Asserts commit parent SHAs
 			require.Equal(t, []string{mergeBranchHeadBefore, testCase.sourceSha}, commit.ParentIds, "merge commit parents must be the sha before HEAD and source sha")
 
-			require.True(t, strings.HasPrefix(string(commit.Body), string(testCase.message)), "expected %q to start with %q", commit.Body, string(testCase.message))
+			require.True(t, strings.HasPrefix(string(commit.Body), testCase.message), "expected %q to start with %q", commit.Body, testCase.message)
 
 			// Asserts author
 			author := commit.Author

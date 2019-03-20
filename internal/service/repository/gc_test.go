@@ -7,13 +7,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
@@ -235,7 +235,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 
 			// The existing keeparound still exists
 			commitSha := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", existingRefName)
-			require.Equal(t, existingSha, strings.TrimSpace(string(commitSha)))
+			require.Equal(t, existingSha, text.ChompBytes(commitSha))
 
 			//The invalid one was removed
 			_, err = os.Stat(bogusPath)
@@ -244,7 +244,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 			if testcase.shouldExist {
 				keepAroundName := fmt.Sprintf("refs/keep-around/%s", testcase.refName)
 				commitSha := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", keepAroundName)
-				require.Equal(t, testcase.refName, strings.TrimSpace(string(commitSha)))
+				require.Equal(t, testcase.refName, text.ChompBytes(commitSha))
 			} else {
 				_, err := os.Stat(refPath)
 				require.True(t, os.IsNotExist(err), "expected 'does not exist' error, got %v", err)

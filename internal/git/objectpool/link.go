@@ -8,9 +8,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git/remote"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -46,7 +46,7 @@ func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) error 
 
 	actualContent, err := ioutil.ReadFile(altPath)
 	if err == nil {
-		if strings.TrimSuffix(string(actualContent), "\n") == expectedContent {
+		if text.ChompBytes(actualContent) == expectedContent {
 			return nil
 		}
 

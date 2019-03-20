@@ -3,10 +3,10 @@ package repository
 import (
 	"context"
 	"io/ioutil"
-	"strings"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -35,7 +35,7 @@ func (s *server) FindMergeBase(ctx context.Context, req *gitalypb.FindMergeBaseR
 		return nil, err
 	}
 
-	mergeBaseStr := strings.TrimSpace(string(mergeBase))
+	mergeBaseStr := text.ChompBytes(mergeBase)
 
 	if err := cmd.Wait(); err != nil {
 		// On error just return an empty merge base

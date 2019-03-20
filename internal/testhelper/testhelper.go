@@ -29,6 +29,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"google.golang.org/grpc"
@@ -332,7 +333,7 @@ func mustFindNoRunningChildProcess() {
 
 	out, err := pgrep.Output()
 	if err == nil {
-		pidsComma := strings.Replace(strings.TrimSpace(string(out)), ",", "\n", -1)
+		pidsComma := strings.Replace(text.ChompBytes(out), "\n", ",", -1)
 		psOut, _ := exec.Command("ps", "-o", "pid,args", "-p", pidsComma).Output()
 		panic(fmt.Errorf("found running child processes %s:\n%s", pidsComma, psOut))
 	}
