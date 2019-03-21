@@ -13,14 +13,11 @@ A normal `git fetch` over SSH goes through these steps. Note that here
 
 ```
 # Machine of GitLab user
-git fetch -(spawn)->
-ssh client -(internet)->
-sshd -(spawn)->
+git fetch -(spawn)-> ssh client -(internet)-> sshd -(spawn)->
   # GitLab server
   gitlab-shell -(grpc SSHUploadPack)-> 
     # Gitaly server
-    gitaly -(spawn)->
-    git-upload-pack
+    gitaly -(spawn)-> git-upload-pack
 ```
 
 In contrast, with `gitaly-ssh`, `git fetch` is run by one Gitaly server
@@ -29,10 +26,7 @@ that there is no SSH client or server in this chain.
 
 ```
 # Gitaly server 1
-gitaly -(spawn)->
-GIT_SSH_COMMAND=gitaly-ssh git fetch -(spawn)->
-gitaly-ssh -(grpc SSHUploadPack)->
+gitaly -(spawn)-> GIT_SSH_COMMAND=gitaly-ssh git fetch -(spawn)-> gitaly-ssh -(grpc SSHUploadPack)->
   # Gitaly server 2
-  gitaly 2 -(spawn)->
-  git-upload-pack
+  gitaly 2 -(spawn)-> git-upload-pack
 ```
