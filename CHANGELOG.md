@@ -3,6 +3,8 @@
 ## v1.29.0
 
 #### Fixed
+- FindAllTags: Handle edge case of annotated tags without messages
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1134
 - Fix "bytes written" count in pktline.WriteString
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1129
 - Prevent clobbering existing Git alternates
