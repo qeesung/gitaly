@@ -3,6 +3,7 @@ package objectpool
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -38,7 +39,7 @@ func (s *server) UnlinkRepositoryFromObjectPool(ctx context.Context, req *gitaly
 	}
 
 	if !pool.Exists() {
-		return nil, helper.ErrNotFound(errors.New("pool repository not found"))
+		return nil, helper.ErrNotFound(fmt.Errorf("pool repository not found: %s", pool.FullPath()))
 	}
 
 	if err := pool.Unlink(ctx, req.GetRepository()); err != nil {
