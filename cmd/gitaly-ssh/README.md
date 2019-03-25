@@ -53,3 +53,22 @@ gitaly -(spawn)-> git fetch -(spawn)-> gitaly-ssh -(grpc SSHUploadPack)->
   # Gitaly server 2
   gitaly 2 -(spawn)-> git-upload-pack
 ```
+
+```mermaid
+sequenceDiagram
+  participant Gitaly1 as Gitaly 1
+  participant Gitaly1Git as Git
+  participant GitalySSH as gitaly-ssh
+  participant Gitaly2 as Gitaly 2
+  participant Gitaly2Git as Git
+
+  Gitaly1 ->> Gitaly1Git: Spawns git-fetch
+  Gitaly1Git ->> GitalySSH: Spawns gitaly-ssh
+  Note over Gitaly1,GitalySSH: On Gitaly server 1
+
+  GitalySSH ->> Gitaly2: grpc SSHUploadPack
+  Note over GitalySSH,Gitaly2: TCP/IP or Unix socket between Gitaly servers
+
+  Gitaly2 ->> Gitaly2Git: Spawns git-upload-pack
+  Note over Gitaly2,Gitaly2Git: On Gitaly server 2
+```
