@@ -13,6 +13,7 @@ A normal `git fetch` over SSH goes through these steps. Note that here
 
 ```mermaid
 sequenceDiagram
+  participant User as User
   participant UserGit as git fetch
   participant SSHClient as User's SSH Client
   participant SSHD as GitLab SSHD
@@ -20,6 +21,7 @@ sequenceDiagram
   participant GitalyServer as Gitaly
   participant GitalyGit as git upload-pack
 
+  User ->> UserGit: Runs git fetch
   UserGit ->> SSHClient: Spawns SSH client
   Note over UserGit,SSHClient: On user's local machine
 
