@@ -13,7 +13,7 @@ A normal `git fetch` over SSH goes through these steps. Note that here
 
 ```mermaid
 sequenceDiagram
-  participant UserGit as User's Git
+  participant UserGit as User's `git fetch`
   participant SSHClient as User's SSH Client
   participant SSHD as GitLab SSHD
   participant GitLabShell as gitlab-shell
