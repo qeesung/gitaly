@@ -18,7 +18,7 @@ sequenceDiagram
   participant SSHD as GitLab SSHD
   participant GitLabShell as gitlab-shell
   participant GitalyServer as Gitaly
-  participant GitalyGit as Gitaly 'git upload-pack'
+  participant GitalyGit as git upload-pack
 
   UserGit ->> SSHClient: Spawns SSH client
   Note over UserGit,SSHClient: On user's local machine
@@ -44,7 +44,7 @@ sequenceDiagram
   participant Gitaly1Git as Git
   participant GitalySSH as gitaly-ssh
   participant Gitaly2 as Gitaly 2
-  participant Gitaly2Git as Gitaly 2 'git upload-pack'
+  participant Gitaly2Git as git upload-pack
 
   Gitaly1 ->> Gitaly1Git: Spawns git-fetch
   Gitaly1Git ->> GitalySSH: Spawns gitaly-ssh
