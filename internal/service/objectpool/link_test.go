@@ -3,6 +3,7 @@ package objectpool
 import (
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -182,6 +183,7 @@ func TestUnlink(t *testing.T) {
 	poolCommitID := testhelper.CreateCommit(t, pool.FullPath(), "pool-test-branch", nil)
 	_, sanityErr := log.GetCommit(ctx, testRepo, poolCommitID)
 	require.NoError(t, sanityErr, "sanity check: commit can be found after test setup")
+	require.True(t, remoteExists(t, pool.FullPath(), testRepo.GlRepository), "sanity check: remote exists in pool")
 
 	testCases := []struct {
 		desc string
@@ -259,8 +261,26 @@ func TestUnlink(t *testing.T) {
 
 			_, err := log.GetCommit(ctx, testRepo, poolCommitID)
 			require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
+
+			require.False(t, remoteExists(t, pool.FullPath(), testRepo.GlRepository), "remote should no longer exist in pool")
 		})
 	}
+}
+
+func remoteExists(t *testing.T, repoPath string, remote string) bool {
+	if len(remote) == 0 {
+		t.Fatalf("empty remote name")
+	}
+
+	remotes := testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "remote")
+
+	for _, r := range strings.Split(string(remotes), "\n") {
+		if r == remote {
+			return true
+		}
+	}
+
+	return false
 }
 
 func TestUnlinkIdempotent(t *testing.T) {
