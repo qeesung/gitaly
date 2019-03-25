@@ -20,6 +20,28 @@ git fetch -(spawn)-> ssh client -(internet)->
     gitaly -(spawn)-> git-upload-pack
 ```
 
+```mermaid
+sequenceDiagram
+  participant UserGit as User's Git
+  participant SSHClient as User's SSH Client
+  participant SSHD as GitLab SSHD
+  participant GitLabShell as gitlab-shell
+  participant GitalyServer as Gitaly
+  participant GitalyGit as Gitaly's Git
+
+  UserGit ->> SSHClient: Spawns SSH client
+  Note over UserGit,SSHClient: On user's local machine
+
+  SSHClient ->> SSHD: SSH session
+  Note over SSHClient,SSHD: Session over Internet
+
+  SSHD ->> GitLabShell: spawns gitlab-shell
+  GitLabShell ->> GitalyServer: gRPC SSHUploadPack
+  GitalyServer ->> GitalyGit: spawns git-upload-pack
+  Note over SSHD,GitalyGit: On GitLab Server
+  Note over GitalyServer,GitalyGit: On Gitaly Server
+```
+
 In contrast, with `gitaly-ssh`, `git fetch` is run by one Gitaly server
 ('gitaly 1') that wants to fetch data from another ('gitaly 2'). Note
 that there is no SSH client or server in this chain.
