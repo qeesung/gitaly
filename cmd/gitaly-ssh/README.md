@@ -38,8 +38,9 @@ sequenceDiagram
   SSHD ->> GitLabShell: spawns gitlab-shell
   GitLabShell ->> GitalyServer: gRPC SSHUploadPack
   GitalyServer ->> GitalyGit: spawns git-upload-pack
-  Note over SSHD,GitalyGit: On GitLab Server
-  Note over GitalyServer,GitalyGit: On Gitaly Server
+
+  Note over GitalyServer,GitalyGit: On Gitaly server
+  Note over SSHD,GitalyGit: On GitLab server
 ```
 
 In contrast, with `gitaly-ssh`, `git fetch` is run by one Gitaly server
