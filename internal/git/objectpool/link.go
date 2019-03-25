@@ -3,6 +3,7 @@ package objectpool
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -124,7 +125,7 @@ func (o *ObjectPool) LinkedToRepository(repo *gitalypb.Repository) (bool, error)
 // It removes the remote from the object pool too,
 func (o *ObjectPool) Unlink(ctx context.Context, repo *gitalypb.Repository) error {
 	if !o.Exists() {
-		return nil
+		return errors.New("pool does not exist")
 	}
 
 	// We need to use removeRemote, and can't leverage `git config --remove-section`

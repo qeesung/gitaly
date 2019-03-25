@@ -9,7 +9,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
@@ -171,26 +170,24 @@ func TestUnlink(t *testing.T) {
 
 	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
+	defer pool.Remove(ctx)
 
-	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist prior to creation")
 	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
-
 	require.NoError(t, pool.Link(ctx, testRepo))
 
+	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	require.NoError(t, err)
+	defer pool2.Remove(ctx)
+
 	poolCommitID := testhelper.CreateCommit(t, pool.FullPath(), "pool-test-branch", nil)
+	_, sanityErr := log.GetCommit(ctx, testRepo, poolCommitID)
+	require.NoError(t, sanityErr, "sanity check: commit can be found after test setup")
 
 	testCases := []struct {
 		desc string
 		req  *gitalypb.UnlinkRepositoryFromObjectPoolRequest
 		code codes.Code
 	}{
-		{
-			desc: "Repository does not exist",
-			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
-				Repository: nil,
-			},
-			code: codes.InvalidArgument,
-		},
 		{
 			desc: "Successful request",
 			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
@@ -199,17 +196,69 @@ func TestUnlink(t *testing.T) {
 			},
 			code: codes.OK,
 		},
+		{
+			desc: "Not linked in the first place",
+			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
+				Repository: testRepo,
+				ObjectPool: pool2.ToProto(),
+			},
+			code: codes.OK,
+		},
+		{
+			desc: "no Repository",
+			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
+				Repository: nil,
+				ObjectPool: pool.ToProto(),
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "no ObjectPool",
+			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
+				Repository: testRepo,
+				ObjectPool: nil,
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "Repo not found",
+			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  testRepo.GetStorageName(),
+					RelativePath: "repo/does/not/exist",
+				},
+				ObjectPool: pool.ToProto(),
+			},
+			code: codes.NotFound,
+		},
+		{
+			desc: "Pool not found",
+			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
+				Repository: testRepo,
+				ObjectPool: &gitalypb.ObjectPool{
+					Repository: &gitalypb.Repository{
+						StorageName:  testRepo.GetStorageName(),
+						RelativePath: "pool/does/not/exist",
+					},
+				},
+			},
+			code: codes.NotFound,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, err := client.UnlinkRepositoryFromObjectPool(ctx, tc.req)
-			require.Equal(t, tc.code, helper.GrpcCode(err))
+			_, rpcErr := client.UnlinkRepositoryFromObjectPool(ctx, tc.req)
 
-			if tc.code == codes.OK {
-				_, err = log.GetCommit(ctx, testRepo, poolCommitID)
-				require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
+			if tc.code != codes.OK {
+				testhelper.RequireGrpcError(t, rpcErr, tc.code)
+				return
 			}
+
+			require.NoError(t, err, "call UnlinkRepositoryFromObjectPool")
+
+			_, err := log.GetCommit(ctx, testRepo, poolCommitID)
+			require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
 		})
 	}
 }

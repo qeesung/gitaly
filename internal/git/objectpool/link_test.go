@@ -62,8 +62,7 @@ func TestUnlink(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
-	// Without a pool on disk, this doesn't return an error
-	require.NoError(t, pool.Unlink(ctx, testRepo))
+	require.Error(t, pool.Unlink(ctx, testRepo), "removing a non-existing pool should be an error")
 
 	altPath, err := git.AlternatesPath(testRepo)
 	require.NoError(t, err)
