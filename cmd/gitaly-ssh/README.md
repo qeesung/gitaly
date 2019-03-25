@@ -13,12 +13,12 @@ A normal `git fetch` over SSH goes through these steps. Note that here
 
 ```mermaid
 sequenceDiagram
-  participant UserGit as User's `git fetch`
+  participant UserGit as User 'git fetch'
   participant SSHClient as User's SSH Client
   participant SSHD as GitLab SSHD
   participant GitLabShell as gitlab-shell
   participant GitalyServer as Gitaly
-  participant GitalyGit as Gitaly's Git
+  participant GitalyGit as Gitaly 'git upload-pack'
 
   UserGit ->> SSHClient: Spawns SSH client
   Note over UserGit,SSHClient: On user's local machine
@@ -28,7 +28,7 @@ sequenceDiagram
 
   SSHD ->> GitLabShell: spawns gitlab-shell
   GitLabShell ->> GitalyServer: gRPC SSHUploadPack
-  GitalyServer ->> GitalyGit: spawns git-upload-pack
+  GitalyServer ->> GitalyGit: spawns git upload-pack
 
   Note over GitalyServer,GitalyGit: On Gitaly server
   Note over SSHD,GitalyGit: On GitLab server
@@ -40,11 +40,11 @@ that there is no SSH client or server in this chain.
 
 ```mermaid
 sequenceDiagram
-  participant Gitaly1 as Gitaly 1
+  participant Gitaly1 as Gitaly 1 'git fetch'
   participant Gitaly1Git as Git
   participant GitalySSH as gitaly-ssh
   participant Gitaly2 as Gitaly 2
-  participant Gitaly2Git as Git
+  participant Gitaly2Git as Gitaly 2 'git upload-pack'
 
   Gitaly1 ->> Gitaly1Git: Spawns git-fetch
   Gitaly1Git ->> GitalySSH: Spawns gitaly-ssh
@@ -53,6 +53,6 @@ sequenceDiagram
   GitalySSH ->> Gitaly2: grpc SSHUploadPack
   Note over GitalySSH,Gitaly2: Internal network connection
 
-  Gitaly2 ->> Gitaly2Git: Spawns git-upload-pack
+  Gitaly2 ->> Gitaly2Git: Spawns git upload-pack
   Note over Gitaly2,Gitaly2Git: On Gitaly server 2
 ```
