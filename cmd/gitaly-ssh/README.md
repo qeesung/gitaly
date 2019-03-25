@@ -40,8 +40,8 @@ that there is no SSH client or server in this chain.
 
 ```mermaid
 sequenceDiagram
-  participant Gitaly1 as Gitaly 1 'git fetch'
-  participant Gitaly1Git as Git
+  participant Gitaly1 as Gitaly 1
+  participant Gitaly1Git as git fetch
   participant GitalySSH as gitaly-ssh
   participant Gitaly2 as Gitaly 2
   participant Gitaly2Git as git upload-pack
