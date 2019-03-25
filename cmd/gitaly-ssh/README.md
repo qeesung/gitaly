@@ -23,7 +23,7 @@ sequenceDiagram
 
   User ->> UserGit: Runs git fetch
   UserGit ->> SSHClient: Spawns SSH client
-  Note over UserGit,SSHClient: On user's local machine
+  Note over User,SSHClient: On user's local machine
 
   SSHClient ->> SSHD: SSH session
   Note over SSHClient,SSHD: Session over Internet
