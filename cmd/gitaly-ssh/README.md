@@ -67,7 +67,7 @@ sequenceDiagram
   Note over Gitaly1,GitalySSH: On Gitaly server 1
 
   GitalySSH ->> Gitaly2: grpc SSHUploadPack
-  Note over GitalySSH,Gitaly2: TCP/IP or Unix socket between Gitaly servers
+  Note over GitalySSH,Gitaly2: Internal network connection
 
   Gitaly2 ->> Gitaly2Git: Spawns git-upload-pack
   Note over Gitaly2,Gitaly2Git: On Gitaly server 2
