@@ -133,28 +133,38 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 ```
 
 ## Presentations
-
+-   [How Gitaly fits into GitLab, part 5 (video),
+    2019-03-21](https://drive.google.com/file/d/1g-oUW0Lyw9sl0CWX6ewpmthl5h4h7zaG/view?usp=sharing)
+    a 1-hour training video for contributors new to GitLab and Gitaly.
+    Topic: the internal Git replication traffic used to create Merge
+    Requests across forks. Contents: fixing a locally broken Ruby gem C
+    extension by recompiling, demo of how creating a MR across forks
+    causes new commits to suddenly appear in the fork parent repository,
+    deep dive into the FetchSourceBranch RPC, adding debug code to see
+    how address and authentication metadata is passed down to
+    gitaly-ruby, failed attempt to log gitaly-ssh arguments, comparison
+    of gitaly-ssh and gitlab-shell, a Gitaly server can end up making RPC calls to itself.
 -   [How Gitaly fits into GitLab, part 4 (video),
     2019-03-14](https://drive.google.com/file/d/1S-X1MvXMTEHJDIQWrabyROfVNOkmPxWH/view?usp=sharing)
-    a 1-hour training video for contributors new to GitLab and Gitaly.
+    a 1-hour training video for contributors new to GitLab and Gitaly. Topic: Git HTTP.
     Contents: intercepting Git HTTP traffic with mitmproxy, overview of
     Git HTTP clone steps, code walk in gitlab-workhorse and gitlab-ce,
     investigating internal workhorse API messages used for Git HTTP.
 -   [How Gitaly fits into GitLab, part 3 (video),
     2019-03-07](https://drive.google.com/file/d/1G3xOpsblfYcCTyzv1Xe6Pg2Ce2TGriTb/view?usp=sharing)
-    a 1-hour training video for contributors new to GitLab and Gitaly.
+    a 1-hour training video for contributors new to GitLab and Gitaly. Topic: Git push.
     Contents: a closer look at the final stage of `git push` where the
     git hooks run and the refs get updated. Interaction between the git
     hooks and GitLab internal API. The Git [object quarantine mechanism](https://git-scm.com/docs/git-receive-pack#_quarantine_environment).
     Preview of Git HTTP (to be discussed next time).
 -   [How Gitaly fits into GitLab, part 2 (video),
     2019-02-28](https://drive.google.com/file/d/1SFvx49kJkMsvz8YD4chP0y_QJaygSiiH/view?usp=sharing)
-    a 1-hour training video for contributors new to GitLab and Gitaly.
+    a 1-hour training video for contributors new to GitLab and Gitaly. Topic: Git SSH.
     Contents: what is in a gitaly-proto Repository message, legacy vs
     hashed storage (repository directories), `git clone` via SSH,
     gitlab-shell, `authorized_keys` and forced commands, what happens
     during `git push`.
-- [How Gitaly fits into GitLab, part 1 (video), 2019-02-21](https://drive.google.com/file/d/1aKlbPVbKr7MueNIyNeIRZIX2u0K4lKQB/view?usp=sharing) a 1-hour training video for contributors new to GitLab and Gitaly. Contents: overview of GitLab backend processes, gitlab-rails deep dive: Gitaly config in gitlab-rails, SQL data model, overview of how Gitaly calls get made via GitalyClient.call.
+- [How Gitaly fits into GitLab, part 1 (video), 2019-02-21](https://drive.google.com/file/d/1aKlbPVbKr7MueNIyNeIRZIX2u0K4lKQB/view?usp=sharing) a 1-hour training video for contributors new to GitLab and Gitaly. Topic: the Gitaly client in gitlab-ce. Contents: overview of GitLab backend processes, gitlab-rails deep dive: Gitaly config in gitlab-rails, SQL data model, overview of how Gitaly calls get made via GitalyClient.call.
 - [Infrastructure Team Update 2017-05-11](https://about.gitlab.com/2017/05/11/functional-group-updates/#infrastructure-team)
 - [Gitaly Basics, 2017-05-01](https://docs.google.com/presentation/d/1cLslUbXVkniOaeJ-r3s5AYF0kQep8VeNfvs0XSGrpA0/edit#slide=id.g1c73db867d_0_0)
 - [Git Paris meetup, 2017-02-22](https://docs.google.com/presentation/d/19OZUalFMIDM8WujXrrIyCuVb_oVeaUzpb-UdGThOvAo/edit?usp=sharing) a high-level overview of what our plans are and where we are.
