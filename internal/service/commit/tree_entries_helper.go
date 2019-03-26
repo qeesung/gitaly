@@ -12,6 +12,47 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 )
 
+type revisionPath struct{ revision, path string }
+
+// TreeEntryFinder is a struct for searching through a tree with caching.
+type TreeEntryFinder struct {
+	c         *catfile.Batch
+	treeCache map[revisionPath][]*gitalypb.TreeEntry
+}
+
+// NewTreeEntryFinder initializes a TreeEntryFinder with an empty tree cache.
+func NewTreeEntryFinder(c *catfile.Batch) *TreeEntryFinder {
+	return &TreeEntryFinder{
+		c:         c,
+		treeCache: make(map[revisionPath][]*gitalypb.TreeEntry),
+	}
+}
+
+// FindByRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
+func (tef *TreeEntryFinder) FindByRevisionAndPath(revision, path string) (*gitalypb.TreeEntry, error) {
+	dir := pathPkg.Dir(path)
+	cacheKey := revisionPath{revision: revision, path: dir}
+	entries, ok := tef.treeCache[cacheKey]
+
+	if !ok {
+		var err error
+		entries, err = treeEntries(tef.c, revision, dir, "", false)
+		if err != nil {
+			return nil, err
+		}
+
+		tef.treeCache[cacheKey] = entries
+	}
+
+	for _, entry := range entries {
+		if string(entry.Path) == path {
+			return entry, nil
+		}
+	}
+
+	return nil, nil
+}
+
 const oidSize = 20
 
 func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*gitalypb.TreeEntry, error) {
@@ -121,21 +162,4 @@ func treeEntries(c *catfile.Batch, revision, path string, rootOid string, recurs
 	}
 
 	return orderedEntries, nil
-}
-
-// TreeEntryForRevisionAndPath returns a TreeEntry struct for the object present at the revision/path pair.
-func TreeEntryForRevisionAndPath(c *catfile.Batch, revision, path string) (*gitalypb.TreeEntry, error) {
-	entries, err := treeEntries(c, revision, pathPkg.Dir(path), "", false)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range entries {
-		if string(entry.Path) == path {
-			entry.RootOid = "" // Not sure why we do this
-			return entry, nil
-		}
-	}
-
-	return nil, nil
 }

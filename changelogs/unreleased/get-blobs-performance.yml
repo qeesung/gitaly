@@ -1,0 +1,5 @@
+---
+title: Improve GetBlobs performance for fetching lots of files
+merge_request: 1165
+author:
+type: performance
