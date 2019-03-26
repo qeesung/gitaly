@@ -81,7 +81,7 @@ func (s *server) GetSnapshot(in *gitalypb.GetSnapshotRequest, stream gitalypb.Re
 }
 
 func addAlternateFiles(ctx context.Context, repository *gitalypb.Repository, builder *archive.TarBuilder) error {
-	alternateFilePath, err := git.AlternatesPath(repository)
+	alternateFilePath, err := git.InfoAlternatesPath(repository)
 	if err != nil {
 		return fmt.Errorf("error when getting alternates file path: %v", err)
 	}

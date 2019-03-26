@@ -74,8 +74,8 @@ func BuildGitOptions(gitOpts []string, otherOpts ...string) []string {
 	return append(args, otherOpts...)
 }
 
-// AlternatesPath finds the fully qualified path for the alternates file.
-func AlternatesPath(repo repository.GitRepo) (string, error) {
+// InfoAlternatesPath finds the fully qualified path for the alternates file.
+func InfoAlternatesPath(repo repository.GitRepo) (string, error) {
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return "", err

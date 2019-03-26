@@ -1,6 +1,7 @@
 package objectpool
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,8 +32,12 @@ func TestReduplicate(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "gc")
 
 	existingObjectID := "55bc176024cfa3baaceb71db584c7e5df900ea65"
+
 	// Corrupt the repository to check if the object can't be found
-	require.NoError(t, pool.Unlink(ctx, testRepo))
+	altPath, err := git.InfoAlternatesPath(testRepo)
+	require.NoError(t, err, "find info/alternates")
+	require.NoError(t, os.RemoveAll(altPath))
+
 	cmd, err := git.Command(ctx, testRepo, "cat-file", "-e", existingObjectID)
 	require.NoError(t, err)
 	require.Error(t, cmd.Wait())

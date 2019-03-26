@@ -3,7 +3,6 @@ package objectpool
 import (
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -169,21 +168,27 @@ func TestUnlink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
+	deletedRepo, deletedRepoPath, removeDeletedRepo := testhelper.NewTestRepo(t)
+	defer removeDeletedRepo()
+
 	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
 	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
 	require.NoError(t, pool.Link(ctx, testRepo))
+	require.NoError(t, pool.Link(ctx, deletedRepo))
+
+	removeDeletedRepo()
+	testhelper.AssertFileNotExists(t, deletedRepoPath)
 
 	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
+	require.NoError(t, pool2.Create(ctx, testRepo), "create pool 2")
 	defer pool2.Remove(ctx)
 
-	poolCommitID := testhelper.CreateCommit(t, pool.FullPath(), "pool-test-branch", nil)
-	_, sanityErr := log.GetCommit(ctx, testRepo, poolCommitID)
-	require.NoError(t, sanityErr, "sanity check: commit can be found after test setup")
-	require.True(t, remoteExists(t, pool.FullPath(), testRepo.GlRepository), "sanity check: remote exists in pool")
+	require.True(t, testhelper.RemoteExists(t, pool.FullPath(), testRepo.GlRepository), "sanity check: remote exists in pool")
+	require.True(t, testhelper.RemoteExists(t, pool.FullPath(), deletedRepo.GlRepository), "sanity check: remote exists in pool")
 
 	testCases := []struct {
 		desc string
@@ -225,13 +230,10 @@ func TestUnlink(t *testing.T) {
 		{
 			desc: "Repo not found",
 			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
-				Repository: &gitalypb.Repository{
-					StorageName:  testRepo.GetStorageName(),
-					RelativePath: "repo/does/not/exist",
-				},
+				Repository: deletedRepo,
 				ObjectPool: pool.ToProto(),
 			},
-			code: codes.NotFound,
+			code: codes.OK,
 		},
 		{
 			desc: "Pool not found",
@@ -250,37 +252,19 @@ func TestUnlink(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, rpcErr := client.UnlinkRepositoryFromObjectPool(ctx, tc.req)
+			_, err := client.UnlinkRepositoryFromObjectPool(ctx, tc.req)
 
 			if tc.code != codes.OK {
-				testhelper.RequireGrpcError(t, rpcErr, tc.code)
+				testhelper.RequireGrpcError(t, err, tc.code)
 				return
 			}
 
 			require.NoError(t, err, "call UnlinkRepositoryFromObjectPool")
 
-			_, err := log.GetCommit(ctx, testRepo, poolCommitID)
-			require.True(t, log.IsNotFound(err), "expected 'not found' error got %v", err)
-
-			require.False(t, remoteExists(t, pool.FullPath(), testRepo.GlRepository), "remote should no longer exist in pool")
+			remoteName := tc.req.Repository.GlRepository
+			require.False(t, testhelper.RemoteExists(t, pool.FullPath(), remoteName), "remote should no longer exist in pool")
 		})
 	}
-}
-
-func remoteExists(t *testing.T, repoPath string, remote string) bool {
-	if len(remote) == 0 {
-		t.Fatalf("empty remote name")
-	}
-
-	remotes := testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "remote")
-
-	for _, r := range strings.Split(string(remotes), "\n") {
-		if r == remote {
-			return true
-		}
-	}
-
-	return false
 }
 
 func TestUnlinkIdempotent(t *testing.T) {

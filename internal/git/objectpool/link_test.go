@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -25,7 +24,7 @@ func TestLink(t *testing.T) {
 	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist prior to creation")
 	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
 
-	altPath, err := git.AlternatesPath(testRepo)
+	altPath, err := git.InfoAlternatesPath(testRepo)
 	require.NoError(t, err)
 	_, err = os.Stat(altPath)
 	require.True(t, os.IsNotExist(err))
@@ -46,9 +45,7 @@ func TestLink(t *testing.T) {
 
 	require.Equal(t, content, newContent)
 
-	// Test if the remote is set
-	remotes := strings.Split(string(testhelper.MustRunCommand(t, nil, "git", "-C", pool.FullPath(), "remote")), "\n")
-	assert.Contains(t, remotes, testRepo.GetGlRepository())
+	require.True(t, testhelper.RemoteExists(t, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should include %v", testRepo)
 }
 
 func TestUnlink(t *testing.T) {
@@ -64,15 +61,11 @@ func TestUnlink(t *testing.T) {
 
 	require.Error(t, pool.Unlink(ctx, testRepo), "removing a non-existing pool should be an error")
 
-	altPath, err := git.AlternatesPath(testRepo)
-	require.NoError(t, err)
+	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
+	require.NoError(t, pool.Link(ctx, testRepo), "link test repo to pool")
 
-	require.NoError(t, pool.Create(ctx, testRepo))
-	require.NoError(t, pool.Link(ctx, testRepo))
+	require.True(t, testhelper.RemoteExists(t, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should include %v", testRepo)
 
-	require.FileExists(t, altPath, "alternates file must exist after Link")
-
-	require.NoError(t, pool.Unlink(ctx, testRepo))
-	_, err = os.Stat(altPath)
-	require.True(t, os.IsNotExist(err))
+	require.NoError(t, pool.Unlink(ctx, testRepo), "unlink repo")
+	require.False(t, testhelper.RemoteExists(t, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should no longer include %v", testRepo)
 }
