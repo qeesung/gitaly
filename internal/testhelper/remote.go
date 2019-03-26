@@ -7,8 +7,8 @@ import (
 
 // RemoteExists tests if the repository at repoPath has are Git remote named remoteName.
 func RemoteExists(t *testing.T, repoPath string, remoteName string) bool {
-	if len(remote) == 0 {
-		t.Fatalf("empty remote name")
+	if len(remoteName) == 0 {
+		t.Fatal("empty remote name")
 	}
 
 	remotes := MustRunCommand(t, nil, "git", "-C", repoPath, "remote")
