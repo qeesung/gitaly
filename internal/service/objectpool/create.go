@@ -2,11 +2,9 @@ package objectpool
 
 import (
 	"context"
-	"errors"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -54,7 +52,7 @@ func poolForRequest(req poolRequest) (*objectpool.ObjectPool, error) {
 
 	poolRepo := reqPool.GetRepository()
 	if poolRepo == nil {
-		return nil, helper.ErrInvalidArgument(errors.New("no object pool repository"))
+		return nil, status.Errorf(codes.InvalidArgument, "no object pool repository")
 	}
 
 	return objectpool.NewObjectPool(poolRepo.GetStorageName(), poolRepo.GetRelativePath())
