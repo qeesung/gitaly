@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"fmt"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -20,11 +22,21 @@ func DecorateError(code codes.Code, err error) error {
 // ErrInternal wrappes err with codes.Internal, unless err is already a grpc error
 func ErrInternal(err error) error { return DecorateError(codes.Internal, err) }
 
-// ErrInvalidArgument wrappes err with codes.InvalidArgument, unless err is already a grpc error
+// ErrInvalidArgument wraps err with codes.InvalidArgument, unless err is already a grpc error
 func ErrInvalidArgument(err error) error { return DecorateError(codes.InvalidArgument, err) }
 
-// ErrPreconditionFailed wraps error with codes.FailedPrecondition, unless err is already a grpc error
+// ErrInvalidArgumentf wraps err with codes.InvalidArgument, unless err is already a grpc error
+func ErrInvalidArgumentf(format string, a ...interface{}) error {
+	return DecorateError(codes.InvalidArgument, fmt.Errorf(format, a...))
+}
+
+// ErrPreconditionFailed wraps err with codes.FailedPrecondition, unless err is already a grpc error
 func ErrPreconditionFailed(err error) error { return DecorateError(codes.FailedPrecondition, err) }
+
+// ErrPreconditionFailedf wraps err with codes.FailedPrecondition, unless err is already a grpc error
+func ErrPreconditionFailedf(format string, a ...interface{}) error {
+	return DecorateError(codes.FailedPrecondition, fmt.Errorf(format, a...))
+}
 
 // ErrNotFound wraps error with codes.NotFound, unless err is already a grpc error
 func ErrNotFound(err error) error { return DecorateError(codes.NotFound, err) }

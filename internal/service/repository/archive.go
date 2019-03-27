@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os/exec"
 
@@ -20,11 +19,11 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 	path := parsePath(in.GetPath())
 
 	if err := validateGetArchiveRequest(in, format, path); err != nil {
-		return helper.ErrInvalidArgument(err)
+		return err
 	}
 
 	if err := validateGetArchivePrecondition(ctx, in, path); err != nil {
-		return helper.ErrPreconditionFailed(err)
+		return err
 	}
 
 	writer := streamio.NewWriter(func(p []byte) error {
@@ -59,15 +58,15 @@ func parsePath(path []byte) string {
 
 func validateGetArchiveRequest(in *gitalypb.GetArchiveRequest, format string, path string) error {
 	if err := git.ValidateRevision([]byte(in.GetCommitId())); err != nil {
-		return fmt.Errorf("invalid commitId: %v", err)
+		return helper.ErrInvalidArgumentf("invalid commitId: %v", err)
 	}
 
 	if len(format) == 0 {
-		return fmt.Errorf("invalid format")
+		return helper.ErrInvalidArgumentf("invalid format")
 	}
 
 	if helper.ContainsPathTraversal(path) {
-		return fmt.Errorf("path can't contain directory traversal")
+		return helper.ErrInvalidArgumentf("path can't contain directory traversal")
 	}
 
 	return nil
@@ -81,7 +80,7 @@ func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchive
 	}
 
 	if entries == 0 {
-		return fmt.Errorf("path doesn't exist")
+		return helper.ErrPreconditionFailedf("path doesn't exist")
 	}
 
 	return nil
