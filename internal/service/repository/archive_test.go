@@ -78,6 +78,7 @@ func TestGetArchiveSuccess(t *testing.T) {
 					CommitId:   tc.commitID,
 					Prefix:     tc.prefix,
 					Format:     format,
+					Path:       tc.path,
 				}
 				stream, err := client.GetArchive(ctx, req)
 				require.NoError(t, err)
@@ -162,6 +163,15 @@ func TestGetArchiveFailure(t *testing.T) {
 			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
 			format:   gitalypb.GetArchiveRequest_ZIP,
 			path:     []byte("unknown-path"),
+			code:     codes.FailedPrecondition,
+		},
+		{
+			desc:     "Non-existing path in repository on commit ID",
+			repo:     testRepo,
+			prefix:   "",
+			commitID: commitID,
+			format:   gitalypb.GetArchiveRequest_ZIP,
+			path:     []byte("files/"),
 			code:     codes.FailedPrecondition,
 		},
 		{
