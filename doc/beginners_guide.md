@@ -178,9 +178,9 @@ When we run `make` again, we now get a different error.
 ```
 # gitlab.com/gitlab-org/gitaly/internal/service/repository
 _build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitalypb.RepositoryServiceServer in return argument:
-	*server does not implement gitaly.RepositoryServiceServer (wrong type for RestoreCustomHooks method)
+	*server does not implement gitalypb.RepositoryServiceServer (wrong type for RestoreCustomHooks method)
 		have RestoreCustomHooks()
-		want RestoreCustomHooks(gitaly.RepositoryService_RestoreCustomHooksServer) error
+		want RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error
 ```
 
 This error tells us the expected signature. We copy-paste this
