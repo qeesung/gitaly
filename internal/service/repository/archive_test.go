@@ -34,16 +34,34 @@ func TestGetArchiveSuccess(t *testing.T) {
 		desc     string
 		prefix   string
 		commitID string
+		path     []byte
+		contents []string
 	}{
 		{
 			desc:     "without-prefix",
 			commitID: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
 			prefix:   "",
+			contents: []string{"/.gitignore", "/LICENSE", "/README.md"},
 		},
 		{
 			desc:     "with-prefix",
 			commitID: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
 			prefix:   "my-prefix",
+			contents: []string{"/.gitignore", "/LICENSE", "/README.md"},
+		},
+		{
+			desc:     "with path",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			prefix:   "",
+			path:     []byte("files"),
+			contents: []string{"/whitespace", "/html/500.html"},
+		},
+		{
+			desc:     "with path and trailing slash",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			prefix:   "",
+			path:     []byte("files/"),
+			contents: []string{"/whitespace", "/html/500.html"},
 		},
 	}
 
@@ -76,9 +94,9 @@ func TestGetArchiveSuccess(t *testing.T) {
 
 				contents := string(compressedFileContents(t, format, archiveFile.Name()))
 
-				require.Contains(t, contents, tc.prefix+"/.gitignore")
-				require.Contains(t, contents, tc.prefix+"/LICENSE")
-				require.Contains(t, contents, tc.prefix+"/README.md")
+				for _, content := range tc.contents {
+					require.Contains(t, contents, tc.prefix+content)
+				}
 			})
 		}
 	}
@@ -102,6 +120,7 @@ func TestGetArchiveFailure(t *testing.T) {
 		prefix   string
 		commitID string
 		format   gitalypb.GetArchiveRequest_Format
+		path     []byte
 		code     codes.Code
 	}{
 		{
@@ -136,6 +155,15 @@ func TestGetArchiveFailure(t *testing.T) {
 			format:   gitalypb.GetArchiveRequest_Format(-1),
 			code:     codes.InvalidArgument,
 		},
+		{
+			desc:     "Non-existing path in repository",
+			repo:     testRepo,
+			prefix:   "",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			format:   gitalypb.GetArchiveRequest_ZIP,
+			path:     []byte("unknown-path"),
+			code:     codes.Unknown,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -148,6 +176,7 @@ func TestGetArchiveFailure(t *testing.T) {
 				CommitId:   tc.commitID,
 				Prefix:     tc.prefix,
 				Format:     tc.format,
+				Path:       tc.path,
 			}
 			stream, err := client.GetArchive(ctx, req)
 			require.NoError(t, err)

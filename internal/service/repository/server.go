@@ -17,6 +17,6 @@ func NewServer(rs *rubyserver.Server) gitalypb.RepositoryServiceServer {
 	return &server{Server: rs}
 }
 
-func (s *server) FetchHTTPRemote(ctx context.Context, req *gitalypb.FetchHTTPRemoteRequest) (*gitalypb.FetchHTTPRemoteResponse, error) {
+func (*server) FetchHTTPRemote(context.Context, *gitalypb.FetchHTTPRemoteRequest) (*gitalypb.FetchHTTPRemoteResponse, error) {
 	return nil, helper.Unimplemented
 }

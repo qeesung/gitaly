@@ -28,15 +28,20 @@ func parseArchiveFormat(format gitalypb.GetArchiveRequest_Format) (*exec.Cmd, st
 	return nil, ""
 }
 
-func handleArchive(ctx context.Context, writer io.Writer, repo *gitalypb.Repository,
-	format gitalypb.GetArchiveRequest_Format, prefix, commitID string) error {
-	compressCmd, formatArg := parseArchiveFormat(format)
+func handleArchive(ctx context.Context, writer io.Writer, in *gitalypb.GetArchiveRequest) error {
+	compressCmd, formatArg := parseArchiveFormat(in.Format)
+	path := in.Path
+
 	if len(formatArg) == 0 {
 		return status.Errorf(codes.InvalidArgument, "invalid format")
 	}
 
-	archiveCommand, err := git.Command(ctx, repo, "archive",
-		"--format="+formatArg, "--prefix="+prefix+"/", commitID)
+	if path == nil {
+		path = []byte(".")
+	}
+
+	archiveCommand, err := git.Command(ctx, in.Repository, "archive",
+		"--format="+formatArg, "--prefix="+in.Prefix+"/", in.CommitId, string(path))
 	if err != nil {
 		return err
 	}
@@ -66,5 +71,5 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 		return stream.Send(&gitalypb.GetArchiveResponse{Data: p})
 	})
 
-	return handleArchive(stream.Context(), writer, in.Repository, in.Format, in.Prefix, in.CommitId)
+	return handleArchive(stream.Context(), writer, in)
 }
