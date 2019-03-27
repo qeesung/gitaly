@@ -177,17 +177,17 @@ When we run `make` again, we now get a different error.
 
 ```
 # gitlab.com/gitlab-org/gitaly/internal/service/repository
-_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitaly.RepositoryServiceServer in return argument:
+_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitalypb.RepositoryServiceServer in return argument:
 	*server does not implement gitaly.RepositoryServiceServer (wrong type for RestoreCustomHooks method)
 		have RestoreCustomHooks()
 		want RestoreCustomHooks(gitaly.RepositoryService_RestoreCustomHooksServer) error
 ```
 
 This error tells us the expected signature. We copy-paste this
-signature into server.go, **changing `gitaly` to `pb`**.
+signature into server.go.
 
 ```
-func (*server) RestoreCustomHooks(pb.RepositoryService_RestoreCustomHooksServer) error {
+func (*server) RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error {
 }
 ```
 
@@ -203,7 +203,7 @@ The final solution is to add
 server.go, and make the function:
 
 ```
-func (*server) RestoreCustomHooks(pb.RepositoryService_RestoreCustomHooksServer) error {
+func (*server) RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error {
 	return helper.Unimplemented
 }
 ```
