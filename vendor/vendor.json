@@ -487,10 +487,10 @@
 		{
 			"checksumSHA1": "0SRNhL8pjnvbTuxsGBM0a1KECl4=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb",
-			"revision": "b8393bfd064bfc9cd30fb0810eb71c9dab12b02d",
-			"revisionTime": "2019-03-25T11:25:29Z",
-			"version": "master",
-			"versionExact": "master"
+			"revision": "a78297381af20d4ac7108c07c09539ae70ebf074",
+			"revisionTime": "2019-03-27T06:54:18Z",
+			"version": "v1.19.0",
+			"versionExact": "v1.19.0"
 		},
 		{
 			"checksumSHA1": "WMOuBgCyclqy+Mqunb0NbykaC4Y=",
