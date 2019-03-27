@@ -164,6 +164,15 @@ func TestGetArchiveFailure(t *testing.T) {
 			path:     []byte("unknown-path"),
 			code:     codes.Unknown,
 		},
+		{
+			desc:     "path contains directory traversal",
+			repo:     testRepo,
+			prefix:   "",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			format:   gitalypb.GetArchiveRequest_ZIP,
+			path:     []byte("../../foo"),
+			code:     codes.InvalidArgument,
+		},
 	}
 
 	for _, tc := range testCases {
