@@ -80,13 +80,11 @@ func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchive
 	}
 
 	c, err := catfile.New(ctx, in.GetRepository())
-
 	if err != nil {
 		return err
 	}
 
 	treeEntry, err := commit.TreeEntryForRevisionAndPath(c, in.GetCommitId(), strings.TrimRight(path, "/"))
-
 	if err != nil {
 		return err
 	}

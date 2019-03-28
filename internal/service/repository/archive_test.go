@@ -50,6 +50,20 @@ func TestGetArchiveSuccess(t *testing.T) {
 			contents: []string{"/.gitignore", "/LICENSE", "/README.md"},
 		},
 		{
+			desc:     "with path as blank string",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			prefix:   "",
+			path:     []byte(""),
+			contents: []string{"/.gitignore", "/LICENSE", "/README.md"},
+		},
+		{
+			desc:     "with path as nil",
+			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
+			prefix:   "",
+			path:     nil,
+			contents: []string{"/.gitignore", "/LICENSE", "/README.md"},
+		},
+		{
 			desc:     "with path",
 			commitID: "1e292f8fedd741b75372e19097c76d327140c312",
 			prefix:   "",
