@@ -4,12 +4,14 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
+	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 )
 
@@ -73,13 +75,23 @@ func validateGetArchiveRequest(in *gitalypb.GetArchiveRequest, format string, pa
 }
 
 func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchiveRequest, path string) error {
-	entries, err := countEntriesForPath(ctx, in, path)
+	if path == "." {
+		return nil
+	}
+
+	c, err := catfile.New(ctx, in.GetRepository())
 
 	if err != nil {
 		return err
 	}
 
-	if entries == 0 {
+	treeEntry, err := commit.TreeEntryForRevisionAndPath(c, in.GetCommitId(), strings.TrimRight(path, "/"))
+
+	if err != nil {
+		return err
+	}
+
+	if treeEntry == nil || len(treeEntry.Oid) == 0 {
 		return helper.ErrPreconditionFailedf("path doesn't exist")
 	}
 
@@ -108,30 +120,4 @@ func handleArchive(ctx context.Context, writer io.Writer, in *gitalypb.GetArchiv
 	}
 
 	return archiveCommand.Wait()
-}
-
-func countEntriesForPath(ctx context.Context, in *gitalypb.GetArchiveRequest, path string) (int, error) {
-	entries := 0
-	args := []string{"ls-tree", "-z", "-r", "--full-tree", "--full-name", "--", in.GetCommitId(), path}
-	treeCommand, err := git.Command(ctx, in.GetRepository(), args...)
-
-	if err != nil {
-		return entries, err
-	}
-
-	for parser := lstree.NewParser(treeCommand); ; {
-		_, err := parser.NextEntry()
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return entries, err
-		}
-
-		entries = entries + 1
-	}
-
-	return entries, err
 }
