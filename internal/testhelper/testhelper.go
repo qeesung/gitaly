@@ -467,3 +467,10 @@ func NewTestObjectPoolName(t *testing.T) string {
 
 	return fmt.Sprintf("pool-%x.git", b)
 }
+
+// CreateLooseRef creates a ref that points to master
+func CreateLooseRef(t *testing.T, repoPath, refName string) {
+	relRefPath := fmt.Sprintf("refs/heads/%s", refName)
+	MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref", relRefPath, "master")
+	require.FileExists(t, filepath.Join(repoPath, relRefPath), "ref must be in loose file")
+}
