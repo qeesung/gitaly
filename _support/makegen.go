@@ -267,6 +267,7 @@ all: build
 
 .PHONY: build
 build: ../.ruby-bundle
+	# go install
 	@cd {{ .SourceDir }} && go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS)" {{ join .CommandPackages " " }}
 
 # This file is used by Omnibus and CNG to skip the "bundle install"
