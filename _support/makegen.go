@@ -267,7 +267,7 @@ all: build
 
 .PHONY: build
 build: ../.ruby-bundle
-	go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS)" {{ join .CommandPackages " " }}
+	@cd {{ .SourceDir }} && go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS)" {{ join .CommandPackages " " }}
 
 # This file is used by Omnibus and CNG to skip the "bundle install"
 # step. Both Omnibus and CNG assume it is in the Gitaly root, not in
