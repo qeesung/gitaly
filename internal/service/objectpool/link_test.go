@@ -212,7 +212,7 @@ func TestUnlink(t *testing.T) {
 			code: codes.OK,
 		},
 		{
-			desc: "no Repository",
+			desc: "No Repository",
 			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
 				Repository: nil,
 				ObjectPool: pool.ToProto(),
@@ -220,7 +220,7 @@ func TestUnlink(t *testing.T) {
 			code: codes.InvalidArgument,
 		},
 		{
-			desc: "no ObjectPool",
+			desc: "No ObjectPool",
 			req: &gitalypb.UnlinkRepositoryFromObjectPoolRequest{
 				Repository: testRepo,
 				ObjectPool: nil,
