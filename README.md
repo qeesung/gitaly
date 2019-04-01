@@ -133,6 +133,17 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 ```
 
 ## Presentations
+
+-   [How Gitaly fits into GitLab, part 6 (video),
+    2019-03-21](https://drive.google.com/file/d/1fp5pYvW1h0R_g6cRp0otywtaApNeK-U1/view?usp=sharing)
+    a 1-hour training video for contributors new to GitLab and Gitaly.
+    Topic: how Gitaly creates Git commits on behalf of Git users.
+    Contents: demonstrate how usually Git hooks are run by
+    `git-receive-pack`, but sometimes by `gitaly-ruby`. Deep dive into
+    UserCommitFiles: where do those hooks actually get run? A look at
+    UserMerge. How does Gitaly make merge commits. A look at the
+    implementation of the special feature where users are not allowed
+    push to a branch, but are allowed to merge into it.
 -   [How Gitaly fits into GitLab, part 5 (video),
     2019-03-21](https://drive.google.com/file/d/1g-oUW0Lyw9sl0CWX6ewpmthl5h4h7zaG/view?usp=sharing)
     a 1-hour training video for contributors new to GitLab and Gitaly.
