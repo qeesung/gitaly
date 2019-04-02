@@ -35,6 +35,8 @@ func TestCreate(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
+	require.NoError(t,pool.Create(ctx, testRepo), "create second time")
+
 	require.True(t, pool.IsValid())
 
 	// No hooks

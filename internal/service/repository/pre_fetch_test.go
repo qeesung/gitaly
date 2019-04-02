@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -57,7 +56,7 @@ func TestPreFetch(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, poolRepo := objectpool.NewTestObjectPool(t)
+	pool, poolRepo := testhelper.NewTestObjectPool(t)
 	defer pool.Remove(ctx)
 
 	require.NoError(t, pool.Create(ctx, testRepo))
@@ -101,7 +100,7 @@ func TestPreFetchValidationError(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, poolRepo := objectpool.NewTestObjectPool(t)
+	pool, poolRepo := testhelper.NewTestObjectPool(t)
 	defer pool.Remove(ctx)
 
 	require.NoError(t, pool.Create(ctx, testRepo))
