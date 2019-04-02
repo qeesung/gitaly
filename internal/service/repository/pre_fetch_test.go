@@ -87,7 +87,7 @@ func TestPreFetch(t *testing.T) {
 }
 
 func NewTestObjectPool(t *testing.T) (*objectpool.ObjectPool, *gitalypb.Repository) {
-	repo, _, relativePath := CreateRepo(t, GitlabTestStoragePath())
+	repo, _, relativePath := testhelper.CreateRepo(t, testhelper.GitlabTestStoragePath())
 
 	pool, err := objectpool.NewObjectPool("default", relativePath)
 	require.NoError(t, err)
