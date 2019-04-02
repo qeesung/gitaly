@@ -1,0 +1,5 @@
+---
+title: Remove test dependency in main binaries
+merge_request: 1171
+author:
+type: fixed
