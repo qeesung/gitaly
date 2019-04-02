@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -56,7 +57,7 @@ func TestPreFetch(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, poolRepo := testhelper.NewTestObjectPool(t)
+	pool, poolRepo := NewTestObjectPool(t)
 	defer pool.Remove(ctx)
 
 	require.NoError(t, pool.Create(ctx, testRepo))
@@ -85,6 +86,15 @@ func TestPreFetch(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", forkRepoPath, "show-ref", "feature")
 }
 
+func NewTestObjectPool(t *testing.T) (*objectpool.ObjectPool, *gitalypb.Repository) {
+	repo, _, relativePath := CreateRepo(t, GitlabTestStoragePath())
+
+	pool, err := objectpool.NewObjectPool("default", relativePath)
+	require.NoError(t, err)
+
+	return pool, repo
+}
+
 func TestPreFetchValidationError(t *testing.T) {
 	t.Skip("PreFetch is unsafe https://gitlab.com/gitlab-org/gitaly/issues/1552")
 
@@ -100,7 +110,7 @@ func TestPreFetchValidationError(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, poolRepo := testhelper.NewTestObjectPool(t)
+	pool, poolRepo := NewTestObjectPool(t)
 	defer pool.Remove(ctx)
 
 	require.NoError(t, pool.Create(ctx, testRepo))
