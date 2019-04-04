@@ -4,6 +4,8 @@ AllCops:
   Exclude:
     - 'tmp/**/*'
     - 'vendor/**/*'
+    # TODO stop ignoring gitlab-shell/ https://gitlab.com/gitlab-org/gitaly/issues/1592
+    - 'gitlab-shell/**/*'
 
 Style/NumericPredicate:
   Enabled: false

@@ -77,7 +77,7 @@ func (gm *gitalyMake) GoVendor() string          { return "bin/govendor" }
 func (gm *gitalyMake) StaticCheck() string       { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
 func (gm *gitalyMake) CoverageDir() string       { return filepath.Join(gm.BuildDir(), "cover") }
 func (gm *gitalyMake) GitalyRubyDir() string     { return filepath.Join(gm.SourceDir(), "ruby") }
-func (gm *gitalyMake) GitlabShellRelDir() string { return "ruby/vendor/gitlab-shell" }
+func (gm *gitalyMake) GitlabShellRelDir() string { return "ruby/gitlab-shell" }
 func (gm *gitalyMake) GitlabShellDir() string {
 	return filepath.Join(gm.SourceDir(), gm.GitlabShellRelDir())
 }
