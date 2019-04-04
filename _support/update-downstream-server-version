@@ -67,12 +67,20 @@ def update_gitaly_version(project_id, tag_version)
 end
 
 def create_mr(project_id, tag_version, assignee_id)
+  anchor = 'v' + tag_version.tr('.', '')
+  description = <<~MR
+    Upgrade Gitaly to #{tag_version}.
+  
+    See the [Gitaly changelog](https://gitlab.com/gitlab-org/gitaly/blob/master/CHANGELOG.md##{anchor})
+    for an overview of the changes.
+  MR
+
   merge_request = {
     "source_branch": "gitaly-version-#{tag_version}",
     "target_branch": "master",
     "title": "Upgrade Gitaly to #{tag_version}",
     "assignee_id": assignee_id,
-    "description": "Upgrade Gitaly to #{tag_version}",
+    "description": description,
     "labels": "Gitaly,backstage",
     "remove_source_branch": true,
     "squash": true
