@@ -4,7 +4,6 @@ require 'json'
 
 require_relative 'gitlab_config'
 require_relative 'gitlab_access'
-require_relative 'gitlab_lfs_authentication'
 require_relative 'http_helper'
 
 class GitlabNet # rubocop:disable Metrics/ClassLength
@@ -42,32 +41,6 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
     GitAccessStatus.new(false, resp.code, API_INACCESSIBLE_MESSAGE)
   end
 
-  def discover(who)
-    _, who_k, who_v = self.class.parse_who(who)
-
-    resp = get("#{internal_api_endpoint}/discover?#{who_k}=#{who_v}")
-
-    JSON.parse(resp.body) rescue nil
-  end
-
-  def lfs_authenticate(gl_id, repo, operation)
-    id_sym, _, id = self.class.parse_who(gl_id)
-    params = { project: sanitize_path(repo), operation: operation }
-
-    case id_sym
-    when :key_id
-      params[:key_id] = id
-    when :user_id
-      params[:user_id] = id
-    else
-      raise ArgumentError, "lfs_authenticate() got unsupported GL_ID='#{gl_id}'!"
-    end
-
-    resp = post("#{internal_api_endpoint}/lfs_authenticate", params)
-
-    GitlabLfsAuthentication.build_from_json(resp.body) if resp.code == '200'
-  end
-
   def broadcast_message
     resp = get("#{internal_api_endpoint}/broadcast_message")
     JSON.parse(resp.body) rescue {}
@@ -91,23 +64,6 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
 
   def check
     get("#{internal_api_endpoint}/check", options: { read_timeout: CHECK_TIMEOUT })
-  end
-
-  def authorized_key(key)
-    resp = get("#{internal_api_endpoint}/authorized_keys?key=#{URI.escape(key, '+/=')}")
-    JSON.parse(resp.body) if resp.code == "200"
-  rescue
-    nil
-  end
-
-  def two_factor_recovery_codes(gl_id)
-    id_sym, _, id = self.class.parse_who(gl_id)
-
-    resp = post("#{internal_api_endpoint}/two_factor_recovery_codes", id_sym => id)
-
-    JSON.parse(resp.body) if resp.code == '200'
-  rescue
-    {}
   end
 
   def notify_post_receive(gl_repository, repo_path)

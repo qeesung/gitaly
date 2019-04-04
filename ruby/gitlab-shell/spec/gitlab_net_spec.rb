@@ -41,58 +41,6 @@ describe GitlabNet, vcr: true do
     end
   end
 
-  describe '#discover' do
-    it 'should return user has based on key id' do
-      VCR.use_cassette("discover-ok") do
-        user = gitlab_net.discover(key)
-        expect(user['name']).to eq('Administrator')
-        expect(user['username']).to eq('root')
-      end
-    end
-
-    it 'adds the secret_token to request' do
-      VCR.use_cassette("discover-ok") do
-        expect_any_instance_of(Net::HTTP::Get).to receive(:set_form_data).with(hash_including(secret_token: secret))
-        gitlab_net.discover(key)
-      end
-    end
-
-    it "raises an exception if the connection fails" do
-      VCR.use_cassette("discover-ok") do
-        allow_any_instance_of(Net::HTTP).to receive(:request).and_raise(StandardError)
-        expect { gitlab_net.discover(key) }.to raise_error(GitlabNet::ApiUnreachableError)
-      end
-    end
-  end
-
-  describe '#lfs_authenticate' do
-    context 'lfs authentication succeeded' do
-      let(:repository_http_path) { URI.join(internal_api_endpoint.sub('/api/v4', ''), project).to_s }
-
-      context 'for download operation' do
-        it 'should return the correct data' do
-          VCR.use_cassette('lfs-authenticate-ok-download') do
-            lfs_access = gitlab_net.lfs_authenticate(key, project, 'download')
-            expect(lfs_access.username).to eq('root')
-            expect(lfs_access.lfs_token).to eq('Hyzhyde_wLUeyUQsR3tHGTG8eNocVQm4ssioTEsBSdb6KwCSzQ')
-            expect(lfs_access.repository_http_path).to eq(repository_http_path)
-          end
-        end
-      end
-
-      context 'for upload operation' do
-        it 'should return the correct data' do
-          VCR.use_cassette('lfs-authenticate-ok-upload') do
-            lfs_access = gitlab_net.lfs_authenticate(key, project, 'upload')
-            expect(lfs_access.username).to eq('root')
-            expect(lfs_access.lfs_token).to eq('Hyzhyde_wLUeyUQsR3tHGTG8eNocVQm4ssioTEsBSdb6KwCSzQ')
-            expect(lfs_access.repository_http_path).to eq(repository_http_path)
-          end
-        end
-      end
-    end
-  end
-
   describe '#broadcast_message' do
     context "broadcast message exists" do
       it 'should return message' do
@@ -208,55 +156,6 @@ describe GitlabNet, vcr: true do
     it 'throws a NotFound error when post-receive is not available' do
       VCR.use_cassette("post-receive-not-found") do
         expect { subject }.to raise_error(GitlabNet::NotFound)
-      end
-    end
-  end
-
-  describe '#authorized_key' do
-    let (:ssh_key) { "rsa-key" }
-
-    it "should return nil when the resource is not implemented" do
-      VCR.use_cassette("ssh-key-not-implemented") do
-        result = gitlab_net.authorized_key("whatever")
-        expect(result).to be_nil
-      end
-    end
-
-    it "should return nil when the fingerprint is not found" do
-      VCR.use_cassette("ssh-key-not-found") do
-        result = gitlab_net.authorized_key("whatever")
-        expect(result).to be_nil
-      end
-    end
-
-    it "should return a ssh key with a valid fingerprint" do
-      VCR.use_cassette("ssh-key-ok") do
-        result = gitlab_net.authorized_key(ssh_key)
-        expect(result).to eq({
-          "can_push" => false,
-          "created_at" => "2017-06-21T09:50:07.150Z",
-          "id" => 99,
-          "key" => "ssh-rsa rsa-key dummy@gitlab.com",
-          "title" => "untitled"
-        })
-      end
-    end
-  end
-
-  describe '#two_factor_recovery_codes' do
-    it 'returns two factor recovery codes' do
-      VCR.use_cassette('two-factor-recovery-codes') do
-        result = gitlab_net.two_factor_recovery_codes(key)
-        expect(result['success']).to be_truthy
-        expect(result['recovery_codes']).to eq(['f67c514de60c4953','41278385fc00c1e0'])
-      end
-    end
-
-    it 'returns false when recovery codes cannot be generated' do
-      VCR.use_cassette('two-factor-recovery-codes-fail') do
-        result = gitlab_net.two_factor_recovery_codes('key-777')
-        expect(result['success']).to be_falsey
-        expect(result['message']).to eq('Could not find the given key')
       end
     end
   end

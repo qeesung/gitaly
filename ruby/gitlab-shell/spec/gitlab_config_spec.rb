@@ -24,12 +24,6 @@ describe GitlabConfig do
     end
   end
 
-  describe '#audit_usernames' do
-    subject { config.audit_usernames }
-
-    it("returns false by default") { is_expected.to eq(false) }
-  end
-
   describe '#log_format' do
     subject { config.log_format }
 

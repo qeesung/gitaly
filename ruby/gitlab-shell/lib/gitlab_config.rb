@@ -7,14 +7,6 @@ class GitlabConfig
     @config = YAML.load_file(File.join(ROOT_PATH, 'config.yml'))
   end
 
-  def home
-    ENV['HOME']
-  end
-
-  def auth_file
-    @config['auth_file'] ||= File.join(home, ".ssh/authorized_keys")
-  end
-
   def secret_file
     @config['secret_file'] ||= File.join(ROOT_PATH, '.gitlab_shell_secret')
   end
@@ -44,10 +36,6 @@ class GitlabConfig
 
   def log_format
     @config['log_format'] ||= 'text'
-  end
-
-  def audit_usernames
-    @config['audit_usernames'] ||= false
   end
 
   def metrics_log_file
