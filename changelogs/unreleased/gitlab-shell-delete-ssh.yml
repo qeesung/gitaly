@@ -1,0 +1,5 @@
+---
+title: Delete SSH frontend code from ruby/gitlab-shell
+merge_request: 1179
+author:
+type: other
