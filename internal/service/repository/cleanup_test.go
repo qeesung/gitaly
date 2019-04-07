@@ -2,6 +2,7 @@ package repository
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -181,6 +182,87 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 
 				testhelper.AssertFileNotExists(t, worktreePath)
 			}
+		})
+	}
+}
+
+func TestCleanupDisconnectedWorktrees(t *testing.T) {
+	const (
+		worktreePath     = "test-worktree"
+		worktreeAdminDir = "worktrees"
+	)
+
+	addWorkTree := func(repoPath, worktree string) error {
+		return exec.Command(
+			"git",
+			testhelper.AddWorktreeArgs(repoPath, worktree)...,
+		).Run()
+	}
+
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testCases := []struct {
+		desc         string
+		worktreeTime time.Time
+	}{
+		{
+			desc:         "with a recent disconnected worktree",
+			worktreeTime: freshTime,
+		},
+		{
+			desc:         "with a slightly old disconnected worktree",
+			worktreeTime: oldTime,
+		},
+		{
+			desc:         "with an old disconnected worktree",
+			worktreeTime: oldTreeTime,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+			defer cleanupFn()
+
+			req := &gitalypb.CleanupRequest{Repository: testRepo}
+
+			testhelper.AddWorktree(t, testRepoPath, worktreePath)
+			worktreeAdminPath := filepath.Join(
+				testRepoPath, worktreeAdminDir, filepath.Base(worktreePath),
+			)
+
+			require.NoError(t,
+				os.Chtimes(worktreeAdminPath, tc.worktreeTime, tc.worktreeTime),
+			)
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			// removing the work tree path but leaving the administrative files in
+			// $GIT_DIR/worktrees will result in the work tree being in a
+			// "disconnected" state
+			err := os.RemoveAll(worktreePath)
+			require.NoError(t, err)
+
+			// a disconnected work tree prevents us from checking out another work
+			// tree at the same path
+			err = addWorkTree(testRepoPath, worktreePath)
+			require.Error(t, err)
+
+			// cleanup should prune the disconnected worktree administrative files
+			// in $GIT_DIR/worktrees
+			_, err = client.Cleanup(ctx, req)
+			require.NoError(t, err)
+			testhelper.AssertFileNotExists(t, worktreeAdminPath)
+
+			// if the worktree administrative files are pruned, then we should be able
+			// to checkout another worktree at the same path
+			err = addWorkTree(testRepoPath, worktreePath)
+			require.NoError(t, err)
 		})
 	}
 }

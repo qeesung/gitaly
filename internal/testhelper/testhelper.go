@@ -421,11 +421,15 @@ func cloneTestRepo(t *testing.T, bare bool) (repo *gitalypb.Repository, repoPath
 	return repo, repoPath, func() { os.RemoveAll(repoPath) }
 }
 
+// AddWorktreeArgs returns git command arguments for adding a worktree at the
+// specified repo
+func AddWorktreeArgs(repoPath, worktreeName string) []string {
+	return []string{"-C", repoPath, "worktree", "add", "--detach", worktreeName}
+}
+
 // AddWorktree creates a worktree in the repository path for tests
 func AddWorktree(t *testing.T, repoPath string, worktreeName string) {
-	args := []string{"-C", repoPath, "worktree", "add", "--detach", worktreeName}
-
-	MustRunCommand(t, nil, "git", args...)
+	MustRunCommand(t, nil, "git", AddWorktreeArgs(repoPath, worktreeName)...)
 }
 
 // ConfigureGitalySSH configures the gitaly-ssh command for tests
