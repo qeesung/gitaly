@@ -67,14 +67,10 @@ module GitalyServer
     end
 
     def wiki_get_all_pages(request, call)
-      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-      wiki = Gitlab::Git::Wiki.new(repo)
-      pages_limit = request.limit.zero? ? nil : request.limit
+      pages = get_wiki_pages(request, call)
 
       Enumerator.new do |y|
-        wiki.pages(
-          limit: pages_limit, sort: request.sort.to_s.downcase, direction_desc: request.direction_desc
-        ).each do |page|
+        pages.each do |page|
           y.yield Gitaly::WikiGetAllPagesResponse.new(page: build_gitaly_wiki_page(page))
 
           io = StringIO.new(page.text_data)
@@ -85,6 +81,18 @@ module GitalyServer
           end
 
           y.yield Gitaly::WikiGetAllPagesResponse.new(end_of_page: true)
+        end
+      end
+    end
+
+    def wiki_list_pages(request, call)
+      pages = get_wiki_pages(request, call)
+
+      Enumerator.new do |y|
+        pages.each do |page|
+          wiki_page = build_gitaly_wiki_page(page)
+
+          y.yield Gitaly::WikiListPagesResponse.new(page: wiki_page)
         end
       end
     end
@@ -192,6 +200,14 @@ module GitalyServer
     end
 
     private
+
+    def get_wiki_pages(request, call)
+      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      wiki = Gitlab::Git::Wiki.new(repo)
+      pages_limit = request.limit.zero? ? nil : request.limit
+
+      wiki.pages(limit: pages_limit, sort: request.sort.to_s.downcase, direction_desc: request.direction_desc)
+    end
 
     def build_gitaly_wiki_page(page = nil)
       return Gitaly::WikiPage.new unless page

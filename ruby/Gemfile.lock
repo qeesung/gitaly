@@ -36,7 +36,7 @@ GEM
     ffi (1.10.0)
     gemojione (3.3.0)
       json
-    gitaly-proto (1.19.0)
+    gitaly-proto (1.22.0)
       grpc (~> 1.0)
     github-linguist (6.4.1)
       charlock_holmes (~> 0.7.6)
@@ -63,8 +63,8 @@ GEM
     gitlab-markup (1.7.0)
     gollum-grit_adapter (1.0.1)
       gitlab-grit (~> 2.7, >= 2.7.1)
-    google-protobuf (3.6.1)
-    googleapis-common-protos-types (1.0.3)
+    google-protobuf (3.7.1)
+    googleapis-common-protos-types (1.0.4)
       google-protobuf (~> 3.0)
     grpc (1.15.0)
       google-protobuf (~> 3.1)
@@ -182,7 +182,7 @@ DEPENDENCIES
   bundler (>= 1.16.5)
   factory_bot
   faraday (~> 0.12)
-  gitaly-proto (~> 1.19.0)
+  gitaly-proto (~> 1.22.0)
   github-linguist (~> 6.1)
   gitlab-gollum-lib (~> 4.2.7.7)
   gitlab-gollum-rugged_adapter (~> 0.4.4.2)
