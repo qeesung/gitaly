@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
@@ -78,11 +79,10 @@ func main() {
 
 	// gitaly-wrapper is supposed to set config.EnvUpgradesEnabled in order to enable graceful upgrades
 	_, isWrapped := os.LookupEnv(config.EnvUpgradesEnabled)
-	b, err := newBootstrap(os.Getenv(config.EnvPidFile), isWrapped)
+	b, err := bootstrap.New(os.Getenv(config.EnvPidFile), isWrapped)
 	if err != nil {
 		log.WithError(err).Fatal("init bootstrap")
 	}
-	defer b.Stop()
 
 	// If invoked with -version
 	if *flagVersion {
@@ -111,30 +111,59 @@ func main() {
 
 	tempdir.StartCleaning()
 
-	if err = b.listen(); err != nil {
-		log.WithError(err).Fatal("bootstrap failed")
-	}
+	log.WithError(run(b)).Error("shutting down")
+}
 
-	if config.Config.PrometheusListenAddr != "" {
-		l, err := b.prometheusListener()
-		if err != nil {
-			log.WithError(err).Fatal("configure prometheus listener")
+// Inside here we can use deferred functions. This is needed because
+// log.Fatal bypasses deferred functions.
+func run(b *bootstrap.Bootstrap) error {
+	servers, err := bootstrap.NewServerFactory()
+	if err != nil {
+		return err
+	}
+	defer servers.Stop()
+
+	b.StopAction = servers.GracefulStop
+
+	for _, c := range []starterConfig{
+		{unix, config.Config.SocketPath},
+		{tcp, config.Config.ListenAddr},
+		{tls, config.Config.TLSListenAddr},
+	} {
+		if c.addr == "" {
+			continue
 		}
 
-		promMux := http.NewServeMux()
-		promMux.Handle("/metrics", promhttp.Handler())
-
-		server.AddPprofHandlers(promMux)
-
-		go func() {
-			err = http.Serve(l, promMux)
-			if err != nil {
-				log.WithError(err).Fatal("Unable to serve prometheus")
-			}
-		}()
+		b.RegisterStarter(gitalyStarter(c, servers))
 	}
 
-	b.run()
+	if addr := config.Config.PrometheusListenAddr; addr != "" {
+		b.RegisterStarter(func(listen bootstrap.ListenFunc, _ chan<- error) error {
+			l, err := listen("tcp", addr)
+			if err != nil {
+				return err
+			}
 
-	log.Fatal("shutting down")
+			log.WithField("address", addr).Info("starting prometheus listener")
+
+			promMux := http.NewServeMux()
+			promMux.Handle("/metrics", promhttp.Handler())
+
+			server.AddPprofHandlers(promMux)
+
+			go func() {
+				if err := http.Serve(l, promMux); err != nil {
+					log.WithError(err).Error("Unable to serve prometheus")
+				}
+			}()
+
+			return nil
+		})
+	}
+
+	if err := b.Start(); err != nil {
+		return fmt.Errorf("unable to start the bootstrap: %v", err)
+	}
+
+	return b.Wait()
 }
