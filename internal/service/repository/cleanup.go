@@ -2,34 +2,37 @@ package repository
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 var lockFiles = []string{"config.lock", "HEAD.lock"}
 
-func (server) Cleanup(_ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cleanupRepo(repoPath); err != nil {
+func (server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
+	if err := cleanupRepo(ctx, in.GetRepository()); err != nil {
 		return nil, err
 	}
 
 	return &gitalypb.CleanupResponse{}, nil
 }
 
-func cleanupRepo(repoPath string) error {
+func cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
+	repoPath, err := helper.GetRepoPath(repo)
+	if err != nil {
+		return err
+	}
+
 	threshold := time.Now().Add(-1 * time.Hour)
 	if err := cleanRefsLocks(filepath.Join(repoPath, "refs"), threshold); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanRefsLocks: %v", err)
@@ -38,8 +41,7 @@ func cleanupRepo(repoPath string) error {
 		return status.Errorf(codes.Internal, "Cleanup: cleanPackedRefsLock: %v", err)
 	}
 
-	worktreeThreshold := time.Now().Add(-6 * time.Hour)
-	if err := cleanStaleWorktrees(repoPath, worktreeThreshold); err != nil {
+	if err := cleanStaleWorktrees(ctx, repo); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanStaleWorktrees: %v", err)
 	}
 
@@ -95,37 +97,36 @@ func cleanPackedRefsLock(repoPath string, threshold time.Time) error {
 	return nil
 }
 
-func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
-	worktreePath := filepath.Join(repoPath, "worktrees")
-
-	dirInfo, err := os.Stat(worktreePath)
-	if err != nil {
-		if os.IsNotExist(err) || !dirInfo.IsDir() {
-			return nil
-		}
-		return err
-	}
-
-	worktreeEntries, err := ioutil.ReadDir(worktreePath)
+func cleanStaleWorktrees(ctx context.Context, repo *gitalypb.Repository) error {
+	// prune all disconnected work trees immediately
+	err := worktreePruneCmd(ctx, repo, 0)
 	if err != nil {
 		return err
 	}
 
-	for _, info := range worktreeEntries {
-		if !info.IsDir() || (info.Mode()&os.ModeSymlink != 0) {
-			continue
-		}
+	// prune all stale work trees older than 6 hours
+	err = worktreePruneCmd(ctx, repo, 6)
+	return err
+}
 
-		path := filepath.Join(worktreePath, info.Name())
-
-		if info.ModTime().Before(threshold) {
-			if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
-				return err
-			}
-		}
+func worktreePruneCmd(ctx context.Context, repo repository.GitRepo, hoursAgo int) error {
+	pruneWorktreeArgs := []string{
+		"worktree", "prune",
 	}
 
-	return nil
+	if hoursAgo > 0 {
+		pruneWorktreeArgs = append(
+			pruneWorktreeArgs,
+			fmt.Sprintf("--expire=%d.hours.ago", hoursAgo),
+		)
+	}
+
+	cmd, err := git.Command(ctx, repo, pruneWorktreeArgs...)
+	if err != nil {
+		return err
+	}
+
+	return cmd.Wait()
 }
 
 func cleanFileLocks(repoPath string, threshold time.Time) error {

@@ -192,11 +192,17 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 		worktreeAdminDir = "worktrees"
 	)
 
-	addWorkTree := func(repoPath, worktree string) error {
-		return exec.Command(
+	addWorkTree := func(t testing.TB, repoPath, worktree string) error {
+		cmd := exec.Command(
 			"git",
 			testhelper.AddWorktreeArgs(repoPath, worktree)...,
-		).Run()
+		)
+
+		out, err := cmd.CombinedOutput()
+
+		t.Logf("%s: %s", cmd.Args, string(out))
+
+		return err
 	}
 
 	server, serverSocketPath := runRepoServer(t)
@@ -250,7 +256,7 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 
 			// a disconnected work tree prevents us from checking out another work
 			// tree at the same path
-			err = addWorkTree(testRepoPath, worktreePath)
+			err = addWorkTree(t, testRepoPath, worktreePath)
 			require.Error(t, err)
 
 			// cleanup should prune the disconnected worktree administrative files
@@ -259,9 +265,12 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 			require.NoError(t, err)
 			testhelper.AssertFileNotExists(t, worktreeAdminPath)
 
+			out, err := exec.Command("ls", "-al", worktreeAdminPath).CombinedOutput()
+			t.Logf("ls -al %s: %s", worktreeAdminPath, out)
+
 			// if the worktree administrative files are pruned, then we should be able
 			// to checkout another worktree at the same path
-			err = addWorkTree(testRepoPath, worktreePath)
+			err = addWorkTree(t, testRepoPath, worktreePath)
 			require.NoError(t, err)
 		})
 	}

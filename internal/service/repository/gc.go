@@ -30,7 +30,7 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 		return nil, err
 	}
 
-	if err := cleanupRepo(repoPath); err != nil {
+	if err := cleanupRepo(ctx, in.GetRepository()); err != nil {
 		return nil, err
 	}
 
