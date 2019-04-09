@@ -188,21 +188,15 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 
 func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	const (
-		worktreePath     = "test-worktree"
+		worktreeName     = "test-worktree"
 		worktreeAdminDir = "worktrees"
 	)
 
-	addWorkTree := func(t testing.TB, repoPath, worktree string) error {
-		cmd := exec.Command(
+	addWorkTree := func(repoPath, worktree string) error {
+		return exec.Command(
 			"git",
 			testhelper.AddWorktreeArgs(repoPath, worktree)...,
-		)
-
-		out, err := cmd.CombinedOutput()
-
-		t.Logf("%s: %s", cmd.Args, string(out))
-
-		return err
+		).Run()
 	}
 
 	server, serverSocketPath := runRepoServer(t)
@@ -211,69 +205,45 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testCases := []struct {
-		desc         string
-		worktreeTime time.Time
-	}{
-		{
-			desc:         "with a recent disconnected worktree",
-			worktreeTime: freshTime,
-		},
-		{
-			desc:         "with a slightly old disconnected worktree",
-			worktreeTime: oldTime,
-		},
-		{
-			desc:         "with an old disconnected worktree",
-			worktreeTime: oldTreeTime,
-		},
-	}
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
 
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-			defer cleanupFn()
+	var (
+		worktreePath      = filepath.Join(testRepoPath, worktreeName)
+		worktreeAdminPath = filepath.Join(
+			testRepoPath, worktreeAdminDir, filepath.Base(worktreeName),
+		)
+	)
 
-			req := &gitalypb.CleanupRequest{Repository: testRepo}
+	req := &gitalypb.CleanupRequest{Repository: testRepo}
 
-			testhelper.AddWorktree(t, testRepoPath, worktreePath)
-			worktreeAdminPath := filepath.Join(
-				testRepoPath, worktreeAdminDir, filepath.Base(worktreePath),
-			)
+	t.Logf("Adding worktree named %s", worktreeName)
+	testhelper.AddWorktree(t, testRepoPath, worktreeName)
 
-			require.NoError(t,
-				os.Chtimes(worktreeAdminPath, tc.worktreeTime, tc.worktreeTime),
-			)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-			ctx, cancel := testhelper.Context()
-			defer cancel()
+	// removing the work tree path but leaving the administrative files in
+	// $GIT_DIR/worktrees will result in the work tree being in a
+	// "disconnected" state
+	t.Logf("Removing work tree at %s", worktreePath)
+	err := os.RemoveAll(worktreePath)
+	require.NoError(t, err)
 
-			// removing the work tree path but leaving the administrative files in
-			// $GIT_DIR/worktrees will result in the work tree being in a
-			// "disconnected" state
-			err := os.RemoveAll(worktreePath)
-			require.NoError(t, err)
+	// a disconnected work tree prevents us from checking out another work
+	// tree at the same path
+	err = addWorkTree(testRepoPath, worktreeName)
+	require.Error(t, err)
 
-			// a disconnected work tree prevents us from checking out another work
-			// tree at the same path
-			err = addWorkTree(t, testRepoPath, worktreePath)
-			require.Error(t, err)
+	// cleanup should prune the disconnected worktree administrative files
+	_, err = client.Cleanup(ctx, req)
+	require.NoError(t, err)
+	testhelper.AssertFileNotExists(t, worktreeAdminPath)
 
-			// cleanup should prune the disconnected worktree administrative files
-			// in $GIT_DIR/worktrees
-			_, err = client.Cleanup(ctx, req)
-			require.NoError(t, err)
-			testhelper.AssertFileNotExists(t, worktreeAdminPath)
-
-			out, err := exec.Command("ls", "-al", worktreeAdminPath).CombinedOutput()
-			t.Logf("ls -al %s: %s", worktreeAdminPath, out)
-
-			// if the worktree administrative files are pruned, then we should be able
-			// to checkout another worktree at the same path
-			err = addWorkTree(t, testRepoPath, worktreePath)
-			require.NoError(t, err)
-		})
-	}
+	// if the worktree administrative files are pruned, then we should be able
+	// to checkout another worktree at the same path
+	err = addWorkTree(testRepoPath, worktreeName)
+	require.NoError(t, err)
 }
 
 func TestCleanupFileLocks(t *testing.T) {
