@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +10,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 
 	"google.golang.org/grpc/codes"
@@ -41,8 +40,13 @@ func cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
 		return status.Errorf(codes.Internal, "Cleanup: cleanPackedRefsLock: %v", err)
 	}
 
-	if err := cleanStaleWorktrees(ctx, repo); err != nil {
+	worktreeThreshold := time.Now().Add(-6 * time.Hour)
+	if err := cleanStaleWorktrees(repoPath, worktreeThreshold); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanStaleWorktrees: %v", err)
+	}
+
+	if err := cleanDisconnectedWorktrees(ctx, repo); err != nil {
+		return status.Errorf(codes.Internal, "Cleanup: cleanDisconnectedWorktrees: %v", err)
 	}
 
 	configLockThreshod := time.Now().Add(-15 * time.Minute)
@@ -97,31 +101,41 @@ func cleanPackedRefsLock(repoPath string, threshold time.Time) error {
 	return nil
 }
 
-func cleanStaleWorktrees(ctx context.Context, repo *gitalypb.Repository) error {
-	// prune all disconnected work trees immediately
-	err := worktreePruneCmd(ctx, repo, 0)
+func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
+	worktreePath := filepath.Join(repoPath, "worktrees")
+
+	dirInfo, err := os.Stat(worktreePath)
+	if err != nil {
+		if os.IsNotExist(err) || !dirInfo.IsDir() {
+			return nil
+		}
+		return err
+	}
+
+	worktreeEntries, err := ioutil.ReadDir(worktreePath)
 	if err != nil {
 		return err
 	}
 
-	// prune all stale work trees older than 6 hours
-	err = worktreePruneCmd(ctx, repo, 6)
-	return err
+	for _, info := range worktreeEntries {
+		if !info.IsDir() || (info.Mode()&os.ModeSymlink != 0) {
+			continue
+		}
+
+		path := filepath.Join(worktreePath, info.Name())
+
+		if info.ModTime().Before(threshold) {
+			if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
-func worktreePruneCmd(ctx context.Context, repo repository.GitRepo, hoursAgo int) error {
-	pruneWorktreeArgs := []string{
-		"worktree", "prune",
-	}
-
-	if hoursAgo > 0 {
-		pruneWorktreeArgs = append(
-			pruneWorktreeArgs,
-			fmt.Sprintf("--expire=%d.hours.ago", hoursAgo),
-		)
-	}
-
-	cmd, err := git.Command(ctx, repo, pruneWorktreeArgs...)
+func cleanDisconnectedWorktrees(ctx context.Context, repo *gitalypb.Repository) error {
+	cmd, err := git.Command(ctx, repo, "worktree", "prune")
 	if err != nil {
 		return err
 	}
