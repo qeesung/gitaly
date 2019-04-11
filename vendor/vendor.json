@@ -751,6 +751,12 @@
 			"revisionTime": "2018-10-29T18:00:05Z"
 		},
 		{
+			"checksumSHA1": "1AaBS00YoGPd0fAjH1soKkj12J0=",
+			"path": "golang.org/x/tools/cmd/goimports",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
 			"checksumSHA1": "w/OExaIcqB7E5IG5097RPHtOlzc=",
 			"path": "golang.org/x/tools/cover",
 			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
@@ -775,8 +781,50 @@
 			"revisionTime": "2019-03-30T20:18:22Z"
 		},
 		{
+			"checksumSHA1": "0eGV7/fQ1iQbU5tB7MewaXJdEjA=",
+			"path": "golang.org/x/tools/go/internal/packagesdriver",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "ni65bJo/oo6Cj008r9WBAlSWUX0=",
+			"path": "golang.org/x/tools/go/packages",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
 			"checksumSHA1": "4YVF0nbGWFYLyh75C7dD1Dgpyug=",
 			"path": "golang.org/x/tools/go/vcs",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "gSRO+5x4H8KnYwmh3PvHAFfGQZA=",
+			"path": "golang.org/x/tools/imports",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "dC7MpahR/U0T8CRcTypgrwO1Lg0=",
+			"path": "golang.org/x/tools/internal/fastwalk",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "Irm7ntYQFWovUjCUwExQu7Gbhi4=",
+			"path": "golang.org/x/tools/internal/gopathwalk",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "jOeksgcnpvOhYXbU84r8/yvE+rI=",
+			"path": "golang.org/x/tools/internal/module",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "Lcm5y2VtSqdVuOjhBFEeAHNI+ug=",
+			"path": "golang.org/x/tools/internal/semver",
 			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
 			"revisionTime": "2019-03-30T20:18:22Z"
 		},
