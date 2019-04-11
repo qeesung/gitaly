@@ -655,6 +655,18 @@
 			"revisionTime": "2018-10-23T16:52:47Z"
 		},
 		{
+			"checksumSHA1": "RGFEeJVsaq+s5qGwd0MzXNMMFSU=",
+			"path": "golang.org/x/lint",
+			"revision": "959b441ac422379a43da2230f62be024250818b0",
+			"revisionTime": "2019-04-09T20:23:51Z"
+		},
+		{
+			"checksumSHA1": "543dY7RKJCSNiqYONDu1O2aD8s8=",
+			"path": "golang.org/x/lint/golint",
+			"revision": "959b441ac422379a43da2230f62be024250818b0",
+			"revisionTime": "2019-04-09T20:23:51Z"
+		},
+		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
 			"path": "golang.org/x/net/context",
 			"revision": "c44066c5c816ec500d459a2a324a753f78531ae0",
@@ -741,6 +753,24 @@
 		{
 			"checksumSHA1": "w/OExaIcqB7E5IG5097RPHtOlzc=",
 			"path": "golang.org/x/tools/cover",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "LHHkpIoYHpQiBc7y0JaTmf3VbVQ=",
+			"path": "golang.org/x/tools/go/ast/astutil",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "6lzLm5eIswP0fziPs74p+lb0QUo=",
+			"path": "golang.org/x/tools/go/gcexportdata",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
+		},
+		{
+			"checksumSHA1": "cEqToMNtE7HuQ2rmaDHxLjz4Fg0=",
+			"path": "golang.org/x/tools/go/internal/gcimporter",
 			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
 			"revisionTime": "2019-03-30T20:18:22Z"
 		},
