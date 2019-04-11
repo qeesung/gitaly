@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -230,10 +231,21 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	err := os.RemoveAll(worktreePath)
 	require.NoError(t, err)
 
-	// a disconnected work tree prevents us from checking out another work
-	// tree at the same path
-	err = addWorkTree(testRepoPath, worktreeName)
-	require.Error(t, err)
+	// TODO: remove the following version checks when the lowest supported git
+	// version is 2.20.0 or higher
+	version, err := git.Version()
+	require.NoError(t, err)
+
+	pre2_20_0, err := git.VersionLessThan(version, "2.20.0")
+	require.NoError(t, err)
+
+	// After git v2.20.0, a disconnected work tree prevents us from checking out
+	// another work tree at the same path
+	//
+	if !pre2_20_0 {
+		err = addWorkTree(testRepoPath, worktreeName)
+		require.Error(t, err)
+	}
 
 	// cleanup should prune the disconnected worktree administrative files
 	_, err = client.Cleanup(ctx, req)

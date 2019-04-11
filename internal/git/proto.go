@@ -62,25 +62,90 @@ func Version() (string, error) {
 	return ver[2], nil
 }
 
-// SupportsDeltaIslands checks if a version string (e.g. "2.20.0")
-// corresponds to a Git version that supports delta islands.
-func SupportsDeltaIslands(version string) (bool, error) {
-	versionSplit := strings.SplitN(version, ".", 3)
-	if len(versionSplit) < 3 {
-		return false, fmt.Errorf("expected major.minor.patch in %q", version)
-	}
+// VersionLessThan returns true if the parsed version value of v1Str is less
+// than the parsed version value of v2Str. An error can be returned if the
+// strings cannot be parsed.
+// Note: this is an extremely simplified semver comparison algorithm
+func VersionLessThan(v1Str, v2Str string) (bool, error) {
+	var (
+		v1, v2 version
+		err    error
+	)
 
-	var major, minor uint32
-	for i, v := range []*uint32{&major, &minor} {
-		n64, err := strconv.ParseUint(versionSplit[i], 10, 32)
+	for _, v := range []struct {
+		string
+		*version
+	}{
+		{v1Str, &v1},
+		{v2Str, &v2},
+	} {
+		*v.version, err = parseVersion(v.string)
 		if err != nil {
 			return false, err
+		}
+	}
+
+	return versionLessThan(v1, v2), nil
+}
+
+func versionLessThan(v1, v2 version) bool {
+	switch {
+
+	case v1.major < v2.major:
+		return true
+	case v1.major > v2.major:
+		return false
+
+	case v1.minor < v2.minor:
+		return true
+	case v1.minor > v2.minor:
+		return false
+
+	case v1.patch < v2.patch:
+		return true
+	case v1.patch > v2.patch:
+		return false
+
+	default:
+		// this should only be reachable when versions are equal
+		return false
+
+	}
+}
+
+type version struct {
+	major, minor, patch uint32
+}
+
+func parseVersion(versionStr string) (version, error) {
+	versionSplit := strings.SplitN(versionStr, ".", 3)
+	if len(versionSplit) < 3 {
+		return version{}, fmt.Errorf("expected major.minor.patch in %q", versionStr)
+	}
+
+	var ver version
+
+	for i, v := range []*uint32{&ver.major, &ver.minor, &ver.patch} {
+		n64, err := strconv.ParseUint(versionSplit[i], 10, 32)
+		if err != nil {
+			return version{}, err
 		}
 
 		*v = uint32(n64)
 	}
 
-	return major >= 2 && minor >= 20, nil
+	return ver, nil
+}
+
+// SupportsDeltaIslands checks if a version string (e.g. "2.20.0")
+// corresponds to a Git version that supports delta islands.
+func SupportsDeltaIslands(versionStr string) (bool, error) {
+	v, err := parseVersion(versionStr)
+	if err != nil {
+		return false, err
+	}
+
+	return !versionLessThan(v, version{2, 20, 0}), nil
 }
 
 // BuildGitOptions helps to generate options to the git command.
