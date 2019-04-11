@@ -183,20 +183,24 @@ func TestFailedWikiGetAllPagesDueToValidation(t *testing.T) {
 	client, conn := newWikiClient(t, serverSocketPath)
 	defer conn.Close()
 
-	rpcRequests := []gitalypb.WikiGetAllPagesRequest{
-		{Repository: &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}}, // Repository doesn't exist
-		{Repository: nil}, // Repository is nil
+	testCases := []struct {
+		desc string
+		req  *gitalypb.WikiGetAllPagesRequest
+	}{
+		{desc: "no repository", req: &gitalypb.WikiGetAllPagesRequest{}},
 	}
 
-	for _, rpcRequest := range rpcRequests {
-		ctx, cancel := testhelper.Context()
-		defer cancel()
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
 
-		c, err := client.WikiGetAllPages(ctx, &rpcRequest)
-		require.NoError(t, err)
+			c, err := client.WikiGetAllPages(ctx, tc.req)
+			require.NoError(t, err)
 
-		err = drainWikiGetAllPagesResponse(c)
-		testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
+			err = drainWikiGetAllPagesResponse(c)
+			testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
+		})
 	}
 }
 
