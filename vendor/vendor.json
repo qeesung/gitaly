@@ -587,6 +587,12 @@
 			"revisionTime": "2018-11-02T16:30:54Z"
 		},
 		{
+			"checksumSHA1": "ih4CCYD19rjjF9fjid+l7w/+cIg=",
+			"path": "github.com/wadey/gocovmerge",
+			"revision": "b5bfa59ec0adc420475f97f89b58045c721d761c",
+			"revisionTime": "2016-03-31T18:18:00Z"
+		},
+		{
 			"checksumSHA1": "GfvhruEiAgylKnkURvEDwtA2tK8=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb",
 			"revision": "290be0f5b5f18fba1d5438464ac6308e20c14149",
@@ -731,6 +737,12 @@
 			"path": "golang.org/x/text/unicode/norm",
 			"revision": "6f44c5a2ea40ee3593d98cdcc905cc1fdaa660e2",
 			"revisionTime": "2018-10-29T18:00:05Z"
+		},
+		{
+			"checksumSHA1": "w/OExaIcqB7E5IG5097RPHtOlzc=",
+			"path": "golang.org/x/tools/cover",
+			"revision": "2538eef75904eff384a2551359968e40c207d9d2",
+			"revisionTime": "2019-03-30T20:18:22Z"
 		},
 		{
 			"checksumSHA1": "4YVF0nbGWFYLyh75C7dD1Dgpyug=",
