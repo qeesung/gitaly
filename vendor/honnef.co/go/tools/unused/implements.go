@@ -37,46 +37,43 @@ func sameId(obj types.Object, pkg *types.Package, name string) bool {
 	return pkg.Path() == obj.Pkg().Path()
 }
 
-func (g *Graph) implements(V types.Type, T *types.Interface, msV *types.MethodSet) ([]*types.Selection, bool) {
+func (c *Checker) implements(V types.Type, T *types.Interface) bool {
 	// fast path for common case
 	if T.Empty() {
-		return nil, true
+		return true
 	}
 
 	if ityp, _ := V.Underlying().(*types.Interface); ityp != nil {
-		// TODO(dh): is this code reachable?
 		for i := 0; i < T.NumMethods(); i++ {
 			m := T.Method(i)
 			_, obj := lookupMethod(ityp, m.Pkg(), m.Name())
 			switch {
 			case obj == nil:
-				return nil, false
+				return false
 			case !types.Identical(obj.Type(), m.Type()):
-				return nil, false
+				return false
 			}
 		}
-		return nil, true
+		return true
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	var sels []*types.Selection
+	ms := c.msCache.MethodSet(V)
 	for i := 0; i < T.NumMethods(); i++ {
 		m := T.Method(i)
-		sel := msV.Lookup(m.Pkg(), m.Name())
+		sel := ms.Lookup(m.Pkg(), m.Name())
 		if sel == nil {
-			return nil, false
+			return false
 		}
 
 		f, _ := sel.Obj().(*types.Func)
 		if f == nil {
-			return nil, false
+			return false
 		}
 
 		if !types.Identical(f.Type(), m.Type()) {
-			return nil, false
+			return false
 		}
-
-		sels = append(sels, sel)
 	}
-	return sels, true
+	return true
 }

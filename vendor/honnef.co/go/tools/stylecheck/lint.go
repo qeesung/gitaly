@@ -32,24 +32,22 @@ func (c *Checker) Init(prog *lint.Program) {}
 
 func (c *Checker) Checks() []lint.Check {
 	return []lint.Check{
-		{ID: "ST1000", FilterGenerated: false, Fn: c.CheckPackageComment, Doc: docST1000},
-		{ID: "ST1001", FilterGenerated: true, Fn: c.CheckDotImports, Doc: docST1001},
-		// {ID: "ST1002", FilterGenerated: true, Fn: c.CheckBlankImports, Doc: docST1002},
-		{ID: "ST1003", FilterGenerated: true, Fn: c.CheckNames, Doc: docST1003},
-		// {ID: "ST1004", FilterGenerated: false, Fn: nil, 			  , Doc: docST1004},
-		{ID: "ST1005", FilterGenerated: false, Fn: c.CheckErrorStrings, Doc: docST1005},
-		{ID: "ST1006", FilterGenerated: false, Fn: c.CheckReceiverNames, Doc: docST1006},
-		// {ID: "ST1007", FilterGenerated: true, Fn: c.CheckIncDec, Doc: docST1007},
-		{ID: "ST1008", FilterGenerated: false, Fn: c.CheckErrorReturn, Doc: docST1008},
-		// {ID: "ST1009", FilterGenerated: false, Fn: c.CheckUnexportedReturn, Doc: docST1009},
-		// {ID: "ST1010", FilterGenerated: false, Fn: c.CheckContextFirstArg, Doc: docST1010},
-		{ID: "ST1011", FilterGenerated: false, Fn: c.CheckTimeNames, Doc: docST1011},
-		{ID: "ST1012", FilterGenerated: false, Fn: c.CheckErrorVarNames, Doc: docST1012},
-		{ID: "ST1013", FilterGenerated: true, Fn: c.CheckHTTPStatusCodes, Doc: docST1013},
-		{ID: "ST1015", FilterGenerated: true, Fn: c.CheckDefaultCaseOrder, Doc: docST1015},
-		{ID: "ST1016", FilterGenerated: false, Fn: c.CheckReceiverNamesIdentical, Doc: docST1016},
-		{ID: "ST1017", FilterGenerated: true, Fn: c.CheckYodaConditions, Doc: docST1017},
-		{ID: "ST1018", FilterGenerated: false, Fn: c.CheckInvisibleCharacters, Doc: docST1018},
+		{ID: "ST1000", FilterGenerated: false, Fn: c.CheckPackageComment},
+		{ID: "ST1001", FilterGenerated: true, Fn: c.CheckDotImports},
+		// {ID: "ST1002", FilterGenerated: true, Fn: c.CheckBlankImports},
+		{ID: "ST1003", FilterGenerated: true, Fn: c.CheckNames},
+		// {ID: "ST1004", FilterGenerated: false, Fn: nil, 			  },
+		{ID: "ST1005", FilterGenerated: false, Fn: c.CheckErrorStrings},
+		{ID: "ST1006", FilterGenerated: false, Fn: c.CheckReceiverNames},
+		// {ID: "ST1007", FilterGenerated: true, Fn: c.CheckIncDec},
+		{ID: "ST1008", FilterGenerated: false, Fn: c.CheckErrorReturn},
+		// {ID: "ST1009", FilterGenerated: false, Fn: c.CheckUnexportedReturn},
+		// {ID: "ST1010", FilterGenerated: false, Fn: c.CheckContextFirstArg},
+		{ID: "ST1011", FilterGenerated: false, Fn: c.CheckTimeNames},
+		{ID: "ST1012", FilterGenerated: false, Fn: c.CheckErrorVarNames},
+		{ID: "ST1013", FilterGenerated: true, Fn: c.CheckHTTPStatusCodes},
+		{ID: "ST1015", FilterGenerated: true, Fn: c.CheckDefaultCaseOrder},
+		{ID: "ST1016", FilterGenerated: false, Fn: c.CheckReceiverNamesIdentical},
 	}
 }
 
@@ -178,14 +176,14 @@ func (c *Checker) CheckIncDec(j *lint.Job) {
 	// 	x += 2
 	// 	...
 	// 	x += 1
-	fn := func(node ast.Node) {
-		assign := node.(*ast.AssignStmt)
-		if assign.Tok != token.ADD_ASSIGN && assign.Tok != token.SUB_ASSIGN {
-			return
+	fn := func(node ast.Node) bool {
+		assign, ok := node.(*ast.AssignStmt)
+		if !ok || (assign.Tok != token.ADD_ASSIGN && assign.Tok != token.SUB_ASSIGN) {
+			return true
 		}
 		if (len(assign.Lhs) != 1 || len(assign.Rhs) != 1) ||
 			!IsIntLiteral(assign.Rhs[0], "1") {
-			return
+			return true
 		}
 
 		suffix := ""
@@ -197,8 +195,11 @@ func (c *Checker) CheckIncDec(j *lint.Job) {
 		}
 
 		j.Errorf(assign, "should replace %s with %s%s", Render(j, assign), Render(j, assign.Lhs[0]), suffix)
+		return true
 	}
-	InspectPreorder(j, []ast.Node{(*ast.AssignStmt)(nil)}, fn)
+	for _, f := range j.Program.Files {
+		ast.Inspect(f, fn)
+	}
 }
 
 func (c *Checker) CheckErrorReturn(j *lint.Job) {
@@ -335,18 +336,14 @@ fnLoop:
 }
 
 func (c *Checker) CheckErrorStrings(j *lint.Job) {
-	objNames := map[*ssa.Package]map[string]bool{}
-	for _, pkg := range j.Program.InitialPackages {
-		ssapkg := pkg.SSA
-		objNames[ssapkg] = map[string]bool{}
-		for _, m := range ssapkg.Members {
-			if typ, ok := m.(*ssa.Type); ok {
-				objNames[ssapkg][typ.Name()] = true
-			}
-		}
-	}
+	fnNames := map[*ssa.Package]map[string]bool{}
 	for _, fn := range j.Program.InitialFunctions {
-		objNames[fn.Package()][fn.Name()] = true
+		m := fnNames[fn.Package()]
+		if m == nil {
+			m = map[string]bool{}
+			fnNames[fn.Package()] = m
+		}
+		m[fn.Name()] = true
 	}
 
 	for _, fn := range j.Program.InitialFunctions {
@@ -401,8 +398,8 @@ func (c *Checker) CheckErrorStrings(j *lint.Job) {
 				}
 
 				word = strings.TrimRightFunc(word, func(r rune) bool { return unicode.IsPunct(r) })
-				if objNames[fn.Package()][word] {
-					// Word is probably the name of a function or type in this package
+				if fnNames[fn.Package()][word] {
+					// Word is probably the name of a function in this package
 					continue
 				}
 				// First word in error starts with a capital
@@ -601,8 +598,11 @@ func (c *Checker) CheckHTTPStatusCodes(j *lint.Job) {
 }
 
 func (c *Checker) CheckDefaultCaseOrder(j *lint.Job) {
-	fn := func(node ast.Node) {
-		stmt := node.(*ast.SwitchStmt)
+	fn := func(node ast.Node) bool {
+		stmt, ok := node.(*ast.SwitchStmt)
+		if !ok {
+			return true
+		}
 		list := stmt.Body.List
 		for i, c := range list {
 			if c.(*ast.CaseClause).List == nil && i != 0 && i != len(list)-1 {
@@ -610,41 +610,9 @@ func (c *Checker) CheckDefaultCaseOrder(j *lint.Job) {
 				break
 			}
 		}
+		return true
 	}
-	InspectPreorder(j, []ast.Node{(*ast.SwitchStmt)(nil)}, fn)
-}
-
-func (c *Checker) CheckYodaConditions(j *lint.Job) {
-	fn := func(node ast.Node) {
-		cond := node.(*ast.BinaryExpr)
-		if cond.Op != token.EQL && cond.Op != token.NEQ {
-			return
-		}
-		if _, ok := cond.X.(*ast.BasicLit); !ok {
-			return
-		}
-		if _, ok := cond.Y.(*ast.BasicLit); ok {
-			// Don't flag lit == lit conditions, just in case
-			return
-		}
-		j.Errorf(cond, "don't use Yoda conditions")
+	for _, f := range j.Program.Files {
+		ast.Inspect(f, fn)
 	}
-	InspectPreorder(j, []ast.Node{(*ast.BinaryExpr)(nil)}, fn)
-}
-
-func (c *Checker) CheckInvisibleCharacters(j *lint.Job) {
-	fn := func(node ast.Node) {
-		lit := node.(*ast.BasicLit)
-		if lit.Kind != token.STRING {
-			return
-		}
-		for _, r := range lit.Value {
-			if unicode.Is(unicode.Cf, r) {
-				j.Errorf(lit, "string literal contains the Unicode format character %U, consider using the %q escape sequence", r, r)
-			} else if unicode.Is(unicode.Cc, r) && r != '\n' && r != '\t' && r != '\r' {
-				j.Errorf(lit, "string literal contains the Unicode control character %U, consider using the %q escape sequence", r, r)
-			}
-		}
-	}
-	InspectPreorder(j, []ast.Node{(*ast.BasicLit)(nil)}, fn)
 }

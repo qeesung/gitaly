@@ -1181,22 +1181,22 @@
 			"revisionTime": "2018-11-15T11:05:04Z"
 		},
 		{
-			"checksumSHA1": "R/A3PgI211U8BwHbPbf5USlHHyM=",
+			"checksumSHA1": "oGRlLuA0CvzLQ3utUM9r18HVxg4=",
 			"path": "honnef.co/go/tools/arg",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "FG8LnaSRTHBnrPHwa0zW4zX9K7M=",
 			"path": "honnef.co/go/tools/callgraph",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "fR7Q7BVwKHUEsUNGn6Q2zygAvTU=",
 			"path": "honnef.co/go/tools/callgraph/static",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "9GNh6/rWaXKcRs9Agbbctdvhldo=",
@@ -1205,22 +1205,22 @@
 			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "XQeBBpg3zq56+ntzvtQghYLXGKY=",
+			"checksumSHA1": "G7eJP+BGE+I1j7xiMoqgGD4hhaE=",
 			"path": "honnef.co/go/tools/config",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "ypvDiQUIVTkCO+50vsAeMkjG//g=",
+			"checksumSHA1": "smQXvyCgi0lsTRk7edZNx/z44rc=",
 			"path": "honnef.co/go/tools/deprecated",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "3yOlSVvgQlavY+xmmiJNXGNthaQ=",
 			"path": "honnef.co/go/tools/functions",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "qKxjxPLB3eHR68rR6E3JkiqcVvA=",
@@ -1231,86 +1231,86 @@
 		{
 			"checksumSHA1": "4+4lxKUu1GCGzacYEeKTM1DBae4=",
 			"path": "honnef.co/go/tools/internal/sharedcheck",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "6u/bt6XEt39j696HXGlOUxONmKg=",
+			"checksumSHA1": "NFDvAr8IE+1sWU7gJy7yQBdvQeU=",
 			"path": "honnef.co/go/tools/lint",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "e9cW5N/bddLwpPgxpr7TCx0jPJc=",
+			"checksumSHA1": "V+ywLC+UoTh/X1sMp9pOUXUt0lc=",
 			"path": "honnef.co/go/tools/lint/lintdsl",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "Xn9czUv2Y0/ehnYSrfoT4EJoOhY=",
+			"checksumSHA1": "zCSL1aqBSvmgO2MNarqatRx1eA0=",
 			"path": "honnef.co/go/tools/lint/lintutil",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "LBjb8HSNfwCGXZLNqDikfmeN7+U=",
 			"path": "honnef.co/go/tools/lint/lintutil/format",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "Zu6Ye5TZa/MZiVoTJrThUcsA0Es=",
+			"checksumSHA1": "OW2q8+BJBAf1aoRNg1N8jmrEpas=",
 			"path": "honnef.co/go/tools/simple",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "t1kAVlyBNAMyLooYDd6IB6QSR2g=",
 			"path": "honnef.co/go/tools/ssa",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "3dS5xh04DHB+HN3TUJ9O9XlZTbo=",
 			"path": "honnef.co/go/tools/ssa/ssautil",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "v8jS9vuH/Psf4M7AtBQHcgV01wg=",
 			"path": "honnef.co/go/tools/ssautil",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "gz1fcIgT84WwytoVTFwI899XwB0=",
+			"checksumSHA1": "xKrbQZtIIsDI8D0HeY6x5/IGfms=",
 			"path": "honnef.co/go/tools/staticcheck",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
 			"checksumSHA1": "nHc585tyewC/dLuNeTg4sDHbyKU=",
 			"path": "honnef.co/go/tools/staticcheck/vrp",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "Ank2JvU7pYq1dSrnj5foBIboKUg=",
+			"checksumSHA1": "bSrR02M8KFnrqHlk60WTy5XXYNs=",
 			"path": "honnef.co/go/tools/stylecheck",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "GpggEAf7jPLCbkWNo3Ozn0vmaWg=",
+			"checksumSHA1": "3Mg4N7LDh4jL2EwhTgNlH5nGjZE=",
 			"path": "honnef.co/go/tools/unused",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		},
 		{
-			"checksumSHA1": "RY0sZkXnDI/MxBauBD28dwuulSs=",
+			"checksumSHA1": "znlVTn4nc5RPUOrP8E7d8k6cSkU=",
 			"path": "honnef.co/go/tools/version",
-			"revision": "0e5f7e4d37794123e77f619a0d455574585124f0",
-			"revisionTime": "2019-04-10T22:08:42Z"
+			"revision": "95959eaf5e3c41c66151dcfd91779616b84077a8",
+			"revisionTime": "2019-03-15T11:34:50Z"
 		}
 	],
 	"rootPath": "gitlab.com/gitlab-org/gitaly"

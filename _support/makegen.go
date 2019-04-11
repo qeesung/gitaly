@@ -370,7 +370,7 @@ lint: {{ .GoLint }}
 	@cd {{ .SourceDir }} && go run _support/lint.go
 
 {{ .GoLint }}:
-	go get golang.org/x/lint/golint
+	go install {{ .SourceDir }}/vendor/golang.org/x/lint/golint
 
 .PHONY: check-formatting
 check-formatting: {{ .GoImports }}
@@ -378,7 +378,7 @@ check-formatting: {{ .GoImports }}
 	@cd {{ .SourceDir }} && goimports -e -l {{ join .GoFiles " " }} | awk '{ print } END { if(NR>0) { print "Formatting error, run make format"; exit(1) } }'
 
 {{ .GoImports }}:
-	go get golang.org/x/tools/cmd/goimports
+	go install {{ .SourceDir }}/vendor/golang.org/x/tools/cmd/goimports
 
 .PHONY: format
 format: {{ .GoImports }}
@@ -393,7 +393,7 @@ staticcheck: {{ .StaticCheck }}
 
 # Install staticcheck
 {{ .StaticCheck }}:
-	go get honnef.co/go/tools/cmd/staticcheck
+	go install {{ .SourceDir }}/vendor/honnef.co/go/tools/cmd/staticcheck
 
 .PHONY: govendor-status
 govendor-status: {{ .GoVendor }}
@@ -401,7 +401,7 @@ govendor-status: {{ .GoVendor }}
 	@cd {{ .SourceDir }} && govendor status
 
 {{ .GoVendor }}:
-	go get github.com/kardianos/govendor
+	go install {{ .SourceDir }}/vendor/github.com/kardianos/govendor
 
 .PHONY: notice-up-to-date
 notice-up-to-date: {{ .GoVendor }} clean-ruby-vendor-go
@@ -439,7 +439,7 @@ cover: prepare-tests {{ .GoCovMerge }}
 	@go tool cover -func "{{ .CoverageDir }}/all.merged"
 
 {{ .GoCovMerge }}:
-	go get github.com/wadey/gocovmerge
+	go install {{ .SourceDir }}/vendor/github.com/wadey/gocovmerge
 
 .PHONY: docker
 docker:

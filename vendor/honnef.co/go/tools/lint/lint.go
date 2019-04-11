@@ -15,7 +15,6 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/packages"
 	"honnef.co/go/tools/config"
 	"honnef.co/go/tools/ssa"
@@ -165,7 +164,6 @@ type Check struct {
 	Fn              Func
 	ID              string
 	FilterGenerated bool
-	Doc             string
 }
 
 // A Linter lints Go source code.
@@ -297,7 +295,6 @@ func (l *Linter) Lint(initial []*packages.Package, stats *PerfStats) []Problem {
 			Package: pkg,
 			Config:  cfg,
 		}
-		pkg.Inspector = inspector.New(pkg.Syntax)
 		pkgMap[ssapkg] = pkg
 		pkgs = append(pkgs, pkg)
 	}
@@ -473,9 +470,6 @@ func (l *Linter) Lint(initial []*packages.Package, stats *PerfStats) []Problem {
 			stats.Jobs = append(stats.Jobs, JobStat{j.check.ID, j.duration})
 		}
 		for _, p := range j.problems {
-			if p.Package == nil {
-				panic(fmt.Sprintf("internal error: problem at position %s has nil package", p.Position))
-			}
 			allowedChecks := FilterChecks(allChecks, p.Package.Config.Checks)
 
 			if l.ignore(p) {
@@ -623,8 +617,7 @@ func (prog *Program) Package(path string) *packages.Package {
 type Pkg struct {
 	SSA *ssa.Package
 	*packages.Package
-	Config    config.Config
-	Inspector *inspector.Inspector
+	Config config.Config
 }
 
 type Positioner interface {

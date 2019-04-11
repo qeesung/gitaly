@@ -233,26 +233,15 @@ func IsGoVersion(j *lint.Job, minor int) bool {
 }
 
 func CallNameAST(j *lint.Job, call *ast.CallExpr) string {
-	switch fun := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		fn, ok := ObjectOf(j, fun.Sel).(*types.Func)
-		if !ok {
-			return ""
-		}
-		return fn.FullName()
-	case *ast.Ident:
-		obj := ObjectOf(j, fun)
-		switch obj := obj.(type) {
-		case *types.Func:
-			return obj.FullName()
-		case *types.Builtin:
-			return obj.Name()
-		default:
-			return ""
-		}
-	default:
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
 		return ""
 	}
+	fn, ok := j.NodePackage(call).TypesInfo.ObjectOf(sel.Sel).(*types.Func)
+	if !ok {
+		return ""
+	}
+	return fn.FullName()
 }
 
 func IsCallToAST(j *lint.Job, node ast.Node, name string) bool {
@@ -331,61 +320,4 @@ func GroupSpecs(j *lint.Job, specs []ast.Spec) [][]ast.Spec {
 	}
 
 	return groups
-}
-
-func IsObject(obj types.Object, name string) bool {
-	var path string
-	if pkg := obj.Pkg(); pkg != nil {
-		path = pkg.Path() + "."
-	}
-	return path+obj.Name() == name
-}
-
-type Field struct {
-	Var  *types.Var
-	Tag  string
-	Path []int
-}
-
-// FlattenFields recursively flattens T and embedded structs,
-// returning a list of fields. If multiple fields with the same name
-// exist, all will be returned.
-func FlattenFields(T *types.Struct) []Field {
-	return flattenFields(T, nil, nil)
-}
-
-func flattenFields(T *types.Struct, path []int, seen map[types.Type]bool) []Field {
-	if seen == nil {
-		seen = map[types.Type]bool{}
-	}
-	if seen[T] {
-		return nil
-	}
-	seen[T] = true
-	var out []Field
-	for i := 0; i < T.NumFields(); i++ {
-		field := T.Field(i)
-		tag := T.Tag(i)
-		np := append(path[:len(path):len(path)], i)
-		if field.Anonymous() {
-			if s, ok := Dereference(field.Type()).Underlying().(*types.Struct); ok {
-				out = append(out, flattenFields(s, np, seen)...)
-			}
-		} else {
-			out = append(out, Field{field, tag, np})
-		}
-	}
-	return out
-}
-
-func InspectPreorder(j *lint.Job, types []ast.Node, fn func(ast.Node)) {
-	for _, pkg := range j.Program.InitialPackages {
-		pkg.Inspector.Preorder(types, fn)
-	}
-}
-
-func InspectNodes(j *lint.Job, types []ast.Node, fn func(node ast.Node, push bool) (prune bool)) {
-	for _, pkg := range j.Program.InitialPackages {
-		pkg.Inspector.Nodes(types, fn)
-	}
 }
