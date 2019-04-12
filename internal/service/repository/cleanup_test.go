@@ -231,7 +231,8 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO: remove the following version checks when the lowest supported git
-	// version is 2.20.0 or higher
+	// version is 2.20.0 or higher. Refer to relevant gitlab-ce issue:
+	// https://gitlab.com/gitlab-org/gitlab-ce/issues/54255
 	version, err := git.Version()
 	require.NoError(t, err)
 
