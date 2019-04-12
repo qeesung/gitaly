@@ -218,7 +218,6 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 
 	req := &gitalypb.CleanupRequest{Repository: testRepo}
 
-	t.Logf("Adding worktree named %s", worktreeName)
 	testhelper.AddWorktree(t, testRepoPath, worktreeName)
 
 	ctx, cancel := testhelper.Context()
