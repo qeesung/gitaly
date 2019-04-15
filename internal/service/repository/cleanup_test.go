@@ -209,11 +209,9 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	var (
-		worktreePath      = filepath.Join(testRepoPath, worktreeName)
-		worktreeAdminPath = filepath.Join(
-			testRepoPath, worktreeAdminDir, filepath.Base(worktreeName),
-		)
+	worktreePath := filepath.Join(testRepoPath, worktreeName)
+	worktreeAdminPath := filepath.Join(
+		testRepoPath, worktreeAdminDir, filepath.Base(worktreeName),
 	)
 
 	req := &gitalypb.CleanupRequest{Repository: testRepo}
