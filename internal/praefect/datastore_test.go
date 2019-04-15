@@ -2,7 +2,6 @@ package praefect_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
@@ -16,17 +15,9 @@ const (
 )
 
 var (
-	time0 = time.Time{}
-	time1 = time.Unix(1, 0)
-	time2 = time.Unix(2, 0)
-
 	repo1Primary = praefect.Repository{
 		RelativePath: proj1,
 		Storage:      stor1,
-	}
-	repo1Backup = praefect.Repository{
-		RelativePath: proj1,
-		Storage:      stor2,
 	}
 )
 

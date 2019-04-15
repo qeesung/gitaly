@@ -178,8 +178,8 @@ func (md *MemoryDatastore) getShard(project string) (shard, bool) {
 // replicas
 var ErrSecondariesMissing = errors.New("repository missing secondary replicas")
 
-// GetReplJobs will return any replications jobs for the specified storage
-// since the specified scheduled time up to the specified result limit.
+// GetIncompleteJobs will return all incomplete replications jobs for the
+// specified storage to the specified result limit.
 func (md *MemoryDatastore) GetIncompleteJobs(storage string, count int) ([]ReplJob, error) {
 	md.jobs.RLock()
 	defer md.jobs.RUnlock()
@@ -270,7 +270,7 @@ func (md *MemoryDatastore) CreateSecondaryReplJobs(source Repository) ([]uint64,
 	return jobIDs, nil
 }
 
-// PutReplJob updates an existing replication job state
+// UpdateReplJob updates an existing replication job's state
 func (md *MemoryDatastore) UpdateReplJob(jobID uint64, newState JobState) error {
 	md.jobs.Lock()
 	defer md.jobs.Unlock()

@@ -78,7 +78,7 @@ func run(listeners []net.Listener, conf config.Config) error {
 	var (
 		// top level server dependencies
 		coordinator = praefect.NewCoordinator(logger, conf.PrimaryServer.Name)
-		datastore   = praefect.NewMemoryDatastore(conf, time.Now())
+		datastore   = praefect.NewMemoryDatastore(conf)
 		repl        = praefect.NewReplMgr("default", logger, datastore, coordinator, praefect.WithWhitelist(conf.Whitelist))
 		srv         = praefect.NewServer(coordinator, repl, nil, logger)
 
