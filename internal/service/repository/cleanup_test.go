@@ -224,9 +224,10 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	// removing the work tree path but leaving the administrative files in
 	// $GIT_DIR/worktrees will result in the work tree being in a
 	// "disconnected" state
-	t.Logf("Removing work tree at %s", worktreePath)
 	err := os.RemoveAll(worktreePath)
-	require.NoError(t, err)
+	require.NoError(t, err,
+		"disconnecting worktree by removing work tree at %s should succeed", worktreePath,
+	)
 
 	// TODO: remove the following version checks when the lowest supported git
 	// version is 2.20.0 or higher. Refer to relevant gitlab-ce issue:
@@ -237,12 +238,11 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	pre2_20_0, err := git.VersionLessThan(version, "2.20.0")
 	require.NoError(t, err)
 
-	// After git v2.20.0, a disconnected work tree prevents us from checking out
-	// another work tree at the same path
-	//
 	if !pre2_20_0 {
 		err = addWorkTree(testRepoPath, worktreeName)
-		require.Error(t, err)
+		require.Error(t, err,
+			"creating a new work tree at the same path as a disconnected work tree should fail",
+		)
 	}
 
 	// cleanup should prune the disconnected worktree administrative files
