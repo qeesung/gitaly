@@ -51,7 +51,7 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 			)
 
 			coordinator := praefect.NewCoordinator(logrus.New(), storagePrimary)
-			datastore := praefect.NewMemoryDatastore(config.Config{}, time.Now())
+			datastore := praefect.NewMemoryDatastore(config.Config{})
 			replmgr := praefect.NewReplMgr(
 				storagePrimary,
 				logrus.New(),

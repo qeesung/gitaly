@@ -37,7 +37,7 @@ var operations = []struct {
 	{
 		desc: "query an empty datastore",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			jobs, err := ds.GetReplJobs(stor1, time1, 1)
+			jobs, err := ds.GetIncompleteJobs(stor1, 1)
 			require.NoError(t, err)
 			require.Len(t, jobs, 0)
 		},
@@ -45,7 +45,7 @@ var operations = []struct {
 	{
 		desc: "insert first replication job before secondary mapped to primary",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			err := ds.PutReplJob(repo1Backup, time2)
+			_, err := ds.CreateSecondaryReplJobs(repo1Primary)
 			require.Error(t, err, praefect.ErrInvalidReplTarget)
 		},
 	},
@@ -59,37 +59,39 @@ var operations = []struct {
 	{
 		desc: "insert first replication job after secondary mapped to primary",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			err := ds.PutReplJob(repo1Backup, time2)
+			ids, err := ds.CreateSecondaryReplJobs(repo1Primary)
 			require.NoError(t, err)
+			require.Equal(t, []uint64{1}, ids)
 		},
 	},
 	{
-		desc: "fetch inserted replication job after primary mapped",
+		desc: "fetch inserted replication jobs after primary mapped",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			jobs, err := ds.GetReplJobs(stor2, time1, 10)
+			jobs, err := ds.GetIncompleteJobs(stor2, 10)
 
 			require.NoError(t, err)
 			require.Len(t, jobs, 1)
 
 			expectedJob := praefect.ReplJob{
-				Source:    repo1Primary,
-				Target:    stor2,
-				Scheduled: time2,
+				ID:     1,
+				Source: repo1Primary,
+				Target: stor2,
+				State:  praefect.JobStatePending,
 			}
-			require.Equal(t, jobs[0], expectedJob)
+			require.Equal(t, expectedJob, jobs[0])
 		},
 	},
 	{
 		desc: "mark replication job done",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			err := ds.PutReplJob(repo1Backup, time0)
+			err := ds.UpdateReplJob(1, praefect.JobStateComplete)
 			require.NoError(t, err)
 		},
 	},
 	{
 		desc: "try fetching completed replication job",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
-			jobs, err := ds.GetReplJobs(stor1, time1, 1)
+			jobs, err := ds.GetIncompleteJobs(stor1, 1)
 			require.NoError(t, err)
 			require.Len(t, jobs, 0)
 		},
@@ -98,7 +100,7 @@ var operations = []struct {
 
 // TODO: add SQL datastore flavor
 var flavors = map[string]func() praefect.Datastore{
-	"in-memory-datastore": func() praefect.Datastore { return praefect.NewMemoryDatastore(config.Config{}, time.Now()) },
+	"in-memory-datastore": func() praefect.Datastore { return praefect.NewMemoryDatastore(config.Config{}) },
 }
 
 // TestDatastoreInterface will verify that every implementation or "flavor" of

@@ -38,7 +38,7 @@ func TestReplicatorProcessJobsWhitelist(t *testing.T) {
 				"edfg5678",
 			},
 		}
-		datastore   = praefect.NewMemoryDatastore(cfg, time.Now())
+		datastore   = praefect.NewMemoryDatastore(cfg)
 		coordinator = praefect.NewCoordinator(logrus.New(), cfg.PrimaryServer.Name)
 		resultsCh   = make(chan result)
 		replman     = praefect.NewReplMgr(

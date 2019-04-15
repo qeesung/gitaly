@@ -82,7 +82,18 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo Repository) error
 		return nil
 	}
 
-	return r.jobsStore.PutReplJob(repo, time.Now())
+	id, err := r.jobsStore.CreateSecondaryReplJobs(repo)
+	if err != nil {
+		return err
+	}
+
+	r.log.Infof(
+		"replication manager for storage %q created replication job with ID %d",
+		r.storage,
+		id,
+	)
+
+	return nil
 }
 
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
@@ -90,7 +101,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 	since := time.Time{}
 	for {
 		r.log.Debugf("fetching replication jobs since %s", since)
-		jobs, err := r.jobsStore.GetReplJobs(r.storage, since, 10)
+		jobs, err := r.jobsStore.GetIncompleteJobs(r.storage, 10)
 		if err != nil {
 			return err
 		}
@@ -121,8 +132,6 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-
-			since = job.Scheduled
 		}
 	}
 }
