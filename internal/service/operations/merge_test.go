@@ -2,7 +2,6 @@ package operations
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -77,7 +76,7 @@ func TestSuccessfulMerge(t *testing.T) {
 	secondResponse, err := mergeBidi.Recv()
 	require.NoError(t, err, "receive second response")
 
-	err = consumeEOF(func() error {
+	err = testhelper.ReceiveEOFWithTimeout(func() error {
 		_, err = mergeBidi.Recv()
 		return err
 	})
@@ -267,7 +266,7 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 			require.NoError(t, err, "receive second response")
 			require.Contains(t, secondResponse.PreReceiveError, "failure")
 
-			err = consumeEOF(func() error {
+			err = testhelper.ReceiveEOFWithTimeout(func() error {
 				_, err = mergeBidi.Recv()
 				return err
 			})
@@ -691,26 +690,6 @@ func prepareMergeBranch(t *testing.T, testRepoPath string) {
 	deleteBranch(testRepoPath, mergeBranchName)
 	out, err := exec.Command("git", "-C", testRepoPath, "branch", mergeBranchName, mergeBranchHeadBefore).CombinedOutput()
 	require.NoError(t, err, "set up branch to merge into: %s", out)
-}
-
-func consumeEOF(errorFunc func() error) error {
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- errorFunc()
-	}()
-
-	var err error
-	select {
-	case err = <-errCh:
-	case <-time.After(1 * time.Second):
-		err = fmt.Errorf("timed out waiting for EOF")
-	}
-
-	if err == io.EOF {
-		err = nil
-	}
-
-	return err
 }
 
 func deleteBranch(testRepoPath, branchName string) {

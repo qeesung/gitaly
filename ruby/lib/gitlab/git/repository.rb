@@ -406,6 +406,8 @@ module Gitlab
 
           rebase_sha = run_git!(%w[rev-parse HEAD], chdir: rebase_path, env: env).strip
 
+          yield rebase_sha if block_given?
+
           update_branch(branch, user: user, newrev: rebase_sha, oldrev: branch_sha)
 
           rebase_sha

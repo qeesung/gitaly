@@ -24,6 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+// TODO: Replace this enum with ObjectType in shared.proto
 type TreeEntryResponse_ObjectType int32
 
 const (
@@ -50,9 +51,10 @@ func (x TreeEntryResponse_ObjectType) String() string {
 	return proto.EnumName(TreeEntryResponse_ObjectType_name, int32(x))
 }
 func (TreeEntryResponse_ObjectType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{5, 0}
+	return fileDescriptor_commit_85554cca4df16892, []int{5, 0}
 }
 
+// TODO: Replace this enum with ObjectType in shared.proto
 type TreeEntry_EntryType int32
 
 const (
@@ -76,7 +78,7 @@ func (x TreeEntry_EntryType) String() string {
 	return proto.EnumName(TreeEntry_EntryType_name, int32(x))
 }
 func (TreeEntry_EntryType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{12, 0}
+	return fileDescriptor_commit_85554cca4df16892, []int{12, 0}
 }
 
 type FindAllCommitsRequest_Order int32
@@ -102,7 +104,7 @@ func (x FindAllCommitsRequest_Order) String() string {
 	return proto.EnumName(FindAllCommitsRequest_Order_name, int32(x))
 }
 func (FindAllCommitsRequest_Order) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{21, 0}
+	return fileDescriptor_commit_85554cca4df16892, []int{21, 0}
 }
 
 type CommitStatsRequest struct {
@@ -117,7 +119,7 @@ func (m *CommitStatsRequest) Reset()         { *m = CommitStatsRequest{} }
 func (m *CommitStatsRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitStatsRequest) ProtoMessage()    {}
 func (*CommitStatsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{0}
+	return fileDescriptor_commit_85554cca4df16892, []int{0}
 }
 func (m *CommitStatsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitStatsRequest.Unmarshal(m, b)
@@ -165,7 +167,7 @@ func (m *CommitStatsResponse) Reset()         { *m = CommitStatsResponse{} }
 func (m *CommitStatsResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitStatsResponse) ProtoMessage()    {}
 func (*CommitStatsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{1}
+	return fileDescriptor_commit_85554cca4df16892, []int{1}
 }
 func (m *CommitStatsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitStatsResponse.Unmarshal(m, b)
@@ -219,7 +221,7 @@ func (m *CommitIsAncestorRequest) Reset()         { *m = CommitIsAncestorRequest
 func (m *CommitIsAncestorRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitIsAncestorRequest) ProtoMessage()    {}
 func (*CommitIsAncestorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{2}
+	return fileDescriptor_commit_85554cca4df16892, []int{2}
 }
 func (m *CommitIsAncestorRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitIsAncestorRequest.Unmarshal(m, b)
@@ -271,7 +273,7 @@ func (m *CommitIsAncestorResponse) Reset()         { *m = CommitIsAncestorRespon
 func (m *CommitIsAncestorResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitIsAncestorResponse) ProtoMessage()    {}
 func (*CommitIsAncestorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{3}
+	return fileDescriptor_commit_85554cca4df16892, []int{3}
 }
 func (m *CommitIsAncestorResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitIsAncestorResponse.Unmarshal(m, b)
@@ -314,7 +316,7 @@ func (m *TreeEntryRequest) Reset()         { *m = TreeEntryRequest{} }
 func (m *TreeEntryRequest) String() string { return proto.CompactTextString(m) }
 func (*TreeEntryRequest) ProtoMessage()    {}
 func (*TreeEntryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{4}
+	return fileDescriptor_commit_85554cca4df16892, []int{4}
 }
 func (m *TreeEntryRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TreeEntryRequest.Unmarshal(m, b)
@@ -380,7 +382,7 @@ func (m *TreeEntryResponse) Reset()         { *m = TreeEntryResponse{} }
 func (m *TreeEntryResponse) String() string { return proto.CompactTextString(m) }
 func (*TreeEntryResponse) ProtoMessage()    {}
 func (*TreeEntryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{5}
+	return fileDescriptor_commit_85554cca4df16892, []int{5}
 }
 func (m *TreeEntryResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TreeEntryResponse.Unmarshal(m, b)
@@ -448,7 +450,7 @@ func (m *CommitsBetweenRequest) Reset()         { *m = CommitsBetweenRequest{} }
 func (m *CommitsBetweenRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitsBetweenRequest) ProtoMessage()    {}
 func (*CommitsBetweenRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{6}
+	return fileDescriptor_commit_85554cca4df16892, []int{6}
 }
 func (m *CommitsBetweenRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitsBetweenRequest.Unmarshal(m, b)
@@ -500,7 +502,7 @@ func (m *CommitsBetweenResponse) Reset()         { *m = CommitsBetweenResponse{}
 func (m *CommitsBetweenResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitsBetweenResponse) ProtoMessage()    {}
 func (*CommitsBetweenResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{7}
+	return fileDescriptor_commit_85554cca4df16892, []int{7}
 }
 func (m *CommitsBetweenResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitsBetweenResponse.Unmarshal(m, b)
@@ -545,7 +547,7 @@ func (m *CountCommitsRequest) Reset()         { *m = CountCommitsRequest{} }
 func (m *CountCommitsRequest) String() string { return proto.CompactTextString(m) }
 func (*CountCommitsRequest) ProtoMessage()    {}
 func (*CountCommitsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{8}
+	return fileDescriptor_commit_85554cca4df16892, []int{8}
 }
 func (m *CountCommitsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CountCommitsRequest.Unmarshal(m, b)
@@ -625,7 +627,7 @@ func (m *CountCommitsResponse) Reset()         { *m = CountCommitsResponse{} }
 func (m *CountCommitsResponse) String() string { return proto.CompactTextString(m) }
 func (*CountCommitsResponse) ProtoMessage()    {}
 func (*CountCommitsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{9}
+	return fileDescriptor_commit_85554cca4df16892, []int{9}
 }
 func (m *CountCommitsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CountCommitsResponse.Unmarshal(m, b)
@@ -666,7 +668,7 @@ func (m *CountDivergingCommitsRequest) Reset()         { *m = CountDivergingComm
 func (m *CountDivergingCommitsRequest) String() string { return proto.CompactTextString(m) }
 func (*CountDivergingCommitsRequest) ProtoMessage()    {}
 func (*CountDivergingCommitsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{10}
+	return fileDescriptor_commit_85554cca4df16892, []int{10}
 }
 func (m *CountDivergingCommitsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CountDivergingCommitsRequest.Unmarshal(m, b)
@@ -726,7 +728,7 @@ func (m *CountDivergingCommitsResponse) Reset()         { *m = CountDivergingCom
 func (m *CountDivergingCommitsResponse) String() string { return proto.CompactTextString(m) }
 func (*CountDivergingCommitsResponse) ProtoMessage()    {}
 func (*CountDivergingCommitsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{11}
+	return fileDescriptor_commit_85554cca4df16892, []int{11}
 }
 func (m *CountDivergingCommitsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CountDivergingCommitsResponse.Unmarshal(m, b)
@@ -783,7 +785,7 @@ func (m *TreeEntry) Reset()         { *m = TreeEntry{} }
 func (m *TreeEntry) String() string { return proto.CompactTextString(m) }
 func (*TreeEntry) ProtoMessage()    {}
 func (*TreeEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{12}
+	return fileDescriptor_commit_85554cca4df16892, []int{12}
 }
 func (m *TreeEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TreeEntry.Unmarshal(m, b)
@@ -866,7 +868,7 @@ func (m *GetTreeEntriesRequest) Reset()         { *m = GetTreeEntriesRequest{} }
 func (m *GetTreeEntriesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTreeEntriesRequest) ProtoMessage()    {}
 func (*GetTreeEntriesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{13}
+	return fileDescriptor_commit_85554cca4df16892, []int{13}
 }
 func (m *GetTreeEntriesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTreeEntriesRequest.Unmarshal(m, b)
@@ -925,7 +927,7 @@ func (m *GetTreeEntriesResponse) Reset()         { *m = GetTreeEntriesResponse{}
 func (m *GetTreeEntriesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetTreeEntriesResponse) ProtoMessage()    {}
 func (*GetTreeEntriesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{14}
+	return fileDescriptor_commit_85554cca4df16892, []int{14}
 }
 func (m *GetTreeEntriesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTreeEntriesResponse.Unmarshal(m, b)
@@ -964,7 +966,7 @@ func (m *ListFilesRequest) Reset()         { *m = ListFilesRequest{} }
 func (m *ListFilesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListFilesRequest) ProtoMessage()    {}
 func (*ListFilesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{15}
+	return fileDescriptor_commit_85554cca4df16892, []int{15}
 }
 func (m *ListFilesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListFilesRequest.Unmarshal(m, b)
@@ -1011,7 +1013,7 @@ func (m *ListFilesResponse) Reset()         { *m = ListFilesResponse{} }
 func (m *ListFilesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListFilesResponse) ProtoMessage()    {}
 func (*ListFilesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{16}
+	return fileDescriptor_commit_85554cca4df16892, []int{16}
 }
 func (m *ListFilesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListFilesResponse.Unmarshal(m, b)
@@ -1050,7 +1052,7 @@ func (m *FindCommitRequest) Reset()         { *m = FindCommitRequest{} }
 func (m *FindCommitRequest) String() string { return proto.CompactTextString(m) }
 func (*FindCommitRequest) ProtoMessage()    {}
 func (*FindCommitRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{17}
+	return fileDescriptor_commit_85554cca4df16892, []int{17}
 }
 func (m *FindCommitRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindCommitRequest.Unmarshal(m, b)
@@ -1096,7 +1098,7 @@ func (m *FindCommitResponse) Reset()         { *m = FindCommitResponse{} }
 func (m *FindCommitResponse) String() string { return proto.CompactTextString(m) }
 func (*FindCommitResponse) ProtoMessage()    {}
 func (*FindCommitResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{18}
+	return fileDescriptor_commit_85554cca4df16892, []int{18}
 }
 func (m *FindCommitResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindCommitResponse.Unmarshal(m, b)
@@ -1135,7 +1137,7 @@ func (m *ListCommitsByOidRequest) Reset()         { *m = ListCommitsByOidRequest
 func (m *ListCommitsByOidRequest) String() string { return proto.CompactTextString(m) }
 func (*ListCommitsByOidRequest) ProtoMessage()    {}
 func (*ListCommitsByOidRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{19}
+	return fileDescriptor_commit_85554cca4df16892, []int{19}
 }
 func (m *ListCommitsByOidRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListCommitsByOidRequest.Unmarshal(m, b)
@@ -1180,7 +1182,7 @@ func (m *ListCommitsByOidResponse) Reset()         { *m = ListCommitsByOidRespon
 func (m *ListCommitsByOidResponse) String() string { return proto.CompactTextString(m) }
 func (*ListCommitsByOidResponse) ProtoMessage()    {}
 func (*ListCommitsByOidResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{20}
+	return fileDescriptor_commit_85554cca4df16892, []int{20}
 }
 func (m *ListCommitsByOidResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListCommitsByOidResponse.Unmarshal(m, b)
@@ -1223,7 +1225,7 @@ func (m *FindAllCommitsRequest) Reset()         { *m = FindAllCommitsRequest{} }
 func (m *FindAllCommitsRequest) String() string { return proto.CompactTextString(m) }
 func (*FindAllCommitsRequest) ProtoMessage()    {}
 func (*FindAllCommitsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{21}
+	return fileDescriptor_commit_85554cca4df16892, []int{21}
 }
 func (m *FindAllCommitsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindAllCommitsRequest.Unmarshal(m, b)
@@ -1290,7 +1292,7 @@ func (m *FindAllCommitsResponse) Reset()         { *m = FindAllCommitsResponse{}
 func (m *FindAllCommitsResponse) String() string { return proto.CompactTextString(m) }
 func (*FindAllCommitsResponse) ProtoMessage()    {}
 func (*FindAllCommitsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{22}
+	return fileDescriptor_commit_85554cca4df16892, []int{22}
 }
 func (m *FindAllCommitsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindAllCommitsResponse.Unmarshal(m, b)
@@ -1339,7 +1341,7 @@ func (m *FindCommitsRequest) Reset()         { *m = FindCommitsRequest{} }
 func (m *FindCommitsRequest) String() string { return proto.CompactTextString(m) }
 func (*FindCommitsRequest) ProtoMessage()    {}
 func (*FindCommitsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{23}
+	return fileDescriptor_commit_85554cca4df16892, []int{23}
 }
 func (m *FindCommitsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindCommitsRequest.Unmarshal(m, b)
@@ -1448,7 +1450,7 @@ func (m *FindCommitsResponse) Reset()         { *m = FindCommitsResponse{} }
 func (m *FindCommitsResponse) String() string { return proto.CompactTextString(m) }
 func (*FindCommitsResponse) ProtoMessage()    {}
 func (*FindCommitsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{24}
+	return fileDescriptor_commit_85554cca4df16892, []int{24}
 }
 func (m *FindCommitsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindCommitsResponse.Unmarshal(m, b)
@@ -1487,7 +1489,7 @@ func (m *CommitLanguagesRequest) Reset()         { *m = CommitLanguagesRequest{}
 func (m *CommitLanguagesRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitLanguagesRequest) ProtoMessage()    {}
 func (*CommitLanguagesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{25}
+	return fileDescriptor_commit_85554cca4df16892, []int{25}
 }
 func (m *CommitLanguagesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitLanguagesRequest.Unmarshal(m, b)
@@ -1532,7 +1534,7 @@ func (m *CommitLanguagesResponse) Reset()         { *m = CommitLanguagesResponse
 func (m *CommitLanguagesResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitLanguagesResponse) ProtoMessage()    {}
 func (*CommitLanguagesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{26}
+	return fileDescriptor_commit_85554cca4df16892, []int{26}
 }
 func (m *CommitLanguagesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitLanguagesResponse.Unmarshal(m, b)
@@ -1572,7 +1574,7 @@ func (m *CommitLanguagesResponse_Language) Reset()         { *m = CommitLanguage
 func (m *CommitLanguagesResponse_Language) String() string { return proto.CompactTextString(m) }
 func (*CommitLanguagesResponse_Language) ProtoMessage()    {}
 func (*CommitLanguagesResponse_Language) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{26, 0}
+	return fileDescriptor_commit_85554cca4df16892, []int{26, 0}
 }
 func (m *CommitLanguagesResponse_Language) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitLanguagesResponse_Language.Unmarshal(m, b)
@@ -1626,7 +1628,7 @@ func (m *RawBlameRequest) Reset()         { *m = RawBlameRequest{} }
 func (m *RawBlameRequest) String() string { return proto.CompactTextString(m) }
 func (*RawBlameRequest) ProtoMessage()    {}
 func (*RawBlameRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{27}
+	return fileDescriptor_commit_85554cca4df16892, []int{27}
 }
 func (m *RawBlameRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RawBlameRequest.Unmarshal(m, b)
@@ -1678,7 +1680,7 @@ func (m *RawBlameResponse) Reset()         { *m = RawBlameResponse{} }
 func (m *RawBlameResponse) String() string { return proto.CompactTextString(m) }
 func (*RawBlameResponse) ProtoMessage()    {}
 func (*RawBlameResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{28}
+	return fileDescriptor_commit_85554cca4df16892, []int{28}
 }
 func (m *RawBlameResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RawBlameResponse.Unmarshal(m, b)
@@ -1718,7 +1720,7 @@ func (m *LastCommitForPathRequest) Reset()         { *m = LastCommitForPathReque
 func (m *LastCommitForPathRequest) String() string { return proto.CompactTextString(m) }
 func (*LastCommitForPathRequest) ProtoMessage()    {}
 func (*LastCommitForPathRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{29}
+	return fileDescriptor_commit_85554cca4df16892, []int{29}
 }
 func (m *LastCommitForPathRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LastCommitForPathRequest.Unmarshal(m, b)
@@ -1771,7 +1773,7 @@ func (m *LastCommitForPathResponse) Reset()         { *m = LastCommitForPathResp
 func (m *LastCommitForPathResponse) String() string { return proto.CompactTextString(m) }
 func (*LastCommitForPathResponse) ProtoMessage()    {}
 func (*LastCommitForPathResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{30}
+	return fileDescriptor_commit_85554cca4df16892, []int{30}
 }
 func (m *LastCommitForPathResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LastCommitForPathResponse.Unmarshal(m, b)
@@ -1814,7 +1816,7 @@ func (m *ListLastCommitsForTreeRequest) Reset()         { *m = ListLastCommitsFo
 func (m *ListLastCommitsForTreeRequest) String() string { return proto.CompactTextString(m) }
 func (*ListLastCommitsForTreeRequest) ProtoMessage()    {}
 func (*ListLastCommitsForTreeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{31}
+	return fileDescriptor_commit_85554cca4df16892, []int{31}
 }
 func (m *ListLastCommitsForTreeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListLastCommitsForTreeRequest.Unmarshal(m, b)
@@ -1880,7 +1882,7 @@ func (m *ListLastCommitsForTreeResponse) Reset()         { *m = ListLastCommitsF
 func (m *ListLastCommitsForTreeResponse) String() string { return proto.CompactTextString(m) }
 func (*ListLastCommitsForTreeResponse) ProtoMessage()    {}
 func (*ListLastCommitsForTreeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{32}
+	return fileDescriptor_commit_85554cca4df16892, []int{32}
 }
 func (m *ListLastCommitsForTreeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListLastCommitsForTreeResponse.Unmarshal(m, b)
@@ -1924,7 +1926,7 @@ func (m *ListLastCommitsForTreeResponse_CommitForTree) String() string {
 }
 func (*ListLastCommitsForTreeResponse_CommitForTree) ProtoMessage() {}
 func (*ListLastCommitsForTreeResponse_CommitForTree) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{32, 0}
+	return fileDescriptor_commit_85554cca4df16892, []int{32, 0}
 }
 func (m *ListLastCommitsForTreeResponse_CommitForTree) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListLastCommitsForTreeResponse_CommitForTree.Unmarshal(m, b)
@@ -1982,7 +1984,7 @@ func (m *CommitsByMessageRequest) Reset()         { *m = CommitsByMessageRequest
 func (m *CommitsByMessageRequest) String() string { return proto.CompactTextString(m) }
 func (*CommitsByMessageRequest) ProtoMessage()    {}
 func (*CommitsByMessageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{33}
+	return fileDescriptor_commit_85554cca4df16892, []int{33}
 }
 func (m *CommitsByMessageRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitsByMessageRequest.Unmarshal(m, b)
@@ -2056,7 +2058,7 @@ func (m *CommitsByMessageResponse) Reset()         { *m = CommitsByMessageRespon
 func (m *CommitsByMessageResponse) String() string { return proto.CompactTextString(m) }
 func (*CommitsByMessageResponse) ProtoMessage()    {}
 func (*CommitsByMessageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{34}
+	return fileDescriptor_commit_85554cca4df16892, []int{34}
 }
 func (m *CommitsByMessageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitsByMessageResponse.Unmarshal(m, b)
@@ -2095,7 +2097,7 @@ func (m *FilterShasWithSignaturesRequest) Reset()         { *m = FilterShasWithS
 func (m *FilterShasWithSignaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*FilterShasWithSignaturesRequest) ProtoMessage()    {}
 func (*FilterShasWithSignaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{35}
+	return fileDescriptor_commit_85554cca4df16892, []int{35}
 }
 func (m *FilterShasWithSignaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FilterShasWithSignaturesRequest.Unmarshal(m, b)
@@ -2140,7 +2142,7 @@ func (m *FilterShasWithSignaturesResponse) Reset()         { *m = FilterShasWith
 func (m *FilterShasWithSignaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*FilterShasWithSignaturesResponse) ProtoMessage()    {}
 func (*FilterShasWithSignaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{36}
+	return fileDescriptor_commit_85554cca4df16892, []int{36}
 }
 func (m *FilterShasWithSignaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FilterShasWithSignaturesResponse.Unmarshal(m, b)
@@ -2179,7 +2181,7 @@ func (m *ExtractCommitSignatureRequest) Reset()         { *m = ExtractCommitSign
 func (m *ExtractCommitSignatureRequest) String() string { return proto.CompactTextString(m) }
 func (*ExtractCommitSignatureRequest) ProtoMessage()    {}
 func (*ExtractCommitSignatureRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{37}
+	return fileDescriptor_commit_85554cca4df16892, []int{37}
 }
 func (m *ExtractCommitSignatureRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExtractCommitSignatureRequest.Unmarshal(m, b)
@@ -2227,7 +2229,7 @@ func (m *ExtractCommitSignatureResponse) Reset()         { *m = ExtractCommitSig
 func (m *ExtractCommitSignatureResponse) String() string { return proto.CompactTextString(m) }
 func (*ExtractCommitSignatureResponse) ProtoMessage()    {}
 func (*ExtractCommitSignatureResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{38}
+	return fileDescriptor_commit_85554cca4df16892, []int{38}
 }
 func (m *ExtractCommitSignatureResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExtractCommitSignatureResponse.Unmarshal(m, b)
@@ -2273,7 +2275,7 @@ func (m *GetCommitSignaturesRequest) Reset()         { *m = GetCommitSignaturesR
 func (m *GetCommitSignaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetCommitSignaturesRequest) ProtoMessage()    {}
 func (*GetCommitSignaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{39}
+	return fileDescriptor_commit_85554cca4df16892, []int{39}
 }
 func (m *GetCommitSignaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetCommitSignaturesRequest.Unmarshal(m, b)
@@ -2322,7 +2324,7 @@ func (m *GetCommitSignaturesResponse) Reset()         { *m = GetCommitSignatures
 func (m *GetCommitSignaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetCommitSignaturesResponse) ProtoMessage()    {}
 func (*GetCommitSignaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{40}
+	return fileDescriptor_commit_85554cca4df16892, []int{40}
 }
 func (m *GetCommitSignaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetCommitSignaturesResponse.Unmarshal(m, b)
@@ -2375,7 +2377,7 @@ func (m *GetCommitMessagesRequest) Reset()         { *m = GetCommitMessagesReque
 func (m *GetCommitMessagesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetCommitMessagesRequest) ProtoMessage()    {}
 func (*GetCommitMessagesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{41}
+	return fileDescriptor_commit_85554cca4df16892, []int{41}
 }
 func (m *GetCommitMessagesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetCommitMessagesRequest.Unmarshal(m, b)
@@ -2422,7 +2424,7 @@ func (m *GetCommitMessagesResponse) Reset()         { *m = GetCommitMessagesResp
 func (m *GetCommitMessagesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetCommitMessagesResponse) ProtoMessage()    {}
 func (*GetCommitMessagesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_commit_da3ad637b9b57a6c, []int{42}
+	return fileDescriptor_commit_85554cca4df16892, []int{42}
 }
 func (m *GetCommitMessagesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetCommitMessagesResponse.Unmarshal(m, b)
@@ -3631,9 +3633,9 @@ var _CommitService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "commit.proto",
 }
 
-func init() { proto.RegisterFile("commit.proto", fileDescriptor_commit_da3ad637b9b57a6c) }
+func init() { proto.RegisterFile("commit.proto", fileDescriptor_commit_85554cca4df16892) }
 
-var fileDescriptor_commit_da3ad637b9b57a6c = []byte{
+var fileDescriptor_commit_85554cca4df16892 = []byte{
 	// 1942 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0x5b, 0x6f, 0xdb, 0xc8,
 	0x15, 0x5e, 0xea, 0xce, 0x23, 0xd5, 0x91, 0x27, 0x37, 0x9a, 0xb6, 0x63, 0x2f, 0x77, 0xb3, 0xf5,
