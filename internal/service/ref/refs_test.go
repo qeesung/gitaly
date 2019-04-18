@@ -594,6 +594,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		require.Equal(t, expectedTag, receivedTags[i])
 	}
 }
+
 func TestFindAllTagNestedTags(t *testing.T) {
 	server, serverSocketPath := runRefServiceServer(t)
 	defer server.Stop()
@@ -635,62 +636,64 @@ func TestFindAllTagNestedTags(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tags := bytes.NewReader(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "tag"))
-		testhelper.MustRunCommand(t, tags, "xargs", "git", "-C", testRepoCopyPath, "tag", "-d")
+		t.Run(tc.description, func(t *testing.T) {
+			tags := bytes.NewReader(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "tag"))
+			testhelper.MustRunCommand(t, tags, "xargs", "git", "-C", testRepoCopyPath, "tag", "-d")
 
-		batch, err := catfile.New(ctx, testRepoCopy)
-		require.NoError(t, err)
-
-		info, err := batch.Info(tc.originalOid)
-		require.NoError(t, err)
-
-		expectedTags := make(map[string]*gitalypb.Tag)
-		tagID := tc.originalOid
-
-		for depth := 0; depth < tc.depth; depth++ {
-			tagName := fmt.Sprintf("tag-depth-%d", depth)
-			tagMessage := fmt.Sprintf("a commit %d deep", depth)
-			tagID = string(testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage}))
-
-			expectedTag := &gitalypb.Tag{
-				Name:        []byte(tagName),
-				Id:          string(tagID),
-				Message:     []byte(tagMessage),
-				MessageSize: int64(len([]byte(tagMessage))),
-			}
-
-			// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
-			if info.Type == "commit" && depth < log.MaxTagReferenceDepth {
-				commit, err := log.GetCommitCatfile(batch, tc.originalOid)
-				require.NoError(t, err)
-				expectedTag.TargetCommit = commit
-			}
-
-			expectedTags[string(expectedTag.Name)] = expectedTag
-		}
-
-		client, conn := newRefServiceClient(t, serverSocketPath)
-		defer conn.Close()
-
-		rpcRequest := &gitalypb.FindAllTagsRequest{Repository: testRepoCopy}
-
-		c, err := client.FindAllTags(ctx, rpcRequest)
-		require.NoError(t, err)
-
-		var receivedTags []*gitalypb.Tag
-		for {
-			r, err := c.Recv()
-			if err == io.EOF {
-				break
-			}
+			batch, err := catfile.New(ctx, testRepoCopy)
 			require.NoError(t, err)
-			receivedTags = append(receivedTags, r.GetTags()...)
-		}
 
-		require.Len(t, receivedTags, len(expectedTags))
-		for _, receivedTag := range receivedTags {
-			assert.Equal(t, expectedTags[string(receivedTag.Name)], receivedTag)
-		}
+			info, err := batch.Info(tc.originalOid)
+			require.NoError(t, err)
+
+			expectedTags := make(map[string]*gitalypb.Tag)
+			tagID := tc.originalOid
+
+			for depth := 0; depth < tc.depth; depth++ {
+				tagName := fmt.Sprintf("tag-depth-%d", depth)
+				tagMessage := fmt.Sprintf("a commit %d deep", depth)
+				tagID = string(testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage}))
+
+				expectedTag := &gitalypb.Tag{
+					Name:        []byte(tagName),
+					Id:          string(tagID),
+					Message:     []byte(tagMessage),
+					MessageSize: int64(len([]byte(tagMessage))),
+				}
+
+				// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
+				if info.Type == "commit" && depth < log.MaxTagReferenceDepth {
+					commit, err := log.GetCommitCatfile(batch, tc.originalOid)
+					require.NoError(t, err)
+					expectedTag.TargetCommit = commit
+				}
+
+				expectedTags[string(expectedTag.Name)] = expectedTag
+			}
+
+			client, conn := newRefServiceClient(t, serverSocketPath)
+			defer conn.Close()
+
+			rpcRequest := &gitalypb.FindAllTagsRequest{Repository: testRepoCopy}
+
+			c, err := client.FindAllTags(ctx, rpcRequest)
+			require.NoError(t, err)
+
+			var receivedTags []*gitalypb.Tag
+			for {
+				r, err := c.Recv()
+				if err == io.EOF {
+					break
+				}
+				require.NoError(t, err)
+				receivedTags = append(receivedTags, r.GetTags()...)
+			}
+
+			require.Len(t, receivedTags, len(expectedTags))
+			for _, receivedTag := range receivedTags {
+				assert.Equal(t, expectedTags[string(receivedTag.Name)], receivedTag)
+			}
+		})
 	}
 }
 
