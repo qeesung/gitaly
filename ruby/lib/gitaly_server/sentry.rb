@@ -59,4 +59,5 @@ Raven.configure do |config|
   config.release = ENV['GITALY_VERSION'].presence
   config.sanitize_fields = %w[gitaly-servers authorization]
   config.processors += [GitalyServer::Sentry::URLSanitizer]
+  config.current_environment = ENV['SENTRY_ENVIRONMENT'].presence
 end

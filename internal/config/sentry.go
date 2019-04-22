@@ -20,6 +20,10 @@ func ConfigureSentry(version string) {
 		raven.SetRelease("v" + version)
 	}
 
+	if Config.Logging.SentryEnvironment != "" {
+		raven.SetEnvironment(Config.Logging.SentryEnvironment)
+	}
+
 	panichandler.InstallPanicHandler(func(grpcMethod string, _err interface{}) {
 		err, ok := _err.(error)
 		if !ok {

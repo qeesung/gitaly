@@ -120,6 +120,10 @@ func Start() (*Server, error) {
 		env = append(env, "SENTRY_DSN="+dsn)
 	}
 
+	if sentryEnvironment := cfg.Logging.SentryEnvironment; sentryEnvironment != "" {
+		env = append(env, "SENTRY_ENVIRONMENT="+sentryEnvironment)
+	}
+
 	gitalyRuby := path.Join(cfg.Ruby.Dir, "bin/gitaly-ruby")
 
 	numWorkers := cfg.Ruby.NumWorkers
