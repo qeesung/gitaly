@@ -51,11 +51,11 @@ func TestGarbageCollectCommitGraph(t *testing.T) {
 	repoCfgPath := filepath.Join(testRepoPath, "config")
 
 	cfgF, err := os.Open(repoCfgPath)
-	require.NoError(t, err, "config file should be readable at %s", repoCfgPath)
+	require.NoError(t, err)
 	defer cfgF.Close()
 
 	cfg, err := testhelper.ParseConfig(cfgF)
-	require.NoError(t, err, "config file should be parse")
+	require.NoError(t, err)
 
 	actualValue, ok := cfg.GetValue("core", "commitGraph")
 	require.True(t, ok)

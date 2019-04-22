@@ -31,7 +31,7 @@ func TestConfigParser(t *testing.T) {
 		{`remote "origin"`, "url", "git@gitlab.com:gitlab-org/gitaly.git"},
 		{`remote "origin"`, "fetch", "+refs/heads/*:refs/remotes/origin/*"},
 	} {
-		actualValue, ok := cfg.Section(tc.section, tc.key)
+		actualValue, ok := cfg.GetValue(tc.section, tc.key)
 		require.True(t, ok)
 		require.Equal(t, tc.expectValue, actualValue)
 	}
