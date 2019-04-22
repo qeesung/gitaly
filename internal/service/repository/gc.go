@@ -38,19 +38,14 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 		return nil, err
 	}
 
-	args := repackConfig(ctx, in.CreateBitmap)
-
-	args = append(args, "gc")
-	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	err = gc(ctx, in)
 	if err != nil {
-		if _, ok := status.FromError(err); ok {
-			return nil, err
-		}
-		return nil, status.Errorf(codes.Internal, "GarbageCollect: gitCommand: %v", err)
+		return nil, err
 	}
 
-	if err := cmd.Wait(); err != nil {
-		return nil, status.Errorf(codes.Internal, "GarbageCollect: cmd wait: %v", err)
+	err = configureCommitGraph(ctx, in)
+	if err != nil {
+		return nil, err
 	}
 
 	// Perform housekeeping post GC
@@ -60,6 +55,49 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 	}
 
 	return &gitalypb.GarbageCollectResponse{}, nil
+}
+
+func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
+	args := repackConfig(ctx, in.CreateBitmap)
+
+	// run garbage collect and also write the commit graph
+	args = append(args,
+		"-c", "core.commitGrap=true",
+		"-c", "gc.writeCommitGraph=true",
+		"gc",
+	)
+
+	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
+		return status.Errorf(codes.Internal, "GarbageCollect: gitCommand: %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return status.Errorf(codes.Internal, "GarbageCollect: cmd wait: %v", err)
+	}
+
+	return nil
+}
+
+func configureCommitGraph(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
+	args := []string{"config", "core.commitGraph", "true"}
+
+	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return err
+		}
+		return status.Errorf(codes.Internal, "GarbageCollect: config gitCommand: %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return status.Errorf(codes.Internal, "GarbageCollect: config cmd wait: %v", err)
+	}
+
+	return nil
 }
 
 func cleanupKeepArounds(ctx context.Context, repo *gitalypb.Repository) error {

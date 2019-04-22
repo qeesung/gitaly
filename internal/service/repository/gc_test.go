@@ -26,6 +26,42 @@ var (
 	oldTreeTime = freshTime.Add(-7 * time.Hour)
 )
 
+func TestGarbageCollectCommitGraph(t *testing.T) {
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	c, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: testRepo})
+	assert.NoError(t, err)
+	assert.NotNil(t, c)
+
+	assert.FileExistsf(t,
+		filepath.Join(testRepoPath, "objects/info/commit-graph"),
+		"pre-computed commit-graph should exist after running garbage collect",
+	)
+
+	repoCfgPath := filepath.Join(testRepoPath, "config")
+
+	cfgF, err := os.Open(repoCfgPath)
+	require.NoError(t, err, "config file should be readable at %s", repoCfgPath)
+	defer cfgF.Close()
+
+	cfg, err := testhelper.ParseConfig(cfgF)
+	require.NoError(t, err, "config file should be parse")
+
+	actualValue, ok := cfg.GetValue("core", "commitGraph")
+	require.True(t, ok)
+	require.Equal(t, "true", actualValue)
+}
+
 func TestGarbageCollectSuccess(t *testing.T) {
 	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
