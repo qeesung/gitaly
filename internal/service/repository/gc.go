@@ -73,7 +73,7 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 	}
 
 	if err := cmd.Wait(); err != nil {
-		helper.ErrInternal(fmt.Errorf("GarbageCollect: cmd wait: %v", err))
+		return helper.ErrInternal(fmt.Errorf("GarbageCollect: cmd wait: %v", err))
 	}
 
 	return nil
