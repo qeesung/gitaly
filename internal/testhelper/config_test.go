@@ -33,6 +33,9 @@ func TestConfigParser(t *testing.T) {
 	} {
 		actualValue, ok := cfg.GetValue(tc.section, tc.key)
 		require.True(t, ok)
-		require.Equal(t, tc.expectValue, actualValue)
+		require.Equalf(t,
+			tc.expectValue, actualValue,
+			"ensuring correct value for %s:%s", tc.section, tc.key,
+		)
 	}
 }
