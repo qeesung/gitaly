@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -70,11 +69,11 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
-		return status.Errorf(codes.Internal, "GarbageCollect: gitCommand: %v", err)
+		return helper.ErrInternal(fmt.Errorf("GarbageCollect: gitCommand: %v", err))
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return status.Errorf(codes.Internal, "GarbageCollect: cmd wait: %v", err)
+		helper.ErrInternal(fmt.Errorf("GarbageCollect: cmd wait: %v", err))
 	}
 
 	return nil
@@ -88,11 +87,11 @@ func configureCommitGraph(ctx context.Context, in *gitalypb.GarbageCollectReques
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
-		return status.Errorf(codes.Internal, "GarbageCollect: config gitCommand: %v", err)
+		return helper.ErrInternal(fmt.Errorf("GarbageCollect: config gitCommand: %v", err))
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return status.Errorf(codes.Internal, "GarbageCollect: config cmd wait: %v", err)
+		return helper.ErrInternal(fmt.Errorf("GarbageCollect: config cmd wait: %v", err))
 	}
 
 	return nil
