@@ -87,6 +87,7 @@ func configureCommitGraph(ctx context.Context, in *gitalypb.GarbageCollectReques
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
+
 		return helper.ErrInternal(fmt.Errorf("GarbageCollect: config gitCommand: %v", err))
 	}
 
