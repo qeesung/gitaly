@@ -38,13 +38,11 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 		return nil, err
 	}
 
-	err = gc(ctx, in)
-	if err != nil {
+	if err := gc(ctx, in); err != nil {
 		return nil, err
 	}
 
-	err = configureCommitGraph(ctx, in)
-	if err != nil {
+	if err := configureCommitGraph(ctx, in); err != nil {
 		return nil, err
 	}
 
