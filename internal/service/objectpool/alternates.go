@@ -61,6 +61,10 @@ func disconnectAlternates(ctx context.Context, repo *gitalypb.Repository) error 
 	}
 
 	altDir := strings.TrimSpace(string(altContents))
+	if strings.Contains(altDir, "\n") {
+		return fmt.Errorf("found multiple lines in %s", altFile)
+	}
+
 	if !filepath.IsAbs(altDir) {
 		altDir = filepath.Join(repoPath, "objects", altDir)
 	}

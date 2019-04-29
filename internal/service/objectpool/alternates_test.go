@@ -84,6 +84,33 @@ func TestDisconnectGitAlternatesNoAlternates(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "fsck")
 }
 
+func TestDisconnectGitAlternatesMultipleAlternates(t *testing.T) {
+	server, serverSocketPath := runObjectPoolServer(t)
+	defer server.Stop()
+
+	client, conn := newObjectPoolClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	altPath, err := git.InfoAlternatesPath(testRepo)
+	require.NoError(t, err, "find info/alternates")
+
+	altContent := "/foo/bar\n/qux/baz\n"
+	require.NoError(t, ioutil.WriteFile(altPath, []byte(altContent), 0644))
+
+	_, err = client.DisconnectGitAlternates(ctx, &gitalypb.DisconnectGitAlternatesRequest{Repository: testRepo})
+	require.Error(t, err, "call DisconnectGitAlternates on repository with multiple alternates")
+
+	contentAfterRPC, err := ioutil.ReadFile(altPath)
+	require.NoError(t, err, "read back objects/info/alternates")
+	require.Equal(t, altContent, string(contentAfterRPC), "objects/info/alternates content should not have changed")
+}
+
 func TestRemoveAlternatesIfOk(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
