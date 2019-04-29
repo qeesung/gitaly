@@ -1,7 +1,14 @@
 # Gitaly changelog
 
+## v1.35.1
+
+The v1.35.1 tag points to a broken release, please ignore.
+
 ## v1.35.0
 
+#### Added
+- Return path data in ListLastCommitsForTree
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1168
 
 ## v1.34.0
 
