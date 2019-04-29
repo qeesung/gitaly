@@ -2,7 +2,8 @@
 
 ## v1.35.1
 
-The v1.35.1 tag points to a broken release, please ignore.
+The v1.35.1 tag points to a release that was made on the wrong branch, please
+ignore.
 
 ## v1.35.0
 
