@@ -1,5 +1,0 @@
----
-title: Include stderr in err returned by git.Command Wait()
-merge_request: 1167
-author:
-type: fixed

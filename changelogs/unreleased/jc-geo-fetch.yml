@@ -1,5 +1,0 @@
----
-title: Update FetchRemote ruby to write http auth as well as add remote
-merge_request: 1126
-author:
-type: other

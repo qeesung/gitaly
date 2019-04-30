@@ -1,5 +1,43 @@
 # Gitaly changelog
 
+## v1.36.0
+
+#### Added
+- adding ProtoRegistry
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1188
+- Adding FetchIntoObjectPool RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1172
+- Add new two-step UserRebaseConfirmable RPC
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1208
+
+#### Fixed
+- Include stderr in err returned by git.Command Wait()
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1167
+- Use 3-way merge for squashing commits
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1214
+- Close logrus writer when command finishes
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1225
+
+#### Other
+- Bump Ruby bundler version to 1.17.3
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1215
+- Upgrade Ruby gRPC 1.19.0 and protobuf to 3.7.1
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1066
+- Ensure pool exists in LinkRepositoryToObjectPool rpc
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1222
+- Update FetchRemote ruby to write http auth as well as add remote
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1126
+
+#### Performance
+- GarbageCollect RPC writes commit graph and enables via config
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1218
+
+#### Security
+- Bump Nokogiri to 1.10.3
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1217
+- Loosen regex for exception sanitization
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/25
+
 ## v1.35.1
 
 The v1.35.1 tag points to a release that was made on the wrong branch, please

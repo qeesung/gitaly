@@ -1,5 +1,0 @@
----
-title: GarbageCollect RPC writes commit graph and enables via config
-merge_request: 1218
-author:
-type: performance
