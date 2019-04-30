@@ -2,7 +2,6 @@ package catfile
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -53,7 +52,7 @@ func init() {
 type Batch struct {
 	sync.Mutex
 	*batchCheck
-	*batch
+	*batchProcess
 	cancel func()
 	closed bool
 }
@@ -69,7 +68,7 @@ func (c *Batch) Info(revspec string) (*ObjectInfo, error) {
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Tree(revspec string) (io.Reader, error) {
-	return c.batch.reader(revspec, "tree")
+	return c.batchProcess.reader(revspec, "tree")
 }
 
 // Commit returns a raw commit object. It is an error if revspec does not
@@ -77,7 +76,7 @@ func (c *Batch) Tree(revspec string) (io.Reader, error) {
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Commit(revspec string) (io.Reader, error) {
-	return c.batch.reader(revspec, "commit")
+	return c.batchProcess.reader(revspec, "commit")
 }
 
 // Blob returns a reader for the requested blob. The entire blob must be
@@ -86,13 +85,13 @@ func (c *Batch) Commit(revspec string) (io.Reader, error) {
 // It is an error if revspec does not point to a blob. To prevent this
 // first use Info to resolve the revspec and check the object type.
 func (c *Batch) Blob(revspec string) (io.Reader, error) {
-	return c.batch.reader(revspec, "blob")
+	return c.batchProcess.reader(revspec, "blob")
 }
 
 // Tag returns a raw tag object. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Tag(revspec string) (io.Reader, error) {
-	return c.batch.reader(revspec, "tag")
+	return c.batchProcess.reader(revspec, "tag")
 }
 
 // Close closes the writers for batchCheck and batch. This is only used for
@@ -119,12 +118,6 @@ func (c *Batch) isClosed() bool {
 	return c.closed
 }
 
-// HasUnreadData returns a boolean specifying whether or not the Batch has more
-// data still to be read
-func (c *Batch) HasUnreadData() bool {
-	return c.n > 1
-}
-
 // New returns a new Batch instance. It is important that ctx gets canceled
 // somewhere, because if it doesn't the cat-file processes spawned by
 // New() never terminate.
@@ -141,32 +134,15 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	sessionID := metadata.GetValue(ctx, "gitaly-session-id")
 
 	if featureflag.IsDisabled(ctx, CacheFeatureFlagKey) || sessionID == "" {
-		// if caching us used, the caller is responsible for putting the catfile
-		// into the cache
-		batch, err := newBatch(ctx, repoPath, env)
-		if err != nil {
-			return nil, err
-		}
-
-		batchCheck, err := newBatchCheck(ctx, repoPath, env)
-		if err != nil {
-			return nil, err
-		}
-
-		return &Batch{batch: batch, batchCheck: batchCheck}, nil
+		return newBatch(ctx, repoPath, env)
 	}
 
-	cacheKey := NewCacheKey(sessionID, repo)
+	cacheKey := newCacheKey(sessionID, repo)
+	requestDone := ctx.Done()
 
-	c := cache.Get(cacheKey)
-
-	defer func() {
-		go cache.returnToCache(ctx, cacheKey, c)
-	}()
-
-	if c != nil {
+	if c, ok := cache.Checkout(cacheKey); ok {
 		catfileCacheHitOrMiss.WithLabelValues("hit").Inc()
-		cache.Del(cacheKey)
+		go returnWhenDone(requestDone, cache, cacheKey, c)
 		return c, nil
 	}
 
@@ -174,18 +150,42 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	// if we are using caching, create a fresh context for the new batch
 	// and initialize the new batch with a cache key and cancel function
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
-	c = &Batch{cancel: cacheCancel}
-
-	c.batch, err = newBatch(cacheCtx, repoPath, env)
+	c, err := newBatch(cacheCtx, repoPath, env)
 	if err != nil {
-		return nil, fmt.Errorf("error when creating new batch: %v", err)
+		return nil, err
 	}
 
-	c.batchCheck, err = newBatchCheck(cacheCtx, repoPath, env)
-	if err != nil {
-		return nil, fmt.Errorf("error when creating new batch check: %v", err)
-	}
+	c.cancel = cacheCancel
+	go returnWhenDone(requestDone, cache, cacheKey, c)
 
 	return c, nil
+}
 
+func returnWhenDone(done <-chan struct{}, bc *batchCache, cacheKey key, c *Batch) {
+	<-done
+
+	if c == nil || c.isClosed() {
+		return
+	}
+
+	if c.hasUnreadData() {
+		c.Close()
+		return
+	}
+
+	bc.Add(cacheKey, c)
+}
+
+func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error) {
+	batch, err := newBatchProcess(ctx, repoPath, env)
+	if err != nil {
+		return nil, err
+	}
+
+	batchCheck, err := newBatchCheck(ctx, repoPath, env)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Batch{batchProcess: batch, batchCheck: batchCheck}, nil
 }

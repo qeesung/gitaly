@@ -12,7 +12,7 @@ import (
 )
 
 // batch encapsulates a 'git cat-file --batch' process
-type batch struct {
+type batchProcess struct {
 	r *bufio.Reader
 	w io.WriteCloser
 
@@ -30,8 +30,8 @@ type batch struct {
 	sync.Mutex
 }
 
-func newBatch(ctx context.Context, repoPath string, env []string) (*batch, error) {
-	b := &batch{}
+func newBatchProcess(ctx context.Context, repoPath string, env []string) (*batchProcess, error) {
+	b := &batchProcess{}
 
 	var stdinReader io.Reader
 	stdinReader, b.w = io.Pipe()
@@ -54,7 +54,7 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*batch, error
 	return b, nil
 }
 
-func (b *batch) reader(revspec string, expectedType string) (io.Reader, error) {
+func (b *batchProcess) reader(revspec string, expectedType string) (io.Reader, error) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -93,12 +93,12 @@ func (b *batch) reader(revspec string, expectedType string) (io.Reader, error) {
 	}
 
 	return &batchReader{
-		batch: b,
-		r:     io.LimitReader(b.r, oi.Size),
+		batchProcess: b,
+		r:            io.LimitReader(b.r, oi.Size),
 	}, nil
 }
 
-func (b *batch) consume(nBytes int) {
+func (b *batchProcess) consume(nBytes int) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -108,13 +108,20 @@ func (b *batch) consume(nBytes int) {
 	}
 }
 
+func (b *batchProcess) hasUnreadData() bool {
+	b.Lock()
+	defer b.Unlock()
+
+	return b.n > 1
+}
+
 type batchReader struct {
-	*batch
+	*batchProcess
 	r io.Reader
 }
 
 func (br *batchReader) Read(p []byte) (int, error) {
 	n, err := br.r.Read(p)
-	br.batch.consume(n)
+	br.batchProcess.consume(n)
 	return n, err
 }

@@ -1,12 +1,11 @@
 package catfile
 
 import (
-	"context"
+	"container/list"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang/groupcache/lru"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
@@ -26,15 +25,24 @@ var catfileCacheMembers = prometheus.NewGauge(
 	},
 )
 
-var cache *BatchCache
+var cache *batchCache
 
 func init() {
 	prometheus.MustRegister(catfileCacheMembers)
-	cache = NewCache(CacheMaxItems)
+	cache = newCache(DefaultBatchfileTTL, CacheMaxItems)
 }
 
-// CacheKey is a key for the catfile cache
-type CacheKey struct {
+func newCacheKey(sessionID string, repo repository.GitRepo) key {
+	return key{
+		sessionID:   sessionID,
+		repoStorage: repo.GetStorageName(),
+		repoRelPath: repo.GetRelativePath(),
+		repoObjDir:  repo.GetGitObjectDirectory(),
+		repoAltDir:  strings.Join(repo.GetGitAlternateObjectDirectories(), ","),
+	}
+}
+
+type key struct {
 	sessionID   string
 	repoStorage string
 	repoRelPath string
@@ -42,135 +50,145 @@ type CacheKey struct {
 	repoAltDir  string
 }
 
-// CacheItem is a wrapper around Batch that provides a channel
-// through which the ttl goroutine can be stopped
-type CacheItem struct {
-	batch                *Batch
-	stopTTL              chan struct{}
-	preserveBatchOnEvict bool
+type entry struct {
+	key
+	value  *Batch
+	expiry time.Time
+}
+
+type batchCache struct {
+	// keyMap lets us look up entries by key
+	keyMap map[key]*list.Element
+
+	ll *list.List
+
+	sync.Mutex
+
+	// maxLen is the maximum number of keys in the cache
+	maxLen int
+
+	// ttl is the fixed ttl for cache entries
+	ttl time.Duration
+
+	done chan struct{}
+}
+
+func newCache(ttl time.Duration, maxLen int) *batchCache {
+	return newCacheRefresh(ttl, maxLen, time.Second)
+}
+
+func newCacheRefresh(ttl time.Duration, maxLen int, refresh time.Duration) *batchCache {
+	bc := &batchCache{
+		keyMap: make(map[key]*list.Element),
+		ll:     list.New(),
+		maxLen: maxLen,
+		ttl:    ttl,
+		done:   make(chan struct{}),
+	}
+
+	go func() {
+		ticker := time.NewTicker(refresh)
+		for {
+			select {
+			case <-ticker.C:
+				bc.EnforceTTL(time.Now())
+			case <-bc.done:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return bc
+}
+
+// Add adds a key, value pair to bc. If there are too many keys in bc
+// already Add will evict old keys until the length is OK again.
+func (bc *batchCache) Add(k key, b *Batch) {
+	bc.Lock()
+	defer bc.Unlock()
+
+	if _, ok := bc.keyMap[k]; ok {
+		bc.delete(k, true)
+	}
+
+	ent := &entry{key: k, value: b, expiry: time.Now().Add(bc.ttl)}
+	bc.keyMap[k] = bc.ll.PushBack(ent)
+
+	for bc.len() > bc.maxLen {
+		bc.evictOldest()
+	}
+}
+
+func (bc *batchCache) evictOldest() {
+	ent := bc.head()
+	bc.delete(ent.key, true)
+}
+
+func (bc *batchCache) head() *entry { return bc.ll.Front().Value.(*entry) }
+
+// Checkout removes a value from bc. After use the caller can re-add the value with bc.Add.
+func (bc *batchCache) Checkout(k key) (*Batch, bool) {
+	bc.Lock()
+	defer bc.Unlock()
+
+	e, ok := bc.keyMap[k]
+	if !ok {
+		return nil, false
+	}
+
+	ent := e.Value.(*entry)
+	bc.delete(ent.key, false)
+	return ent.value, true
+}
+
+func (bc *batchCache) len() int { return bc.ll.Len() }
+
+// EnforceTTL evicts all keys older than now.
+func (bc *batchCache) EnforceTTL(now time.Time) {
+	for {
+		bc.Lock()
+
+		if bc.len() == 0 {
+			bc.Unlock()
+			return
+		}
+
+		if now.Before(bc.head().expiry) {
+			bc.Unlock()
+			return
+		}
+
+		bc.evictOldest()
+		bc.Unlock()
+	}
+}
+
+func (bc *batchCache) EvictAll() {
+	bc.Lock()
+	defer bc.Unlock()
+
+	close(bc.done)
+	for bc.len() > 0 {
+		bc.evictOldest()
+	}
+}
+
+func (bc *batchCache) delete(k key, close bool) {
+	e, ok := bc.keyMap[k]
+	if !ok {
+		return
+	}
+
+	if close {
+		e.Value.(*entry).value.Close()
+	}
+
+	bc.ll.Remove(e)
+	delete(bc.keyMap, k)
 }
 
 // ExpireAll is used to expire all of the batches in the cache
 func ExpireAll() {
-	cache.Lock()
-	defer cache.Unlock()
-	cache.lru.Clear()
-}
-
-// BatchCache is a cache containing batch objects based on session id and repository path
-type BatchCache struct {
-	sync.Mutex
-	lru *lru.Cache
-}
-
-func closeBatchAndStopTTL(key lru.Key, value interface{}) {
-	cacheItem := value.(*CacheItem)
-	close(cacheItem.stopTTL)
-
-	if !cacheItem.preserveBatchOnEvict {
-		cacheItem.batch.Close()
-	}
-}
-
-// NewCache creates a new BatchCache
-func NewCache(maxEntries int) *BatchCache {
-	lruCache := lru.New(maxEntries)
-	lruCache.OnEvicted = closeBatchAndStopTTL
-
-	return &BatchCache{
-		lru: lruCache,
-	}
-}
-
-// Get retrieves a batch based on a CacheKey. We remove it from the lru so that other processes can't Get it.
-// however, since OnEvicted is called every time something is evicted from the cache, we need to signal to the OnEvicted
-// function that we don't want this batch to be closed. Therefore, we will update the cache entry with preserveBatchOnEvict set
-// to true.
-func (bc *BatchCache) Get(key CacheKey) *Batch {
-	bc.Lock()
-	defer bc.Unlock()
-
-	catfileCacheMembers.Set(float64(bc.lru.Len()))
-
-	v, ok := bc.lru.Get(key)
-	if !ok {
-		return nil
-	}
-
-	cacheItem := v.(*CacheItem)
-
-	// set preserveBatchOnEvict=true so that OnEvict doesn't close the batch
-	cacheItem.preserveBatchOnEvict = true
-	bc.lru.Add(key, cacheItem)
-
-	bc.lru.Remove(key)
-
-	return cacheItem.batch
-}
-
-// Add Adds a batch based on a CacheKey. If there is already a batch for the given
-// key, it will remove and close the existing one, and Add the new one.
-func (bc *BatchCache) Add(key CacheKey, b *Batch, ttl time.Duration) {
-	bc.Lock()
-	defer bc.Unlock()
-
-	if v, ok := bc.lru.Get(key); ok {
-		existing := v.(*CacheItem)
-		existing.batch.Close()
-		bc.lru.Remove(key)
-	}
-
-	stopTTL := make(chan struct{})
-
-	bc.lru.Add(key, &CacheItem{
-		batch:   b,
-		stopTTL: stopTTL,
-	})
-
-	go func() {
-		timer := time.NewTimer(ttl)
-
-		select {
-		case <-timer.C:
-			bc.Del(key)
-		// stopTTL channel is closed when the item is taken out of the cache so we don't have leaked goroutines
-		case <-stopTTL:
-			timer.Stop()
-		}
-	}()
-}
-
-// Del Deletes a batch based on a CacheKey
-func (bc *BatchCache) Del(key CacheKey) {
-	bc.Lock()
-	defer bc.Unlock()
-
-	bc.lru.Remove(key)
-}
-
-// returnToCache returns the batch to the cache
-func (bc *BatchCache) returnToCache(ctx context.Context, cacheKey CacheKey, b *Batch) {
-	<-ctx.Done()
-
-	if b == nil || b.isClosed() {
-		return
-	}
-
-	if b.HasUnreadData() {
-		b.Close()
-		return
-	}
-	bc.Add(cacheKey, b, DefaultBatchfileTTL)
-
-}
-
-// NewCacheKey return a cache key based on a session id and a git repository
-func NewCacheKey(sessionID string, repo repository.GitRepo) CacheKey {
-	return CacheKey{
-		sessionID:   sessionID,
-		repoStorage: repo.GetStorageName(),
-		repoRelPath: repo.GetRelativePath(),
-		repoObjDir:  repo.GetGitObjectDirectory(),
-		repoAltDir:  strings.Join(repo.GetGitAlternateObjectDirectories(), ","),
-	}
+	cache.EvictAll()
 }
