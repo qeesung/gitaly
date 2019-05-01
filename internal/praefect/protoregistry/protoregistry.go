@@ -3,13 +3,15 @@ package protoregistry
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 )
 
@@ -40,9 +42,12 @@ const (
 	OpMutator
 )
 
-// MethodInfo contains metadata about the RPC method
+// MethodInfo contains metadata about the RPC method. Refer to documentation
+// for message type "OperationMsg" shared.proto in gitlab-org/gitaly-proto for
+// more documentation.
 type MethodInfo struct {
-	Operation OpType
+	Operation  OpType
+	targetRepo []int
 }
 
 // Registry contains info about RPC methods
@@ -62,39 +67,18 @@ func New() *Registry {
 func (pr *Registry) RegisterFiles(protos ...*descriptor.FileDescriptorProto) error {
 	pr.Lock()
 	defer pr.Unlock()
+
 	for _, p := range protos {
 		for _, serviceDescriptorProto := range p.GetService() {
 			for _, methodDescriptorProto := range serviceDescriptorProto.GetMethod() {
-				var mi MethodInfo
-
-				options := methodDescriptorProto.GetOptions()
-
-				methodDescriptorProto.GetInputType()
-
-				if !proto.HasExtension(options, gitalypb.E_OpType) {
-					logrus.WithField("service", serviceDescriptorProto.GetName()).
-						WithField("method", serviceDescriptorProto.GetName()).
-						Warn("grpc method missing op_type")
-					continue
-				}
-
-				ext, err := proto.GetExtension(options, gitalypb.E_OpType)
+				opMsg, err := getOpExtension(methodDescriptorProto)
 				if err != nil {
 					return err
 				}
 
-				opMsg, ok := ext.(*gitalypb.OperationMsg)
-				if !ok {
-					return fmt.Errorf("unable to obtain OperationMsg from %#v", ext)
-				}
-
-				switch opCode := opMsg.GetOp(); opCode {
-				case gitalypb.OperationMsg_ACCESSOR:
-					mi.Operation = OpAccessor
-				case gitalypb.OperationMsg_MUTATOR:
-					mi.Operation = OpMutator
-				default:
-					mi.Operation = OpUnknown
+				mi, err := parseMethodInfo(opMsg)
+				if err != nil {
+					return err
 				}
 
 				if _, ok := pr.protos[serviceDescriptorProto.GetName()]; !ok {
@@ -106,6 +90,86 @@ func (pr *Registry) RegisterFiles(protos ...*descriptor.FileDescriptorProto) err
 	}
 
 	return nil
+}
+
+func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg, error) {
+	options := m.GetOptions()
+
+	if !proto.HasExtension(options, gitalypb.E_OpType) {
+		return nil, fmt.Errorf(
+			"Method %s missing op_type option",
+			m.GetName(),
+		)
+	}
+
+	ext, err := proto.GetExtension(options, gitalypb.E_OpType)
+	if err != nil {
+		return nil, err
+	}
+
+	opMsg, ok := ext.(*gitalypb.OperationMsg)
+	if !ok {
+		return nil, fmt.Errorf("unable to obtain OperationMsg from %#v", ext)
+	}
+	return opMsg, nil
+}
+
+func parseMethodInfo(opMsg *gitalypb.OperationMsg) (MethodInfo, error) {
+	var opCode OpType
+
+	switch opMsg.GetOp() {
+	case gitalypb.OperationMsg_ACCESSOR:
+		opCode = OpAccessor
+	case gitalypb.OperationMsg_MUTATOR:
+		opCode = OpMutator
+	default:
+		opCode = OpUnknown
+	}
+
+	targetRepo, err := parseOID(opMsg.GetTargetRepositoryField())
+	if err != nil {
+		return MethodInfo{}, err
+	}
+
+	return MethodInfo{
+		Operation:  opCode,
+		targetRepo: targetRepo,
+	}, nil
+}
+
+// parses a string like "1.1" and returns a slice of ints
+func parseOID(rawFieldOID string) ([]int, error) {
+	var fieldNos []int
+
+	if rawFieldOID == "" {
+		return fieldNos, nil
+	}
+
+	fieldNoStrs := strings.Split(rawFieldOID, ".")
+
+	if len(fieldNoStrs) < 1 {
+		return nil,
+			fmt.Errorf("OID string contains no field numbers: %s", fieldNoStrs)
+	}
+
+	fieldNos = make([]int, len(fieldNoStrs))
+
+	for i, fieldNoStr := range fieldNoStrs {
+		fieldNo, err := strconv.Atoi(fieldNoStr)
+		if err != nil {
+			return nil,
+				fmt.Errorf(
+					"unable to parse target field OID %s: %s",
+					rawFieldOID, err,
+				)
+		}
+		if fieldNo == 0 {
+			return nil, errors.New("zero is an invalid field number")
+		}
+		fieldNos[i] = fieldNo
+	}
+
+	return fieldNos, nil
 }
 
 // LookupMethod looks up an MethodInfo by service and method name
