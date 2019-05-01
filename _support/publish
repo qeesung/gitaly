@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+require_relative 'run.rb'
+
+REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
+
+# Sanity check
+%w[
+  git@gitlab.com:gitlab-org/gitaly.git
+  https://gitlab.com/gitlab-org/gitaly.git
+  https://janedoe@gitlab.com/gitlab-org/gitaly.git
+].each do |remote|
+  abort "regex check failed failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
+end
+
+def main(tag)
+  remote = capture!(%w[git remote get-url --push origin])
+  unless REMOTE_REGEX.match(remote)
+    abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
+  end
+
+  puts "Proceed to publish version #{tag}? Enter 'Yes' to continue; Ctrl-C to abort"
+  $stdout.flush
+  abort unless $stdin.gets.chomp == 'Yes'
+
+  run!(%W[git push origin HEAD #{tag}])
+end
+
+unless ARGV.count == 1
+  warn "Usage: #{$0} TAG"
+  abort
+end
+
+main(ARGV[0])

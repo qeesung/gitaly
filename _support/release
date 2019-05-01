@@ -3,23 +3,8 @@ require 'erb'
 
 require_relative 'run.rb'
 
-REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
-
-# Sanity check
-%w[
-  git@gitlab.com:gitlab-org/gitaly.git
-  https://gitlab.com/gitlab-org/gitaly.git
-  https://janedoe@gitlab.com/gitlab-org/gitaly.git
-].each do |remote|
-  abort "regex check failed failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
-end
 
 def main(version)
-  remote = capture!(%w[git remote get-url --push origin])
-  unless REMOTE_REGEX.match(remote)
-    abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
-  end
-
   unless version =~ /^[0-9]/
     abort "Version string #{version.inspect} does not look like a semver (e.g. \"1.0.2\"). Aborting."
   end
@@ -47,11 +32,7 @@ def main(version)
   show_output = capture!(%W[git show --pretty #{tag_name}])
   puts show_output
 
-  puts "Proceed to publish version #{version}? Enter 'Yes' to continue; Ctrl-C to abort"
-  $stdout.flush
-  abort unless $stdin.gets.chomp == 'Yes'
-
-  run!(%W[git push origin HEAD #{tag_name}])
+  puts "To publish this tag to gitlab.com, run:\n\n\t_support/publish #{tag_name}\n\n"
 end
 
 def write_version_file(version)
