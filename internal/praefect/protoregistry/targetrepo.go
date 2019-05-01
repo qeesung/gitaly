@@ -10,10 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 )
 
-func (mi MethodInfo) TargetRepo(msg proto.Message) (*gitalypb.Repository, error) {
-	return reflectFindRepoTarget(msg, mi.targetRepo)
-}
-
 const protobufTag = "protobuf"
 
 // reflectFindRepoTarget finds the target repository by using the OID to
@@ -31,7 +27,6 @@ func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repo
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	targetRepo, ok := msgV.Interface().(*gitalypb.Repository)

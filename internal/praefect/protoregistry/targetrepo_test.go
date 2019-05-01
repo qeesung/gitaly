@@ -1,6 +1,7 @@
 package protoregistry_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -34,18 +35,26 @@ func TestTargetRepo(t *testing.T) {
 	}
 
 	testcases := []struct {
-		svc    string
-		method string
-		proto.Message
-		*gitalypb.Repository
+		svc        string
+		method     string
+		pbMsg      proto.Message
+		expectRepo *gitalypb.Repository
+		expectErr  error
 	}{
 		{
 			svc:    "RepositoryService",
 			method: "RepackIncremental",
-			Message: &gitalypb.RepackIncrementalRequest{
+			pbMsg: &gitalypb.RepackIncrementalRequest{
 				Repository: testRepos[0],
 			},
-			Repository: testRepos[0],
+			expectRepo: testRepos[0],
+		},
+		{
+			svc:        "RepositoryService",
+			method:     "RepackIncremental",
+			pbMsg:      &gitalypb.RepackIncrementalResponse{},
+			expectRepo: nil,
+			expectErr:  errors.New("proto message gitaly.RepackIncrementalResponse does not match expected RPC request message gitaly.RepackIncrementalRequest"),
 		},
 	}
 
@@ -55,11 +64,10 @@ func TestTargetRepo(t *testing.T) {
 			info, err := r.LookupMethod(tc.svc, tc.method)
 			require.NoError(t, err)
 
-			actualTarget, err := info.TargetRepo(tc.Message)
-			require.NoError(t, err)
-			require.Equal(t, testRepos[0], actualTarget)
-			if testRepos[0] != actualTarget {
-				t.Fatalf("pointers do not match: %p vs %p", testRepos[0], actualTarget)
+			actualTarget, actualErr := info.TargetRepo(tc.pbMsg)
+			require.Equal(t, tc.expectErr, actualErr)
+			if tc.expectRepo != actualTarget {
+				t.Fatal("pointers do not match")
 			}
 		})
 	}

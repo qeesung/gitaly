@@ -46,8 +46,21 @@ const (
 // for message type "OperationMsg" shared.proto in gitlab-org/gitaly-proto for
 // more documentation.
 type MethodInfo struct {
-	Operation  OpType
-	targetRepo []int
+	Operation   OpType
+	targetRepo  []int
+	requestName string // protobuf message name for input type
+}
+
+// TargetRepo returns the target repository for a protobuf message if it exists
+func (mi MethodInfo) TargetRepo(msg proto.Message) (*gitalypb.Repository, error) {
+	if mi.requestName != proto.MessageName(msg) {
+		return nil, fmt.Errorf(
+			"proto message %s does not match expected RPC request message %s",
+			proto.MessageName(msg), mi.requestName,
+		)
+	}
+
+	return reflectFindRepoTarget(msg, mi.targetRepo)
 }
 
 // Registry contains info about RPC methods
@@ -71,12 +84,7 @@ func (pr *Registry) RegisterFiles(protos ...*descriptor.FileDescriptorProto) err
 	for _, p := range protos {
 		for _, serviceDescriptorProto := range p.GetService() {
 			for _, methodDescriptorProto := range serviceDescriptorProto.GetMethod() {
-				opMsg, err := getOpExtension(methodDescriptorProto)
-				if err != nil {
-					return err
-				}
-
-				mi, err := parseMethodInfo(opMsg)
+				mi, err := parseMethodInfo(methodDescriptorProto)
 				if err != nil {
 					return err
 				}
@@ -114,7 +122,12 @@ func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 	return opMsg, nil
 }
 
-func parseMethodInfo(opMsg *gitalypb.OperationMsg) (MethodInfo, error) {
+func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, error) {
+	opMsg, err := getOpExtension(methodDesc)
+	if err != nil {
+		return MethodInfo{}, err
+	}
+
 	var opCode OpType
 
 	switch opMsg.GetOp() {
@@ -131,9 +144,15 @@ func parseMethodInfo(opMsg *gitalypb.OperationMsg) (MethodInfo, error) {
 		return MethodInfo{}, err
 	}
 
+	// for some reason, the protobuf descriptor contains an extra dot in front
+	// of the request name that the generated code does not. This trimming keeps
+	// the two copies consistent for comparisons.
+	requestName := strings.TrimLeft(methodDesc.GetInputType(), ".")
+
 	return MethodInfo{
-		Operation:  opCode,
-		targetRepo: targetRepo,
+		Operation:   opCode,
+		targetRepo:  targetRepo,
+		requestName: requestName,
 	}, nil
 }
 
