@@ -116,7 +116,6 @@ func (bc *BatchCache) Add(key CacheKey, b *Batch, ttl time.Duration) {
 
 	if v, ok := bc.lru.Get(key); ok {
 		existing := v.(*CacheItem)
-		close(existing.stopTTL)
 		existing.batch.Close()
 		bc.lru.Remove(key)
 	}
