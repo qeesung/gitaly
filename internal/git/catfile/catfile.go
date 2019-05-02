@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
@@ -35,8 +34,11 @@ var totalCatfileProcesses = prometheus.NewCounter(
 	},
 )
 
-// DefaultBatchfileTTL is the default ttl for batch files to live in the cache
-var DefaultBatchfileTTL = 10 * time.Second
+const (
+	// CacheFeatureFlagKey is the feature flag key for catfile batch caching. This should match
+	// what is in gitlab-ce
+	CacheFeatureFlagKey = "catfile-cache"
+)
 
 func init() {
 	prometheus.MustRegister(catfileCacheHitOrMiss)

@@ -11,11 +11,13 @@ import (
 )
 
 const (
-	// CacheFeatureFlagKey is the feature flag key for catfile batch caching. This should match
-	// what is in gitlab-ce
-	CacheFeatureFlagKey = "catfile-cache"
+	// DefaultBatchfileTTL is the default ttl for batch files to live in the cache
+	DefaultBatchfileTTL = 10 * time.Second
+
 	// CacheMaxItems is the default configuration for maximum entries in the batch cache
 	CacheMaxItems = 100
+
+	defaultEvictionInterval = 1 * time.Second
 )
 
 var catfileCacheMembers = prometheus.NewGauge(
@@ -74,7 +76,7 @@ type batchCache struct {
 }
 
 func newCache(ttl time.Duration, maxLen int) *batchCache {
-	return newCacheRefresh(ttl, maxLen, time.Second)
+	return newCacheRefresh(ttl, maxLen, defaultEvictionInterval)
 }
 
 func newCacheRefresh(ttl time.Duration, maxLen int, refresh time.Duration) *batchCache {
