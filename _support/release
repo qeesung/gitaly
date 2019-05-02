@@ -32,7 +32,7 @@ def main(version)
   show_output = capture!(%W[git show --pretty #{tag_name}])
   puts show_output
 
-  puts "To publish this tag to gitlab.com, run:\n\n\t_support/publish #{tag_name}\n\n"
+  puts "If this is not a security release you can now publish this tag to gitlab.com:\n\n\t_support/publish #{tag_name}\n\n"
 end
 
 def write_version_file(version)
