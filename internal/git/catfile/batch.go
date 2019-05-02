@@ -99,9 +99,6 @@ func (b *batchProcess) reader(revspec string, expectedType string) (io.Reader, e
 }
 
 func (b *batchProcess) consume(nBytes int) {
-	b.Lock()
-	defer b.Unlock()
-
 	b.n -= int64(nBytes)
 	if b.n < 1 {
 		panic("too many bytes read from batch")
@@ -121,6 +118,9 @@ type batchReader struct {
 }
 
 func (br *batchReader) Read(p []byte) (int, error) {
+	br.batchProcess.Lock()
+	defer br.batchProcess.Unlock()
+
 	n, err := br.r.Read(p)
 	br.batchProcess.consume(n)
 	return n, err
