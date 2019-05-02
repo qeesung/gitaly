@@ -33,14 +33,7 @@ func TestCacheAdd(t *testing.T) {
 
 	require.Equal(t, maxLen, bc.len(), "length should be maxLen")
 	require.True(t, value0.isClosed(), "value0 should be closed")
-
-	expectedkeys := []key{key1, key2, key3}
-	var actualkeys []key
-	for e := bc.ll.Front(); e != nil; e = e.Next() {
-		actualkeys = append(actualkeys, e.Value.(*entry).key)
-	}
-
-	require.Equal(t, expectedkeys, actualkeys)
+	require.Equal(t, []key{key1, key2, key3}, keys(bc))
 }
 
 func TestCacheAddTwice(t *testing.T) {
@@ -160,22 +153,19 @@ func TestAutoExpiry(t *testing.T) {
 	bc.Unlock()
 }
 
-// requireCacheValid tests the relation between bc.keyHeap and bc.hash,
-// but not whether bc.keyHeap is a proper heap!
 func requireCacheValid(t *testing.T, bc *batchCache) {
 	bc.Lock()
 	defer bc.Unlock()
 
-	require.Equal(t, len(bc.keyMap), bc.ll.Len(), "keyMap %d entries %d", len(bc.keyMap), bc.ll.Len())
+	lenMap, lenList := len(bc.keyMap), bc.ll.Len()
+	require.Equal(t, lenMap, lenList, "keyMap %d entries %d", lenMap, lenList)
 
 	for e := bc.ll.Front(); e != nil; e = e.Next() {
 		ent := e.Value.(*entry)
 		require.Equal(t, e, bc.keyMap[ent.key], "reverse key index")
 
-		if ent.value != nil {
-			v := ent.value
-			require.False(t, v.isClosed(), "values in cache should not be closed: %v %v", ent, v)
-		}
+		v := ent.value
+		require.False(t, v.isClosed(), "values in cache should not be closed: %v %v", ent, v)
 	}
 }
 
