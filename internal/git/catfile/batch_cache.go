@@ -58,6 +58,13 @@ type entry struct {
 	expiry time.Time
 }
 
+// batchCache is a doubly linked list with extras. Each entry has a
+// unique key. We have a map to be able to look up entries by key
+// directly, avoiding a full list traversal. Entries always get added to
+// the back of the list. If the list gets too long, we evict entries from
+// the front of the list. When an entry gets added it gets an expiry time
+// based on a fixed TTL. A monitor goroutine periodically evicts expired
+// entries.
 type batchCache struct {
 	// keyMap lets us look up entries by key
 	keyMap map[key]*list.Element
@@ -72,6 +79,7 @@ type batchCache struct {
 	// ttl is the fixed ttl for cache entries
 	ttl time.Duration
 
+	// done is used to shut down the ttl eviction goroutine
 	done chan struct{}
 }
 
@@ -88,20 +96,22 @@ func newCacheRefresh(ttl time.Duration, maxLen int, refresh time.Duration) *batc
 		done:   make(chan struct{}),
 	}
 
-	go func() {
-		ticker := time.NewTicker(refresh)
-		for {
-			select {
-			case <-ticker.C:
-				bc.EnforceTTL(time.Now())
-			case <-bc.done:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-
+	go bc.monitor(refresh)
 	return bc
+}
+
+func (bc *batchCache) monitor(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+
+	for {
+		select {
+		case <-ticker.C:
+			bc.EnforceTTL(time.Now())
+		case <-bc.done:
+			ticker.Stop()
+			return
+		}
+	}
 }
 
 // Add adds a key, value pair to bc. If there are too many keys in bc
@@ -122,11 +132,8 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	}
 }
 
-func (bc *batchCache) evictOldest() {
-	ent := bc.head()
-	bc.delete(ent.key, true)
-}
-
+func (bc *batchCache) evictOldest() { bc.delete(bc.head().key, true) }
+func (bc *batchCache) len() int     { return bc.ll.Len() }
 func (bc *batchCache) head() *entry { return bc.ll.Front().Value.(*entry) }
 
 // Checkout removes a value from bc. After use the caller can re-add the value with bc.Add.
@@ -143,8 +150,6 @@ func (bc *batchCache) Checkout(k key) (*Batch, bool) {
 	bc.delete(ent.key, false)
 	return ent.value, true
 }
-
-func (bc *batchCache) len() int { return bc.ll.Len() }
 
 // EnforceTTL evicts all keys older than now.
 func (bc *batchCache) EnforceTTL(now time.Time) {
@@ -176,13 +181,13 @@ func (bc *batchCache) EvictAll() {
 	}
 }
 
-func (bc *batchCache) delete(k key, close bool) {
+func (bc *batchCache) delete(k key, wantClose bool) {
 	e, ok := bc.keyMap[k]
 	if !ok {
 		return
 	}
 
-	if close {
+	if wantClose {
 		e.Value.(*entry).value.Close()
 	}
 
