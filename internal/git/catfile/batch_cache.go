@@ -130,6 +130,8 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	for bc.len() > bc.maxLen {
 		bc.evictOldest()
 	}
+
+	catfileCacheMembers.Set(float64(bc.len()))
 }
 
 func (bc *batchCache) evictOldest() { bc.delete(bc.head().key, true) }
@@ -193,6 +195,7 @@ func (bc *batchCache) delete(k key, wantClose bool) {
 
 	bc.ll.Remove(e)
 	delete(bc.keyMap, k)
+	catfileCacheMembers.Set(float64(bc.len()))
 }
 
 // ExpireAll is used to expire all of the batches in the cache
