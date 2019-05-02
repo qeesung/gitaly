@@ -11,7 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 )
 
-func TestTargetRepo(t *testing.T) {
+func TestProtoRegistryTargetRepo(t *testing.T) {
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
@@ -50,11 +50,10 @@ func TestTargetRepo(t *testing.T) {
 			expectRepo: testRepos[0],
 		},
 		{
-			svc:        "RepositoryService",
-			method:     "RepackIncremental",
-			pbMsg:      &gitalypb.RepackIncrementalResponse{},
-			expectRepo: nil,
-			expectErr:  errors.New("proto message gitaly.RepackIncrementalResponse does not match expected RPC request message gitaly.RepackIncrementalRequest"),
+			svc:       "RepositoryService",
+			method:    "RepackIncremental",
+			pbMsg:     &gitalypb.RepackIncrementalResponse{},
+			expectErr: errors.New("proto message gitaly.RepackIncrementalResponse does not match expected RPC request message gitaly.RepackIncrementalRequest"),
 		},
 	}
 
@@ -66,6 +65,9 @@ func TestTargetRepo(t *testing.T) {
 
 			actualTarget, actualErr := info.TargetRepo(tc.pbMsg)
 			require.Equal(t, tc.expectErr, actualErr)
+
+			// not only do we want the value to be the same, but we actually want the
+			// exact same instance to be returned
 			if tc.expectRepo != actualTarget {
 				t.Fatal("pointers do not match")
 			}
