@@ -132,6 +132,11 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+
+			err = r.jobsStore.UpdateReplJob(job.ID, JobStateComplete)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
