@@ -1,5 +1,5 @@
 ---
-title: Do not close ttl channel twice
+title: Do not close the TTL channel twice
 merge_request: 1235
 author:
 type: fixed
