@@ -1,0 +1,5 @@
+---
+title: Updating replication job state to complete is broken
+merge_request: 1236
+author:
+type: fixed
