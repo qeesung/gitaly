@@ -131,6 +131,7 @@ func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
 			next    uint64
 			records map[uint64]jobRecord // all jobs indexed by ID
 		}{
+			next:    0,
 			records: map[uint64]jobRecord{},
 		},
 	}
