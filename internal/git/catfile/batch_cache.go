@@ -121,6 +121,7 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	defer bc.Unlock()
 
 	if _, ok := bc.keyMap[k]; ok {
+		catfileCacheCounter.WithLabelValues("duplicate").Inc()
 		bc.delete(k, true)
 	}
 
@@ -145,8 +146,11 @@ func (bc *batchCache) Checkout(k key) (*Batch, bool) {
 
 	e, ok := bc.keyMap[k]
 	if !ok {
+		catfileCacheCounter.WithLabelValues("miss").Inc()
 		return nil, false
 	}
+
+	catfileCacheCounter.WithLabelValues("hit").Inc()
 
 	ent := e.Value.(*entry)
 	bc.delete(ent.key, false)

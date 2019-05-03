@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 )
 
-var catfileCacheHitOrMiss = prometheus.NewCounterVec(
+var catfileCacheCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "gitaly_catfile_cache_total",
 		Help: "Counter of catfile cache hit/miss",
@@ -41,7 +41,7 @@ const (
 )
 
 func init() {
-	prometheus.MustRegister(catfileCacheHitOrMiss)
+	prometheus.MustRegister(catfileCacheCounter)
 	prometheus.MustRegister(currentCatfileProcesses)
 	prometheus.MustRegister(totalCatfileProcesses)
 }
@@ -143,12 +143,10 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	requestDone := ctx.Done()
 
 	if c, ok := cache.Checkout(cacheKey); ok {
-		catfileCacheHitOrMiss.WithLabelValues("hit").Inc()
 		go returnWhenDone(requestDone, cache, cacheKey, c)
 		return c, nil
 	}
 
-	catfileCacheHitOrMiss.WithLabelValues("miss").Inc()
 	// if we are using caching, create a fresh context for the new batch
 	// and initialize the new batch with a cache key and cancel function
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
@@ -171,6 +169,7 @@ func returnWhenDone(done <-chan struct{}, bc *batchCache, cacheKey key, c *Batch
 	}
 
 	if c.hasUnreadData() {
+		catfileCacheCounter.WithLabelValues("dirty").Inc()
 		c.Close()
 		return
 	}
