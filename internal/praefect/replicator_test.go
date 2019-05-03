@@ -69,28 +69,21 @@ func TestReplicatorProcessJobsWhitelist(t *testing.T) {
 	}()
 
 	success := make(chan struct{})
-	expectJobs := len(cfg.Whitelist) * len(cfg.SecondaryServers)
 
 	go func() {
 		// we expect one job per whitelisted repo with each backend server
-		for i := 0; i < expectJobs; i++ {
+		for i := 0; i < len(cfg.Whitelist); i++ {
 			result := <-resultsCh
 
 			assert.Contains(t, cfg.Whitelist, result.source.RelativePath)
-			assert.Contains(t,
-				[]string{
-					cfg.SecondaryServers[0].Name,
-					cfg.SecondaryServers[1].Name,
-				},
-				result.target.Storage,
-			)
+			assert.Equal(t, result.target.Storage, cfg.SecondaryServers[1].Name)
+			assert.Equal(t, result.source.Storage, cfg.PrimaryServer.Name)
 		}
 
 		cancel()
+		require.EqualError(t, <-errQ, context.Canceled.Error())
 		success <- struct{}{}
 	}()
-
-	require.EqualError(t, <-errQ, context.Canceled.Error())
 
 	select {
 

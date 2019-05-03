@@ -8,6 +8,7 @@ package praefect
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
@@ -40,6 +41,17 @@ type ReplJob struct {
 	Source Repository // source for replication
 	State  JobState
 }
+
+// replJobs provides sort manipulation behavior
+type replJobs []ReplJob
+
+func (rjs replJobs) Len() int      { return len(rjs) }
+func (rjs replJobs) Swap(i, j int) { rjs[i], rjs[j] = rjs[j], rjs[i] }
+
+// byJobID provides a comparator for sorting jobs
+type byJobID struct{ replJobs }
+
+func (b byJobID) Less(i, j int) bool { return b.replJobs[i].ID < b.replJobs[j].ID }
 
 // Datastore is a data persistence abstraction for all of Praefect's
 // persistence needs
@@ -100,7 +112,8 @@ type MemoryDatastore struct {
 
 	jobs *struct {
 		sync.RWMutex
-		records []jobRecord // all jobs indexed by ID
+		next    uint64
+		records map[uint64]jobRecord // all jobs indexed by ID
 	}
 }
 
@@ -115,8 +128,11 @@ func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
 		},
 		jobs: &struct {
 			sync.RWMutex
-			records []jobRecord // all jobs indexed by ID
-		}{},
+			next    uint64
+			records map[uint64]jobRecord // all jobs indexed by ID
+		}{
+			records: map[uint64]jobRecord{},
+		},
 	}
 
 	secondaries := make([]string, len(cfg.SecondaryServers))
@@ -134,11 +150,12 @@ func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
 		// initialize replication job queue to replicate all whitelisted repos
 		// to every secondary server
 		for _, secondary := range cfg.SecondaryServers {
-			m.jobs.records = append(m.jobs.records, jobRecord{
+			m.jobs.next++
+			m.jobs.records[m.jobs.next] = jobRecord{
 				state:        JobStateReady,
 				target:       secondary.Name,
 				relativePath: relativePath,
-			})
+			}
 		}
 
 	}
@@ -205,12 +222,14 @@ func (md *MemoryDatastore) GetIncompleteJobs(storage string, count int) ([]ReplJ
 		}
 	}
 
+	sort.Sort(byJobID{results})
+
 	return results, nil
 }
 
 // replJobFromRecord constructs a replication job from a record and by cross
 // referencing the current shard for the project being replicated
-func (md *MemoryDatastore) replJobFromRecord(index int, record jobRecord) (ReplJob, error) {
+func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (ReplJob, error) {
 	shard, ok := md.getShard(record.relativePath)
 	if !ok {
 		return ReplJob{}, fmt.Errorf(
@@ -220,7 +239,7 @@ func (md *MemoryDatastore) replJobFromRecord(index int, record jobRecord) (ReplJ
 	}
 
 	return ReplJob{
-		ID: uint64(index + 1),
+		ID: jobID,
 		Source: Repository{
 			RelativePath: record.relativePath,
 			Storage:      shard.primary,
@@ -258,11 +277,12 @@ func (md *MemoryDatastore) CreateSecondaryReplJobs(source Repository) ([]uint64,
 	for _, secondary := range shard.secondaries {
 		nextID := uint64(len(md.jobs.records) + 1)
 
-		md.jobs.records = append(md.jobs.records, jobRecord{
+		md.jobs.next++
+		md.jobs.records[md.jobs.next] = jobRecord{
 			target:       secondary,
 			state:        JobStatePending,
 			relativePath: source.RelativePath,
-		})
+		}
 
 		jobIDs = append(jobIDs, nextID)
 	}
@@ -275,18 +295,18 @@ func (md *MemoryDatastore) UpdateReplJob(jobID uint64, newState JobState) error 
 	md.jobs.Lock()
 	defer md.jobs.Unlock()
 
-	if jobID == 0 || jobID > uint64(len(md.jobs.records)) {
+	job, ok := md.jobs.records[jobID]
+	if !ok {
 		return fmt.Errorf("job ID %d does not exist", jobID)
 	}
 
-	index := jobID - 1
-
 	if newState == JobStateComplete || newState == JobStateCancelled {
 		// remove the job to avoid filling up memory with unneeded job records
-		md.jobs.records = append(md.jobs.records[:index], md.jobs.records[index+1:]...)
+		delete(md.jobs.records, jobID)
 		return nil
 	}
 
-	md.jobs.records[index].state = newState
+	job.state = newState
+	md.jobs.records[jobID] = job
 	return nil
 }

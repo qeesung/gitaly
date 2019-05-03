@@ -96,6 +96,8 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo Repository) error
 	return nil
 }
 
+const jobFetchInterval = 10 * time.Millisecond
+
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
 func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 	since := time.Time{}
@@ -107,10 +109,12 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 		}
 
 		if len(jobs) == 0 {
+			r.log.Debugf("no jobs for %s, checking again in %s", r.storage, jobFetchInterval)
+
 			select {
 
 			// TODO: exponential backoff when no queries are returned
-			case <-time.After(10 * time.Millisecond):
+			case <-time.After(jobFetchInterval):
 				continue
 
 			case <-ctx.Done():
@@ -128,11 +132,17 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 				return err
 			}
 
+			err = r.jobsStore.UpdateReplJob(job.ID, JobStateInProgress)
+			if err != nil {
+				return err
+			}
+
 			err = r.replicator.Replicate(ctx, job.Source, node)
 			if err != nil {
 				return err
 			}
 
+			r.log.Infof("completed replication job #%d", job.ID)
 			err = r.jobsStore.UpdateReplJob(job.ID, JobStateComplete)
 			if err != nil {
 				return err

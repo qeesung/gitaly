@@ -59,7 +59,6 @@ var operations = []struct {
 		desc: "fetch inserted replication jobs after primary mapped",
 		opFn: func(t *testing.T, ds praefect.Datastore) {
 			jobs, err := ds.GetIncompleteJobs(stor2, 10)
-
 			require.NoError(t, err)
 			require.Len(t, jobs, 1)
 
