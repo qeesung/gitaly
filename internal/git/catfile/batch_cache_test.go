@@ -133,7 +133,7 @@ func TestCacheEnforceTTL(t *testing.T) {
 
 func TestAutoExpiry(t *testing.T) {
 	ttl := 5 * time.Millisecond
-	bc := newCacheRefresh(ttl, 10, 1*time.Millisecond)
+	bc := newCacheWithRefresh(ttl, 10, 1*time.Millisecond)
 
 	key0 := testKey(0)
 	value0 := testValue()

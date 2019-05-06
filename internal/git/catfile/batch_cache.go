@@ -70,37 +70,27 @@ type batchCache struct {
 
 	// ttl is the fixed ttl for cache entries
 	ttl time.Duration
-
-	// done is used to shut down the ttl eviction goroutine
-	done chan struct{}
 }
 
 func newCache(ttl time.Duration, maxLen int) *batchCache {
-	return newCacheRefresh(ttl, maxLen, defaultEvictionInterval)
+	return newCacheWithRefresh(ttl, maxLen, defaultEvictionInterval)
 }
 
-func newCacheRefresh(ttl time.Duration, maxLen int, refresh time.Duration) *batchCache {
+func newCacheWithRefresh(ttl time.Duration, maxLen int, refreshInterval time.Duration) *batchCache {
 	bc := &batchCache{
 		maxLen: maxLen,
 		ttl:    ttl,
-		done:   make(chan struct{}),
 	}
 
-	go bc.monitor(refresh)
+	go bc.monitor(refreshInterval)
 	return bc
 }
 
-func (bc *batchCache) monitor(interval time.Duration) {
-	ticker := time.NewTicker(interval)
+func (bc *batchCache) monitor(refreshInterval time.Duration) {
+	ticker := time.NewTicker(refreshInterval)
 
-	for {
-		select {
-		case <-ticker.C:
-			bc.EnforceTTL(time.Now())
-		case <-bc.done:
-			ticker.Stop()
-			return
-		}
+	for range ticker.C {
+		bc.EnforceTTL(time.Now())
 	}
 }
 
@@ -171,7 +161,6 @@ func (bc *batchCache) EvictAll() {
 	bc.Lock()
 	defer bc.Unlock()
 
-	close(bc.done)
 	for bc.len() > 0 {
 		bc.evictOldest()
 	}
