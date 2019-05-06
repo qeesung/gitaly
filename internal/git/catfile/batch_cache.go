@@ -109,15 +109,15 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	bc.entries = append(bc.entries, ent)
 
 	for bc.len() > bc.maxLen {
-		bc.evictOldest()
+		bc.evictHead()
 	}
 
 	catfileCacheMembers.Set(float64(bc.len()))
 }
 
-func (bc *batchCache) evictOldest() { bc.delete(0, true) }
-func (bc *batchCache) len() int     { return len(bc.entries) }
 func (bc *batchCache) head() *entry { return bc.entries[0] }
+func (bc *batchCache) evictHead()   { bc.delete(0, true) }
+func (bc *batchCache) len() int     { return len(bc.entries) }
 
 // Checkout removes a value from bc. After use the caller can re-add the value with bc.Add.
 func (bc *batchCache) Checkout(k key) (*Batch, bool) {
@@ -137,23 +137,14 @@ func (bc *batchCache) Checkout(k key) (*Batch, bool) {
 	return ent.value, true
 }
 
-// EnforceTTL evicts all keys older than now.
+// EnforceTTL evicts all entries older than now, assuming the entry
+// expiry times are increasing.
 func (bc *batchCache) EnforceTTL(now time.Time) {
-	for {
-		bc.Lock()
+	bc.Lock()
+	defer bc.Unlock()
 
-		if bc.len() == 0 {
-			bc.Unlock()
-			return
-		}
-
-		if now.Before(bc.head().expiry) {
-			bc.Unlock()
-			return
-		}
-
-		bc.evictOldest()
-		bc.Unlock()
+	for bc.len() > 0 && now.After(bc.head().expiry) {
+		bc.evictHead()
 	}
 }
 
@@ -162,7 +153,7 @@ func (bc *batchCache) EvictAll() {
 	defer bc.Unlock()
 
 	for bc.len() > 0 {
-		bc.evictOldest()
+		bc.evictHead()
 	}
 }
 
