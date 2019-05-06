@@ -206,3 +206,130 @@ func (bc *batchCache) delete(k key, wantClose bool) {
 func ExpireAll() {
 	cache.EvictAll()
 }
+
+type alt struct{ *batchCache }
+
+func (a *alt) lookup(k key) (*list.Element, bool) {
+	for e := a.ll.Front(); e != nil; e = e.Next() {
+		if e.Value.(*entry).key == k {
+			return e, true
+		}
+	}
+
+	return nil, false
+}
+
+func (a *alt) delete(k key, wantClose bool) {
+	e, ok := a.lookup(k)
+	if !ok {
+		return
+	}
+
+	if wantClose {
+		e.Value.(*entry).value.Close()
+	}
+
+	a.ll.Remove(e)
+	catfileCacheMembers.Set(float64(a.len()))
+}
+
+func (a *alt) Add(k key, b *Batch) {
+	a.Lock()
+	defer a.Unlock()
+
+	if _, ok := a.lookup(k); ok {
+		catfileCacheCounter.WithLabelValues("duplicate").Inc()
+		a.delete(k, true)
+	}
+
+	ent := &entry{key: k, value: b, expiry: time.Now().Add(a.ttl)}
+	a.ll.PushBack(ent)
+
+	for a.len() > a.maxLen {
+		a.delete(a.head().key, true)
+	}
+
+	catfileCacheMembers.Set(float64(a.len()))
+}
+
+func (a *alt) Checkout(k key) (*Batch, bool) {
+	a.Lock()
+	defer a.Unlock()
+
+	e, ok := a.lookup(k)
+	if !ok {
+		catfileCacheCounter.WithLabelValues("miss").Inc()
+		return nil, false
+	}
+
+	catfileCacheCounter.WithLabelValues("hit").Inc()
+
+	ent := e.Value.(*entry)
+	a.delete(ent.key, false)
+	return ent.value, true
+}
+
+type slice struct {
+	*batchCache
+	entries []*entry
+}
+
+func (a *slice) lookup(k key) (int, bool) {
+	for i, ent := range a.entries {
+		if ent.key == k {
+			return i, true
+		}
+
+	}
+
+	return -1, false
+}
+
+func (a *slice) delete(i int, wantClose bool) {
+	ent := a.entries[i]
+
+	if wantClose {
+		ent.value.Close()
+	}
+
+	a.entries = append(a.entries[:i], a.entries[i+1:]...)
+	catfileCacheMembers.Set(float64(a.len()))
+}
+
+func (a *slice) Add(k key, b *Batch) {
+	a.Lock()
+	defer a.Unlock()
+
+	if i, ok := a.lookup(k); ok {
+		catfileCacheCounter.WithLabelValues("duplicate").Inc()
+		a.delete(i, true)
+	}
+
+	ent := &entry{key: k, value: b, expiry: time.Now().Add(a.ttl)}
+	a.entries = append(a.entries, ent)
+
+	for a.len() > a.maxLen {
+		a.delete(0, true)
+	}
+
+	catfileCacheMembers.Set(float64(a.len()))
+}
+
+func (a *slice) Checkout(k key) (*Batch, bool) {
+	a.Lock()
+	defer a.Unlock()
+
+	i, ok := a.lookup(k)
+	if !ok {
+		catfileCacheCounter.WithLabelValues("miss").Inc()
+		return nil, false
+	}
+
+	catfileCacheCounter.WithLabelValues("hit").Inc()
+
+	ent := a.entries[i]
+	a.delete(i, false)
+	return ent.value, true
+}
+
+func (a *slice) len() int { return len(a.entries) }

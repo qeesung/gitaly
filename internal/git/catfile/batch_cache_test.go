@@ -182,3 +182,90 @@ func keys(bc *batchCache) []key {
 
 	return result
 }
+
+func BenchmarkCacheHash10(b *testing.B) {
+	benchMap(b, 10)
+}
+
+func BenchmarkCacheHash100(b *testing.B) {
+	benchMap(b, 100)
+}
+
+func BenchmarkCacheHash1000(b *testing.B) {
+	benchMap(b, 1000)
+}
+
+func BenchmarkCacheHash10000(b *testing.B) {
+	benchMap(b, 10000)
+}
+
+func benchMap(b *testing.B, n int) {
+	bc := newCache(time.Hour, n)
+	benchCacheAdd(b, bc, n)
+}
+
+func BenchmarkCacheList10(b *testing.B) {
+	benchList(b, 10)
+}
+
+func BenchmarkCacheList100(b *testing.B) {
+	benchList(b, 100)
+}
+
+func BenchmarkCacheList1000(b *testing.B) {
+	benchList(b, 1000)
+}
+
+func BenchmarkCacheList10000(b *testing.B) {
+	benchList(b, 10000)
+}
+
+func benchList(b *testing.B, n int) {
+	a := &alt{newCache(time.Hour, n)}
+	benchCacheAdd(b, a, n)
+}
+
+func BenchmarkCacheSlice10(b *testing.B) {
+	benchSlice(b, 10)
+}
+
+func BenchmarkCacheSlice100(b *testing.B) {
+	benchSlice(b, 100)
+}
+
+func BenchmarkCacheSlice1000(b *testing.B) {
+	benchSlice(b, 1000)
+}
+
+func BenchmarkCacheSlice10000(b *testing.B) {
+	benchSlice(b, 10000)
+}
+
+func benchSlice(b *testing.B, n int) {
+	a := &slice{batchCache: newCache(time.Hour, n)}
+	benchCacheAdd(b, a, n)
+}
+
+type testInterface interface {
+	Add(key, *Batch)
+	Checkout(key) (*Batch, bool)
+}
+
+func benchCacheAdd(b *testing.B, testCache testInterface, n int) {
+	stuff(testCache, n)
+	b.ResetTimer()
+
+	for j := 0; j < b.N; j++ {
+		k := testKey(j + n)
+		testCache.Add(k, testValue())
+		if _, ok := testCache.Checkout(k); !ok {
+			b.Fatal("checkout failed")
+		}
+	}
+}
+
+func stuff(bc testInterface, n int) {
+	for i := 0; i < n; i++ {
+		bc.Add(testKey(i), testValue())
+	}
+}
