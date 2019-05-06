@@ -141,14 +141,14 @@ func TestAutoExpiry(t *testing.T) {
 	requireCacheValid(t, bc)
 
 	bc.Lock()
-	require.Contains(t, bc.keyMap, key0, "key should still be in map")
+	require.Contains(t, keys(bc), key0, "key should still be in map")
 	require.False(t, value0.isClosed(), "value should not have been closed")
 	bc.Unlock()
 
 	time.Sleep(2 * ttl)
 
 	bc.Lock()
-	require.NotContains(t, bc.keyMap, key0, "key should no longer be in map")
+	require.NotContains(t, keys(bc), key0, "key should no longer be in map")
 	require.True(t, value0.isClosed(), "value should be closed after eviction")
 	bc.Unlock()
 }
@@ -157,12 +157,7 @@ func requireCacheValid(t *testing.T, bc *batchCache) {
 	bc.Lock()
 	defer bc.Unlock()
 
-	lenMap, lenList := len(bc.keyMap), bc.ll.Len()
-	require.Equal(t, lenMap, lenList, "keyMap %d entries %d", lenMap, lenList)
-
-	for e := bc.ll.Front(); e != nil; e = e.Next() {
-		ent := e.Value.(*entry)
-		require.Equal(t, e, bc.keyMap[ent.key], "reverse key index")
+	for _, ent := range bc.entries {
 
 		v := ent.value
 		require.False(t, v.isClosed(), "values in cache should not be closed: %v %v", ent, v)
@@ -175,97 +170,9 @@ func testKey(i int) key { return key{sessionID: fmt.Sprintf("key-%d", i)} }
 
 func keys(bc *batchCache) []key {
 	var result []key
-	for e := bc.ll.Front(); e != nil; e = e.Next() {
-		ent := e.Value.(*entry)
+	for _, ent := range bc.entries {
 		result = append(result, ent.key)
 	}
 
 	return result
-}
-
-func BenchmarkCacheHash10(b *testing.B) {
-	benchMap(b, 10)
-}
-
-func BenchmarkCacheHash100(b *testing.B) {
-	benchMap(b, 100)
-}
-
-func BenchmarkCacheHash1000(b *testing.B) {
-	benchMap(b, 1000)
-}
-
-func BenchmarkCacheHash10000(b *testing.B) {
-	benchMap(b, 10000)
-}
-
-func benchMap(b *testing.B, n int) {
-	bc := newCache(time.Hour, n)
-	benchCacheAdd(b, bc, n)
-}
-
-func BenchmarkCacheList10(b *testing.B) {
-	benchList(b, 10)
-}
-
-func BenchmarkCacheList100(b *testing.B) {
-	benchList(b, 100)
-}
-
-func BenchmarkCacheList1000(b *testing.B) {
-	benchList(b, 1000)
-}
-
-func BenchmarkCacheList10000(b *testing.B) {
-	benchList(b, 10000)
-}
-
-func benchList(b *testing.B, n int) {
-	a := &alt{newCache(time.Hour, n)}
-	benchCacheAdd(b, a, n)
-}
-
-func BenchmarkCacheSlice10(b *testing.B) {
-	benchSlice(b, 10)
-}
-
-func BenchmarkCacheSlice100(b *testing.B) {
-	benchSlice(b, 100)
-}
-
-func BenchmarkCacheSlice1000(b *testing.B) {
-	benchSlice(b, 1000)
-}
-
-func BenchmarkCacheSlice10000(b *testing.B) {
-	benchSlice(b, 10000)
-}
-
-func benchSlice(b *testing.B, n int) {
-	a := &slice{batchCache: newCache(time.Hour, n)}
-	benchCacheAdd(b, a, n)
-}
-
-type testInterface interface {
-	Add(key, *Batch)
-	Checkout(key) (*Batch, bool)
-}
-
-func benchCacheAdd(b *testing.B, testCache testInterface, n int) {
-	stuff(testCache, n)
-	b.ResetTimer()
-
-	for j := 0; j < b.N; j++ {
-		k := testKey(j + n)
-		testCache.Add(k, testValue())
-		if _, ok := testCache.Checkout(k); !ok {
-			b.Fatal("checkout failed")
-		}
-	}
-}
-
-func stuff(bc testInterface, n int) {
-	for i := 0; i < n; i++ {
-		bc.Add(testKey(i), testValue())
-	}
 }

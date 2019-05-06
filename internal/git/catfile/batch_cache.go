@@ -1,7 +1,6 @@
 package catfile
 
 import (
-	"container/list"
 	"strings"
 	"sync"
 	"time"
@@ -58,19 +57,12 @@ type entry struct {
 	expiry time.Time
 }
 
-// batchCache is a doubly linked list with extras. Each entry has a
-// unique key. We have a map to be able to look up entries by key
-// directly, avoiding a full list traversal. Entries always get added to
-// the back of the list. If the list gets too long, we evict entries from
-// the front of the list. When an entry gets added it gets an expiry time
-// based on a fixed TTL. A monitor goroutine periodically evicts expired
-// entries.
+// batchCache entries always get added to the back of the list. If the
+// list gets too long, we evict entries from the front of the list. When
+// an entry gets added it gets an expiry time based on a fixed TTL. A
+// monitor goroutine periodically evicts expired entries.
 type batchCache struct {
-	// keyMap lets us look up entries by key
-	keyMap map[key]*list.Element
-
-	ll *list.List
-
+	entries []*entry
 	sync.Mutex
 
 	// maxLen is the maximum number of keys in the cache
@@ -89,8 +81,6 @@ func newCache(ttl time.Duration, maxLen int) *batchCache {
 
 func newCacheRefresh(ttl time.Duration, maxLen int, refresh time.Duration) *batchCache {
 	bc := &batchCache{
-		keyMap: make(map[key]*list.Element),
-		ll:     list.New(),
 		maxLen: maxLen,
 		ttl:    ttl,
 		done:   make(chan struct{}),
@@ -120,13 +110,13 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	bc.Lock()
 	defer bc.Unlock()
 
-	if _, ok := bc.keyMap[k]; ok {
+	if i, ok := bc.lookup(k); ok {
 		catfileCacheCounter.WithLabelValues("duplicate").Inc()
-		bc.delete(k, true)
+		bc.delete(i, true)
 	}
 
 	ent := &entry{key: k, value: b, expiry: time.Now().Add(bc.ttl)}
-	bc.keyMap[k] = bc.ll.PushBack(ent)
+	bc.entries = append(bc.entries, ent)
 
 	for bc.len() > bc.maxLen {
 		bc.evictOldest()
@@ -135,16 +125,16 @@ func (bc *batchCache) Add(k key, b *Batch) {
 	catfileCacheMembers.Set(float64(bc.len()))
 }
 
-func (bc *batchCache) evictOldest() { bc.delete(bc.head().key, true) }
-func (bc *batchCache) len() int     { return bc.ll.Len() }
-func (bc *batchCache) head() *entry { return bc.ll.Front().Value.(*entry) }
+func (bc *batchCache) evictOldest() { bc.delete(0, true) }
+func (bc *batchCache) len() int     { return len(bc.entries) }
+func (bc *batchCache) head() *entry { return bc.entries[0] }
 
 // Checkout removes a value from bc. After use the caller can re-add the value with bc.Add.
 func (bc *batchCache) Checkout(k key) (*Batch, bool) {
 	bc.Lock()
 	defer bc.Unlock()
 
-	e, ok := bc.keyMap[k]
+	i, ok := bc.lookup(k)
 	if !ok {
 		catfileCacheCounter.WithLabelValues("miss").Inc()
 		return nil, false
@@ -152,8 +142,8 @@ func (bc *batchCache) Checkout(k key) (*Batch, bool) {
 
 	catfileCacheCounter.WithLabelValues("hit").Inc()
 
-	ent := e.Value.(*entry)
-	bc.delete(ent.key, false)
+	ent := bc.entries[i]
+	bc.delete(i, false)
 	return ent.value, true
 }
 
@@ -187,95 +177,13 @@ func (bc *batchCache) EvictAll() {
 	}
 }
 
-func (bc *batchCache) delete(k key, wantClose bool) {
-	e, ok := bc.keyMap[k]
-	if !ok {
-		return
-	}
-
-	if wantClose {
-		e.Value.(*entry).value.Close()
-	}
-
-	bc.ll.Remove(e)
-	delete(bc.keyMap, k)
-	catfileCacheMembers.Set(float64(bc.len()))
-}
-
 // ExpireAll is used to expire all of the batches in the cache
 func ExpireAll() {
 	cache.EvictAll()
 }
 
-type alt struct{ *batchCache }
-
-func (a *alt) lookup(k key) (*list.Element, bool) {
-	for e := a.ll.Front(); e != nil; e = e.Next() {
-		if e.Value.(*entry).key == k {
-			return e, true
-		}
-	}
-
-	return nil, false
-}
-
-func (a *alt) delete(k key, wantClose bool) {
-	e, ok := a.lookup(k)
-	if !ok {
-		return
-	}
-
-	if wantClose {
-		e.Value.(*entry).value.Close()
-	}
-
-	a.ll.Remove(e)
-	catfileCacheMembers.Set(float64(a.len()))
-}
-
-func (a *alt) Add(k key, b *Batch) {
-	a.Lock()
-	defer a.Unlock()
-
-	if _, ok := a.lookup(k); ok {
-		catfileCacheCounter.WithLabelValues("duplicate").Inc()
-		a.delete(k, true)
-	}
-
-	ent := &entry{key: k, value: b, expiry: time.Now().Add(a.ttl)}
-	a.ll.PushBack(ent)
-
-	for a.len() > a.maxLen {
-		a.delete(a.head().key, true)
-	}
-
-	catfileCacheMembers.Set(float64(a.len()))
-}
-
-func (a *alt) Checkout(k key) (*Batch, bool) {
-	a.Lock()
-	defer a.Unlock()
-
-	e, ok := a.lookup(k)
-	if !ok {
-		catfileCacheCounter.WithLabelValues("miss").Inc()
-		return nil, false
-	}
-
-	catfileCacheCounter.WithLabelValues("hit").Inc()
-
-	ent := e.Value.(*entry)
-	a.delete(ent.key, false)
-	return ent.value, true
-}
-
-type slice struct {
-	*batchCache
-	entries []*entry
-}
-
-func (a *slice) lookup(k key) (int, bool) {
-	for i, ent := range a.entries {
+func (bc *batchCache) lookup(k key) (int, bool) {
+	for i, ent := range bc.entries {
 		if ent.key == k {
 			return i, true
 		}
@@ -285,51 +193,13 @@ func (a *slice) lookup(k key) (int, bool) {
 	return -1, false
 }
 
-func (a *slice) delete(i int, wantClose bool) {
-	ent := a.entries[i]
+func (bc *batchCache) delete(i int, wantClose bool) {
+	ent := bc.entries[i]
 
 	if wantClose {
 		ent.value.Close()
 	}
 
-	a.entries = append(a.entries[:i], a.entries[i+1:]...)
-	catfileCacheMembers.Set(float64(a.len()))
+	bc.entries = append(bc.entries[:i], bc.entries[i+1:]...)
+	catfileCacheMembers.Set(float64(bc.len()))
 }
-
-func (a *slice) Add(k key, b *Batch) {
-	a.Lock()
-	defer a.Unlock()
-
-	if i, ok := a.lookup(k); ok {
-		catfileCacheCounter.WithLabelValues("duplicate").Inc()
-		a.delete(i, true)
-	}
-
-	ent := &entry{key: k, value: b, expiry: time.Now().Add(a.ttl)}
-	a.entries = append(a.entries, ent)
-
-	for a.len() > a.maxLen {
-		a.delete(0, true)
-	}
-
-	catfileCacheMembers.Set(float64(a.len()))
-}
-
-func (a *slice) Checkout(k key) (*Batch, bool) {
-	a.Lock()
-	defer a.Unlock()
-
-	i, ok := a.lookup(k)
-	if !ok {
-		catfileCacheCounter.WithLabelValues("miss").Inc()
-		return nil, false
-	}
-
-	catfileCacheCounter.WithLabelValues("hit").Inc()
-
-	ent := a.entries[i]
-	a.delete(i, false)
-	return ent.value, true
-}
-
-func (a *slice) len() int { return len(a.entries) }
