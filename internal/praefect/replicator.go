@@ -136,20 +136,17 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 				return err
 			}
 
-			err = r.jobsStore.UpdateReplJob(job.ID, JobStateInProgress)
-			if err != nil {
+			if err := r.jobsStore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
 				return err
 			}
 
-			err = r.replicator.Replicate(ctx, job.Source, node)
-			if err != nil {
+			if err := r.replicator.Replicate(ctx, job.Source, node); err != nil {
 				return err
 			}
 
 			r.log.WithField(logWithReplJobID, job.ID).
 				Info("completed replication")
-			err = r.jobsStore.UpdateReplJob(job.ID, JobStateComplete)
-			if err != nil {
+			if err := r.jobsStore.UpdateReplJob(job.ID, JobStateComplete); err != nil {
 				return err
 			}
 		}
