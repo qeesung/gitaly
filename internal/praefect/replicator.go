@@ -96,7 +96,10 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo Repository) error
 	return nil
 }
 
-const jobFetchInterval = 10 * time.Millisecond
+const (
+	jobFetchInterval = 10 * time.Millisecond
+	logWithReplJobID = "replication-job-ID"
+)
 
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
 func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
@@ -126,7 +129,8 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 		r.log.Debugf("fetched replication jobs: %#v", jobs)
 
 		for _, job := range jobs {
-			r.log.Infof("processing replication job %#v", job)
+			r.log.WithField(logWithReplJobID, job.ID).
+				Infof("processing replication job %#v", job)
 			node, err := r.coordinator.GetStorageNode(job.Target)
 			if err != nil {
 				return err
@@ -142,7 +146,8 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 				return err
 			}
 
-			r.log.Infof("completed replication job #%d", job.ID)
+			r.log.WithField(logWithReplJobID, job.ID).
+				Info("completed replication")
 			err = r.jobsStore.UpdateReplJob(job.ID, JobStateComplete)
 			if err != nil {
 				return err
