@@ -31,6 +31,10 @@
 
 ## v1.38.0
 
+#### Added
+- Add cache for batch files
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1203
+
 #### Other
 - Upgrade Rubocop to 0.68.1
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1229
