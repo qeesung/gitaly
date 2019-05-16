@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -144,12 +144,12 @@ func isAlive(p *os.Process) bool {
 }
 
 func isGitaly(pid int) (bool, error) {
-	path, err := procPath(pid)
+	command, err := procPath(pid)
 	if err != nil {
 		return false, err
 	}
 
-	if strings.Contains(path, "gitaly") {
+	if path.Base(command) == "gitaly" {
 		return true, nil
 	}
 
