@@ -2,7 +2,6 @@ package main
 
 // #include <libproc.h>
 // #include <stdlib.h>
-// #include <errno.h>
 import "C"
 
 import (
