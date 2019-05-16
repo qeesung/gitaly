@@ -1,6 +1,10 @@
 // Copyright 2017 Michal Witkowski. All Rights Reserved.
 // See LICENSE for licensing terms.
 
+// TODO: remove the following linter override when the deprecations are fixed
+// in issue https://gitlab.com/gitlab-org/gitaly/issues/1663
+//lint:file-ignore SA1019 Ignore all gRPC deprecations until issue #1663
+
 package proxy_test
 
 import (
@@ -24,7 +28,7 @@ import (
 
 	"fmt"
 
-	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testservice"
+	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 )
 
 const (
@@ -40,8 +44,7 @@ const (
 
 // asserting service is implemented on the server side and serves as a handler for stuff
 type assertingService struct {
-	logger *grpclog.Logger
-	t      *testing.T
+	t *testing.T
 }
 
 func (s *assertingService) PingEmpty(ctx context.Context, _ *pb.Empty) (*pb.PingResponse, error) {
@@ -261,25 +264,4 @@ func (s *ProxyHappySuite) TearDownSuite() {
 
 func TestProxyHappySuite(t *testing.T) {
 	suite.Run(t, &ProxyHappySuite{})
-}
-
-// Abstraction that allows us to pass the *testing.T as a grpclogger.
-type testingLog struct {
-	testing.T
-}
-
-func (t *testingLog) Fatalln(args ...interface{}) {
-	t.T.Fatal(args...)
-}
-
-func (t *testingLog) Print(args ...interface{}) {
-	t.T.Log(args...)
-}
-
-func (t *testingLog) Printf(format string, args ...interface{}) {
-	t.T.Logf(format, args...)
-}
-
-func (t *testingLog) Println(args ...interface{}) {
-	t.T.Log(args...)
 }

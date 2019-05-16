@@ -1,6 +1,10 @@
 // Copyright 2017 Michal Witkowski. All Rights Reserved.
 // See LICENSE for licensing terms.
 
+// TODO: remove the following linter override when the deprecations are fixed
+// in issue https://gitlab.com/gitlab-org/gitaly/issues/1663
+//lint:file-ignore SA1019 Ignore all gRPC deprecations until issue #1663
+
 package proxy
 
 import (
@@ -88,7 +92,6 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore./
 				// the clientStream>serverStream may continue pumping though.
 				clientStream.CloseSend()
-				break
 			} else {
 				// however, we may have gotten a receive error (stream disconnected, a read error etc) in which case we need
 				// to cancel the clientStream to the backend, let all of its goroutines be freed up by the CancelFunc and

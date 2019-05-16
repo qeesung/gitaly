@@ -1,5 +1,9 @@
 package proxy
 
+// TODO: remove the following linter override when the deprecations are fixed
+// in issue https://gitlab.com/gitlab-org/gitaly/issues/1663
+//lint:file-ignore SA1019 Ignore all gRPC deprecations until issue #1663
+
 import (
 	"fmt"
 
