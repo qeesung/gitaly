@@ -8,9 +8,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/mwitkow/grpc-proxy/proxy"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

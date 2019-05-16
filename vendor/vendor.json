@@ -467,6 +467,12 @@
 			"versionExact": "v1.2.2"
 		},
 		{
+			"checksumSHA1": "lIp4dQzfVYRQARgsmRm3h3wRFgs=",
+			"path": "github.com/stretchr/testify/suite",
+			"revision": "34c6fa2dc70986bccbbffcc6130f6920a924b075",
+			"revisionTime": "2019-03-04T09:57:49Z"
+		},
+		{
 			"checksumSHA1": "DAZUaXNahejywdwKXvMohfyHKNc=",
 			"path": "github.com/tinylib/msgp/msgp",
 			"revision": "af6442a0fcf6e2a1b824f70dd0c734f01e817751",
