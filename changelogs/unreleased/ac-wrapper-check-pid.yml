@@ -1,5 +1,5 @@
 ---
-title: "[gitaly-wrapper] Check if PID belongs to Gitaly before adopting an existing process"
+title: "Check if PID belongs to Gitaly before adopting an existing process"
 merge_request: 1249
 author:
 type: fixed
