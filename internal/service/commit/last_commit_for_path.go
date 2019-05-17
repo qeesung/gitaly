@@ -5,22 +5,37 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
 func (s *server) LastCommitForPath(ctx context.Context, in *gitalypb.LastCommitForPathRequest) (*gitalypb.LastCommitForPathResponse, error) {
 	if err := validateLastCommitForPathRequest(in); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "LastCommitForPath: %v", err)
+		return nil, helper.ErrInvalidArgument(err)
 	}
 
+	resp, err := lastCommitForPath(ctx, in)
+	if err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
+	return resp, nil
+}
+
+func lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitForPathRequest) (*gitalypb.LastCommitForPathResponse, error) {
 	path := string(in.GetPath())
 	if len(path) == 0 || path == "/" {
 		path = "."
 	}
 
-	commit, err := log.LastCommitForPath(ctx, in.GetRepository(), string(in.GetRevision()), path)
+	repo := in.GetRepository()
+	c, err := catfile.New(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+
+	commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), path)
 	if log.IsNotFound(err) {
 		return &gitalypb.LastCommitForPathResponse{}, nil
 	}

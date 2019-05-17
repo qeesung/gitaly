@@ -8,10 +8,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
 const (
@@ -27,16 +27,27 @@ var (
 
 func (s *server) ListLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream gitalypb.CommitService_ListLastCommitsForTreeServer) error {
 	if err := validateListLastCommitsForTreeRequest(in); err != nil {
-		return status.Errorf(codes.InvalidArgument, "ListLastCommitsForTree: %v", err)
+		return helper.ErrInvalidArgument(err)
 	}
 
+	if err := listLastCommitsForTree(in, stream); err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	return nil
+}
+
+func listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream gitalypb.CommitService_ListLastCommitsForTreeServer) error {
 	cmd, parser, err := newLSTreeParser(in, stream)
 	if err != nil {
-		if _, ok := status.FromError(err); ok {
-			return err
-		}
+		return err
+	}
 
-		return status.Errorf(codes.Internal, "ListLastCommitsForTree: gitCommand: %v", err)
+	ctx := stream.Context()
+	repo := in.GetRepository()
+	c, err := catfile.New(ctx, repo)
+	if err != nil {
+		return err
 	}
 
 	batch := make([]*gitalypb.ListLastCommitsForTreeResponse_CommitForTree, 0, maxNumStatBatchSize)
@@ -57,7 +68,7 @@ func (s *server) ListLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 	}
 
 	for _, entry := range entries[offset:limit] {
-		commit, err := log.LastCommitForPath(stream.Context(), in.GetRepository(), string(in.GetRevision()), entry.Path)
+		commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), entry.Path)
 		if err != nil {
 			return err
 		}
@@ -78,7 +89,7 @@ func (s *server) ListLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return status.Errorf(codes.Internal, "ListLastCommitsForTree: %v", err)
+		return err
 	}
 
 	return sendCommitsForTree(batch, stream)
