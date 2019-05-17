@@ -5,7 +5,6 @@
   [Want to Contribute?](https://gitlab.com/gitlab-org/gitaly/issues?scope=all&utf8=%E2%9C%93&state=opened&label_name[]=Accepting%20merge%20requests) |
   [GitLab Gitaly Issues](https://gitlab.com/groups/gitlab-org/-/issues?scope=all&state=opened&utf8=%E2%9C%93&label_name%5B%5D=Gitaly) |
   [GitLab Gitaly Merge Requests](https://gitlab.com/groups/gitlab-org/-/merge_requests?label_name%5B%5D=Gitaly) |
-  [GitLab.com Monitoring Dashboard][dashboards]
 
 --------------------------------------------
 
@@ -40,7 +39,7 @@ configuration](https://gitlab.com/gitlab-org/gitaly/issues/1282).
 In the meantime we are building features according to our [roadmap][roadmap].
 
 If you're interested in seeing how well Gitaly is performing on
-GitLab.com, we have [dashboards][dashboards]!
+GitLab.com, read about our [observibiltiy story](doc/observibility.md)!
 
 ##### Overall
 
@@ -180,5 +179,4 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 - [Gitaly Basics, 2017-05-01](https://docs.google.com/presentation/d/1cLslUbXVkniOaeJ-r3s5AYF0kQep8VeNfvs0XSGrpA0/edit#slide=id.g1c73db867d_0_0)
 - [Git Paris meetup, 2017-02-22](https://docs.google.com/presentation/d/19OZUalFMIDM8WujXrrIyCuVb_oVeaUzpb-UdGThOvAo/edit?usp=sharing) a high-level overview of what our plans are and where we are.
 
-[dashboards]: https://dashboards.gitlab.com/d/000000176/gitaly
 [roadmap]: https://gitlab.com/groups/gitlab-org/-/roadmap?label_name%5B%5D=Gitaly&scope=all&sort=start_date_asc&state=opened

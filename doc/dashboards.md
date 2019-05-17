@@ -1,11 +1,34 @@
-# Editing Gitaly dashboards
+# Observibility
+
+## Logging
+
+Gitaly leverages the [logrus](https://github.com/sirupsen/logrus) for exposing
+log messages. Most request messages are created in the [logrus middleware][logrus-middleware].
+
+Messages can be queried leveraging our [Kibana instance](https://log.gitlab.net).
+
+[logrus-middleware]: https://github.com/grpc-ecosystem/go-grpc-middleware/tree/master/logging/logrus
+
+## Prometheus
+
+Gitaly emits low cardinality metrics through Prometheus. Most of these are added
+by [go-grpc-prometheus](https://github.com/grpc-ecosystem/go-grpc-prometheus).
+Although plenty custom metrics were added.
+
+### Grafana
+
+To display the prometheus metrics, GitLab leverages Grafana. Two instances are
+available to view the dashboards. The dashboards can be found at:
+[dashboards.gitlab.com](https://dashboards.gitlab.com).
+
+#### Editing Gitaly dashboards
 
 Use the Grafana web interface to make changes to dashboards if
 necessary.
 
 **Remember to hit the 'Save' button at the top of the Grafana screen when making changes.**
 
-## Tiled (repeated) dashboards
+##### Tiled (repeated) dashboards
 
 If you want to make a change across a tiled Grafana dashboard such as
 the [feature request rate
@@ -14,7 +37,7 @@ then edit the first tile (top left). Its settings get applied to the
 other tiles as well. If you edit any tile other than the first your
 changes will be lost.
 
-## Drop-down values
+##### Drop-down values
 
 At the top of most of our Grafana dashboards you find drop-down menus
 for GRPC method names, Prometheus jobs etc. The possible values in these
@@ -25,3 +48,8 @@ entries.
 
 Note that Grafana 'templates' use a combination of PromQL and
 Grafana-specific modifiers.
+
+## Sentry
+
+Errors are tracked in our sentry, and due to their sensitive nature only viewable
+by developers at GitLab at [the error tracking page](https://gitlab.com/gitlab-org/gitaly/error_tracking).
