@@ -31,7 +31,7 @@ func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repo
 
 	targetRepo, ok := msgV.Interface().(*gitalypb.Repository)
 	if !ok {
-		return nil, fmt.Errorf("Repo target OID %v points to non-Repo type %+v", targetOID, msgV.Interface())
+		return nil, fmt.Errorf("repo target OID %v points to non-Repo type %+v", targetOID, msgV.Interface())
 	}
 
 	return targetRepo, nil

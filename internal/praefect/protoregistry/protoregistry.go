@@ -104,10 +104,7 @@ func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 	options := m.GetOptions()
 
 	if !proto.HasExtension(options, gitalypb.E_OpType) {
-		return nil, fmt.Errorf(
-			"Method %s missing op_type option",
-			m.GetName(),
-		)
+		return nil, fmt.Errorf("method %s missing op_type option", m.GetName())
 	}
 
 	ext, err := proto.GetExtension(options, gitalypb.E_OpType)
