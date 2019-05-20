@@ -19,7 +19,7 @@ changes will be lost.
 At the top of most of our Grafana dashboards you find drop-down menus
 for GRPC method names, Prometheus jobs etc. The possible values in these
 drop-downs are defined with Prometheus queries. To see or change these
-queries go into the dashboard's global settings (the gear icon at the
+queries, go into the dashboard's global settings (the gear icon at the
 top of the page) and look in the 'Templating' section. You can then edit
 entries.
 
