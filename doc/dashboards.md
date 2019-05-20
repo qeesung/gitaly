@@ -13,7 +13,7 @@ Messages can be queried leveraging our [Kibana instance](https://log.gitlab.net)
 
 Gitaly emits low cardinality metrics through Prometheus. Most of these are added
 by [go-grpc-prometheus](https://github.com/grpc-ecosystem/go-grpc-prometheus).
-Although plenty custom metrics were added.
+Many custom metrics were also added.
 
 ### Grafana
 
