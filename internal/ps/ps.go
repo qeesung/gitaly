@@ -3,8 +3,7 @@ package ps
 import (
 	"os/exec"
 	"strconv"
-
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"strings"
 )
 
 // Exec invokes ps -o keywords -p pid and returns its output
@@ -14,7 +13,7 @@ func Exec(pid int, keywords string) (string, error) {
 		return "", err
 	}
 
-	return text.ChompBytes(out), nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 // RSS invokes ps -o rss= -p pid and returns its output
