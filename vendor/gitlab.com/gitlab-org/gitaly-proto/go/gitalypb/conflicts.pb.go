@@ -36,7 +36,7 @@ func (m *ListConflictFilesRequest) Reset()         { *m = ListConflictFilesReque
 func (m *ListConflictFilesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListConflictFilesRequest) ProtoMessage()    {}
 func (*ListConflictFilesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{0}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{0}
 }
 func (m *ListConflictFilesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListConflictFilesRequest.Unmarshal(m, b)
@@ -92,7 +92,7 @@ func (m *ConflictFileHeader) Reset()         { *m = ConflictFileHeader{} }
 func (m *ConflictFileHeader) String() string { return proto.CompactTextString(m) }
 func (*ConflictFileHeader) ProtoMessage()    {}
 func (*ConflictFileHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{1}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{1}
 }
 func (m *ConflictFileHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConflictFileHeader.Unmarshal(m, b)
@@ -161,7 +161,7 @@ func (m *ConflictFile) Reset()         { *m = ConflictFile{} }
 func (m *ConflictFile) String() string { return proto.CompactTextString(m) }
 func (*ConflictFile) ProtoMessage()    {}
 func (*ConflictFile) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{2}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{2}
 }
 func (m *ConflictFile) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConflictFile.Unmarshal(m, b)
@@ -299,7 +299,7 @@ func (m *ListConflictFilesResponse) Reset()         { *m = ListConflictFilesResp
 func (m *ListConflictFilesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListConflictFilesResponse) ProtoMessage()    {}
 func (*ListConflictFilesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{3}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{3}
 }
 func (m *ListConflictFilesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListConflictFilesResponse.Unmarshal(m, b)
@@ -344,7 +344,7 @@ func (m *ResolveConflictsRequestHeader) Reset()         { *m = ResolveConflictsR
 func (m *ResolveConflictsRequestHeader) String() string { return proto.CompactTextString(m) }
 func (*ResolveConflictsRequestHeader) ProtoMessage()    {}
 func (*ResolveConflictsRequestHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{4}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{4}
 }
 func (m *ResolveConflictsRequestHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResolveConflictsRequestHeader.Unmarshal(m, b)
@@ -434,7 +434,7 @@ func (m *ResolveConflictsRequest) Reset()         { *m = ResolveConflictsRequest
 func (m *ResolveConflictsRequest) String() string { return proto.CompactTextString(m) }
 func (*ResolveConflictsRequest) ProtoMessage()    {}
 func (*ResolveConflictsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{5}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{5}
 }
 func (m *ResolveConflictsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResolveConflictsRequest.Unmarshal(m, b)
@@ -572,7 +572,7 @@ func (m *ResolveConflictsResponse) Reset()         { *m = ResolveConflictsRespon
 func (m *ResolveConflictsResponse) String() string { return proto.CompactTextString(m) }
 func (*ResolveConflictsResponse) ProtoMessage()    {}
 func (*ResolveConflictsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_conflicts_2336bff24a474eb5, []int{6}
+	return fileDescriptor_conflicts_0881575097b4f6ef, []int{6}
 }
 func (m *ResolveConflictsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResolveConflictsResponse.Unmarshal(m, b)
@@ -775,9 +775,9 @@ var _ConflictsService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "conflicts.proto",
 }
 
-func init() { proto.RegisterFile("conflicts.proto", fileDescriptor_conflicts_2336bff24a474eb5) }
+func init() { proto.RegisterFile("conflicts.proto", fileDescriptor_conflicts_0881575097b4f6ef) }
 
-var fileDescriptor_conflicts_2336bff24a474eb5 = []byte{
+var fileDescriptor_conflicts_0881575097b4f6ef = []byte{
 	// 623 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x94, 0xcf, 0x4e, 0xdb, 0x40,
 	0x10, 0xc6, 0x71, 0x02, 0xf9, 0x33, 0x18, 0x08, 0xab, 0x56, 0x98, 0x48, 0x08, 0x63, 0x8a, 0xe4,
@@ -814,8 +814,8 @@ var fileDescriptor_conflicts_2336bff24a474eb5 = []byte{
 	0xf7, 0xa7, 0x01, 0xad, 0xb2, 0xc1, 0x47, 0xca, 0xaf, 0x59, 0x48, 0x49, 0x1f, 0x36, 0x67, 0x12,
 	0x4c, 0xec, 0x62, 0xce, 0x45, 0xcf, 0x56, 0x7b, 0xef, 0x11, 0x42, 0x3b, 0x73, 0x6a, 0xb7, 0x37,
 	0x6e, 0xa5, 0x51, 0x39, 0x36, 0x48, 0x04, 0xad, 0x87, 0xfe, 0xc9, 0xee, 0x1f, 0xae, 0xb2, 0x6d,
-	0x2f, 0x06, 0xf2, 0x03, 0x56, 0x6f, 0x6f, 0xdc, 0x7a, 0xc3, 0x20, 0xd5, 0x93, 0xce, 0x89, 0x6b,
-	0xf4, 0x8e, 0x3f, 0x4f, 0xbe, 0x88, 0x83, 0x7e, 0x27, 0xc4, 0xd1, 0x91, 0xfe, 0x79, 0x88, 0x7c,
-	0x70, 0xa4, 0xfb, 0x1c, 0xaa, 0xc7, 0xf8, 0x68, 0x80, 0xf9, 0xff, 0xb4, 0xdf, 0xaf, 0x29, 0xe9,
-	0xe5, 0xef, 0x00, 0x00, 0x00, 0xff, 0xff, 0xea, 0xaf, 0x6d, 0x90, 0xc8, 0x05, 0x00, 0x00,
+	0x2f, 0x06, 0xf2, 0x03, 0x56, 0x6f, 0x6f, 0xdc, 0x7a, 0xc3, 0x68, 0x57, 0x4f, 0x3a, 0x27, 0xae,
+	0xd1, 0x3b, 0xfe, 0x3c, 0xf9, 0x22, 0x0e, 0xfa, 0x9d, 0x10, 0x47, 0x47, 0xfa, 0xe7, 0x21, 0xf2,
+	0xc1, 0x91, 0xee, 0x73, 0xa8, 0x1e, 0xe3, 0xa3, 0x01, 0xe6, 0xff, 0xd3, 0x7e, 0xbf, 0xa6, 0xa4,
+	0x97, 0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0x5c, 0x2d, 0x19, 0x4c, 0xc8, 0x05, 0x00, 0x00,
 }

@@ -37,7 +37,7 @@ func (m *CreateObjectPoolRequest) Reset()         { *m = CreateObjectPoolRequest
 func (m *CreateObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateObjectPoolRequest) ProtoMessage()    {}
 func (*CreateObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{0}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{0}
 }
 func (m *CreateObjectPoolRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateObjectPoolRequest.Unmarshal(m, b)
@@ -81,7 +81,7 @@ func (m *CreateObjectPoolResponse) Reset()         { *m = CreateObjectPoolRespon
 func (m *CreateObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateObjectPoolResponse) ProtoMessage()    {}
 func (*CreateObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{1}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{1}
 }
 func (m *CreateObjectPoolResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateObjectPoolResponse.Unmarshal(m, b)
@@ -114,7 +114,7 @@ func (m *DeleteObjectPoolRequest) Reset()         { *m = DeleteObjectPoolRequest
 func (m *DeleteObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteObjectPoolRequest) ProtoMessage()    {}
 func (*DeleteObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{2}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{2}
 }
 func (m *DeleteObjectPoolRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteObjectPoolRequest.Unmarshal(m, b)
@@ -151,7 +151,7 @@ func (m *DeleteObjectPoolResponse) Reset()         { *m = DeleteObjectPoolRespon
 func (m *DeleteObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*DeleteObjectPoolResponse) ProtoMessage()    {}
 func (*DeleteObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{3}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{3}
 }
 func (m *DeleteObjectPoolResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteObjectPoolResponse.Unmarshal(m, b)
@@ -183,7 +183,7 @@ func (m *LinkRepositoryToObjectPoolRequest) Reset()         { *m = LinkRepositor
 func (m *LinkRepositoryToObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*LinkRepositoryToObjectPoolRequest) ProtoMessage()    {}
 func (*LinkRepositoryToObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{4}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{4}
 }
 func (m *LinkRepositoryToObjectPoolRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LinkRepositoryToObjectPoolRequest.Unmarshal(m, b)
@@ -227,7 +227,7 @@ func (m *LinkRepositoryToObjectPoolResponse) Reset()         { *m = LinkReposito
 func (m *LinkRepositoryToObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*LinkRepositoryToObjectPoolResponse) ProtoMessage()    {}
 func (*LinkRepositoryToObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{5}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{5}
 }
 func (m *LinkRepositoryToObjectPoolResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LinkRepositoryToObjectPoolResponse.Unmarshal(m, b)
@@ -261,7 +261,7 @@ func (m *UnlinkRepositoryFromObjectPoolRequest) Reset()         { *m = UnlinkRep
 func (m *UnlinkRepositoryFromObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*UnlinkRepositoryFromObjectPoolRequest) ProtoMessage()    {}
 func (*UnlinkRepositoryFromObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{6}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{6}
 }
 func (m *UnlinkRepositoryFromObjectPoolRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolRequest.Unmarshal(m, b)
@@ -307,7 +307,7 @@ func (m *UnlinkRepositoryFromObjectPoolResponse) Reset() {
 func (m *UnlinkRepositoryFromObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*UnlinkRepositoryFromObjectPoolResponse) ProtoMessage()    {}
 func (*UnlinkRepositoryFromObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{7}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{7}
 }
 func (m *UnlinkRepositoryFromObjectPoolResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UnlinkRepositoryFromObjectPoolResponse.Unmarshal(m, b)
@@ -338,7 +338,7 @@ func (m *ReduplicateRepositoryRequest) Reset()         { *m = ReduplicateReposit
 func (m *ReduplicateRepositoryRequest) String() string { return proto.CompactTextString(m) }
 func (*ReduplicateRepositoryRequest) ProtoMessage()    {}
 func (*ReduplicateRepositoryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{8}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{8}
 }
 func (m *ReduplicateRepositoryRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ReduplicateRepositoryRequest.Unmarshal(m, b)
@@ -375,7 +375,7 @@ func (m *ReduplicateRepositoryResponse) Reset()         { *m = ReduplicateReposi
 func (m *ReduplicateRepositoryResponse) String() string { return proto.CompactTextString(m) }
 func (*ReduplicateRepositoryResponse) ProtoMessage()    {}
 func (*ReduplicateRepositoryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{9}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{9}
 }
 func (m *ReduplicateRepositoryResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ReduplicateRepositoryResponse.Unmarshal(m, b)
@@ -406,7 +406,7 @@ func (m *DisconnectGitAlternatesRequest) Reset()         { *m = DisconnectGitAlt
 func (m *DisconnectGitAlternatesRequest) String() string { return proto.CompactTextString(m) }
 func (*DisconnectGitAlternatesRequest) ProtoMessage()    {}
 func (*DisconnectGitAlternatesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{10}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{10}
 }
 func (m *DisconnectGitAlternatesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisconnectGitAlternatesRequest.Unmarshal(m, b)
@@ -443,7 +443,7 @@ func (m *DisconnectGitAlternatesResponse) Reset()         { *m = DisconnectGitAl
 func (m *DisconnectGitAlternatesResponse) String() string { return proto.CompactTextString(m) }
 func (*DisconnectGitAlternatesResponse) ProtoMessage()    {}
 func (*DisconnectGitAlternatesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{11}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{11}
 }
 func (m *DisconnectGitAlternatesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DisconnectGitAlternatesResponse.Unmarshal(m, b)
@@ -476,7 +476,7 @@ func (m *FetchIntoObjectPoolRequest) Reset()         { *m = FetchIntoObjectPoolR
 func (m *FetchIntoObjectPoolRequest) String() string { return proto.CompactTextString(m) }
 func (*FetchIntoObjectPoolRequest) ProtoMessage()    {}
 func (*FetchIntoObjectPoolRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{12}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{12}
 }
 func (m *FetchIntoObjectPoolRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FetchIntoObjectPoolRequest.Unmarshal(m, b)
@@ -527,7 +527,7 @@ func (m *FetchIntoObjectPoolResponse) Reset()         { *m = FetchIntoObjectPool
 func (m *FetchIntoObjectPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*FetchIntoObjectPoolResponse) ProtoMessage()    {}
 func (*FetchIntoObjectPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_objectpool_8eadce6317376cbd, []int{13}
+	return fileDescriptor_objectpool_a8508ff0c4078217, []int{13}
 }
 func (m *FetchIntoObjectPoolResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FetchIntoObjectPoolResponse.Unmarshal(m, b)
@@ -836,9 +836,9 @@ var _ObjectPoolService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "objectpool.proto",
 }
 
-func init() { proto.RegisterFile("objectpool.proto", fileDescriptor_objectpool_8eadce6317376cbd) }
+func init() { proto.RegisterFile("objectpool.proto", fileDescriptor_objectpool_a8508ff0c4078217) }
 
-var fileDescriptor_objectpool_8eadce6317376cbd = []byte{
+var fileDescriptor_objectpool_a8508ff0c4078217 = []byte{
 	// 536 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x95, 0x41, 0x6f, 0xd3, 0x3e,
 	0x18, 0xc6, 0xe5, 0x4d, 0xff, 0xfe, 0xcb, 0x5b, 0x0e, 0xc3, 0x08, 0x5a, 0x19, 0xb6, 0x76, 0x61,
@@ -863,15 +863,15 @@ var fileDescriptor_objectpool_8eadce6317376cbd = []byte{
 	0xd6, 0xbe, 0xd0, 0xfb, 0x50, 0x93, 0x3c, 0x72, 0xfd, 0xb3, 0xd6, 0x7a, 0x87, 0x74, 0xeb, 0x8e,
 	0x7e, 0xb3, 0x36, 0xe1, 0x41, 0x2e, 0x56, 0x82, 0x3d, 0xfc, 0x53, 0x83, 0x3b, 0xe9, 0xf2, 0x7b,
 	0x2e, 0xbf, 0x0a, 0x9f, 0x53, 0x0f, 0x36, 0x56, 0x4b, 0x4b, 0xdb, 0x33, 0x00, 0xc3, 0x55, 0xc2,
-	0x3a, 0x66, 0x81, 0x9e, 0x51, 0xe3, 0xea, 0xb2, 0xfb, 0x7f, 0x9d, 0xd0, 0xf5, 0x81, 0x3d, 0x98,
+	0x3a, 0x66, 0x81, 0x9e, 0x51, 0xe3, 0xea, 0xb2, 0xfb, 0x7f, 0x9d, 0xb0, 0xf5, 0x81, 0x3d, 0x98,
 	0x64, 0xac, 0x96, 0x35, 0xcd, 0x30, 0x5c, 0x0b, 0x69, 0x86, 0xb1, 0xe7, 0x4b, 0x19, 0xdf, 0x09,
 	0x30, 0x73, 0xcd, 0xe8, 0x93, 0x99, 0x5b, 0xe9, 0xc5, 0xc0, 0xf6, 0xab, 0x48, 0xf3, 0x10, 0x7e,
 	0x10, 0xd8, 0x2a, 0x2e, 0x0c, 0xed, 0xcd, 0xbc, 0x2b, 0x55, 0x9d, 0xd9, 0x55, 0xe5, 0x1a, 0xe7,
-	0xd6, 0xd5, 0x65, 0xf7, 0xbf, 0x3a, 0xa1, 0x64, 0x40, 0x11, 0xee, 0xe5, 0xd6, 0x87, 0xee, 0xa4,
+	0xd6, 0xd5, 0x65, 0xf7, 0xbf, 0x3a, 0x61, 0x64, 0x40, 0x11, 0xee, 0xe5, 0xd6, 0x87, 0xee, 0xa4,
 	0xc7, 0xd1, 0xdc, 0x58, 0xb6, 0x5b, 0xa2, 0xca, 0x06, 0x8e, 0xa1, 0x69, 0x28, 0x0e, 0xdd, 0x9b,
 	0x6f, 0x65, 0x61, 0x5f, 0xd9, 0xe3, 0x52, 0x5d, 0x36, 0x56, 0xc0, 0xdd, 0x9c, 0x43, 0x4f, 0xad,
 	0x99, 0x95, 0xb9, 0xa8, 0xec, 0x51, 0xa1, 0x26, 0x13, 0xf5, 0xfc, 0xe9, 0xc7, 0xc9, 0x0f, 0x02,
 	0xd7, 0xb3, 0x7d, 0x3c, 0xef, 0x27, 0x8f, 0x3d, 0x94, 0xa3, 0x7e, 0x62, 0xd3, 0x9b, 0x7e, 0x81,
 	0xfb, 0x23, 0xd4, 0xef, 0x91, 0xe7, 0xd5, 0xa6, 0x4b, 0x07, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff,
-	0x6b, 0x98, 0xea, 0x90, 0xbe, 0x07, 0x00, 0x00,
+	0x9a, 0xf7, 0x0d, 0x7a, 0xbe, 0x07, 0x00, 0x00,
 }

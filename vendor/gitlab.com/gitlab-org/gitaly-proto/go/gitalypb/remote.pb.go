@@ -38,7 +38,7 @@ func (m *AddRemoteRequest) Reset()         { *m = AddRemoteRequest{} }
 func (m *AddRemoteRequest) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteRequest) ProtoMessage()    {}
 func (*AddRemoteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{0}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{0}
 }
 func (m *AddRemoteRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteRequest.Unmarshal(m, b)
@@ -96,7 +96,7 @@ func (m *AddRemoteResponse) Reset()         { *m = AddRemoteResponse{} }
 func (m *AddRemoteResponse) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteResponse) ProtoMessage()    {}
 func (*AddRemoteResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{1}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{1}
 }
 func (m *AddRemoteResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteResponse.Unmarshal(m, b)
@@ -128,7 +128,7 @@ func (m *RemoveRemoteRequest) Reset()         { *m = RemoveRemoteRequest{} }
 func (m *RemoveRemoteRequest) String() string { return proto.CompactTextString(m) }
 func (*RemoveRemoteRequest) ProtoMessage()    {}
 func (*RemoveRemoteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{2}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{2}
 }
 func (m *RemoveRemoteRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveRemoteRequest.Unmarshal(m, b)
@@ -173,7 +173,7 @@ func (m *RemoveRemoteResponse) Reset()         { *m = RemoveRemoteResponse{} }
 func (m *RemoveRemoteResponse) String() string { return proto.CompactTextString(m) }
 func (*RemoveRemoteResponse) ProtoMessage()    {}
 func (*RemoveRemoteResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{3}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{3}
 }
 func (m *RemoveRemoteResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveRemoteResponse.Unmarshal(m, b)
@@ -212,7 +212,7 @@ func (m *FetchInternalRemoteRequest) Reset()         { *m = FetchInternalRemoteR
 func (m *FetchInternalRemoteRequest) String() string { return proto.CompactTextString(m) }
 func (*FetchInternalRemoteRequest) ProtoMessage()    {}
 func (*FetchInternalRemoteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{4}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{4}
 }
 func (m *FetchInternalRemoteRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FetchInternalRemoteRequest.Unmarshal(m, b)
@@ -257,7 +257,7 @@ func (m *FetchInternalRemoteResponse) Reset()         { *m = FetchInternalRemote
 func (m *FetchInternalRemoteResponse) String() string { return proto.CompactTextString(m) }
 func (*FetchInternalRemoteResponse) ProtoMessage()    {}
 func (*FetchInternalRemoteResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{5}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{5}
 }
 func (m *FetchInternalRemoteResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FetchInternalRemoteResponse.Unmarshal(m, b)
@@ -299,7 +299,7 @@ func (m *UpdateRemoteMirrorRequest) Reset()         { *m = UpdateRemoteMirrorReq
 func (m *UpdateRemoteMirrorRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdateRemoteMirrorRequest) ProtoMessage()    {}
 func (*UpdateRemoteMirrorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{6}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{6}
 }
 func (m *UpdateRemoteMirrorRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UpdateRemoteMirrorRequest.Unmarshal(m, b)
@@ -364,7 +364,7 @@ func (m *UpdateRemoteMirrorResponse) Reset()         { *m = UpdateRemoteMirrorRe
 func (m *UpdateRemoteMirrorResponse) String() string { return proto.CompactTextString(m) }
 func (*UpdateRemoteMirrorResponse) ProtoMessage()    {}
 func (*UpdateRemoteMirrorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{7}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{7}
 }
 func (m *UpdateRemoteMirrorResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UpdateRemoteMirrorResponse.Unmarshal(m, b)
@@ -395,7 +395,7 @@ func (m *FindRemoteRepositoryRequest) Reset()         { *m = FindRemoteRepositor
 func (m *FindRemoteRepositoryRequest) String() string { return proto.CompactTextString(m) }
 func (*FindRemoteRepositoryRequest) ProtoMessage()    {}
 func (*FindRemoteRepositoryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{8}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{8}
 }
 func (m *FindRemoteRepositoryRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindRemoteRepositoryRequest.Unmarshal(m, b)
@@ -435,7 +435,7 @@ func (m *FindRemoteRepositoryResponse) Reset()         { *m = FindRemoteReposito
 func (m *FindRemoteRepositoryResponse) String() string { return proto.CompactTextString(m) }
 func (*FindRemoteRepositoryResponse) ProtoMessage()    {}
 func (*FindRemoteRepositoryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{9}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{9}
 }
 func (m *FindRemoteRepositoryResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindRemoteRepositoryResponse.Unmarshal(m, b)
@@ -474,7 +474,7 @@ func (m *FindRemoteRootRefRequest) Reset()         { *m = FindRemoteRootRefReque
 func (m *FindRemoteRootRefRequest) String() string { return proto.CompactTextString(m) }
 func (*FindRemoteRootRefRequest) ProtoMessage()    {}
 func (*FindRemoteRootRefRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{10}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{10}
 }
 func (m *FindRemoteRootRefRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindRemoteRootRefRequest.Unmarshal(m, b)
@@ -519,7 +519,7 @@ func (m *FindRemoteRootRefResponse) Reset()         { *m = FindRemoteRootRefResp
 func (m *FindRemoteRootRefResponse) String() string { return proto.CompactTextString(m) }
 func (*FindRemoteRootRefResponse) ProtoMessage()    {}
 func (*FindRemoteRootRefResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{11}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{11}
 }
 func (m *FindRemoteRootRefResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FindRemoteRootRefResponse.Unmarshal(m, b)
@@ -557,7 +557,7 @@ func (m *ListRemotesRequest) Reset()         { *m = ListRemotesRequest{} }
 func (m *ListRemotesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListRemotesRequest) ProtoMessage()    {}
 func (*ListRemotesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{12}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{12}
 }
 func (m *ListRemotesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListRemotesRequest.Unmarshal(m, b)
@@ -595,7 +595,7 @@ func (m *ListRemotesResponse) Reset()         { *m = ListRemotesResponse{} }
 func (m *ListRemotesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListRemotesResponse) ProtoMessage()    {}
 func (*ListRemotesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{13}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{13}
 }
 func (m *ListRemotesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListRemotesResponse.Unmarshal(m, b)
@@ -635,7 +635,7 @@ func (m *ListRemotesResponse_Remote) Reset()         { *m = ListRemotesResponse_
 func (m *ListRemotesResponse_Remote) String() string { return proto.CompactTextString(m) }
 func (*ListRemotesResponse_Remote) ProtoMessage()    {}
 func (*ListRemotesResponse_Remote) Descriptor() ([]byte, []int) {
-	return fileDescriptor_remote_9e8c943536e100aa, []int{13, 0}
+	return fileDescriptor_remote_a83de330a57a6ecf, []int{13, 0}
 }
 func (m *ListRemotesResponse_Remote) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListRemotesResponse_Remote.Unmarshal(m, b)
@@ -1026,9 +1026,9 @@ var _RemoteService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "remote.proto",
 }
 
-func init() { proto.RegisterFile("remote.proto", fileDescriptor_remote_9e8c943536e100aa) }
+func init() { proto.RegisterFile("remote.proto", fileDescriptor_remote_a83de330a57a6ecf) }
 
-var fileDescriptor_remote_9e8c943536e100aa = []byte{
+var fileDescriptor_remote_a83de330a57a6ecf = []byte{
 	// 718 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x55, 0xdd, 0x6e, 0xd3, 0x4a,
 	0x10, 0x96, 0xe3, 0xfc, 0x4e, 0xd2, 0xa3, 0x74, 0x53, 0xf5, 0x38, 0x4e, 0xa5, 0x93, 0xfa, 0x80,
@@ -1064,15 +1064,15 @@ var fileDescriptor_remote_9e8c943536e100aa = []byte{
 	0xd3, 0x81, 0x9a, 0xcb, 0xa7, 0xde, 0xe6, 0x17, 0x48, 0xf4, 0xa1, 0x9a, 0x00, 0x17, 0x34, 0xe0,
 	0x93, 0x18, 0x4d, 0x99, 0xd0, 0x89, 0xeb, 0x54, 0xe1, 0xf2, 0x05, 0x0d, 0xfa, 0xdf, 0x4a, 0xb0,
 	0x25, 0xc2, 0xbe, 0xc3, 0xf4, 0xca, 0x1f, 0x62, 0x74, 0x0a, 0xb5, 0xf9, 0xdd, 0x41, 0x5a, 0xca,
-	0xf0, 0xf6, 0xd1, 0xd4, 0xdb, 0x39, 0x1a, 0x39, 0x4f, 0xb5, 0x9b, 0x6b, 0xb3, 0x54, 0x55, 0x90,
-	0xf2, 0x00, 0xf9, 0xd0, 0xca, 0x59, 0x46, 0x34, 0x2f, 0x7c, 0xfd, 0xf1, 0xd0, 0xff, 0xdf, 0x68,
-	0xb3, 0x9a, 0xea, 0x1c, 0x1a, 0xd9, 0xdb, 0x85, 0x3a, 0x8b, 0xaf, 0xb4, 0x72, 0x30, 0xf5, 0xbd,
-	0x7c, 0xe5, 0x6a, 0x54, 0x0f, 0xd0, 0xea, 0xe6, 0xa0, 0xfd, 0xd4, 0x7d, 0xed, 0xc5, 0xd0, 0x8d,
-	0x4d, 0x26, 0x2b, 0x79, 0x4c, 0x05, 0xf9, 0xb0, 0x93, 0xb7, 0x4e, 0x68, 0xd1, 0x87, 0xf5, 0x3b,
-	0xaa, 0xdf, 0xdb, 0x6c, 0x24, 0xf3, 0x95, 0x6f, 0xae, 0xcd, 0x42, 0xb5, 0x80, 0x3e, 0xc2, 0xf6,
-	0xca, 0x66, 0xa0, 0x6e, 0x4e, 0x88, 0xa5, 0xe5, 0xd4, 0xf7, 0x37, 0x58, 0xdc, 0xca, 0xf0, 0x16,
-	0xea, 0x99, 0x99, 0x46, 0x7a, 0xee, 0xa0, 0x8b, 0xa8, 0x9d, 0x0d, 0x4b, 0x90, 0xc6, 0x3b, 0x52,
-	0x8e, 0x8f, 0xde, 0x73, 0xbb, 0xc0, 0x19, 0xf4, 0x86, 0x64, 0x72, 0x28, 0x9e, 0x07, 0x84, 0x8e,
-	0x0f, 0x85, 0xf7, 0x41, 0xf2, 0x7f, 0x3f, 0x1c, 0x13, 0x29, 0x47, 0x83, 0x41, 0x39, 0x81, 0x1e,
-	0xfe, 0x0a, 0x00, 0x00, 0xff, 0xff, 0x57, 0xd8, 0x9b, 0x56, 0x18, 0x08, 0x00, 0x00,
+	0xf0, 0xf6, 0xd1, 0xd4, 0xdb, 0x39, 0x1a, 0x39, 0x4f, 0xb5, 0x9b, 0x6b, 0xb3, 0x54, 0x55, 0x74,
+	0xe5, 0x01, 0xf2, 0xa1, 0x95, 0xb3, 0x8c, 0x68, 0x5e, 0xf8, 0xfa, 0xe3, 0xa1, 0xff, 0xbf, 0xd1,
+	0x66, 0x35, 0xd5, 0x39, 0x34, 0xb2, 0xb7, 0x0b, 0x75, 0x16, 0x5f, 0x69, 0xe5, 0x60, 0xea, 0x7b,
+	0xf9, 0xca, 0xd5, 0xa8, 0x1e, 0xa0, 0xd5, 0xcd, 0x41, 0xfb, 0xa9, 0xfb, 0xda, 0x8b, 0xa1, 0x1b,
+	0x9b, 0x4c, 0x56, 0xf2, 0x98, 0x0a, 0xf2, 0x61, 0x27, 0x6f, 0x9d, 0xd0, 0xa2, 0x0f, 0xeb, 0x77,
+	0x54, 0xbf, 0xb7, 0xd9, 0x48, 0xe6, 0x2b, 0xdf, 0x5c, 0x9b, 0x85, 0x6a, 0x01, 0x7d, 0x84, 0xed,
+	0x95, 0xcd, 0x40, 0xdd, 0x9c, 0x10, 0x4b, 0xcb, 0xa9, 0xef, 0x6f, 0xb0, 0xb8, 0x95, 0xe1, 0x2d,
+	0xd4, 0x33, 0x33, 0x8d, 0xf4, 0xdc, 0x41, 0x17, 0x51, 0x3b, 0x1b, 0x96, 0x20, 0x8d, 0x77, 0xa4,
+	0x1c, 0x1f, 0xbd, 0xe7, 0x76, 0x81, 0x33, 0xe8, 0x0d, 0xc9, 0xe4, 0x50, 0x3c, 0x0f, 0x08, 0x1d,
+	0x1f, 0x0a, 0xef, 0x83, 0xe4, 0xff, 0x7e, 0x38, 0x26, 0x52, 0x8e, 0x06, 0x83, 0x72, 0x02, 0x3d,
+	0xfc, 0x15, 0x00, 0x00, 0xff, 0xff, 0x82, 0xb9, 0x51, 0x8d, 0x18, 0x08, 0x00, 0x00,
 }

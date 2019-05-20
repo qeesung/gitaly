@@ -55,7 +55,7 @@ func (x UserCommitFilesActionHeader_ActionType) String() string {
 	return proto.EnumName(UserCommitFilesActionHeader_ActionType_name, int32(x))
 }
 func (UserCommitFilesActionHeader_ActionType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{21, 0}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{21, 0}
 }
 
 type UserCreateBranchRequest struct {
@@ -72,7 +72,7 @@ func (m *UserCreateBranchRequest) Reset()         { *m = UserCreateBranchRequest
 func (m *UserCreateBranchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserCreateBranchRequest) ProtoMessage()    {}
 func (*UserCreateBranchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{0}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{0}
 }
 func (m *UserCreateBranchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCreateBranchRequest.Unmarshal(m, b)
@@ -134,7 +134,7 @@ func (m *UserCreateBranchResponse) Reset()         { *m = UserCreateBranchRespon
 func (m *UserCreateBranchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserCreateBranchResponse) ProtoMessage()    {}
 func (*UserCreateBranchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{1}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{1}
 }
 func (m *UserCreateBranchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCreateBranchResponse.Unmarshal(m, b)
@@ -183,7 +183,7 @@ func (m *UserUpdateBranchRequest) Reset()         { *m = UserUpdateBranchRequest
 func (m *UserUpdateBranchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserUpdateBranchRequest) ProtoMessage()    {}
 func (*UserUpdateBranchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{2}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{2}
 }
 func (m *UserUpdateBranchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserUpdateBranchRequest.Unmarshal(m, b)
@@ -249,7 +249,7 @@ func (m *UserUpdateBranchResponse) Reset()         { *m = UserUpdateBranchRespon
 func (m *UserUpdateBranchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserUpdateBranchResponse) ProtoMessage()    {}
 func (*UserUpdateBranchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{3}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{3}
 }
 func (m *UserUpdateBranchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserUpdateBranchResponse.Unmarshal(m, b)
@@ -289,7 +289,7 @@ func (m *UserDeleteBranchRequest) Reset()         { *m = UserDeleteBranchRequest
 func (m *UserDeleteBranchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserDeleteBranchRequest) ProtoMessage()    {}
 func (*UserDeleteBranchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{4}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{4}
 }
 func (m *UserDeleteBranchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserDeleteBranchRequest.Unmarshal(m, b)
@@ -341,7 +341,7 @@ func (m *UserDeleteBranchResponse) Reset()         { *m = UserDeleteBranchRespon
 func (m *UserDeleteBranchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserDeleteBranchResponse) ProtoMessage()    {}
 func (*UserDeleteBranchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{5}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{5}
 }
 func (m *UserDeleteBranchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserDeleteBranchResponse.Unmarshal(m, b)
@@ -381,7 +381,7 @@ func (m *UserDeleteTagRequest) Reset()         { *m = UserDeleteTagRequest{} }
 func (m *UserDeleteTagRequest) String() string { return proto.CompactTextString(m) }
 func (*UserDeleteTagRequest) ProtoMessage()    {}
 func (*UserDeleteTagRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{6}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{6}
 }
 func (m *UserDeleteTagRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserDeleteTagRequest.Unmarshal(m, b)
@@ -433,7 +433,7 @@ func (m *UserDeleteTagResponse) Reset()         { *m = UserDeleteTagResponse{} }
 func (m *UserDeleteTagResponse) String() string { return proto.CompactTextString(m) }
 func (*UserDeleteTagResponse) ProtoMessage()    {}
 func (*UserDeleteTagResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{7}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{7}
 }
 func (m *UserDeleteTagResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserDeleteTagResponse.Unmarshal(m, b)
@@ -475,7 +475,7 @@ func (m *UserCreateTagRequest) Reset()         { *m = UserCreateTagRequest{} }
 func (m *UserCreateTagRequest) String() string { return proto.CompactTextString(m) }
 func (*UserCreateTagRequest) ProtoMessage()    {}
 func (*UserCreateTagRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{8}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{8}
 }
 func (m *UserCreateTagRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCreateTagRequest.Unmarshal(m, b)
@@ -543,7 +543,7 @@ func (m *UserCreateTagResponse) Reset()         { *m = UserCreateTagResponse{} }
 func (m *UserCreateTagResponse) String() string { return proto.CompactTextString(m) }
 func (*UserCreateTagResponse) ProtoMessage()    {}
 func (*UserCreateTagResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{9}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{9}
 }
 func (m *UserCreateTagResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCreateTagResponse.Unmarshal(m, b)
@@ -603,7 +603,7 @@ func (m *UserMergeBranchRequest) Reset()         { *m = UserMergeBranchRequest{}
 func (m *UserMergeBranchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserMergeBranchRequest) ProtoMessage()    {}
 func (*UserMergeBranchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{10}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{10}
 }
 func (m *UserMergeBranchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserMergeBranchRequest.Unmarshal(m, b)
@@ -682,7 +682,7 @@ func (m *UserMergeBranchResponse) Reset()         { *m = UserMergeBranchResponse
 func (m *UserMergeBranchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserMergeBranchResponse) ProtoMessage()    {}
 func (*UserMergeBranchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{11}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{11}
 }
 func (m *UserMergeBranchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserMergeBranchResponse.Unmarshal(m, b)
@@ -745,7 +745,7 @@ func (m *UserMergeToRefRequest) Reset()         { *m = UserMergeToRefRequest{} }
 func (m *UserMergeToRefRequest) String() string { return proto.CompactTextString(m) }
 func (*UserMergeToRefRequest) ProtoMessage()    {}
 func (*UserMergeToRefRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{12}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{12}
 }
 func (m *UserMergeToRefRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserMergeToRefRequest.Unmarshal(m, b)
@@ -819,7 +819,7 @@ func (m *UserMergeToRefResponse) Reset()         { *m = UserMergeToRefResponse{}
 func (m *UserMergeToRefResponse) String() string { return proto.CompactTextString(m) }
 func (*UserMergeToRefResponse) ProtoMessage()    {}
 func (*UserMergeToRefResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{13}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{13}
 }
 func (m *UserMergeToRefResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserMergeToRefResponse.Unmarshal(m, b)
@@ -869,7 +869,7 @@ func (m *OperationBranchUpdate) Reset()         { *m = OperationBranchUpdate{} }
 func (m *OperationBranchUpdate) String() string { return proto.CompactTextString(m) }
 func (*OperationBranchUpdate) ProtoMessage()    {}
 func (*OperationBranchUpdate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{14}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{14}
 }
 func (m *OperationBranchUpdate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OperationBranchUpdate.Unmarshal(m, b)
@@ -924,7 +924,7 @@ func (m *UserFFBranchRequest) Reset()         { *m = UserFFBranchRequest{} }
 func (m *UserFFBranchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserFFBranchRequest) ProtoMessage()    {}
 func (*UserFFBranchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{15}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{15}
 }
 func (m *UserFFBranchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserFFBranchRequest.Unmarshal(m, b)
@@ -984,7 +984,7 @@ func (m *UserFFBranchResponse) Reset()         { *m = UserFFBranchResponse{} }
 func (m *UserFFBranchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserFFBranchResponse) ProtoMessage()    {}
 func (*UserFFBranchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{16}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{16}
 }
 func (m *UserFFBranchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserFFBranchResponse.Unmarshal(m, b)
@@ -1035,7 +1035,7 @@ func (m *UserCherryPickRequest) Reset()         { *m = UserCherryPickRequest{} }
 func (m *UserCherryPickRequest) String() string { return proto.CompactTextString(m) }
 func (*UserCherryPickRequest) ProtoMessage()    {}
 func (*UserCherryPickRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{17}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{17}
 }
 func (m *UserCherryPickRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCherryPickRequest.Unmarshal(m, b)
@@ -1118,7 +1118,7 @@ func (m *UserCherryPickResponse) Reset()         { *m = UserCherryPickResponse{}
 func (m *UserCherryPickResponse) String() string { return proto.CompactTextString(m) }
 func (*UserCherryPickResponse) ProtoMessage()    {}
 func (*UserCherryPickResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{18}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{18}
 }
 func (m *UserCherryPickResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCherryPickResponse.Unmarshal(m, b)
@@ -1183,7 +1183,7 @@ func (m *UserRevertRequest) Reset()         { *m = UserRevertRequest{} }
 func (m *UserRevertRequest) String() string { return proto.CompactTextString(m) }
 func (*UserRevertRequest) ProtoMessage()    {}
 func (*UserRevertRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{19}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{19}
 }
 func (m *UserRevertRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRevertRequest.Unmarshal(m, b)
@@ -1266,7 +1266,7 @@ func (m *UserRevertResponse) Reset()         { *m = UserRevertResponse{} }
 func (m *UserRevertResponse) String() string { return proto.CompactTextString(m) }
 func (*UserRevertResponse) ProtoMessage()    {}
 func (*UserRevertResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{20}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{20}
 }
 func (m *UserRevertResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRevertResponse.Unmarshal(m, b)
@@ -1333,7 +1333,7 @@ func (m *UserCommitFilesActionHeader) Reset()         { *m = UserCommitFilesActi
 func (m *UserCommitFilesActionHeader) String() string { return proto.CompactTextString(m) }
 func (*UserCommitFilesActionHeader) ProtoMessage()    {}
 func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{21}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{21}
 }
 func (m *UserCommitFilesActionHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCommitFilesActionHeader.Unmarshal(m, b)
@@ -1409,7 +1409,7 @@ func (m *UserCommitFilesAction) Reset()         { *m = UserCommitFilesAction{} }
 func (m *UserCommitFilesAction) String() string { return proto.CompactTextString(m) }
 func (*UserCommitFilesAction) ProtoMessage()    {}
 func (*UserCommitFilesAction) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{22}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{22}
 }
 func (m *UserCommitFilesAction) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCommitFilesAction.Unmarshal(m, b)
@@ -1555,7 +1555,7 @@ func (m *UserCommitFilesRequestHeader) Reset()         { *m = UserCommitFilesReq
 func (m *UserCommitFilesRequestHeader) String() string { return proto.CompactTextString(m) }
 func (*UserCommitFilesRequestHeader) ProtoMessage()    {}
 func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{23}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{23}
 }
 func (m *UserCommitFilesRequestHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCommitFilesRequestHeader.Unmarshal(m, b)
@@ -1652,7 +1652,7 @@ func (m *UserCommitFilesRequest) Reset()         { *m = UserCommitFilesRequest{}
 func (m *UserCommitFilesRequest) String() string { return proto.CompactTextString(m) }
 func (*UserCommitFilesRequest) ProtoMessage()    {}
 func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{24}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{24}
 }
 func (m *UserCommitFilesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCommitFilesRequest.Unmarshal(m, b)
@@ -1796,7 +1796,7 @@ func (m *UserCommitFilesResponse) Reset()         { *m = UserCommitFilesResponse
 func (m *UserCommitFilesResponse) String() string { return proto.CompactTextString(m) }
 func (*UserCommitFilesResponse) ProtoMessage()    {}
 func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{25}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{25}
 }
 func (m *UserCommitFilesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserCommitFilesResponse.Unmarshal(m, b)
@@ -1857,7 +1857,7 @@ func (m *UserRebaseRequest) Reset()         { *m = UserRebaseRequest{} }
 func (m *UserRebaseRequest) String() string { return proto.CompactTextString(m) }
 func (*UserRebaseRequest) ProtoMessage()    {}
 func (*UserRebaseRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{26}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{26}
 }
 func (m *UserRebaseRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRebaseRequest.Unmarshal(m, b)
@@ -1942,7 +1942,7 @@ func (m *UserRebaseResponse) Reset()         { *m = UserRebaseResponse{} }
 func (m *UserRebaseResponse) String() string { return proto.CompactTextString(m) }
 func (*UserRebaseResponse) ProtoMessage()    {}
 func (*UserRebaseResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{27}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{27}
 }
 func (m *UserRebaseResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRebaseResponse.Unmarshal(m, b)
@@ -1997,7 +1997,7 @@ func (m *UserRebaseConfirmableRequest) Reset()         { *m = UserRebaseConfirma
 func (m *UserRebaseConfirmableRequest) String() string { return proto.CompactTextString(m) }
 func (*UserRebaseConfirmableRequest) ProtoMessage()    {}
 func (*UserRebaseConfirmableRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{28}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{28}
 }
 func (m *UserRebaseConfirmableRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRebaseConfirmableRequest.Unmarshal(m, b)
@@ -2146,7 +2146,7 @@ func (m *UserRebaseConfirmableRequest_Header) Reset()         { *m = UserRebaseC
 func (m *UserRebaseConfirmableRequest_Header) String() string { return proto.CompactTextString(m) }
 func (*UserRebaseConfirmableRequest_Header) ProtoMessage()    {}
 func (*UserRebaseConfirmableRequest_Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{28, 0}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{28, 0}
 }
 func (m *UserRebaseConfirmableRequest_Header) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRebaseConfirmableRequest_Header.Unmarshal(m, b)
@@ -2231,7 +2231,7 @@ func (m *UserRebaseConfirmableResponse) Reset()         { *m = UserRebaseConfirm
 func (m *UserRebaseConfirmableResponse) String() string { return proto.CompactTextString(m) }
 func (*UserRebaseConfirmableResponse) ProtoMessage()    {}
 func (*UserRebaseConfirmableResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{29}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{29}
 }
 func (m *UserRebaseConfirmableResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserRebaseConfirmableResponse.Unmarshal(m, b)
@@ -2391,7 +2391,7 @@ func (m *UserSquashRequest) Reset()         { *m = UserSquashRequest{} }
 func (m *UserSquashRequest) String() string { return proto.CompactTextString(m) }
 func (*UserSquashRequest) ProtoMessage()    {}
 func (*UserSquashRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{30}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{30}
 }
 func (m *UserSquashRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserSquashRequest.Unmarshal(m, b)
@@ -2479,7 +2479,7 @@ func (m *UserSquashResponse) Reset()         { *m = UserSquashResponse{} }
 func (m *UserSquashResponse) String() string { return proto.CompactTextString(m) }
 func (*UserSquashResponse) ProtoMessage()    {}
 func (*UserSquashResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{31}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{31}
 }
 func (m *UserSquashResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserSquashResponse.Unmarshal(m, b)
@@ -2527,7 +2527,7 @@ func (m *UserApplyPatchRequest) Reset()         { *m = UserApplyPatchRequest{} }
 func (m *UserApplyPatchRequest) String() string { return proto.CompactTextString(m) }
 func (*UserApplyPatchRequest) ProtoMessage()    {}
 func (*UserApplyPatchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{32}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{32}
 }
 func (m *UserApplyPatchRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserApplyPatchRequest.Unmarshal(m, b)
@@ -2667,7 +2667,7 @@ func (m *UserApplyPatchRequest_Header) Reset()         { *m = UserApplyPatchRequ
 func (m *UserApplyPatchRequest_Header) String() string { return proto.CompactTextString(m) }
 func (*UserApplyPatchRequest_Header) ProtoMessage()    {}
 func (*UserApplyPatchRequest_Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{32, 0}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{32, 0}
 }
 func (m *UserApplyPatchRequest_Header) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserApplyPatchRequest_Header.Unmarshal(m, b)
@@ -2719,7 +2719,7 @@ func (m *UserApplyPatchResponse) Reset()         { *m = UserApplyPatchResponse{}
 func (m *UserApplyPatchResponse) String() string { return proto.CompactTextString(m) }
 func (*UserApplyPatchResponse) ProtoMessage()    {}
 func (*UserApplyPatchResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{33}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{33}
 }
 func (m *UserApplyPatchResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserApplyPatchResponse.Unmarshal(m, b)
@@ -2762,7 +2762,7 @@ func (m *UserUpdateSubmoduleRequest) Reset()         { *m = UserUpdateSubmoduleR
 func (m *UserUpdateSubmoduleRequest) String() string { return proto.CompactTextString(m) }
 func (*UserUpdateSubmoduleRequest) ProtoMessage()    {}
 func (*UserUpdateSubmoduleRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{34}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{34}
 }
 func (m *UserUpdateSubmoduleRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserUpdateSubmoduleRequest.Unmarshal(m, b)
@@ -2837,7 +2837,7 @@ func (m *UserUpdateSubmoduleResponse) Reset()         { *m = UserUpdateSubmodule
 func (m *UserUpdateSubmoduleResponse) String() string { return proto.CompactTextString(m) }
 func (*UserUpdateSubmoduleResponse) ProtoMessage()    {}
 func (*UserUpdateSubmoduleResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_operations_147235e02806acbb, []int{35}
+	return fileDescriptor_operations_b7baaf8021f86e81, []int{35}
 }
 func (m *UserUpdateSubmoduleResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UserUpdateSubmoduleResponse.Unmarshal(m, b)
@@ -3621,9 +3621,9 @@ var _OperationService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "operations.proto",
 }
 
-func init() { proto.RegisterFile("operations.proto", fileDescriptor_operations_147235e02806acbb) }
+func init() { proto.RegisterFile("operations.proto", fileDescriptor_operations_b7baaf8021f86e81) }
 
-var fileDescriptor_operations_147235e02806acbb = []byte{
+var fileDescriptor_operations_b7baaf8021f86e81 = []byte{
 	// 2034 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5a, 0xcd, 0x6f, 0x23, 0x49,
 	0x15, 0x4f, 0xdb, 0x8e, 0xe3, 0xbc, 0x38, 0x89, 0x53, 0xbb, 0x3b, 0xeb, 0xf5, 0x4c, 0x48, 0xb6,
@@ -3731,26 +3731,26 @@ var fileDescriptor_operations_147235e02806acbb = []byte{
 	0xb3, 0x52, 0x06, 0x3f, 0x9f, 0x4b, 0xa2, 0xd4, 0x29, 0xb2, 0x94, 0x3a, 0x45, 0xbe, 0x5d, 0xaa,
 	0x14, 0x6b, 0x25, 0x27, 0x7d, 0x30, 0x7d, 0xf8, 0x8f, 0x05, 0xa8, 0x4d, 0xf4, 0x79, 0xca, 0xc5,
 	0x89, 0xdf, 0xe6, 0xec, 0x1b, 0x50, 0x4b, 0xbe, 0xab, 0xb1, 0x35, 0xa3, 0x83, 0x4c, 0x3f, 0x12,
-	0x36, 0xd6, 0xf3, 0x19, 0xd0, 0x2f, 0xf6, 0xfc, 0x87, 0xef, 0x6f, 0xce, 0x56, 0x2c, 0x66, 0x3d,
-	0x88, 0x57, 0xd0, 0x9f, 0xa1, 0xcc, 0x15, 0x32, 0x9e, 0xd8, 0xcc, 0x15, 0xb2, 0x5e, 0xb0, 0x32,
-	0x56, 0xd0, 0x5f, 0x83, 0xcc, 0x15, 0x32, 0x5e, 0xae, 0xcc, 0x15, 0xb2, 0x1e, 0x92, 0xf4, 0x15,
-	0xbe, 0x0a, 0x8b, 0xc6, 0x5b, 0x04, 0xbb, 0x91, 0xf6, 0xc0, 0xf4, 0xb9, 0xa5, 0xb1, 0x9a, 0x33,
-	0x9a, 0x2b, 0x78, 0xf2, 0xec, 0x63, 0x0a, 0x4e, 0x3e, 0x4b, 0x99, 0x82, 0x53, 0x6f, 0x45, 0xba,
-	0xe0, 0x77, 0x61, 0xc9, 0xbc, 0x5c, 0x66, 0xc6, 0xdc, 0xd4, 0x9d, 0x7a, 0xe3, 0x63, 0x79, 0xc3,
-	0x69, 0xd9, 0x1e, 0x2c, 0x27, 0x9e, 0x11, 0x58, 0x7a, 0xb6, 0xe9, 0xed, 0xb5, 0xdc, 0xf1, 0x94,
-	0xf8, 0x4d, 0xeb, 0xbe, 0xc5, 0x0e, 0xa0, 0xaa, 0x5f, 0xca, 0xb2, 0xeb, 0xfa, 0xfc, 0xc4, 0x6d,
-	0x72, 0xe3, 0x46, 0xf6, 0x60, 0xae, 0x53, 0xa6, 0x17, 0x84, 0xa6, 0x53, 0x52, 0x37, 0xaf, 0xa6,
-	0x53, 0xd2, 0xf7, 0x8a, 0x19, 0x4e, 0xd1, 0xce, 0x49, 0xa6, 0x53, 0xd2, 0x27, 0x39, 0xd3, 0x29,
-	0x19, 0x07, 0x2c, 0x7b, 0xe1, 0xc3, 0xf7, 0x37, 0xe7, 0x2a, 0x16, 0x2b, 0x3e, 0x68, 0x3e, 0xd8,
-	0xb4, 0xd8, 0x97, 0x01, 0xa6, 0xad, 0x16, 0x7b, 0x2d, 0xdd, 0x0e, 0xc7, 0x82, 0x1b, 0x59, 0x43,
-	0x24, 0xb3, 0x3a, 0x51, 0xf9, 0x87, 0x05, 0x8b, 0x8d, 0xb1, 0x9a, 0xa6, 0xba, 0x37, 0x76, 0xf3,
-	0x3c, 0xcd, 0x76, 0xe3, 0xd6, 0xbf, 0xe1, 0xca, 0xb4, 0xe3, 0xbe, 0xc5, 0xde, 0x89, 0x2d, 0x39,
-	0xe1, 0x22, 0x4a, 0x5a, 0xa2, 0xdd, 0x71, 0x26, 0x2d, 0xd1, 0x6f, 0xf0, 0x74, 0xe7, 0x93, 0x3c,
-	0x6c, 0x40, 0x4c, 0x79, 0x46, 0xdf, 0x66, 0xca, 0x33, 0xfb, 0x15, 0x5d, 0xde, 0xd7, 0x11, 0x28,
-	0xd3, 0x2a, 0x6a, 0x02, 0x25, 0xd5, 0x4d, 0x98, 0x40, 0x49, 0x17, 0xdf, 0x64, 0x24, 0x7d, 0x7c,
-	0x16, 0x49, 0x54, 0x15, 0x66, 0xa7, 0xb3, 0x5e, 0xb2, 0xc6, 0x36, 0x36, 0xce, 0xe4, 0x49, 0x99,
-	0xb2, 0x75, 0xff, 0x5d, 0x39, 0xa1, 0xef, 0x1d, 0x35, 0xdb, 0xc1, 0xe0, 0x1e, 0xfe, 0x7c, 0x23,
-	0x10, 0xdd, 0x7b, 0x28, 0xe6, 0x0d, 0xf5, 0x97, 0x90, 0x7b, 0xdd, 0x80, 0xbe, 0x47, 0x47, 0x47,
-	0x65, 0x45, 0xfa, 0xd4, 0xbf, 0x02, 0x00, 0x00, 0xff, 0xff, 0xf4, 0x7c, 0x49, 0x59, 0x4f, 0x22,
+	0x36, 0xd6, 0xf3, 0x19, 0xd0, 0x2f, 0xf6, 0xfc, 0x87, 0xef, 0x6f, 0xce, 0x56, 0xac, 0x86, 0xf5,
+	0x20, 0x5e, 0x41, 0x7f, 0x86, 0x32, 0x57, 0xc8, 0x78, 0x62, 0x33, 0x57, 0xc8, 0x7a, 0xc1, 0xca,
+	0x58, 0x41, 0x7f, 0x0d, 0x32, 0x57, 0xc8, 0x78, 0xb9, 0x32, 0x57, 0xc8, 0x7a, 0x48, 0xd2, 0x57,
+	0xf8, 0x2a, 0x2c, 0x1a, 0x6f, 0x11, 0xec, 0x46, 0xda, 0x03, 0xd3, 0xe7, 0x96, 0xc6, 0x6a, 0xce,
+	0x68, 0xae, 0xe0, 0xc9, 0xb3, 0x8f, 0x29, 0x38, 0xf9, 0x2c, 0x65, 0x0a, 0x4e, 0xbd, 0x15, 0xe9,
+	0x82, 0xdf, 0x85, 0x25, 0xf3, 0x72, 0x99, 0x19, 0x73, 0x53, 0x77, 0xea, 0x8d, 0x8f, 0xe5, 0x0d,
+	0xa7, 0x65, 0x7b, 0xb0, 0x9c, 0x78, 0x46, 0x60, 0xe9, 0xd9, 0xa6, 0xb7, 0xd7, 0x72, 0xc7, 0x53,
+	0xe2, 0x37, 0xad, 0xfb, 0x16, 0x3b, 0x80, 0xaa, 0x7e, 0x29, 0xcb, 0xae, 0xeb, 0xf3, 0x13, 0xb7,
+	0xc9, 0x8d, 0x1b, 0xd9, 0x83, 0xb9, 0x4e, 0x99, 0x5e, 0x10, 0x9a, 0x4e, 0x49, 0xdd, 0xbc, 0x9a,
+	0x4e, 0x49, 0xdf, 0x2b, 0x66, 0x38, 0x45, 0x3b, 0x27, 0x99, 0x4e, 0x49, 0x9f, 0xe4, 0x4c, 0xa7,
+	0x64, 0x1c, 0xb0, 0xec, 0x85, 0x0f, 0xdf, 0xdf, 0x9c, 0xab, 0x58, 0x8d, 0xe2, 0x83, 0xe6, 0x83,
+	0x4d, 0x8b, 0x7d, 0x19, 0x60, 0xda, 0x6a, 0xb1, 0xd7, 0xd2, 0xed, 0x70, 0x2c, 0xb8, 0x91, 0x35,
+	0x44, 0x32, 0xab, 0x13, 0x95, 0x7f, 0x58, 0xb0, 0xd8, 0x18, 0xab, 0x69, 0xaa, 0x7b, 0x63, 0x37,
+	0xcf, 0xd3, 0x6c, 0x37, 0x6e, 0xfd, 0x1b, 0xae, 0x4c, 0x3b, 0xee, 0x5b, 0xec, 0x9d, 0xd8, 0x92,
+	0x13, 0x2e, 0xa2, 0xa4, 0x25, 0xda, 0x1d, 0x67, 0xd2, 0x12, 0xfd, 0x06, 0x4f, 0x77, 0x3e, 0xc9,
+	0xc3, 0x06, 0xc4, 0x94, 0x67, 0xf4, 0x6d, 0xa6, 0x3c, 0xb3, 0x5f, 0xd1, 0xe5, 0x7d, 0x1d, 0x81,
+	0x32, 0xad, 0xa2, 0x26, 0x50, 0x52, 0xdd, 0x84, 0x09, 0x94, 0x74, 0xf1, 0x4d, 0x46, 0xd2, 0xc7,
+	0x67, 0x91, 0x44, 0x55, 0x61, 0x76, 0x3a, 0xeb, 0x25, 0x6b, 0x6c, 0x63, 0xe3, 0x4c, 0x9e, 0x94,
+	0x29, 0x5b, 0xf7, 0xdf, 0x95, 0x13, 0xfa, 0xde, 0x51, 0xb3, 0x1d, 0x0c, 0xee, 0xe1, 0xcf, 0x37,
+	0x02, 0xd1, 0xbd, 0x87, 0x62, 0xde, 0x50, 0x7f, 0x09, 0xb9, 0xd7, 0x0d, 0xe8, 0x7b, 0x74, 0x74,
+	0x54, 0x56, 0xa4, 0x4f, 0xfd, 0x2b, 0x00, 0x00, 0xff, 0xff, 0x4c, 0x28, 0x82, 0x72, 0x4f, 0x22,
 	0x00, 0x00,
 }
