@@ -59,7 +59,6 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"AddNamespace":    protoregistry.OpMutator,
 			"RemoveNamespace": protoregistry.OpMutator,
 			"RenameNamespace": protoregistry.OpMutator,
-			"NamespaceExists": protoregistry.OpAccessor,
 		},
 		"ObjectPoolService": map[string]protoregistry.OpType{
 			"CreateObjectPool":               protoregistry.OpMutator,
