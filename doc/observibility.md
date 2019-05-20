@@ -16,7 +16,7 @@ changes will be lost.
 
 ## Drop-down values
 
-At the top of most of our Grafana dashboards you find drop-down menus
+At the top of most of our Grafana dashboards you will find drop-down menus
 for GRPC method names, Prometheus jobs etc. The possible values in these
 drop-downs are defined with Prometheus queries. To see or change these
 queries, go into the dashboard's global settings (the gear icon at the
