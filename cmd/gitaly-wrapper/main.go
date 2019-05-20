@@ -13,6 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/ps"
 )
 
 const (
@@ -43,7 +44,7 @@ func main() {
 		log.WithError(err).Fatal("find gitaly")
 	}
 
-	if gitaly != nil {
+	if gitaly != nil && isGitaly(gitaly, gitalyBin) {
 		log.Info("adopting a process")
 	} else {
 		log.Info("spawning a process")
@@ -82,10 +83,6 @@ func findGitaly() (*os.Process, error) {
 	}
 
 	if isAlive(gitaly) {
-		if ok, err := isGitaly(pid); !ok {
-			return nil, err
-		}
-
 		return gitaly, nil
 	}
 
@@ -143,17 +140,17 @@ func isAlive(p *os.Process) bool {
 	return p.Signal(syscall.Signal(0)) == nil
 }
 
-func isGitaly(pid int) (bool, error) {
-	command, err := procPath(pid)
+func isGitaly(p *os.Process, gitalyBin string) bool {
+	command, err := ps.Comm(p.Pid)
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	if path.Base(command) == "gitaly" {
-		return true, nil
+	if path.Base(command) == path.Base(gitalyBin) {
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 func pidFile() string {

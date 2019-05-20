@@ -1,13 +1,11 @@
 package supervisor
 
 import (
-	"os/exec"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/ps"
 )
 
 var (
@@ -48,7 +46,13 @@ func monitorRss(procs <-chan monitorProcess, done chan<- struct{}, events chan<-
 	for mp := range procs {
 	monitorLoop:
 		for {
-			rss := 1024 * getRss(mp.pid)
+			rss, err := ps.RSS(mp.pid)
+			if err != nil {
+				log.WithError(err).Warn("getting RSS")
+			}
+
+			// converts from kB to B
+			rss *= 1024
 			rssGauge.WithLabelValues(name).Set(float64(rss))
 
 			if rss > 0 {
@@ -71,23 +75,6 @@ func monitorRss(procs <-chan monitorProcess, done chan<- struct{}, events chan<-
 			}
 		}
 	}
-}
-
-// getRss returns RSS in kilobytes.
-func getRss(pid int) int {
-	// I tried adding a library to do this but it seemed like overkill
-	// and YAGNI compared to doing this one 'ps' call.
-	psRss, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		return 0
-	}
-
-	rss, err := strconv.Atoi(text.ChompBytes(psRss))
-	if err != nil {
-		return 0
-	}
-
-	return rss
 }
 
 func monitorHealth(f func() error, events chan<- Event, name string, shutdown <-chan struct{}) {
