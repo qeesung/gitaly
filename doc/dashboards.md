@@ -51,5 +51,5 @@ Grafana-specific modifiers.
 
 ## Sentry
 
-Errors are tracked in our sentry, and due to their sensitive nature only viewable
+Errors are tracked in our sentry instance, and due to their sensitive nature only viewable
 by developers at GitLab at [the error tracking page](https://gitlab.com/gitlab-org/gitaly/error_tracking).
