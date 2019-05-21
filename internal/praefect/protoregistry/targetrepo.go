@@ -40,6 +40,11 @@ func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repo
 // matches a tag string like "bytes,1,opt,name=repository,proto3"
 var protobufTagRegex = regexp.MustCompile(`^(.*?),(\d+),(.*?),name=(.*?),proto3$`)
 
+const (
+	protobufTagRegexGroups     = 5
+	protobufTagRegexFieldGroup = 2
+)
+
 func findProtoField(msgV reflect.Value, protoField int) (reflect.Value, error) {
 	msgV = reflect.Indirect(msgV)
 	for i := 0; i < msgV.NumField(); i++ {
@@ -47,11 +52,11 @@ func findProtoField(msgV reflect.Value, protoField int) (reflect.Value, error) {
 		tag := field.Tag.Get(protobufTag)
 
 		matches := protobufTagRegex.FindStringSubmatch(tag)
-		if len(matches) != 5 {
+		if len(matches) != protobufTagRegexGroups {
 			continue
 		}
 
-		fieldStr := matches[2]
+		fieldStr := matches[protobufTagRegexFieldGroup]
 		if fieldStr == strconv.Itoa(protoField) {
 			return msgV.FieldByName(field.Name), nil
 		}
