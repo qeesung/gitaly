@@ -67,8 +67,11 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	if !ok {
 		return grpc.Errorf(codes.Internal, "lowLevelServerStream not exists in context")
 	}
+
+	peeker := newPeeker(serverStream)
+
 	// We require that the director's returned context inherits from the serverStream.Context().
-	outgoingCtx, backendConn, err := s.director(serverStream.Context(), fullMethodName)
+	outgoingCtx, backendConn, err := s.director(serverStream.Context(), fullMethodName, peeker)
 	if err != nil {
 		return err
 	}
@@ -82,7 +85,7 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	// Explicitly *do not close* s2cErrChan and c2sErrChan, otherwise the select below will not terminate.
 	// Channels do not have to be closed, it is just a control flow mechanism, see
 	// https://groups.google.com/forum/#!msg/golang-nuts/pZwdYRGxCIk/qpbHxRRPJdUJ
-	s2cErrChan := s.forwardServerToClient(serverStream, clientStream)
+	s2cErrChan := s.forwardServerToClient(serverStream, clientStream, peeker.consumedStream)
 	c2sErrChan := s.forwardClientToServer(clientStream, serverStream)
 	// We don't know which side is going to stop sending first, so we need a select between the two.
 	for i := 0; i < 2; i++ {
@@ -146,9 +149,30 @@ func (s *handler) forwardClientToServer(src grpc.ClientStream, dst grpc.ServerSt
 	return ret
 }
 
-func (s *handler) forwardServerToClient(src grpc.ServerStream, dst grpc.ClientStream) chan error {
+func (s *handler) forwardServerToClient(src grpc.ServerStream, dst grpc.ClientStream, consumedStream *partialStream) chan error {
 	ret := make(chan error, 1)
 	go func() {
+		// send any consumed/peeked frames first
+		for _, frame := range consumedStream.frames {
+			if frame == nil {
+				// It is possible for peeked frames to be empty. This most likely
+				// occurs when the server stream returns an error before the desired
+				// number of frames can be peeked
+				break
+			}
+			if err := dst.SendMsg(frame); err != nil {
+				ret <- err
+				return
+			}
+		}
+
+		// we may have encountered an error earlier while peeking
+		if consumedStream.err != nil {
+			ret <- consumedStream.err
+			return
+		}
+
+		// resume two-way stream after peeked messages
 		f := &frame{}
 		for i := 0; ; i++ {
 			if err := src.RecvMsg(f); err != nil {
