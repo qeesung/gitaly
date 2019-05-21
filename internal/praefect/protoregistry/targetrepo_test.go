@@ -35,6 +35,7 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 	}
 
 	testcases := []struct {
+		desc       string
 		svc        string
 		method     string
 		pbMsg      proto.Message
@@ -42,6 +43,7 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 		expectErr  error
 	}{
 		{
+			desc:   "valid request type single depth",
 			svc:    "RepositoryService",
 			method: "RepackIncremental",
 			pbMsg: &gitalypb.RepackIncrementalRequest{
@@ -50,6 +52,7 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			expectRepo: testRepos[0],
 		},
 		{
+			desc:      "incorrect request type",
 			svc:       "RepositoryService",
 			method:    "RepackIncremental",
 			pbMsg:     &gitalypb.RepackIncrementalResponse{},
@@ -58,7 +61,7 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		desc := fmt.Sprintf("%s:%s", tc.svc, tc.method)
+		desc := fmt.Sprintf("%s:%s %s", tc.svc, tc.method, tc.desc)
 		t.Run(desc, func(t *testing.T) {
 			info, err := r.LookupMethod(tc.svc, tc.method)
 			require.NoError(t, err)
