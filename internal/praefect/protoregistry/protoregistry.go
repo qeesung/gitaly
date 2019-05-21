@@ -109,7 +109,7 @@ func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 
 	ext, err := proto.GetExtension(options, gitalypb.E_OpType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get Gitaly custom OpType extension: %s", err)
 	}
 
 	opMsg, ok := ext.(*gitalypb.OperationMsg)

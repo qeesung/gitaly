@@ -25,7 +25,10 @@ func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repo
 
 		msgV, err = findProtoField(msgV, fieldNo)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(
+				"unable to descend OID %+v into message %s: %s",
+				targetOID, proto.MessageName(pbMsg), err,
+			)
 		}
 	}
 
