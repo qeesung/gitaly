@@ -23,3 +23,5 @@ git-env
 /praefect
 gitaly.pid
 /vendor/github.com/libgit2/git2go/vendor
+
+.idea

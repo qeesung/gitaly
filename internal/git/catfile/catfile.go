@@ -65,6 +65,14 @@ func (c *Batch) Info(revspec string) (*ObjectInfo, error) {
 	return c.batchCheck.info(revspec)
 }
 
+// Object returns a raw object. It is an error if revspec does not
+// point to a expectedType. To prevent this firstuse Info to resolve the revspec
+// and check the object type. Caller must consume the Reader before
+// making another call on C.
+func (c Batch) Object(revspec string, expectedType string) (io.Reader, error) {
+	return c.batchProcess.reader(revspec, expectedType)
+}
+
 // Tree returns a raw tree object. It is an error if revspec does not
 // point to a tree. To prevent this firstuse Info to resolve the revspec
 // and check the object type. Caller must consume the Reader before
