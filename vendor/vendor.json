@@ -601,12 +601,12 @@
 			"revisionTime": "2016-03-31T18:18:00Z"
 		},
 		{
-			"checksumSHA1": "nzYKfoxckuJfiZz3Ez3iAen9gAA=",
+			"checksumSHA1": "AhmGEJD7waTfZ62+1gQoKNIbrqU=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb",
-			"revision": "9ee0a3509a25b509f6542ccb9175f751a02590ad",
-			"revisionTime": "2019-05-21T18:47:00Z",
-			"version": "v1.30.0",
-			"versionExact": "v1.30.0"
+			"revision": "7fe4b48a89036e58b9f34da75f84ee1e5a43fca0",
+			"revisionTime": "2019-05-24T01:46:06Z",
+			"version": "pb-get-objects-directory-size",
+			"versionExact": "pb-get-objects-directory-size"
 		},
 		{
 			"checksumSHA1": "WMOuBgCyclqy+Mqunb0NbykaC4Y=",
