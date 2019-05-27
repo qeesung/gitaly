@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 )
 
 func TestRepackIncrementalSuccess(t *testing.T) {
@@ -204,16 +202,12 @@ func TestRepackFullDeltaIslands(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	md := metadata.New(map[string]string{featureflag.HeaderKey(deltaIslandsFeatureFlag): "true"})
-	ctxWithFeatureFlag := metadata.NewOutgoingContext(ctx, md)
-
 	testCases := []struct {
 		desc    string
 		outcome deltaIslandOutcome
 		ctx     context.Context
 	}{
-		{desc: "feature flag not set", outcome: expectNoDeltaIslands, ctx: ctx},
-		{desc: "feature flag set", outcome: expectDeltaIslands, ctx: ctxWithFeatureFlag},
+		{desc: "are created by default", outcome: expectDeltaIslands, ctx: ctx},
 	}
 
 	for _, tc := range testCases {

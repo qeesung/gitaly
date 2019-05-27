@@ -8,12 +8,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const deltaIslandsFeatureFlag = "delta-islands"
 
 var (
 	repackCounter = prometheus.NewCounterVec(
@@ -21,7 +18,7 @@ var (
 			Name: "gitaly_repack_total",
 			Help: "Counter of Git repack operations",
 		},
-		[]string{"bitmap", "delta_islands"},
+		[]string{"bitmap"},
 	)
 )
 
@@ -65,7 +62,11 @@ func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, ar
 }
 
 func repackConfig(ctx context.Context, bitmap bool) []string {
-	var args []string
+	args := []string{
+		"-c", "pack.island=refs/heads",
+		"-c", "pack.island=refs/tags",
+		"-c", "repack.useDeltaIslands=true",
+	}
 
 	if bitmap {
 		args = append(args, "-c", "repack.writeBitmaps=true")
@@ -73,16 +74,7 @@ func repackConfig(ctx context.Context, bitmap bool) []string {
 		args = append(args, "-c", "repack.writeBitmaps=false")
 	}
 
-	deltaIslands := featureflag.IsEnabled(ctx, deltaIslandsFeatureFlag)
-	if deltaIslands {
-		args = append(args,
-			"-c", "pack.island=refs/heads",
-			"-c", "pack.island=refs/tags",
-			"-c", "repack.useDeltaIslands=true",
-		)
-	}
-
-	repackCounter.WithLabelValues(fmt.Sprint(bitmap), fmt.Sprint(deltaIslands)).Inc()
+	repackCounter.WithLabelValues(fmt.Sprint(bitmap)).Inc()
 
 	return args
 }
