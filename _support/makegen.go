@@ -353,10 +353,10 @@ assemble-go: build
 
 .PHONY: assemble-ruby
 assemble-ruby:
-	rm -rf $(ASSEMBLY_ROOT)/ruby
 	mkdir -p $(ASSEMBLY_ROOT)
 	rm -rf {{ .GitalyRubyDir }}/tmp {{ .GitlabShellDir }}/tmp 
-	cp -r  {{ .GitalyRubyDir }} $(ASSEMBLY_ROOT)/ruby
+	mkdir -p $(ASSEMBLY_ROOT)/ruby/
+	rsync -a --delete  {{ .GitalyRubyDir }}/ $(ASSEMBLY_ROOT)/ruby/
 	rm -rf $(ASSEMBLY_ROOT)/ruby/spec $(ASSEMBLY_ROOT)/{{ .GitlabShellRelDir }}/spec $(ASSEMBLY_ROOT)/{{ .GitlabShellRelDir }}/gitlab-shell.log
 
 binaries: assemble
