@@ -1,0 +1,5 @@
+---
+title: Make catfile cache size configurable
+merge_request: 1271
+author:
+type: changed
