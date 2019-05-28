@@ -24,6 +24,8 @@ const (
 var (
 	// Config stores the global configuration
 	Config config
+
+	hooks []func() error
 )
 
 type config struct {
@@ -118,6 +120,11 @@ func Load(file io.Reader) error {
 	return nil
 }
 
+// RegisterHook adds a post-validation callback.
+func RegisterHook(f func() error) {
+	hooks = append(hooks, f)
+}
+
 // Validate checks the current Config for sanity.
 func Validate() error {
 	for _, err := range []error{
@@ -134,6 +141,13 @@ func Validate() error {
 			return err
 		}
 	}
+
+	for _, f := range hooks {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

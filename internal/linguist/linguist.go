@@ -15,6 +15,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
+func init() {
+	config.RegisterHook(LoadColors)
+}
+
 var (
 	colorMap = make(map[string]Language)
 )

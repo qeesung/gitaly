@@ -15,6 +15,9 @@ const (
 	DefaultBatchfileTTL = 10 * time.Second
 
 	defaultEvictionInterval = 1 * time.Second
+
+	// The default maximum number of cache entries
+	defaultMaxLen = 100
 )
 
 var catfileCacheMembers = prometheus.NewGauge(
@@ -28,7 +31,11 @@ var cache *batchCache
 
 func init() {
 	prometheus.MustRegister(catfileCacheMembers)
-	cache = newCache(DefaultBatchfileTTL, config.Config.Git.CatfileCacheSize)
+
+	config.RegisterHook(func() error {
+		cache = newCache(DefaultBatchfileTTL, config.Config.Git.CatfileCacheSize)
+		return nil
+	})
 }
 
 func newCacheKey(sessionID string, repo repository.GitRepo) key {
@@ -75,6 +82,10 @@ func newCache(ttl time.Duration, maxLen int) *batchCache {
 }
 
 func newCacheWithRefresh(ttl time.Duration, maxLen int, refreshInterval time.Duration) *batchCache {
+	if maxLen <= 0 {
+		maxLen = defaultMaxLen
+	}
+
 	bc := &batchCache{
 		maxLen: maxLen,
 		ttl:    ttl,
