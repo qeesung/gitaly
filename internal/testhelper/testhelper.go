@@ -50,12 +50,12 @@ func init() {
 	gitalylog.GrpcGo.SetLevel(log.WarnLevel)
 	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
 
-	if err := Configure(); err != nil {
+	if err := configure(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Configure() error {
+func configure() error {
 	config.Config.Storages = []config.Storage{
 		{Name: "default", Path: GitlabTestStoragePath()},
 	}
@@ -276,7 +276,7 @@ func ConfigureRuby() error {
 	} else {
 		_, currentFile, _, ok := runtime.Caller(0)
 		if !ok {
-			return fmt.Errorf("Could not get caller info")
+			return fmt.Errorf("could not get caller info")
 		}
 		config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
 	}
