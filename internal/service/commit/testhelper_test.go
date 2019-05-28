@@ -8,8 +8,6 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/linguist"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
@@ -27,19 +25,12 @@ var rubyServer *rubyserver.Server
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	testhelper.ConfigureRuby()
-	if err := linguist.LoadColors(); err != nil {
-		log.Fatal(err)
-	}
-
 	var err error
 	rubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rubyServer.Stop()
-
-	catfile.InitCache()
 
 	return m.Run()
 }

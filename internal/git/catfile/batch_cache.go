@@ -32,14 +32,10 @@ var cache *batchCache
 func init() {
 	prometheus.MustRegister(catfileCacheMembers)
 
-	config.RegisterHook(InitCache)
-}
-
-// InitCache initializes the global cat-file cache. It depends on
-// config.Config. This function is not thread-safe.
-func InitCache() error {
-	cache = newCache(DefaultBatchfileTTL, config.Config.Git.CatfileCacheSize)
-	return nil
+	config.RegisterHook(func() error {
+		cache = newCache(DefaultBatchfileTTL, config.Config.Git.CatfileCacheSize)
+		return nil
+	})
 }
 
 func newCacheKey(sessionID string, repo repository.GitRepo) key {
