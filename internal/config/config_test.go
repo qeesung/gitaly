@@ -305,7 +305,7 @@ func TestStoragePath(t *testing.T) {
 	}
 }
 
-func TestLoadGit(t *testing.T) {
+func TestGetGitBinPath(t *testing.T) {
 	tmpFile := configFileReader(`[git]
 bin_path = "/my/git/path"`)
 
@@ -349,6 +349,38 @@ func TestSetGitPath(t *testing.T) {
 		SetGitPath()
 
 		assert.Equal(t, tc.expected, Config.Git.BinPath, tc.desc)
+	}
+}
+
+func TestSetGitCatfileCacheSize(t *testing.T) {
+	defer func(oldConfig config) {
+		Config = oldConfig
+	}(Config)
+
+	testCases := []struct {
+		desc string
+		in   string
+		out  int
+		fail bool
+	}{
+		{desc: "not set", out: 100},
+		{desc: "set", in: "[git]\ncatfile_cache_size = 5\n", out: 5},
+		{desc: "negative", in: "[git]\ncatfile_cache_size = -1\n", fail: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.NoError(t, Load(configFileReader(tc.in)))
+			err := setGitCatfileCacheSize()
+			if tc.fail {
+				require.Error(t, err, "expect validation error")
+				return
+			}
+
+			require.NoError(t, err)
+
+			require.Equal(t, tc.out, Config.Git.CatfileCacheSize)
+		})
 	}
 }
 

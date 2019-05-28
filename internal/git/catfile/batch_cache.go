@@ -6,15 +6,13 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 const (
 	// DefaultBatchfileTTL is the default ttl for batch files to live in the cache
 	DefaultBatchfileTTL = 10 * time.Second
-
-	// CacheMaxItems is the default configuration for maximum entries in the batch cache
-	CacheMaxItems = 100
 
 	defaultEvictionInterval = 1 * time.Second
 )
@@ -30,7 +28,7 @@ var cache *batchCache
 
 func init() {
 	prometheus.MustRegister(catfileCacheMembers)
-	cache = newCache(DefaultBatchfileTTL, CacheMaxItems)
+	cache = newCache(DefaultBatchfileTTL, config.Config.Git.CatfileCacheSize)
 }
 
 func newCacheKey(sessionID string, repo repository.GitRepo) key {
