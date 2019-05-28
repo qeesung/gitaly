@@ -22,11 +22,9 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	var err error
-
-	testhelper.ConfigureRuby()
 	testhelper.ConfigureGitalySSH()
 
+	var err error
 	RubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)

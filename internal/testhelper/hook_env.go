@@ -14,6 +14,7 @@ import (
 // environment variables get set for hooks.
 func CaptureHookEnv(t *testing.T) (hookPath string, cleanup func()) {
 	var err error
+	oldOverride := hooks.Override
 	hooks.Override, err = filepath.Abs("testdata/scratch/hooks")
 	require.NoError(t, err)
 
@@ -28,6 +29,6 @@ func CaptureHookEnv(t *testing.T) (hookPath string, cleanup func()) {
 env | grep -e ^GIT -e ^GL_ > `+hookOutputFile+"\n"), 0755))
 
 	return hookOutputFile, func() {
-		hooks.Override = ""
+		hooks.Override = oldOverride
 	}
 }

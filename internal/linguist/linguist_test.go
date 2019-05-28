@@ -10,7 +10,7 @@ import (
 )
 
 func TestLoadLanguages(t *testing.T) {
-	testhelper.ConfigureRuby()
+	require.NoError(t, testhelper.Configure())
 
 	colorMap = make(map[string]Language)
 	require.NoError(t, LoadColors(), "load colors")
@@ -22,7 +22,7 @@ func TestLoadLanguagesCustomPath(t *testing.T) {
 	jsonPath, err := filepath.Abs("testdata/fake-languages.json")
 	require.NoError(t, err)
 
-	testhelper.ConfigureRuby()
+	require.NoError(t, testhelper.Configure())
 	config.Config.Ruby.LinguistLanguagesPath = jsonPath
 
 	colorMap = make(map[string]Language)

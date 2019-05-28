@@ -5,11 +5,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestPingSuccess(t *testing.T) {
-	testhelper.ConfigureRuby()
 	s, err := Start()
 	require.NoError(t, err)
 	defer s.Stop()

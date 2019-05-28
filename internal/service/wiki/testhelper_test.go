@@ -43,8 +43,7 @@ func testMain(m *testing.M) int {
 	hooks.Override = "/does/not/exist"
 
 	var err error
-	testhelper.ConfigureRuby()
-	rubyServer, err = rubyserver.Start()
+	rubyServer, err = rubyserver.Start() // Do not use := because rubyServer is a global variable.
 	if err != nil {
 		log.Fatal(err)
 	}

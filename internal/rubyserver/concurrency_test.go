@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
@@ -28,7 +27,6 @@ func waitPing(s *Server) error {
 // This benchmark lets you see what happens when you throw a lot of
 // concurrent traffic at gitaly-ruby.
 func BenchmarkConcurrency(b *testing.B) {
-	testhelper.ConfigureRuby()
 	config.Config.Ruby.NumWorkers = 2
 
 	s, err := Start()

@@ -8,6 +8,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -31,6 +33,7 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
+	hooks.Override = "/"
 	cwd = mustGetCwd()
 
 	err := os.RemoveAll(testPath)
@@ -40,11 +43,8 @@ func testMain(m *testing.M) int {
 
 	testRepo = testhelper.TestRepository()
 
-	// Build the test-binary that we need
-	os.Remove("gitaly-ssh")
-	testhelper.MustRunCommand(nil, nil, "go", "build", "gitlab.com/gitlab-org/gitaly/cmd/gitaly-ssh")
-	defer os.Remove("gitaly-ssh")
-	gitalySSHPath = path.Join(cwd, "gitaly-ssh")
+	testhelper.ConfigureGitalySSH()
+	gitalySSHPath = path.Join(config.Config.BinDir, "gitaly-ssh")
 
 	return m.Run()
 }

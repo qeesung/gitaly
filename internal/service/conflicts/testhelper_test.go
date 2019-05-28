@@ -23,10 +23,9 @@ var RubyServer *rubyserver.Server
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	var err error
-
 	hooks.Override = "/does/not/exist"
-	testhelper.ConfigureRuby()
+
+	var err error
 	RubyServer, err = rubyserver.Start()
 	if err != nil {
 		log.Fatal(err)

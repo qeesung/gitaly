@@ -148,7 +148,7 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(hookDir)
 
-	defer func() { hooks.Override = "" }()
+	defer func(old string) { hooks.Override = old }(hooks.Override)
 	hooks.Override = hookDir
 
 	require.NoError(t, os.MkdirAll(hooks.Path(), 0755))

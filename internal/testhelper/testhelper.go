@@ -47,12 +47,31 @@ const (
 )
 
 func init() {
+	gitalylog.GrpcGo.SetLevel(log.WarnLevel)
+	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
+
+	if err := Configure(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Configure() error {
 	config.Config.Storages = []config.Storage{
 		{Name: "default", Path: GitlabTestStoragePath()},
 	}
+	config.Config.SocketPath = "/bogus"
+	config.Config.GitlabShell.Dir = "/"
 
-	gitalylog.GrpcGo.SetLevel(log.WarnLevel)
-	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
+	for _, f := range []func() error{
+		ConfigureRuby,
+		config.Validate,
+	} {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // MustReadFile returns the content of a file or fails at once.
@@ -250,21 +269,19 @@ func GetTemporaryGitalySocketFileName() string {
 }
 
 // ConfigureRuby configures Ruby settings for test purposes at run time.
-func ConfigureRuby() {
+func ConfigureRuby() error {
 	if dir := os.Getenv("GITALY_TEST_RUBY_DIR"); len(dir) > 0 {
 		// Sometimes runtime.Caller is unreliable. This environment variable provides a bypass.
 		config.Config.Ruby.Dir = dir
 	} else {
 		_, currentFile, _, ok := runtime.Caller(0)
 		if !ok {
-			log.Fatal("Could not get caller info")
+			return fmt.Errorf("Could not get caller info")
 		}
 		config.Config.Ruby.Dir = path.Join(path.Dir(currentFile), "../../ruby")
 	}
 
-	if err := config.ConfigureRuby(); err != nil {
-		log.Fatalf("validate ruby config: %v", err)
-	}
+	return nil
 }
 
 // GetGitEnvData reads and returns the content of testGitEnv

@@ -2,9 +2,11 @@ package smarthttp
 
 import (
 	"net"
+	"os"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -13,6 +15,16 @@ import (
 const (
 	pktFlushStr = "0000"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	hooks.Override = "/"
+
+	return m.Run()
+}
 
 func runSmartHTTPServer(t *testing.T) (*grpc.Server, string) {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
