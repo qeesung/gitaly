@@ -132,7 +132,6 @@ func Validate() error {
 		validateStorages(),
 		validateToken(),
 		SetGitPath(),
-		setGitCatfileCacheSize(),
 		validateShell(),
 		ConfigureRuby(),
 		validateBinDir(),
@@ -249,20 +248,6 @@ func SetGitPath() error {
 	}).Warn("git path not configured. Using default path resolution")
 
 	Config.Git.BinPath = resolvedPath
-
-	return nil
-}
-
-func setGitCatfileCacheSize() error {
-	s := Config.Git.CatfileCacheSize
-	if s < 0 {
-		return fmt.Errorf("invalid git.catfile_cache_size: %d", s)
-	}
-
-	const defaultCacheSize = 100
-	if s == 0 {
-		Config.Git.CatfileCacheSize = defaultCacheSize
-	}
 
 	return nil
 }
