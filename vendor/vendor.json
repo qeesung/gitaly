@@ -603,7 +603,7 @@
 		{
 			"checksumSHA1": "AhmGEJD7waTfZ62+1gQoKNIbrqU=",
 			"path": "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb",
-			"revision": "7fe4b48a89036e58b9f34da75f84ee1e5a43fca0",
+			"revision": "127bf106c7b65a63107381831d77cdd56dcc732c",
 			"revisionTime": "2019-05-24T01:46:06Z",
 			"version": "pb-get-objects-directory-size",
 			"versionExact": "pb-get-objects-directory-size"
