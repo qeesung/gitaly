@@ -171,7 +171,7 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 	b, helper := makeBootstrap(ctx, t)
 
 	done := make(chan error, 1)
-	// This is a simulation of receiving a listener error during during waitGracePeriod
+	// This is a simulation of receiving a listener error during waitGracePeriod
 	b.StopAction = func() {
 		// we close the unix listener in order to test that the shutdown will not fail, but it keep waiting for the TCP request
 		require.NoError(t, helper.listeners["unix"].Close())
