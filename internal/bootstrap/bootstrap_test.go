@@ -85,7 +85,7 @@ func TestCreateUnixListener(t *testing.T) {
 
 	// first boot
 	l, err := b.listen("unix", socketPath)
-	require.NoError(t, err, "failed to bind on fist boot")
+	require.NoError(t, err, "failed to bind on first boot")
 	require.NoError(t, l.Close())
 
 	// simulate binding during an upgrade
