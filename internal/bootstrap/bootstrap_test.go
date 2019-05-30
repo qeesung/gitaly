@@ -67,10 +67,6 @@ func TestCreateUnixListener(t *testing.T) {
 	}
 
 	// simulate a dangling socket
-	file, err := os.OpenFile(socketPath, os.O_CREATE, 0755)
-	require.NoError(t, err)
-	require.NoError(t, file.Close())
-
 	require.NoError(t, ioutil.WriteFile(socketPath, nil, 0755))
 
 	listen := func(network, addr string) (net.Listener, error) {
