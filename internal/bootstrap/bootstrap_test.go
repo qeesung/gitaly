@@ -39,17 +39,17 @@ func (m *mockUpgrader) Upgrade() error {
 	return nil
 }
 
-type testHelper struct {
+type testServer struct {
 	server    *http.Server
 	listeners map[string]net.Listener
 	url       string
 }
 
-func (t *testHelper) slowRequest(duration time.Duration) <-chan error {
+func (s *testServer) slowRequest(duration time.Duration) <-chan error {
 	done := make(chan error)
 
 	go func() {
-		r, err := http.Get(fmt.Sprintf("%sslow?seconds=%d", t.url, int(duration.Seconds())))
+		r, err := http.Get(fmt.Sprintf("%sslow?seconds=%d", s.url, int(duration.Seconds())))
 		if r != nil {
 			r.Body.Close()
 		}
@@ -98,10 +98,10 @@ func TestCreateUnixListener(t *testing.T) {
 func TestImmediateTerminationOnSocketError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	b, helper := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(ctx, t)
 
 	time.AfterFunc(500*time.Millisecond, func() {
-		require.NoError(t, helper.listeners["tcp"].Close(), "Closing first listener")
+		require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 	})
 
 	err := b.Wait()
@@ -114,9 +114,9 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 		t.Run(sig.String(), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 			defer cancel()
-			b, helper := makeBootstrap(ctx, t)
+			b, server := makeBootstrap(ctx, t)
 
-			done := helper.slowRequest(3 * time.Minute)
+			done := server.slowRequest(3 * time.Minute)
 
 			time.AfterFunc(500*time.Millisecond, func() {
 				self, err := os.FindProcess(os.Getpid())
@@ -130,7 +130,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 			require.Contains(t, err.Error(), "received signal")
 			require.Contains(t, err.Error(), sig.String())
 
-			helper.server.Close()
+			server.server.Close()
 
 			require.Error(t, <-done)
 		})
@@ -141,9 +141,9 @@ func TestGracefulTerminationStuck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	b, helper := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(ctx, t)
 
-	require.Contains(t, testGracefulUpdate(t, helper, b).Error(), "grace period expired")
+	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
 }
 
 func TestGracefulTerminationWithSignals(t *testing.T) {
@@ -154,13 +154,13 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 		t.Run(sig.String(), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 			defer cancel()
-			b, helper := makeBootstrap(ctx, t)
+			b, server := makeBootstrap(ctx, t)
 
 			time.AfterFunc(500*time.Millisecond, func() {
 				require.NoError(t, self.Signal(sig))
 			})
 
-			require.Contains(t, testGracefulUpdate(t, helper, b).Error(), "force shutdown")
+			require.Contains(t, testGracefulUpdate(t, server, b).Error(), "force shutdown")
 		})
 	}
 }
@@ -168,23 +168,23 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 func TestGracefulTerminationServerErrors(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	b, helper := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(ctx, t)
 
 	done := make(chan error, 1)
 	// This is a simulation of receiving a listener error during waitGracePeriod
 	b.StopAction = func() {
 		// we close the unix listener in order to test that the shutdown will not fail, but it keep waiting for the TCP request
-		require.NoError(t, helper.listeners["unix"].Close())
+		require.NoError(t, server.listeners["unix"].Close())
 
 		// we start a new TCP request that if faster than the grace period
-		req := helper.slowRequest(config.Config.GracefulRestartTimeout / 2)
+		req := server.slowRequest(config.Config.GracefulRestartTimeout / 2)
 		done <- <-req
 		close(done)
 
-		helper.server.Shutdown(ctx)
+		server.server.Shutdown(ctx)
 	}
 
-	require.Contains(t, testGracefulUpdate(t, helper, b).Error(), "grace period expired")
+	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
 
 	require.NoError(t, <-done)
 }
@@ -192,21 +192,21 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 func TestGracefulTermination(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	b, helper := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(ctx, t)
 
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
-	b.StopAction = func() { helper.server.Close() }
+	b.StopAction = func() { server.server.Close() }
 
-	require.Contains(t, testGracefulUpdate(t, helper, b).Error(), "completed")
+	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "completed")
 }
 
-func testGracefulUpdate(t *testing.T, helper *testHelper, b *Bootstrap) error {
+func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
 	defer func(oldVal time.Duration) {
 		config.Config.GracefulRestartTimeout = oldVal
 	}(config.Config.GracefulRestartTimeout)
 	config.Config.GracefulRestartTimeout = 2 * time.Second
 
-	req := helper.slowRequest(2 * config.Config.GracefulRestartTimeout)
+	req := server.slowRequest(2 * config.Config.GracefulRestartTimeout)
 
 	time.AfterFunc(300*time.Millisecond, func() {
 		b.upgrader.Upgrade()
@@ -216,14 +216,14 @@ func testGracefulUpdate(t *testing.T, helper *testHelper, b *Bootstrap) error {
 	require.Error(t, waitErr)
 	require.Contains(t, waitErr.Error(), "graceful upgrade")
 
-	helper.server.Close()
+	server.server.Close()
 
 	require.Error(t, <-req)
 
 	return waitErr
 }
 
-func makeBootstrap(ctx context.Context, t *testing.T) (*Bootstrap, *testHelper) {
+func makeBootstrap(ctx context.Context, t *testing.T) (*Bootstrap, *testServer) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(200)
@@ -282,7 +282,7 @@ func makeBootstrap(ctx context.Context, t *testing.T) (*Bootstrap, *testHelper) 
 	r.Body.Close()
 	require.Equal(t, 200, r.StatusCode)
 
-	return b, &testHelper{
+	return b, &testServer{
 		server:    &s,
 		listeners: listeners,
 		url:       url,
