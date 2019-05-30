@@ -80,7 +80,7 @@ func (s *serverFactory) get(secure bool) *grpc.Server {
 }
 
 func (s *serverFactory) all() []*grpc.Server {
-	servers := make([]*grpc.Server, 0, 2)
+	var servers []*grpc.Server
 	if s.secure != nil {
 		servers = append(servers, s.secure)
 	}
