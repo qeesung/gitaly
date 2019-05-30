@@ -202,8 +202,10 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
 	}(config.Config.GracefulRestartTimeout)
 	config.Config.GracefulRestartTimeout = 2 * time.Second
 
+	// Start a slow request to keep the old server from shutting down immediately.
 	req := server.slowRequest(2 * config.Config.GracefulRestartTimeout)
 
+	// Simulate an upgrade request after entering into the blocking b.Wait() and during the slowRequest execution
 	time.AfterFunc(300*time.Millisecond, func() {
 		b.upgrader.Upgrade()
 	})
@@ -214,7 +216,7 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
 
 	server.server.Close()
 
-	require.Error(t, <-req)
+	require.Error(t, <-req, "slow request not terminated after the grace period")
 
 	return waitErr
 }
