@@ -278,17 +278,35 @@ func makeBootstrap(t *testing.T) (*Bootstrap, *testServer) {
 	require.Equal(t, 2, len(listeners))
 
 	// test connection
+	testAllListeners(t, listeners)
+
 	addr := listeners["tcp"].Addr()
 	url := fmt.Sprintf("http://%s/", addr.String())
-
-	r, err := http.Get(url)
-	require.NoError(t, err)
-	r.Body.Close()
-	require.Equal(t, 200, r.StatusCode)
 
 	return b, &testServer{
 		server:    &s,
 		listeners: listeners,
 		url:       url,
+	}
+}
+
+func testAllListeners(t *testing.T, listeners map[string]net.Listener) {
+	for network, listener := range listeners {
+		addr := listener.Addr().String()
+
+		// overriding Client.Transport.Dial we can connect to TCP and UNIX sockets
+		client := &http.Client{
+			Transport: &http.Transport{
+				Dial: func(_, _ string) (net.Conn, error) {
+					return net.Dial(network, addr)
+				},
+			},
+		}
+
+		// we don't need a real address because we forced it on Dial
+		r, err := client.Get("http://fakeHost/")
+		require.NoError(t, err)
+		r.Body.Close()
+		require.Equal(t, 200, r.StatusCode)
 	}
 }
