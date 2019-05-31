@@ -106,9 +106,7 @@ func testWaitDuration(t *testing.T, b *Bootstrap, timeout time.Duration) error {
 }
 
 func TestImmediateTerminationOnSocketError(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	b, server := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(t)
 
 	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
@@ -120,9 +118,7 @@ func TestImmediateTerminationOnSocketError(t *testing.T) {
 func TestImmediateTerminationOnSignal(t *testing.T) {
 	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
 		t.Run(sig.String(), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-			defer cancel()
-			b, server := makeBootstrap(ctx, t)
+			b, server := makeBootstrap(t)
 
 			done := server.slowRequest(3 * time.Minute)
 
@@ -146,10 +142,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 }
 
 func TestGracefulTerminationStuck(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	b, server := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(t)
 
 	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
 }
@@ -160,9 +153,7 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 
 	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
 		t.Run(sig.String(), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-			defer cancel()
-			b, server := makeBootstrap(ctx, t)
+			b, server := makeBootstrap(t)
 
 			time.AfterFunc(500*time.Millisecond, func() {
 				require.NoError(t, self.Signal(sig))
@@ -174,9 +165,7 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 }
 
 func TestGracefulTerminationServerErrors(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	b, server := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(t)
 
 	done := make(chan error, 1)
 	// This is a simulation of receiving a listener error during waitGracePeriod
@@ -189,7 +178,7 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 		done <- <-req
 		close(done)
 
-		server.server.Shutdown(ctx)
+		server.server.Shutdown(context.Background())
 	}
 
 	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
@@ -198,9 +187,7 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 }
 
 func TestGracefulTermination(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	b, server := makeBootstrap(ctx, t)
+	b, server := makeBootstrap(t)
 
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
 	b.StopAction = func() { server.server.Close() }
@@ -233,7 +220,7 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
 	return waitErr
 }
 
-func makeBootstrap(ctx context.Context, t *testing.T) (*Bootstrap, *testServer) {
+func makeBootstrap(t *testing.T) (*Bootstrap, *testServer) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(200)
@@ -254,7 +241,7 @@ func makeBootstrap(ctx context.Context, t *testing.T) (*Bootstrap, *testServer) 
 	b, err := _new(u, net.Listen, false)
 	require.NoError(t, err)
 
-	b.StopAction = func() { s.Shutdown(ctx) }
+	b.StopAction = func() { s.Shutdown(context.Background()) }
 
 	listeners := make(map[string]net.Listener)
 	start := func(network, address string) Starter {
