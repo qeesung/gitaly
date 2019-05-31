@@ -217,7 +217,12 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTime
 
 	server.server.Close()
 
-	require.Error(t, <-req, "slow request not terminated after the grace period")
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for client error")
+	case clientErr := <-req:
+		require.Error(t, clientErr, "slow request not terminated after the grace period")
+	}
 
 	return waitErr
 }
