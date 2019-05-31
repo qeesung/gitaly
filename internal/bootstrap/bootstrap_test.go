@@ -91,16 +91,28 @@ func TestCreateUnixListener(t *testing.T) {
 	require.NoError(t, l.Close())
 }
 
+func testWaitDuration(t *testing.T, b *Bootstrap, timeout time.Duration) error {
+	waitCh := make(chan error)
+	go func() { waitCh <- b.Wait() }()
+
+	select {
+	case <-time.After(timeout):
+		t.Fatal("time out waiting for b.Wait()")
+	case waitErr := <-waitCh:
+		return waitErr
+	}
+
+	return nil
+}
+
 func TestImmediateTerminationOnSocketError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	b, server := makeBootstrap(ctx, t)
 
-	time.AfterFunc(500*time.Millisecond, func() {
-		require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
-	})
+	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
-	err := b.Wait()
+	err := testWaitDuration(t, b, 1*time.Second)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "use of closed network connection")
 }
@@ -121,7 +133,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 				require.NoError(t, self.Signal(sig))
 			})
 
-			err := b.Wait()
+			err := testWaitDuration(t, b, 1*time.Second)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "received signal")
 			require.Contains(t, err.Error(), sig.String())
