@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testConfigGracefulRestartTimeout = 2 * time.Second
+
 type mockUpgrader struct {
 	exit      chan struct{}
 	hasParent bool
@@ -144,7 +146,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 func TestGracefulTerminationStuck(t *testing.T) {
 	b, server := makeBootstrap(t)
 
-	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
+	require.Contains(t, testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second)).Error(), "grace period expired")
 }
 
 func TestGracefulTerminationWithSignals(t *testing.T) {
@@ -159,7 +161,7 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 				require.NoError(t, self.Signal(sig))
 			})
 
-			require.Contains(t, testGracefulUpdate(t, server, b).Error(), "force shutdown")
+			require.Contains(t, testGracefulUpdate(t, server, b, 1*time.Second).Error(), "force shutdown")
 		})
 	}
 }
@@ -181,7 +183,7 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 		server.server.Shutdown(context.Background())
 	}
 
-	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "grace period expired")
+	require.Contains(t, testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second)).Error(), "grace period expired")
 
 	require.NoError(t, <-done)
 }
@@ -192,14 +194,14 @@ func TestGracefulTermination(t *testing.T) {
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
 	b.StopAction = func() { server.server.Close() }
 
-	require.Contains(t, testGracefulUpdate(t, server, b).Error(), "completed")
+	require.Contains(t, testGracefulUpdate(t, server, b, 1*time.Second).Error(), "completed")
 }
 
-func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
+func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout time.Duration) error {
 	defer func(oldVal time.Duration) {
 		config.Config.GracefulRestartTimeout = oldVal
 	}(config.Config.GracefulRestartTimeout)
-	config.Config.GracefulRestartTimeout = 2 * time.Second
+	config.Config.GracefulRestartTimeout = testConfigGracefulRestartTimeout
 
 	// Start a slow request to keep the old server from shutting down immediately.
 	req := server.slowRequest(2 * config.Config.GracefulRestartTimeout)
@@ -209,7 +211,7 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap) error {
 		b.upgrader.Upgrade()
 	})
 
-	waitErr := b.Wait()
+	waitErr := testWaitDuration(t, b, waitTimeout)
 	require.Error(t, waitErr)
 	require.Contains(t, waitErr.Error(), "graceful upgrade")
 
