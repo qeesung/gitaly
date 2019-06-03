@@ -93,7 +93,7 @@ func TestCreateUnixListener(t *testing.T) {
 	require.NoError(t, l.Close())
 }
 
-func testWaitDuration(t *testing.T, b *Bootstrap, timeout time.Duration) error {
+func waitWithTimeout(t *testing.T, b *Bootstrap, timeout time.Duration) error {
 	waitCh := make(chan error)
 	go func() { waitCh <- b.Wait() }()
 
@@ -112,7 +112,7 @@ func TestImmediateTerminationOnSocketError(t *testing.T) {
 
 	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
-	err := testWaitDuration(t, b, 1*time.Second)
+	err := waitWithTimeout(t, b, 1*time.Second)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "use of closed network connection")
 }
@@ -131,7 +131,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 				require.NoError(t, self.Signal(sig))
 			})
 
-			err := testWaitDuration(t, b, 1*time.Second)
+			err := waitWithTimeout(t, b, 1*time.Second)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "received signal")
 			require.Contains(t, err.Error(), sig.String())
@@ -211,7 +211,7 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTime
 		b.upgrader.Upgrade()
 	})
 
-	waitErr := testWaitDuration(t, b, waitTimeout)
+	waitErr := waitWithTimeout(t, b, waitTimeout)
 	require.Error(t, waitErr)
 	require.Contains(t, waitErr.Error(), "graceful upgrade")
 
