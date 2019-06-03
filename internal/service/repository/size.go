@@ -23,7 +23,7 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 	return &gitalypb.RepositorySizeResponse{Size: getPathSize(ctx, path)}, nil
 }
 
-func (s *server) GetObjectDirectorySize (ctx context.Context, in *gitalypb.GetObjectDirectorySizeRequest) (*gitalypb.GetObjectDirectorySizeResponse, error) {
+func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObjectDirectorySizeRequest) (*gitalypb.GetObjectDirectorySizeResponse, error) {
 	path, err := helper.GetObjectDirectoryPath(in.Repository)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (s *server) GetObjectDirectorySize (ctx context.Context, in *gitalypb.GetOb
 	return &gitalypb.GetObjectDirectorySizeResponse{Size: getPathSize(ctx, path)}, nil
 }
 
-func getPathSize(ctx context.Context, path string) (int64) {
+func getPathSize(ctx context.Context, path string) int64 {
 	cmd, err := command.New(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
 	if err != nil {
 		grpc_logrus.Extract(ctx).WithError(err).Warn("ignoring du command error")

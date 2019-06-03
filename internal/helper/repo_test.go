@@ -169,10 +169,10 @@ func TestGetObjectDirectoryPath(t *testing.T) {
 	}
 
 	testCases := []struct {
-		desc     string
-		repo     *gitalypb.Repository
-		path     string
-		err      codes.Code
+		desc string
+		repo *gitalypb.Repository
+		path string
+		err  codes.Code
 	}{
 		{
 			desc: "storages configured",

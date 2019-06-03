@@ -94,6 +94,10 @@ func IsGitDirectory(dir string) bool {
 	return true
 }
 
+// GetObjectDirectoryPath returns the full path of the object directory in a
+// repository referenced by an RPC Repository message. The errors returned are
+// gRPC errors with relevant error codes and should be passed back to gRPC
+// without further decoration.
 func GetObjectDirectoryPath(repo repository.GitRepo) (string, error) {
 	repoPath, err := GetRepoPath(repo)
 	if err != nil {
