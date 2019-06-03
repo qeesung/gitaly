@@ -308,7 +308,7 @@ func TestStoragePath(t *testing.T) {
 func TestLoadGit(t *testing.T) {
 	tmpFile := configFileReader(`[git]
 bin_path = "/my/git/path"
-catfile_cache_size=50
+catfile_cache_size = 50
 `)
 
 	err := Load(tmpFile)

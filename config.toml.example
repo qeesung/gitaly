@@ -21,9 +21,10 @@ bin_dir = "/home/git/gitaly"
 # certificate_path = '/home/git/cert.cert'
 # key_path = '/home/git/key.pem'
 
-# # Git executable settings
+# # Git settings
 # [git]
 # bin_path = "/usr/bin/git"
+# catfile_cache_size = 100
 
 [[storage]]
 name = "default"
