@@ -87,8 +87,11 @@ func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
+	testRepo := testhelper.TestRepository()
+	testRepo.GitObjectDirectory = "objects/"
+
 	request := &gitalypb.GetObjectDirectorySizeRequest{
-		Repository: testhelper.TestRepository(),
+		Repository: testRepo,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
