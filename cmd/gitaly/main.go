@@ -33,11 +33,7 @@ func loadConfig(configPath string) error {
 		return err
 	}
 
-	if err := config.Validate(); err != nil {
-		return err
-	}
-
-	return nil
+	return config.Validate()
 }
 
 // registerServerVersionPromGauge registers a label with the current server version
