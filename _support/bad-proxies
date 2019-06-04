@@ -1,0 +1,6 @@
+#!/bin/sh
+
+export http_proxy=http://invalid
+export https_proxy=https://invalid
+
+exec "$@"

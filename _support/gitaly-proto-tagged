@@ -1,16 +1,24 @@
 #!/usr/bin/env ruby
 
-gitaly_proto_line = `govendor list | grep gitaly-proto` # safe to use backticks, no string interpolation
-abort unless $?.success?
+require 'json'
 
-puts gitaly_proto_line
+PROTO_PACKAGE = 'gitlab.com/gitlab-org/gitaly-proto'.freeze
 
-# Not sure what 'version_a' and 'version_b' are exactly, they seem to be identical most of the time.
-_, _, _, version_a, version_b = gitaly_proto_line.split(/\s+/, 5)
+go_mod_raw = IO.popen(%w[go mod edit -json], &:read)
+abort 'go mod edit failed' unless $?.success?
 
-tag_regex = /^v[0-9]/
-unless version_a =~ tag_regex && version_b =~ tag_regex
-  abort "FAIL: govendor is not using a tagged version of gitaly-ruby"
+go_mod = JSON.parse(go_mod_raw)
+
+gitaly_proto = go_mod['Require'].find { |pkg| pkg['Path'] == PROTO_PACKAGE }
+abort 'gitaly-proto not found in go.mod' unless gitaly_proto
+
+puts gitaly_proto.to_json
+
+# good: v1.2.3
+# bad: v1.2.3-2019234234-a35478eff90
+if gitaly_proto['Version'] =~ /^v[0-9.]+$/
+  puts 'OK'
+  exit
 end
 
-puts 'OK'
+abort 'error: no tagged version of gitaly-proto found in go.mod'

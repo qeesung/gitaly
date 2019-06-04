@@ -82,6 +82,10 @@ func (gm *gitalyMake) GitlabShellDir() string {
 	return filepath.Join(gm.SourceDir(), gm.GitlabShellRelDir())
 }
 
+func (gm *gitalyMake) GopathSourceDir() string {
+	return filepath.Join(gm.BuildDir(), "src", gm.Pkg())
+}
+
 func (gm *gitalyMake) Git2GoVendorDir() string {
 	return filepath.Join(gm.BuildDir(), "../vendor/github.com/libgit2/git2go/vendor")
 }
@@ -94,8 +98,9 @@ func (gm *gitalyMake) LibGit2SHA() string {
 	return filepath.Join("8313873d49dc01e8b880ec334d7430ae67496a89aaa8c6e7bbd3affb47a00c76")
 }
 
-// SourceDir is the location of gitaly's files, inside the _build GOPATH.
-func (gm *gitalyMake) SourceDir() string { return filepath.Join(gm.BuildDir(), "src", gm.Pkg()) }
+func (gm *gitalyMake) SourceDir() string {
+	return os.Getenv("SOURCE_DIR")
+}
 
 func (gm *gitalyMake) TestRepoStoragePath() string {
 	path := os.Getenv("TEST_REPO_STORAGE_PATH")
@@ -282,7 +287,10 @@ ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
 BUILD_TAGS := tracer_static tracer_static_jaeger
 
 unexport GOROOT
-unexport GOBIN
+export GOBIN = {{ .BuildDir }}/bin
+unexport GOPATH
+export GO111MODULE=on
+export GOPROXY ?= https://proxy.golang.org
 
 .NOTPARALLEL:
 
@@ -387,15 +395,16 @@ test: test-go rspec rspec-gitlab-shell
 
 .PHONY: test-go 
 test-go: prepare-tests
-	@go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
+	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
 
 .PHONY: test-with-proxies
 test-with-proxies: prepare-tests
-	@http_proxy=http://invalid https_proxy=https://invalid go test -tags "$(BUILD_TAGS)" -count=1  {{ .Pkg }}/internal/rubyserver/
+	@cd {{ .SourceDir }} &&\
+		go test -tags "$(BUILD_TAGS)" -count=1  -exec {{ .SourceDir }}/_support/bad-proxies {{ .Pkg }}/internal/rubyserver/
 
 .PHONY: race-go
 race-go: prepare-tests
-	@go test -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }}
+	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }}
 
 .PHONY: rspec
 rspec: assemble-go prepare-tests
@@ -410,7 +419,7 @@ rspec-gitlab-shell: {{ .GitlabShellDir }}/config.yml assemble-go prepare-tests
 	cp $< $@
 
 .PHONY: verify
-verify: lint check-formatting staticcheck govendor-status notice-up-to-date govendor-tagged rubocop
+verify: lint check-formatting staticcheck notice-up-to-date govendor-tagged rubocop
 
 .PHONY: lint
 lint: {{ .GoLint }}
@@ -418,7 +427,7 @@ lint: {{ .GoLint }}
 	@cd {{ .SourceDir }} && go run _support/lint.go
 
 {{ .GoLint }}:
-	go install {{ .SourceDir }}/vendor/golang.org/x/lint/golint
+	go get golang.org/x/lint/golint@959b441ac422379a43da2230f62be024250818b0
 
 .PHONY: check-formatting
 check-formatting: {{ .GoImports }}
@@ -426,7 +435,7 @@ check-formatting: {{ .GoImports }}
 	@cd {{ .SourceDir }} && goimports -e -l {{ join .GoFiles " " }} | awk '{ print } END { if(NR>0) { print "Formatting error, run make format"; exit(1) } }'
 
 {{ .GoImports }}:
-	go install {{ .SourceDir }}/vendor/golang.org/x/tools/cmd/goimports
+	go get golang.org/x/tools/cmd/goimports@2538eef75904eff384a2551359968e40c207d9d2
 
 .PHONY: format
 format: {{ .GoImports }}
@@ -441,24 +450,25 @@ staticcheck: {{ .StaticCheck }}
 
 # Install staticcheck
 {{ .StaticCheck }}:
-	go install {{ .SourceDir }}/vendor/honnef.co/go/tools/cmd/staticcheck
-
-.PHONY: govendor-status
-govendor-status: {{ .GoVendor }}
-	# govendor status
-	@cd {{ .SourceDir }} && govendor status
+	go get honnef.co/go/tools/cmd/staticcheck@95959eaf5e3c41c66151dcfd91779616b84077a8
 
 {{ .GoVendor }}:
-	go install {{ .SourceDir }}/vendor/github.com/kardianos/govendor
+	go get github.com/kardianos/govendor@e07957427183a9892f35634ffc9ea48dedc6bbb4
 
 .PHONY: notice-up-to-date
-notice-up-to-date: {{ .GoVendor }} clean-ruby-vendor-go
+notice-up-to-date: notice-tmp
 	# notice-up-to-date
-	@(cd {{ .SourceDir }} && govendor license -template _support/notice.template | cmp - NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
+	@(cmp {{ .BuildDir }}/NOTICE {{ .SourceDir }}/NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
-.PHONY: notice 
-notice: {{ .GoVendor }} clean-ruby-vendor-go
-	cd {{ .SourceDir }} && govendor license -template _support/notice.template -o NOTICE
+.PHONY: notice
+notice: notice-tmp
+	mv {{ .BuildDir }}/NOTICE {{ .SourceDir }}/NOTICE
+
+.PHONY: notice-tmp
+notice-tmp: {{ .GoVendor }} clean-ruby-vendor-go
+	rm -rf {{ .SourceDir }}/vendor
+	cd {{ .SourceDir }} && go mod vendor
+	cd {{ .GopathSourceDir }} && env GOPATH={{ .BuildDir }} govendor license -template _support/notice.template -o {{ .BuildDir }}/NOTICE
 
 .PHONY: clean-ruby-vendor-go 
 clean-ruby-vendor-go:
@@ -480,14 +490,14 @@ cover: prepare-tests {{ .GoCovMerge }}
 	rm -f {{ .CoverageDir }}/*.out "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
 	@cd {{ .SourceDir }} && go run _support/test-cover-parallel.go {{ .CoverageDir }} {{ join .AllPackages " " }}
 	{{ .GoCovMerge }} {{ .CoverageDir }}/*.out > "{{ .CoverageDir }}/all.merged"
-	go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
+	@cd {{ .SourceDir }} && go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
 	@echo ""
 	@echo "=====> Total test coverage: <====="
 	@echo ""
-	@go tool cover -func "{{ .CoverageDir }}/all.merged"
+	@@cd {{ .SourceDir }} && go tool cover -func "{{ .CoverageDir }}/all.merged"
 
 {{ .GoCovMerge }}:
-	go install {{ .SourceDir }}/vendor/github.com/wadey/gocovmerge
+	go get github.com/wadey/gocovmerge@b5bfa59ec0adc420475f97f89b58045c721d761c
 
 .PHONY: docker
 docker:

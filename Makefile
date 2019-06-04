@@ -13,10 +13,9 @@ PKG = gitlab.com/gitlab-org/gitaly
 MAKEGEN = $(BUILD_DIR)/makegen
 
 # These variables are handed down to make in _build
-export GOPATH := $(CURDIR)/$(BUILD_DIR)
-export PATH := $(GOPATH)/bin:$(PATH)
+export PATH := $(BUILD_DIR)/bin:$(PATH)
 export TEST_REPO_STORAGE_PATH := $(CURDIR)/internal/testhelper/testdata/data
-export GO111MODULE := off
+export SOURCE_DIR := $(CURDIR)
 
 all: build
 
@@ -100,8 +99,12 @@ $(BUILD_DIR)/.ok:
 update-makefile: _build/makegen $(BUILD_DIR)/.ok
 	cd $(BUILD_DIR) && ./makegen > Makefile
 
-_build/makegen: _support/makegen.go $(BUILD_DIR)/.ok
-	go build -o $@ _support/makegen.go
+# This go.mod file soaks up go.mod/go.sum changes that we don't want in the top-level go.mod.
+$(BUILD_DIR)/go.mod: $(BUILD_DIR)/.ok
+	(cd $(BUILD_DIR) && go mod init _build)
+
+_build/makegen: _support/makegen.go $(BUILD_DIR)/go.mod
+	cd $(BUILD_DIR) && go build -o $(CURDIR)/$@ $(SOURCE_DIR)/_support/makegen.go
 
 clean:
 	rm -rf $(BUILD_DIR) .ruby-bundle $(TEST_REPO_STORAGE_PATH)

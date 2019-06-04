@@ -31,8 +31,9 @@ danger-review:
   <<: *ruby_definition
   stage: build
   script:
+    - go version
     - make
-    - make build-gitaly-remote
+    - echo 'make build-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
     - _support/test-boot-time .
 
 .assemble_template: &assemble_definition
@@ -72,7 +73,7 @@ danger-review:
     - go version
     - git version
     - make test
-    - make test-gitaly-remote
+    - echo 'make test-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
 
 verify:
   <<: *ruby_definition

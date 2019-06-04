@@ -45,7 +45,7 @@ func testMain(m *testing.M) int {
 
 	testExe = path.Join(testDir, "pid-server")
 	buildCmd := exec.Command("go", "build", "-o", testExe, scriptPath)
-	buildCmd.Dir = testDir
+	buildCmd.Dir = filepath.Dir(scriptPath)
 	buildCmd.Stderr = os.Stderr
 	buildCmd.Stdout = os.Stdout
 	if err := buildCmd.Run(); err != nil {
