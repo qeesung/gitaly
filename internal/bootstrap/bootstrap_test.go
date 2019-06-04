@@ -93,13 +93,10 @@ func TestCreateUnixListener(t *testing.T) {
 	require.NoError(t, l.Close())
 }
 
-func waitWithTimeout(t *testing.T, b *Bootstrap, timeout time.Duration) error {
-	waitCh := make(chan error)
-	go func() { waitCh <- b.Wait() }()
-
+func waitWithTimeout(t *testing.T, waitCh <-chan error, timeout time.Duration) error {
 	select {
 	case <-time.After(timeout):
-		t.Fatal("time out waiting for b.Wait()")
+		t.Fatal("time out waiting for waitCh")
 	case waitErr := <-waitCh:
 		return waitErr
 	}
@@ -110,9 +107,12 @@ func waitWithTimeout(t *testing.T, b *Bootstrap, timeout time.Duration) error {
 func TestImmediateTerminationOnSocketError(t *testing.T) {
 	b, server := makeBootstrap(t)
 
+	waitCh := make(chan error)
+	go func() { waitCh <- b.Wait() }()
+
 	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
-	err := waitWithTimeout(t, b, 1*time.Second)
+	err := waitWithTimeout(t, waitCh, 1*time.Second)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "use of closed network connection")
 }
@@ -124,17 +124,20 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 
 			done := server.slowRequest(3 * time.Minute)
 
-			time.AfterFunc(500*time.Millisecond, func() {
-				self, err := os.FindProcess(os.Getpid())
-				require.NoError(t, err)
+			waitCh := make(chan error)
+			go func() { waitCh <- b.Wait() }()
 
-				require.NoError(t, self.Signal(sig))
-			})
+			// make sure we are inside b.Wait() or we'll kill the test suite
+			time.Sleep(100 * time.Millisecond)
 
-			err := waitWithTimeout(t, b, 1*time.Second)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "received signal")
-			require.Contains(t, err.Error(), sig.String())
+			self, err := os.FindProcess(os.Getpid())
+			require.NoError(t, err)
+			require.NoError(t, self.Signal(sig))
+
+			waitErr := waitWithTimeout(t, waitCh, 1*time.Second)
+			require.Error(t, waitErr)
+			require.Contains(t, waitErr.Error(), "received signal")
+			require.Contains(t, waitErr.Error(), sig.String())
 
 			server.server.Close()
 
@@ -146,7 +149,8 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 func TestGracefulTerminationStuck(t *testing.T) {
 	b, server := makeBootstrap(t)
 
-	require.Contains(t, testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second)).Error(), "grace period expired")
+	err := testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second), nil)
+	require.Contains(t, err.Error(), "grace period expired")
 }
 
 func TestGracefulTerminationWithSignals(t *testing.T) {
@@ -157,11 +161,10 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 		t.Run(sig.String(), func(t *testing.T) {
 			b, server := makeBootstrap(t)
 
-			time.AfterFunc(500*time.Millisecond, func() {
+			err := testGracefulUpdate(t, server, b, 1*time.Second, func() {
 				require.NoError(t, self.Signal(sig))
 			})
-
-			require.Contains(t, testGracefulUpdate(t, server, b, 1*time.Second).Error(), "force shutdown")
+			require.Contains(t, err.Error(), "force shutdown")
 		})
 	}
 }
@@ -183,7 +186,8 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 		server.server.Shutdown(context.Background())
 	}
 
-	require.Contains(t, testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second)).Error(), "grace period expired")
+	err := testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second), nil)
+	require.Contains(t, err.Error(), "grace period expired")
 
 	require.NoError(t, <-done)
 }
@@ -194,35 +198,43 @@ func TestGracefulTermination(t *testing.T) {
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
 	b.StopAction = func() { server.server.Close() }
 
-	require.Contains(t, testGracefulUpdate(t, server, b, 1*time.Second).Error(), "completed")
+	err := testGracefulUpdate(t, server, b, 1*time.Second, nil)
+	require.Contains(t, err.Error(), "completed")
 }
 
-func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout time.Duration) error {
+func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout time.Duration, duringGracePeriodCallback func()) error {
 	defer func(oldVal time.Duration) {
 		config.Config.GracefulRestartTimeout = oldVal
 	}(config.Config.GracefulRestartTimeout)
 	config.Config.GracefulRestartTimeout = testConfigGracefulRestartTimeout
 
+	waitCh := make(chan error)
+	go func() { waitCh <- b.Wait() }()
+
 	// Start a slow request to keep the old server from shutting down immediately.
 	req := server.slowRequest(2 * config.Config.GracefulRestartTimeout)
 
-	// Simulate an upgrade request after entering into the blocking b.Wait() and during the slowRequest execution
-	time.AfterFunc(300*time.Millisecond, func() {
-		b.upgrader.Upgrade()
-	})
+	// make sure slow request is being handled
+	time.Sleep(100 * time.Millisecond)
 
-	waitErr := waitWithTimeout(t, b, waitTimeout)
+	// Simulate an upgrade request after entering into the blocking b.Wait() and during the slowRequest execution
+	b.upgrader.Upgrade()
+
+	if duringGracePeriodCallback != nil {
+		// make sure we are on the grace period
+		time.Sleep(100 * time.Millisecond)
+
+		duringGracePeriodCallback()
+	}
+
+	waitErr := waitWithTimeout(t, waitCh, waitTimeout)
 	require.Error(t, waitErr)
 	require.Contains(t, waitErr.Error(), "graceful upgrade")
 
 	server.server.Close()
 
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout waiting for client error")
-	case clientErr := <-req:
-		require.Error(t, clientErr, "slow request not terminated after the grace period")
-	}
+	clientErr := waitWithTimeout(t, req, 1*time.Second)
+	require.Error(t, clientErr, "slow request not terminated after the grace period")
 
 	return waitErr
 }
