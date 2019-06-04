@@ -81,8 +81,9 @@ As a sanity check, you can verify your repository only points to remotes in
     1. **Contributors:** Merge in your request against master on dev.gitlab.com
     1. **Maintainers:** Bring gitlab.com up to sync with dev.gitlab.org:
        1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
-       1. `git checkout -b gitlab.com/master`
-       1. `git merge dev/master`
+       1. `git fetch gitlab.com`
+       1. `git checkout -b gitlab-com-master gitlab.com/master`
+       1. `git merge origin/master` (note: in this repo, origin points to dev.gitlab.org)
        1. `git push gitlab.com master`
        1. If the push fails, try running `git pull gitlab.com master` and then
           try the push again.
@@ -92,6 +93,10 @@ As a sanity check, you can verify your repository only points to remotes in
        1. `git push gitlab.com vX.Y.Z` (repeat for each tag)
        1. `git remote remove gitlab.com`
        1. Ensure no origins exist that point to gitlab.com: `git remote -v`
+    1. **Maintainers:** There is a good chance the newly patched Gitaly master
+       on `gitlab.com` will need to be used to patch the latest GitLab CE/EE.
+       This will require running the [regular release process](#creating-a-release)
+       on gitlab.com.
 
 [gitaly-ce-version]: https://gitlab.com/gitlab-org/gitlab-ce/blob/master/GITALY_SERVER_VERSION
 
