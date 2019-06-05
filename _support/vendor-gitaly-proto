@@ -7,11 +7,14 @@ USAGE = "Usage: #{PROGNAME} [--fork GITALY_PROTO_FORK_REPO] REVISION"
 ORIGIN = 'gitlab.com/gitlab-org/gitaly-proto'
 
 def main(revision, repo:)
-  if repo != ORIGIN
-    abort 'vendoring from forks is not implemented yet'
+  if repo == ORIGIN
+    run!(%W[go mod edit -dropreplace=#{ORIGIN}])
+    run!(%W[go get #{ORIGIN}@#{revision}])
+  else
+    run!(%W[go mod edit -replace=#{ORIGIN}=#{repo}@#{revision}])
   end
 
-  run!(%W[go get #{ORIGIN}@#{revision}])
+  run!(%w[go mod tidy])
 end
 
 options = ARGV.getopts(nil, 'fork:')
