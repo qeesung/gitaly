@@ -16,6 +16,7 @@ MAKEGEN = $(BUILD_DIR)/makegen
 export PATH := $(BUILD_DIR)/bin:$(PATH)
 export TEST_REPO_STORAGE_PATH := $(CURDIR)/internal/testhelper/testdata/data
 export SOURCE_DIR := $(CURDIR)
+export GO111MODULE = on
 
 all: build
 
