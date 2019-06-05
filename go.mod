@@ -19,7 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.1.1
 	github.com/stretchr/testify v1.2.2
 	github.com/tinylib/msgp v1.1.0 // indirect
-	gitlab.com/gitlab-org/gitaly-proto v1.31.0
+	gitlab.com/gitlab-org/gitaly-proto v1.32.0
 	gitlab.com/gitlab-org/labkit v0.0.0-20190221122536-0c3fc7cdd57c
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
