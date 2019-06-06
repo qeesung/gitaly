@@ -94,6 +94,38 @@ match those in gitlab.yml.
 |path|string|yes|Path to storage shard|
 |name|string|yes|Name of storage shard|
 
+### git
+
+|name|type|required|notes|
+|----|----|--------|-----|
+|bin_path|string|no|Path to git binary. If not set, will be resolved using PATH.|
+|catfile_cache_size|integer|no|Maximum number of cached cat-file processes (see below). Default 100.|
+
+#### cat-file cache
+
+A lot of Gitaly RPC's need to look up Git objects from repositories.
+Most of the time we use `git cat-file --batch` processes for that. For
+the sake of performance, Gitaly can re-use thse `git cat-file` processes
+across RPC calls. Previously used processes are kept around in a "git
+cat-file cache". In order to control how much system resources this uses
+we have a maximum number of cat-file processes that can go into the
+cache.
+
+The default limit is 100 "catfiles", which constitute a pair of
+`git cat-file --batch` and `git cat-file --batch-check` processes. If
+you are seeing errors complaining about "too many open files", or an
+inability to create new processes, you may want to lower this limit.
+
+Ideally the number should be large enough to handle normal (peak)
+traffic. If you raise the limit you should measure the cache hit ratio
+before and after. If the hit ratio does not improve, the higher limit is
+probably not making a meaningful difference. Here is an example
+prometheus query to see the hit rate:
+
+```
+sum(rate(gitaly_catfile_cache_total{type="hit"}[5m])) / sum(rate(gitaly_catfile_cache_total{type=~"(hit)|(miss)"}[5m]))
+```
+
 ### gitaly-ruby
 
 A Gitaly process uses one or more gitaly-ruby helper processes to
