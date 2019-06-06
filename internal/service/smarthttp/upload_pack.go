@@ -16,7 +16,7 @@ import (
 var (
 	deepenCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "gitaly_smarthttp_deepen_count",
+			Name: "gitaly_smarthttp_deepen_requests_total",
 			Help: "Number of git-upload-pack requests processed that contained a 'deepen' message",
 		},
 	)

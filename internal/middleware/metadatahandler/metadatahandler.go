@@ -17,7 +17,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: "gitaly",
 			Subsystem: "service",
-			Name:      "client_requests",
+			Name:      "client_requests_total",
 			Help:      "Counter of client requests received by client, call_site, auth version, and response code",
 		},
 		[]string{"client_name", "call_site", "auth_version", "grpc_code"},

@@ -75,7 +75,7 @@ transitioning = true
 ```
 
 All authentication attempts are counted in Prometheus under
-the `gitaly_authentications` metric.
+the `gitaly_authentications_total` metric.
 
 ### Storage
 

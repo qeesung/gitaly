@@ -18,7 +18,7 @@ var (
 
 	spawnTimeoutCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "gitaly_spawn_timeout_count",
+			Name: "gitaly_spawn_timeouts_total",
 			Help: "Number of process spawn timeouts",
 		},
 	)

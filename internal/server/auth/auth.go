@@ -16,7 +16,7 @@ import (
 var (
 	authCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "gitaly_authentications",
+			Name: "gitaly_authentications_total",
 			Help: "Counts of of Gitaly request authentication attempts",
 		},
 		[]string{"enforced", "status"},

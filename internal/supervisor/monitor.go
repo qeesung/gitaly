@@ -18,7 +18,7 @@ var (
 	)
 	healthCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "gitaly_supervisor_health_checks",
+			Name: "gitaly_supervisor_health_checks_total",
 			Help: "Count of Gitaly supervisor health checks",
 		},
 		[]string{"name", "status"},
