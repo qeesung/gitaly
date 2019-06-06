@@ -94,7 +94,9 @@ match those in gitlab.yml.
 |path|string|yes|Path to storage shard|
 |name|string|yes|Name of storage shard|
 
-### git
+### Git
+
+The following values can be set in the `[git]` section of the configuration file:
 
 |name|type|required|notes|
 |----|----|--------|-----|
