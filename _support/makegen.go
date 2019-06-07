@@ -419,7 +419,12 @@ rspec-gitlab-shell: {{ .GitlabShellDir }}/config.yml assemble-go prepare-tests
 	cp $< $@
 
 .PHONY: verify
-verify: lint check-formatting staticcheck notice-up-to-date govendor-tagged rubocop
+verify: check-mod-tidy lint check-formatting staticcheck notice-up-to-date govendor-tagged rubocop
+
+.PHONY: check-mod-tidy
+check-mod-tidy:
+	# check-mod-tidy
+	@cd {{ .SourceDir }} && _support/check-mod-tidy
 
 .PHONY: lint
 lint: {{ .GoLint }}
