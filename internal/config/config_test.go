@@ -21,7 +21,7 @@ func configFileReader(content string) io.Reader {
 }
 
 func TestLoadClearPrevConfig(t *testing.T) {
-	Config = config{SocketPath: "/tmp"}
+	Config = Cfg{SocketPath: "/tmp"}
 	err := Load(&bytes.Buffer{})
 	assert.NoError(t, err)
 
@@ -33,7 +33,7 @@ func TestLoadBrokenConfig(t *testing.T) {
 	err := Load(tmpFile)
 	assert.Error(t, err)
 
-	assert.Equal(t, config{}, Config)
+	assert.Equal(t, Cfg{}, Config)
 }
 
 func TestLoadEmptyConfig(t *testing.T) {
@@ -42,7 +42,7 @@ func TestLoadEmptyConfig(t *testing.T) {
 	err := Load(tmpFile)
 	assert.NoError(t, err)
 
-	defaultConf := config{}
+	defaultConf := Cfg{}
 	defaultConf.setDefaults()
 
 	assert.Equal(t, defaultConf, Config)
@@ -57,7 +57,7 @@ path = "/tmp"`)
 	assert.NoError(t, err)
 
 	if assert.Equal(t, 1, len(Config.Storages), "Expected one (1) storage") {
-		expectedConf := config{
+		expectedConf := Cfg{
 			Storages: []Storage{
 				{Name: "default", Path: "/tmp"},
 			},
@@ -81,7 +81,7 @@ path="/tmp/repos2"`)
 	assert.NoError(t, err)
 
 	if assert.Equal(t, 2, len(Config.Storages), "Expected one (1) storage") {
-		expectedConf := config{
+		expectedConf := Cfg{
 			Storages: []Storage{
 				{Name: "default", Path: "/tmp/repos1"},
 				{Name: "other", Path: "/tmp/repos2"},
@@ -476,24 +476,24 @@ func TestConfigureRubyNumWorkers(t *testing.T) {
 }
 
 func TestValidateListeners(t *testing.T) {
-	defer func(cfg config) {
+	defer func(cfg Cfg) {
 		Config = cfg
 	}(Config)
 
 	testCases := []struct {
 		desc string
-		config
+		Cfg
 		ok bool
 	}{
 		{desc: "empty"},
-		{desc: "socket only", config: config{SocketPath: "/foo/bar"}, ok: true},
-		{desc: "tcp only", config: config{ListenAddr: "a.b.c.d:1234"}, ok: true},
-		{desc: "both socket and tcp", config: config{SocketPath: "/foo/bar", ListenAddr: "a.b.c.d:1234"}, ok: true},
+		{desc: "socket only", Cfg: Cfg{SocketPath: "/foo/bar"}, ok: true},
+		{desc: "tcp only", Cfg: Cfg{ListenAddr: "a.b.c.d:1234"}, ok: true},
+		{desc: "both socket and tcp", Cfg: Cfg{SocketPath: "/foo/bar", ListenAddr: "a.b.c.d:1234"}, ok: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			Config = tc.config
+			Config = tc.Cfg
 			err := validateListeners()
 			if tc.ok {
 				require.NoError(t, err)

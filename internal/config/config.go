@@ -23,12 +23,13 @@ const (
 
 var (
 	// Config stores the global configuration
-	Config config
+	Config Cfg
 
 	hooks []func() error
 )
 
-type config struct {
+// Cfg is a container for all config derived from config.toml.
+type Cfg struct {
 	SocketPath                 string        `toml:"socket_path" split_words:"true"`
 	ListenAddr                 string        `toml:"listen_addr" split_words:"true"`
 	TLSListenAddr              string        `toml:"tls_listen_addr" split_words:"true"`
@@ -105,7 +106,7 @@ type Concurrency struct {
 // Load initializes the Config variable from file and the environment.
 //  Environment variables take precedence over the file.
 func Load(file io.Reader) error {
-	Config = config{}
+	Config = Cfg{}
 
 	if _, err := toml.DecodeReader(file, &Config); err != nil {
 		return fmt.Errorf("load toml: %v", err)
@@ -150,7 +151,7 @@ func Validate() error {
 	return nil
 }
 
-func (c *config) setDefaults() {
+func (c *Cfg) setDefaults() {
 	c.GracefulRestartTimeout = c.GracefulRestartTimeoutToml.Duration
 	if c.GracefulRestartTimeout == 0 {
 		c.GracefulRestartTimeout = 1 * time.Minute
