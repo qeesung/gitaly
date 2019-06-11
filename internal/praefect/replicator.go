@@ -143,7 +143,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 		}
 
 		if len(jobs) == 0 {
-			r.log.Debugf("no jobs for %s, checking again in %s", r.storage, jobFetchInterval)
+			r.log.Tracef("no jobs for %s, checking again in %s", r.storage, jobFetchInterval)
 
 			select {
 			// TODO: exponential backoff when no queries are returned
