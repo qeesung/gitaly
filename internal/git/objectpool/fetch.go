@@ -3,10 +3,14 @@ package objectpool
 import (
 	"bufio"
 	"context"
+	"fmt"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
@@ -64,5 +68,55 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 	if err := fetchCmd.Wait(); err != nil {
 		return err
 	}
+
+	if err := rescueDanglingObjects(ctx, o); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+const danglingObjectNamespace = "refs/dangling"
+
+func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
+	fsck, err := git.Command(ctx, repo, "fsck", "--connectivity-only", "--dangling")
+	if err != nil {
+		return err
+	}
+
+	updater, err := updateref.New(ctx, repo)
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(fsck)
+	for scanner.Scan() {
+		split := strings.SplitN(scanner.Text(), " ", 3)
+		if len(split) != 3 {
+			continue
+		}
+
+		if split[0] != "dangling" {
+			continue
+		}
+
+		ref := danglingObjectNamespace + "/" + split[2]
+		if err := updater.Create(ref, split[2]); err != nil {
+			return err
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if err := fsck.Wait(); err != nil {
+		return fmt.Errorf("git fsck: %v", err)
+	}
+
+	if err := updater.Wait(); err != nil {
+		return err
+	}
+
 	return nil
 }

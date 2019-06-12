@@ -53,5 +53,9 @@ func (u *Updater) Delete(ref string) error {
 
 // Wait applies the commands specified in other calls to the Updater
 func (u *Updater) Wait() error {
-	return u.cmd.Wait()
+	if err := u.cmd.Wait(); err != nil {
+		return fmt.Errorf("git update-ref: %v", err)
+	}
+
+	return nil
 }
