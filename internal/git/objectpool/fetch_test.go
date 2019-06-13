@@ -31,26 +31,36 @@ func TestFetchFromOriginDangling(t *testing.T) {
 		existingBlob   = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"
 	)
 
+	// We want to have some objects that are guaranteed to be dangling. Use
+	// random data to make each object unique.
 	nonceBytes := make([]byte, 4)
 	_, err = io.ReadFull(rand.Reader, nonceBytes)
 	require.NoError(t, err)
 	nonce := hex.EncodeToString(nonceBytes)
 
 	baseArgs := []string{"-C", pool.FullPath()}
+
+	// A blob with random contents should be unique.
 	newBlobArgs := append(baseArgs, "hash-object", "-t", "blob", "-w", "--stdin")
 	newBlob := text.ChompBytes(testhelper.MustRunCommand(t, strings.NewReader(nonce), "git", newBlobArgs...))
 
+	// A tree with a randomly named blob entry should be unique.
 	newTreeArgs := append(baseArgs, "mktree")
 	newTreeStdin := strings.NewReader(fmt.Sprintf("100644 blob %s	%s\n", existingBlob, nonce))
 	newTree := text.ChompBytes(testhelper.MustRunCommand(t, newTreeStdin, "git", newTreeArgs...))
 
+	// A commit with a random message should be unique.
 	newCommitArgs := append(baseArgs, "commit-tree", existingTree)
 	newCommit := text.ChompBytes(testhelper.MustRunCommand(t, strings.NewReader(nonce), "git", newCommitArgs...))
 
+	// A tag with random hex characters in its name should be unique.
 	newTagName := "tag-" + nonce
 	newTagArgs := append(baseArgs, "tag", "-m", "msg", "-a", newTagName, existingCommit)
 	testhelper.MustRunCommand(t, strings.NewReader(nonce), "git", newTagArgs...)
 	newTag := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", append(baseArgs, "rev-parse", newTagName)...))
+
+	// `git tag` automatically creates a ref, so our new tag is not dangling.
+	// Deleting the ref should fix that.
 	testhelper.MustRunCommand(t, nil, "git", append(baseArgs, "update-ref", "-d", "refs/tags/"+newTagName)...)
 
 	fsckBefore := testhelper.MustRunCommand(t, nil, "git", append(baseArgs, "fsck", "--connectivity-only", "--dangling")...)
@@ -62,9 +72,11 @@ func TestFetchFromOriginDangling(t *testing.T) {
 		fmt.Sprintf("dangling commit %s", newCommit),
 		fmt.Sprintf("dangling tag %s", newTag),
 	} {
-		require.Contains(t, fsckBeforeLines, l)
+		require.Contains(t, fsckBeforeLines, l, "test setup sanity check")
 	}
 
+	// We expect this second run to convert the dangling objects into
+	// non-dangling objects.
 	require.NoError(t, pool.FetchFromOrigin(ctx, source), "second fetch")
 
 	refsArgs := append(baseArgs, "for-each-ref", "--format=%(refname) %(objectname)")
