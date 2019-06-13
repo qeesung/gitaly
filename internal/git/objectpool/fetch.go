@@ -78,6 +78,14 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 
 const danglingObjectNamespace = "refs/dangling"
 
+// rescueDanglingObjects creates refs for all dangling objects if finds
+// with `git fsck`, which converts those objects from "dangling" to
+// "not-dangling". This guards against any object ever being deleted from
+// a pool repository. This is a defense in depth against accidental use
+// of `git prune`, which could remove Git objects that a pool member
+// relies on. There is currently no way for us to reliably determine if
+// an object is still used anywhere, so the only safe thing to do is to
+// assume that every object _is_ used.
 func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
 	fsck, err := git.Command(ctx, repo, "fsck", "--connectivity-only", "--dangling")
 	if err != nil {
