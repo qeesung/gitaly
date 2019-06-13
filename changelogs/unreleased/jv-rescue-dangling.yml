@@ -1,0 +1,5 @@
+---
+title: Un-dangle dangling objects in object pools
+merge_request: 1297
+author:
+type: changed
