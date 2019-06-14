@@ -1,0 +1,5 @@
+---
+title: Remove member bitmaps when linking to objectpool
+merge_request: 1311
+author:
+type: changed
