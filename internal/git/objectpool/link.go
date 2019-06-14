@@ -112,7 +112,6 @@ func (o *ObjectPool) removeMemberBitmaps(repo repository.GitRepo) error {
 		if err := os.Remove(bitmap); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-
 	}
 
 	return nil
