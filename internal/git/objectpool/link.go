@@ -9,8 +9,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git/remote"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
@@ -72,7 +74,70 @@ func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) error 
 		return err
 	}
 
-	return os.Rename(tmp.Name(), altPath)
+	if err := os.Rename(tmp.Name(), altPath); err != nil {
+		return err
+	}
+
+	return o.removeMemberBitmaps(repo)
+}
+
+// removeMemberBitmaps removes packfile bitmaps from the member
+// repository that just joined the pool. If Git finds to packfiles with
+// bitmaps it will print a warning, which is visible to the end user
+// during a Git clone. Our goal is to avoid that warning. In normal
+// operation, the next 'git gc' or 'git repack -ad' on the member
+// repository will remove its local bitmap file. In other words the
+// situation we eventually converge to is that the pool may have a bitmap
+// but none of its members will. With removeMemberBitmaps we try to
+// change "eventually" to "immediately", so that users won't see the
+// warning. https://gitlab.com/gitlab-org/gitaly/issues/1728
+func (o *ObjectPool) removeMemberBitmaps(repo repository.GitRepo) error {
+	poolBitmaps, err := getBitmaps(o)
+	if err != nil {
+		return err
+	}
+	if len(poolBitmaps) == 0 {
+		return nil
+	}
+
+	memberBitmaps, err := getBitmaps(repo)
+	if err != nil {
+		return err
+	}
+	if len(memberBitmaps) == 0 {
+		return nil
+	}
+
+	for _, bitmap := range memberBitmaps {
+		if err := os.Remove(bitmap); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+	}
+
+	return nil
+}
+
+func getBitmaps(repo repository.GitRepo) ([]string, error) {
+	repoPath, err := helper.GetPath(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	packDir := filepath.Join(repoPath, "objects/pack")
+	entries, err := ioutil.ReadDir(packDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var bitmaps []string
+	for _, entry := range entries {
+		if name := entry.Name(); strings.HasSuffix(name, ".bitmap") && strings.HasPrefix(name, "pack-") {
+			bitmaps = append(bitmaps, filepath.Join(packDir, name))
+		}
+	}
+
+	return bitmaps, nil
 }
 
 func (o *ObjectPool) getRelativeObjectPath(repo *gitalypb.Repository) (string, error) {
