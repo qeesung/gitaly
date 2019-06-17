@@ -82,7 +82,7 @@ func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) error 
 }
 
 // removeMemberBitmaps removes packfile bitmaps from the member
-// repository that just joined the pool. If Git finds to packfiles with
+// repository that just joined the pool. If Git finds two packfiles with
 // bitmaps it will print a warning, which is visible to the end user
 // during a Git clone. Our goal is to avoid that warning. In normal
 // operation, the next 'git gc' or 'git repack -ad' on the member
