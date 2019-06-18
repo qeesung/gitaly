@@ -473,7 +473,7 @@ notice: notice-tmp
 notice-tmp: {{ .GoVendor }} clean-ruby-vendor-go
 	rm -rf {{ .SourceDir }}/vendor
 	cd {{ .SourceDir }} && go mod vendor
-	cd {{ .GopathSourceDir }} && env GOPATH={{ .BuildDir }} govendor license -template _support/notice.template -o {{ .BuildDir }}/NOTICE
+	cd {{ .GopathSourceDir }} && env GOPATH={{ .BuildDir }} GO111MODULE=off govendor license -template _support/notice.template -o {{ .BuildDir }}/NOTICE
 
 .PHONY: clean-ruby-vendor-go 
 clean-ruby-vendor-go:
