@@ -102,6 +102,14 @@ func TestFetchFromOriginDeltaIslands(t *testing.T) {
 	require.NoError(t, pool.Link(ctx, source))
 
 	gittest.TestDeltaIslands(t, sourcePath, func() error {
-		return pool.FetchFromOrigin(ctx, source)
+		// This should create a new packfile with good delta chains in the pool
+		if err := pool.FetchFromOrigin(ctx, source); err != nil {
+			return err
+		}
+
+		// Make sure the old packfile, with bad delta chains, is deleted from the source repo
+		testhelper.MustRunCommand(t, nil, "git", "-C", sourcePath, "repack", "-ald")
+
+		return nil
 	})
 }

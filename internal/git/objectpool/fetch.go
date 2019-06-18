@@ -14,6 +14,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 )
 
+const (
+	sourceRemote       = "origin"
+	sourceRefNamespace = "refs/remotes/" + sourceRemote
+)
+
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
 func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repository) error {
 	if err := o.Init(ctx); err != nil {
@@ -35,7 +40,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 
 	var originExists bool
 	for remoteReader.Scan() {
-		if remoteReader.Text() == "origin" {
+		if remoteReader.Text() == sourceRemote {
 			originExists = true
 		}
 	}
@@ -45,12 +50,12 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 
 	var setOriginCmd *command.Command
 	if originExists {
-		setOriginCmd, err = git.Command(ctx, o, "remote", "set-url", "origin", originPath)
+		setOriginCmd, err = git.Command(ctx, o, "remote", "set-url", sourceRemote, originPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		setOriginCmd, err = git.Command(ctx, o, "remote", "add", "origin", originPath)
+		setOriginCmd, err = git.Command(ctx, o, "remote", "add", sourceRemote, originPath)
 		if err != nil {
 			return err
 		}
@@ -60,7 +65,8 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	fetchCmd, err := git.Command(ctx, o, "fetch", "--quiet", "origin")
+	refSpec := fmt.Sprintf("+refs/*:%s/*", sourceRefNamespace)
+	fetchCmd, err := git.Command(ctx, o, "fetch", "--quiet", sourceRemote, refSpec)
 	if err != nil {
 		return err
 	}
@@ -70,6 +76,10 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 	}
 
 	if err := rescueDanglingObjects(ctx, o); err != nil {
+		return err
+	}
+
+	if err := repackPool(ctx, o); err != nil {
 		return err
 	}
 
@@ -123,6 +133,24 @@ func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
 	}
 
 	if err := updater.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func repackPool(ctx context.Context, pool repository.GitRepo) error {
+	repackArgs := []string{
+		"-c", "pack.island=" + sourceRefNamespace + "/heads",
+		"-c", "pack.island=" + sourceRefNamespace + "/tags",
+		"repack", "-aidb",
+	}
+	repackCmd, err := git.Command(ctx, pool, repackArgs...)
+	if err != nil {
+		return err
+	}
+
+	if err := repackCmd.Wait(); err != nil {
 		return err
 	}
 
