@@ -135,12 +135,12 @@ func TestFetchFromOriginBitmapHashCache(t *testing.T) {
 	var bitmap string
 	for _, ent := range packEntries {
 		if name := ent.Name(); strings.HasSuffix(name, ".bitmap") {
-			bitmap = name
+			bitmap = filepath.Join(packDir, name)
 			break
 		}
 	}
 
 	require.NotEmpty(t, bitmap, "path to bitmap file")
 
-	gittest.TestBitmapHasHachcache(t, filepath.Join(packDir, bitmap))
+	gittest.TestBitmapHasHachcache(t, bitmap)
 }
