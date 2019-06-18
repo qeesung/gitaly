@@ -9,8 +9,8 @@
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1297
 
 #### Fixed
-- Log node registration failures
-  https://gitlab.com/gitlab-org/gitaly/merge_requests/
+- Fix ignored registerNode error
+  https://gitlab.com/gitlab-org/gitaly/merge_requests/1307
 - Fix Prometheus metric naming errors
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1292
 - Cast FsStat syscall to int64
