@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -112,4 +114,33 @@ func TestFetchFromOriginDeltaIslands(t *testing.T) {
 
 		return nil
 	})
+}
+
+func TestFetchFromOriginBitmapHashCache(t *testing.T) {
+	source, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	pool, err := NewObjectPool(source.StorageName, testhelper.NewTestObjectPoolName(t))
+	require.NoError(t, err)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	require.NoError(t, pool.FetchFromOrigin(ctx, source), "seed pool")
+
+	packDir := filepath.Join(pool.FullPath(), "objects/pack")
+	packEntries, err := ioutil.ReadDir(packDir)
+	require.NoError(t, err)
+
+	var bitmap string
+	for _, ent := range packEntries {
+		if name := ent.Name(); strings.HasSuffix(name, ".bitmap") {
+			bitmap = name
+			break
+		}
+	}
+
+	require.NotEmpty(t, bitmap, "path to bitmap file")
+
+	gittest.TestBitmapHasHachcache(t, filepath.Join(packDir, bitmap))
 }

@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/binary"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -155,7 +153,7 @@ func TestRepackFullSuccess(t *testing.T) {
 				if len(bmPath) == 0 {
 					t.Errorf("No bitmaps found")
 				}
-				require.True(t, doBitmapsContainHashCache(t, bmPath), "bitmap file should contain hash cache")
+				doBitmapsContainHashCache(t, bmPath)
 			} else {
 				if len(bmPath) != 0 {
 					t.Errorf("Bitmap found: %v", bmPath)
@@ -165,26 +163,12 @@ func TestRepackFullSuccess(t *testing.T) {
 	}
 }
 
-func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) bool {
+func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {
 	// for each bitmap file, check the 2-byte flag as documented in
 	// https://github.com/git/git/blob/master/Documentation/technical/bitmap-format.txt
 	for _, bitmapPath := range bitmapPaths {
-		b := make([]byte, 8)
-		bitmapFile, err := os.Open(bitmapPath)
-		require.NoError(t, err)
-		defer bitmapFile.Close()
-
-		read, err := bitmapFile.Read(b)
-		require.NoError(t, err)
-		require.Equal(t, 8, read)
-
-		flags := binary.BigEndian.Uint16(b[6:])
-		if flags != 5 {
-			return false
-		}
+		gittest.TestBitmapHasHachcache(t, bitmapPath)
 	}
-
-	return true
 }
 
 func TestRepackFullFailure(t *testing.T) {

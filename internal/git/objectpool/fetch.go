@@ -143,6 +143,7 @@ func repackPool(ctx context.Context, pool repository.GitRepo) error {
 	repackArgs := []string{
 		"-c", "pack.island=" + sourceRefNamespace + "/heads",
 		"-c", "pack.island=" + sourceRefNamespace + "/tags",
+		"-c", "pack.writeBitmapHashCache=true",
 		"repack", "-aidb",
 	}
 	repackCmd, err := git.Command(ctx, pool, repackArgs...)
