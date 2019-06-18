@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
@@ -85,4 +86,22 @@ func TestFetchFromOriginDangling(t *testing.T) {
 	for _, id := range []string{newBlob, newTree, newCommit, newTag} {
 		require.Contains(t, refsAfterLines, fmt.Sprintf("refs/dangling/%s %s", id, id))
 	}
+}
+
+func TestFetchFromOriginDeltaIslands(t *testing.T) {
+	source, sourcePath, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	pool, err := NewObjectPool(source.StorageName, testhelper.NewTestObjectPoolName(t))
+	require.NoError(t, err)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	require.NoError(t, pool.FetchFromOrigin(ctx, source), "seed pool")
+	require.NoError(t, pool.Link(ctx, source))
+
+	gittest.TestDeltaIslands(t, sourcePath, func() error {
+		return pool.FetchFromOrigin(ctx, source)
+	})
 }

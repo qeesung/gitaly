@@ -1,4 +1,4 @@
-package repository
+package gittest
 
 import (
 	"bytes"
@@ -14,16 +14,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-type deltaIslandOutcome int
-
-const (
-	expectDeltaIslands deltaIslandOutcome = iota
-	expectNoDeltaIslands
-)
-
 // testDeltaIslands is based on the tests in
 // https://github.com/git/git/blob/master/t/t5320-delta-islands.sh .
-func testDeltaIslands(t *testing.T, repoPath string, outcome deltaIslandOutcome, repack func() error) {
+func TestDeltaIslands(t *testing.T, repoPath string, repack func() error) {
 	gitVersion, err := git.Version()
 	require.NoError(t, err)
 
@@ -60,16 +53,10 @@ func testDeltaIslands(t *testing.T, repoPath string, outcome deltaIslandOutcome,
 
 	require.NoError(t, repack(), "repack after delta island setup")
 
-	switch outcome {
-	case expectDeltaIslands:
-		assert.Equal(t, blob2ID, deltaBase(t, repoPath, blob1ID), "blob 1 delta base should be blob 2 after repack")
+	assert.Equal(t, blob2ID, deltaBase(t, repoPath, blob1ID), "blob 1 delta base should be blob 2 after repack")
 
-		// blob2 is the bigger of the two so it should be the delta base
-		assert.Equal(t, git.NullSHA, deltaBase(t, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
-	case expectNoDeltaIslands:
-		assert.Equal(t, badBlobID, deltaBase(t, repoPath, blob1ID), "expect blob 1 delta base to still be bad blob after repack")
-		assert.Equal(t, badBlobID, deltaBase(t, repoPath, blob2ID), "expect blob 2 delta base to still be bad blob after repack")
-	}
+	// blob2 is the bigger of the two so it should be the delta base
+	assert.Equal(t, git.NullSHA, deltaBase(t, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
 }
 
 func commitBlob(t *testing.T, repoPath, ref string, content []byte) string {

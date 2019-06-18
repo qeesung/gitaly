@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
@@ -307,20 +308,8 @@ func TestGarbageCollectDeltaIslands(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testCases := []struct {
-		desc    string
-		outcome deltaIslandOutcome
-		ctx     context.Context
-	}{
-		{desc: "are created by default", outcome: expectDeltaIslands, ctx: ctx},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			testDeltaIslands(t, testRepoPath, tc.outcome, func() error {
-				_, err := client.GarbageCollect(tc.ctx, &gitalypb.GarbageCollectRequest{Repository: testRepo})
-				return err
-			})
-		})
-	}
+	gittest.TestDeltaIslands(t, testRepoPath, func() error {
+		_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: testRepo})
+		return err
+	})
 }
