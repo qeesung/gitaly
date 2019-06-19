@@ -14,7 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-// testDeltaIslands is based on the tests in
+// TestDeltaIslands is based on the tests in
 // https://github.com/git/git/blob/master/t/t5320-delta-islands.sh .
 func TestDeltaIslands(t *testing.T, repoPath string, repack func() error) {
 	gitVersion, err := git.Version()
