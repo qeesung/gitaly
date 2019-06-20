@@ -2,16 +2,17 @@ package repository
 
 import (
 	"context"
-	"os"
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/codes"
 )
+
+// We assume that the combined size of the Git objects in the test
+// repository, even in optimally packed state, is greater than this.
+const testRepoMinSizeKB = 10000
 
 func TestSuccessfulRepositorySizeRequest(t *testing.T) {
 	server, serverSocketPath := runRepoServer(t)
@@ -20,33 +21,19 @@ func TestSuccessfulRepositorySizeRequest(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
-	storageName := "default"
-	storagePath, found := config.StoragePath(storageName)
-	if !found {
-		t.Fatalf("No %q storage was found", storageName)
-	}
+	repo := testhelper.TestRepository()
 
-	repoCopyPath := path.Join(storagePath, "fixed-size-repo.git")
-	testhelper.MustRunCommand(t, nil, "cp", "-R", "testdata/fixed-size-repo.git", repoCopyPath)
-	// run `sync` because some filesystems (e.g. ZFS and BTRFS) do lazy-writes
-	// which leads to `du` returning 0 bytes used until it's finally written to disk.
-	testhelper.MustRunCommand(t, nil, "sync")
-	defer os.RemoveAll(repoCopyPath)
-
-	request := &gitalypb.RepositorySizeRequest{
-		Repository: &gitalypb.Repository{
-			StorageName:  storageName,
-			RelativePath: "fixed-size-repo.git",
-		},
-	}
+	request := &gitalypb.RepositorySizeRequest{Repository: repo}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	response, err := client.RepositorySize(ctx, request)
 	require.NoError(t, err)
-	// We can't test for an exact size because it will be different for systems with different sector sizes,
-	// so we settle for anything greater than zero.
-	require.True(t, response.Size > 0, "size must be greater than zero")
+
+	require.True(t,
+		response.Size > testRepoMinSizeKB,
+		"repository size %d should be at least %d", response.Size, testRepoMinSizeKB,
+	)
 }
 
 func TestFailedRepositorySizeRequest(t *testing.T) {
@@ -87,11 +74,11 @@ func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo := testhelper.TestRepository()
-	testRepo.GitObjectDirectory = "objects/"
+	repo := testhelper.TestRepository()
+	repo.GitObjectDirectory = "objects/"
 
 	request := &gitalypb.GetObjectDirectorySizeRequest{
-		Repository: testRepo,
+		Repository: repo,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,7 +86,9 @@ func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
 
 	response, err := client.GetObjectDirectorySize(ctx, request)
 	require.NoError(t, err)
-	// We can't test for an exact size because it will be different for systems with different sector sizes,
-	// so we settle for anything greater than zero.
-	require.True(t, response.Size > 0, "size must be greater than zero")
+
+	require.True(t,
+		response.Size > testRepoMinSizeKB,
+		"repository size %d should be at least %d", response.Size, testRepoMinSizeKB,
+	)
 }
