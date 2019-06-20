@@ -142,7 +142,7 @@ func TestFetchFromOriginBitmapHashCache(t *testing.T) {
 
 	require.NotEmpty(t, bitmap, "path to bitmap file")
 
-	gittest.TestBitmapHasHachcache(t, bitmap)
+	gittest.TestBitmapHasHashcache(t, bitmap)
 }
 
 func TestFetchFromOriginRefUpdates(t *testing.T) {

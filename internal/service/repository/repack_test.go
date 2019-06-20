@@ -167,7 +167,7 @@ func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {
 	// for each bitmap file, check the 2-byte flag as documented in
 	// https://github.com/git/git/blob/master/Documentation/technical/bitmap-format.txt
 	for _, bitmapPath := range bitmapPaths {
-		gittest.TestBitmapHasHachcache(t, bitmapPath)
+		gittest.TestBitmapHasHashcache(t, bitmapPath)
 	}
 }
 

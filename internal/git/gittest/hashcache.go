@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBitmapHasHachcache checks if the named pack bitmap file contains
+// TestBitmapHasHashcache checks if the named pack bitmap file contains
 // "hash cache" data. See
 // https://github.com/git/git/blob/master/Documentation/technical/bitmap-format.txt
-func TestBitmapHasHachcache(t *testing.T, bitmap string) {
+func TestBitmapHasHashcache(t *testing.T, bitmap string) {
 	bitmapFile, err := os.Open(bitmap)
 	require.NoError(t, err)
 	defer bitmapFile.Close()
