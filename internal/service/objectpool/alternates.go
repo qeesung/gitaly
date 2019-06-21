@@ -2,10 +2,8 @@ package objectpool
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
 
 // DisconnectGitAlternates is a slightly dangerous RPC. It optimistically
@@ -109,12 +108,12 @@ func disconnectAlternates(ctx context.Context, repo *gitalypb.Repository) error 
 }
 
 func newBackupFile(altFile string) (string, error) {
-	randSuffix := make([]byte, 6)
-	if _, err := io.ReadFull(rand.Reader, randSuffix); err != nil {
+	randSuffix, err := text.RandomHex(6)
+	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s.%d.%x", altFile, time.Now().Unix(), randSuffix), nil
+	return fmt.Sprintf("%s.%d.%s", altFile, time.Now().Unix(), randSuffix), nil
 }
 
 func findObjectFiles(altDir string) ([]string, error) {

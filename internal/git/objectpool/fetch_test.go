@@ -1,10 +1,7 @@
 package objectpool
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -36,10 +33,8 @@ func TestFetchFromOriginDangling(t *testing.T) {
 
 	// We want to have some objects that are guaranteed to be dangling. Use
 	// random data to make each object unique.
-	nonceBytes := make([]byte, 4)
-	_, err = io.ReadFull(rand.Reader, nonceBytes)
+	nonce, err := text.RandomHex(4)
 	require.NoError(t, err)
-	nonce := hex.EncodeToString(nonceBytes)
 
 	baseArgs := []string{"-C", pool.FullPath()}
 

@@ -3,7 +3,6 @@ package testhelper
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -482,11 +481,10 @@ func AssertFileNotExists(t *testing.T, path string) {
 
 // NewTestObjectPoolName returns a random pool repository name.
 func NewTestObjectPoolName(t *testing.T) string {
-	b := make([]byte, 5)
-	_, err := io.ReadFull(rand.Reader, b)
+	b, err := text.RandomHex(5)
 	require.NoError(t, err)
 
-	return fmt.Sprintf("pool-%x.git", b)
+	return fmt.Sprintf("pool-%s.git", b)
 }
 
 // CreateLooseRef creates a ref that points to master
