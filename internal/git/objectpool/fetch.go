@@ -79,11 +79,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	if err := repackPool(ctx, o); err != nil {
-		return err
-	}
-
-	return nil
+	return repackPool(ctx, o)
 }
 
 const danglingObjectNamespace = "refs/dangling"
@@ -132,11 +128,7 @@ func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
 		return fmt.Errorf("git fsck: %v", err)
 	}
 
-	if err := updater.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return updater.Wait()
 }
 
 func repackPool(ctx context.Context, pool repository.GitRepo) error {
