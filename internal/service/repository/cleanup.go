@@ -102,7 +102,7 @@ func cleanPackedRefsLock(repoPath string, threshold time.Time) error {
 }
 
 func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
-	worktreePath := filepath.Join(repoPath, "worktrees")
+	worktreePath := filepath.Join(repoPath, worktreePrefix)
 
 	dirInfo, err := os.Stat(worktreePath)
 	if err != nil {

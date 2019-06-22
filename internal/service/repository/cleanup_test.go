@@ -124,6 +124,8 @@ func TestCleanupDeletesPackedRefsLock(t *testing.T) {
 	}
 }
 
+// TODO: replace emulated rebase RPC with actual
+// https://gitlab.com/gitlab-org/gitaly/issues/1750
 func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
@@ -160,11 +162,12 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 
 			req := &gitalypb.CleanupRequest{Repository: testRepo}
 
-			testhelper.AddWorktree(t, testRepoPath, "test-worktree")
+			worktreeCheckoutPath := filepath.Join(testRepoPath, worktreePrefix, "test-worktree")
+			testhelper.AddWorktree(t, testRepoPath, worktreeCheckoutPath)
 			basePath := filepath.Join(testRepoPath, "worktrees")
 			worktreePath := filepath.Join(basePath, "test-worktree")
 
-			require.NoError(t, os.Chtimes(worktreePath, tc.worktreeTime, tc.worktreeTime))
+			require.NoError(t, os.Chtimes(worktreeCheckoutPath, tc.worktreeTime, tc.worktreeTime))
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
@@ -175,30 +178,26 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 			assert.FileExists(t, filepath.Join(testRepoPath, "HEAD")) // For good measure
 
 			if tc.shouldExist {
-				assert.DirExists(t, basePath)
+				assert.DirExists(t, worktreeCheckoutPath)
 				assert.DirExists(t, worktreePath)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, c)
 
+				testhelper.AssertFileNotExists(t, worktreeCheckoutPath)
 				testhelper.AssertFileNotExists(t, worktreePath)
 			}
 		})
 	}
 }
 
+// TODO: replace emulated rebase RPC with actual
+// https://gitlab.com/gitlab-org/gitaly/issues/1750
 func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	const (
 		worktreeName     = "test-worktree"
 		worktreeAdminDir = "worktrees"
 	)
-
-	addWorkTree := func(repoPath, worktree string) error {
-		return exec.Command(
-			"git",
-			testhelper.AddWorktreeArgs(repoPath, worktree)...,
-		).Run()
-	}
 
 	server, serverSocketPath := runRepoServer(t)
 	defer server.Stop()
@@ -209,14 +208,14 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	worktreePath := filepath.Join(testRepoPath, worktreeName)
+	worktreePath := filepath.Join(testRepoPath, worktreePrefix, worktreeName)
 	worktreeAdminPath := filepath.Join(
 		testRepoPath, worktreeAdminDir, filepath.Base(worktreeName),
 	)
 
 	req := &gitalypb.CleanupRequest{Repository: testRepo}
 
-	testhelper.AddWorktree(t, testRepoPath, worktreeName)
+	testhelper.AddWorktree(t, testRepoPath, worktreePath)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -239,7 +238,10 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	require.NoError(t, err)
 
 	if !pre2_20_0 {
-		err = addWorkTree(testRepoPath, worktreeName)
+		err := exec.Command(
+			"git",
+			testhelper.AddWorktreeArgs(testRepoPath, worktreePath)...,
+		).Run()
 		require.Error(t, err,
 			"creating a new work tree at the same path as a disconnected work tree should fail",
 		)
@@ -252,8 +254,7 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 
 	// if the worktree administrative files are pruned, then we should be able
 	// to checkout another worktree at the same path
-	err = addWorkTree(testRepoPath, worktreeName)
-	require.NoError(t, err)
+	testhelper.AddWorktree(t, testRepoPath, worktreePath)
 }
 
 func TestCleanupFileLocks(t *testing.T) {
