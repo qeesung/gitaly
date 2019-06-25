@@ -25,6 +25,7 @@ func doDialAndExecuteCall(addr string) error {
 	if err != nil {
 		return fmt.Errorf("dial: %v", err)
 	}
+	defer conn.Close()
 
 	client := healthpb.NewHealthClient(conn)
 	_, err = client.Check(context.Background(), &healthpb.HealthCheckRequest{})
