@@ -50,7 +50,7 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stderr: p})
 	})
 
-	env := append(git.ReceivePackEnv(req), "GL_PROTOCOL=ssh")
+	env := append(git.HookEnv(req), "GL_PROTOCOL=ssh")
 
 	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {

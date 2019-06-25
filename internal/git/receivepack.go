@@ -7,13 +7,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 )
 
+// ReceivePackRequest abstracts away the different requests that end up
+// spawning git-receive-pack.
 type ReceivePackRequest interface {
 	GetGlId() string
 	GetGlUsername() string
 	GetGlRepository() string
 }
 
-func ReceivePackEnv(req ReceivePackRequest) []string {
+// HookEnv is information we pass down to the Git hooks during
+// git-receive-pack.
+func HookEnv(req ReceivePackRequest) []string {
 	return []string{
 		fmt.Sprintf("GL_ID=%s", req.GetGlId()),
 		fmt.Sprintf("GL_USERNAME=%s", req.GetGlUsername()),
@@ -22,6 +26,8 @@ func ReceivePackEnv(req ReceivePackRequest) []string {
 	}
 }
 
+// ReceivePackConfig contains config options we want to enforce when
+// receiving a push with git-receive-pack.
 func ReceivePackConfig() []string {
 	return []string{
 		fmt.Sprintf("core.hooksPath=%s", hooks.Path()),
