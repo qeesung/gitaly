@@ -7,9 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 )
@@ -51,15 +49,8 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 	stderr := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stderr: p})
 	})
-	env := []string{
-		fmt.Sprintf("GL_ID=%s", req.GlId),
-		fmt.Sprintf("GL_USERNAME=%s", req.GlUsername),
-		"GL_PROTOCOL=ssh",
-		fmt.Sprintf("GITLAB_SHELL_DIR=%s", config.Config.GitlabShell.Dir),
-	}
-	if req.GlRepository != "" {
-		env = append(env, fmt.Sprintf("GL_REPOSITORY=%s", req.GlRepository))
-	}
+
+	env := append(git.ReceivePackEnv(req), "GL_PROTOCOL=ssh")
 
 	repoPath, err := helper.GetRepoPath(req.Repository)
 	if err != nil {
@@ -69,15 +60,8 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 	env = git.AddGitProtocolEnv(ctx, req, env)
 	env = append(env, command.GitEnv...)
 
-	opts := append([]string{fmt.Sprintf("core.hooksPath=%s", hooks.Path())}, req.GitConfigOptions...)
+	opts := append(git.ReceivePackConfig(), req.GitConfigOptions...)
 
-	// In case the repository belongs to an object pool, we want to prevent
-	// Git from including the pool's refs in the ref advertisement. We do
-	// this by rigging core.alternateRefsCommand to produce no output.
-	// Because Git itself will append the pool repository directory, the
-	// command ends with a "#". The end result is that Git runs
-	// `/bin/sh -c 'exit 0 # /path/to/pool.git`.
-	opts = append(opts, "core.alternateRefsCommand=exit 0 #")
 	gitOptions := git.BuildGitOptions(opts, "receive-pack", repoPath)
 	cmd, err := git.BareCommand(ctx, stdin, stdout, stderr, env, gitOptions...)
 

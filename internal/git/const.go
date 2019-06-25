@@ -6,4 +6,12 @@ const (
 
 	// NullSHA is the special value that Git uses to signal a ref or object does not exist
 	NullSHA = "0000000000000000000000000000000000000000"
+
+	// DisableAlternateRefsConfig is a config option for git-receive-pack. In
+	// case the repository belongs to an object pool, we want to prevent Git
+	// from including the pool's refs in the ref advertisement. We do this by
+	// rigging core.alternateRefsCommand to produce no output. Because Git
+	// itself will append the pool repository directory, the command ends
+	// with a "#". The end result is that Git runs `/bin/sh -c 'exit 0 # /path/to/pool.git`.
+	DisableAlternateRefsConfig = "core.alternateRefsCommand=exit 0 #"
 )
