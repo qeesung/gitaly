@@ -108,3 +108,19 @@ func (server) GetBlob(_ *pb.GetBlobRequest, _ pb.BlobService_GetBlobServer) erro
     return helper.Unimplemented
 }
 ```
+
+## Black box and white box testing
+
+The dominant style of testing in Gitaly is "white box" testing, meaning
+test functions for package `foo` declare their own package also to be
+`package foo`. This gives the test code access to package internals. Go
+also provides a mechanism sometimes called "black box" testing where the
+test functions are not part of the package under test: you write
+`package foo_test` instead. Depending on your point of view, the lack of
+access to package internals when using black-box is either a bug or a
+feature.
+
+As a team we are currently divided on which style to prefer so we are
+going to allow both. In areas of the code where there is a clear
+pattern, please stick with the pattern. For example, almost all our
+service tests are white box.
