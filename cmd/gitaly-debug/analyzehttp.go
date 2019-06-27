@@ -83,7 +83,6 @@ func doBenchPost(cloneURL string, wants []string) {
 
 	for k, v := range map[string]string{
 		"User-Agent":       "gitaly-debug",
-		"Accept-Encoding":  "deflate, gzip",
 		"Content-Type":     "application/x-git-upload-pack-request",
 		"Accept":           "application/x-git-upload-pack-result",
 		"Content-Encoding": "gzip",
@@ -94,7 +93,6 @@ func doBenchPost(cloneURL string, wants []string) {
 	start := time.Now()
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
-	log.Printf("POST response %v", time.Since(start))
 
 	log.Printf("POST response header: %v", resp.Header)
 	log.Printf("POST code %d", resp.StatusCode)
