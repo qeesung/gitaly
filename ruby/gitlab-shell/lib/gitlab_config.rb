@@ -14,8 +14,8 @@ class GitlabConfig
   # Pass a default value because this is called from a repo's context; in which
   # case, the repo's hooks directory should be the default.
   #
-  def custom_hooks_dir(default: nil)
-    @config['custom_hooks_dir'] || default
+  def custom_hooks_dir
+    @config['custom_hooks_dir'] || File.join(ROOT_PATH, 'hooks')
   end
 
   def gitlab_url

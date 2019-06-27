@@ -59,17 +59,19 @@ describe GitlabCustomHook do
     FileUtils.rm_f(File.join(tmp_root_path, 'config.yml'))
   end
 
-  def expect_call_receive_hook(path)
+  def expect_call_receive_hook(path, global: false)
+    expected_hook_path = global ? global_hook_path(path) : hook_path(path)
     expect(gitlab_custom_hook)
       .to receive(:call_receive_hook)
-      .with(hook_path(path), changes)
+      .with(expected_hook_path, changes)
       .and_call_original
   end
 
-  def expect_call_update_hook(path)
+  def expect_call_update_hook(path, global: false)
+    expected_hook_path = global ? global_hook_path(path) : hook_path(path)
     expect(gitlab_custom_hook)
       .to receive(:system)
-      .with(vars, hook_path(path), ref_name, old_value, new_value)
+      .with(vars, expected_hook_path, ref_name, old_value, new_value)
       .and_call_original
   end
 
@@ -221,11 +223,11 @@ describe GitlabCustomHook do
     end
 
     it "executes the relevant hooks" do
-      expect_call_receive_hook("hooks/pre-receive.d/hook")
+      expect_call_receive_hook("hooks/pre-receive.d/hook", global: true)
       expect_call_receive_hook("custom_hooks/pre-receive.d/hook")
-      expect_call_update_hook("hooks/update.d/hook")
+      expect_call_update_hook("hooks/update.d/hook", global: true)
       expect_call_update_hook("custom_hooks/update.d/hook")
-      expect_call_receive_hook("hooks/post-receive.d/hook")
+      expect_call_receive_hook("hooks/post-receive.d/hook", global: true)
       expect_call_receive_hook("custom_hooks/post-receive.d/hook")
 
       gitlab_custom_hook.pre_receive(changes)
@@ -245,18 +247,18 @@ describe GitlabCustomHook do
     it "executes hooks in order" do
       expect_call_receive_hook("custom_hooks/pre-receive.d/01-test").ordered
       expect_call_receive_hook("custom_hooks/pre-receive.d/02-test").ordered
-      expect_call_receive_hook("hooks/pre-receive.d/03-test").ordered
-      expect_call_receive_hook("hooks/pre-receive.d/04-test").ordered
+      expect_call_receive_hook("hooks/pre-receive.d/03-test", global: true).ordered
+      expect_call_receive_hook("hooks/pre-receive.d/04-test", global: true).ordered
 
       expect_call_update_hook("custom_hooks/update.d/01-test").ordered
       expect_call_update_hook("custom_hooks/update.d/02-test").ordered
-      expect_call_update_hook("hooks/update.d/03-test").ordered
-      expect_call_update_hook("hooks/update.d/04-test").ordered
+      expect_call_update_hook("hooks/update.d/03-test", global: true).ordered
+      expect_call_update_hook("hooks/update.d/04-test", global: true).ordered
 
       expect_call_receive_hook("custom_hooks/post-receive.d/01-test").ordered
       expect_call_receive_hook("custom_hooks/post-receive.d/02-test").ordered
-      expect_call_receive_hook("hooks/post-receive.d/03-test").ordered
-      expect_call_receive_hook("hooks/post-receive.d/04-test").ordered
+      expect_call_receive_hook("hooks/post-receive.d/03-test", global: true).ordered
+      expect_call_receive_hook("hooks/post-receive.d/04-test", global: true).ordered
 
       gitlab_custom_hook.pre_receive(changes)
       gitlab_custom_hook.update(ref_name, old_value, new_value)

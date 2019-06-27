@@ -76,7 +76,7 @@ class GitlabCustomHook
     hook_files += match_hook_files(project_custom_hooks_dir)
 
     # <repository>.git/hooks/<hook_name>.d/* OR <custom_hook_dir>/<hook_name>.d/*
-    global_custom_hooks_parent = config.custom_hooks_dir(default: File.join(@repo_path, 'hooks'))
+    global_custom_hooks_parent = config.custom_hooks_dir
     global_custom_hooks_dir = File.join(global_custom_hooks_parent, "#{hook_name}.d")
     hook_files += match_hook_files(global_custom_hooks_dir)
 
