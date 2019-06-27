@@ -22,24 +22,36 @@ simulate-http-clone GIT_DIR
 	HTTP. The clone data is written to /dev/null. Note that in real life
 	the workload also depends on the transport capabilities requested by
 	the client; this tool uses a fixed set of capabilities.
+
+analyze-http-clone HTTP_URL
+	Clones a Git repository from a public HTTP URL into /dev/null.
 `
 )
 
 func main() {
-	if len(os.Args) != 3 {
+	if len(os.Args) < 2 {
 		fatal(usage)
 	}
-	gitDir := os.Args[2]
+	extraArgs := os.Args[2:]
 
 	switch os.Args[1] {
 	case "simulate-http-clone":
-		testHTTPCloneSpeed(gitDir)
+		if len(extraArgs) != 1 {
+			fatal(usage)
+		}
+		simulateHTTPClone(extraArgs[0])
+	case "analyze-http-clone":
+		if len(extraArgs) != 1 {
+			fatal(usage)
+		}
+		analyzeHTTPClone(extraArgs[0])
 	default:
 		fatal(usage)
 	}
 }
 
-func testHTTPCloneSpeed(gitDir string) {
+func simulateHTTPClone(gitDir string) {
+
 	msg("Generating server response for HTTP clone. Data goes to /dev/null.")
 	infoRefs := exec.Command("git", "upload-pack", "--stateless-rpc", "--advertise-refs", gitDir)
 	infoRefs.Stderr = os.Stderr
