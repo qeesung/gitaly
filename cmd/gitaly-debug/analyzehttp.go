@@ -39,10 +39,11 @@ func doBenchGet(cloneURL string) []string {
 	var wants []string
 	var size int64
 	scanner := pktline.NewScanner(resp.Body)
-	for i := 0; scanner.Scan(); i++ {
+	packets := 0
+	for ; scanner.Scan(); packets++ {
 		data := pktline.Data(scanner.Bytes())
 		size += int64(len(data))
-		if i == 0 {
+		if packets == 0 {
 			log.Printf("GET first packet %v", time.Since(start))
 			continue
 		}
@@ -57,6 +58,7 @@ func doBenchGet(cloneURL string) []string {
 		}
 	}
 	noError(scanner.Err())
+	log.Printf("GET: %d packets", packets)
 	log.Printf("GET done %v", time.Since(start))
 	log.Printf("GET data %d bytes", size)
 
