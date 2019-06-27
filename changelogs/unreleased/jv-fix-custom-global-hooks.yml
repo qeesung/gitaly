@@ -1,0 +1,5 @@
+---
+title: Fix default lookup of global custom hooks
+merge_request: 1336
+author:
+type: fixed
