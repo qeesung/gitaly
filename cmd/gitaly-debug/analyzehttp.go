@@ -35,6 +35,7 @@ func doBenchGet(cloneURL string) []string {
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
+	msg("GET response after %v", time.Since(start))
 	msg("GET response header: %v", resp.Header)
 	msg("GET code %d", resp.StatusCode)
 	defer resp.Body.Close()
@@ -126,6 +127,7 @@ func doBenchPost(cloneURL string, wants []string) {
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
+	msg("POST response after %v", time.Since(start))
 	msg("POST response header: %v", resp.Header)
 	msg("POST code %d", resp.StatusCode)
 	defer resp.Body.Close()
@@ -144,44 +146,46 @@ func doBenchPost(cloneURL string, wants []string) {
 
 		data := pktline.Data(scanner.Bytes())
 
-		switch packets {
-		case 0:
+		if packets == 0 {
 			if !bytes.Equal([]byte("NAK\n"), data) {
 				fatal(fmt.Errorf("expected NAK, got %q", data))
 			}
 			msg("NAK after %v", time.Since(start))
-		default:
-			if pktline.IsFlush(scanner.Bytes()) {
-				seenFlush = true
-				continue
-			}
+			continue
+		}
 
-			if len(data) == 0 {
-				fatal("empty packet in PACK data")
-			}
+		if pktline.IsFlush(scanner.Bytes()) {
+			seenFlush = true
+			continue
+		}
 
-			band := data[0]
-			if band < 1 || band > 3 {
-				fatal(fmt.Errorf("invalid sideband: %d", band))
-			}
-			if sideBandHistogram[band] == 0 {
-				msg("first %s packet after %v", bandToHuman(band), time.Since(start))
-			}
+		if len(data) == 0 {
+			fatal("empty packet in PACK data")
+		}
 
-			sideBandHistogram[band]++
+		band := data[0]
+		if band < 1 || band > 3 {
+			fatal(fmt.Errorf("invalid sideband: %d", band))
+		}
+		if sideBandHistogram[band] == 0 {
+			msg("first %s packet after %v", bandToHuman(band), time.Since(start))
+		}
 
-			n := len(data[1:])
-			totalSize[band] += int64(n)
-			payloadSizeHistogram[n]++
+		sideBandHistogram[band]++
 
-			if progress && packets%100 == 0 && packets > 0 && band == 1 {
-				fmt.Printf(".")
-			}
+		n := len(data[1:])
+		totalSize[band] += int64(n)
+		payloadSizeHistogram[n]++
+
+		if progress && packets%100 == 0 && packets > 0 && band == 1 {
+			fmt.Printf(".")
 		}
 	}
+
 	if progress {
 		fmt.Println("")
 	}
+
 	noError(scanner.Err())
 	if !seenFlush {
 		fatal("POST response did not end in flush")
