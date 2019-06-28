@@ -75,6 +75,35 @@ describe Gitlab::Git::Wiki do
     end
   end
 
+  describe '#update_page' do
+    let(:old_title) { 'page1' }
+    let(:new_content) { 'different content' }
+    let(:new_title) { 'new title' }
+    let(:deets) { commit_details('update') }
+
+    before do
+      create_page(old_title, 'some content')
+    end
+    after do
+      destroy_page(new_title)
+    rescue Gitlab::Git::Wiki::PageNotFound
+      destroy_page(old_title)
+    end
+
+    it 'can update the page' do
+      subject.update_page(old_title, new_title, :markdown, new_content, deets)
+
+      expect(subject.pages.count).to eq 1
+      expect(subject.pages.first.title).to eq new_title
+      expect(subject.pages.first.text_data).to eq new_content
+    end
+
+    it 'raises PageNotFound when trying to access an unknown page' do
+      expect { subject.update_page('bad path', new_title, :markdown, new_content, deets) }
+        .to raise_error(Gitlab::Git::Wiki::PageNotFound)
+    end
+  end
+
   def create_page(name, content)
     subject.write_page(name, :markdown, content, commit_details(name))
   end
@@ -85,6 +114,9 @@ describe Gitlab::Git::Wiki do
 
   def destroy_page(title, dir = '')
     page = subject.page(title: title, dir: dir)
+
+    raise Gitlab::Git::Wiki::PageNotFound, title unless page
+
     subject.delete_page(page.path, commit_details(title))
   end
 end

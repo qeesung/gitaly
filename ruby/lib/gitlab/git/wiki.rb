@@ -3,6 +3,7 @@ module Gitlab
     class Wiki
       DuplicatePageError = Class.new(StandardError)
       OperationError = Class.new(StandardError)
+      PageNotFound = Class.new(StandardError)
 
       CommitDetails = Struct.new(:user_id, :username, :name, :email, :message) do
         def to_h
@@ -135,7 +136,7 @@ module Gitlab
         page_name = Gollum::Page.canonicalize_filename(page_path)
         page_dir = File.split(page_path).first
 
-        gollum_wiki.paged(page_name, page_dir)
+        gollum_wiki.paged(page_name, page_dir) || (raise PageNotFound, "#{page_dir}/#{page_path}")
       end
 
       def gollum_write_page(name, format, content, commit_details)
