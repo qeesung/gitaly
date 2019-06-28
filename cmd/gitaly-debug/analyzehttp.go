@@ -36,30 +36,57 @@ func doBenchGet(cloneURL string) []string {
 	noError(err)
 
 	log.Printf("GET response header: %v", resp.Header)
+	log.Printf("GET code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
 	var wants []string
 	var size int64
+	seenFlush := false
 	scanner := pktline.NewScanner(resp.Body)
 	packets := 0
 	for ; scanner.Scan(); packets++ {
-		data := pktline.Data(scanner.Bytes())
+		if seenFlush {
+			fatal("received packet after flush")
+		}
+
+		data := string(pktline.Data(scanner.Bytes()))
 		size += int64(len(data))
-		if packets == 0 {
+
+		switch packets {
+		case 0:
 			log.Printf("GET first packet %v", time.Since(start))
-			continue
-		}
+			if data != "# service=git-upload-pack\n" {
+				fatal(fmt.Errorf("unexpected header %q", data))
+			}
+		case 1:
+			if !pktline.IsFlush(scanner.Bytes()) {
+				fatal("missing flush after service announcement")
+			}
+		default:
+			if packets == 2 && !strings.Contains(data, " side-band-64k") {
+				fatal(fmt.Errorf("missing side-band-64k capability in %q", data))
+			}
 
-		split := strings.SplitN(string(data), " ", 2)
-		if len(split) != 2 {
-			continue
-		}
+			if pktline.IsFlush(scanner.Bytes()) {
+				seenFlush = true
+				continue
+			}
 
-		if strings.HasPrefix(split[1], "refs/heads/") || strings.HasPrefix(split[1], "refs/tags/") {
-			wants = append(wants, split[0])
+			split := strings.SplitN(data, " ", 2)
+			if len(split) != 2 {
+				continue
+			}
+
+			if strings.HasPrefix(split[1], "refs/heads/") || strings.HasPrefix(split[1], "refs/tags/") {
+				wants = append(wants, split[0])
+			}
 		}
 	}
 	noError(scanner.Err())
+	if !seenFlush {
+		fatal("missing flush in response")
+	}
+
 	log.Printf("GET: %d packets", packets)
 	log.Printf("GET done %v", time.Since(start))
 	log.Printf("GET data %d bytes", size)
@@ -104,35 +131,80 @@ func doBenchPost(cloneURL string, wants []string) {
 
 	packets := 0
 	scanner := pktline.NewScanner(resp.Body)
-	var size int64
-	sizeHistogram := make(map[int]int)
+	totalSize := make(map[byte]int64)
+	payloadSizeHistogram := make(map[int]int)
 	sideBandHistogram := make(map[byte]int)
 	progress := os.Getenv("PROGRESS") == "1"
+	seenFlush := false
 	for ; scanner.Scan(); packets++ {
-		if packets == 0 {
-			log.Printf("POST first packet %v", time.Since(start))
+		if seenFlush {
+			fatal("received extra packet after flush")
 		}
 
 		data := pktline.Data(scanner.Bytes())
-		n := len(data)
-		size += int64(n)
-		sizeHistogram[n]++
-		if len(data) > 0 {
-			sideBandHistogram[data[0]]++
-		}
 
-		if progress && packets%100 == 0 && packets > 0 {
-			fmt.Printf(".")
+		switch packets {
+		case 0:
+			if !bytes.Equal([]byte("NAK\n"), data) {
+				fatal(fmt.Errorf("expected NAK, got %q", data))
+			}
+			log.Printf("NAK after %v", time.Since(start))
+		default:
+			if pktline.IsFlush(scanner.Bytes()) {
+				seenFlush = true
+				continue
+			}
+
+			if len(data) == 0 {
+				fatal("empty packet in PACK data")
+			}
+
+			band := data[0]
+			if band < 1 || band > 3 {
+				fatal(fmt.Errorf("invalid sideband: %d", band))
+			}
+			if sideBandHistogram[band] == 0 {
+				log.Printf("first %s packet after %v", bandToHuman(band), time.Since(start))
+			}
+
+			sideBandHistogram[band]++
+
+			n := len(data[1:])
+			totalSize[band] += int64(n)
+			payloadSizeHistogram[n]++
+
+			if progress && packets%100 == 0 && packets > 0 && band == 1 {
+				fmt.Printf(".")
+			}
 		}
 	}
 	if progress {
 		fmt.Println("")
 	}
 	noError(scanner.Err())
+	if !seenFlush {
+		fatal("POST response did not end in flush")
+	}
 
 	log.Printf("POST: %d packets", packets)
 	log.Printf("POST done %v", time.Since(start))
-	log.Printf("POST data %d bytes", size)
-	log.Printf("POST packet size histogram: %v", sizeHistogram)
+	for i := byte(1); i <= 3; i++ {
+		log.Printf("data in %s band: %d bytes", bandToHuman(i), totalSize[i])
+	}
+	log.Printf("POST packet payload size histogram: %v", payloadSizeHistogram)
 	log.Printf("POST packet sideband histogram: %v", sideBandHistogram)
+}
+
+func bandToHuman(b byte) string {
+	switch b {
+	case 1:
+		return "pack"
+	case 2:
+		return "progress"
+	case 3:
+		return "error"
+	default:
+		fatal(fmt.Errorf("invalid band %d", b))
+		return "" // never reached
+	}
 }
