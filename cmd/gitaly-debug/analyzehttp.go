@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -32,11 +31,12 @@ func doBenchGet(cloneURL string) []string {
 	}
 
 	start := time.Now()
+	msg("GET %v", req.URL)
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
-	log.Printf("GET response header: %v", resp.Header)
-	log.Printf("GET code %d", resp.StatusCode)
+	msg("GET response header: %v", resp.Header)
+	msg("GET code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
 	var wants []string
@@ -54,7 +54,7 @@ func doBenchGet(cloneURL string) []string {
 
 		switch packets {
 		case 0:
-			log.Printf("GET first packet %v", time.Since(start))
+			msg("GET first packet %v", time.Since(start))
 			if data != "# service=git-upload-pack\n" {
 				fatal(fmt.Errorf("unexpected header %q", data))
 			}
@@ -87,9 +87,9 @@ func doBenchGet(cloneURL string) []string {
 		fatal("missing flush in response")
 	}
 
-	log.Printf("GET: %d packets", packets)
-	log.Printf("GET done %v", time.Since(start))
-	log.Printf("GET data %d bytes", size)
+	msg("GET: %d packets", packets)
+	msg("GET done %v", time.Since(start))
+	msg("GET data %d bytes", size)
 
 	return wants
 }
@@ -122,11 +122,12 @@ func doBenchPost(cloneURL string, wants []string) {
 	}
 
 	start := time.Now()
+	msg("POST %v", req.URL)
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
-	log.Printf("POST response header: %v", resp.Header)
-	log.Printf("POST code %d", resp.StatusCode)
+	msg("POST response header: %v", resp.Header)
+	msg("POST code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
 	packets := 0
@@ -148,7 +149,7 @@ func doBenchPost(cloneURL string, wants []string) {
 			if !bytes.Equal([]byte("NAK\n"), data) {
 				fatal(fmt.Errorf("expected NAK, got %q", data))
 			}
-			log.Printf("NAK after %v", time.Since(start))
+			msg("NAK after %v", time.Since(start))
 		default:
 			if pktline.IsFlush(scanner.Bytes()) {
 				seenFlush = true
@@ -164,7 +165,7 @@ func doBenchPost(cloneURL string, wants []string) {
 				fatal(fmt.Errorf("invalid sideband: %d", band))
 			}
 			if sideBandHistogram[band] == 0 {
-				log.Printf("first %s packet after %v", bandToHuman(band), time.Since(start))
+				msg("first %s packet after %v", bandToHuman(band), time.Since(start))
 			}
 
 			sideBandHistogram[band]++
@@ -186,13 +187,13 @@ func doBenchPost(cloneURL string, wants []string) {
 		fatal("POST response did not end in flush")
 	}
 
-	log.Printf("POST: %d packets", packets)
-	log.Printf("POST done %v", time.Since(start))
+	msg("POST: %d packets", packets)
+	msg("POST done %v", time.Since(start))
 	for i := byte(1); i <= 3; i++ {
-		log.Printf("data in %s band: %d bytes", bandToHuman(i), totalSize[i])
+		msg("data in %s band: %d bytes", bandToHuman(i), totalSize[i])
 	}
-	log.Printf("POST packet payload size histogram: %v", payloadSizeHistogram)
-	log.Printf("POST packet sideband histogram: %v", sideBandHistogram)
+	msg("POST packet payload size histogram: %v", payloadSizeHistogram)
+	msg("POST packet sideband histogram: %v", sideBandHistogram)
 }
 
 func bandToHuman(b byte) string {
