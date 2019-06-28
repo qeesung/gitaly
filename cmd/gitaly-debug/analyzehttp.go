@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -105,6 +107,7 @@ func doBenchPost(cloneURL string, wants []string) {
 	var size int64
 	sizeHistogram := make(map[int]int)
 	sideBandHistogram := make(map[byte]int)
+	progress := os.Getenv("PROGRESS") == "1"
 	for ; scanner.Scan(); packets++ {
 		if packets == 0 {
 			log.Printf("POST first packet %v", time.Since(start))
@@ -117,6 +120,13 @@ func doBenchPost(cloneURL string, wants []string) {
 		if len(data) > 0 {
 			sideBandHistogram[data[0]]++
 		}
+
+		if progress && packets%100 == 0 && packets > 0 {
+			fmt.Printf(".")
+		}
+	}
+	if progress {
+		fmt.Println("")
 	}
 	noError(scanner.Err())
 
