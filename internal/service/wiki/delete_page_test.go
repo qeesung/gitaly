@@ -111,7 +111,7 @@ func TestFailedWikiDeletePageDueToValidations(t *testing.T) {
 				PagePath:      []byte("does-not-exist"),
 				CommitDetails: commitDetails,
 			},
-			code: codes.Unknown,
+			code: codes.NotFound,
 		},
 		{
 			desc: "empty page path",

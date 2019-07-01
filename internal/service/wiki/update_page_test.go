@@ -11,54 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestFailedWikiUpdatePageDueToNotFound(t *testing.T) {
-	wikiRepo, _, cleanupFunc := setupWikiRepo(t)
-	defer cleanupFunc()
-
-	server, serverSocketPath := runWikiServiceServer(t)
-	defer server.Stop()
-
-	client, conn := newWikiClient(t, serverSocketPath)
-	defer conn.Close()
-
-	pageName := "foo/Installing Gitaly"
-	content := []byte("Mock wiki page content")
-	commitDetails := &gitalypb.WikiCommitDetails{
-		Name:     []byte("Ahmad Sherif"),
-		Email:    []byte("ahmad@gitlab.com"),
-		Message:  []byte("Add " + pageName),
-		UserId:   int32(1),
-		UserName: []byte("ahmad"),
-	}
-
-	writeWikiPage(t, client, wikiRepo, createWikiPageOpts{title: pageName, content: content})
-
-	request := &gitalypb.WikiUpdatePageRequest{
-		Repository:    wikiRepo,
-                PagePath:      []byte("/foo/Installing Gibaly"),
-		Title:         []byte("Installing Gibaly"),
-		Format:        "markdown",
-		CommitDetails: commitDetails,
-		Content:       []byte("new content"),
-	}
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	stream, err := client.WikiUpdatePage(ctx)
-	require.NoError(t, err)
-
-	require.NoError(t, stream.Send(request))
-
-	response, err := stream.CloseAndRecv()
-	require.NoError(t, err)
-
-        expectedMessage := "page not found: /foo/Installing Gibaly"
-
-	expectedResponse := &gitalypb.WikiUpdatePageResponse{Error: []byte(expectedMessage)}
-	require.Equal(t, expectedResponse, response, "mismatched response")
-}
-
 func TestSuccessfulWikiUpdatePageRequest(t *testing.T) {
 	wikiRepo, wikiRepoPath, cleanupFunc := setupWikiRepo(t)
 	defer cleanupFunc()
@@ -193,6 +145,18 @@ func TestFailedWikiUpdatePageDueToValidations(t *testing.T) {
 				Content:       []byte(""),
 			},
 			code: codes.InvalidArgument,
+		},
+		{
+			desc: "page does not exist",
+			request: &gitalypb.WikiUpdatePageRequest{
+				Repository:    wikiRepo,
+				PagePath:      []byte("//Installing Gibaly"),
+				Title:         []byte("Installing Gitaly"),
+				Format:        "markdown",
+				CommitDetails: commitDetails,
+				Content:       []byte(""),
+			},
+			code: codes.NotFound,
 		},
 		{
 			desc: "empty title",
