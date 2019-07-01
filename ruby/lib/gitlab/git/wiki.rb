@@ -51,19 +51,6 @@ module Gitlab
         gollum_find_file(name, version)
       end
 
-      # options:
-      #  :page     - The Integer page number.
-      #  :per_page - The number of items per page.
-      #  :limit    - Total number of items to return.
-      def page_versions(page_path, options = {})
-        current_page = gollum_page_by_path(page_path)
-
-        commits_from_page(current_page, options).map do |gitlab_git_commit|
-          gollum_page = gollum_wiki.page(current_page.title, gitlab_git_commit.id)
-          Gitlab::Git::WikiPageVersion.new(gitlab_git_commit, gollum_page&.format)
-        end
-      end
-
       def count_page_versions(page_path)
         @repository.count_commits(ref: 'HEAD', path: page_path)
       end
