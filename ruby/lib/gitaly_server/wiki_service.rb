@@ -177,6 +177,8 @@ module GitalyServer
       wiki.update_page(page_path, title, format.to_sym, content, commit_details)
 
       Gitaly::WikiUpdatePageResponse.new
+    rescue Gitlab::Git::Wiki::PageNotFound => e
+      Gitaly::WikiUpdatePageResponse.new(error: e.message.b)
     end
 
     def wiki_get_formatted_data(request, call)
