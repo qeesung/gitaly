@@ -5,6 +5,11 @@ import (
 	"io"
 )
 
+// TrailerReader models the behavior of Git hashfiles where the last N
+// bytes of the underlying reader are not part of the content.
+// TrailerReader acts like an io.Reader but will always hold back the
+// last N bytes. Once the underlying reader has reached EOF, the trailer
+// (the last N bytes) can be retrieved with the Trailer() method.
 type TrailerReader struct {
 	r           io.Reader
 	start, end  int
@@ -13,6 +18,10 @@ type TrailerReader struct {
 	atEOF       bool
 }
 
+// NewTrailerReader returns a new TrailerReader. The returned
+// TrailerReader will never return the last trailerSize bytes of r; to
+// get to those bytes, first read the TrailerReader to EOF and then call
+// Trailer().
 func NewTrailerReader(r io.Reader, trailerSize int) *TrailerReader {
 	bufSize := 4096
 	for 2*trailerSize > bufSize {
@@ -26,6 +35,9 @@ func NewTrailerReader(r io.Reader, trailerSize int) *TrailerReader {
 	}
 }
 
+// Trailer yields the last trailerSize bytes of the underlying reader of
+// tr. If the underlying reader has not reached EOF yet, the trailer is
+// undefined, and Trailer will return an error.
 func (tr *TrailerReader) Trailer() ([]byte, error) {
 	bufLen := tr.end - tr.start
 	if !tr.atEOF || bufLen > tr.trailerSize {

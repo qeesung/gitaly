@@ -12,7 +12,6 @@ func TestHashfileReader(t *testing.T) {
 	testCases := []struct {
 		desc string
 		in   string
-		sum  string
 		out  string
 		fail bool
 	}{
