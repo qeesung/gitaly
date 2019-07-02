@@ -5,6 +5,13 @@ def run!(cmd, chdir='.')
   end
 end
 
+def run2!(cmd, chdir: '.', out: 1)
+  GitalySupport.print_cmd(cmd)
+  unless system(*cmd, chdir: chdir, out: out)
+    GitalySupport.fail_cmd!(cmd)
+  end
+end
+
 def capture!(cmd, chdir='.')
   GitalySupport.print_cmd(cmd)
   output = IO.popen(cmd, chdir: chdir) { |io| io.read }

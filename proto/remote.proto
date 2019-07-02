@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "shared.proto";
+
+service RemoteService {
+    rpc AddRemote(AddRemoteRequest) returns (AddRemoteResponse) {
+      option (op_type) = {
+        op: MUTATOR
+        target_repository_field: "1"
+      };
+    }
+    rpc FetchInternalRemote(FetchInternalRemoteRequest) returns (FetchInternalRemoteResponse) {
+      option (op_type) = {
+        op: MUTATOR
+        target_repository_field: "1"
+      };
+    }
+    rpc RemoveRemote(RemoveRemoteRequest) returns (RemoveRemoteResponse) {
+      option (op_type) = {
+        op: MUTATOR
+        target_repository_field: "1"
+      };
+    }
+
+    rpc UpdateRemoteMirror(stream UpdateRemoteMirrorRequest) returns (UpdateRemoteMirrorResponse) {
+      option (op_type) = {
+        op: MUTATOR
+        target_repository_field: "1"
+      };
+    }
+    rpc FindRemoteRepository(FindRemoteRepositoryRequest) returns (FindRemoteRepositoryResponse) {
+      option (op_type).op = ACCESSOR;
+    }
+    rpc FindRemoteRootRef(FindRemoteRootRefRequest) returns (FindRemoteRootRefResponse) {
+      option (op_type).op = ACCESSOR;
+    }
+    rpc ListRemotes(ListRemotesRequest) returns (stream ListRemotesResponse) {
+      option (op_type).op = ACCESSOR;
+    }
+}
+
+message AddRemoteRequest {
+  Repository repository = 1;
+  string name = 2;
+  string url = 3;
+  // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/proto/merge_requests/137
+  reserved 4;
+  reserved "mirror_refmap";
+  // If any, the remote is configured as a mirror with those mappings
+  repeated string mirror_refmaps = 5;
+}
+
+message AddRemoteResponse {}
+
+message RemoveRemoteRequest {
+  Repository repository = 1;
+  string name = 2;
+}
+
+message RemoveRemoteResponse {
+  bool result = 1;
+}
+
+message FetchInternalRemoteRequest {
+  Repository repository = 1;
+  Repository remote_repository = 2;
+}
+
+message FetchInternalRemoteResponse {
+  bool result = 1;
+}
+
+message UpdateRemoteMirrorRequest {
+  Repository repository = 1;
+  string ref_name = 2;
+  repeated bytes only_branches_matching = 3;
+  string ssh_key = 4;
+  string known_hosts = 5;
+}
+
+message UpdateRemoteMirrorResponse {}
+
+message FindRemoteRepositoryRequest {
+  string remote = 1;
+}
+
+// This migth throw a GRPC Unavailable code, to signal the request failure
+// is transient.
+message FindRemoteRepositoryResponse {
+  bool exists = 1;
+}
+
+message FindRemoteRootRefRequest {
+  Repository repository = 1;
+  string remote = 2;
+}
+
+message FindRemoteRootRefResponse {
+  string ref = 1;
+}
+
+message ListRemotesRequest {
+  Repository repository = 1;
+}
+
+message ListRemotesResponse {
+  message Remote {
+    string name = 1;
+    string fetch_url = 2;
+    string push_url = 3;
+  }
+
+  repeated Remote remotes = 1;
+}

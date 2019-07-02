@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/descriptor.proto";
+
+message OperationMsg {
+  enum Operation {
+    UNKNOWN = 0;
+    MUTATOR = 1;
+    ACCESSOR = 2;
+  }
+
+  Operation op = 1;
+  
+  enum Scope {
+    REPOSITORY = 0;
+    SERVER = 1;
+  }
+  
+  // Scope level indicates how a mutating RPC affects Gitaly:
+  //   - REPOSITORY: mutation is scoped to only a single repo
+  //   - SERVER: mutation affects the entire server and potentially all repos
+  Scope scope_level = 2;
+  
+  // If this operation modifies a repository, this field will
+  // specify the location of the Repository field within the
+  // request message. The field is specified in an OID style
+  // formatted string.
+  //
+  // For example, if the target repository is at the top level
+  // of a message at field 1, then the string will be "1"
+  //
+  // If the target repository is nested deeper in the message,
+  // then it will be necessary to specify a nested OID string.
+  //
+  // For example, the following OID refers to a target repo field
+  // nested in a one-of field, both at field one: "1.1"
+  string target_repository_field = 3;
+}
+
+enum ObjectType {
+  UNKNOWN = 0;
+  COMMIT = 1;
+  BLOB = 2;
+  TREE = 3;
+  TAG = 4;
+}
+
+extend google.protobuf.MethodOptions {
+  // Random high number..
+  OperationMsg op_type = 82303;
+}
+
+message Repository {
+  // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/151
+  reserved 1;
+  reserved "path";
+
+  string storage_name = 2;
+  string relative_path = 3;
+  // Sets the GIT_OBJECT_DIRECTORY envvar on git commands to the value of this field.
+  // It influences the object storage directory the SHA1 directories are created underneath.
+  string git_object_directory = 4;
+  // Sets the GIT_ALTERNATE_OBJECT_DIRECTORIES envvar on git commands to the values of this field.
+  // It influences the list of Git object directories which can be used to search for Git objects.
+  repeated string git_alternate_object_directories = 5;
+  // Used in callbacks to GitLab so that it knows what repository the event is
+  // associated with. May be left empty on RPC's that do not perform callbacks.
+  // During project creation, `gl_repository` may not be known.
+  string gl_repository = 6;
+  reserved 7;
+  // The human-readable GitLab project path (e.g. gitlab-org/gitlab-ce).
+  // When hashed storage is use, this associates a project path with its
+  // path on disk. The name can change over time (e.g. when a project is
+  // renamed). This is primarily used for logging/debugging at the
+  // moment.
+  string gl_project_path = 8;
+}
+
+// Corresponds to Gitlab::Git::Commit
+message GitCommit {
+  string id = 1;
+  bytes subject = 2;
+  bytes body = 3;
+  CommitAuthor author = 4;
+  CommitAuthor committer = 5;
+  repeated string parent_ids = 6;
+  // If body exceeds a certain threshold, it will be nullified,
+  // but its size will be set in body_size so we can know if
+  // a commit had a body in the first place.
+  int64 body_size = 7;
+}
+
+message CommitAuthor {
+  bytes name = 1;
+  bytes email = 2;
+  google.protobuf.Timestamp date = 3;
+}
+
+message ExitStatus {
+  int32 value = 1;
+}
+
+// Corresponds to Gitlab::Git::Branch
+message Branch {
+  bytes name = 1;
+  GitCommit target_commit = 2;
+}
+
+message Tag {
+  bytes name = 1;
+  string id = 2;
+  GitCommit target_commit = 3;
+  // If message exceeds a certain threshold, it will be nullified,
+  // but its size will be set in message_size so we can know if
+  // a tag had a message in the first place.
+  bytes message = 4;
+  int64 message_size = 5;
+  CommitAuthor tagger = 6;
+}
+
+message User {
+  string gl_id = 1;
+  bytes name = 2;
+  bytes email = 3;
+  string gl_username = 4;
+}
+
+message ObjectPool {
+  Repository repository = 1;
+}
