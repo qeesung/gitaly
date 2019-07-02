@@ -4,6 +4,8 @@ require_relative 'run.rb'
 
 require 'tempfile'
 
+SOURCE = 'https://gitlab.com/gitlab-org/gitaly-proto'.freeze
+
 def main
   pwd = Dir.pwd
 
@@ -17,7 +19,7 @@ def main
 end
 
 def clone
-  run!(%w[git clone --quiet --depth=1 https://gitlab.com/gitlab-org/gitaly-proto.git .])
+  run!(%W[git clone --quiet --depth=1 #{SOURCE}.git .])
 end
 
 def modify
@@ -29,13 +31,15 @@ def modify
 
   FileUtils.mv('README.md', 'README.orig.md')
 
-  commit_id = capture!(%w[git rev-parse HEAD])
+  commit_id = capture!(%w[git rev-parse HEAD]).chomp
   readme = <<EOS
 # Vendored copy of gitaly-proto
 
-Vendored at #{commit_id}.
+Vendored from #{SOURCE} at #{commit_id}.
 
-Migration in progress, see https://gitlab.com/gitlab-org/gitaly/issues/1761.
+Migration in progress, see
+https://gitlab.com/gitlab-org/gitaly/issues/1761. Do not edit files in
+this directory, your changes will be ignored and overwritten.
 EOS
   IO.write('README.md', readme)
 end
