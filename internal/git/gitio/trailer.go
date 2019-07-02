@@ -62,12 +62,7 @@ func (tr *TrailerReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	chunk := tr.end - tr.start - tr.trailerSize
-	if chunk > len(p) {
-		chunk = len(p)
-	}
-
-	copy(p, tr.buf[tr.start:tr.start+chunk])
-	tr.start += chunk
-	return chunk, nil
+	n := copy(p, tr.buf[tr.start:tr.end-tr.trailerSize])
+	tr.start += n
+	return n, nil
 }
