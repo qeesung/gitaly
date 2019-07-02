@@ -3,7 +3,7 @@ module Gitlab
     class Wiki
       DuplicatePageError = Class.new(StandardError)
       OperationError = Class.new(StandardError)
-      PageNotFound = Class.new(StandardError)
+      PageNotFound = Class.new(GRPC::NotFound)
 
       CommitDetails = Struct.new(:user_id, :username, :name, :email, :message) do
         def to_h

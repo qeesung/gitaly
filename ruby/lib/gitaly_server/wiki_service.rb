@@ -11,8 +11,6 @@ module GitalyServer
       wiki.delete_page(page_path, commit_details)
 
       Gitaly::WikiDeletePageResponse.new
-    rescue Gitlab::Git::Wiki::PageNotFound => e
-      raise GRPC::NotFound, e.message
     end
 
     def wiki_write_page(call)
@@ -179,8 +177,6 @@ module GitalyServer
       wiki.update_page(page_path, title, format.to_sym, content, commit_details)
 
       Gitaly::WikiUpdatePageResponse.new
-    rescue Gitlab::Git::Wiki::PageNotFound => e
-      raise GRPC::NotFound, e.message
     end
 
     def wiki_get_formatted_data(request, call)
