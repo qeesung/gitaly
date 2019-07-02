@@ -18,8 +18,9 @@ type HashfileReader struct {
 }
 
 // NewHashfileReader wraps r to return a reader that will omit the
-// trailing checksum. When the HashfileReader reaches EOF, it will
-// transparently compare the against the trailing checksum provided by r.
+// trailing checksum. When the HashfileReader reaches EOF it will
+// transparently compare the actual checksum, as calculated while
+// reading, to the expected checksum provided by the trailer of r.
 func NewHashfileReader(r io.Reader) *HashfileReader {
 	sum := sha1.New()
 	tr := NewTrailerReader(r, sum.Size())
