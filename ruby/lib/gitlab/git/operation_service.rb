@@ -22,10 +22,6 @@ module Gitlab
 
       def initialize(user, new_repository)
         @user = user
-
-        # Refactoring aid
-        Gitlab::Git.check_namespace!(new_repository)
-
         @repository = new_repository
       end
 
@@ -78,7 +74,6 @@ module Gitlab
                       start_repository: repository,
                       force: false,
                       &block)
-        Gitlab::Git.check_namespace!(start_repository)
         start_repository = RemoteRepository.new(start_repository) unless start_repository.is_a?(RemoteRepository)
 
         start_branch_name = nil if start_repository.empty?

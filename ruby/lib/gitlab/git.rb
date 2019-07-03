@@ -100,13 +100,6 @@ module Gitlab
         Gitlab::Git::Version.git_version
       end
 
-      def check_namespace!(*objects)
-        expected_namespace = self.name + '::'
-        objects.each do |object|
-          raise ArgumentError, "expected object in #{expected_namespace}, got #{object}" unless object.class.name.start_with?(expected_namespace)
-        end
-      end
-
       def diff_line_code(file_path, new_line_position, old_line_position)
         "#{Digest::SHA1.hexdigest(file_path)}_#{old_line_position}_#{new_line_position}"
       end
