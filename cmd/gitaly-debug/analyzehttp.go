@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -31,20 +30,31 @@ func doBenchGet(cloneURL string) []string {
 	}
 
 	start := time.Now()
-	msg("GET %v", req.URL)
+	msg("---")
+	msg("--- GET %v", req.URL)
+	msg("---")
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
-	msg("GET response after %v", time.Since(start))
-	msg("GET response header: %v", resp.Header)
-	msg("GET code %d", resp.StatusCode)
+	msg("response after %v", time.Since(start))
+	msg("response header: %v", resp.Header)
+	msg("HTTP status code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
+	// Expected response:
+	// - "# service=git-upload-pack\n"
+	// - FLUSH
+	// - "<OID> <ref> <capabilities>\n"
+	// - "<OID> <ref>\n"
+	// - ...
+	// - FLUSH
+	//
 	var wants []string
 	var size int64
 	seenFlush := false
 	scanner := pktline.NewScanner(resp.Body)
 	packets := 0
+	refs := 0
 	for ; scanner.Scan(); packets++ {
 		if seenFlush {
 			fatal("received packet after flush")
@@ -52,10 +62,9 @@ func doBenchGet(cloneURL string) []string {
 
 		data := string(pktline.Data(scanner.Bytes()))
 		size += int64(len(data))
-
 		switch packets {
 		case 0:
-			msg("GET first packet %v", time.Since(start))
+			msg("first packet %v", time.Since(start))
 			if data != "# service=git-upload-pack\n" {
 				fatal(fmt.Errorf("unexpected header %q", data))
 			}
@@ -77,6 +86,7 @@ func doBenchGet(cloneURL string) []string {
 			if len(split) != 2 {
 				continue
 			}
+			refs++
 
 			if strings.HasPrefix(split[1], "refs/heads/") || strings.HasPrefix(split[1], "refs/tags/") {
 				wants = append(wants, split[0])
@@ -88,9 +98,10 @@ func doBenchGet(cloneURL string) []string {
 		fatal("missing flush in response")
 	}
 
-	msg("GET: %d packets", packets)
-	msg("GET done %v", time.Since(start))
-	msg("GET data %d bytes", size)
+	msg("received %d packets", packets)
+	msg("done in %v", time.Since(start))
+	msg("payload data: %d bytes", size)
+	msg("received %d refs, selected %d wants", refs, len(wants))
 
 	return wants
 }
@@ -123,21 +134,28 @@ func doBenchPost(cloneURL string, wants []string) {
 	}
 
 	start := time.Now()
-	msg("POST %v", req.URL)
+	msg("---")
+	msg("--- POST %v", req.URL)
+	msg("---")
 	resp, err := http.DefaultClient.Do(req)
 	noError(err)
 
-	msg("POST response after %v", time.Since(start))
-	msg("POST response header: %v", resp.Header)
-	msg("POST code %d", resp.StatusCode)
+	msg("response after %v", time.Since(start))
+	msg("response header: %v", resp.Header)
+	msg("HTTP status code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
+	// Expected response:
+	// - "NAK\n"
+	// - "<side band byte><pack or progress or error data>
+	// - ...
+	// - FLUSH
+	//
 	packets := 0
 	scanner := pktline.NewScanner(resp.Body)
 	totalSize := make(map[byte]int64)
 	payloadSizeHistogram := make(map[int]int)
 	sideBandHistogram := make(map[byte]int)
-	progress := os.Getenv("PROGRESS") == "1"
 	seenFlush := false
 	for ; scanner.Scan(); packets++ {
 		if seenFlush {
@@ -150,7 +168,7 @@ func doBenchPost(cloneURL string, wants []string) {
 			if !bytes.Equal([]byte("NAK\n"), data) {
 				fatal(fmt.Errorf("expected NAK, got %q", data))
 			}
-			msg("NAK after %v", time.Since(start))
+			msg("received NAK after %v", time.Since(start))
 			continue
 		}
 
@@ -168,7 +186,7 @@ func doBenchPost(cloneURL string, wants []string) {
 			fatal(fmt.Errorf("invalid sideband: %d", band))
 		}
 		if sideBandHistogram[band] == 0 {
-			msg("first %s packet after %v", bandToHuman(band), time.Since(start))
+			msg("received first %s packet after %v", bandToHuman(band), time.Since(start))
 		}
 
 		sideBandHistogram[band]++
@@ -177,27 +195,24 @@ func doBenchPost(cloneURL string, wants []string) {
 		totalSize[band] += int64(n)
 		payloadSizeHistogram[n]++
 
-		if progress && packets%100 == 0 && packets > 0 && band == 1 {
+		if packets%100 == 0 && packets > 0 && band == 1 {
 			fmt.Printf(".")
 		}
 	}
 
-	if progress {
-		fmt.Println("")
-	}
+	fmt.Println("") // Trailing newline for progress dots.
 
 	noError(scanner.Err())
 	if !seenFlush {
 		fatal("POST response did not end in flush")
 	}
 
-	msg("POST: %d packets", packets)
-	msg("POST done %v", time.Since(start))
+	msg("received %d packets", packets)
+	msg("done in %v", time.Since(start))
 	for i := byte(1); i <= 3; i++ {
-		msg("data in %s band: %d bytes", bandToHuman(i), totalSize[i])
+		msg("%8s band: %10d payload bytes, %6d packets", bandToHuman(i), totalSize[i], sideBandHistogram[i])
 	}
-	msg("POST packet payload size histogram: %v", payloadSizeHistogram)
-	msg("POST packet sideband histogram: %v", sideBandHistogram)
+	msg("packet payload size histogram: %v", payloadSizeHistogram)
 }
 
 func bandToHuman(b byte) string {
