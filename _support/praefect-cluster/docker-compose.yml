@@ -1,0 +1,41 @@
+version: "3.5"
+services:
+  praefect:
+    build: ../../
+    image: gitaly:latest
+    depends_on:
+      - gitaly-primary
+      - gitaly-backup-1
+      - gitaly-backup-2
+    command: ["/app/_build/bin/praefect", "-config", "/etc/gitaly/config.praefect.toml"]
+    ports:
+      - "2305:2305"
+    volumes:
+      - ./config.praefect.toml:/etc/gitaly/config.praefect.toml
+  gitaly-primary:
+    build: ../../
+    image: gitaly:latest
+    command: ["/app/_build/bin/gitaly", "/etc/gitaly/config.toml"]
+    expose:
+      - "9999"
+    volumes:
+      - ./gitaly1/data:/var/opt/gitlab/git-data
+      - ./config.toml:/etc/gitaly/config.toml
+  gitaly-backup-1:
+    build: ../../
+    image: gitaly:latest
+    command: ["/app/_build/bin/gitaly", "/etc/gitaly/config.toml"]
+    expose:
+      - "9999"
+    volumes:
+      - ./gitaly2/data:/var/opt/gitlab/git-data
+      - ./config.toml:/etc/gitaly/config.toml
+  gitaly-backup-2:
+    build: ../../
+    image: gitaly:latest
+    command: ["/app/_build/bin/gitaly", "/etc/gitaly/config.toml"]
+    expose:
+      - "9999"
+    volumes:
+      - ./gitaly3/data:/var/opt/gitlab/git-data
+      - ./config.toml:/etc/gitaly/config.toml
