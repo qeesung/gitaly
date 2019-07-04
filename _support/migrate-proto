@@ -1,19 +1,20 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require_relative 'run.rb'
 
 require 'tempfile'
 
-SOURCE = 'https://gitlab.com/gitlab-org/gitaly-proto'.freeze
+SOURCE = 'https://gitlab.com/gitlab-org/gitaly-proto'
 
 def main
-  pwd = Dir.pwd
+  root = capture!(%w[git rev-parse --show-toplevel]).chomp
 
   Dir.mktmpdir do |dir|
     Dir.chdir(dir) do
       clone
       modify
-      copy(pwd)
+      copy(root)
     end
   end
 end
@@ -44,8 +45,8 @@ EOS
   IO.write('README.md', readme)
 end
 
-def copy(pwd)
-  dest = File.join(pwd, 'proto')
+def copy(root)
+  dest = File.join(root, 'proto')
   FileUtils.rm(Dir["#{dest}/*.proto"])
   file_list = Dir['*.proto'] + Dir['*.md'] + %w[LICENSE VERSION]
   FileUtils.cp(file_list, dest)
