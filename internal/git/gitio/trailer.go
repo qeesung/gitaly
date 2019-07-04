@@ -23,9 +23,9 @@ type TrailerReader struct {
 // get to those bytes, first read the TrailerReader to EOF and then call
 // Trailer().
 func NewTrailerReader(r io.Reader, trailerSize int) *TrailerReader {
-	bufSize := 4096
-	for 2*trailerSize > bufSize {
-		bufSize *= 2
+	const bufSize = 8192
+	if trailerSize >= bufSize {
+		panic("trailerSize too large for TrailerReader")
 	}
 
 	return &TrailerReader{
@@ -36,8 +36,8 @@ func NewTrailerReader(r io.Reader, trailerSize int) *TrailerReader {
 }
 
 // Trailer yields the last trailerSize bytes of the underlying reader of
-// tr. If the underlying reader has not reached EOF yet, the trailer is
-// undefined, and Trailer will return an error.
+// tr. If the underlying reader has not reached EOF yet Trailer will
+// return an error.
 func (tr *TrailerReader) Trailer() ([]byte, error) {
 	bufLen := tr.end - tr.start
 	if !tr.atEOF || bufLen > tr.trailerSize {

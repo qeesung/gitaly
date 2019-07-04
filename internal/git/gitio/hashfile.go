@@ -9,8 +9,7 @@ import (
 )
 
 // HashfileReader reads and verifies Git "hashfiles" as defined in
-// https://github.com/git/git/blob/master/csum-file.h. The hash algorithm
-// is hard-coded to SHA1.
+// https://github.com/git/git/blob/v2.21.0/csum-file.h.
 type HashfileReader struct {
 	tr  *TrailerReader
 	tee io.Reader
