@@ -140,13 +140,18 @@ doesn't yet have the new endpoint implemented. We fix this by adding a dummy imp
 
 ###### Adding an empty Go implementation for a new RPC
 
-This is a typical Go compiler error after you have have vendored a new protocol:
+Often the other developers add a new protocol to gitaly-proto and it could interfere your merge request
+due to the lack of corresponding implementations in gitaly. For instance, you'd see the following
+Go compiler error in such case:
 
 ```
 # gitlab.com/gitlab-org/gitaly/internal/service/repository
 _build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitaly.RepositoryServiceServer in return argument:
     *server does not implement gitaly.RepositoryServiceServer (missing RestoreCustomHooks method)
 ```
+
+Remember that this sort of error can be addressed by the following method
+even if you're not the one who added the protocol.
 
 In this case a new RPC called `RestoreCustomHooks` was added to the
 RepositoryService service, but it does not have an implementation. We
