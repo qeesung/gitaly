@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative 'run.rb'
+
+require 'tempfile'
+
+SOURCE = 'https://gitlab.com/gitlab-org/gitaly-proto'
+
+def main
+  root = capture!(%w[git rev-parse --show-toplevel]).chomp
+
+  Dir.mktmpdir do |dir|
+    Dir.chdir(dir) do
+      clone
+      modify
+      copy(root)
+    end
+  end
+end
+
+def clone
+  run!(%W[git clone --quiet --depth=1 #{SOURCE}.git .])
+end
+
+def modify
+  Dir['*.proto'].each do |proto|
+    tmp = proto + '.bak'
+    run2!(%W[sed s/gitlab-org\\/gitaly-proto/gitlab-org\\/gitaly\\/proto/ #{proto}], out: tmp)
+    FileUtils.mv(tmp, proto)
+  end
+
+  FileUtils.mv('README.md', 'README.orig.md')
+
+  commit_id = capture!(%w[git rev-parse HEAD]).chomp
+  readme = <<EOS
+# Vendored copy of gitaly-proto
+
+Vendored from #{SOURCE} at #{commit_id}.
+
+Migration in progress, see
+https://gitlab.com/gitlab-org/gitaly/issues/1761. Do not edit files in
+this directory, your changes will be ignored and overwritten.
+EOS
+  IO.write('README.md', readme)
+end
+
+def copy(root)
+  dest = File.join(root, 'proto')
+  FileUtils.rm(Dir["#{dest}/*.proto"])
+  file_list = Dir['*.proto'] + Dir['*.md'] + %w[LICENSE VERSION]
+  FileUtils.cp(file_list, dest)
+end
+
+main

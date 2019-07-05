@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "shared.proto";
+
+service ObjectPoolService {
+  rpc CreateObjectPool(CreateObjectPoolRequest) returns (CreateObjectPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.1"
+    };
+  }
+  rpc DeleteObjectPool(DeleteObjectPoolRequest) returns (DeleteObjectPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.1"
+    };
+  }
+
+  // Repositories are assumed to be stored on the same disk
+  rpc LinkRepositoryToObjectPool(LinkRepositoryToObjectPoolRequest) returns (LinkRepositoryToObjectPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.1"
+    };
+  }
+  rpc UnlinkRepositoryFromObjectPool(UnlinkRepositoryFromObjectPoolRequest) returns (UnlinkRepositoryFromObjectPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+
+  rpc ReduplicateRepository(ReduplicateRepositoryRequest) returns (ReduplicateRepositoryResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc DisconnectGitAlternates(DisconnectGitAlternatesRequest) returns (DisconnectGitAlternatesResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc FetchIntoObjectPool(FetchIntoObjectPoolRequest) returns (FetchIntoObjectPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+}
+
+// Creates an object pool from the repository. The client is responsible for
+// joining this pool later with this repository.
+message CreateObjectPoolRequest {
+  ObjectPool object_pool = 1;
+  Repository origin = 2;
+}
+message CreateObjectPoolResponse {}
+
+// Removes the directory from disk, caller is responsible for leaving the object
+// pool before calling this RPC
+message DeleteObjectPoolRequest {
+  ObjectPool object_pool = 1;
+}
+message DeleteObjectPoolResponse {}
+
+message LinkRepositoryToObjectPoolRequest {
+  ObjectPool object_pool = 1;
+  Repository repository = 2;
+}
+message LinkRepositoryToObjectPoolResponse {}
+
+// This RPC doesn't require the ObjectPool as it will remove the alternates file
+// from the pool participant. The caller is responsible no data loss occurs.
+message UnlinkRepositoryFromObjectPoolRequest {
+  Repository repository = 1;
+  ObjectPool object_pool = 2;
+}
+message UnlinkRepositoryFromObjectPoolResponse {}
+
+message ReduplicateRepositoryRequest {
+  Repository repository = 1;
+}
+message ReduplicateRepositoryResponse {}
+
+message DisconnectGitAlternatesRequest {
+  Repository repository = 1;
+}
+
+message DisconnectGitAlternatesResponse {}
+
+message FetchIntoObjectPoolRequest {
+  Repository origin = 1;
+  ObjectPool object_pool = 2;
+  bool repack = 3;
+}
+message FetchIntoObjectPoolResponse {}

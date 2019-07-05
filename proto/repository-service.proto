@@ -1,0 +1,594 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "shared.proto";
+
+service RepositoryService {
+  rpc RepositoryExists(RepositoryExistsRequest) returns (RepositoryExistsResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc RepackIncremental(RepackIncrementalRequest) returns (RepackIncrementalResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc RepackFull(RepackFullRequest) returns (RepackFullResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc GarbageCollect(GarbageCollectRequest) returns (GarbageCollectResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc RepositorySize(RepositorySizeRequest) returns (RepositorySizeResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc ApplyGitattributes(ApplyGitattributesRequest) returns (ApplyGitattributesResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc FetchRemote(FetchRemoteRequest) returns (FetchRemoteResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc CreateRepository(CreateRepositoryRequest) returns (CreateRepositoryResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc GetArchive(GetArchiveRequest) returns (stream GetArchiveResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc HasLocalBranches(HasLocalBranchesRequest) returns (HasLocalBranchesResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc FetchSourceBranch(FetchSourceBranchRequest) returns (FetchSourceBranchResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc Fsck(FsckRequest) returns (FsckResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc WriteRef(WriteRefRequest) returns (WriteRefResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc FindMergeBase(FindMergeBaseRequest) returns (FindMergeBaseResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc CreateFork(CreateForkRequest) returns (CreateForkResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc IsRebaseInProgress(IsRebaseInProgressRequest) returns (IsRebaseInProgressResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc IsSquashInProgress(IsSquashInProgressRequest) returns (IsSquashInProgressResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+
+  rpc CreateRepositoryFromURL(CreateRepositoryFromURLRequest) returns (CreateRepositoryFromURLResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc CreateBundle(CreateBundleRequest) returns (stream CreateBundleResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      scope_level: SERVER,
+    };
+  }
+  rpc CreateRepositoryFromBundle(stream CreateRepositoryFromBundleRequest) returns (CreateRepositoryFromBundleResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc DeleteConfig(DeleteConfigRequest) returns (DeleteConfigResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc FindLicense(FindLicenseRequest) returns (FindLicenseResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc GetInfoAttributes(GetInfoAttributesRequest) returns (stream GetInfoAttributesResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc CalculateChecksum(CalculateChecksumRequest) returns (CalculateChecksumResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc Cleanup(CleanupRequest) returns (CleanupResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc GetSnapshot(GetSnapshotRequest) returns (stream GetSnapshotResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc CreateRepositoryFromSnapshot(CreateRepositoryFromSnapshotRequest) returns (CreateRepositoryFromSnapshotResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc GetRawChanges(GetRawChangesRequest) returns (stream GetRawChangesResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc SearchFilesByContent(SearchFilesByContentRequest) returns (stream SearchFilesByContentResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc SearchFilesByName(SearchFilesByNameRequest) returns (stream SearchFilesByNameResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc RestoreCustomHooks(stream RestoreCustomHooksRequest) returns (RestoreCustomHooksResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc BackupCustomHooks(BackupCustomHooksRequest) returns (stream BackupCustomHooksResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc PreFetch(PreFetchRequest) returns (PreFetchResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc FetchHTTPRemote(FetchHTTPRemoteRequest) returns (FetchHTTPRemoteResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc GetObjectDirectorySize(GetObjectDirectorySizeRequest) returns (GetObjectDirectorySizeResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+  rpc CloneFromPool(CloneFromPoolRequest) returns (CloneFromPoolResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  rpc CloneFromPoolInternal(CloneFromPoolInternalRequest) returns (CloneFromPoolInternalResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+}
+
+message RepositoryExistsRequest {
+  Repository repository = 1;
+}
+
+message RepositoryExistsResponse {
+  bool exists = 1;
+}
+
+message RepackIncrementalRequest {
+  Repository repository = 1;
+}
+
+message RepackIncrementalResponse {}
+
+message RepackFullRequest {
+  Repository repository = 1;
+  bool create_bitmap = 2;
+}
+
+message RepackFullResponse {}
+
+message GarbageCollectRequest {
+  Repository repository = 1;
+  bool create_bitmap = 2;
+}
+
+message GarbageCollectResponse {}
+
+message CleanupRequest {
+  Repository repository = 1;
+}
+
+message CleanupResponse {}
+
+message RepositorySizeRequest {
+  Repository repository = 1;
+}
+
+message RepositorySizeResponse {
+  // Repository size in kilobytes
+  int64 size = 1;
+}
+
+message ApplyGitattributesRequest {
+  Repository repository = 1;
+  bytes revision = 2;
+}
+
+message ApplyGitattributesResponse {}
+
+message FetchRemoteRequest {
+  Repository repository = 1;
+  string remote = 2;
+  bool force = 3;
+  bool no_tags = 4;
+  int32 timeout = 5;
+  string ssh_key = 6;
+  string known_hosts = 7;
+  reserved 8;
+  bool no_prune = 9;
+  Remote remote_params = 10;
+}
+
+message FetchRemoteResponse {}
+
+message CreateRepositoryRequest {
+  Repository repository = 1;
+}
+
+message CreateRepositoryResponse {}
+
+message GetArchiveRequest {
+  enum Format {
+    ZIP = 0;
+    TAR = 1;
+    TAR_GZ = 2;
+    TAR_BZ2 = 3;
+  }
+
+  Repository repository = 1;
+  string commit_id = 2;
+  string prefix = 3;
+  Format format = 4;
+  bytes path = 5;
+}
+
+message GetArchiveResponse {
+  bytes data = 1;
+}
+
+message HasLocalBranchesRequest {
+  Repository repository = 1;
+}
+
+message HasLocalBranchesResponse {
+  bool value = 1;
+}
+
+message FetchSourceBranchRequest {
+  Repository repository = 1;
+  Repository source_repository = 2;
+  bytes source_branch = 3;
+  bytes target_ref = 4;
+}
+
+message FetchSourceBranchResponse {
+  bool result = 1;
+}
+
+message FsckRequest {
+  Repository repository = 1;
+}
+
+message FsckResponse {
+  bytes error = 1;
+}
+
+message WriteRefRequest {
+  Repository repository = 1;
+  bytes ref = 2;
+  bytes revision = 3;
+  bytes old_revision = 4;
+  bool force = 5;
+  // This used to be a boolean indicating whether or not to shell out or use
+  // the rugged implementation
+  reserved 6;
+}
+
+message WriteRefResponse {
+  // This used to contain an error message. Since we're shelling out
+  // all exceptions are wrapped in GRPC errors.
+  reserved 1;
+}
+
+message FindMergeBaseRequest {
+  Repository repository = 1;
+  // We use a repeated field because rugged supports finding a base
+  // for more than 2 revisions, so if we needed that in the future we don't
+  // need to change the protocol.
+  repeated bytes revisions = 2;
+}
+
+message FindMergeBaseResponse {
+  string base = 1;
+}
+
+message CreateForkRequest {
+  Repository repository = 1;
+  Repository source_repository = 2;
+}
+
+message CreateForkResponse {}
+
+message IsRebaseInProgressRequest {
+  Repository repository = 1;
+  string rebase_id = 2;
+}
+
+message IsRebaseInProgressResponse {
+  bool in_progress = 1;
+}
+
+message IsSquashInProgressRequest {
+  Repository repository = 1;
+  string squash_id = 2;
+}
+
+message IsSquashInProgressResponse {
+  bool in_progress = 1;
+}
+
+message CreateRepositoryFromURLRequest {
+  Repository repository = 1;
+  string url = 2;
+}
+
+message CreateRepositoryFromURLResponse {}
+
+message CreateBundleRequest {
+  Repository repository = 1;
+}
+
+message CreateBundleResponse {
+  bytes data = 1;
+}
+
+message WriteConfigRequest {
+  Repository repository = 1;
+  string full_path = 2;
+}
+
+message WriteConfigResponse {
+  bytes error = 1;
+}
+
+message SetConfigRequest {
+  Repository repository = 1;
+  message Entry {
+    string key = 1;
+    oneof value {
+      string value_str = 2;
+      int32 value_int32 = 3;
+      bool value_bool = 4;
+    }
+  }
+  repeated Entry entries = 2;
+}
+
+message SetConfigResponse {}
+
+message DeleteConfigRequest {
+  Repository repository = 1;
+  repeated string keys = 2;
+}
+
+message DeleteConfigResponse {}
+
+message  RestoreCustomHooksRequest {
+  Repository repository = 1;
+  bytes data = 2;
+}
+
+message RestoreCustomHooksResponse {}
+
+message BackupCustomHooksRequest {
+  Repository repository = 1;
+}
+
+message BackupCustomHooksResponse {
+  bytes data = 1;
+}
+
+message CreateRepositoryFromBundleRequest {
+  // Only available on the first message
+  Repository repository = 1;
+  bytes data = 2;
+}
+
+message CreateRepositoryFromBundleResponse {}
+
+message FindLicenseRequest {
+  Repository repository = 1;
+}
+
+message FindLicenseResponse {
+  string license_short_name = 1;
+}
+
+message GetInfoAttributesRequest {
+  Repository repository = 1;
+}
+
+message GetInfoAttributesResponse {
+  bytes attributes = 1;
+}
+
+message CalculateChecksumRequest {
+  Repository repository = 1;
+}
+
+message CalculateChecksumResponse {
+  string checksum = 1;
+}
+
+message GetSnapshotRequest {
+  Repository repository = 1;
+}
+
+message GetSnapshotResponse {
+  bytes data = 1;
+}
+
+message CreateRepositoryFromSnapshotRequest {
+  Repository repository = 1;
+  string http_url = 2;
+  string http_auth = 3;
+}
+
+message CreateRepositoryFromSnapshotResponse {}
+
+message GetRawChangesRequest {
+  Repository repository = 1;
+  string from_revision = 2;
+  string to_revision = 3;
+}
+
+message GetRawChangesResponse {
+  message RawChange {
+    enum Operation {
+      UNKNOWN = 0;
+      ADDED = 1;
+      COPIED = 2;
+      DELETED = 3;
+      MODIFIED = 4;
+      RENAMED = 5;
+      TYPE_CHANGED = 6;
+    }
+
+    string blob_id = 1;
+    int64 size= 2;
+    
+    // use fields 9 and 10 in place of 3 and 4 (respectively)
+    string new_path = 3 [deprecated=true];
+    string old_path = 4 [deprecated=true];
+    
+    Operation operation= 5;
+    string raw_operation = 6;
+    int32 old_mode = 7;
+    int32 new_mode = 8;
+    
+    // the following fields, 9 and 10, will eventually replace 3 and 4
+    bytes new_path_bytes = 9;
+    bytes old_path_bytes = 10;
+  }
+
+  repeated RawChange raw_changes = 1;
+}
+
+message SearchFilesByNameRequest {
+  Repository repository = 1;
+  string query = 2;
+  bytes ref = 3;
+}
+
+message SearchFilesByNameResponse {
+  repeated bytes files = 1;
+}
+
+message SearchFilesByContentRequest {
+  Repository repository = 1;
+  string query = 2;
+  bytes ref = 3;
+  bool chunked_response = 4;
+}
+
+message SearchFilesByContentResponse {
+  repeated bytes matches = 1;
+  bytes match_data = 2;
+  bool end_of_match = 3;
+}
+
+message PreFetchRequest {
+  Repository source_repository = 1;
+  Repository target_repository = 2;
+  ObjectPool object_pool = 3;
+}
+
+message PreFetchResponse {}
+
+message Remote {
+  string url = 1;
+  string name = 2;
+  string http_authorization_header = 3;
+  repeated string mirror_refmaps = 4;
+}
+
+message FetchHTTPRemoteRequest {
+  Repository repository = 1;
+  Remote remote = 2;
+  int32 timeout = 3;
+}
+
+message FetchHTTPRemoteResponse {}
+
+message GetObjectDirectorySizeRequest {
+  Repository repository = 1;
+}
+
+message GetObjectDirectorySizeResponse {
+  // Object directory size in kilobytes
+  int64 size = 1;
+}
+
+message CloneFromPoolRequest {
+  Repository repository = 1;
+  ObjectPool pool = 2;
+  Remote remote = 3;
+}
+
+message CloneFromPoolResponse {
+}
+
+message CloneFromPoolInternalRequest {
+  Repository repository = 1;
+  ObjectPool pool = 2;
+  Repository source_repository = 3;
+}
+
+message CloneFromPoolInternalResponse {
+}

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "shared.proto";
+
+service ServerService {
+  rpc ServerInfo(ServerInfoRequest) returns (ServerInfoResponse) {
+    option (op_type).op = ACCESSOR;
+  }
+}
+
+message ServerInfoRequest {}
+
+message ServerInfoResponse {
+  message StorageStatus {
+    string storage_name = 1;
+    bool readable = 2;
+    bool writeable = 3;
+    string fs_type = 4;
+    string filesystem_id = 5;
+  }
+
+  string server_version = 1;
+  string git_version = 2;
+  repeated StorageStatus storage_statuses = 3;
+}
