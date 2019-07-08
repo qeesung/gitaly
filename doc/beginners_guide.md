@@ -151,7 +151,7 @@ _build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15
 ```
 
 Remember that this sort of error can be addressed by the following method
-even if you're not the one who added the protocol.
+(even if you're not the one who added the protocol).
 
 In this case a new RPC called `RestoreCustomHooks` was added to the
 RepositoryService service, but it does not have an implementation. We
