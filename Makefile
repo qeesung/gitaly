@@ -108,4 +108,4 @@ _build/makegen: _support/makegen.go $(BUILD_DIR)/go.mod
 	cd $(BUILD_DIR) && go build -o $(CURDIR)/$@ $(SOURCE_DIR)/_support/makegen.go
 
 clean:
-	git status --porcelain --ignored | sed -E 's/^!! (.*)$/\1/' | xargs rm -rf
+	git clean -fdX
