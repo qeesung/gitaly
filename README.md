@@ -179,7 +179,14 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
       UserMerge. How does Gitaly make merge commits. A look at the
       implementation of the special feature where users are not allowed
       push to a branch, but are allowed to merge into it.
-      
+
+  -  [Part 7: How Gitaly uses Prometheus monitoring, 2019-07-09](https://youtu.be/R6F674Nj3wI)
+
+      What is Prometheus. Reconstructing a Grafana dashboard panel
+      with PromQL. Adding a new counter to Gitaly. Querying Prometheus
+      in Gitaly during development. Comparing latency calculation with
+      ELK. GRPC Prometheus middleware.
+ 
 - [Infrastructure Team Update 2017-05-11](https://about.gitlab.com/2017/05/11/functional-group-updates/#infrastructure-team)
 - [Gitaly Basics, 2017-05-01](https://docs.google.com/presentation/d/1cLslUbXVkniOaeJ-r3s5AYF0kQep8VeNfvs0XSGrpA0/edit#slide=id.g1c73db867d_0_0)
 - [Git Paris meetup, 2017-02-22](https://docs.google.com/presentation/d/19OZUalFMIDM8WujXrrIyCuVb_oVeaUzpb-UdGThOvAo/edit?usp=sharing) a high-level overview of what our plans are and where we are.
