@@ -34,6 +34,14 @@ var totalCatfileProcesses = prometheus.NewCounter(
 	},
 )
 
+var catfileLookupCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "gitaly_catfile_lookups_total",
+		Help: "Git catilfe lookups by object type",
+	},
+	[]string{"type"},
+)
+
 const (
 	// CacheFeatureFlagKey is the feature flag key for catfile batch caching. This should match
 	// what is in gitlab-ce
@@ -44,6 +52,7 @@ func init() {
 	prometheus.MustRegister(catfileCacheCounter)
 	prometheus.MustRegister(currentCatfileProcesses)
 	prometheus.MustRegister(totalCatfileProcesses)
+	prometheus.MustRegister(catfileLookupCounter)
 }
 
 // Batch abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
@@ -62,6 +71,7 @@ type Batch struct {
 // Info returns an ObjectInfo if spec exists. If spec does not exist the
 // error is of type NotFoundError.
 func (c *Batch) Info(revspec string) (*ObjectInfo, error) {
+	catfileLookupCounter.WithLabelValues("info").Inc()
 	return c.batchCheck.info(revspec)
 }
 
@@ -70,6 +80,7 @@ func (c *Batch) Info(revspec string) (*ObjectInfo, error) {
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Tree(revspec string) (io.Reader, error) {
+	catfileLookupCounter.WithLabelValues("tree").Inc()
 	return c.batchProcess.reader(revspec, "tree")
 }
 
@@ -78,6 +89,7 @@ func (c *Batch) Tree(revspec string) (io.Reader, error) {
 // and check the object type. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Commit(revspec string) (io.Reader, error) {
+	catfileLookupCounter.WithLabelValues("commit").Inc()
 	return c.batchProcess.reader(revspec, "commit")
 }
 
@@ -87,12 +99,14 @@ func (c *Batch) Commit(revspec string) (io.Reader, error) {
 // It is an error if revspec does not point to a blob. To prevent this
 // first use Info to resolve the revspec and check the object type.
 func (c *Batch) Blob(revspec string) (io.Reader, error) {
+	catfileLookupCounter.WithLabelValues("blob").Inc()
 	return c.batchProcess.reader(revspec, "blob")
 }
 
 // Tag returns a raw tag object. Caller must consume the Reader before
 // making another call on C.
 func (c *Batch) Tag(revspec string) (io.Reader, error) {
+	catfileLookupCounter.WithLabelValues("tag").Inc()
 	return c.batchProcess.reader(revspec, "tag")
 }
 
