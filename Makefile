@@ -88,6 +88,10 @@ race-go: prepare-build
 docker: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
 
+.PHONY: proto
+proto: prepare-build
+	cd $(BUILD_DIR) && $(MAKE) $@
+
 .PHONY: prepare-build
 prepare-build: $(BUILD_DIR)/.ok update-makefile
 $(BUILD_DIR)/.ok:

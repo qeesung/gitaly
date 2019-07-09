@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -271,6 +272,30 @@ func (gm *gitalyMake) AllPackages() []string {
 	return pkgs
 }
 
+type protoDownloadInfo struct {
+	url    string
+	sha256 string
+}
+
+var protoCDownload = map[string]protoDownloadInfo{
+	"darwin/amd64": protoDownloadInfo{
+		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-osx-x86_64.zip",
+		sha256: "0decc6ce5beed07f8c20361ddeb5ac7666f09cf34572cca530e16814093f9c0c",
+	},
+	"linux/amd64": protoDownloadInfo{
+		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip",
+		sha256: "6003de742ea3fcf703cfec1cd4a3380fd143081a2eb0e559065563496af27807",
+	},
+}
+
+func (gm *gitalyMake) ProtoCURL() string {
+	return protoCDownload[runtime.GOOS+"/"+runtime.GOARCH].url
+}
+
+func (gm *gitalyMake) ProtoCSHA256() string {
+	return protoCDownload[runtime.GOOS+"/"+runtime.GOARCH].sha256
+}
+
 var templateText = `
 # _build/Makefile
 #
@@ -518,4 +543,13 @@ docker:
 {{ end }}
 	cp {{ .SourceDir }}/Dockerfile docker/
 	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
+.PHONY: proto
+proto: {{ .BuildDir }}/protoc/bin/protoc
+	# update proto stubs
+
+{{ .BuildDir }}/protoc/bin/protoc: {{ .BuildDir }}/protoc.zip
+
+{{ .BuildDir }}/protoc.zip:
+	curl -o $@.tmp --silent -L {{ .ProtoCURL }}
+	printf '{{ .ProtoCSHA256 }}  $@.tmp' | shasum -a256 -c -
 `
