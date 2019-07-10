@@ -182,10 +182,15 @@ GITLAB_TRACING=opentracing://jaeger ./gitaly config.toml
 
   -  [Part 7: How Gitaly uses Prometheus monitoring, 2019-07-09](https://youtu.be/R6F674Nj3wI)
 
-      What is Prometheus. Reconstructing a Grafana dashboard panel
-      with PromQL. Adding a new counter to Gitaly. Querying Prometheus
-      in Gitaly during development. Comparing latency calculation with
-      ELK. GRPC Prometheus middleware.
+      What is [Prometheus](https://prometheus.io/). Reconstructing a
+     [Grafana](https://dashboards.gitlab.com) dashboard panel
+      with
+      [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+      Adding a new counter to Gitaly. Querying Prometheus in Gitaly
+      during development. Comparing latency calculation with
+      [ELK](https://log.gitlab.net). [GRPC Prometheus
+      middleware](https://github.com/grpc-ecosystem/go-grpc-prometheus)
+      in Gitaly.
  
 - [Infrastructure Team Update 2017-05-11](https://about.gitlab.com/2017/05/11/functional-group-updates/#infrastructure-team)
 - [Gitaly Basics, 2017-05-01](https://docs.google.com/presentation/d/1cLslUbXVkniOaeJ-r3s5AYF0kQep8VeNfvs0XSGrpA0/edit#slide=id.g1c73db867d_0_0)
