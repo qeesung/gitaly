@@ -124,3 +124,11 @@ As a team we are currently divided on which style to prefer so we are
 going to allow both. In areas of the code where there is a clear
 pattern, please stick with the pattern. For example, almost all our
 service tests are white box.
+
+## Prometheus metrics
+
+Prometheus is a great tool to collect data about how our code behaves in
+production. When adding new Prometheus metrics, please follow the [best
+practices](https://prometheus.io/docs/practices/naming/) and be aware of
+the
+[gotchas](https://prometheus.io/docs/practices/instrumentation/#things-to-watch-out-for).
