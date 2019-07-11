@@ -37,7 +37,7 @@ var totalCatfileProcesses = prometheus.NewCounter(
 var catfileLookupCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "gitaly_catfile_lookups_total",
-		Help: "Git catilfe lookups by object type",
+		Help: "Git catfile lookups by object type",
 	},
 	[]string{"type"},
 )
