@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	io_prometheus_client "github.com/prometheus/client_model/go"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
@@ -64,8 +64,6 @@ func TestCleanWalker(t *testing.T) {
 	timeout := time.After(time.Second)
 
 	// poll prometheus metrics until expected walker stats appear
-	// TODO: generalize this pattern for consumption in other tests
-	// https://gitlab.com/gitlab-org/gitaly/issues/1775
 	for {
 		select {
 		case <-timeout:
@@ -74,31 +72,8 @@ func TestCleanWalker(t *testing.T) {
 			// keep on truckin'
 		}
 
-		mFamilies, err := prometheus.DefaultGatherer.Gather()
-		require.NoError(t, err)
-
-		var checkCount, removalCount *io_prometheus_client.Counter
-
-		for _, mf := range mFamilies {
-			if mf.GetName() != "gitaly_diskcache_walker" {
-				continue
-			}
-			for _, metric := range mf.GetMetric() {
-				for _, label := range metric.GetLabel() {
-					switch label.GetValue() {
-					case "check":
-						checkCount = metric.GetCounter()
-					case "removal":
-						removalCount = metric.GetCounter()
-					}
-				}
-			}
-			break
-
-		}
-
-		if checkCount.GetValue() == 4 && removalCount.GetValue() == 2 {
-			t.Log("Found expected counter metrics:", checkCount, removalCount)
+		if testutil.ToFloat64(cache.ExportWalkerCheckTotal) == 4 &&
+			testutil.ToFloat64(cache.ExportWalkerRemovalTotal) == 2 {
 			break
 		}
 

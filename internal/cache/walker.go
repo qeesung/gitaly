@@ -11,19 +11,27 @@ import (
 )
 
 var (
-	walkerEventTotal = prometheus.NewCounterVec(
+	walkerCheckTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "gitaly_diskcache_walker",
+			Name: "gitaly_diskcache_walker_check_total",
 			Help: "Total number of events during diskcache filesystem walks",
 		},
-		[]string{"event"},
+	)
+	walkerRemovalTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_diskcache_walker_removal_total",
+			Help: "Total number of events during diskcache filesystem walks",
+		},
 	)
 )
 
-func init() { prometheus.MustRegister(walkerEventTotal) }
+func init() {
+	prometheus.MustRegister(walkerCheckTotal)
+	prometheus.MustRegister(walkerRemovalTotal)
+}
 
-func countWalkRemoval() { walkerEventTotal.WithLabelValues("removal").Inc() }
-func countWalkCheck()   { walkerEventTotal.WithLabelValues("check").Inc() }
+func countWalkRemoval() { walkerRemovalTotal.Inc() }
+func countWalkCheck()   { walkerCheckTotal.Inc() }
 
 // TODO: replace constant with constant defined in !1305
 const fileStaleness = time.Hour
