@@ -52,10 +52,10 @@ func TestCleanWalker(t *testing.T) {
 		os.Chtimes(path, time.Now(), time.Now().Add(-1*tt.age))
 
 		if tt.expectRemoval {
-			shouldExist = append(shouldExist, path)
+			shouldNotExist = append(shouldNotExist, path)
 			continue
 		}
-		shouldNotExist = append(shouldNotExist, path)
+		shouldExist = append(shouldExist, path)
 	}
 
 	// config validation will trigger the file walkers to start
@@ -64,6 +64,8 @@ func TestCleanWalker(t *testing.T) {
 	timeout := time.After(time.Second)
 
 	// poll prometheus metrics until expected walker stats appear
+	// TODO: generalize this pattern for consumption in other tests
+	// https://gitlab.com/gitlab-org/gitaly/issues/1775
 	for {
 		select {
 		case <-timeout:
@@ -78,24 +80,26 @@ func TestCleanWalker(t *testing.T) {
 		var checkCount, removalCount *io_prometheus_client.Counter
 
 		for _, mf := range mFamilies {
-			if mf.GetName() == "gitaly_diskcache_walker" {
-				for _, metric := range mf.GetMetric() {
-					for _, label := range metric.GetLabel() {
-						switch label.GetValue() {
-						case "check":
-							checkCount = metric.GetCounter()
-						case "removal":
-							removalCount = metric.GetCounter()
-						}
+			if mf.GetName() != "gitaly_diskcache_walker" {
+				continue
+			}
+			for _, metric := range mf.GetMetric() {
+				for _, label := range metric.GetLabel() {
+					switch label.GetValue() {
+					case "check":
+						checkCount = metric.GetCounter()
+					case "removal":
+						removalCount = metric.GetCounter()
 					}
 				}
-				break
 			}
+			break
+
 		}
 
 		if checkCount.GetValue() == 4 && removalCount.GetValue() == 2 {
 			t.Log("Found expected counter metrics:", checkCount, removalCount)
-			return
+			break
 		}
 
 		time.Sleep(time.Millisecond)
@@ -107,7 +111,7 @@ func TestCleanWalker(t *testing.T) {
 
 	for _, p := range shouldNotExist {
 		_, err := os.Stat(p)
-		require.True(t, os.IsNotExist(err))
+		require.True(t, os.IsNotExist(err), "expected %s not to exist", p)
 	}
 }
 

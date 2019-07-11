@@ -62,7 +62,7 @@ func startCleanWalker(storage config.Storage) {
 	go func() {
 		for {
 			if err := cleanWalk(storage.Path); err != nil {
-				logrus.WithField("storage", storage.Name)
+				logrus.WithField("storage", storage.Name).Error(err)
 			}
 			<-walkTick.C
 		}
