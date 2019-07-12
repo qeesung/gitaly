@@ -34,6 +34,18 @@ var (
 		},
 		[]string{"error"},
 	)
+	walkerCheckTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_diskcache_walker_check_total",
+			Help: "Total number of events during diskcache filesystem walks",
+		},
+	)
+	walkerRemovalTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_diskcache_walker_removal_total",
+			Help: "Total number of events during diskcache filesystem walks",
+		},
+	)
 )
 
 func init() {
@@ -42,6 +54,8 @@ func init() {
 	prometheus.MustRegister(bytesStoredtotals)
 	prometheus.MustRegister(bytesFetchedtotals)
 	prometheus.MustRegister(errTotal)
+	prometheus.MustRegister(walkerCheckTotal)
+	prometheus.MustRegister(walkerRemovalTotal)
 }
 
 func countErr(err error) error {
@@ -58,3 +72,5 @@ func countRequest()             { requestTotals.Inc() }
 func countMiss()                { missTotals.Inc() }
 func countWriteBytes(n float64) { bytesStoredtotals.Add(n) }
 func countReadBytes(n float64)  { bytesFetchedtotals.Add(n) }
+func countWalkRemoval()         { walkerRemovalTotal.Inc() }
+func countWalkCheck()           { walkerCheckTotal.Inc() }
