@@ -148,6 +148,19 @@ func SupportsDeltaIslands(versionStr string) (bool, error) {
 	return !versionLessThan(v, version{2, 20, 0}), nil
 }
 
+// NoMissingWantErrMessage checks if the git version is before Git 2.22,
+// in which versions the missing objects in the wants didn't yield an explicit
+// error message, but no ouput at all.
+func NoMissingWantErrMessage() bool {
+	ver, err := Version()
+	if err != nil {
+		return false
+	}
+
+	lt, err := VersionLessThan(ver, "2.22.0")
+	return err == nil && lt
+}
+
 // BuildGitOptions helps to generate options to the git command.
 // If gitOpts is not empty then its values are passed as part of
 // the "-c" option of the git command, the other values are passed along with the subcommand.
