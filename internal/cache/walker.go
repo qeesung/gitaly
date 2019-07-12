@@ -34,9 +34,6 @@ func init() {
 func countWalkRemoval() { walkerRemovalTotal.Inc() }
 func countWalkCheck()   { walkerCheckTotal.Inc() }
 
-// TODO: replace constant with constant defined in !1305
-const fileStaleness = time.Hour
-
 func cleanWalk(storagePath string) error {
 	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
 
@@ -51,7 +48,7 @@ func cleanWalk(storagePath string) error {
 
 		countWalkCheck()
 
-		threshold := time.Now().Add(-1 * fileStaleness)
+		threshold := time.Now().Add(-1 * staleAge)
 		if info.ModTime().After(threshold) {
 			return nil
 		}
