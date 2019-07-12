@@ -1,3 +1,8 @@
+// Package cache supplies background workers for periodically cleaning the
+// cache folder on all storages listed in the config file. Upon configuration
+// validation, one worker will be started for each storage. The worker will
+// walk the cache directory tree and remove any files older than one hour. The
+// worker will walk the cache directory every ten minutes.
 package cache
 
 import (
@@ -5,34 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
-
-var (
-	walkerCheckTotal = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "gitaly_diskcache_walker_check_total",
-			Help: "Total number of events during diskcache filesystem walks",
-		},
-	)
-	walkerRemovalTotal = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "gitaly_diskcache_walker_removal_total",
-			Help: "Total number of events during diskcache filesystem walks",
-		},
-	)
-)
-
-func init() {
-	prometheus.MustRegister(walkerCheckTotal)
-	prometheus.MustRegister(walkerRemovalTotal)
-}
-
-func countWalkRemoval() { walkerRemovalTotal.Inc() }
-func countWalkCheck()   { walkerCheckTotal.Inc() }
 
 func cleanWalk(storagePath string) error {
 	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
