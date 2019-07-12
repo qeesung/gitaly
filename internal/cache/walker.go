@@ -66,6 +66,7 @@ func cleanWalk(storagePath string) error {
 const cleanWalkFrequency = 10 * time.Minute
 
 func startCleanWalker(storage config.Storage) {
+	logrus.WithField("storage", storage.Name).Info("Starting disk cache object walker")
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	go func() {
 		for {

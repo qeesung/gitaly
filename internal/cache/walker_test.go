@@ -15,21 +15,25 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
-func TestCleanWalker(t *testing.T) {
+func TestDiskCacheObjectWalker(t *testing.T) {
 	tmpPath, err := ioutil.TempDir("", t.Name())
 	require.NoError(t, err)
 	defer func() { require.NoError(t, os.RemoveAll(tmpPath)) }()
 
+	oldStorages := config.Config.Storages
 	config.Config.Storages = []config.Storage{
 		{
 			Name: t.Name(),
 			Path: tmpPath,
 		},
 	}
+	defer func() { config.Config.Storages = oldStorages }()
 
 	satisfyConfigValidation(tmpPath)
 
-	tests := []struct {
+	var shouldExist, shouldNotExist []string
+
+	for _, tt := range []struct {
 		name          string
 		age           time.Duration
 		expectRemoval bool
@@ -38,11 +42,7 @@ func TestCleanWalker(t *testing.T) {
 		{"90/n00b", time.Minute, false},
 		{"2b/ancient", 24 * time.Hour, true},
 		{"cd/baby", time.Second, false},
-	}
-
-	var shouldExist, shouldNotExist []string
-
-	for _, tt := range tests {
+	} {
 		path := filepath.Join(tmpPath, tempdir.CachePrefix, tt.name)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
 
@@ -50,36 +50,21 @@ func TestCleanWalker(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 
-		os.Chtimes(path, time.Now(), time.Now().Add(-1*tt.age))
+		require.NoError(t, os.Chtimes(path, time.Now(), time.Now().Add(-1*tt.age)))
 
 		if tt.expectRemoval {
 			shouldNotExist = append(shouldNotExist, path)
-			continue
+		} else {
+			shouldExist = append(shouldExist, path)
 		}
-		shouldExist = append(shouldExist, path)
 	}
 
-	// config validation will trigger the file walkers to start
-	require.NoError(t, config.Validate())
+	expectChecks := testutil.ToFloat64(cache.ExportWalkerCheckTotal) + 4
+	expectRemovals := testutil.ToFloat64(cache.ExportWalkerRemovalTotal) + 2
 
-	timeout := time.After(time.Second)
+	require.NoError(t, config.Validate()) // triggers walker
 
-	// poll prometheus metrics until expected walker stats appear
-	for {
-		select {
-		case <-timeout:
-			t.Fatal("timed out polling prometheus stats")
-		default:
-			// keep on truckin'
-		}
-
-		if testutil.ToFloat64(cache.ExportWalkerCheckTotal) == 4 &&
-			testutil.ToFloat64(cache.ExportWalkerRemovalTotal) == 2 {
-			break
-		}
-
-		time.Sleep(time.Millisecond)
-	}
+	pollCountersUntil(t, expectChecks, expectRemovals)
 
 	for _, p := range shouldExist {
 		assert.FileExists(t, p)
@@ -100,5 +85,28 @@ func satisfyConfigValidation(tmpPath string) {
 	}
 	config.Config.Ruby = config.Ruby{
 		Dir: tmpPath,
+	}
+}
+
+func pollCountersUntil(t testing.TB, expectChecks, expectRemovals float64) {
+	timeout := time.After(time.Second)
+
+	// poll prometheus metrics until expected walker stats appear
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timed out polling prometheus stats")
+		default:
+			// keep on truckin'
+		}
+
+		actualChecks := testutil.ToFloat64(cache.ExportWalkerCheckTotal)
+		actualRemovals := testutil.ToFloat64(cache.ExportWalkerRemovalTotal)
+
+		if expectChecks == actualChecks && expectRemovals == actualRemovals {
+			break
+		}
+
+		time.Sleep(time.Millisecond)
 	}
 }
