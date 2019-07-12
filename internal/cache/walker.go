@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
 var (
@@ -37,7 +38,9 @@ func countWalkCheck()   { walkerCheckTotal.Inc() }
 const fileStaleness = time.Hour
 
 func cleanWalk(storagePath string) error {
-	return filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
+	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
+
+	return filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

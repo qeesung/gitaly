@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
 func TestCleanWalker(t *testing.T) {
@@ -42,7 +43,7 @@ func TestCleanWalker(t *testing.T) {
 	var shouldExist, shouldNotExist []string
 
 	for _, tt := range tests {
-		path := filepath.Join(tmpPath, tt.name)
+		path := filepath.Join(tmpPath, tempdir.CachePrefix, tt.name)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
 
 		f, err := os.Create(path)
