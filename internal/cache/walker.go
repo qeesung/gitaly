@@ -35,6 +35,11 @@ func cleanWalk(storagePath string) error {
 		}
 
 		if err := os.Remove(path); err != nil {
+			if os.IsNotExist(err) {
+				// race condition: another file walker on the same storage may
+				// have deleted the file already
+				return nil
+			}
 			return err
 		}
 
