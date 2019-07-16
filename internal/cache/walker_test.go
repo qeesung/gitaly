@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/cache"
@@ -59,8 +58,8 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		}
 	}
 
-	expectChecks := testutil.ToFloat64(cache.ExportWalkerCheckTotal) + 4
-	expectRemovals := testutil.ToFloat64(cache.ExportWalkerRemovalTotal) + 2
+	expectChecks := cache.ExportMockCheckCounter.Count() + 4
+	expectRemovals := cache.ExportMockRemovalCounter.Count() + 2
 
 	require.NoError(t, config.Validate()) // triggers walker
 
@@ -88,25 +87,24 @@ func satisfyConfigValidation(tmpPath string) {
 	}
 }
 
-func pollCountersUntil(t testing.TB, expectChecks, expectRemovals float64) {
+func pollCountersUntil(t testing.TB, expectChecks, expectRemovals int) {
+	// poll injected mock prometheus counters until expected events occur
 	timeout := time.After(time.Second)
-
-	// poll prometheus metrics until expected walker stats appear
 	for {
 		select {
 		case <-timeout:
-			t.Fatal("timed out polling prometheus stats")
+			t.Fatalf(
+				"timed out polling prometheus stats; checks: %d removals: %d",
+				cache.ExportMockCheckCounter.Count(),
+				cache.ExportMockRemovalCounter.Count(),
+			)
 		default:
 			// keep on truckin'
 		}
-
-		actualChecks := testutil.ToFloat64(cache.ExportWalkerCheckTotal)
-		actualRemovals := testutil.ToFloat64(cache.ExportWalkerRemovalTotal)
-
-		if expectChecks == actualChecks && expectRemovals == actualRemovals {
+		if cache.ExportMockCheckCounter.Count() == expectChecks &&
+			cache.ExportMockRemovalCounter.Count() == expectRemovals {
 			break
 		}
-
 		time.Sleep(time.Millisecond)
 	}
 }

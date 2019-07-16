@@ -68,9 +68,11 @@ func countErr(err error) error {
 	return err
 }
 
-func countRequest()             { requestTotals.Inc() }
-func countMiss()                { missTotals.Inc() }
-func countWriteBytes(n float64) { bytesStoredtotals.Add(n) }
-func countReadBytes(n float64)  { bytesFetchedtotals.Add(n) }
-func countWalkRemoval()         { walkerRemovalTotal.Inc() }
-func countWalkCheck()           { walkerCheckTotal.Inc() }
+var (
+	countRequest     = func() { requestTotals.Inc() }
+	countMiss        = func() { missTotals.Inc() }
+	countWriteBytes  = func(n float64) { bytesStoredtotals.Add(n) }
+	countReadBytes   = func(n float64) { bytesFetchedtotals.Add(n) }
+	countWalkRemoval = func() { walkerRemovalTotal.Inc() }
+	countWalkCheck   = func() { walkerCheckTotal.Inc() }
+)
