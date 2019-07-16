@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -24,16 +23,13 @@ type Metadata struct {
 
 // WriteMetadataFile marshals and writes a metadata file
 func WriteMetadataFile(storage config.Storage) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	path := filepath.Join(storage.Path, metadataFilename)
 
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return err
 	}
 
-	fw, err := safe.CreateFileWriter(ctx, path)
+	fw, err := safe.CreateFileWriter(path)
 	if err != nil {
 		return err
 	}

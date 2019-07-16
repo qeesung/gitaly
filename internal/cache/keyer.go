@@ -59,7 +59,7 @@ type lease struct {
 // EndLease will end the lease by removing the pending lease file and updating
 // the key file with the current lease ID.
 func (l lease) EndLease(ctx context.Context) error {
-	_, err := updateLatest(ctx, l.repo)
+	_, err := updateLatest(l.repo)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (l lease) EndLease(ctx context.Context) error {
 	return nil
 }
 
-func updateLatest(ctx context.Context, repo *gitalypb.Repository) (string, error) {
+func updateLatest(repo *gitalypb.Repository) (string, error) {
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return "", err
@@ -85,10 +85,11 @@ func updateLatest(ctx context.Context, repo *gitalypb.Repository) (string, error
 		return "", err
 	}
 
-	latest, err := safe.CreateFileWriter(ctx, lPath)
+	latest, err := safe.CreateFileWriter(lPath)
 	if err != nil {
 		return "", err
 	}
+	defer latest.Close()
 
 	nextGenID := uuid.New().String()
 	if nextGenID == "" {
@@ -162,7 +163,7 @@ func (LeaseKeyer) KeyPath(ctx context.Context, repo *gitalypb.Repository, req pr
 		return "", countErr(ErrPendingExists)
 	}
 
-	genID, err := currentGenID(ctx, repo)
+	genID, err := currentGenID(repo)
 	if err != nil {
 		return "", err
 	}
@@ -242,7 +243,7 @@ func currentLeases(repo *gitalypb.Repository) ([]os.FileInfo, error) {
 	return pendings, nil
 }
 
-func currentGenID(ctx context.Context, repo *gitalypb.Repository) (string, error) {
+func currentGenID(repo *gitalypb.Repository) (string, error) {
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return "", err
@@ -252,7 +253,7 @@ func currentGenID(ctx context.Context, repo *gitalypb.Repository) (string, error
 	switch {
 	case os.IsNotExist(err):
 		// latest file doesn't exist, so create one
-		return updateLatest(ctx, repo)
+		return updateLatest(repo)
 	case err == nil:
 		return string(latestBytes), nil
 	default:

@@ -83,10 +83,11 @@ func (sdb *StreamDB) PutStream(ctx context.Context, repo *gitalypb.Repository, r
 		return err
 	}
 
-	sf, err := safe.CreateFileWriter(ctx, reqPath)
+	sf, err := safe.CreateFileWriter(reqPath)
 	if err != nil {
 		return err
 	}
+	defer sf.Close()
 
 	n, err := io.Copy(sf, src)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -20,12 +19,9 @@ func TestFile(t *testing.T) {
 	dir, cleanup := testhelper.TempDir(t, "", t.Name())
 	defer cleanup()
 
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
 	filePath := filepath.Join(dir, "test_file_contents")
 	fileContents := "very important contents"
-	file, err := safe.CreateFileWriter(ctx, filePath)
+	file, err := safe.CreateFileWriter(filePath)
 	require.NoError(t, err)
 
 	_, err = io.Copy(file, bytes.NewBufferString(fileContents))
@@ -45,45 +41,6 @@ func TestFile(t *testing.T) {
 	require.Equal(t, filepath.Base(filePath), filesInTempDir[0].Name())
 }
 
-func TestFileContextCancelled(t *testing.T) {
-	dir, cleanup := testhelper.TempDir(t, "", t.Name())
-	defer cleanup()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	filePath := filepath.Join(dir, "test_file_contents")
-	fileContents := "very important contents"
-	file, err := safe.CreateFileWriter(ctx, filePath)
-	require.NoError(t, err)
-
-	_, err = io.Copy(file, bytes.NewBufferString(fileContents))
-	require.NoError(t, err)
-
-	testhelper.AssertFileNotExists(t, filePath)
-
-	files, err := ioutil.ReadDir(dir)
-	require.NoError(t, err)
-	require.Len(t, files, 1, "expect only the temp file to exist")
-	require.Contains(t, files[0].Name(), "test_file_contents", "the one file in the directory should be the temp file")
-
-	cancel()
-
-	testhelper.AssertFileNotExists(t, filePath)
-
-	// wait for the cleanup functions to run
-	for i := 0; i < 10; i++ {
-		time.Sleep(10 * time.Millisecond)
-		filesInTempDir, err := ioutil.ReadDir(dir)
-		require.NoError(t, err)
-		if len(filesInTempDir) > 0 {
-			continue
-		}
-		return
-	}
-	t.Error("directory should not have any files left")
-}
-
 func TestFileRace(t *testing.T) {
 	dir, cleanup := testhelper.TempDir(t, "", t.Name())
 	defer cleanup()
@@ -95,9 +52,7 @@ func TestFileRace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(i int) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
-			w, err := safe.CreateFileWriter(ctx, filePath)
+			w, err := safe.CreateFileWriter(filePath)
 			require.NoError(t, err)
 			_, err = w.Write([]byte(fmt.Sprintf("message # %d", i)))
 			require.NoError(t, err)
@@ -111,4 +66,51 @@ func TestFileRace(t *testing.T) {
 	filesInTempDir, err := ioutil.ReadDir(dir)
 	require.NoError(t, err)
 	require.Len(t, filesInTempDir, 1, "make sure no other files were written")
+}
+
+func TestFileCloseBeforeCommit(t *testing.T) {
+	dir, cleanup := testhelper.TempDir(t, "", t.Name())
+	defer cleanup()
+
+	dstPath := filepath.Join(dir, "safety_meow")
+	sf, err := safe.CreateFileWriter(dstPath)
+	require.NoError(t, err)
+
+	require.True(t, !dirEmpty(t, dir), "should contain something")
+
+	_, err = sf.Write([]byte("MEOW MEOW MEOW MEOW"))
+	require.NoError(t, err)
+
+	require.NoError(t, sf.Close())
+	require.True(t, dirEmpty(t, dir), "should be empty")
+
+	require.Equal(t, safe.ErrAlreadyDone, sf.Commit())
+}
+
+func TestFileCommitBeforeClose(t *testing.T) {
+	dir, cleanup := testhelper.TempDir(t, "", t.Name())
+	defer cleanup()
+
+	dstPath := filepath.Join(dir, "safety_meow")
+	sf, err := safe.CreateFileWriter(dstPath)
+	require.NoError(t, err)
+
+	require.True(t, !dirEmpty(t, dir), "should contain something")
+
+	_, err = sf.Write([]byte("MEOW MEOW MEOW MEOW"))
+	require.NoError(t, err)
+
+	require.NoError(t, sf.Commit())
+	require.FileExists(t, dstPath)
+
+	require.Equal(t, safe.ErrAlreadyDone, sf.Close(),
+		"Close should be impotent after call to commit",
+	)
+	require.FileExists(t, dstPath)
+}
+
+func dirEmpty(t testing.TB, dirPath string) bool {
+	infos, err := ioutil.ReadDir(dirPath)
+	require.NoError(t, err)
+	return len(infos) == 0
 }
