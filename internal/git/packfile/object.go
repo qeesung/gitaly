@@ -2,16 +2,23 @@ package packfile
 
 import "fmt"
 
+// ObjectType is used to label index entries as commits, trees, blobs or tags.
 type ObjectType byte
 
 const (
+	// TUnknown is a sentinel indicating an object has not been labeled yet
 	TUnknown ObjectType = iota
+	// TBlob means Git blob
 	TBlob
+	// TCommit means Git commit
 	TCommit
+	// TTree means Git tree
 	TTree
+	// TTag means Git tag
 	TTag
 )
 
+// Object represents a Git packfile index entry, optionally decorated with its object type.
 type Object struct {
 	OID    string
 	Type   ObjectType

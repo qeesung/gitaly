@@ -25,15 +25,21 @@ var (
 	idxFileRegex = regexp.MustCompile(`\A(.*/pack-)([0-9a-f]{40})\.idx\z`)
 )
 
+// Index is an in-memory representation of a packfile .idx file.
 type Index struct {
-	ID            string
-	packBase      string
-	Objects       []*Object
+	// ID is the packfile ID. For pack-123abc.idx, this would be 123abc.
+	ID       string
+	packBase string
+	// Objects holds the list of objects in the packfile in index order, i.e. sorted by OID
+	Objects []*Object
+	// Objects holds the list of objects in the packfile in packfile order, i.e. sorted by packfile offset
 	PackfileOrder []*Object
-	oidMap        map[string]*Object
 	*IndexBitmap
 }
 
+// ReadIndex opens a packfile .idx file and loads its contents into
+// memory. In doing so it will also open and read small amounts of data
+// from the .pack file itself.
 func ReadIndex(idxPath string) (*Index, error) {
 	reMatches := idxFileRegex.FindStringSubmatch(idxPath)
 	if len(reMatches) == 0 {
@@ -76,7 +82,6 @@ func ReadIndex(idxPath string) (*Index, error) {
 		return nil, fmt.Errorf("too many objects in to fit in Go slice: %d", count)
 	}
 	idx.Objects = make([]*Object, count)
-	idx.oidMap = make(map[string]*Object, count)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -106,7 +111,6 @@ func ReadIndex(idxPath string) (*Index, error) {
 		oid := split[1]
 
 		idx.Objects[i] = &Object{OID: oid, Offset: offset}
-		idx.oidMap[oid] = idx.Objects[i]
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -122,11 +126,6 @@ func ReadIndex(idxPath string) (*Index, error) {
 	}
 
 	return idx, nil
-}
-
-func (idx *Index) GetObject(oid string) (*Object, bool) {
-	obj, ok := idx.oidMap[oid]
-	return obj, ok
 }
 
 func (idx *Index) numPackObjects() (uint32, error) {
@@ -206,6 +205,7 @@ func readN(r io.Reader, n int) ([]byte, error) {
 	return buf, nil
 }
 
+// BuildPackfileOrder populates the PackfileOrder field.
 func (idx *Index) BuildPackfileOrder() {
 	if len(idx.PackfileOrder) > 0 {
 		return
@@ -222,6 +222,9 @@ func (oo offsetOrder) Len() int           { return len(oo) }
 func (oo offsetOrder) Less(i, j int) bool { return oo[i].Offset < oo[j].Offset }
 func (oo offsetOrder) Swap(i, j int)      { oo[i], oo[j] = oo[j], oo[i] }
 
+// LabelObjectTypes tries to label each object in the index with its
+// object type, using the packfile bitmap. Returns an error if there is
+// no packfile .bitmap file.
 func (idx *Index) LabelObjectTypes() error {
 	if err := idx.LoadBitmap(); err != nil {
 		return err

@@ -34,6 +34,8 @@ type BitmapCommit struct {
 	flags     byte
 }
 
+// LoadBitmap opens the .bitmap file corresponding to idx and loads it
+// into memory. Returns an error if there is no .bitmap.
 func (idx *Index) LoadBitmap() error {
 	if idx.IndexBitmap != nil {
 		return nil
@@ -82,7 +84,7 @@ func (idx *Index) LoadBitmap() error {
 		ib.bitmapCommits[i] = bc
 	}
 
-	if ib.flags&BITMAP_OPT_HASH_CACHE > 0 {
+	if ib.flags&bitmapOptHashCache > 0 {
 		// Discard bitmap hash cache
 		for range idx.Objects {
 			if _, err := r.Discard(4); err != nil {
@@ -100,8 +102,8 @@ func (idx *Index) LoadBitmap() error {
 }
 
 const (
-	BITMAP_OPT_FULL_DAG   = 1
-	BITMAP_OPT_HASH_CACHE = 4
+	bitmapOptFullDAG   = 1 // BITMAP_OPT_FULL_DAG
+	bitmapOptHashCache = 4 // BITMAP_OPT_HASH_CACHE
 )
 
 func (ib *IndexBitmap) parseIndexBitmapHeader(r io.Reader, idx *Index) error {
@@ -121,8 +123,8 @@ func (ib *IndexBitmap) parseIndexBitmapHeader(r io.Reader, idx *Index) error {
 	ib.flags = int(binary.BigEndian.Uint16(header[:flagLen]))
 	header = header[flagLen:]
 
-	const knownFlags = BITMAP_OPT_FULL_DAG | BITMAP_OPT_HASH_CACHE
-	if ib.flags&^knownFlags != 0 || (ib.flags&BITMAP_OPT_FULL_DAG == 0) {
+	const knownFlags = bitmapOptFullDAG | bitmapOptHashCache
+	if ib.flags&^knownFlags != 0 || (ib.flags&bitmapOptFullDAG == 0) {
 		return fmt.Errorf("invalid flags %x", ib.flags)
 	}
 
@@ -138,8 +140,11 @@ func (ib *IndexBitmap) parseIndexBitmapHeader(r io.Reader, idx *Index) error {
 	return nil
 }
 
+// NumBitmapCommits returns the number of indexed commits in the .bitmap file.
 func (ib *IndexBitmap) NumBitmapCommits() int { return len(ib.bitmapCommits) }
 
+// BitmapCommit retrieves a bitmap commit, along with its bitmap. If the
+// bitmap is XOR-compressed this will decompress it.
 func (ib *IndexBitmap) BitmapCommit(i int) (*BitmapCommit, error) {
 	if i >= ib.NumBitmapCommits() {
 		return nil, fmt.Errorf("bitmap commit index %d out of range", i)
@@ -166,6 +171,7 @@ func (ib *IndexBitmap) BitmapCommit(i int) (*BitmapCommit, error) {
 	return ib.bitmapCommits[i], nil
 }
 
+// Bitmap represents a bitmap as used in a packfile .bitmap file.
 type Bitmap struct {
 	bits  int
 	words int
@@ -173,6 +179,7 @@ type Bitmap struct {
 	bm    *big.Int
 }
 
+// ReadEWAH parses an EWAH-compressed bitmap into a *Bitmap.
 func ReadEWAH(r io.Reader) (*Bitmap, error) {
 	header := make([]byte, 8)
 	if _, err := io.ReadFull(r, header); err != nil {
@@ -196,7 +203,7 @@ func ReadEWAH(r io.Reader) (*Bitmap, error) {
 	const ewahTrailerLen = 4
 	rawSize := int64(e.words)*8 + ewahTrailerLen
 	if rawSize > math.MaxInt32 {
-		return nil, fmt.Errorf("Bitmap bitmap does not fit in Go slice")
+		return nil, fmt.Errorf("bitmap does not fit in Go slice")
 	}
 
 	e.raw = make([]byte, int(rawSize))
@@ -208,6 +215,7 @@ func ReadEWAH(r io.Reader) (*Bitmap, error) {
 	return e, nil
 }
 
+// Unpack expands e.raw, which is EWAH-compressed, into an uncompressed *big.Int.
 func (e *Bitmap) Unpack() error {
 	if e.bm != nil {
 		return nil
@@ -237,13 +245,13 @@ func (e *Bitmap) Unpack() error {
 		nDirty := uint32(header >> 33)
 
 		for ; nClean > 0; nClean-- {
+			// If cleanBit == 0 we don't have to do anything, because each byte in
+			// buf is initially zero.
 			if cleanBit == 1 {
 				copy(
 					buf[bufPos-wordSize:bufPos],
 					fillOnes,
 				)
-			} else {
-				// No need to copy zeros into buf
 			}
 
 			bufPos -= wordSize
@@ -265,6 +273,7 @@ func (e *Bitmap) Unpack() error {
 	return nil
 }
 
+// Scan traverses the bitmap and calls f for each bit which is 1.
 func (e *Bitmap) Scan(f func(int) error) error {
 	for i := 0; i < e.bits; i++ {
 		if e.bm.Bit(i) == 1 {
