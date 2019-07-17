@@ -95,7 +95,7 @@ func TestFileCommitBeforeClose(t *testing.T) {
 	sf, err := safe.CreateFileWriter(dstPath)
 	require.NoError(t, err)
 
-	require.True(t, !dirEmpty(t, dir), "should contain something")
+	require.False(t, dirEmpty(t, dir), "should contain something")
 
 	_, err = sf.Write([]byte("MEOW MEOW MEOW MEOW"))
 	require.NoError(t, err)
