@@ -33,6 +33,7 @@ func WriteMetadataFile(storage config.Storage) error {
 	if err != nil {
 		return err
 	}
+	defer fw.Close()
 
 	if err = json.NewEncoder(fw).Encode(&Metadata{
 		GitalyFilesystemID: uuid.New().String(),
