@@ -1,0 +1,5 @@
+---
+title: Unary gRPC interceptor for cache invalidation
+merge_request: 1371
+author:
+type: performance
