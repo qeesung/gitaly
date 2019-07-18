@@ -25,4 +25,17 @@ service TestService {
       op: ACCESSOR
     };
   }
+  
+  rpc ClientUnaryRepoMutator(Request) returns (Response) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  
+  rpc ClientUnaryRepoAccessor(Request) returns (Response) {
+    option (gitaly.op_type) = {
+      op: ACCESSOR
+    };
+  }
 }
