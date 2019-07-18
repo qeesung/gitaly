@@ -21,7 +21,7 @@ import (
 )
 
 //go:generate make testdata/stream.pb.go
-func TestStreamInvalidator(t *testing.T) {
+func TestInvalidators(t *testing.T) {
 	mCache := newMockCache()
 
 	reg := protoregistry.New()
@@ -31,6 +31,11 @@ func TestStreamInvalidator(t *testing.T) {
 		grpc.StreamInterceptor(
 			grpc.StreamServerInterceptor(
 				cache.StreamInvalidator(mCache, reg),
+			),
+		),
+		grpc.UnaryInterceptor(
+			grpc.UnaryServerInterceptor(
+				cache.UnaryInvalidator(mCache, reg),
 			),
 		),
 	)
@@ -70,8 +75,8 @@ func TestStreamInvalidator(t *testing.T) {
 		StorageName:                   "3",
 	}
 
-	expectedSvcRequests := []gitalypb.Repository{*repo1, *repo2, *repo3}
-	expectedInvalidations := []gitalypb.Repository{*repo2, *repo3}
+	expectedSvcRequests := []gitalypb.Repository{*repo1, *repo2, *repo3, *repo1, *repo2}
+	expectedInvalidations := []gitalypb.Repository{*repo2, *repo3, *repo1}
 
 	// Should NOT trigger cache invalidation
 	c, err := cli.ClientStreamRepoAccessor(ctx, &testdata.Request{
@@ -97,9 +102,21 @@ func TestStreamInvalidator(t *testing.T) {
 	_, err = c.Recv() // make client call synchronous by waiting for close
 	assert.Equal(t, err, io.EOF)
 
+	// Should trigger cache invalidation
+	_, err = cli.ClientUnaryRepoMutator(ctx, &testdata.Request{
+		Destination: repo1,
+	})
+	require.NoError(t, err)
+
+	// Should NOT trigger cache invalidation
+	_, err = cli.ClientUnaryRepoAccessor(ctx, &testdata.Request{
+		Destination: repo2,
+	})
+	require.NoError(t, err)
+
 	require.Equal(t, expectedInvalidations, mCache.(*mockCache).invalidatedRepos)
 	require.Equal(t, expectedSvcRequests, svc.repoRequests)
-	require.Equal(t, 2, mCache.(*mockCache).endedLeases.count)
+	require.Equal(t, 3, mCache.(*mockCache).endedLeases.count)
 }
 
 // mockCache allows us to relay back via channel which repos are being
@@ -180,4 +197,14 @@ func (ts *testSvc) ClientStreamRepoMutator(req *testdata.Request, _ testdata.Tes
 func (ts *testSvc) ClientStreamRepoAccessor(req *testdata.Request, _ testdata.TestService_ClientStreamRepoAccessorServer) error {
 	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
 	return nil
+}
+
+func (ts *testSvc) ClientUnaryRepoMutator(_ context.Context, req *testdata.Request) (*testdata.Response, error) {
+	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	return &testdata.Response{}, nil
+}
+
+func (ts *testSvc) ClientUnaryRepoAccessor(_ context.Context, req *testdata.Request) (*testdata.Response, error) {
+	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	return &testdata.Response{}, nil
 }

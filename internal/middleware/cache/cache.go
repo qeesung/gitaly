@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -72,6 +73,47 @@ func StreamInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.StreamS
 		handler, callback := invalidateCache(ci, mInfo, handler)
 		peeker := newStreamPeeker(ss, callback)
 		return handler(srv, peeker)
+	}
+}
+
+// UnaryInvalidator will invalidate any mutating RPC that targets a
+// repository in a gRPC unary RPC
+func UnaryInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		mInfo, err := reg.LookupMethod(info.FullMethod)
+		countRPCType(mInfo)
+		if err != nil {
+			logrus.WithField("FullMethodName", info.FullMethod).Errorf("unable to lookup method information for %+v", info)
+		}
+
+		if mInfo.Operation == protoregistry.OpAccessor {
+			return handler(ctx, req)
+		}
+
+		pbReq, ok := req.(proto.Message)
+		if !ok {
+			return nil, fmt.Errorf("cache invalidation expected protobuf request, but got %T", req)
+		}
+
+		target, err := mInfo.TargetRepo(pbReq)
+		if err != nil {
+			return nil, err
+		}
+
+		le, err := ci.StartLease(target)
+		if err != nil {
+			return nil, err
+		}
+
+		// wrap the handler to ensure the lease is always ended
+		return func() (resp interface{}, err error) {
+			defer func() {
+				if err := le.EndLease(ctx); err != nil {
+					logrus.Errorf("unable to end lease: %q", err)
+				}
+			}()
+			return handler(ctx, req)
+		}()
 	}
 }
 
