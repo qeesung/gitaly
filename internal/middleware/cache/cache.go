@@ -83,7 +83,7 @@ func UnaryInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.UnarySer
 		mInfo, err := reg.LookupMethod(info.FullMethod)
 		countRPCType(mInfo)
 		if err != nil {
-			logrus.WithField("FullMethodName", info.FullMethod).Errorf("unable to lookup method information for %+v", info)
+			logrus.WithField("full_method_name", info.FullMethod).Errorf("unable to lookup method information for %+v", info)
 		}
 
 		if mInfo.Operation == protoregistry.OpAccessor {
