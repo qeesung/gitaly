@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -143,7 +142,6 @@ func methodReqFactory(method *descriptor.MethodDescriptorProto) (protoFactory, e
 
 	f := func(buf []byte) (proto.Message, error) {
 		v := reflect.New(inputType.Elem())
-		log.Printf("%T %p", v.Interface(), v.Interface())
 		pb, ok := v.Interface().(proto.Message)
 		if !ok {
 			return nil, fmt.Errorf("factory function expected protobuf message but got %T", v.Interface())
