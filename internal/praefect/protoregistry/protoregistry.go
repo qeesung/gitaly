@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,10 +48,10 @@ const (
 // for message type "OperationMsg" shared.proto in gitlab-org/gitaly-proto for
 // more documentation.
 type MethodInfo struct {
-	Operation   OpType
-	targetRepo  []int
-	requestName string // protobuf message name for input type
-
+	Operation      OpType
+	targetRepo     []int
+	requestName    string // protobuf message name for input type
+	requestFactory protoFactory
 }
 
 // TargetRepo returns the target repository for a protobuf message if it exists
@@ -62,6 +64,12 @@ func (mi MethodInfo) TargetRepo(msg proto.Message) (*gitalypb.Repository, error)
 	}
 
 	return reflectFindRepoTarget(msg, mi.targetRepo)
+}
+
+// UnmarshalRequestProto will unmarshal the bytes into the method's request
+// message type
+func (mi MethodInfo) UnmarshalRequestProto(b []byte) (proto.Message, error) {
+	return mi.requestFactory(b)
 }
 
 // Registry contains info about RPC methods
@@ -122,6 +130,35 @@ func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 	return opMsg, nil
 }
 
+type protoFactory func([]byte) (proto.Message, error)
+
+func methodReqFactory(method *descriptor.MethodDescriptorProto) (protoFactory, error) {
+	// for some reason, the descriptor prepends a dot not expected in Go
+	inputTypeName := strings.TrimPrefix(method.GetInputType(), ".")
+
+	inputType := proto.MessageType(inputTypeName)
+	if inputType == nil {
+		return nil, fmt.Errorf("no message type found for %s", inputType)
+	}
+
+	f := func(buf []byte) (proto.Message, error) {
+		v := reflect.New(inputType.Elem())
+		log.Printf("%T %p", v.Interface(), v.Interface())
+		pb, ok := v.Interface().(proto.Message)
+		if !ok {
+			return nil, fmt.Errorf("factory function expected protobuf message but got %T", v.Interface())
+		}
+
+		if err := proto.Unmarshal(buf, pb); err != nil {
+			return nil, err
+		}
+
+		return pb, nil
+	}
+
+	return f, nil
+}
+
 func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, error) {
 	opMsg, err := getOpExtension(methodDesc)
 	if err != nil {
@@ -149,10 +186,16 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 	// the two copies consistent for comparisons.
 	requestName := strings.TrimLeft(methodDesc.GetInputType(), ".")
 
+	reqFactory, err := methodReqFactory(methodDesc)
+	if err != nil {
+		return MethodInfo{}, err
+	}
+
 	return MethodInfo{
-		Operation:   opCode,
-		targetRepo:  targetRepo,
-		requestName: requestName,
+		Operation:      opCode,
+		targetRepo:     targetRepo,
+		requestName:    requestName,
+		requestFactory: reqFactory,
 	}, nil
 }
 

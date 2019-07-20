@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 )
 
@@ -193,4 +194,17 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			assert.Equalf(t, opType, methodInfo.Operation, "expect %s:%s to have the correct op type", serviceName, methodName)
 		}
 	}
+}
+
+func TestRequestFactory(t *testing.T) {
+	r := protoregistry.New()
+	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+
+	mInfo, err := r.LookupMethod("/gitaly.RepositoryService/RepositoryExists")
+	require.NoError(t, err)
+
+	pb, err := mInfo.UnmarshalRequestProto([]byte{})
+	require.NoError(t, err)
+
+	require.Exactly(t, &gitalypb.RepositoryExistsRequest{}, pb)
 }
