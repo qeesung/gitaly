@@ -1,0 +1,5 @@
+---
+title: Unable to extract target repo when nested in oneOf field
+merge_request: 1377
+author:
+type: fixed
