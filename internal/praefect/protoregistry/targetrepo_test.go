@@ -58,6 +58,19 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			pbMsg:     &gitalypb.RepackIncrementalResponse{},
 			expectErr: errors.New("proto message gitaly.RepackIncrementalResponse does not match expected RPC request message gitaly.RepackIncrementalRequest"),
 		},
+		{
+			desc:   "target nested in oneOf",
+			svc:    "OperationService",
+			method: "UserCommitFiles",
+			pbMsg: &gitalypb.UserCommitFilesRequest{
+				UserCommitFilesRequestPayload: &gitalypb.UserCommitFilesRequest_Header{
+					Header: &gitalypb.UserCommitFilesRequestHeader{
+						Repository: testRepos[1],
+					},
+				},
+			},
+			expectRepo: testRepos[1],
+		},
 	}
 
 	for _, tc := range testcases {
