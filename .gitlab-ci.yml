@@ -81,6 +81,12 @@ verify:
   script:
     - make verify
 
+proto:
+  <<: *ruby_definition
+  stage: test
+  script:
+    - make proto
+
 build:go1.12:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
