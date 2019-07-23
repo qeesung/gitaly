@@ -301,37 +301,6 @@ func (gm *gitalyMake) ProtoCSHA256() string {
 	return protoCDownload[runtime.GOOS+"/"+runtime.GOARCH].sha256
 }
 
-/* TODO delete
-func (gm *gitalyMake) ProtoFiles() []string {
-	if len(gm.protoFiles) > 0 {
-		return gm.protoFiles
-	}
-
-	entries, err := ioutil.ReadDir(filepath.Join(gm.SourceDir(), "proto"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, ent := range entries {
-		if name := ent.Name(); !ent.IsDir() && strings.HasSuffix(name, ".proto") {
-			gm.protoFiles = append(gm.protoFiles, name)
-		}
-	}
-
-	return gm.protoFiles
-}
-
-func (gm *gitalyMake) ProtoGoFiles() []string {
-	var out []string
-	for _, f := range gm.ProtoFiles() {
-		pbGo := fmt.Sprintf("%s/proto/go/gitalypb/%s.pb.go", gm.SourceDir(), strings.TrimSuffix(f, ".proto"))
-		out = append(out, filepath.Clean(pbGo))
-	}
-
-	return out
-}
-*/
-
 var templateText = `
 # _build/Makefile
 #
