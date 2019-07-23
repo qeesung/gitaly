@@ -584,4 +584,7 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby
 {{ .GrpcToolsRuby }}:
 	gem install --bindir {{ .BuildDir }}/bin -v 1.0.1 grpc-tools
 
+no-changes:
+	# looking for changed files
+	@cd {{ .SourceDir }} && git status --porcelain | awk '{ print } END { if (NR > 0) { exit 1 } }'
 `

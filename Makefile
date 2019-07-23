@@ -92,6 +92,10 @@ docker: prepare-build
 proto: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
 
+.PHONY: no-changes
+no-changes: prepare-build
+	cd $(BUILD_DIR) && $(MAKE) $@
+
 .PHONY: prepare-build
 prepare-build: $(BUILD_DIR)/.ok update-makefile
 $(BUILD_DIR)/.ok:
