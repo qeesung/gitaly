@@ -81,6 +81,9 @@ func (gm *gitalyMake) ProtoCGenGo() string { return filepath.Join(gm.BuildDir(),
 func (gm *gitalyMake) ProtoCGenGitaly() string {
 	return filepath.Join(gm.BuildDir(), "bin/protoc-gen-gitaly")
 }
+func (gm *gitalyMake) GrpcToolsRuby() string {
+	return filepath.Join(gm.BuildDir(), "bin/grpc_tools_ruby_protoc")
+}
 func (gm *gitalyMake) CoverageDir() string       { return filepath.Join(gm.BuildDir(), "cover") }
 func (gm *gitalyMake) GitalyRubyDir() string     { return filepath.Join(gm.SourceDir(), "ruby") }
 func (gm *gitalyMake) GitlabShellRelDir() string { return "ruby/gitlab-shell" }
@@ -550,10 +553,11 @@ docker:
 	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
 
 .PHONY: proto
-proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }}
+proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
 	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
 	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
 	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
+	cd {{ .SourceDir }} && _support/generate-proto-ruby
 
 {{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
 	mkdir -p {{ .BuildDir }}/protoc
@@ -569,6 +573,10 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }}
 	go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
 
 {{ .ProtoCGenGitaly }}:
-	# Todo fix versioning
+	# Todo fix protoc-gen-gitaly versioning
 	go install gitlab.com/gitlab-org/gitaly-proto/go/internal/cmd/protoc-gen-gitaly
+
+{{ .GrpcToolsRuby }}:
+	gem install -i {{ .BuildDir }}/gems -n {{ .BuildDir }}/bin -v 1.22.0 grpc-tools
+
 `
