@@ -577,6 +577,6 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby
 	go install gitlab.com/gitlab-org/gitaly-proto/go/internal/cmd/protoc-gen-gitaly
 
 {{ .GrpcToolsRuby }}:
-	gem install --bindir {{ .BuildDir }}/bin -v 1.22.0 grpc-tools
+	gem install --bindir {{ .BuildDir }}/bin -v 1.0.1 grpc-tools
 
 `
