@@ -48,7 +48,7 @@ end
 def copy(root)
   dest = File.join(root, 'proto')
   FileUtils.rm(Dir["#{dest}/*.proto"])
-  file_list = Dir['*.proto'] + Dir['*.md'] + %w[LICENSE VERSION]
+  file_list = Dir['*.proto'] + Dir['*.md'] + %w[VERSION]
   FileUtils.cp(file_list, dest)
 end
 

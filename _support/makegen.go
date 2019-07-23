@@ -235,7 +235,12 @@ func (gm *gitalyMake) GoFiles() []string {
 		}
 
 		if info.IsDir() && path != root {
-			if path == filepath.Join(root, "ruby") || path == filepath.Join(root, "vendor") {
+			switch path {
+			case filepath.Join(root, "ruby"):
+				return filepath.SkipDir
+			case filepath.Join(root, "vendor"):
+				return filepath.SkipDir
+			case filepath.Join(root, "proto/go"):
 				return filepath.SkipDir
 			}
 

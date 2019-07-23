@@ -5,6 +5,7 @@ AllCops:
   Exclude:
     - 'tmp/**/*'
     - 'vendor/**/*'
+    - 'proto/**/*'
     # TODO stop ignoring gitlab-shell/ https://gitlab.com/gitlab-org/gitaly/issues/1592
     - 'gitlab-shell/**/*'
 
