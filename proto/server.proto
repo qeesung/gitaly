@@ -8,7 +8,10 @@ import "shared.proto";
 
 service ServerService {
   rpc ServerInfo(ServerInfoRequest) returns (ServerInfoResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      scope_level: SERVER
+    };
   }
 }
 

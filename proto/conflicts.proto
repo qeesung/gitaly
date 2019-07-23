@@ -8,7 +8,10 @@ import "shared.proto";
 
 service ConflictsService {
   rpc ListConflictFiles(ListConflictFilesRequest) returns (stream ListConflictFilesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc ResolveConflicts(stream ResolveConflictsRequest) returns (ResolveConflictsResponse) {
     option (op_type) = {

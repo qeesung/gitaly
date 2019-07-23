@@ -33,13 +33,22 @@ service RemoteService {
       };
     }
     rpc FindRemoteRepository(FindRemoteRepositoryRequest) returns (FindRemoteRepositoryResponse) {
-      option (op_type).op = ACCESSOR;
+      option (op_type) = {
+        op: ACCESSOR
+        scope_level: SERVER
+      };
     }
     rpc FindRemoteRootRef(FindRemoteRootRefRequest) returns (FindRemoteRootRefResponse) {
-      option (op_type).op = ACCESSOR;
+      option (op_type) = {
+        op: ACCESSOR
+        target_repository_field: "1"
+      };
     }
     rpc ListRemotes(ListRemotesRequest) returns (stream ListRemotesResponse) {
-      option (op_type).op = ACCESSOR;
+      option (op_type) = {
+        op: ACCESSOR
+        target_repository_field: "1"
+      };
     }
 }
 

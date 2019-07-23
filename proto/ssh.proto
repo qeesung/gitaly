@@ -9,7 +9,10 @@ import "shared.proto";
 service SSHService {
   // To forward 'git upload-pack' to Gitaly for SSH sessions
   rpc SSHUploadPack(stream SSHUploadPackRequest) returns (stream SSHUploadPackResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 
   // To forward 'git receive-pack' to Gitaly for SSH sessions

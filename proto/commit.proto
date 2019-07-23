@@ -9,73 +9,142 @@ import "google/protobuf/timestamp.proto";
 
 service CommitService {
   rpc CommitIsAncestor(CommitIsAncestorRequest) returns (CommitIsAncestorResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc TreeEntry(TreeEntryRequest) returns (stream TreeEntryResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CommitsBetween(CommitsBetweenRequest) returns (stream CommitsBetweenResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CountCommits(CountCommitsRequest) returns (CountCommitsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CountDivergingCommits(CountDivergingCommitsRequest) returns (CountDivergingCommitsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetTreeEntries(GetTreeEntriesRequest) returns (stream GetTreeEntriesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc ListFiles(ListFilesRequest) returns (stream ListFilesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc FindCommit(FindCommitRequest) returns (FindCommitResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CommitStats(CommitStatsRequest) returns (CommitStatsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   // Use a stream to paginate the result set
   rpc FindAllCommits(FindAllCommitsRequest) returns (stream FindAllCommitsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc FindCommits(FindCommitsRequest) returns (stream FindCommitsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CommitLanguages(CommitLanguagesRequest) returns (CommitLanguagesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc RawBlame(RawBlameRequest) returns (stream RawBlameResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc LastCommitForPath(LastCommitForPathRequest) returns (LastCommitForPathResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc ListLastCommitsForTree(ListLastCommitsForTreeRequest) returns (stream ListLastCommitsForTreeResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CommitsByMessage(CommitsByMessageRequest) returns (stream CommitsByMessageResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc ListCommitsByOid(ListCommitsByOidRequest) returns (stream ListCommitsByOidResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
+  }
+  rpc ListCommitsByRefName(ListCommitsByRefNameRequest) returns (stream ListCommitsByRefNameResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc FilterShasWithSignatures(stream FilterShasWithSignaturesRequest) returns (stream FilterShasWithSignaturesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 
   // ExtractCommitSignature returns a stream because the signed text may be
   // arbitrarily large and signature verification is impossible without the
   // full text.
   rpc ExtractCommitSignature(ExtractCommitSignatureRequest) returns (stream ExtractCommitSignatureResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetCommitSignatures(GetCommitSignaturesRequest) returns (stream GetCommitSignaturesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 
   rpc GetCommitMessages(GetCommitMessagesRequest) returns (stream GetCommitMessagesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 }
 
@@ -228,6 +297,15 @@ message ListCommitsByOidRequest {
 }
 
 message ListCommitsByOidResponse {
+  repeated GitCommit commits = 1;
+}
+
+message ListCommitsByRefNameRequest {
+  Repository repository = 1;
+  repeated bytes ref_names = 2;
+}
+
+message ListCommitsByRefNameResponse {
   repeated GitCommit commits = 1;
 }
 

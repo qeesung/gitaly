@@ -11,19 +11,34 @@ service BlobService {
   // ID. We use a stream to return a chunked arbitrarily large binary
   // response
   rpc GetBlob(GetBlobRequest) returns (stream GetBlobResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetBlobs(GetBlobsRequest) returns (stream GetBlobsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetLFSPointers(GetLFSPointersRequest) returns (stream GetLFSPointersResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetNewLFSPointers(GetNewLFSPointersRequest) returns (stream GetNewLFSPointersResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetAllLFSPointers(GetAllLFSPointersRequest) returns (stream GetAllLFSPointersResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 }
 

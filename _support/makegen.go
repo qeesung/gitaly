@@ -70,12 +70,17 @@ func (gm *gitalyMake) BuildDir() string {
 	return gm.cwd
 }
 
-func (gm *gitalyMake) Pkg() string               { return "gitlab.com/gitlab-org/gitaly" }
-func (gm *gitalyMake) GoImports() string         { return "bin/goimports" }
-func (gm *gitalyMake) GoCovMerge() string        { return "bin/gocovmerge" }
-func (gm *gitalyMake) GoLint() string            { return "bin/golint" }
-func (gm *gitalyMake) GoVendor() string          { return "bin/govendor" }
-func (gm *gitalyMake) StaticCheck() string       { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
+func (gm *gitalyMake) Pkg() string         { return "gitlab.com/gitlab-org/gitaly" }
+func (gm *gitalyMake) GoImports() string   { return "bin/goimports" }
+func (gm *gitalyMake) GoCovMerge() string  { return "bin/gocovmerge" }
+func (gm *gitalyMake) GoLint() string      { return "bin/golint" }
+func (gm *gitalyMake) GoVendor() string    { return "bin/govendor" }
+func (gm *gitalyMake) StaticCheck() string { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
+func (gm *gitalyMake) ProtoC() string      { return filepath.Join(gm.BuildDir(), "protoc/bin/protoc") }
+func (gm *gitalyMake) ProtoCGenGo() string { return filepath.Join(gm.BuildDir(), "bin/protoc-gen-go") }
+func (gm *gitalyMake) ProtoCGenGitaly() string {
+	return filepath.Join(gm.BuildDir(), "bin/protoc-gen-gitaly")
+}
 func (gm *gitalyMake) CoverageDir() string       { return filepath.Join(gm.BuildDir(), "cover") }
 func (gm *gitalyMake) GitalyRubyDir() string     { return filepath.Join(gm.SourceDir(), "ruby") }
 func (gm *gitalyMake) GitlabShellRelDir() string { return "ruby/gitlab-shell" }
@@ -295,6 +300,37 @@ func (gm *gitalyMake) ProtoCURL() string {
 func (gm *gitalyMake) ProtoCSHA256() string {
 	return protoCDownload[runtime.GOOS+"/"+runtime.GOARCH].sha256
 }
+
+/* TODO delete
+func (gm *gitalyMake) ProtoFiles() []string {
+	if len(gm.protoFiles) > 0 {
+		return gm.protoFiles
+	}
+
+	entries, err := ioutil.ReadDir(filepath.Join(gm.SourceDir(), "proto"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, ent := range entries {
+		if name := ent.Name(); !ent.IsDir() && strings.HasSuffix(name, ".proto") {
+			gm.protoFiles = append(gm.protoFiles, name)
+		}
+	}
+
+	return gm.protoFiles
+}
+
+func (gm *gitalyMake) ProtoGoFiles() []string {
+	var out []string
+	for _, f := range gm.ProtoFiles() {
+		pbGo := fmt.Sprintf("%s/proto/go/gitalypb/%s.pb.go", gm.SourceDir(), strings.TrimSuffix(f, ".proto"))
+		out = append(out, filepath.Clean(pbGo))
+	}
+
+	return out
+}
+*/
 
 var templateText = `
 # _build/Makefile
@@ -543,13 +579,27 @@ docker:
 {{ end }}
 	cp {{ .SourceDir }}/Dockerfile docker/
 	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
-.PHONY: proto
-proto: {{ .BuildDir }}/protoc/bin/protoc
-	# update proto stubs
 
-{{ .BuildDir }}/protoc/bin/protoc: {{ .BuildDir }}/protoc.zip
+.PHONY: proto
+proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }}
+	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
+	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
+
+{{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
+	mkdir -p {{ .BuildDir }}/protoc
+	cd {{ .BuildDir }}/protoc && unzip {{ .BuildDir }}/protoc.zip
+	touch $@
 
 {{ .BuildDir }}/protoc.zip:
 	curl -o $@.tmp --silent -L {{ .ProtoCURL }}
 	printf '{{ .ProtoCSHA256 }}  $@.tmp' | shasum -a256 -c -
+	mv $@.tmp $@
+
+{{ .ProtoCGenGo }}:
+	go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
+
+{{ .ProtoCGenGitaly }}:
+	# Todo fix versioning
+	go install gitlab.com/gitlab-org/gitaly-proto/go/internal/cmd/protoc-gen-gitaly
 `

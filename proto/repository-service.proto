@@ -8,7 +8,10 @@ import "shared.proto";
 
 service RepositoryService {
   rpc RepositoryExists(RepositoryExistsRequest) returns (RepositoryExistsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc RepackIncremental(RepackIncrementalRequest) returns (RepackIncrementalResponse) {
     option (op_type) = {
@@ -59,7 +62,10 @@ service RepositoryService {
     };
   }
   rpc HasLocalBranches(HasLocalBranchesRequest) returns (HasLocalBranchesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc FetchSourceBranch(FetchSourceBranchRequest) returns (FetchSourceBranchResponse) {
     option (op_type) = {
@@ -80,7 +86,10 @@ service RepositoryService {
     };
   }
   rpc FindMergeBase(FindMergeBaseRequest) returns (FindMergeBaseResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CreateFork(CreateForkRequest) returns (CreateForkResponse) {
     option (op_type) = {
@@ -89,10 +98,16 @@ service RepositoryService {
     };
   }
   rpc IsRebaseInProgress(IsRebaseInProgressRequest) returns (IsRebaseInProgressResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc IsSquashInProgress(IsSquashInProgressRequest) returns (IsSquashInProgressResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 
   rpc CreateRepositoryFromURL(CreateRepositoryFromURLRequest) returns (CreateRepositoryFromURLResponse) {
@@ -132,13 +147,22 @@ service RepositoryService {
     };
   }
   rpc FindLicense(FindLicenseRequest) returns (FindLicenseResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc GetInfoAttributes(GetInfoAttributesRequest) returns (stream GetInfoAttributesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CalculateChecksum(CalculateChecksumRequest) returns (CalculateChecksumResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc Cleanup(CleanupRequest) returns (CleanupResponse) {
     option (op_type) = {
@@ -147,7 +171,10 @@ service RepositoryService {
     };
   }
   rpc GetSnapshot(GetSnapshotRequest) returns (stream GetSnapshotResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CreateRepositoryFromSnapshot(CreateRepositoryFromSnapshotRequest) returns (CreateRepositoryFromSnapshotResponse) {
     option (op_type) = {
@@ -156,13 +183,22 @@ service RepositoryService {
     };
   }
   rpc GetRawChanges(GetRawChangesRequest) returns (stream GetRawChangesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc SearchFilesByContent(SearchFilesByContentRequest) returns (stream SearchFilesByContentResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc SearchFilesByName(SearchFilesByNameRequest) returns (stream SearchFilesByNameResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc RestoreCustomHooks(stream RestoreCustomHooksRequest) returns (RestoreCustomHooksResponse) {
     option (op_type) = {
@@ -171,7 +207,10 @@ service RepositoryService {
     };
   }
   rpc BackupCustomHooks(BackupCustomHooksRequest) returns (stream BackupCustomHooksResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc PreFetch(PreFetchRequest) returns (PreFetchResponse) {
     option (op_type) = {
@@ -186,7 +225,10 @@ service RepositoryService {
     };
   }
   rpc GetObjectDirectorySize(GetObjectDirectorySizeRequest) returns (GetObjectDirectorySizeResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CloneFromPool(CloneFromPoolRequest) returns (CloneFromPoolResponse) {
     option (op_type) = {

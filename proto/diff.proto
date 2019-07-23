@@ -9,23 +9,41 @@ import "shared.proto";
 service DiffService {
   // Returns stream of CommitDiffResponse with patches chunked over messages
   rpc CommitDiff(CommitDiffRequest) returns (stream CommitDiffResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   // Return a stream so we can divide the response in chunks of deltas
   rpc CommitDelta(CommitDeltaRequest) returns (stream CommitDeltaResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc CommitPatch(CommitPatchRequest) returns (stream CommitPatchResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc RawDiff(RawDiffRequest) returns (stream RawDiffResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc RawPatch(RawPatchRequest) returns (stream RawPatchResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc DiffStats(DiffStatsRequest) returns (stream DiffStatsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 }
 

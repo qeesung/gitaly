@@ -8,7 +8,10 @@ option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 service WikiService {
   rpc WikiGetPageVersions(WikiGetPageVersionsRequest) returns (stream WikiGetPageVersionsResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc WikiWritePage(stream WikiWritePageRequest) returns (WikiWritePageResponse) {
     option (op_type) = {
@@ -30,19 +33,36 @@ service WikiService {
   }
   // WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
   rpc WikiFindPage(WikiFindPageRequest) returns (stream WikiFindPageResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc WikiFindFile(WikiFindFileRequest) returns (stream WikiFindFileResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
   rpc WikiGetAllPages(WikiGetAllPagesRequest) returns (stream WikiGetAllPagesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
+
   }
   rpc WikiListPages(WikiListPagesRequest) returns (stream WikiListPagesResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
+
   }
   rpc WikiGetFormattedData(WikiGetFormattedDataRequest) returns (stream WikiGetFormattedDataResponse) {
-    option (op_type).op = ACCESSOR;
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
   }
 }
 
