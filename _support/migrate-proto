@@ -43,12 +43,13 @@ EOS
   File.open('README.md', 'w') { |f| f.write(readme) }
 
   File.open('REVISION', 'w') { |f| f.write(revision) }
+  File.open('SOURCE', 'w') { |f| f.write(source) }
 end
 
 def copy(root)
   dest = File.join(root, 'proto')
   FileUtils.rm(Dir["#{dest}/*.proto"])
-  file_list = Dir['*.proto'] + Dir['*.md'] + %w[VERSION REVISION]
+  file_list = Dir['*.proto'] + Dir['*.md'] + %w[VERSION REVISION SOURCE]
   FileUtils.cp(file_list, dest)
 end
 
