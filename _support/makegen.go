@@ -457,7 +457,7 @@ rspec-gitlab-shell: {{ .GitlabShellDir }}/config.yml assemble-go prepare-tests
 	@cd  {{ .GitalyRubyDir }} && bundle exec bin/ruby-cd {{ .GitlabShellDir }} rspec
 
 .PHONY: verify
-verify: check-mod-tidy lint check-formatting staticcheck notice-up-to-date proto no-changes rubocop
+verify: check-mod-tidy lint check-formatting staticcheck notice-up-to-date check-proto rubocop
 
 .PHONY: check-mod-tidy
 check-mod-tidy:
@@ -516,6 +516,10 @@ notice-tmp: {{ .GoVendor }} clean-ruby-vendor-go
 .PHONY: clean-ruby-vendor-go
 clean-ruby-vendor-go:
 	cd {{ .SourceDir }} && mkdir -p ruby/vendor && find ruby/vendor -type f -name '*.go' -delete
+
+.PHONY: check-proto
+check-proto: proto no-changes
+	_support/gitaly-proto-tagged
 
 .PHONY: rubocop
 rubocop: ../.ruby-bundle

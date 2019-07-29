@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+
+proto_revision = File.read('proto/REVISION')
+
+# good: v1.2.3
+# bad: v1.2.3-2019234234-a35478eff90
+if proto_revision =~ /^v[0-9.]+$/
+  puts 'OK'
+  exit
+end
+
+abort 'error: no tagged version of gitaly-proto found in proto/'
