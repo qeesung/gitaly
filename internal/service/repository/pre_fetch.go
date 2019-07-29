@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // PreFetch is unsafe https://gitlab.com/gitlab-org/gitaly/issues/1552

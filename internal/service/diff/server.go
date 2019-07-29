@@ -1,8 +1,8 @@
 package diff
 
 import (
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 const msgSizeThreshold = 5 * 1024

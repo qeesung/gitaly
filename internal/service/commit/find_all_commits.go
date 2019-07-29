@@ -3,10 +3,10 @@ package commit
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // We declare this function in variables so that we can override them in our tests

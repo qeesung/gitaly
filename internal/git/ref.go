@@ -3,7 +3,7 @@ package git
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // IsValidRef checks if a ref in a repo is valid

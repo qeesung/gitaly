@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func (s *server) UserMergeBranch(bidi gitalypb.OperationService_UserMergeBranchServer) error {

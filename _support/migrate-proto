@@ -5,25 +5,23 @@ require_relative 'run.rb'
 
 require 'tempfile'
 
-SOURCE = 'https://gitlab.com/gitlab-org/gitaly-proto'
-
-def main
+def main(source, revision)
   root = capture!(%w[git rev-parse --show-toplevel]).chomp
 
   Dir.mktmpdir do |dir|
     Dir.chdir(dir) do
-      clone
-      modify
+      clone(source, revision)
+      modify(source)
       copy(root)
     end
   end
 end
 
-def clone
-  run!(%W[git clone --quiet --depth=1 #{SOURCE}.git .])
+def clone(source, revision)
+  run!(%W[git clone --quiet --depth=1 -b #{revision} https://#{source}.git .])
 end
 
-def modify
+def modify(source)
   Dir['*.proto'].each do |proto|
     tmp = proto + '.bak'
     run2!(%W[sed s/gitlab-org\\/gitaly-proto/gitlab-org\\/gitaly\\/proto/ #{proto}], out: tmp)
@@ -36,7 +34,7 @@ def modify
   readme = <<EOS
 # Vendored copy of gitaly-proto
 
-Vendored from #{SOURCE} at #{commit_id}.
+Vendored from #{source} at #{commit_id}.
 
 Migration in progress, see
 https://gitlab.com/gitlab-org/gitaly/issues/1761. Do not edit files in
@@ -52,4 +50,8 @@ def copy(root)
   FileUtils.cp(file_list, dest)
 end
 
-main
+unless ARGV.count == 2
+  abort "Usage: #{$0} SOURCE REVISION"
+end
+
+main(*ARGV)

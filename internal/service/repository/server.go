@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 type server struct {

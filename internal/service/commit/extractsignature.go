@@ -1,8 +1,8 @@
 package commit
 
 import (
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func (s *server) ExtractCommitSignature(request *gitalypb.ExtractCommitSignatureRequest, stream gitalypb.CommitService_ExtractCommitSignatureServer) error {

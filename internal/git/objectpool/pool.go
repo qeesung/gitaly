@@ -6,9 +6,9 @@ import (
 	"os"
 	"path"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // ObjectPool are a way to dedup objects between repositories, where the objects

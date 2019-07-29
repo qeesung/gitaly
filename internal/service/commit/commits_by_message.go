@@ -3,9 +3,9 @@ package commit
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 type commitsByMessageSender struct {

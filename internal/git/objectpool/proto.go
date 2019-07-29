@@ -1,6 +1,6 @@
 package objectpool
 
-import "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+import "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 
 // FromProto returns an object pool object from a git repository object
 func FromProto(o *gitalypb.ObjectPool) (*ObjectPool, error) {

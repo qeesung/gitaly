@@ -1,8 +1,8 @@
 package diff
 
 import (
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func (s *server) CommitPatch(in *gitalypb.CommitPatchRequest, stream gitalypb.DiffService_CommitPatchServer) error {

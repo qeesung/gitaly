@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 var catfileCacheCounter = prometheus.NewCounterVec(

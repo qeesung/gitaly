@@ -7,14 +7,8 @@ USAGE = "Usage: #{PROGNAME} [--fork GITALY_PROTO_FORK_REPO] REVISION"
 ORIGIN = 'gitlab.com/gitlab-org/gitaly-proto'
 
 def main(revision, repo:)
-  if repo == ORIGIN
-    run!(%W[go mod edit -dropreplace=#{ORIGIN}])
-    run!(%W[go get #{ORIGIN}@#{revision}])
-  else
-    run!(%W[go mod edit -replace=#{ORIGIN}=#{repo}@#{revision}])
-  end
-
-  run!(%w[go mod tidy])
+  run!(%W[_support/migrate-proto #{repo} #{revision}])
+  run!(%w[make proto])
 end
 
 options = ARGV.getopts(nil, 'fork:')

@@ -1,6 +1,6 @@
 package storage
 
-import "gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
+import "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 
 type server struct{}
 

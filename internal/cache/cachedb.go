@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/golang/protobuf/proto"
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // StreamDB stores and retrieves byte streams for repository related RPCs

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly-proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 
 	"github.com/sirupsen/logrus"
 )
