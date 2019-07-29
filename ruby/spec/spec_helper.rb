@@ -1,5 +1,3 @@
-$:.unshift(File.expand_path('../proto', __dir__))
-
 require_relative '../lib/gitaly_server.rb'
 require_relative '../lib/gitlab/git.rb'
 require_relative 'support/sentry.rb'

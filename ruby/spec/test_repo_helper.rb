@@ -1,7 +1,9 @@
 require 'fileutils'
 require 'securerandom'
-require 'gitaly'
 require 'rugged'
+
+$:.unshift(File.expand_path('../proto', __dir__))
+require 'gitaly'
 
 DEFAULT_STORAGE_DIR = File.expand_path('../tmp/repositories', __dir__)
 DEFAULT_STORAGE_NAME = 'default'.freeze

@@ -1,6 +1,4 @@
 require 'socket'
-
-require 'gitaly'
 require 'spec_helper'
 
 SOCKET_PATH = 'gitaly.socket'.freeze
