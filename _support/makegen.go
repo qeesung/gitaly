@@ -370,7 +370,6 @@ build: ../.ruby-bundle
 ../.ruby-bundle:  {{ .GitalyRubyDir }}/Gemfile.lock  {{ .GitalyRubyDir }}/Gemfile
 	cd  {{ .GitalyRubyDir }} && bundle config # for debugging
 	cd  {{ .GitalyRubyDir }} && bundle install $(BUNDLE_FLAGS)
-	cd  {{ .GitalyRubyDir }} && bundle show gitaly-proto # sanity check
 	touch $@
 
 .PHONY: install

@@ -1,3 +1,4 @@
+$:.unshift(File.expand_path('../proto', __dir__))
 require 'gitaly'
 
 require_relative 'gitlab/git.rb'
