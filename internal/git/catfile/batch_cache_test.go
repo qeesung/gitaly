@@ -133,24 +133,28 @@ func TestCacheEnforceTTL(t *testing.T) {
 
 func TestAutoExpiry(t *testing.T) {
 	ttl := 5 * time.Millisecond
-	bc := newCacheWithRefresh(ttl, 10, 1*time.Millisecond)
+	refresh := 1 * time.Millisecond
+	bc := newCacheWithRefresh(ttl, 10, refresh)
 
 	key0 := testKey(0)
 	value0 := testValue()
 	bc.Add(key0, value0)
 	requireCacheValid(t, bc)
 
-	bc.Lock()
 	require.Contains(t, keys(bc), key0, "key should still be in map")
 	require.False(t, value0.isClosed(), "value should not have been closed")
-	bc.Unlock()
 
-	time.Sleep(2 * ttl)
+	// Wait for the monitor goroutine to do its thing
+	for i := 0; i < 100; i++ {
+		if len(keys(bc)) == 0 {
+			break
+		}
 
-	bc.Lock()
-	require.NotContains(t, keys(bc), key0, "key should no longer be in map")
+		time.Sleep(refresh)
+	}
+
+	require.Empty(t, keys(bc), "key should no longer be in map")
 	require.True(t, value0.isClosed(), "value should be closed after eviction")
-	bc.Unlock()
 }
 
 func requireCacheValid(t *testing.T, bc *batchCache) {
@@ -169,6 +173,9 @@ func testValue() *Batch { return &Batch{} }
 func testKey(i int) key { return key{sessionID: fmt.Sprintf("key-%d", i)} }
 
 func keys(bc *batchCache) []key {
+	bc.Lock()
+	defer bc.Unlock()
+
 	var result []key
 	for _, ent := range bc.entries {
 		result = append(result, ent.key)
