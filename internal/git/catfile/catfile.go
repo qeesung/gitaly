@@ -2,6 +2,7 @@ package catfile
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -45,6 +46,7 @@ const (
 	// CacheFeatureFlagKey is the feature flag key for catfile batch caching. This should match
 	// what is in gitlab-ce
 	CacheFeatureFlagKey = "catfile-cache"
+	SessionIDField      = "gitaly-session-id"
 )
 
 func init() {
@@ -146,7 +148,7 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 		return nil, err
 	}
 
-	sessionID := metadata.GetValue(ctx, "gitaly-session-id")
+	sessionID := metadata.GetValue(ctx, SessionIDField)
 	if sessionID == "" {
 		return newBatch(ctx, repoPath, env)
 	}
@@ -164,6 +166,7 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
 	c, err := newBatch(cacheCtx, repoPath, env)
 	if err != nil {
+		cacheCancel()
 		return nil, err
 	}
 
@@ -189,6 +192,8 @@ func returnWhenDone(done <-chan struct{}, bc *batchCache, cacheKey key, c *Batch
 	bc.Add(cacheKey, c)
 }
 
+var simulateBatchSpawnFailure = false
+
 func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error) {
 	batch, err := newBatchProcess(ctx, repoPath, env)
 	if err != nil {
@@ -198,6 +203,11 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error
 	batchCheck, err := newBatchCheck(ctx, repoPath, env)
 	if err != nil {
 		return nil, err
+	}
+
+	if simulateBatchSpawnFailure {
+		// Intentionally leak processes
+		return nil, fmt.Errorf("simulated batch spawn error")
 	}
 
 	return &Batch{batchProcess: batch, batchCheck: batchCheck}, nil

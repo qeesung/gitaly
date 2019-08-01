@@ -1,12 +1,21 @@
 package catfile
 
 import (
+	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/exec"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestInfo(t *testing.T) {
@@ -225,4 +234,109 @@ func TestRepeatedCalls(t *testing.T) {
 	require.NoError(t, err, "request should succeed because blob was consumed")
 
 	require.Equal(t, string(treeBytes), string(tree2))
+}
+
+func TestSpawnFailure(t *testing.T) {
+	defer func() { simulateBatchSpawnFailure = false }()
+
+	defer func(bc *batchCache) {
+		// reset global cache
+		cache = bc
+	}(cache)
+
+	testCache := newCache(100*time.Second, 10)
+	cache = testCache
+	defer testCache.EvictAll()
+
+	require.True(
+		t,
+		waitTrue(func() bool { return numGitChildren(t) == 0 }),
+		"test setup: wait for there to be 0 git children",
+	)
+	require.Equal(t, 0, cacheSize(testCache), "sanity check: cache empty")
+
+	ctx1, cancel1 := testhelper.Context()
+	defer cancel1()
+
+	simulateBatchSpawnFailure = false
+	_, err := catfileWithFreshSessionID(ctx1)
+	require.NoError(t, err, "catfile spawn should succeed in normal circumstances")
+	require.Equal(t, 2, numGitChildren(t), "there should be 2 git child processes")
+
+	// cancel request context: this should asynchronously move the processes into the cat-file cache
+	cancel1()
+
+	require.True(
+		t,
+		waitTrue(func() bool { return cacheSize(testCache) == 1 }),
+		"1 cache entry, meaning 2 processes, should be in the cache now",
+	)
+
+	require.Equal(t, 2, numGitChildren(t), "there should still be 2 git child processes")
+
+	testCache.EvictAll()
+	require.Equal(t, 0, cacheSize(testCache), "the cache should be empty now")
+
+	require.True(
+		t,
+		waitTrue(func() bool { return numGitChildren(t) == 0 }),
+		"number of git processes should drop to 0 again",
+	)
+
+	ctx2, cancel2 := testhelper.Context()
+	defer cancel2()
+
+	simulateBatchSpawnFailure = true
+	_, err = catfileWithFreshSessionID(ctx2)
+	require.Error(t, err, "expect simulated error")
+
+	require.True(
+		t,
+		waitTrue(func() bool { return numGitChildren(t) == 0 }),
+		"git children should have disappeard after spawn failure scenario",
+	)
+}
+
+func catfileWithFreshSessionID(ctx context.Context) (*Batch, error) {
+	id, err := text.RandomHex(4)
+	if err != nil {
+		return nil, err
+	}
+
+	md := metadata.New(map[string]string{
+		SessionIDField: id,
+	})
+
+	return New(metadata.NewIncomingContext(ctx, md), testhelper.TestRepository())
+}
+
+func waitTrue(callback func() bool) bool {
+	for start := time.Now(); time.Since(start) < 1*time.Second; time.Sleep(1 * time.Millisecond) {
+		if callback() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func numGitChildren(t *testing.T) int {
+	out, err := exec.Command("pgrep", "-x", "-P", strconv.Itoa(os.Getpid()), "git").Output()
+
+	if err != nil {
+		if code, ok := command.ExitStatus(err); ok && code == 1 {
+			// pgrep exit code 1 means: no processes found
+			return 0
+		}
+
+		t.Fatal(err)
+	}
+
+	return bytes.Count(out, []byte("\n"))
+}
+
+func cacheSize(bc *batchCache) int {
+	bc.Lock()
+	defer bc.Unlock()
+	return bc.len()
 }
