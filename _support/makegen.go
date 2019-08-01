@@ -517,7 +517,7 @@ clean-ruby-vendor-go:
 	cd {{ .SourceDir }} && mkdir -p ruby/vendor && find ruby/vendor -type f -name '*.go' -delete
 
 .PHONY: check-proto
-check-proto:
+check-proto: proto no-changes
 	# checking gitaly-proto revision
 	@cd {{ .SourceDir }} && _support/gitaly-proto-tagged
 
