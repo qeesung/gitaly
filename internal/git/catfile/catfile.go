@@ -2,7 +2,6 @@ package catfile
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 
@@ -192,7 +191,12 @@ func returnWhenDone(done <-chan struct{}, bc *batchCache, cacheKey key, c *Batch
 	bc.Add(cacheKey, c)
 }
 
+// simulateBatchSpawnFailure is used to inject errors during testing
 var simulateBatchSpawnFailure = false
+
+type simulatedBatchSpawnError struct{}
+
+func (simulatedBatchSpawnError) Error() string { return "simulated spawn error" }
 
 func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error) {
 	batch, err := newBatchProcess(ctx, repoPath, env)
@@ -207,7 +211,7 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error
 
 	if simulateBatchSpawnFailure {
 		// Intentionally leak processes
-		return nil, fmt.Errorf("simulated batch spawn error")
+		return nil, &simulatedBatchSpawnError{}
 	}
 
 	return &Batch{batchProcess: batch, batchCheck: batchCheck}, nil

@@ -289,6 +289,7 @@ func TestSpawnFailure(t *testing.T) {
 	simulateBatchSpawnFailure = true
 	_, err = catfileWithFreshSessionID(ctx2)
 	require.Error(t, err, "expect simulated error")
+	require.IsType(t, &simulatedBatchSpawnError{}, err)
 
 	require.True(
 		t,
