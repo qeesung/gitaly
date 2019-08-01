@@ -50,7 +50,8 @@ def write_version_files(version)
     PROTO_VERSION
   end
 
-  # Did we edit the right file?
+  # Generating code is tricky. Let's actually load the gem, and inspect
+  # the version constant.
   check = capture!(%W[ruby -Iruby/proto -rgitaly -e #{'print Gitaly::VERSION'}])
   unless check == version
     puts "fatal: ruby proto version check failed. \n\n"
