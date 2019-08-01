@@ -244,7 +244,8 @@ func TestSpawnFailure(t *testing.T) {
 		cache = bc
 	}(cache)
 
-	testCache := newCache(100*time.Second, 10)
+	// Use very high values to effectively disable auto-expiry
+	testCache := newCache(1*time.Hour, 1000)
 	cache = testCache
 	defer testCache.EvictAll()
 
