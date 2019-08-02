@@ -295,7 +295,7 @@ func TestSpawnFailure(t *testing.T) {
 	require.True(
 		t,
 		waitTrue(func() bool { return numGitChildren(t) == 0 }),
-		"git children should have disappeard after spawn failure scenario",
+		"there should be no git children after spawn failure scenario",
 	)
 }
 
