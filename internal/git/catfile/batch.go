@@ -51,6 +51,11 @@ func newBatchProcess(ctx context.Context, repoPath string, env []string) (*batch
 		currentCatfileProcesses.Dec()
 	}()
 
+	if simulateBatchSpawnFailure {
+		// Testing only: intentionally leak process
+		return nil, &simulatedBatchSpawnError{}
+	}
+
 	return b, nil
 }
 

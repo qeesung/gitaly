@@ -167,7 +167,6 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
 	c, err := newBatch(cacheCtx, repoPath, env)
 	if err != nil {
-		cacheCancel()
 		return nil, err
 	}
 
@@ -200,7 +199,14 @@ type simulatedBatchSpawnError struct{}
 
 func (simulatedBatchSpawnError) Error() string { return "simulated spawn error" }
 
-func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error) {
+func newBatch(_ctx context.Context, repoPath string, env []string) (_ *Batch, err error) {
+	ctx, cancel := context.WithCancel(_ctx)
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
+
 	batch, err := newBatchProcess(ctx, repoPath, env)
 	if err != nil {
 		return nil, err
@@ -209,11 +215,6 @@ func newBatch(ctx context.Context, repoPath string, env []string) (*Batch, error
 	batchCheck, err := newBatchCheck(ctx, repoPath, env)
 	if err != nil {
 		return nil, err
-	}
-
-	if simulateBatchSpawnFailure {
-		// Intentionally leak processes
-		return nil, &simulatedBatchSpawnError{}
 	}
 
 	return &Batch{batchProcess: batch, batchCheck: batchCheck}, nil
