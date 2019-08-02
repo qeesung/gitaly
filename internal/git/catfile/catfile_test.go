@@ -237,7 +237,7 @@ func TestRepeatedCalls(t *testing.T) {
 }
 
 func TestSpawnFailure(t *testing.T) {
-	defer func() { simulateBatchSpawnFailure = false }()
+	defer func() { injectSpawnErrors = false }()
 
 	defer func(bc *batchCache) {
 		// reset global cache
@@ -259,7 +259,7 @@ func TestSpawnFailure(t *testing.T) {
 	ctx1, cancel1 := testhelper.Context()
 	defer cancel1()
 
-	simulateBatchSpawnFailure = false
+	injectSpawnErrors = false
 	_, err := catfileWithFreshSessionID(ctx1)
 	require.NoError(t, err, "catfile spawn should succeed in normal circumstances")
 	require.Equal(t, 2, numGitChildren(t), "there should be 2 git child processes")
@@ -287,7 +287,7 @@ func TestSpawnFailure(t *testing.T) {
 	ctx2, cancel2 := testhelper.Context()
 	defer cancel2()
 
-	simulateBatchSpawnFailure = true
+	injectSpawnErrors = true
 	_, err = catfileWithFreshSessionID(ctx2)
 	require.Error(t, err, "expect simulated error")
 	require.IsType(t, &simulatedBatchSpawnError{}, err)

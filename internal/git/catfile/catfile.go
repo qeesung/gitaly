@@ -192,8 +192,7 @@ func returnWhenDone(done <-chan struct{}, bc *batchCache, cacheKey key, c *Batch
 	bc.Add(cacheKey, c)
 }
 
-// simulateBatchSpawnFailure is used to inject errors during testing
-var simulateBatchSpawnFailure = false
+var injectSpawnErrors = false
 
 type simulatedBatchSpawnError struct{}
 

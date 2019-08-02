@@ -35,7 +35,7 @@ func newBatchCheck(ctx context.Context, repoPath string, env []string) (*batchCh
 		bc.w.Close()
 	}()
 
-	if simulateBatchSpawnFailure {
+	if injectSpawnErrors {
 		// Testing only: intentionally leak process
 		return nil, &simulatedBatchSpawnError{}
 	}
