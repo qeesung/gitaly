@@ -45,7 +45,9 @@ const (
 	// CacheFeatureFlagKey is the feature flag key for catfile batch caching. This should match
 	// what is in gitlab-ce
 	CacheFeatureFlagKey = "catfile-cache"
-	SessionIDField      = "gitaly-session-id"
+
+	// SessionIDField is the gRPC metadata field we use to store the gitaly session ID.
+	SessionIDField = "gitaly-session-id"
 )
 
 func init() {
