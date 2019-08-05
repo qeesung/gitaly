@@ -10,7 +10,7 @@ the [configuration documentation](doc/configuration/README.md).
 
 #### Developing Gitaly
 
-- When new to Gitaly development, start by reading the [beginners guide](docs/beginners_guid.md).
+- When new to Gitaly development, start by reading the [beginners guide](doc/beginners_guide.md).
 - When developing on Gitaly-Ruby, read the [Gitaly-Ruby doc](doc/ruby_endpoint.md)
 - The Gitaly release process is descripted in [our process doc](doc/PROCESS.md)
 - Tests use Git repositories too, [read more about them](doc/test_repos.md)
