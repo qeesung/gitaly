@@ -43,11 +43,32 @@ const (
 	OpMutator
 )
 
+// Scope represents the intended scope of an RPC method
+type Scope int
+
+const (
+	// ScopeUnknown is the default scope until determined otherwise
+	ScopeUnknown = iota
+	// ScopeRepository indicates an RPC's scope is limited to a repository
+	ScopeRepository = iota
+	// ScopeStorage indicates an RPC is scoped to an entire storage location
+	ScopeStorage
+	// ScopeServer indicates an RPC is scoped to an entire server
+	ScopeServer
+)
+
+var protoScope = map[gitalypb.OperationMsg_Scope]Scope{
+	gitalypb.OperationMsg_SERVER:     ScopeServer,
+	gitalypb.OperationMsg_REPOSITORY: ScopeRepository,
+	gitalypb.OperationMsg_STORAGE:    ScopeStorage,
+}
+
 // MethodInfo contains metadata about the RPC method. Refer to documentation
 // for message type "OperationMsg" shared.proto in gitlab-org/gitaly-proto for
 // more documentation.
 type MethodInfo struct {
 	Operation      OpType
+	Scope          Scope
 	targetRepo     []int
 	requestName    string // protobuf message name for input type
 	requestFactory protoFactory
@@ -189,8 +210,14 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 		return MethodInfo{}, err
 	}
 
+	scope, ok := protoScope[opMsg.GetScopeLevel()]
+	if !ok {
+		return MethodInfo{}, fmt.Errorf("encountered unknown method scope %d", opMsg.GetScopeLevel())
+	}
+
 	return MethodInfo{
 		Operation:      opCode,
+		Scope:          scope,
 		targetRepo:     targetRepo,
 		requestName:    requestName,
 		requestFactory: reqFactory,

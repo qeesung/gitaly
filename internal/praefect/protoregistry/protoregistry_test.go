@@ -171,7 +171,7 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"SSHUploadArchive": protoregistry.OpMutator,
 		},
 		"StorageService": map[string]protoregistry.OpType{
-			"ListDirectories":       protoregistry.OpMutator,
+			"ListDirectories":       protoregistry.OpAccessor,
 			"DeleteAllRepositories": protoregistry.OpMutator,
 		},
 		"WikiService": map[string]protoregistry.OpType{
@@ -207,4 +207,34 @@ func TestRequestFactory(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Exactly(t, &gitalypb.RepositoryExistsRequest{}, pb)
+}
+
+func TestMethodInfoScope(t *testing.T) {
+	r := protoregistry.New()
+	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+
+	for _, tt := range []struct {
+		method string
+		scope  protoregistry.Scope
+	}{
+		{
+			method: "/gitaly.RepositoryService/RepositoryExists",
+			scope:  protoregistry.ScopeRepository,
+		},
+		{
+			method: "/gitaly.StorageService/ListDirectories",
+			scope:  protoregistry.ScopeStorage,
+		},
+		{
+			method: "/gitaly.ServerService/ServerInfo",
+			scope:  protoregistry.ScopeServer,
+		},
+	} {
+		t.Run(tt.method, func(t *testing.T) {
+			mInfo, err := r.LookupMethod(tt.method)
+			require.NoError(t, err)
+
+			require.Exactly(t, tt.scope, mInfo.Scope)
+		})
+	}
 }
