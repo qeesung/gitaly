@@ -23,7 +23,7 @@ def main(tag)
   $stdout.flush
   abort unless $stdin.gets.chomp == 'Yes'
 
-  run!(%W[git push origin HEAD #{tag} proto/#{tag}])
+  run!(%W[git push origin HEAD #{tag}])
 end
 
 unless ARGV.count == 1
