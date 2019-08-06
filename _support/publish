@@ -19,11 +19,15 @@ def main(tag)
     abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
   end
 
+  gem = "gitaly-#{tag.sub(/^v/, '')}.gem"
+  abort "gem not found: #{gem}" unless File.exist?(gem)
+
   puts "Proceed to publish version #{tag}? Enter 'Yes' to continue; Ctrl-C to abort"
   $stdout.flush
   abort unless $stdin.gets.chomp == 'Yes'
 
   run!(%W[git push origin HEAD #{tag}])
+  run!(%W[gem push #{gem}])
 end
 
 unless ARGV.count == 1

@@ -26,6 +26,7 @@ def main(version)
 
   version_msg = "Version #{version}"
   run!(%W[git commit -m #{version_msg}])
+  run!(%w[gem build gitaly.gemspec])
   run!(%W[git tag -a -m #{version_msg} #{tag_name}])
 
   # We use 'capture!' to prevent 'git show' from invoking 'less'.
