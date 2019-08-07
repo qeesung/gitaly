@@ -99,7 +99,8 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	// Create blob ff8539473110911d91a58d48df9c18b6d940d290
 	blobPath, err := filepath.Abs("testdata/popen-blob.txt")
 	require.NoError(t, err)
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "hash-object", "-w", blobPath)
+	blobOID := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "hash-object", "-w", blobPath)
+	require.Equal(t, "ff8539473110911d91a58d48df9c18b6d940d290", text.ChompBytes(blobOID))
 
 	// testdata/3way-trees.txt defines trees that bring in blob
 	// ff8539473110911d91a58d48df9c18b6d940d290 (created above) as the new
@@ -107,10 +108,12 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	treeSpec, err := os.Open("testdata/3way-trees.txt")
 	require.NoError(t, err)
 	defer treeSpec.Close()
-	testhelper.MustRunCommand(t, treeSpec, "git", "-C", testRepoPath, "mktree", "--batch")
+	mktree := testhelper.MustRunCommand(t, treeSpec, "git", "-C", testRepoPath, "mktree", "--batch")
 
 	// This is the OID of the root tree we just created with testdata/3way-trees.txt.
 	treeRootOID := "d43533ff663c4181006d1319210236f525f44381"
+	expectedTrees := fmt.Sprintf("61d929f8f1f9ffbbf2db23f04d6fb50b0283f1ab\n2e147c212184f0c5a8eca678114e0b8bb61156fc\n%s\n", treeRootOID)
+	require.Equal(t, expectedTrees, string(mktree))
 
 	baseSha := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit-tree", "-p", "v1.0.0^{commit}", "-m", "msg", treeRootOID))
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "update-ref", "refs/heads/3way-test", baseSha)
