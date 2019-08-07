@@ -68,7 +68,7 @@ func TestSuccessfulUserSquashRequest(t *testing.T) {
 func ensureSplitIndexExists(t *testing.T, repoDir string) bool {
 	testhelper.MustRunCommand(t, nil, "git", "-C", repoDir, "update-index", "--add")
 
-	fis, err := ioutil.ReadDir(filepath.Join(repoDir, ".git"))
+	fis, err := ioutil.ReadDir(repoDir)
 	require.NoError(t, err)
 	for _, fi := range fis {
 		if strings.HasPrefix(fi.Name(), "sharedindex") {
