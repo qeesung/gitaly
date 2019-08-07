@@ -97,16 +97,19 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	// alters lines involved in this diff.
 
 	// Create blob ff8539473110911d91a58d48df9c18b6d940d290
-	blob, err := os.Open("testdata/popen-blob.txt")
+	blobPath, err := filepath.Abs("testdata/popen-blob.txt")
 	require.NoError(t, err)
-	defer blob.Close()
-	testhelper.MustRunCommand(t, blob, "git", "-C", testRepoPath, "hash-object", "-w", "--stdin")
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "hash-object", "-w", blobPath)
 
+	// testdata/3way-trees.txt defines trees that bring in blob
+	// ff8539473110911d91a58d48df9c18b6d940d290 (created above) as the new
+	// contents of files/ruby/popen.rb.
 	treeSpec, err := os.Open("testdata/3way-trees.txt")
 	require.NoError(t, err)
 	defer treeSpec.Close()
 	testhelper.MustRunCommand(t, treeSpec, "git", "-C", testRepoPath, "mktree", "--batch")
 
+	// This is the OID of the root tree we just created with testdata/3way-trees.txt.
 	treeRootOID := "d43533ff663c4181006d1319210236f525f44381"
 
 	baseSha := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit-tree", "-p", "v1.0.0^{commit}", "-m", "msg", treeRootOID))
