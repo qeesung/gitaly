@@ -50,6 +50,7 @@ ab2c9622c02288a2bbaaf35d96088cfdff31d9d9 refs/heads/gitaly-diff-stuff
 cb19058ecc02d01f8e4290b7e79cafd16a8839b6 refs/heads/gitaly-stuff
 e63f41fe459e62e1228fcef60d7189127aeba95a refs/heads/gitaly-test-ref
 c809470461118b7bcab850f6e9a7ca97ac42f8ea refs/heads/gitaly-windows-1251
+3d05a143ac193c1a6fe4d046a6e3fe71e825258a refs/heads/gitaly/squash-test
 5937ac0a7beb003549fc5fd26fc247adbce4a52e refs/heads/improve/awesome
 7df99c9ad5b8c9bfc5ae4fb7a91cc87adcce02ef refs/heads/jv-conflict-1
 bd493d44ae3c4dd84ce89cb75be78c4708cbd548 refs/heads/jv-conflict-2
