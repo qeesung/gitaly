@@ -586,4 +586,7 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby
 no-changes:
 	# looking for changed files
 	@cd {{ .SourceDir }} && git status --porcelain | awk '{ print } END { if (NR > 0) { exit 1 } }'
+
+smoke-test: all rspec
+	@cd {{ .SourceDir }} && go test ./internal/rubyserver
 `

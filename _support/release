@@ -9,8 +9,7 @@ def main(version)
     abort "Version string #{version.inspect} does not look like a semver (e.g. \"1.0.2\"). Aborting."
   end
 
-  run!(%w[make verify])
-  run!(%w[make clean test])
+  run!(%w[make verify smoke-test])
 
   puts 'Testing for changed files'
   run!(%w[git diff --quiet --exit-code])

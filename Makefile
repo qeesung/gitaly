@@ -96,6 +96,10 @@ proto: prepare-build
 no-changes: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
 
+.PHONY: smoke-test
+smoke-test: prepare-build
+	cd $(BUILD_DIR) && $(MAKE) $@
+
 .PHONY: prepare-build
 prepare-build: $(BUILD_DIR)/.ok update-makefile
 $(BUILD_DIR)/.ok:
