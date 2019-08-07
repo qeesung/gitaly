@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 gem 'bundler', '>= 1.17.3'
 
 gem 'rugged', '~> 0.28'
-gem 'github-linguist', '~> 6.1', require: 'linguist'
+gem 'github-linguist', '~> 7.5', require: 'linguist'
 gem 'gitlab-markup', '~> 1.7.0'
 gem 'activesupport', '~> 5.2.3'
 gem 'rdoc', '~> 4.2'
