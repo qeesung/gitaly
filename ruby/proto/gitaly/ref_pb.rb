@@ -77,6 +77,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :name, :bytes, 1
     optional :target, :message, 2, "gitaly.GitCommit"
   end
+  add_message "gitaly.FindTagRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :tag_name, :bytes, 2
+  end
+  add_message "gitaly.FindTagResponse" do
+    optional :tag, :message, 1, "gitaly.Tag"
+  end
   add_message "gitaly.FindAllTagsRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
   end
@@ -191,6 +198,8 @@ module Gitaly
   FindAllBranchesRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchesRequest").msgclass
   FindAllBranchesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchesResponse").msgclass
   FindAllBranchesResponse::Branch = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchesResponse.Branch").msgclass
+  FindTagRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagRequest").msgclass
+  FindTagResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagResponse").msgclass
   FindAllTagsRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest").msgclass
   FindAllTagsResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsResponse").msgclass
   RefExistsRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RefExistsRequest").msgclass

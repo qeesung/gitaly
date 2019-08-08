@@ -23,6 +23,7 @@ module Gitaly
       rpc :FindLocalBranches, FindLocalBranchesRequest, stream(FindLocalBranchesResponse)
       rpc :FindAllBranches, FindAllBranchesRequest, stream(FindAllBranchesResponse)
       rpc :FindAllTags, FindAllTagsRequest, stream(FindAllTagsResponse)
+      rpc :FindTag, FindTagRequest, FindTagResponse
       rpc :FindAllRemoteBranches, FindAllRemoteBranchesRequest, stream(FindAllRemoteBranchesResponse)
       rpc :RefExists, RefExistsRequest, RefExistsResponse
       rpc :CreateBranch, CreateBranchRequest, CreateBranchResponse
