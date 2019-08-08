@@ -17,6 +17,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
+const (
+	tagFormat = "%(objectname) %(objecttype) %(refname:lstrip=2)"
+)
+
 var (
 	master = []byte("refs/heads/master")
 
@@ -74,7 +78,7 @@ func (t *tagSender) Send() error {
 }
 
 func parseAndReturnTags(ctx context.Context, repo *gitalypb.Repository, stream gitalypb.RefService_FindAllTagsServer) error {
-	tagsCmd, err := git.Command(ctx, repo, "for-each-ref", "--format", "%(objectname) %(objecttype) %(refname:lstrip=2)", "refs/tags/")
+	tagsCmd, err := git.Command(ctx, repo, "for-each-ref", "--format", tagFormat, "refs/tags/")
 	if err != nil {
 		return fmt.Errorf("for-each-ref error: %v", err)
 	}
@@ -88,30 +92,9 @@ func parseAndReturnTags(ctx context.Context, repo *gitalypb.Repository, stream g
 
 	scanner := bufio.NewScanner(tagsCmd)
 	for scanner.Scan() {
-		fields := strings.SplitN(scanner.Text(), " ", 3)
-		if len(fields) != 3 {
-			return fmt.Errorf("invalid output from for-each-ref command: %v", scanner.Text())
-		}
-
-		tagID, refType, refName := fields[0], fields[1], fields[2]
-
-		tag := &gitalypb.Tag{
-			Id:   tagID,
-			Name: []byte(refName),
-		}
-		switch refType {
-		// annotated tag
-		case "tag":
-			tag, err = gitlog.GetTagCatfile(c, tagID, refName)
-			if err != nil {
-				return fmt.Errorf("getting annotated tag: %v", err)
-			}
-		case "commit":
-			commit, err := gitlog.GetCommitCatfile(c, tagID)
-			if err != nil {
-				return fmt.Errorf("getting commit catfile: %v", err)
-			}
-			tag.TargetCommit = commit
+		tag, err := parseTagLine(c, scanner.Text())
+		if err != nil {
+			return fmt.Errorf("parsing tag: %v", err)
 		}
 
 		if err := tagChunker.Send(tag); err != nil {
@@ -343,4 +326,98 @@ func findAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefSer
 	writer := newFindAllBranchesWriter(stream, c)
 
 	return findRefs(ctx, writer, in.Repository, patterns, opts)
+}
+
+func (s *server) FindTag(ctx context.Context, in *gitalypb.FindTagRequest) (*gitalypb.FindTagResponse, error) {
+	var err error
+	if err = validateFindTagRequest(in); err != nil {
+		return nil, helper.ErrInvalidArgument(err)
+	}
+
+	var tag *gitalypb.Tag
+
+	if tag, err = findTag(ctx, in.GetRepository(), in.GetTagName()); err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
+	return &gitalypb.FindTagResponse{Tag: tag}, nil
+}
+
+// parseTagLine parses a line of text with the output format %(objectname) %(objecttype) %(refname:lstrip=2)
+func parseTagLine(c *catfile.Batch, tagLine string) (*gitalypb.Tag, error) {
+	fields := strings.SplitN(tagLine, " ", 3)
+	if len(fields) != 3 {
+		return nil, fmt.Errorf("invalid output from for-each-ref command: %v", tagLine)
+	}
+
+	tagID, refType, refName := fields[0], fields[1], fields[2]
+
+	tag := &gitalypb.Tag{
+		Id:   tagID,
+		Name: []byte(refName),
+	}
+
+	switch refType {
+	// annotated tag
+	case "tag":
+		tag, err := gitlog.GetTagCatfile(c, tagID, refName)
+		if err != nil {
+			return nil, fmt.Errorf("getting annotated tag: %v", err)
+		}
+		return tag, nil
+	case "commit":
+		commit, err := gitlog.GetCommitCatfile(c, tagID)
+		if err != nil {
+			return nil, fmt.Errorf("getting commit catfile: %v", err)
+		}
+		tag.TargetCommit = commit
+		return tag, nil
+	default:
+		return tag, nil
+	}
+}
+
+func findTag(ctx context.Context, repository *gitalypb.Repository, tagName []byte) (*gitalypb.Tag, error) {
+	tagCmd, err := git.Command(ctx, repository, "tag", "-l", "--format", tagFormat, string(tagName))
+	if err != nil {
+		return nil, fmt.Errorf("for-each-ref error: %v", err)
+	}
+
+	c, err := catfile.New(ctx, repository)
+	if err != nil {
+		return nil, err
+	}
+
+	var tag *gitalypb.Tag
+
+	scanner := bufio.NewScanner(tagCmd)
+	if scanner.Scan() {
+		tag, err = parseTagLine(c, scanner.Text())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("no tag found")
+	}
+
+	if err = tagCmd.Wait(); err != nil {
+		return nil, err
+	}
+
+	return tag, nil
+}
+
+func validateFindTagRequest(in *gitalypb.FindTagRequest) error {
+	if in.GetRepository() == nil {
+		return errors.New("repository is empty")
+	}
+
+	if _, err := helper.GetRepoPath(in.GetRepository()); err != nil {
+		return fmt.Errorf("invalid git directory: %v", err)
+	}
+
+	if in.GetTagName() == nil {
+		return errors.New("tag name is empty")
+	}
+	return nil
 }

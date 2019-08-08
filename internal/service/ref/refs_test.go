@@ -1278,3 +1278,283 @@ func TestListBranchNamesContainingCommit(t *testing.T) {
 		})
 	}
 }
+
+func TestSuccessfulFindTagRequest(t *testing.T) {
+	server, serverSocketPath := runRefServiceServer(t)
+	defer server.Stop()
+
+	testRepoCopy, testRepoCopyPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	defer cleanupFn()
+
+	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
+	commitID := "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"
+
+	gitCommit := &gitalypb.GitCommit{
+		Id:      commitID,
+		Subject: []byte("More submodules"),
+		Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+		Author: &gitalypb.CommitAuthor{
+			Name:  []byte("Dmitriy Zaporozhets"),
+			Email: []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+		},
+		Committer: &gitalypb.CommitAuthor{
+			Name:  []byte("Dmitriy Zaporozhets"),
+			Email: []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+		},
+		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
+		BodySize:  84,
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	bigCommitID := testhelper.CreateCommit(t, testRepoCopyPath, "local-big-commits", &testhelper.CreateCommitOpts{
+		Message:  "An empty commit with REALLY BIG message\n\n" + strings.Repeat("a", helper.MaxCommitOrTagMessageSize+1),
+		ParentID: "60ecb67744cb56576c30214ff52294f8ce2def98",
+	})
+	bigCommit, err := log.GetCommit(ctx, testRepoCopy, bigCommitID)
+	require.NoError(t, err)
+
+	annotatedTagID := testhelper.CreateTag(t, testRepoCopyPath, "v1.2.0", blobID, &testhelper.CreateTagOpts{Message: "Blob tag"})
+
+	testhelper.CreateTag(t, testRepoCopyPath, "v1.3.0", commitID, nil)
+	testhelper.CreateTag(t, testRepoCopyPath, "v1.4.0", blobID, nil)
+
+	// To test recursive resolving to a commit
+	testhelper.CreateTag(t, testRepoCopyPath, "v1.5.0", "v1.3.0", nil)
+
+	// A tag to commit with a big message
+	testhelper.CreateTag(t, testRepoCopyPath, "v1.6.0", bigCommitID, nil)
+
+	// A tag with a big message
+	bigMessage := strings.Repeat("a", 11*1024)
+	bigMessageTag1ID := testhelper.CreateTag(t, testRepoCopyPath, "v1.7.0", commitID, &testhelper.CreateTagOpts{Message: bigMessage})
+
+	// A tag with a commit id as its name
+	commitTagID := testhelper.CreateTag(t, testRepoCopyPath, commitID, commitID, &testhelper.CreateTagOpts{Message: "commit tag with a commit sha as the name"})
+
+	// a tag of a tag
+	tagOfTagID := testhelper.CreateTag(t, testRepoCopyPath, "tag-of-tag", commitTagID, &testhelper.CreateTagOpts{Message: "tag of a tag"})
+
+	client, conn := newRefServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	expectedTags := []*gitalypb.Tag{
+		{
+			Name:         []byte(commitID),
+			Id:           string(commitTagID),
+			TargetCommit: gitCommit,
+			Message:      []byte("commit tag with a commit sha as the name"),
+			MessageSize:  40,
+		},
+		{
+			Name:         []byte("tag-of-tag"),
+			Id:           string(tagOfTagID),
+			TargetCommit: gitCommit,
+			Message:      []byte("tag of a tag"),
+			MessageSize:  12,
+		},
+		{
+			Name:         []byte("v1.0.0"),
+			Id:           "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			TargetCommit: gitCommit,
+			Message:      []byte("Release"),
+			MessageSize:  7,
+		},
+		{
+			Name: []byte("v1.1.0"),
+			Id:   "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+			TargetCommit: &gitalypb.GitCommit{
+				Id:      "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
+				Subject: []byte("Add submodule from gitlab.com"),
+				Body:    []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+				Author: &gitalypb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				},
+				Committer: &gitalypb.CommitAuthor{
+					Name:  []byte("Dmitriy Zaporozhets"),
+					Email: []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				},
+				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
+				BodySize:  98,
+			},
+			Message:     []byte("Version 1.1.0"),
+			MessageSize: 13,
+		},
+		{
+			Name:        []byte("v1.2.0"),
+			Id:          string(annotatedTagID),
+			Message:     []byte("Blob tag"),
+			MessageSize: 8,
+		},
+		{
+			Name:         []byte("v1.3.0"),
+			Id:           string(commitID),
+			TargetCommit: gitCommit,
+		},
+		{
+			Name: []byte("v1.4.0"),
+			Id:   string(blobID),
+		},
+		{
+			Name:         []byte("v1.5.0"),
+			Id:           string(commitID),
+			TargetCommit: gitCommit,
+		},
+		{
+			Name:         []byte("v1.6.0"),
+			Id:           string(bigCommitID),
+			TargetCommit: bigCommit,
+		},
+		{
+			Name:         []byte("v1.7.0"),
+			Id:           string(bigMessageTag1ID),
+			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
+			MessageSize:  int64(len(bigMessage)),
+			TargetCommit: gitCommit,
+		},
+	}
+
+	for _, expectedTag := range expectedTags {
+
+		rpcRequest := &gitalypb.FindTagRequest{Repository: testRepoCopy, TagName: expectedTag.Name}
+
+		resp, err := client.FindTag(ctx, rpcRequest)
+		require.NoError(t, err)
+
+		require.Equal(t, expectedTag, resp.GetTag())
+	}
+}
+
+func TestFindTagNestedTag(t *testing.T) {
+	server, serverSocketPath := runRefServiceServer(t)
+	defer server.Stop()
+
+	testRepoCopy, testRepoCopyPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	defer cleanupFn()
+
+	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
+	commitID := "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testCases := []struct {
+		description string
+		depth       int
+		originalOid string
+	}{
+		{
+			description: "nested 1 deep, points to a commit",
+			depth:       1,
+			originalOid: commitID,
+		},
+		{
+			description: "nested 4 deep, points to a commit",
+			depth:       4,
+			originalOid: commitID,
+		},
+		{
+			description: "nested 3 deep, points to a blob",
+			depth:       3,
+			originalOid: blobID,
+		},
+		{
+			description: "nested 20 deep, points to a commit",
+			depth:       20,
+			originalOid: commitID,
+		},
+	}
+
+	for _, tc := range testCases {
+		client, conn := newRefServiceClient(t, serverSocketPath)
+		defer conn.Close()
+
+		t.Run(tc.description, func(t *testing.T) {
+			tags := bytes.NewReader(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "tag"))
+			testhelper.MustRunCommand(t, tags, "xargs", "git", "-C", testRepoCopyPath, "tag", "-d")
+
+			batch, err := catfile.New(ctx, testRepoCopy)
+			require.NoError(t, err)
+
+			info, err := batch.Info(tc.originalOid)
+			require.NoError(t, err)
+
+			tagID := tc.originalOid
+			var tagName, tagMessage string
+
+			for depth := 0; depth < tc.depth; depth++ {
+				tagName = fmt.Sprintf("tag-depth-%d", depth)
+				tagMessage = fmt.Sprintf("a commit %d deep", depth)
+				tagID = string(testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage}))
+			}
+			expectedTag := &gitalypb.Tag{
+				Name:        []byte(tagName),
+				Id:          string(tagID),
+				Message:     []byte(tagMessage),
+				MessageSize: int64(len([]byte(tagMessage))),
+			}
+			// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
+			if info.Type == "commit" && tc.depth < log.MaxTagReferenceDepth {
+				commit, err := log.GetCommitCatfile(batch, tc.originalOid)
+				require.NoError(t, err)
+				expectedTag.TargetCommit = commit
+			}
+			rpcRequest := &gitalypb.FindTagRequest{Repository: testRepoCopy, TagName: []byte(tagName)}
+
+			resp, err := client.FindTag(ctx, rpcRequest)
+			require.NoError(t, err)
+			require.Equal(t, expectedTag, resp.GetTag())
+		})
+	}
+}
+
+func TestInvalidFindTagRequest(t *testing.T) {
+	server, serverSocketPath := runRefServiceServer(t)
+	defer server.Stop()
+
+	client, conn := newRefServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	testCases := []struct {
+		desc    string
+		request *gitalypb.FindTagRequest
+	}{
+		{
+			desc:    "empty request",
+			request: &gitalypb.FindTagRequest{},
+		},
+		{
+			desc: "invalid repo",
+			request: &gitalypb.FindTagRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  "fake",
+					RelativePath: "repo",
+				},
+			},
+		},
+		{
+			desc: "empty tag name",
+			request: &gitalypb.FindTagRequest{
+				Repository: testRepo,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			_, err := client.FindTag(ctx, tc.request)
+			testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
+		})
+	}
+}
