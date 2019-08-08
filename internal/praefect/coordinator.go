@@ -4,19 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
-	"time"
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitalyconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/client"
@@ -32,14 +33,14 @@ type Coordinator struct {
 	failoverMutex sync.RWMutex
 	connMutex     sync.RWMutex
 
-	datastore ReplicasDatastore
+	datastore Datastore
 
 	nodes    map[string]*grpc.ClientConn
 	registry *protoregistry.Registry
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l *logrus.Entry, datastore ReplicasDatastore, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
+func NewCoordinator(l *logrus.Entry, datastore Datastore, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
 	registry := protoregistry.New()
 	registry.RegisterFiles(fileDescriptors...)
 
@@ -57,7 +58,7 @@ func (c *Coordinator) RegisterProtos(protos ...*descriptor.FileDescriptorProto) 
 }
 
 // streamDirector determines which downstream servers receive requests
-func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (context.Context, *grpc.ClientConn, error) {
+func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (context.Context, *grpc.ClientConn, func(), error) {
 	// For phase 1, we need to route messages based on the storage location
 	// to the appropriate Gitaly node.
 	c.log.Debugf("Stream director received method %s", fullMethodName)
@@ -65,86 +66,161 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string,
 	c.failoverMutex.RLock()
 	defer c.failoverMutex.RUnlock()
 
-	frame, err := peeker.Peek()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	mi, err := c.registry.LookupMethod(fullMethodName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	var primary *models.Node
+	m, err := protoMessageFromPeeker(mi, peeker)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	var requestFinalizer func()
+	var storage string
 
 	if mi.Scope == protoregistry.ScopeRepository {
-		m, err := mi.UnmarshalRequestProto(frame)
+		storage, requestFinalizer, err = c.getStorageForRepositoryMessage(mi, m, peeker)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-
-		targetRepo, err := mi.TargetRepo(m)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		primary, err = c.datastore.GetPrimary(targetRepo.GetRelativePath())
-
-		if err != nil {
-			if err != ErrPrimaryNotSet {
-				return nil, nil, err
-			}
-			// if there are no primaries for this repository, pick one
-			nodes, err := c.datastore.GetStorageNodes()
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if len(nodes) == 0 {
-				return nil, nil, fmt.Errorf("no nodes serve storage %s", targetRepo.GetStorageName())
-
-			}
-			newPrimary := nodes[rand.New(rand.NewSource(time.Now().Unix())).Intn(len(nodes))]
-
-			// set the primary
-			if err = c.datastore.SetPrimary(targetRepo.GetRelativePath(), newPrimary.ID); err != nil {
-				return nil, nil, err
-			}
-
-			primary = &newPrimary
-		}
-
-		targetRepo.StorageName = primary.Storage
-
-		b, err := proxy.Codec().Marshal(m)
-		if err != nil {
-			return nil, nil, err
-		}
-		if err = peeker.Modify(b); err != nil {
-			return nil, nil, err
-		}
-
 	} else {
-		//TODO: For now we just pick a random storage node for a non repository scoped RPC, but we will need to figure out exactly how to
-		// proxy requests that are not repository scoped
-		node, err := c.datastore.GetStorageNodes()
+		storage, requestFinalizer, err = c.getAnyStorageNode()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		if len(node) == 0 {
-			return nil, nil, errors.New("no node storages found")
-		}
-		primary = &node[0]
 	}
-
 	// We only need the primary node, as there's only one primary storage
 	// location per praefect at this time
-	cc, err := c.GetConnection(primary.Storage)
+	cc, err := c.GetConnection(storage)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to find existing client connection for %s", primary.Storage)
+		return nil, nil, nil, fmt.Errorf("unable to find existing client connection for %s", storage)
 	}
 
-	return helper.IncomingToOutgoing(ctx), cc, nil
+	return helper.IncomingToOutgoing(ctx), cc, requestFinalizer, nil
+}
+
+var noopRequestFinalizer = func() {}
+
+func (c *Coordinator) getAnyStorageNode() (string, func(), error) {
+	//TODO: For now we just pick a random storage node for a non repository scoped RPC, but we will need to figure out exactly how to
+	// proxy requests that are not repository scoped
+	node, err := c.datastore.GetStorageNodes()
+	if err != nil {
+		return "", nil, err
+	}
+	if len(node) == 0 {
+		return "", nil, errors.New("no node storages found")
+	}
+
+	return node[0].Storage, noopRequestFinalizer, nil
+}
+
+func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier) (string, func(), error) {
+	targetRepo, err := mi.TargetRepo(m)
+	if err != nil {
+		return "", nil, err
+	}
+
+	primary, err := c.selectPrimary(mi, targetRepo)
+	if err != nil {
+		return "", nil, err
+	}
+
+	targetRepo.StorageName = primary.Storage
+
+	b, err := proxy.Codec().Marshal(m)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if err = peeker.Modify(b); err != nil {
+		return "", nil, err
+	}
+
+	requestFinalizer := noopRequestFinalizer
+
+	if mi.Operation == protoregistry.OpMutator {
+		if requestFinalizer, err = c.createReplicaJobs(targetRepo); err != nil {
+			return "", nil, err
+		}
+	}
+
+	return primary.Storage, requestFinalizer, nil
+}
+
+func (c *Coordinator) selectPrimary(mi protoregistry.MethodInfo, targetRepo *gitalypb.Repository) (*models.Node, error) {
+	var primary *models.Node
+	var err error
+
+	primary, err = c.datastore.GetPrimary(targetRepo.GetRelativePath())
+
+	if err != nil {
+		if err != ErrPrimaryNotSet {
+			return nil, err
+		}
+		// if there are no primaries for this repository, pick one
+		nodes, err := c.datastore.GetStorageNodes()
+		if err != nil {
+			return nil, err
+		}
+
+		if len(nodes) == 0 {
+			return nil, fmt.Errorf("no nodes serve storage %s", targetRepo.GetStorageName())
+
+		}
+
+		sort.Slice(nodes, func(i, j int) bool {
+			return nodes[i].ID < nodes[j].ID
+		})
+
+		newPrimary := nodes[0]
+		replicas := nodes[1:]
+
+		// set the primary
+		if err = c.datastore.SetPrimary(targetRepo.GetRelativePath(), newPrimary.ID); err != nil {
+			return nil, err
+		}
+
+		// add replicas
+		for _, replica := range replicas {
+			if err = c.datastore.AddReplica(targetRepo.GetRelativePath(), replica.ID); err != nil {
+				return nil, err
+			}
+		}
+
+		primary = &newPrimary
+	}
+
+	return primary, nil
+}
+
+func protoMessageFromPeeker(mi protoregistry.MethodInfo, peeker proxy.StreamModifier) (proto.Message, error) {
+	frame, err := peeker.Peek()
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := mi.UnmarshalRequestProto(frame)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository) (func(), error) {
+	jobIDs, err := c.datastore.CreateReplicaReplJobs(targetRepo.RelativePath)
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		for _, jobID := range jobIDs {
+			if err := c.datastore.UpdateReplJob(jobID, JobStateReady); err != nil {
+				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %d", JobStateReady)
+			}
+		}
+	}, nil
 }
 
 // RegisterNode will direct traffic to the supplied downstream connection when the storage location

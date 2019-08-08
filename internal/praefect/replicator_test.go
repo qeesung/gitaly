@@ -1,136 +1,24 @@
 package praefect
 
 import (
-	"context"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
-
-// TestReplicatorProcessJobs verifies that a replicator will schedule jobs for
-// all whitelisted repos
-func TestReplicatorProcessJobsWhitelist(t *testing.T) {
-	datastore := NewMemoryDatastore(config.Config{
-		Nodes: []*models.Node{
-			&models.Node{
-				ID:      1,
-				Address: "tcp://gitaly-primary.example.com",
-				Storage: "praefect-internal-1",
-			}, &models.Node{
-				ID:      2,
-				Address: "tcp://gitaly-backup1.example.com",
-				Storage: "praefect-internal-2",
-			}},
-		Whitelist: []string{"abcd1234", "edfg5678"},
-	})
-
-	logEntry := gitalylog.Default()
-	coordinator := NewCoordinator(logEntry, datastore)
-	resultsCh := make(chan result)
-	replman := NewReplMgr(
-		"default",
-		logEntry,
-		datastore,
-		coordinator,
-		WithReplicator(&mockReplicator{resultsCh}),
-	)
-
-	for _, node := range datastore.storageNodes.m {
-		err := coordinator.RegisterNode(node.Storage, node.Address)
-		require.NoError(t, err)
-	}
-
-	ctx, cancel := testhelper.Context()
-
-	errQ := make(chan error)
-
-	go func() {
-		errQ <- replman.ProcessBacklog(ctx)
-	}()
-
-	success := make(chan struct{})
-
-	var expectedResults []result
-	// we expect one job per whitelisted repo with each backend server
-	for _, shard := range datastore.repositories.m {
-		for _, secondary := range shard.Replicas {
-			cc, err := coordinator.GetConnection(secondary.Storage)
-			require.NoError(t, err)
-			expectedResults = append(expectedResults,
-				result{relativePath: shard.RelativePath,
-					targetStorage: secondary.Storage,
-					targetCC:      cc,
-				})
-		}
-	}
-
-	go func() {
-		// we expect one job per whitelisted repo with each backend server
-		for _, shard := range datastore.repositories.m {
-			for range shard.Replicas {
-				result := <-resultsCh
-				assert.Contains(t, expectedResults, result)
-			}
-		}
-
-		cancel()
-		require.EqualError(t, <-errQ, context.Canceled.Error())
-		success <- struct{}{}
-	}()
-
-	select {
-
-	case <-success:
-		return
-
-	case <-time.After(time.Second):
-		t.Fatalf("unable to iterate over expected jobs")
-
-	}
-
-}
-
-type result struct {
-	relativePath  string
-	targetStorage string
-	targetCC      *grpc.ClientConn
-}
-
-type mockReplicator struct {
-	resultsCh chan<- result
-}
-
-func (mr *mockReplicator) Replicate(ctx context.Context, job ReplJob, target *grpc.ClientConn) error {
-	select {
-
-	case mr.resultsCh <- result{job.Repository.RelativePath, job.TargetNode.Storage, target}:
-		return nil
-
-	case <-ctx.Done():
-		return ctx.Err()
-
-	}
-
-	return nil
-}
 
 func TestReplicate(t *testing.T) {
 	srv, srvSocketPath := runFullGitalyServer(t)

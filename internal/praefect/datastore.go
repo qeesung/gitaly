@@ -115,7 +115,6 @@ type jobRecord struct {
 type MemoryDatastore struct {
 	jobs *struct {
 		sync.RWMutex
-		next    uint64
 		records map[uint64]jobRecord // all jobs indexed by ID
 	}
 
@@ -141,10 +140,8 @@ func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
 		},
 		jobs: &struct {
 			sync.RWMutex
-			next    uint64
 			records map[uint64]jobRecord // all jobs indexed by ID
 		}{
-			next:    0,
 			records: map[uint64]jobRecord{},
 		},
 		repositories: &struct {
@@ -158,32 +155,6 @@ func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
 	for i, storageNode := range cfg.Nodes {
 		storageNode.ID = i
 		m.storageNodes.m[i] = *storageNode
-	}
-
-	for _, repoPath := range cfg.Whitelist {
-		repo := models.Repository{
-			RelativePath: repoPath,
-		}
-		for storageID, storageNode := range cfg.Nodes {
-
-			// By default, pick the first storage node to be the primary. We can change this later to pick a randomly selected node
-			// to be the primary
-			if repo.Primary == (models.Node{}) {
-				repo.Primary = *storageNode
-			} else {
-				repo.Replicas = append(repo.Replicas, *storageNode)
-				// initialize replication job queue to replicate all whitelisted repos
-				// to every replica
-				m.jobs.next++
-				m.jobs.records[m.jobs.next] = jobRecord{
-					state:        JobStateReady,
-					targetNodeID: storageID,
-					sourceNodeID: repo.Primary.ID,
-					relativePath: repoPath,
-				}
-			}
-		}
-		m.repositories.m[repoPath] = repo
 	}
 
 	return m
@@ -409,8 +380,7 @@ func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string) ([]uint64,
 	for _, secondary := range repository.Replicas {
 		nextID := uint64(len(md.jobs.records) + 1)
 
-		md.jobs.next++
-		md.jobs.records[md.jobs.next] = jobRecord{
+		md.jobs.records[nextID] = jobRecord{
 			targetNodeID: secondary.ID,
 			state:        JobStatePending,
 			relativePath: relativePath,

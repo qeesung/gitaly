@@ -147,7 +147,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 		}
 
 		for _, node := range nodes {
-			jobs, err := r.datastore.GetJobs(JobStatePending|JobStateReady, node.ID, 10)
+			jobs, err := r.datastore.GetJobs(JobStateReady, node.ID, 10)
 			if err != nil {
 				return err
 			}

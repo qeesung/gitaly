@@ -71,10 +71,16 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	peeker := newPeeker(serverStream)
 
 	// We require that the director's returned context inherits from the serverStream.Context().
-	outgoingCtx, backendConn, err := s.director(serverStream.Context(), fullMethodName, peeker)
+	outgoingCtx, backendConn, requestFinalizer, err := s.director(serverStream.Context(), fullMethodName, peeker)
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if requestFinalizer != nil {
+			requestFinalizer()
+		}
+	}()
 
 	clientCtx, clientCancel := context.WithCancel(outgoingCtx)
 	// TODO(mwitkow): Add a `forwarded` header to metadata, https://en.wikipedia.org/wiki/X-Forwarded-For.
