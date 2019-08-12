@@ -83,6 +83,13 @@ As a sanity check, you can verify your repository only points to remotes in
        and [GitLab-EE](https://dev.gitlab.org/gitlab/gitlab-ee).
         - Follow the [usual security process](https://gitlab.com/gitlab-org/release/docs/blob/master/general/security/developer.md)
 1. Only after the security release occurs and the details are made public:
+    1. **Maintainers** Ensure master branch on dev.gitlab.com is synced with gitlab.com:
+       1. `git checkout master`
+       1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
+       1. `git pull gitlab.com master`
+       1. `git push origin`
+       1. `git remote remove gitlab.com`
+       1. Ensure no origins exist that point to gitlab.com: `git remote -v`
     1. **Contributors:** Merge in your request against master on dev.gitlab.com
     1. **Maintainers:** Bring gitlab.com up to sync with dev.gitlab.org:
        1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
