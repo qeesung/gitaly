@@ -99,6 +99,11 @@ As a sanity check, you can verify your repository only points to remotes in
        1. `git push gitlab.com master`
        1. If the push fails, try running `git pull gitlab.com master` and then
           try the push again.
+       1. Upon success, remove the branch and remote:
+          1. `git checkout master`
+          1. `git branch -D gitlab-com-master`
+          1. `git remote remove gitlab.com`
+          1. Ensure no origins exist that point to gitlab.com: `git remote -v`
     1. **Maintainers:** Push all the newly released security tags in
        `dev.gitlab.org` to the public gitlab.com instance:
        1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
