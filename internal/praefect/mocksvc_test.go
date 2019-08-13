@@ -1,4 +1,4 @@
-package praefect_test
+package praefect
 
 import (
 	"context"

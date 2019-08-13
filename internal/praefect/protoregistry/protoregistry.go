@@ -207,11 +207,6 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 		opCode = OpUnknown
 	}
 
-	targetRepo, err := parseOID(opMsg.GetTargetRepositoryField())
-	if err != nil {
-		return MethodInfo{}, err
-	}
-
 	// for some reason, the protobuf descriptor contains an extra dot in front
 	// of the request name that the generated code does not. This trimming keeps
 	// the two copies consistent for comparisons.
@@ -227,13 +222,22 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 		return MethodInfo{}, fmt.Errorf("encountered unknown method scope %d", opMsg.GetScopeLevel())
 	}
 
-	return MethodInfo{
+	mi := MethodInfo{
 		Operation:      opCode,
 		Scope:          scope,
-		targetRepo:     targetRepo,
 		requestName:    requestName,
 		requestFactory: reqFactory,
-	}, nil
+	}
+
+	if scope == ScopeRepository {
+		targetRepo, err := parseOID(opMsg.GetTargetRepositoryField())
+		if err != nil {
+			return MethodInfo{}, err
+		}
+		mi.targetRepo = targetRepo
+	}
+
+	return mi, nil
 }
 
 // parses a string like "1.1" and returns a slice of ints

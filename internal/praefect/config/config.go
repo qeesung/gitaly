@@ -15,8 +15,7 @@ type Config struct {
 	ListenAddr string `toml:"listen_addr"`
 	SocketPath string `toml:"socket_path"`
 
-	PrimaryServer    *models.GitalyServer   `toml:"primary_server"`
-	SecondaryServers []*models.GitalyServer `toml:"secondary_server"`
+	Nodes []*models.Node `toml:"node"`
 
 	// Whitelist is a list of relative project paths (paths comprised of project
 	// hashes) that are permitted to use high availability features
@@ -24,13 +23,6 @@ type Config struct {
 
 	Logging              config.Logging `toml:"logging"`
 	PrometheusListenAddr string         `toml:"prometheus_listen_addr"`
-}
-
-// GitalyServer allows configuring the servers that RPCs are proxied to
-type GitalyServer struct {
-	Name       string `toml:"name"`
-	ListenAddr string `toml:"listen_addr" split_words:"true"`
-	Token      string `toml:"token"`
 }
 
 // FromFile loads the config for the passed file path
@@ -47,13 +39,12 @@ func FromFile(filePath string) (Config, error) {
 }
 
 var (
-	errNoListener          = errors.New("no listen address or socket path configured")
-	errNoGitalyServers     = errors.New("no primary gitaly backends configured")
-	errDuplicateGitalyAddr = errors.New("gitaly listen addresses are not unique")
-	errGitalyWithoutName   = errors.New("all gitaly servers must have a name")
+	errNoListener           = errors.New("no listen address or socket path configured")
+	errNoGitalyServers      = errors.New("no primary gitaly backends configured")
+	errDuplicateStorage     = errors.New("internal gitaly storages are not unique")
+	errGitalyWithoutAddr    = errors.New("all gitaly nodes must have an address")
+	errGitalyWithoutStorage = errors.New("all gitaly nodes must have a storage")
 )
-
-var emptyServer = &models.GitalyServer{}
 
 // Validate establishes if the config is valid
 func (c Config) Validate() error {
@@ -61,21 +52,25 @@ func (c Config) Validate() error {
 		return errNoListener
 	}
 
-	if c.PrimaryServer == nil || c.PrimaryServer == emptyServer {
+	if len(c.Nodes) == 0 {
 		return errNoGitalyServers
 	}
 
-	listenAddrs := make(map[string]bool, len(c.SecondaryServers)+1)
-	for _, gitaly := range append(c.SecondaryServers, c.PrimaryServer) {
-		if gitaly.Name == "" {
-			return errGitalyWithoutName
+	storages := make(map[string]struct{}, len(c.Nodes))
+	for _, node := range c.Nodes {
+		if node.Storage == "" {
+			return errGitalyWithoutStorage
 		}
 
-		if _, found := listenAddrs[gitaly.ListenAddr]; found {
-			return errDuplicateGitalyAddr
+		if node.Address == "" {
+			return errGitalyWithoutAddr
 		}
 
-		listenAddrs[gitaly.ListenAddr] = true
+		if _, found := storages[node.Storage]; found {
+			return errDuplicateStorage
+		}
+
+		storages[node.Storage] = struct{}{}
 	}
 
 	return nil
