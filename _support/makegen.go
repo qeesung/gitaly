@@ -518,8 +518,6 @@ clean-ruby-vendor-go:
 
 .PHONY: check-proto
 check-proto: proto no-changes
-	# checking gitaly-proto revision
-	@cd {{ .SourceDir }} && _support/gitaly-proto-tagged
 
 .PHONY: rubocop
 rubocop: ../.ruby-bundle
