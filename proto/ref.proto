@@ -54,6 +54,12 @@ service RefService {
       target_repository_field: "1"
     };
   }
+  rpc FindTag(FindTagRequest) returns (FindTagResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+      target_repository_field: "1"
+    };
+  }
   rpc FindAllRemoteBranches(FindAllRemoteBranchesRequest) returns (stream FindAllRemoteBranchesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -225,6 +231,15 @@ message FindAllBranchesResponse {
     GitCommit target = 2;
   }
   repeated Branch branches = 1;
+}
+
+message FindTagRequest {
+  Repository repository = 1;
+  bytes tag_name = 2;
+}
+
+message FindTagResponse {
+  Tag tag = 1;
 }
 
 message FindAllTagsRequest {
