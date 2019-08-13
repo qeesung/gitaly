@@ -13,7 +13,7 @@ with Gitaly. We keep auto-generated client libraries for Ruby and Go
 in their respective subdirectories. The list of RPCs can be
 [found here](https://gitlab-org.gitlab.io/gitaly-proto/).
 
-Run `make` from the root of the repository to regenerate the client
+Run `make proto` from the root of the repository to regenerate the client
 libraries after updating .proto files.
 
 See
