@@ -16,12 +16,7 @@ to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
 protocol defines what requests can be made and what data the requester has to
 send with the request. For each request the response is defined too.
 
-You can find a clone of the [gitaly-proto repository][gitaly-proto] in
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly-proto`.
-You can check out your working branch here, but be aware that `gdk update` will reset it to the `master` branch.
-
-For running a custom gitaly-proto when developing, please consult the
-[contributing documentation][custom-gitaly-proto].
+The protocol definitions can be found in `proto/*.proto`.
 
 #### Gitaly
 
@@ -119,28 +114,23 @@ In general there are a couple of stages to go through, in order:
 ##### Gitaly Proto
 
 The [Protocol buffer documentation][proto-docs] combined with the
-`*.proto` files in the [gitaly-proto repository][gitaly-proto] should
+`*.proto` files in the `proto/` directory should
 be enough to get you started. A service needs to be picked that can
 receive the procedure call. A general rule of thumb is that the
 service is named either after the Git CLI command, or after the Git
 object type.
 
 If either your request or response data can exceed 100KB you need to use the
-`stream` keyword. To generate the server and client code, run `make`. If this
-succeeds without any errors, create a feature branch to commit your changes to.
-Then create a merge request and wait for a review.
+`stream` keyword. To generate the server and client code, run `make proto`.  
 
 ##### Gitaly
-
-The Gitaly Proto changes [need to be updated in Gitaly itself][custom-gitaly-proto]
-before the server can be edited.
 
 If proto is updated, run `make`. This will fail to compile Gitaly, as Gitaly
 doesn't yet have the new endpoint implemented. We fix this by adding a dummy implementation.
 
 ###### Adding an empty Go implementation for a new RPC
 
-Often the other developers add a new protocol to gitaly-proto and it could interfere your merge request
+Often the other developers add a new protocol to gitaly/proto and it could interfere your merge request
 due to the lack of corresponding implementations in gitaly. For instance, you'd see the following
 Go compiler error in such case:
 
@@ -238,8 +228,8 @@ Examples:
 ###### Ruby
 
 The Ruby code needs to be added to `ruby/lib/gitaly_server/<service-name>_service.rb`.
-The method name should match the name defined by the `gitaly-proto` gem. To be sure
-run `bundle open gitaly-proto`. The return value of the method should be an
+The method name should match the name defined by the `gitaly` gem. To be sure
+run `bundle open gitaly`. The return value of the method should be an
 instance of the response object.
 
 There is no autoloader in gitaly-ruby. If you add new ruby files, you need to manually
@@ -323,13 +313,10 @@ To use your custom Gitaly when running Rails tests in GDK, go to the
 
 
 [custom-gitaly]: https://docs.gitlab.com/ee/development/gitaly.html#running-tests-with-a-locally-modified-version-of-gitaly
-[custom-gitaly-proto]: https://gitlab.com/gitlab-org/gitaly/blob/master/CONTRIBUTING.md#development-and-testing-with-a-custom-gitaly-proto
 [gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
 [git-remote]: https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes
 [gitaly]: https://gitlab.com/gitlab-org/gitaly
 [gitaly-issue]: https://gitlab.com/gitlab-org/gitaly/issues
-[gitaly-proto]: https://gitlab.com/gitlab-org/gitaly-proto
-[gitaly-proto-issue]: https://gitlab.com/gitlab-org/gitaly-proto/issues
 [gitlab]: https://gitlab.com
 [go-workspace]: https://golang.org/doc/code.html#Workspaces
 [proto-docs]: https://developers.google.com/protocol-buffers/docs/overview

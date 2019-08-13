@@ -1,5 +1,0 @@
-if git.modified_files.include?('go.mod') && !system('_support/gitaly-proto-tagged')
-  fail("gitaly-proto version is incorrect")
-end
-
-# vim: ft=ruby
