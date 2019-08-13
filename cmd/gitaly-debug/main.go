@@ -18,6 +18,22 @@ simulate-http-clone GIT_DIR
 
 analyze-http-clone HTTP_URL
 	Clones a Git repository from a public HTTP URL into /dev/null.
+
+list-bitmap-pack IDX_FILE
+	List contents of packfile corresponding to IDX_FILE in offset
+	order. Only works if there also is a .bitmap file for this
+	pack.
+
+map-bitmap-pack IDX_FILE
+	Print map visualization of contents of packfile corresponding
+	to IDX_FILE in offset order. Only works if there also is a
+	.bitmap file for this pack.
+
+list-bitmap-commits IDX_FILE
+	List bitmap commits for .idx / .bitmap pair.
+
+list-bitmap-reachable IDX_FILE BITMAP_COMMIT_ID
+	List commits reachable from a bitmapped commit in a packfile.
 `
 )
 
@@ -38,6 +54,26 @@ func main() {
 			fatal(usage)
 		}
 		analyzeHTTPClone(extraArgs[0])
+	case "list-bitmap-pack":
+		if len(extraArgs) != 1 {
+			fatal(usage)
+		}
+		listBitmapPack(extraArgs[0])
+	case "map-bitmap-pack":
+		if len(extraArgs) != 1 {
+			fatal(usage)
+		}
+		mapBitmapPack(extraArgs[0])
+	case "list-bitmap-commits":
+		if len(extraArgs) != 1 {
+			fatal(usage)
+		}
+		listBitmapCommits(extraArgs[0])
+	case "list-bitmap-reachable":
+		if len(extraArgs) != 2 {
+			fatal(usage)
+		}
+		listBitmapReachable(extraArgs[0], extraArgs[1])
 	default:
 		fatal(usage)
 	}
