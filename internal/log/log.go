@@ -7,16 +7,12 @@ import (
 )
 
 var (
-	// Default is the default logrus logger
-	Default = logrus.StandardLogger()
-
-	// GrpcGo is a dedicated logrus logger for the grpc-go library. We use it
-	// to control the library's chattiness.
-	GrpcGo = logrus.New()
+	defaultLogger = logrus.StandardLogger()
+	grpcGo        = logrus.New()
 
 	// Loggers is convenient when you want to apply configuration to all
 	// loggers
-	Loggers = []*logrus.Logger{Default, GrpcGo}
+	Loggers = []*logrus.Logger{defaultLogger, grpcGo}
 )
 
 func init() {
@@ -48,7 +44,7 @@ func Configure(format string, level string) {
 	}
 
 	for _, l := range Loggers {
-		if l == GrpcGo {
+		if l == grpcGo {
 			l.SetLevel(mapGrpcLogLevel(logrusLevel))
 		} else {
 			l.SetLevel(logrusLevel)
@@ -65,3 +61,10 @@ func mapGrpcLogLevel(level logrus.Level) logrus.Level {
 
 	return level
 }
+
+// Default is the default logrus logger
+func Default() *logrus.Entry { return defaultLogger.WithField("pid", os.Getpid()) }
+
+// GrpcGo is a dedicated logrus logger for the grpc-go library. We use it
+// to control the library's chattiness.
+func GrpcGo() *logrus.Entry { return grpcGo.WithField("pid", os.Getpid()) }

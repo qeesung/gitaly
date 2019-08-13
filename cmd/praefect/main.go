@@ -27,7 +27,7 @@ import (
 var (
 	flagConfig  = flag.String("config", "", "Location for the config.toml")
 	flagVersion = flag.Bool("version", false, "Print version and exit")
-	logger      = logrus.New()
+	logger      = logrus.NewEntry(logrus.StandardLogger())
 
 	errNoConfigFile = errors.New("the config flag must be passed")
 )
