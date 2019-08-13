@@ -2,9 +2,6 @@
 
 ## v1.59.0
 
-
-## v1.58.1
-
 #### Added
 - Port GetCommitSignatures to Go
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1283
