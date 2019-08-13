@@ -3,7 +3,6 @@ package operations
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -68,7 +67,7 @@ func TestSuccessfulUserSquashRequest(t *testing.T) {
 func ensureSplitIndexExists(t *testing.T, repoDir string) bool {
 	testhelper.MustRunCommand(t, nil, "git", "-C", repoDir, "update-index", "--add")
 
-	fis, err := ioutil.ReadDir(filepath.Join(repoDir, ".git"))
+	fis, err := ioutil.ReadDir(repoDir)
 	require.NoError(t, err)
 	for _, fi := range fis {
 		if strings.HasPrefix(fi.Name(), "sharedindex") {
@@ -88,45 +87,14 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	client, conn := NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	// The following patch inserts a single line so that we create a
-	// file that is slightly different from a branched version of this
-	// file.  A 3-way merge must be used in order to merge a branch that
-	// alters lines involved in this diff.
-	patch := `
-diff --git a/files/ruby/popen.rb b/files/ruby/popen.rb
-index 5b812ff..ff85394 100644
---- a/files/ruby/popen.rb
-+++ b/files/ruby/popen.rb
-@@ -19,6 +19,7 @@ module Popen
-
-     @cmd_output = ""
-     @cmd_status = 0
-+
-     Open3.popen3(vars, *cmd, options) do |stdin, stdout, stderr, wait_thr|
-       @cmd_output << stdout.read
-       @cmd_output << stderr.read
-`
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "squash-test")
-	require.NoError(t, err)
-
-	tmpFile.Write([]byte(patch))
-	tmpFile.Close()
-
-	defer os.Remove(tmpFile.Name())
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "checkout", "-b", "3way-test", "v1.0.0")
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "apply", tmpFile.Name())
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit", "-m", "test", "-a")
-	baseSha := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "HEAD"))
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
 		User:          user,
 		SquashId:      "1",
-		Branch:        []byte("3way-test"),
+		Branch:        []byte("gitaly/squash-test"),
 		Author:        author,
 		CommitMessage: commitMessage,
 		// The diff between two of these commits results in some changes to files/ruby/popen.rb
@@ -140,7 +108,7 @@ index 5b812ff..ff85394 100644
 
 	commit, err := log.GetCommit(ctx, testRepo, response.SquashSha)
 	require.NoError(t, err)
-	require.Equal(t, []string{baseSha}, commit.ParentIds)
+	require.Equal(t, []string{"3d05a143ac193c1a6fe4d046a6e3fe71e825258a"}, commit.ParentIds)
 	require.Equal(t, author.Name, commit.Author.Name)
 	require.Equal(t, author.Email, commit.Author.Email)
 	require.Equal(t, user.Name, commit.Committer.Name)
@@ -149,11 +117,11 @@ index 5b812ff..ff85394 100644
 
 	// Ensure Git metadata is cleaned up
 	worktreeList := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "worktree", "list", "--porcelain"))
-	expectedOut := fmt.Sprintf("worktree %s\nHEAD %s\nbranch refs/heads/3way-test\n", testRepoPath, baseSha)
+	expectedOut := fmt.Sprintf("worktree %s\nbare\n", testRepoPath)
 	require.Equal(t, expectedOut, worktreeList)
 
 	// Ensure actual worktree is removed
-	files, err := ioutil.ReadDir(filepath.Join(testRepoPath, ".git", "gitlab-worktree"))
+	files, err := ioutil.ReadDir(filepath.Join(testRepoPath, "gitlab-worktree"))
 	require.NoError(t, err)
 	require.Equal(t, 0, len(files))
 }
@@ -168,7 +136,7 @@ func TestSplitIndex(t *testing.T) {
 	client, conn := NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, testRepoPath, cleanup := testhelper.NewTestRepoWithWorktree(t)
+	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
 
 	require.False(t, ensureSplitIndexExists(t, testRepoPath))
