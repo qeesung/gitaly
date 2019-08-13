@@ -96,7 +96,7 @@ As a sanity check, you can verify your repository only points to remotes in
        1. `git fetch gitlab.com`
        1. `git checkout -b gitlab-com-master gitlab.com/master`
        1. `git merge origin/master` (note: in this repo, origin points to dev.gitlab.org)
-       1. `git push gitlab.com master`
+       1. `git push gitlab.com gitlab-com-master:master`
        1. If the push fails, try running `git pull gitlab.com master` and then
           try the push again.
        1. Upon success, remove the branch and remote:
