@@ -32,6 +32,7 @@ func mapBitmapPack(idxFile string) {
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 	fmt.Fprintf(out, "# pack-%s\n", idx.ID)
+	// Use a mix of lower and upper case that is easier to distinguish than all upper / all lower.
 	fmt.Fprintln(out, "# b: blob, C: commit, e: tree, T: tag")
 
 	for _, o := range idx.PackfileOrder {
