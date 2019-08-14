@@ -46,9 +46,6 @@ const (
 )
 
 func init() {
-	gitalylog.GrpcGo.SetLevel(log.WarnLevel)
-	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
-
 	if err := configure(); err != nil {
 		log.Fatal(err)
 	}
@@ -69,6 +66,8 @@ func configure() error {
 			return err
 		}
 	}
+
+	gitalylog.Configure("", "info")
 
 	return nil
 }
