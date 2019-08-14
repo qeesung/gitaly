@@ -12,23 +12,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestDiskCacheObjectWalker(t *testing.T) {
-	tmpPath, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer func() { require.NoError(t, os.RemoveAll(tmpPath)) }()
-
-	oldStorages := config.Config.Storages
-	config.Config.Storages = []config.Storage{
-		{
-			Name: t.Name(),
-			Path: tmpPath,
-		},
-	}
-	defer func() { config.Config.Storages = oldStorages }()
-
-	satisfyConfigValidation(tmpPath)
+	tmpPath, cleanup := setupDiskCacheWalker(t)
+	defer cleanup()
 
 	var shouldExist, shouldNotExist []string
 
@@ -61,6 +50,11 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 	expectChecks := cache.ExportMockCheckCounter.Count() + 4
 	expectRemovals := cache.ExportMockRemovalCounter.Count() + 2
 
+	// disable the initial move-and-clear function since we are only
+	// evaluating the walker
+	*cache.ExportDisableMoveAndClear = true
+	defer func() { *cache.ExportDisableMoveAndClear = false }()
+
 	require.NoError(t, config.Validate()) // triggers walker
 
 	pollCountersUntil(t, expectChecks, expectRemovals)
@@ -73,6 +67,48 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		_, err := os.Stat(p)
 		require.True(t, os.IsNotExist(err), "expected %s not to exist", p)
 	}
+}
+
+func TestDiskCacheInitialClear(t *testing.T) {
+	tmpPath, cleanup := setupDiskCacheWalker(t)
+	defer cleanup()
+
+	canary := filepath.Join(tmpPath, tempdir.CachePrefix, "canary.txt")
+	require.NoError(t, os.MkdirAll(filepath.Dir(canary), 0755))
+	require.NoError(t, ioutil.WriteFile(canary, []byte("chirp chirp"), 0755))
+
+	// disable the background walkers since we are only
+	// evaluating the initial move-and-clear function
+	*cache.ExportDisableWalker = true
+	defer func() { *cache.ExportDisableWalker = false }()
+
+	// validation will run cache walker hook which synchronously
+	// runs the move-and-clear function
+	require.NoError(t, config.Validate())
+
+	testhelper.AssertFileNotExists(t, canary)
+}
+
+func setupDiskCacheWalker(t testing.TB) (string, func()) {
+	tmpPath, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+
+	oldStorages := config.Config.Storages
+	config.Config.Storages = []config.Storage{
+		{
+			Name: t.Name(),
+			Path: tmpPath,
+		},
+	}
+
+	satisfyConfigValidation(tmpPath)
+
+	cleanup := func() {
+		config.Config.Storages = oldStorages
+		require.NoError(t, os.RemoveAll(tmpPath))
+	}
+
+	return tmpPath, cleanup
 }
 
 // satisfyConfigValidation puts garbage values in the config file to satisfy
