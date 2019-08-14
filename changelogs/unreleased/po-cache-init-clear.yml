@@ -1,0 +1,5 @@
+---
+title: Disk cache object directory initial clear
+merge_request: 1424
+author:
+type: performance
