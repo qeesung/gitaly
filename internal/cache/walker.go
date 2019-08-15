@@ -18,7 +18,7 @@ import (
 func cleanWalk(storagePath string) error {
 	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
 
-	return filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -47,6 +47,12 @@ func cleanWalk(storagePath string) error {
 
 		return nil
 	})
+
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	return err
 }
 
 const cleanWalkFrequency = 10 * time.Minute
