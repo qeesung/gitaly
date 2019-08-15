@@ -41,6 +41,7 @@ func cleanWalk(storagePath string) error {
 				// have deleted the file already
 				return nil
 			}
+
 			return err
 		}
 
@@ -56,6 +57,7 @@ func startCleanWalker(storage config.Storage) {
 	if disableWalker {
 		return
 	}
+
 	logrus.WithField("storage", storage.Name).Info("Starting disk cache object walker")
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	go func() {
@@ -63,6 +65,7 @@ func startCleanWalker(storage config.Storage) {
 			if err := cleanWalk(storage.Path); err != nil {
 				logrus.WithField("storage", storage.Name).Error(err)
 			}
+
 			<-walkTick.C
 		}
 	}()
@@ -100,6 +103,7 @@ func moveAndClear(storage config.Storage) error {
 			logger.Info("disk cache object folder doesn't exist, no need to remove")
 			return nil
 		}
+
 		return err
 	}
 
@@ -108,6 +112,7 @@ func moveAndClear(storage config.Storage) error {
 		if err := os.RemoveAll(tmpDir); err != nil {
 			logger.Errorf("unable to remove disk cache objects: %q", err)
 		}
+
 		logger.Infof("cleared all cache object files in %s after %s", tmpDir, time.Since(start))
 	}()
 
@@ -120,6 +125,7 @@ func init() {
 			if err := moveAndClear(storage); err != nil {
 				return err
 			}
+
 			startCleanWalker(storage)
 		}
 		return nil
