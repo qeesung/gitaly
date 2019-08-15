@@ -213,14 +213,7 @@ func newPendingLease(repo *gitalypb.Repository) (string, error) {
 
 // cacheDir is $STORAGE/+gitaly/cache
 func cacheDir(repo *gitalypb.Repository) (string, error) {
-	storagePath, err := helper.GetStorageByName(repo.StorageName)
-	if err != nil {
-		return "", err
-	}
-
-	absPath := filepath.Join(storagePath, tempdir.CachePrefix)
-
-	return absPath, nil
+	return tempdir.CacheDir(repo.GetStorageName())
 }
 
 func currentLeases(repo *gitalypb.Repository) ([]os.FileInfo, error) {

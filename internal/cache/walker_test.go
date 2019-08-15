@@ -16,7 +16,7 @@ import (
 )
 
 func TestDiskCacheObjectWalker(t *testing.T) {
-	tmpPath, cleanup := setupDiskCacheWalker(t)
+	cleanup := setupDiskCacheWalker(t)
 	defer cleanup()
 
 	var shouldExist, shouldNotExist []string
@@ -31,7 +31,10 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		{"2b/ancient", 24 * time.Hour, true},
 		{"cd/baby", time.Second, false},
 	} {
-		path := filepath.Join(tmpPath, tempdir.CachePrefix, tt.name)
+		cacheDir, err := tempdir.CacheDir(t.Name()) // test name is storage name
+		require.NoError(t, err)
+
+		path := filepath.Join(cacheDir, tt.name)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
 
 		f, err := os.Create(path)
@@ -70,10 +73,13 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 }
 
 func TestDiskCacheInitialClear(t *testing.T) {
-	tmpPath, cleanup := setupDiskCacheWalker(t)
+	cleanup := setupDiskCacheWalker(t)
 	defer cleanup()
 
-	canary := filepath.Join(tmpPath, tempdir.CachePrefix, "canary.txt")
+	cacheDir, err := tempdir.CacheDir(t.Name()) // test name is storage name
+	require.NoError(t, err)
+
+	canary := filepath.Join(cacheDir, "canary.txt")
 	require.NoError(t, os.MkdirAll(filepath.Dir(canary), 0755))
 	require.NoError(t, ioutil.WriteFile(canary, []byte("chirp chirp"), 0755))
 
@@ -89,7 +95,7 @@ func TestDiskCacheInitialClear(t *testing.T) {
 	testhelper.AssertFileNotExists(t, canary)
 }
 
-func setupDiskCacheWalker(t testing.TB) (string, func()) {
+func setupDiskCacheWalker(t testing.TB) func() {
 	tmpPath, err := ioutil.TempDir("", t.Name())
 	require.NoError(t, err)
 
@@ -108,7 +114,7 @@ func setupDiskCacheWalker(t testing.TB) (string, func()) {
 		require.NoError(t, os.RemoveAll(tmpPath))
 	}
 
-	return tmpPath, cleanup
+	return cleanup
 }
 
 // satisfyConfigValidation puts garbage values in the config file to satisfy

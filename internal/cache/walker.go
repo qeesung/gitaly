@@ -16,8 +16,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
-func cleanWalk(storagePath string) error {
-	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
+func cleanWalk(storageName string) error {
+	cachePath, err := tempdir.CacheDir(storageName)
+	if err != nil {
+		return err
+	}
 
 	return filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -62,7 +65,7 @@ func startCleanWalker(storage config.Storage) {
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	go func() {
 		for {
-			if err := cleanWalk(storage.Path); err != nil {
+			if err := cleanWalk(storage.Name); err != nil {
 				logrus.WithField("storage", storage.Name).Error(err)
 			}
 
@@ -86,8 +89,16 @@ func moveAndClear(storage config.Storage) error {
 	logger := logrus.WithField("storage", storage.Name)
 	logger.Info("clearing disk cache object folder")
 
-	cachePath := filepath.Join(storage.Path, tempdir.CachePrefix)
-	tempPath := filepath.Join(storage.Path, tempdir.TmpRootPrefix)
+	cachePath, err := tempdir.CacheDir(storage.Name)
+	if err != nil {
+		return err
+	}
+
+	tempPath, err := tempdir.TempDir(storage.Name)
+	if err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(tempPath, 0755); err != nil {
 		return err
 	}
