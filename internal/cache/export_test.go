@@ -5,6 +5,9 @@ import "sync"
 var (
 	ExportMockRemovalCounter = new(mockCounter)
 	ExportMockCheckCounter   = new(mockCounter)
+
+	ExportDisableMoveAndClear = &disableMoveAndClear
+	ExportDisableWalker       = &disableWalker
 )
 
 type mockCounter struct {

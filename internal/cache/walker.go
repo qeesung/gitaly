@@ -6,6 +6,7 @@
 package cache
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,8 +16,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
-func cleanWalk(storagePath string) error {
-	cachePath := filepath.Join(storagePath, tempdir.CachePrefix)
+func cleanWalk(storageName string) error {
+	cachePath, err := tempdir.CacheDir(storageName)
+	if err != nil {
+		return err
+	}
 
 	err := filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -40,6 +44,7 @@ func cleanWalk(storagePath string) error {
 				// have deleted the file already
 				return nil
 			}
+
 			return err
 		}
 
@@ -58,21 +63,86 @@ func cleanWalk(storagePath string) error {
 const cleanWalkFrequency = 10 * time.Minute
 
 func startCleanWalker(storage config.Storage) {
+	if disableWalker {
+		return
+	}
+
 	logrus.WithField("storage", storage.Name).Info("Starting disk cache object walker")
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	go func() {
 		for {
-			if err := cleanWalk(storage.Path); err != nil {
+			if err := cleanWalk(storage.Name); err != nil {
 				logrus.WithField("storage", storage.Name).Error(err)
 			}
+
 			<-walkTick.C
 		}
 	}()
 }
 
+var (
+	disableMoveAndClear bool // only used to disable move and clear in tests
+	disableWalker       bool // only used to disable object walker in tests
+)
+
+// moveAndClear will move the cache to the storage location's
+// temporary folder, and then remove its contents asynchronously
+func moveAndClear(storage config.Storage) error {
+	if disableMoveAndClear {
+		return nil
+	}
+
+	logger := logrus.WithField("storage", storage.Name)
+	logger.Info("clearing disk cache object folder")
+
+	cachePath, err := tempdir.CacheDir(storage.Name)
+	if err != nil {
+		return err
+	}
+
+	tempPath, err := tempdir.TempDir(storage.Name)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(tempPath, 0755); err != nil {
+		return err
+	}
+
+	tmpDir, err := ioutil.TempDir(tempPath, "diskcache")
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("moving disk cache object folder to %s", tmpDir)
+	if err := os.Rename(cachePath, filepath.Join(tmpDir, "moved")); err != nil {
+		if os.IsNotExist(err) {
+			logger.Info("disk cache object folder doesn't exist, no need to remove")
+			return nil
+		}
+
+		return err
+	}
+
+	go func() {
+		start := time.Now()
+		if err := os.RemoveAll(tmpDir); err != nil {
+			logger.Errorf("unable to remove disk cache objects: %q", err)
+		}
+
+		logger.Infof("cleared all cache object files in %s after %s", tmpDir, time.Since(start))
+	}()
+
+	return nil
+}
+
 func init() {
 	config.RegisterHook(func() error {
 		for _, storage := range config.Config.Storages {
+			if err := moveAndClear(storage); err != nil {
+				return err
+			}
+
 			startCleanWalker(storage)
 		}
 		return nil

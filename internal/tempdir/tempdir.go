@@ -23,19 +23,39 @@ const (
 	// character is not allowed in GitLab namespaces or repositories.
 	GitalyDataPrefix = "+gitaly"
 
-	// TmpRootPrefix is the directory in which we store temporary
+	// tmpRootPrefix is the directory in which we store temporary
 	// directories.
-	TmpRootPrefix = GitalyDataPrefix + "/tmp"
+	tmpRootPrefix = GitalyDataPrefix + "/tmp"
 
-	// CachePrefix is the directory where all cache data is stored on a
+	// cachePrefix is the directory where all cache data is stored on a
 	// storage location.
-	CachePrefix = GitalyDataPrefix + "/cache"
+	cachePrefix = GitalyDataPrefix + "/cache"
 
 	// MaxAge is used by ForDeleteAllRepositories. It is also a fallback
 	// for the context-scoped temporary directories, to ensure they get
 	// cleaned up if the cleanup at the end of the context failed to run.
 	MaxAge = 7 * 24 * time.Hour
 )
+
+// CacheDir returns the path to the cache dir for a storage location
+func CacheDir(storageName string) (string, error) {
+	storagePath, err := helper.GetStorageByName(storageName)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(storagePath, cachePrefix), nil
+}
+
+// TempDir returns the path to the temp dir for a storage location
+func TempDir(storageName string) (string, error) {
+	storagePath, err := helper.GetStorageByName(storageName)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(storagePath, tmpRootPrefix), nil
+}
 
 // ForDeleteAllRepositories returns a temporary directory for the given storage. It is not context-scoped but it will get removed eventuall (after MaxAge).
 func ForDeleteAllRepositories(storageName string) (string, error) {
@@ -90,7 +110,7 @@ func newAsRepository(ctx context.Context, storageName string, prefix string) (*g
 }
 
 func tmpRoot(storageRoot string) string {
-	return filepath.Join(storageRoot, TmpRootPrefix)
+	return filepath.Join(storageRoot, tmpRootPrefix)
 }
 
 // StartCleaning starts tempdir cleanup goroutines.
@@ -119,7 +139,7 @@ type invalidCleanRoot string
 func clean(dir string) error {
 	// If we start "cleaning up" the wrong directory we may delete user data
 	// which is Really Bad.
-	if !strings.HasSuffix(dir, TmpRootPrefix) {
+	if !strings.HasSuffix(dir, tmpRootPrefix) {
 		log.Print(dir)
 		panic(invalidCleanRoot("invalid tempdir clean root: panicking to prevent data loss"))
 	}
