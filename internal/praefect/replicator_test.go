@@ -42,11 +42,12 @@ func TestReplicatorProcessJobsWhitelist(t *testing.T) {
 		Whitelist: []string{"abcd1234", "edfg5678"},
 	})
 
-	coordinator := NewCoordinator(logrus.New(), datastore)
+	logEntry := logrus.NewEntry(logrus.StandardLogger())
+	coordinator := NewCoordinator(logEntry, datastore)
 	resultsCh := make(chan result)
 	replman := NewReplMgr(
 		"default",
-		logrus.New(),
+		logEntry,
 		datastore,
 		coordinator,
 		WithReplicator(&mockReplicator{resultsCh}),

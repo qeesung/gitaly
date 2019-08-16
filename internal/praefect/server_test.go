@@ -69,7 +69,8 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 					}},
 			})
 
-			coordinator := NewCoordinator(logrus.New(), datastore, fd)
+			logEntry := logrus.NewEntry(logrus.StandardLogger())
+			coordinator := NewCoordinator(logEntry, datastore, fd)
 
 			for id, nodeStorage := range datastore.storageNodes.m {
 				backend, cleanup := newMockDownstream(t, tt.callback)
@@ -82,7 +83,7 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 
 			replmgr := NewReplMgr(
 				storagePrimary,
-				logrus.New(),
+				logEntry,
 				datastore,
 				coordinator,
 			)
@@ -90,7 +91,7 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 				coordinator,
 				replmgr,
 				nil,
-				logrus.New(),
+				logEntry,
 			)
 
 			listener, port := listenAvailPort(t)
