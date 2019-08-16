@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
@@ -69,7 +69,7 @@ func TestServerSimpleUnaryUnary(t *testing.T) {
 					}},
 			})
 
-			logEntry := logrus.NewEntry(logrus.StandardLogger())
+			logEntry := log.Default()
 			coordinator := NewCoordinator(logEntry, datastore, fd)
 
 			for id, nodeStorage := range datastore.storageNodes.m {

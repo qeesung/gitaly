@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -18,6 +17,7 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
@@ -42,7 +42,7 @@ func TestReplicatorProcessJobsWhitelist(t *testing.T) {
 		Whitelist: []string{"abcd1234", "edfg5678"},
 	})
 
-	logEntry := logrus.NewEntry(logrus.StandardLogger())
+	logEntry := gitalylog.Default()
 	coordinator := NewCoordinator(logEntry, datastore)
 	resultsCh := make(chan result)
 	replman := NewReplMgr(
