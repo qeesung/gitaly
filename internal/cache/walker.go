@@ -22,7 +22,7 @@ func cleanWalk(storageName string) error {
 		return err
 	}
 
-	err := filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
