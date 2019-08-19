@@ -10,13 +10,10 @@ def changelog_entry
     end
 end
 
-required_labels = []
+required_labels = %w[devops::create]
 
-GITALY_TEAM = %w[jacobvosmaer-gitlab johncai pokstad1 zj]
-
-if GITALY_TEAM.include?(gitlab.mr_author) && !gitlab.mr_labels.include?("Gitaly")
-  required_labels << "Gitaly"
-end
+GITALY_TEAM = %w[jacobvosmaer-gitlab johncai pokstad1 zj-gitlab]
+required_labels << "group::gitaly" if GITALY_TEAM.include?(gitlab.mr_author)
 
 TYPE_TO_LABEL = {
   'added' => ['feature'],
@@ -43,7 +40,7 @@ end
 
 required_labels.concat(TYPE_TO_LABEL[changelog_entry["type"]])
 
-mr_labels = gitlab.mr_labels | required_labels |inherited_labels
+mr_labels = gitlab.mr_labels | required_labels | inherited_labels
 gitlab.api.update_merge_request(
   gitlab.mr_json['project_id'],
   gitlab.mr_json['iid'],
