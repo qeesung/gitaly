@@ -136,14 +136,21 @@ func moveAndClear(storage config.Storage) error {
 	return nil
 }
 
+// StartCleaning starts goroutines that will clean up cache directories.
+// These goroutines will query config.Config, so you probably don't want
+// to spawn them when testing.
+func StartCleaning() {
+	for _, storage := range config.Config.Storages {
+		startCleanWalker(storage)
+	}
+}
+
 func init() {
 	config.RegisterHook(func() error {
 		for _, storage := range config.Config.Storages {
 			if err := moveAndClear(storage); err != nil {
 				return err
 			}
-
-			startCleanWalker(storage)
 		}
 		return nil
 	})
