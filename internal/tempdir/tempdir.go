@@ -11,7 +11,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -70,12 +69,12 @@ func NewAsRepository(ctx context.Context, repo *gitalypb.Repository) (*gitalypb.
 }
 
 func newAsRepository(ctx context.Context, storageName string, prefix string) (*gitalypb.Repository, string, error) {
-	storageDir, err := helper.GetStorageByName(storageName)
-	if err != nil {
-		return nil, "", err
+	storage, ok := config.Config.Storage(storageName)
+	if !ok {
+		return nil, "", fmt.Errorf("storage not found: %v", storageName)
 	}
 
-	root := tmpRoot(storageDir)
+	root := TempDir(storage)
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, "", err
 	}
@@ -91,24 +90,20 @@ func newAsRepository(ctx context.Context, storageName string, prefix string) (*g
 	}()
 
 	newAsRepo := &gitalypb.Repository{StorageName: storageName}
-	newAsRepo.RelativePath, err = filepath.Rel(storageDir, tempDir)
+	newAsRepo.RelativePath, err = filepath.Rel(storage.Path, tempDir)
 	return newAsRepo, tempDir, err
-}
-
-func tmpRoot(storageRoot string) string {
-	return filepath.Join(storageRoot, tmpRootPrefix)
 }
 
 // StartCleaning starts tempdir cleanup goroutines.
 func StartCleaning() {
 	for _, st := range config.Config.Storages {
-		go func(name string, dir string) {
+		go func(storage config.Storage) {
 			start := time.Now()
-			err := clean(tmpRoot(dir))
+			err := clean(TempDir(storage))
 
 			entry := log.WithFields(log.Fields{
 				"time_ms": int(1000 * time.Since(start).Seconds()),
-				"storage": name,
+				"storage": storage.Name,
 			})
 			if err != nil {
 				entry = entry.WithError(err)
@@ -116,7 +111,7 @@ func StartCleaning() {
 			entry.Info("finished tempdir cleaner walk")
 
 			time.Sleep(1 * time.Hour)
-		}(st.Name, st.Path)
+		}(st)
 	}
 }
 
