@@ -326,7 +326,6 @@ BUILD_TAGS := tracer_static tracer_static_jaeger
 
 unexport GOROOT
 export GOBIN = {{ .BuildDir }}/bin
-unexport GOPATH
 export GO111MODULE=on
 export GOPROXY ?= https://proxy.golang.org
 
