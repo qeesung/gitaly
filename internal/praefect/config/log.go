@@ -7,8 +7,8 @@ import (
 
 // ConfigureLogger applies the settings from the configuration file to the
 // logger, setting the log level and format.
-func (c Config) ConfigureLogger() *logrus.Logger {
+func (c Config) ConfigureLogger() *logrus.Entry {
 	log.Configure(c.Logging.Format, c.Logging.Level)
 
-	return log.Default
+	return log.Default()
 }

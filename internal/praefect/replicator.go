@@ -19,7 +19,7 @@ type Replicator interface {
 }
 
 type defaultReplicator struct {
-	log *logrus.Logger
+	log *logrus.Entry
 }
 
 func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, targetCC *grpc.ClientConn) error {
@@ -60,7 +60,7 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, targetCC
 
 // ReplMgr is a replication manager for handling replication jobs
 type ReplMgr struct {
-	log         *logrus.Logger
+	log         *logrus.Entry
 	datastore   Datastore
 	coordinator *Coordinator
 	targetNode  string     // which replica is this replicator responsible for?
@@ -75,7 +75,7 @@ type ReplMgrOpt func(*ReplMgr)
 
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
-func NewReplMgr(targetNode string, log *logrus.Logger, datastore Datastore, c *Coordinator, opts ...ReplMgrOpt) ReplMgr {
+func NewReplMgr(targetNode string, log *logrus.Entry, datastore Datastore, c *Coordinator, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
 		log:         log,
 		datastore:   datastore,

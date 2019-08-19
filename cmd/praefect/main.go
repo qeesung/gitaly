@@ -15,8 +15,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 
+	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
@@ -27,7 +27,7 @@ import (
 var (
 	flagConfig  = flag.String("config", "", "Location for the config.toml")
 	flagVersion = flag.Bool("version", false, "Print version and exit")
-	logger      = logrus.New()
+	logger      = log.Default()
 
 	errNoConfigFile = errors.New("the config flag must be passed")
 )

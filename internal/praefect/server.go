@@ -27,7 +27,7 @@ type Server struct {
 
 // NewServer returns an initialized praefect gPRC proxy server configured
 // with the provided gRPC server options
-func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *logrus.Logger) *Server {
+func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *logrus.Entry) *Server {
 	grpcOpts = append(grpcOpts, proxyRequiredOpts(c.streamDirector)...)
 	grpcOpts = append(grpcOpts, []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(

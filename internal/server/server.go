@@ -60,10 +60,10 @@ func init() {
 	}
 
 	// logrusEntry is used by middlewares below
-	logrusEntry = log.NewEntry(gitalylog.Default)
+	logrusEntry = gitalylog.Default()
 
 	// grpc-go gets a custom logger; it is too chatty
-	grpc_logrus.ReplaceGrpcLogger(log.NewEntry(gitalylog.GrpcGo))
+	grpc_logrus.ReplaceGrpcLogger(gitalylog.GrpcGo())
 }
 
 // createNewServer returns a GRPC server with all Gitaly services and interceptors set up.

@@ -28,7 +28,7 @@ import (
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
 type Coordinator struct {
-	log           *logrus.Logger
+	log           *logrus.Entry
 	failoverMutex sync.RWMutex
 	connMutex     sync.RWMutex
 
@@ -39,7 +39,7 @@ type Coordinator struct {
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l *logrus.Logger, datastore ReplicasDatastore, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
+func NewCoordinator(l *logrus.Entry, datastore ReplicasDatastore, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
 	registry := protoregistry.New()
 	registry.RegisterFiles(fileDescriptors...)
 
