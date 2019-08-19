@@ -276,15 +276,11 @@ func TestValidateStorages(t *testing.T) {
 }
 
 func TestStoragePath(t *testing.T) {
-	defer func(oldStorages []Storage) {
-		Config.Storages = oldStorages
-	}(Config.Storages)
-
-	Config.Storages = []Storage{
+	cfg := Cfg{Storages: []Storage{
 		{Name: "default", Path: "/home/git/repositories1"},
 		{Name: "other", Path: "/home/git/repositories2"},
 		{Name: "third", Path: "/home/git/repositories3"},
-	}
+	}}
 
 	testCases := []struct {
 		in, out string
@@ -297,7 +293,7 @@ func TestStoragePath(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		out, ok := StoragePath(tc.in)
+		out, ok := cfg.StoragePath(tc.in)
 		if !assert.Equal(t, tc.ok, ok, "%+v", tc) {
 			continue
 		}

@@ -38,24 +38,10 @@ const (
 )
 
 // CacheDir returns the path to the cache dir for a storage location
-func CacheDir(storageName string) (string, error) {
-	storagePath, err := helper.GetStorageByName(storageName)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(storagePath, cachePrefix), nil
-}
+func CacheDir(storage config.Storage) string { return filepath.Join(storage.Path, cachePrefix) }
 
 // TempDir returns the path to the temp dir for a storage location
-func TempDir(storageName string) (string, error) {
-	storagePath, err := helper.GetStorageByName(storageName)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(storagePath, tmpRootPrefix), nil
-}
+func TempDir(storage config.Storage) string { return filepath.Join(storage.Path, tmpRootPrefix) }
 
 // ForDeleteAllRepositories returns a temporary directory for the given storage. It is not context-scoped but it will get removed eventuall (after MaxAge).
 func ForDeleteAllRepositories(storageName string) (string, error) {

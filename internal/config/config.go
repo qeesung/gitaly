@@ -122,12 +122,17 @@ func Load(file io.Reader) error {
 	return nil
 }
 
-// RegisterHook adds a post-validation callback.
+// RegisterHook adds a post-validation callback. If your hook spawns
+// goroutines, then make sure any lookups on config.Config happen
+// _before_ you spawn your goroutine. Otherwise you make cause race
+// conditions when tests modify config.Config after your goroutine has
+// been spawned.
 func RegisterHook(f func() error) {
 	hooks = append(hooks, f)
 }
 
-// Validate checks the current Config for sanity.
+// Validate checks the current Config for sanity. It also runs all hooks
+// registered with RegisterHook.
 func Validate() error {
 	for _, err := range []error{
 		validateListeners(),
@@ -256,13 +261,19 @@ func SetGitPath() error {
 
 // StoragePath looks up the base path for storageName. The second boolean
 // return value indicates if anything was found.
-func StoragePath(storageName string) (string, bool) {
-	for _, storage := range Config.Storages {
+func (c Cfg) StoragePath(storageName string) (string, bool) {
+	storage, ok := c.Storage(storageName)
+	return storage.Path, ok
+}
+
+// Storage looks up storageName.
+func (c Cfg) Storage(storageName string) (Storage, bool) {
+	for _, storage := range c.Storages {
 		if storage.Name == storageName {
-			return storage.Path, true
+			return storage, true
 		}
 	}
-	return "", false
+	return Storage{}, false
 }
 
 func validateBinDir() error {

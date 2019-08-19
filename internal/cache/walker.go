@@ -16,13 +16,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
-func cleanWalk(storageName string) error {
-	cachePath, err := tempdir.CacheDir(storageName)
-	if err != nil {
-		return err
-	}
-
-	walkErr := filepath.Walk(cachePath, func(path string, info os.FileInfo, err error) error {
+func cleanWalk(storage config.Storage) error {
+	walkErr := filepath.Walk(tempdir.CacheDir(storage), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -71,7 +66,7 @@ func startCleanWalker(storage config.Storage) {
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	go func() {
 		for {
-			if err := cleanWalk(storage.Name); err != nil {
+			if err := cleanWalk(storage); err != nil {
 				logrus.WithField("storage", storage.Name).Error(err)
 			}
 
@@ -95,16 +90,7 @@ func moveAndClear(storage config.Storage) error {
 	logger := logrus.WithField("storage", storage.Name)
 	logger.Info("clearing disk cache object folder")
 
-	cachePath, err := tempdir.CacheDir(storage.Name)
-	if err != nil {
-		return err
-	}
-
-	tempPath, err := tempdir.TempDir(storage.Name)
-	if err != nil {
-		return err
-	}
-
+	tempPath := tempdir.TempDir(storage)
 	if err := os.MkdirAll(tempPath, 0755); err != nil {
 		return err
 	}
@@ -115,6 +101,7 @@ func moveAndClear(storage config.Storage) error {
 	}
 
 	logger.Infof("moving disk cache object folder to %s", tmpDir)
+	cachePath := tempdir.CacheDir(storage)
 	if err := os.Rename(cachePath, filepath.Join(tmpDir, "moved")); err != nil {
 		if os.IsNotExist(err) {
 			logger.Info("disk cache object folder doesn't exist, no need to remove")
