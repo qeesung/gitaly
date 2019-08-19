@@ -57,8 +57,8 @@ func Color(language string) string {
 }
 
 // LoadColors loads the name->color map from the Linguist gem.
-func LoadColors() error {
-	jsonReader, err := openLanguagesJSON()
+func LoadColors(cfg config.Cfg) error {
+	jsonReader, err := openLanguagesJSON(cfg)
 	if err != nil {
 		return err
 	}
@@ -67,8 +67,8 @@ func LoadColors() error {
 	return json.NewDecoder(jsonReader).Decode(&colorMap)
 }
 
-func openLanguagesJSON() (io.ReadCloser, error) {
-	if jsonPath := config.Config.Ruby.LinguistLanguagesPath; jsonPath != "" {
+func openLanguagesJSON(cfg config.Cfg) (io.ReadCloser, error) {
+	if jsonPath := cfg.Ruby.LinguistLanguagesPath; jsonPath != "" {
 		// This is a fallback for environments where dynamic discovery of the
 		// linguist path via Bundler is not working for some reason, for example
 		// https://gitlab.com/gitlab-org/gitaly/issues/1119.

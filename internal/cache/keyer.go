@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
@@ -213,7 +214,12 @@ func newPendingLease(repo *gitalypb.Repository) (string, error) {
 
 // cacheDir is $STORAGE/+gitaly/cache
 func cacheDir(repo *gitalypb.Repository) (string, error) {
-	return tempdir.CacheDir(repo.GetStorageName())
+	storage, ok := config.Config.Storage(repo.StorageName)
+	if !ok {
+		return "", fmt.Errorf("storage not found for %v", repo)
+	}
+
+	return tempdir.CacheDir(storage), nil
 }
 
 func currentLeases(repo *gitalypb.Repository) ([]os.FileInfo, error) {

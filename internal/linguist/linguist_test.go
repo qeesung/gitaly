@@ -11,7 +11,7 @@ import (
 
 func TestLoadLanguages(t *testing.T) {
 	colorMap = make(map[string]Language)
-	require.NoError(t, LoadColors(), "load colors")
+	require.NoError(t, LoadColors(config.Config), "load colors")
 
 	require.Equal(t, "#701516", Color("Ruby"), "color value for 'Ruby'")
 }
@@ -23,7 +23,7 @@ func TestLoadLanguagesCustomPath(t *testing.T) {
 	config.Config.Ruby.LinguistLanguagesPath = jsonPath
 
 	colorMap = make(map[string]Language)
-	require.NoError(t, LoadColors(), "load colors")
+	require.NoError(t, LoadColors(config.Config), "load colors")
 
 	require.Equal(t, "foo color", Color("FooBar"))
 }

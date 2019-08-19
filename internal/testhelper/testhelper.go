@@ -121,7 +121,7 @@ func GitalyServersMetadata(t *testing.T, serverSocketPath string) metadata.MD {
 }
 
 func testRepoValid(repo *gitalypb.Repository) bool {
-	storagePath, _ := config.StoragePath(repo.GetStorageName())
+	storagePath, _ := config.Config.StoragePath(repo.GetStorageName())
 	if _, err := os.Stat(path.Join(storagePath, repo.RelativePath, "objects")); err != nil {
 		return false
 	}

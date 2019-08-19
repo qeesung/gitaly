@@ -25,7 +25,7 @@ var (
 	// Config stores the global configuration
 	Config Cfg
 
-	hooks []func() error
+	hooks []func(Cfg) error
 )
 
 // Cfg is a container for all config derived from config.toml.
@@ -122,12 +122,16 @@ func Load(file io.Reader) error {
 	return nil
 }
 
-// RegisterHook adds a post-validation callback.
-func RegisterHook(f func() error) {
+// RegisterHook adds a post-validation callback. Your hook should only
+// access config via the Cfg instance it gets passed. This avoids race
+// conditions during testing, when the global config.Config instance gets
+// updated after these hooks have run.
+func RegisterHook(f func(c Cfg) error) {
 	hooks = append(hooks, f)
 }
 
-// Validate checks the current Config for sanity.
+// Validate checks the current Config for sanity. It also runs all hooks
+// registered with RegisterHook.
 func Validate() error {
 	for _, err := range []error{
 		validateListeners(),
@@ -144,7 +148,7 @@ func Validate() error {
 	}
 
 	for _, f := range hooks {
-		if err := f(); err != nil {
+		if err := f(Config); err != nil {
 			return err
 		}
 	}
@@ -256,13 +260,19 @@ func SetGitPath() error {
 
 // StoragePath looks up the base path for storageName. The second boolean
 // return value indicates if anything was found.
-func StoragePath(storageName string) (string, bool) {
-	for _, storage := range Config.Storages {
+func (c Cfg) StoragePath(storageName string) (string, bool) {
+	storage, ok := c.Storage(storageName)
+	return storage.Path, ok
+}
+
+// Storage looks up storageName.
+func (c Cfg) Storage(storageName string) (Storage, bool) {
+	for _, storage := range c.Storages {
 		if storage.Name == storageName {
-			return storage.Path, true
+			return storage, true
 		}
 	}
-	return "", false
+	return Storage{}, false
 }
 
 func validateBinDir() error {
