@@ -124,8 +124,8 @@ func moveAndClear(storage config.Storage) error {
 }
 
 func init() {
-	config.RegisterHook(func() error {
-		for _, storage := range config.Config.Storages {
+	config.RegisterHook(func(cfg config.Cfg) error {
+		for _, storage := range cfg.Storages {
 			if err := moveAndClear(storage); err != nil {
 				return err
 			}

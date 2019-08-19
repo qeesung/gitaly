@@ -25,7 +25,7 @@ var (
 	// Config stores the global configuration
 	Config Cfg
 
-	hooks []func() error
+	hooks []func(Cfg) error
 )
 
 // Cfg is a container for all config derived from config.toml.
@@ -122,12 +122,11 @@ func Load(file io.Reader) error {
 	return nil
 }
 
-// RegisterHook adds a post-validation callback. If your hook spawns
-// goroutines, then make sure any lookups on config.Config happen
-// _before_ you spawn your goroutine. Otherwise you make cause race
-// conditions when tests modify config.Config after your goroutine has
-// been spawned.
-func RegisterHook(f func() error) {
+// RegisterHook adds a post-validation callback. Your hook should only
+// access config via the Cfg instance it gets passed. This avoids race
+// conditions during testing, when the global config.Config instance gets
+// updated after these hooks have run.
+func RegisterHook(f func(c Cfg) error) {
 	hooks = append(hooks, f)
 }
 
@@ -149,7 +148,7 @@ func Validate() error {
 	}
 
 	for _, f := range hooks {
-		if err := f(); err != nil {
+		if err := f(Config); err != nil {
 			return err
 		}
 	}
