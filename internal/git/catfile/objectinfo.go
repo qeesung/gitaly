@@ -29,9 +29,7 @@ func (o *ObjectInfo) IsBlob() bool {
 }
 
 // ParseObjectInfo reads from a reader and parses the data into an ObjectInfo struct
-var ParseObjectInfo = parseObjectInfo
-
-func parseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
+func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
 	infoLine, err := stdout.ReadString('\n')
 	if err != nil {
 		return nil, fmt.Errorf("read info line: %v", err)

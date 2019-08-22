@@ -51,5 +51,5 @@ func (bc *batchCheck) info(spec string) (*ObjectInfo, error) {
 		return nil, err
 	}
 
-	return parseObjectInfo(bc.r)
+	return ParseObjectInfo(bc.r)
 }

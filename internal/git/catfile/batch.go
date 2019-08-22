@@ -79,7 +79,7 @@ func (b *batchProcess) reader(revspec string, expectedType string) (io.Reader, e
 		return nil, err
 	}
 
-	oi, err := parseObjectInfo(b.r)
+	oi, err := ParseObjectInfo(b.r)
 	if err != nil {
 		return nil, err
 	}

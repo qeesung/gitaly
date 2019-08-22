@@ -203,7 +203,15 @@ func getAllLFSPointersRubyScript(repository *gitalypb.Repository, stream gitalyp
 
 	ctx := stream.Context()
 
-	cmd := exec.Command("ruby", "--", "-", repoPath, fmt.Sprintf("%d", LfsPointerMinSize), fmt.Sprintf("%d", LfsPointerMaxSize))
+	cmd := exec.Command(
+		"ruby",
+		"--",
+		"-",
+		config.Config.Git.BinPath,
+		repoPath,
+		fmt.Sprintf("%d", LfsPointerMinSize),
+		fmt.Sprintf("%d", LfsPointerMaxSize),
+	)
 	cmd.Dir = config.Config.Ruby.Dir
 	ruby, err := command.New(ctx, cmd, strings.NewReader(rubyScript), nil, nil, os.Environ()...)
 	if err != nil {
@@ -269,8 +277,8 @@ func parseCatfileOut(_r io.Reader, stream gitalypb.BlobService_GetAllLFSPointers
 
 var rubyScript = `
 
-def main(git_dir, minSize, maxSize)
-  IO.popen(%W[git -C #{git_dir} rev-list --all --filter=blob:limit=#{maxSize+1} --in-commit-order --objects], 'r') do |rev_list|
+def main(git_bin, git_dir, minSize, maxSize)
+  IO.popen(%W[#{git_bin} -C #{git_dir} rev-list --all --filter=blob:limit=#{maxSize+1} --in-commit-order --objects], 'r') do |rev_list|
     # Loading bundler and rugged is slow. Let's do it while we wait for git rev-list.
     require 'bundler/setup'
     require 'rugged'
@@ -293,5 +301,5 @@ def main(git_dir, minSize, maxSize)
   abort 'rev-list failed' unless $?.success?
 end
 
-main(ARGV[0], Integer(ARGV[1]), Integer(ARGV[2]))
+main(ARGV[0], ARGV[1], Integer(ARGV[2]), Integer(ARGV[3]))
 `
