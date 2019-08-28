@@ -1,0 +1,5 @@
+---
+title: 'GetAllLFSPointers: use binmode in inline Ruby script'
+merge_request: 1454
+author:
+type: fixed
