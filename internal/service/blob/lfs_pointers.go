@@ -283,6 +283,10 @@ def main(git_bin, git_dir, minSize, maxSize)
     require 'bundler/setup'
     require 'rugged'
 
+    # disable encoding conversion: we want to read and write data as-is
+    rev_list.binmode
+    $stdout.binmode
+
     repo = Rugged::Repository.new(git_dir)
 
     rev_list.each_line do |line|
