@@ -109,10 +109,7 @@ func main() {
 // Inside here we can use deferred functions. This is needed because
 // log.Fatal bypasses deferred functions.
 func run(b *bootstrap.Bootstrap) error {
-	servers, err := bootstrap.NewServerFactory()
-	if err != nil {
-		return err
-	}
+	servers := bootstrap.NewServerFactory()
 	defer servers.Stop()
 
 	b.StopAction = servers.GracefulStop
@@ -154,13 +151,18 @@ func run(b *bootstrap.Bootstrap) error {
 	}
 
 	for _, shard := range config.Config.Storages {
-		if err = storage.WriteMetadataFile(shard); err != nil {
+		if err := storage.WriteMetadataFile(shard); err != nil {
+			// TODO should this be a return? https://gitlab.com/gitlab-org/gitaly/issues/1893
 			log.WithError(err).Error("Unable to write gitaly metadata file")
 		}
 	}
 
 	if err := b.Start(); err != nil {
 		return fmt.Errorf("unable to start the bootstrap: %v", err)
+	}
+
+	if err := servers.StartRuby(); err != nil {
+		return fmt.Errorf("initialize gitaly-ruby: %v", err)
 	}
 
 	return b.Wait()

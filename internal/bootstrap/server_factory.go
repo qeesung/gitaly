@@ -4,7 +4,6 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server"
 	"google.golang.org/grpc"
@@ -20,20 +19,15 @@ type GracefulStoppableServer interface {
 	GracefulStop()
 	Stop()
 	Serve(l net.Listener, secure bool) error
+	StartRuby() error
 }
 
 // NewServerFactory initializes a rubyserver and then lazily initializes both secure and insecure grpc.Server
-func NewServerFactory() (GracefulStoppableServer, error) {
-	ruby := &rubyserver.Server{}
-	err := ruby.Start()
-	if err != nil {
-		log.Error("start ruby server")
-
-		return nil, err
-	}
-
-	return &serverFactory{ruby: ruby}, nil
+func NewServerFactory() GracefulStoppableServer {
+	return &serverFactory{ruby: &rubyserver.Server{}}
 }
+
+func (s *serverFactory) StartRuby() error { return s.ruby.Start() }
 
 func (s *serverFactory) Stop() {
 	for _, srv := range s.all() {
