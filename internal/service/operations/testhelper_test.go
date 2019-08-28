@@ -23,7 +23,7 @@ var (
 	gitlabPostHooks = []string{"post-receive"}
 	GitlabPreHooks  = gitlabPreHooks
 	GitlabHooks     []string
-	RubyServer      *rubyserver.Server
+	RubyServer      = &rubyserver.Server{}
 	user            = &gitalypb.User{
 		Name:       []byte("Jane Doe"),
 		Email:      []byte("janedoe@gitlab.com"),
@@ -54,8 +54,7 @@ func testMain(m *testing.M) int {
 
 	testhelper.ConfigureGitalySSH()
 
-	RubyServer, err = rubyserver.Start()
-	if err != nil {
+	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
 	defer RubyServer.Stop()

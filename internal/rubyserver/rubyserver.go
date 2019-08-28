@@ -69,6 +69,8 @@ func socketPath(id int) string {
 
 // Server represents a gitaly-ruby helper process.
 type Server struct {
+	startOnce    sync.Once
+	startErr     error
 	workers      []*worker
 	clientConnMu sync.Mutex
 	clientConn   *grpc.ClientConn
@@ -95,12 +97,17 @@ func (s *Server) Stop() {
 }
 
 // Start spawns the Ruby server.
-func Start() (*Server, error) {
+func (s *Server) Start() error {
+	s.startOnce.Do(func() { s.startErr = s.start() })
+	return s.startErr
+}
+
+func (s *Server) start() error {
 	lazyInit.Do(prepareSocketPath)
 
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	cfg := config.Config
@@ -129,7 +136,6 @@ func Start() (*Server, error) {
 	numWorkers := cfg.Ruby.NumWorkers
 	balancer.ConfigureBuilder(numWorkers, 0)
 
-	s := &Server{}
 	for i := 0; i < numWorkers; i++ {
 		name := fmt.Sprintf("gitaly-ruby.%d", i)
 		socketPath := socketPath(i)
@@ -143,13 +149,13 @@ func Start() (*Server, error) {
 		check := func() error { return ping(socketPath) }
 		p, err := supervisor.New(name, env, args, cfg.Ruby.Dir, cfg.Ruby.MaxRSS, events, check)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		s.workers = append(s.workers, newWorker(p, socketPath, events, false))
 	}
 
-	return s, nil
+	return nil
 }
 
 // CommitServiceClient returns a CommitServiceClient instance that is

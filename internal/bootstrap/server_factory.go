@@ -24,7 +24,8 @@ type GracefulStoppableServer interface {
 
 // NewServerFactory initializes a rubyserver and then lazily initializes both secure and insecure grpc.Server
 func NewServerFactory() (GracefulStoppableServer, error) {
-	ruby, err := rubyserver.Start()
+	ruby := &rubyserver.Server{}
+	err := ruby.Start()
 	if err != nil {
 		log.Error("start ruby server")
 

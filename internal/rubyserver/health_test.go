@@ -8,8 +8,8 @@ import (
 )
 
 func TestPingSuccess(t *testing.T) {
-	s, err := Start()
-	require.NoError(t, err)
+	s := &Server{}
+	require.NoError(t, s.Start())
 	defer s.Stop()
 
 	require.True(t, len(s.workers) > 0, "expected at least one worker in server")
