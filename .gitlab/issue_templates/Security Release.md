@@ -1,4 +1,4 @@
-<!-- Title suggestion: [Security Release] Release process for Gitaly issue #<issue-number> -->
+/title [Security Release] Release process for Gitaly issue #<issue-number>
 
 ## What
 
