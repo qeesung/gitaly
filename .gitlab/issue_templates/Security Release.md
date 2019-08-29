@@ -54,8 +54,7 @@ As a sanity check, you can verify your repository only points to remotes in
   from `gitlab.com` (since we will rely on the public Gitaly repo to push
   these stable branches to `dev.gitlab.org`):
     - [ ] For each missing stable branch:
-       1. `git checkout vX.Y.0`
-       1. `git checkout -b X-Y-stable`
+       1. `git branch X-Y-stable vX.Y.0`
        1. `git push --set-upstream origin X-Y-stable`
     - Reassign to the contributor.
 - **Contributor:**
