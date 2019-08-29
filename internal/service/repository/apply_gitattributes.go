@@ -68,6 +68,13 @@ func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) erro
 		return err
 	}
 
+	// Change the permission of tempFile as the permission of file attributesPath
+	if info, err := os.Stat(attributesPath); err == nil {
+		if err := os.Chmod(tempFile.Name(), info.Mode()); err != nil {
+			return err
+		}
+	}
+
 	// Rename temp file and return the result
 	return os.Rename(tempFile.Name(), attributesPath)
 }
