@@ -121,6 +121,6 @@ As a sanity check, you can verify your repository only points to remotes in
 [gitaly-ce-version]: https://gitlab.com/gitlab-org/gitlab-ce/blob/master/GITALY_SERVER_VERSION
 [gitlab-sec-process]: https://gitlab.com/gitlab-org/release/docs/blob/master/general/security/developer.md
 
-/label ~Gitaly ~"security"
+/label ~"devops::create" ~"group::gitaly" ~"security"
 
 /confidential
