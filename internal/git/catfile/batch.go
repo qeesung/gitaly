@@ -31,22 +31,25 @@ type batchProcess struct {
 }
 
 func newBatchProcess(ctx context.Context, repoPath string, env []string) (*batchProcess, error) {
+	totalCatfileProcesses.Inc()
+
 	b := &batchProcess{}
 
 	var stdinReader io.Reader
 	stdinReader, b.w = io.Pipe()
 	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 
-	currentCatfileProcesses.Inc()
-	totalCatfileProcesses.Inc()
 	batchCmd, err := git.BareCommand(ctx, stdinReader, nil, nil, env, batchCmdArgs...)
 	if err != nil {
 		return nil, err
 	}
+
 	b.r = bufio.NewReader(batchCmd)
+
+	currentCatfileProcesses.Inc()
 	go func() {
 		<-ctx.Done()
-		// This is crucial to prevent leaking file descriptors.
+		// This Close() is crucial to prevent leaking file descriptors.
 		b.w.Close()
 		currentCatfileProcesses.Dec()
 	}()
