@@ -5,7 +5,7 @@ require_relative 'run.rb'
 
 
 def main(version)
-  unless version =~ /^[0-9]/
+  unless version.match?(/\d+\.\d\.\d+/)
     abort "Version string #{version.inspect} does not look like a semver (e.g. \"1.0.2\"). Aborting."
   end
 
