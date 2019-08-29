@@ -24,7 +24,6 @@ GitLab at the correct times.
 
 ## Process
 
-Follow this process precisely or else GitLab will implode and it will be all your fault and everyone will point and laugh at you (no pressure).
 
 ### DO NOT PUSH TO GITLAB.COM!
 
