@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,9 +44,13 @@ func TestNamespaceExists(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := client.AddNamespace(ctx, &gitalypb.AddNamespaceRequest{StorageName: "default", Name: "existing"})
-	require.NoError(t, err, "Namespace creation failed")
-	defer client.RemoveNamespace(ctx, &gitalypb.RemoveNamespaceRequest{StorageName: "default", Name: "existing"})
+	const (
+		existingStorage   = "default"
+		existingNamespace = "existing"
+	)
+
+	storageDir := prepareStorageDir(t, existingStorage)
+	require.NoError(t, os.MkdirAll(filepath.Join(storageDir, existingNamespace), 0755))
 
 	queries := []struct {
 		desc      string
@@ -56,7 +61,7 @@ func TestNamespaceExists(t *testing.T) {
 		{
 			desc: "empty name",
 			request: &gitalypb.NamespaceExistsRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "",
 			},
 			errorCode: codes.InvalidArgument,
@@ -64,7 +69,7 @@ func TestNamespaceExists(t *testing.T) {
 		{
 			desc: "Namespace doesn't exists",
 			request: &gitalypb.NamespaceExistsRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "not-existing",
 			},
 			errorCode: codes.OK,
@@ -74,7 +79,7 @@ func TestNamespaceExists(t *testing.T) {
 			desc: "Wrong storage path",
 			request: &gitalypb.NamespaceExistsRequest{
 				StorageName: "other",
-				Name:        "existing",
+				Name:        existingNamespace,
 			},
 			errorCode: codes.OK,
 			exists:    false,
@@ -82,8 +87,8 @@ func TestNamespaceExists(t *testing.T) {
 		{
 			desc: "Namespace exists",
 			request: &gitalypb.NamespaceExistsRequest{
-				StorageName: "default",
-				Name:        "existing",
+				StorageName: existingStorage,
+				Name:        existingNamespace,
 			},
 			errorCode: codes.OK,
 			exists:    true,
@@ -92,8 +97,6 @@ func TestNamespaceExists(t *testing.T) {
 
 	for _, tc := range queries {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 			response, err := client.NamespaceExists(ctx, tc.request)
 
 			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
@@ -105,12 +108,22 @@ func TestNamespaceExists(t *testing.T) {
 	}
 }
 
+func prepareStorageDir(t *testing.T, storageName string) string {
+	storageDir, err := helper.GetStorageByName(storageName)
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(storageDir))
+	return storageDir
+}
+
 func TestAddNamespace(t *testing.T) {
 	server, serverSocketPath := runNamespaceServer(t)
 	defer server.Stop()
 
 	client, conn := newNamespaceClient(t, serverSocketPath)
 	defer conn.Close()
+
+	const existingStorage = "default"
+	storageDir := prepareStorageDir(t, existingStorage)
 
 	queries := []struct {
 		desc      string
@@ -120,7 +133,7 @@ func TestAddNamespace(t *testing.T) {
 		{
 			desc: "No name",
 			request: &gitalypb.AddNamespaceRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "",
 			},
 			errorCode: codes.InvalidArgument,
@@ -128,7 +141,7 @@ func TestAddNamespace(t *testing.T) {
 		{
 			desc: "Namespace is successfully created",
 			request: &gitalypb.AddNamespaceRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "create-me",
 			},
 			errorCode: codes.OK,
@@ -136,7 +149,7 @@ func TestAddNamespace(t *testing.T) {
 		{
 			desc: "Idempotent on creation",
 			request: &gitalypb.AddNamespaceRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "create-me",
 			},
 			errorCode: codes.OK,
@@ -162,10 +175,9 @@ func TestAddNamespace(t *testing.T) {
 
 			// Clean up
 			if tc.errorCode == codes.OK {
-				client.RemoveNamespace(ctx, &gitalypb.RemoveNamespaceRequest{
-					StorageName: tc.request.StorageName,
-					Name:        tc.request.Name,
-				})
+				require.Equal(t, existingStorage, tc.request.StorageName, "sanity check")
+
+				requireIsDir(t, filepath.Join(storageDir, tc.request.Name))
 			}
 		})
 	}
@@ -181,6 +193,13 @@ func TestRemoveNamespace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	const (
+		existingStorage   = "default"
+		existingNamespace = "created"
+	)
+
+	storageDir := prepareStorageDir(t, existingStorage)
+
 	queries := []struct {
 		desc      string
 		request   *gitalypb.RemoveNamespaceRequest
@@ -189,15 +208,15 @@ func TestRemoveNamespace(t *testing.T) {
 		{
 			desc: "Namespace is successfully removed",
 			request: &gitalypb.RemoveNamespaceRequest{
-				StorageName: "default",
-				Name:        "created",
+				StorageName: existingStorage,
+				Name:        existingNamespace,
 			},
 			errorCode: codes.OK,
 		},
 		{
 			desc: "Idempotent on deletion",
 			request: &gitalypb.RemoveNamespaceRequest{
-				StorageName: "default",
+				StorageName: existingStorage,
 				Name:        "not-there",
 			},
 			errorCode: codes.OK,
@@ -214,11 +233,15 @@ func TestRemoveNamespace(t *testing.T) {
 
 	for _, tc := range queries {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, err := client.AddNamespace(ctx, &gitalypb.AddNamespaceRequest{StorageName: "default", Name: "created"})
-			require.NoError(t, err, "setup failed")
+			require.NoError(t, os.MkdirAll(filepath.Join(storageDir, existingNamespace), 0755), "test setup")
 
-			_, err = client.RemoveNamespace(ctx, tc.request)
+			_, err := client.RemoveNamespace(ctx, tc.request)
 			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
+
+			if tc.errorCode == codes.OK {
+				require.Equal(t, existingStorage, tc.request.StorageName, "sanity check")
+				testhelper.AssertFileNotExists(t, filepath.Join(storageDir, tc.request.Name))
+			}
 		})
 	}
 }
@@ -233,6 +256,14 @@ func TestRenameNamespace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	const (
+		existingStorage   = "default"
+		existingNamespace = "existing"
+	)
+
+	storageDir := prepareStorageDir(t, existingStorage)
+	require.NoError(t, os.MkdirAll(filepath.Join(storageDir, existingNamespace), 0755))
+
 	queries := []struct {
 		desc      string
 		request   *gitalypb.RenameNamespaceRequest
@@ -243,7 +274,7 @@ func TestRenameNamespace(t *testing.T) {
 			request: &gitalypb.RenameNamespaceRequest{
 				From:        "existing",
 				To:          "new-path",
-				StorageName: "default",
+				StorageName: existingStorage,
 			},
 			errorCode: codes.OK,
 		},
@@ -252,7 +283,7 @@ func TestRenameNamespace(t *testing.T) {
 			request: &gitalypb.RenameNamespaceRequest{
 				From:        "",
 				To:          "new-path",
-				StorageName: "default",
+				StorageName: existingStorage,
 			},
 			errorCode: codes.InvalidArgument,
 		},
@@ -261,7 +292,7 @@ func TestRenameNamespace(t *testing.T) {
 			request: &gitalypb.RenameNamespaceRequest{
 				From:        "non-existing",
 				To:          "new-path",
-				StorageName: "default",
+				StorageName: existingStorage,
 			},
 			errorCode: codes.InvalidArgument,
 		},
@@ -270,17 +301,11 @@ func TestRenameNamespace(t *testing.T) {
 			request: &gitalypb.RenameNamespaceRequest{
 				From:        "existing",
 				To:          "existing",
-				StorageName: "default",
+				StorageName: existingStorage,
 			},
 			errorCode: codes.InvalidArgument,
 		},
 	}
-
-	_, err := client.AddNamespace(ctx, &gitalypb.AddNamespaceRequest{
-		StorageName: "default",
-		Name:        "existing",
-	})
-	require.NoError(t, err)
 
 	for _, tc := range queries {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -289,11 +314,16 @@ func TestRenameNamespace(t *testing.T) {
 			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
 
 			if tc.errorCode == codes.OK {
-				client.RemoveNamespace(ctx, &gitalypb.RemoveNamespaceRequest{
-					StorageName: "default",
-					Name:        "new-path",
-				})
+				toDir := filepath.Join(storageDir, tc.request.To)
+				requireIsDir(t, toDir)
+				require.NoError(t, os.RemoveAll(toDir))
 			}
 		})
 	}
+}
+
+func requireIsDir(t *testing.T, dir string) {
+	fi, err := os.Stat(dir)
+	require.NoError(t, err)
+	require.True(t, fi.IsDir(), "%v is directory", dir)
 }
