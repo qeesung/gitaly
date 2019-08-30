@@ -183,8 +183,8 @@ func TestFetchFromOriginRefUpdates(t *testing.T) {
 		require.Equal(t, oid, resolveRef(t, poolPath, "refs/remotes/origin/"+ref), "look up %q in pool after update", ref)
 	}
 
-	looseRefs := string(testhelper.MustRunCommand(t, nil, "find", filepath.Join(poolPath, "refs"), "-type", "f"))
-	require.Equal(t, "", looseRefs, "there should be no loose refs after the fetch")
+	looseRefs := testhelper.MustRunCommand(t, nil, "find", filepath.Join(poolPath, "refs"), "-type", "f")
+	require.Equal(t, "", string(looseRefs), "there should be no loose refs after the fetch")
 
 }
 
