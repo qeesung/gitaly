@@ -280,7 +280,7 @@ func TestRenameNamespace(t *testing.T) {
 		{
 			desc: "Renaming an existing namespace",
 			request: &gitalypb.RenameNamespaceRequest{
-				From:        "existing",
+				From:        existingNamespace,
 				To:          "new-path",
 				StorageName: existingStorage,
 			},
@@ -307,8 +307,8 @@ func TestRenameNamespace(t *testing.T) {
 		{
 			desc: "existing destination namespace",
 			request: &gitalypb.RenameNamespaceRequest{
-				From:        "existing",
-				To:          "existing",
+				From:        existingNamespace,
+				To:          existingNamespace,
 				StorageName: existingStorage,
 			},
 			errorCode: codes.InvalidArgument,
