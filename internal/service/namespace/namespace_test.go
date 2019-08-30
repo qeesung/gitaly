@@ -3,6 +3,7 @@ package namespace
 import (
 	"context"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,15 +21,24 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	storageOtherDir, _ := ioutil.TempDir("", "gitaly-repository-exists-test")
-	defer os.Remove(storageOtherDir)
+	defaultDir, err := ioutil.TempDir("", "gitaly-namespace-default")
+	if err != nil {
+		log.Print(err)
+		return 1
+	}
+	defer os.RemoveAll(defaultDir)
 
-	oldStorages := config.Config.Storages
+	storageOtherDir, err := ioutil.TempDir("", "gitaly-namespace-other")
+	if err != nil {
+		log.Print(err)
+		return 1
+	}
+	defer os.RemoveAll(storageOtherDir)
+
 	config.Config.Storages = []config.Storage{
-		{Name: "default", Path: testhelper.GitlabTestStoragePath()},
+		{Name: "default", Path: defaultDir},
 		{Name: "other", Path: storageOtherDir},
 	}
-	defer func() { config.Config.Storages = oldStorages }()
 
 	return m.Run()
 }
@@ -112,6 +122,7 @@ func prepareStorageDir(t *testing.T, storageName string) string {
 	storageDir, err := helper.GetStorageByName(storageName)
 	require.NoError(t, err)
 	require.NoError(t, os.RemoveAll(storageDir))
+	require.NoError(t, os.MkdirAll(storageDir, 0755))
 	return storageDir
 }
 
