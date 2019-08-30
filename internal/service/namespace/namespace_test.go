@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"context"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,23 +20,21 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
-	defaultDir, err := ioutil.TempDir("", "gitaly-namespace-default")
-	if err != nil {
-		log.Print(err)
-		return 1
-	}
-	defer os.RemoveAll(defaultDir)
+	config.Config.Storages = nil
 
-	storageOtherDir, err := ioutil.TempDir("", "gitaly-namespace-other")
-	if err != nil {
-		log.Print(err)
-		return 1
-	}
-	defer os.RemoveAll(storageOtherDir)
+	for _, st := range []string{"default", "other"} {
+		dir, err := filepath.Abs(filepath.Join("testdata", st))
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	config.Config.Storages = []config.Storage{
-		{Name: "default", Path: defaultDir},
-		{Name: "other", Path: storageOtherDir},
+		if err := os.RemoveAll(dir); err != nil {
+			log.Fatal(err)
+		}
+
+		config.Config.Storages = append(config.Config.Storages,
+			config.Storage{Name: st, Path: dir},
+		)
 	}
 
 	return m.Run()
