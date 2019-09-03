@@ -133,12 +133,6 @@ func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceC
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	var expectedFileMode os.FileMode
-	shouldCheckFileMode := false
-	if info, err := os.Stat(attributesPath); err == nil {
-		expectedFileMode = info.Mode()
-		shouldCheckFileMode = true
-	}
 	req := &gitalypb.ApplyGitattributesRequest{Repository: testRepo, Revision: revision}
 	c, err := client.ApplyGitattributes(ctx, req)
 
@@ -155,12 +149,10 @@ func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceC
 			t.Error(err)
 		}
 
-		if shouldCheckFileMode {
-			if info, err := os.Stat(attributesPath); err == nil {
-				actualFileMode := info.Mode()
-				if actualFileMode != expectedFileMode {
-					t.Errorf("Expected Permission of attributes file %s, found %s", expectedFileMode.String(), actualFileMode.String())
-				}
+		if info, err := os.Stat(attributesPath); err == nil {
+			actualFileMode := info.Mode()
+			if actualFileMode != attributesFileMode {
+				t.Errorf("Expected Permission of attributes file %s, found %s", attributesFileMode.String(), actualFileMode.String())
 			}
 		}
 

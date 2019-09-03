@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const attributesFileMode os.FileMode = 0644
+
 func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) error {
 	infoPath := path.Join(repoPath, "info")
 	attributesPath := path.Join(infoPath, "attributes")
@@ -69,10 +71,8 @@ func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) erro
 	}
 
 	// Change the permission of tempFile as the permission of file attributesPath
-	if info, err := os.Stat(attributesPath); err == nil {
-		if err := os.Chmod(tempFile.Name(), info.Mode()); err != nil {
-			return err
-		}
+	if err := os.Chmod(tempFile.Name(), attributesFileMode); err != nil {
+		return err
 	}
 
 	// Rename temp file and return the result

@@ -1,5 +1,5 @@
 ---
-title: Maintain permissions for attributes file
+title: Set permission of attributes file to `0644`
 merge_request: 1466
 author: @njkevlani
 type: added
