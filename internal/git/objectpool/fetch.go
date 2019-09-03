@@ -79,6 +79,14 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
+	packRefs, err := git.Command(ctx, o, "pack-refs", "--all")
+	if err != nil {
+		return err
+	}
+	if err := packRefs.Wait(); err != nil {
+		return err
+	}
+
 	return repackPool(ctx, o)
 }
 
