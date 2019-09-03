@@ -24,7 +24,7 @@ const testTimeString = "200601021504.05"
 
 var (
 	testTime   = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
-	RubyServer *rubyserver.Server
+	RubyServer = &rubyserver.Server{}
 )
 
 func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {
@@ -94,8 +94,7 @@ func testMain(m *testing.M) int {
 
 	testhelper.ConfigureGitalySSH()
 
-	RubyServer, err = rubyserver.Start()
-	if err != nil {
+	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
 	defer RubyServer.Stop()

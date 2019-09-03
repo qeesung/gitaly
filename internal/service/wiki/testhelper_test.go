@@ -35,16 +35,14 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
-var rubyServer *rubyserver.Server
+var rubyServer = &rubyserver.Server{}
 
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
 	hooks.Override = "/does/not/exist"
 
-	var err error
-	rubyServer, err = rubyserver.Start() // Do not use := because rubyServer is a global variable.
-	if err != nil {
+	if err := rubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
 	defer rubyServer.Stop()

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var RubyServer *rubyserver.Server
+var RubyServer = &rubyserver.Server{}
 
 func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
@@ -24,9 +24,7 @@ func testMain(m *testing.M) int {
 
 	testhelper.ConfigureGitalySSH()
 
-	var err error
-	RubyServer, err = rubyserver.Start()
-	if err != nil {
+	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
 	defer RubyServer.Stop()

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -29,10 +30,8 @@ func waitPing(s *Server) error {
 func BenchmarkConcurrency(b *testing.B) {
 	config.Config.Ruby.NumWorkers = 2
 
-	s, err := Start()
-	if err != nil {
-		b.Fatal(err)
-	}
+	s := &Server{}
+	require.NoError(b, s.Start())
 	defer s.Stop()
 
 	// Warm-up: wait for gitaly-ruby to boot

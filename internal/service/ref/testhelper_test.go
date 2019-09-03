@@ -77,14 +77,12 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
-var rubyServer *rubyserver.Server
+var rubyServer = &rubyserver.Server{}
 
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	var err error
-	rubyServer, err = rubyserver.Start()
-	if err != nil {
+	if err := rubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
 	defer rubyServer.Stop()
