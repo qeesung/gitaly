@@ -335,3 +335,56 @@ func requireIsDir(t *testing.T, dir string) {
 	require.NoError(t, err)
 	require.True(t, fi.IsDir(), "%v is directory", dir)
 }
+
+func TestRenameNamespaceWithNonexistentParentDir(t *testing.T) {
+	server, serverSocketPath := runNamespaceServer(t)
+	defer server.Stop()
+
+	client, conn := newNamespaceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := client.AddNamespace(ctx, &gitalypb.AddNamespaceRequest{
+		StorageName: "default",
+		Name:        "existing",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		desc      string
+		request   *gitalypb.RenameNamespaceRequest
+		errorCode codes.Code
+	}{
+		{
+			desc: "existing source, non existing target directory",
+			request: &gitalypb.RenameNamespaceRequest{
+				From:        "existing",
+				To:          "some/other/new-path",
+				StorageName: "default",
+			},
+			errorCode: codes.OK,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err = client.RenameNamespace(ctx, &gitalypb.RenameNamespaceRequest{
+				From:        "existing",
+				To:          "some/other/new-path",
+				StorageName: "default"})
+			require.Equal(t, tc.errorCode, helper.GrpcCode(err))
+
+			if tc.errorCode == codes.OK {
+				storagePath, err := helper.GetStorageByName(tc.request.StorageName)
+				require.NoError(t, err)
+
+				toDir := namespacePath(storagePath, tc.request.GetTo())
+
+				requireIsDir(t, toDir)
+				require.NoError(t, os.RemoveAll(toDir))
+			}
+		})
+	}
+}
