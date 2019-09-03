@@ -20,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -37,7 +36,7 @@ func main() {
 
 	// If invoked with -version
 	if *flagVersion {
-		fmt.Println(version.GetVersionString())
+		fmt.Println(praefect.GetVersionString())
 		os.Exit(0)
 	}
 
