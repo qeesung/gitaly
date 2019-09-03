@@ -124,18 +124,17 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo models.Repository
 		return err
 	}
 
-	r.log.Infof(
-		"replication manager for targetNode %q created replication job with ID %d",
-		r.targetNode,
-		id,
-	)
+	r.log.WithFields(logrus.Fields{
+		logWithReplJobID: id,
+		"relative_path":  repo.RelativePath,
+	}).Info("replication job created")
 
 	return nil
 }
 
 const (
 	jobFetchInterval = 10 * time.Millisecond
-	logWithReplJobID = "replication-job-ID"
+	logWithReplJobID = "replication_job_id"
 )
 
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
@@ -153,7 +152,10 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 			}
 
 			if len(jobs) == 0 {
-				r.log.Tracef("no jobs for %d, checking again in %s", node.ID, jobFetchInterval)
+				r.log.WithFields(logrus.Fields{
+					"node_id":          node.ID,
+					"recheck_interval": jobFetchInterval,
+				}).Trace("no jobs")
 
 				select {
 				// TODO: exponential backoff when no queries are returned
@@ -166,8 +168,12 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 			}
 
 			for _, job := range jobs {
-				r.log.WithField(logWithReplJobID, job.ID).
-					Infof("processing replication job %#v", job)
+				r.log.WithFields(logrus.Fields{
+					logWithReplJobID: job.ID,
+					"from_storage":   job.SourceNode.Storage,
+					"to_storage":     job.TargetNode.Storage,
+					"relative_path":  job.Repository.RelativePath,
+				}).Info("processing replication job")
 
 				if err := r.datastore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
 					return err
