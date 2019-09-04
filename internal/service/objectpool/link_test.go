@@ -139,7 +139,7 @@ func TestLinkNoClobber(t *testing.T) {
 	require.NoError(t, pool.Create(ctx, testRepo))
 
 	alternatesFile := filepath.Join(testRepoPath, "objects/info/alternates")
-	testhelper.AssertFileNotExists(t, alternatesFile)
+	testhelper.AssertPathNotExists(t, alternatesFile)
 
 	contentBefore := "mock/objects\n"
 	require.NoError(t, ioutil.WriteFile(alternatesFile, []byte(contentBefore), 0644))
@@ -215,7 +215,7 @@ func TestUnlink(t *testing.T) {
 	require.NoError(t, pool.Link(ctx, deletedRepo))
 
 	removeDeletedRepo()
-	testhelper.AssertFileNotExists(t, deletedRepoPath)
+	testhelper.AssertPathNotExists(t, deletedRepoPath)
 
 	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)

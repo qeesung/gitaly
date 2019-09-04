@@ -57,7 +57,7 @@ func TestDisconnectGitAlternates(t *testing.T) {
 	// Check that the object can still be found, even though
 	// objects/info/alternates is gone. This is the purpose of
 	// DisconnectGitAlternates.
-	testhelper.AssertFileNotExists(t, altPath)
+	testhelper.AssertPathNotExists(t, altPath)
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "cat-file", "-e", existingObjectID)
 }
 
@@ -76,7 +76,7 @@ func TestDisconnectGitAlternatesNoAlternates(t *testing.T) {
 
 	altPath, err := git.InfoAlternatesPath(testRepo)
 	require.NoError(t, err, "find info/alternates")
-	testhelper.AssertFileNotExists(t, altPath)
+	testhelper.AssertPathNotExists(t, altPath)
 
 	_, err = client.DisconnectGitAlternates(ctx, &gitalypb.DisconnectGitAlternatesRequest{Repository: testRepo})
 	require.NoError(t, err, "call DisconnectGitAlternates on repository without alternates")

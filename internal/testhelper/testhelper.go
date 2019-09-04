@@ -472,8 +472,8 @@ func GetRepositoryRefs(t *testing.T, repoPath string) string {
 	return string(refs)
 }
 
-// AssertFileNotExists asserts true if the file doesn't exist, false otherwise
-func AssertFileNotExists(t *testing.T, path string) {
+// AssertPathNotExists asserts true if the path doesn't exist, false otherwise
+func AssertPathNotExists(t *testing.T, path string) {
 	_, err := os.Stat(path)
 	assert.True(t, os.IsNotExist(err), "file should not exist: %s", path)
 }

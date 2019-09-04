@@ -248,7 +248,7 @@ func TestRemoveNamespace(t *testing.T) {
 
 			if tc.errorCode == codes.OK {
 				require.Equal(t, existingStorage, tc.request.StorageName, "sanity check")
-				testhelper.AssertFileNotExists(t, filepath.Join(storageDir, tc.request.Name))
+				testhelper.AssertPathNotExists(t, filepath.Join(storageDir, tc.request.Name))
 			}
 		})
 	}
