@@ -54,7 +54,7 @@ func TestCleanupDeletesRefsLocks(t *testing.T) {
 
 	assert.FileExists(t, keepLockPath)
 
-	testhelper.AssertFileNotExists(t, deleteLockPath)
+	testhelper.AssertPathNotExists(t, deleteLockPath)
 }
 
 func TestCleanupDeletesPackedRefsLock(t *testing.T) {
@@ -118,7 +118,7 @@ func TestCleanupDeletesPackedRefsLock(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, c)
 
-				testhelper.AssertFileNotExists(t, lockPath)
+				testhelper.AssertPathNotExists(t, lockPath)
 			}
 		})
 	}
@@ -184,8 +184,8 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, c)
 
-				testhelper.AssertFileNotExists(t, worktreeCheckoutPath)
-				testhelper.AssertFileNotExists(t, worktreePath)
+				testhelper.AssertPathNotExists(t, worktreeCheckoutPath)
+				testhelper.AssertPathNotExists(t, worktreePath)
 			}
 		})
 	}
@@ -250,7 +250,7 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	// cleanup should prune the disconnected worktree administrative files
 	_, err = client.Cleanup(ctx, req)
 	require.NoError(t, err)
-	testhelper.AssertFileNotExists(t, worktreeAdminPath)
+	testhelper.AssertPathNotExists(t, worktreeAdminPath)
 
 	// if the worktree administrative files are pruned, then we should be able
 	// to checkout another worktree at the same path
@@ -288,6 +288,6 @@ func TestCleanupFileLocks(t *testing.T) {
 		createFileWithTimes(lockPath, oldTime)
 		_, err = client.Cleanup(ctx, req)
 		assert.NoError(t, err)
-		testhelper.AssertFileNotExists(t, lockPath)
+		testhelper.AssertPathNotExists(t, lockPath)
 	}
 }

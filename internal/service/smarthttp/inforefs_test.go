@@ -275,7 +275,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 
 	// if feature-flag is disabled, we should not find a cached response
 	assertNormalResponse()
-	testhelper.AssertFileNotExists(t, pathToCachedResponse(t, rpcRequest))
+	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, rpcRequest))
 
 	// enable feature flag, and we expect to find the cached response
 	ctx = enableCacheFeatureFlag(ctx)
@@ -322,7 +322,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 
 	_, err = makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, invalidReq)
 	testhelper.RequireGrpcError(t, err, codes.Internal)
-	testhelper.AssertFileNotExists(t, pathToCachedResponse(t, invalidReq))
+	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, invalidReq))
 }
 
 func createInvalidRepo(t testing.TB, repo *gitalypb.Repository) func() {

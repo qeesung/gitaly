@@ -217,5 +217,5 @@ func TestCreateRepositoryFromSnapshotHandlesMalformedResponse(t *testing.T) {
 	require.Nil(t, rsp)
 
 	// Ensure that a partial result is not left in place
-	testhelper.AssertFileNotExists(t, repoPath)
+	testhelper.AssertPathNotExists(t, repoPath)
 }

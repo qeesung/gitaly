@@ -90,7 +90,7 @@ func TestDiskCacheInitialClear(t *testing.T) {
 	// runs the move-and-clear function
 	require.NoError(t, config.Validate())
 
-	testhelper.AssertFileNotExists(t, canary)
+	testhelper.AssertPathNotExists(t, canary)
 }
 
 func setupDiskCacheWalker(t testing.TB) func() {
