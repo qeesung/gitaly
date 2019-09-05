@@ -151,9 +151,7 @@ func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceC
 
 		if info, err := os.Stat(attributesPath); err == nil {
 			actualFileMode := info.Mode()
-			if actualFileMode != attributesFileMode {
-				t.Errorf("Expected Permission of attributes file %s, found %s", attributesFileMode.String(), actualFileMode.String())
-			}
+			assert.Equal(t, attributesFileMode, actualFileMode)
 		}
 
 		assert.Equal(t, expectedContents, contents)
