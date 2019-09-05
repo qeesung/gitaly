@@ -149,6 +149,11 @@ func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceC
 			t.Error(err)
 		}
 
+		if info, err := os.Stat(attributesPath); err == nil {
+			actualFileMode := info.Mode()
+			assert.Equal(t, attributesFileMode, actualFileMode)
+		}
+
 		assert.Equal(t, expectedContents, contents)
 	}
 }
