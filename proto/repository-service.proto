@@ -242,6 +242,12 @@ service RepositoryService {
       target_repository_field: "1"
     };
   }
+  rpc RemoveRepository(RemoveRepositoryRequest) returns (RemoveRepositoryResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
 }
 
 message RepositoryExistsRequest {
@@ -633,4 +639,11 @@ message CloneFromPoolInternalRequest {
 }
 
 message CloneFromPoolInternalResponse {
+}
+
+message RemoveRepositoryRequest {
+  Repository repository = 1;
+}
+
+message RemoveRepositoryResponse {
 }

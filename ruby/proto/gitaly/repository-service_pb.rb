@@ -312,6 +312,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.CloneFromPoolInternalResponse" do
   end
+  add_message "gitaly.RemoveRepositoryRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+  end
+  add_message "gitaly.RemoveRepositoryResponse" do
+  end
 end
 
 module Gitaly
@@ -398,4 +403,6 @@ module Gitaly
   CloneFromPoolResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CloneFromPoolResponse").msgclass
   CloneFromPoolInternalRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CloneFromPoolInternalRequest").msgclass
   CloneFromPoolInternalResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CloneFromPoolInternalResponse").msgclass
+  RemoveRepositoryRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveRepositoryRequest").msgclass
+  RemoveRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveRepositoryResponse").msgclass
 end

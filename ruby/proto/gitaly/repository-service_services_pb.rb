@@ -53,6 +53,7 @@ module Gitaly
       rpc :GetObjectDirectorySize, GetObjectDirectorySizeRequest, GetObjectDirectorySizeResponse
       rpc :CloneFromPool, CloneFromPoolRequest, CloneFromPoolResponse
       rpc :CloneFromPoolInternal, CloneFromPoolInternalRequest, CloneFromPoolInternalResponse
+      rpc :RemoveRepository, RemoveRepositoryRequest, RemoveRepositoryResponse
     end
 
     Stub = Service.rpc_stub_class
