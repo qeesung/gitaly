@@ -19,7 +19,12 @@ def main(tag)
     abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
   end
 
-  gem = "gitaly-#{tag.sub(/^v/, '')}.gem"
+  unless version.match?(/v\d+\.\d+\.\d+/)
+    abort "Version string #{version.inspect} does not look like a Gitaly Release tag (e.g. \"v1.0.2\"). Aborting."
+  end
+
+  version = tag.sub(/^v/, '')
+  gem = "gitaly-#{version}.gem"
   abort "gem not found: #{gem}" unless File.exist?(gem)
 
   puts "Proceed to publish version #{tag}? Enter 'Yes' to continue; Ctrl-C to abort"
@@ -28,6 +33,13 @@ def main(tag)
 
   run!(%W[git push origin HEAD #{tag}])
   run!(%W[gem push #{gem}])
+
+  # If this tag is not a patch release, we want a stable branch to be created
+  return unless version.match?(/\.0\z/)
+
+  stable_branch = "#{version.gsub(/\.0\z/, '').gsub('.', '-')}-stable"
+  run!(%W[git branch #{stable_branch} #{tag}])
+  run!(%W[git push -u origin #{stable_branch}])
 end
 
 unless ARGV.count == 1
