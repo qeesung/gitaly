@@ -248,6 +248,12 @@ service RepositoryService {
       target_repository_field: "1"
     };
   }
+  rpc RenameRepository(RenameRepositoryRequest) returns (RenameRepositoryResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
 }
 
 message RepositoryExistsRequest {
@@ -646,4 +652,11 @@ message RemoveRepositoryRequest {
 }
 
 message RemoveRepositoryResponse {
+}
+message RenameRepositoryRequest {
+  Repository repository = 1;
+  string relative_path = 2;
+}
+
+message RenameRepositoryResponse{
 }

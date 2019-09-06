@@ -54,6 +54,7 @@ module Gitaly
       rpc :CloneFromPool, CloneFromPoolRequest, CloneFromPoolResponse
       rpc :CloneFromPoolInternal, CloneFromPoolInternalRequest, CloneFromPoolInternalResponse
       rpc :RemoveRepository, RemoveRepositoryRequest, RemoveRepositoryResponse
+      rpc :RenameRepository, RenameRepositoryRequest, RenameRepositoryResponse
     end
 
     Stub = Service.rpc_stub_class

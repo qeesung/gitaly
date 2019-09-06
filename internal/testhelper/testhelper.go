@@ -501,3 +501,8 @@ func TempDir(t *testing.T, dir, prefix string) (string, func() error) {
 		return os.RemoveAll(dirPath)
 	}
 }
+
+// MustReachGitObject is a test assertion that fails unless the git repo in repoPath contains sha
+func MustReachGitObject(t testing.TB, repoPath, sha string) {
+	MustRunCommand(t, nil, "git", "-C", repoPath, "cat-file", "-e", sha)
+}
