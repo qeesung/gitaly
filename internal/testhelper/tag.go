@@ -11,16 +11,19 @@ import (
 // CreateTagOpts holds extra options for CreateTag.
 type CreateTagOpts struct {
 	Message string
+	Force   bool
 }
 
 // CreateTag creates a new tag.
 func CreateTag(t *testing.T, repoPath, tagName, targetID string, opts *CreateTagOpts) string {
 	var message string
+	force := false
 
 	if opts != nil {
 		if opts.Message != "" {
 			message = opts.Message
 		}
+		force = opts.Force
 	}
 
 	committerName := "Scrooge McDuck"
@@ -34,6 +37,11 @@ func CreateTag(t *testing.T, repoPath, tagName, targetID string, opts *CreateTag
 		"-c", fmt.Sprintf("user.email=%s", committerEmail),
 		"tag",
 	}
+
+	if force {
+		args = append(args, "-f")
+	}
+
 	if message != "" {
 		args = append(args, "-F", "-")
 	}

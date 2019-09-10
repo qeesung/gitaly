@@ -26,7 +26,10 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 
 	remoteName := "remote_mirror_1"
 
-	testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "tag", "v0.0.1", "master") // I needed another tag for the tests
+	testhelper.CreateTag(t, mirrorPath, "v0.0.1", "master", nil) // I needed another tag for the tests
+	testhelper.CreateTag(t, testRepoPath, "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98", nil)
+	testhelper.CreateTag(t, testRepoPath, "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9", &testhelper.CreateTagOpts{
+		Message: "Overriding tag", Force: true})
 
 	setupCommands := [][]string{
 		// Preconditions
@@ -39,8 +42,6 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 		{"update-ref", "refs/heads/empty-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
 		{"branch", "-D", "not-merged-branch"},                                                 // Delete branch
 		// Scoped to the project, so will be removed after
-		{"tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98"},                          // Add tag
-		{"tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update tag
 		{"tag", "-d", "v0.0.1"}, // Delete tag
 	}
 
@@ -116,10 +117,12 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 		{"update-ref", "refs/heads/some-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
 		{"update-ref", "refs/heads/feature", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"},     // Update branch
 		// Scoped to the project, so will be removed after
-		{"branch", "-D", "not-merged-branch"},                                                   // Delete branch
-		{"tag", "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98"},                          // Add tag
-		{"tag", "-fam", "Overriding tag", "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update tag
+		{"branch", "-D", "not-merged-branch"}, // Delete branch
 	}
+
+	testhelper.CreateTag(t, testRepoPath, "new-tag", "60ecb67744cb56576c30214ff52294f8ce2def98", nil) // Add tag
+	testhelper.CreateTag(t, testRepoPath, "v1.0.0", "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
+		&testhelper.CreateTagOpts{Message: "Overriding tag", Force: true}) // Update tag
 
 	for _, args := range setupCommands {
 		gitArgs := []string{"-C", testRepoPath}
@@ -129,7 +132,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 
 	// Workaround for https://gitlab.com/gitlab-org/gitaly/issues/1439
 	// Create a tag on the remote to ensure it gets deleted later
-	testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "tag", "v1.2.0", "master")
+	testhelper.CreateTag(t, mirrorPath, "v1.2.0", "master", nil)
 
 	newTagOid := string(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "v1.0.0"))
 	newTagOid = strings.TrimSpace(newTagOid)
