@@ -18,7 +18,7 @@ type SubCmd struct {
 	PostSepArgs []string
 }
 
-var subCmdNameRegex = regexp.MustCompile(`[[:alnum:]]+(-[[:alnum:]]+)*$`)
+var subCmdNameRegex = regexp.MustCompile(`^[[:alnum:]]+(-[[:alnum:]]+)*$`)
 
 // ValidateArgs checks all arguments in the sub command and validates them
 func (sc SubCmd) ValidateArgs() ([]string, error) {
@@ -62,6 +62,7 @@ func (sc SubCmd) ValidateArgs() ([]string, error) {
 
 // Option is a git command line option with validation logic
 type Option interface {
+	IsOption()
 	ValidateArgs() ([]string, error)
 }
 
@@ -70,6 +71,9 @@ type Option interface {
 type Option1 struct {
 	Flag string
 }
+
+// IsOption is a method present on all Option interface implementations
+func (Option1) IsOption() {}
 
 // ValidateArgs returns an error if the option is not sanitary
 func (o1 Option1) ValidateArgs() ([]string, error) {
@@ -85,6 +89,9 @@ type Option2 struct {
 	Key   string
 	Value string
 }
+
+// IsOption is a method present on all Option interface implementations
+func (Option2) IsOption() {}
 
 // ValidateArgs returns an error if the option is not sanitary
 func (o2 Option2) ValidateArgs() ([]string, error) {
@@ -114,7 +121,7 @@ type invalidArgErr struct {
 	msg string
 }
 
-func (iae invalidArgErr) Error() string { return iae.msg }
+func (iae *invalidArgErr) Error() string { return iae.msg }
 
 // IsInvalidArgErr relays if the error is due to an argument validation failure
 func IsInvalidArgErr(err error) bool {
@@ -126,6 +133,12 @@ func validatePositionalArg(arg string) error {
 	if strings.HasPrefix(arg, "-") {
 		return &invalidArgErr{
 			msg: fmt.Sprintf("positional arg %q cannot start with dash '-'", arg),
+		}
+	}
+
+	if arg == "" {
+		return &invalidArgErr{
+			msg: fmt.Sprintf("argument cannot be blank"),
 		}
 	}
 	return nil
