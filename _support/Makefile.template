@@ -175,12 +175,16 @@ format: {{ .GoImports }}
 .PHONY: staticcheck
 staticcheck: {{ .StaticCheck }}
 	# staticcheck runs all default checks minus deprecations (SA1019)
-	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks '["all", "-ST1003", "-SA1019"]' -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
+	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks inherit,-SA1019 -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
 
 .PHONY: staticcheck-deprecations
 staticcheck-deprecations: {{ .StaticCheck }}
 	# Only returns deprecated code usage
-	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks '["SA1019"]' -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
+	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks SA1019 -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
+
+.PHONY: verify-warnings
+verify-warnings: staticcheck-deprecations
+	# Runs verification analysis that is okay to fail (but not ignore completely)
 
 # Install staticcheck
 {{ .StaticCheck }}:

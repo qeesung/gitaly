@@ -81,6 +81,13 @@ verify:
   script:
     - make verify
 
+verify-warnings:
+  <<: *ruby_definition
+  stage: test
+  script:
+    - make verify-warnings
+  allow_failure: true
+
 proto:
   <<: *ruby_definition
   stage: test
