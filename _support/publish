@@ -19,11 +19,12 @@ def main(tag)
     abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
   end
 
-  unless version.match?(/v\d+\.\d+\.\d+/)
+  version = tag.sub(/^v/, '')
+
+  unless version.match?(/\d+\.\d+\.\d+/)
     abort "Version string #{version.inspect} does not look like a Gitaly Release tag (e.g. \"v1.0.2\"). Aborting."
   end
 
-  version = tag.sub(/^v/, '')
   gem = "gitaly-#{version}.gem"
   abort "gem not found: #{gem}" unless File.exist?(gem)
 
