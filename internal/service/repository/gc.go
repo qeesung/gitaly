@@ -66,6 +66,10 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 		git.SubCmd{Name: "gc"},
 	)
 	if err != nil {
+		if git.IsInvalidArgErr(err) {
+			return helper.ErrInvalidArgumentf("GarbageCollect: gitCommand: %v", err)
+		}
+
 		if _, ok := status.FromError(err); ok {
 			return err
 		}
