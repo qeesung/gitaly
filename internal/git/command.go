@@ -11,6 +11,8 @@ import (
 )
 
 // Command creates a git.Command with the given args and Repository
+//
+// Deprecated: use git.SafeCmd instead
 func Command(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
@@ -22,6 +24,8 @@ func Command(ctx context.Context, repo repository.GitRepo, args ...string) (*com
 
 // StdinCommand creates a git.Command with the given args and Repository that is
 // suitable for Write()ing to
+//
+// Deprecated: Use git.SafeStdinCmd instead
 func StdinCommand(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
@@ -43,6 +47,8 @@ func argsAndEnv(repo repository.GitRepo, args ...string) ([]string, []string, er
 }
 
 // BareCommand creates a git.Command with the given args, stdin/stdout/stderr, and env
+//
+// Deprecated: use git.SafeBareCmd
 func BareCommand(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, args ...string) (*command.Command, error) {
 	env = append(env, command.GitEnv...)
 

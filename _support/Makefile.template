@@ -1,0 +1,285 @@
+# _build/Makefile
+#
+# This is an auto-generated Makefile. Do not edit. Do not invoke
+# directly, use ../Makefile instead. This file is generated using
+# makegen.go.
+#
+
+# These variables may be overridden at runtime by top-level make
+PREFIX ?= /usr/local
+INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
+BUNDLE_FLAGS ?= --deployment
+ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
+BUILD_TAGS := tracer_static tracer_static_jaeger
+
+unexport GOROOT
+export GOBIN = {{ .BuildDir }}/bin
+export GO111MODULE=on
+export GOPROXY ?= https://proxy.golang.org
+
+.NOTPARALLEL:
+
+.PHONY: all
+all: build
+
+{{ .Git2GoVendorDir }}/.ok:
+	rm -rf {{ .Git2GoVendorDir }} 
+	mkdir -p {{ .Git2GoVendorDir }}
+
+	cd {{ .Git2GoVendorDir }} && curl -L -o libgit2.tar.gz https://github.com/libgit2/libgit2/archive/v{{ .LibGit2Version }}.tar.gz
+	cd {{ .Git2GoVendorDir }} && echo '{{ .LibGit2SHA }}  libgit2.tar.gz' | shasum -a256 -c -
+	cd {{ .Git2GoVendorDir }} && tar -xvf libgit2.tar.gz
+	cd {{ .Git2GoVendorDir }} && mv libgit2-{{ .LibGit2Version }} libgit2
+
+	mkdir -p {{ .Git2GoVendorDir }}/libgit2/build
+	mkdir -p {{ .Git2GoVendorDir }}/libgit2/install/lib
+	cd {{ .Git2GoVendorDir }}/libgit2/build && cmake -DTHREADSAFE=ON -DBUILD_CLAR=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DCMAKE_INSTALL_PREFIX=../install ..
+	cd {{ .Git2GoVendorDir }}/libgit2/build && cmake --build .
+
+	touch $@
+
+.PHONY: build-gitaly-remote
+build-gitaly-remote: {{ .Git2GoVendorDir }}/.ok
+	cd {{ .SourceDir }} && go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS) static" {{ .GitalyRemotePackage }}
+
+.PHONY: test-gitaly-remote
+test-gitaly-remote: prepare-tests {{ .Git2GoVendorDir }}/.ok
+	@go test -tags "$(BUILD_TAGS) static" -count=1 {{ .GitalyRemotePackage }}
+
+.PHONY: build
+build: ../.ruby-bundle
+	# go install
+	@cd {{ .SourceDir }} && go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS)" {{ join .CommandPackages " " }}
+
+# This file is used by Omnibus and CNG to skip the "bundle install"
+# step. Both Omnibus and CNG assume it is in the Gitaly root, not in
+# _build. Hence the '../' in front.
+../.ruby-bundle:  {{ .GitalyRubyDir }}/Gemfile.lock  {{ .GitalyRubyDir }}/Gemfile
+	cd  {{ .GitalyRubyDir }} && bundle config # for debugging
+	cd  {{ .GitalyRubyDir }} && bundle install $(BUNDLE_FLAGS)
+	touch $@
+
+.PHONY: install
+install: build
+	mkdir -p $(INSTALL_DEST_DIR)
+	cd bin && install {{ join .Commands " " }} $(INSTALL_DEST_DIR)
+
+.PHONY: force-ruby-bundle
+force-ruby-bundle:
+	rm -f ../.ruby-bundle
+
+# Assembles all runtime components into a directory
+# Used by the GDK: run 'make assemble ASSEMBLY_ROOT=.../gitaly'
+.PHONY: assemble
+assemble: force-ruby-bundle build assemble-internal
+
+# assemble-internal does not force 'bundle install' to run again
+.PHONY: assemble-internal
+assemble-internal: assemble-ruby assemble-go
+
+.PHONY: assemble-go
+assemble-go: build
+	rm -rf $(ASSEMBLY_ROOT)/bin
+	mkdir -p $(ASSEMBLY_ROOT)/bin
+	cd bin && install {{ join .Commands " " }} $(ASSEMBLY_ROOT)/bin
+
+.PHONY: assemble-ruby
+assemble-ruby:
+	mkdir -p $(ASSEMBLY_ROOT)
+	rm -rf {{ .GitalyRubyDir }}/tmp {{ .GitlabShellDir }}/tmp
+	mkdir -p $(ASSEMBLY_ROOT)/ruby/
+	rsync -a --delete  {{ .GitalyRubyDir }}/ $(ASSEMBLY_ROOT)/ruby/
+	rm -rf $(ASSEMBLY_ROOT)/ruby/spec $(ASSEMBLY_ROOT)/{{ .GitlabShellRelDir }}/spec $(ASSEMBLY_ROOT)/{{ .GitlabShellRelDir }}/gitlab-shell.log
+
+binaries: assemble
+	@if [ $$(uname -m) != 'x86_64' ]; then echo Incorrect architecture for build: $(uname -m); exit 1; fi
+	@cd $(ASSEMBLY_ROOT) && shasum -a 256 bin/* | tee checksums.sha256.txt
+
+{{ .TestRepo }}:
+	git clone --bare --quiet https://gitlab.com/gitlab-org/gitlab-test.git $@
+	# Git notes aren't fetched by default with git clone
+	git -C $@ fetch origin refs/notes/*:refs/notes/*
+	rm -rf $@/refs
+	mkdir -p $@/refs/heads $@/refs/tags
+	cp {{ .SourceDir }}/_support/gitlab-test.git-packed-refs $@/packed-refs
+	git -C $@ fsck --no-progress
+
+{{ .GitTestRepo }}:
+	git clone --bare --quiet https://gitlab.com/gitlab-org/gitlab-git-test.git $@
+	rm -rf $@/refs
+	mkdir -p $@/refs/heads $@/refs/tags
+	cp {{ .SourceDir }}/_support/gitlab-git-test.git-packed-refs $@/packed-refs
+	git -C $@ fsck --no-progress
+
+.PHONY: prepare-tests
+prepare-tests: {{ .GitlabShellDir }}/config.yml {{ .TestRepo }} {{ .GitTestRepo }} ../.ruby-bundle
+
+{{ .GitlabShellDir }}/config.yml: {{ .GitlabShellDir }}/config.yml.example
+	cp $< $@
+
+.PHONY: test
+test: test-go rspec rspec-gitlab-shell
+
+.PHONY: test-go
+test-go: prepare-tests
+	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
+
+.PHONY: test-with-proxies
+test-with-proxies: prepare-tests
+	@cd {{ .SourceDir }} &&\
+		go test -tags "$(BUILD_TAGS)" -count=1  -exec {{ .SourceDir }}/_support/bad-proxies {{ .Pkg }}/internal/rubyserver/
+
+.PHONY: race-go
+race-go: prepare-tests
+	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }}
+
+.PHONY: rspec
+rspec: assemble-go prepare-tests
+	cd  {{ .GitalyRubyDir }} && bundle exec rspec
+
+.PHONY: rspec-gitlab-shell
+rspec-gitlab-shell: {{ .GitlabShellDir }}/config.yml assemble-go prepare-tests
+	# rspec in {{ .GitlabShellRelDir }}
+	@cd  {{ .GitalyRubyDir }} && bundle exec bin/ruby-cd {{ .GitlabShellDir }} rspec
+
+.PHONY: verify
+verify: check-mod-tidy lint check-formatting staticcheck notice-up-to-date check-proto rubocop
+
+.PHONY: check-mod-tidy
+check-mod-tidy:
+	# check-mod-tidy
+	@cd {{ .SourceDir }} && _support/check-mod-tidy
+
+.PHONY: lint
+lint: {{ .GoLint }}
+	# golint
+	@cd {{ .SourceDir }} && go run _support/lint.go
+
+{{ .GoLint }}:
+	go get golang.org/x/lint/golint@959b441ac422379a43da2230f62be024250818b0
+
+.PHONY: check-formatting
+check-formatting: {{ .GoImports }}
+	# goimports
+	@cd {{ .SourceDir }} && goimports -e -l {{ join .GoFiles " " }} | awk '{ print } END { if(NR>0) { print "Formatting error, run make format"; exit(1) } }'
+
+{{ .GoImports }}:
+	go get golang.org/x/tools/cmd/goimports@2538eef75904eff384a2551359968e40c207d9d2
+
+.PHONY: format
+format: {{ .GoImports }}
+	# In addition to fixing imports, goimports also formats your code in the same style as gofmt
+	# so it can be used as a replacement.
+	@cd {{ .SourceDir }} && goimports -w -l {{ join .GoFiles " " }}
+
+.PHONY: staticcheck
+staticcheck: {{ .StaticCheck }}
+	# staticcheck runs all default checks minus deprecations (SA1019)
+	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks inherit,-SA1019 -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
+
+.PHONY: staticcheck-deprecations
+staticcheck-deprecations: {{ .StaticCheck }}
+	# Only returns deprecated code usage
+	@cd {{ .SourceDir }} && {{ .StaticCheck }} -checks SA1019 -tags "$(BUILD_TAGS) static" {{ join .AllPackages " " }}
+
+.PHONY: verify-warnings
+verify-warnings: staticcheck-deprecations
+	# Runs verification analysis that is okay to fail (but not ignore completely)
+
+# Install staticcheck
+{{ .StaticCheck }}:
+	go get honnef.co/go/tools/cmd/staticcheck@95959eaf5e3c41c66151dcfd91779616b84077a8
+
+{{ .GoVendor }}:
+	go get github.com/kardianos/govendor@e07957427183a9892f35634ffc9ea48dedc6bbb4
+
+.PHONY: notice-up-to-date
+notice-up-to-date: notice-tmp
+	# notice-up-to-date
+	@(cmp {{ .BuildDir }}/NOTICE {{ .SourceDir }}/NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
+
+.PHONY: notice
+notice: notice-tmp
+	mv {{ .BuildDir }}/NOTICE {{ .SourceDir }}/NOTICE
+
+.PHONY: notice-tmp
+notice-tmp: {{ .GoVendor }} clean-ruby-vendor-go
+	rm -rf {{ .SourceDir }}/vendor
+	cd {{ .SourceDir }} && go mod vendor
+	cd {{ .GopathSourceDir }} && env GOPATH={{ .BuildDir }} GO111MODULE=off govendor license -template _support/notice.template -o {{ .BuildDir }}/NOTICE
+
+.PHONY: clean-ruby-vendor-go
+clean-ruby-vendor-go:
+	cd {{ .SourceDir }} && mkdir -p ruby/vendor && find ruby/vendor -type f -name '*.go' -delete
+
+.PHONY: check-proto
+check-proto: proto no-changes
+
+.PHONY: rubocop
+rubocop: ../.ruby-bundle
+	cd  {{ .GitalyRubyDir }} && bundle exec rubocop --parallel
+
+.PHONY: cover
+cover: prepare-tests {{ .GoCovMerge }}
+	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
+	mkdir -p "{{ .CoverageDir }}"
+	rm -f {{ .CoverageDir }}/*.out "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
+	@cd {{ .SourceDir }} && go run _support/test-cover-parallel.go {{ .CoverageDir }} {{ join .AllPackages " " }}
+	{{ .GoCovMerge }} {{ .CoverageDir }}/*.out > "{{ .CoverageDir }}/all.merged"
+	@cd {{ .SourceDir }} && go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
+	@echo ""
+	@echo "=====> Total test coverage: <====="
+	@echo ""
+	@@cd {{ .SourceDir }} && go tool cover -func "{{ .CoverageDir }}/all.merged"
+
+{{ .GoCovMerge }}:
+	go get github.com/wadey/gocovmerge@b5bfa59ec0adc420475f97f89b58045c721d761c
+
+.PHONY: docker
+docker:
+	rm -rf docker/
+	mkdir -p docker/bin/
+	rm -rf  {{ .GitalyRubyDir }}/tmp
+	cp -r  {{ .GitalyRubyDir }} docker/ruby
+	rm -rf docker/ruby/vendor/bundle
+{{ $pkg := .Pkg }}
+{{ $goLdFlags := .GoLdFlags }}
+{{ range $cmd := .Commands }}
+	GOOS=linux GOARCH=amd64 go build -tags "$(BUILD_TAGS)" {{ $goLdFlags }} -o "docker/bin/{{ $cmd }}" {{ $pkg }}/cmd/{{ $cmd }}
+{{ end }}
+	cp {{ .SourceDir }}/Dockerfile docker/
+	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
+
+.PHONY: proto
+proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
+	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
+	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
+	cd {{ .SourceDir }} && _support/generate-proto-ruby
+
+{{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
+	mkdir -p {{ .BuildDir }}/protoc
+	cd {{ .BuildDir }}/protoc && unzip {{ .BuildDir }}/protoc.zip
+	touch $@
+
+{{ .BuildDir }}/protoc.zip:
+	curl -o $@.tmp --silent -L {{ .ProtoCURL }}
+	printf '{{ .ProtoCSHA256 }}  $@.tmp' | shasum -a256 -c -
+	mv $@.tmp $@
+
+{{ .ProtoCGenGo }}:
+	go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
+
+{{ .ProtoCGenGitaly }}:
+	# Todo fix protoc-gen-gitaly versioning
+	go install gitlab.com/gitlab-org/gitaly-proto/go/internal/cmd/protoc-gen-gitaly
+
+{{ .GrpcToolsRuby }}:
+	gem install --bindir {{ .BuildDir }}/bin -v 1.0.1 grpc-tools
+
+no-changes:
+	# looking for changed files
+	@cd {{ .SourceDir }} && git status --porcelain | awk '{ print } END { if (NR > 0) { exit 1 } }'
+
+smoke-test: all rspec
+	@cd {{ .SourceDir }} && go test ./internal/rubyserver

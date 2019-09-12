@@ -68,6 +68,10 @@ rspec-gitlab-shell: prepare-build
 verify: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
 
+.PHONY: verify-warnings
+verify-warnings: prepare-build
+	cd $(BUILD_DIR) && $(MAKE) $@
+
 .PHONY: format
 format: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
