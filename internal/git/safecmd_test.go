@@ -107,19 +107,46 @@ func TestSafeCmdValid(t *testing.T) {
 		expectArgs []string
 	}{
 		{
-			globals: []git.Option{git.Option1{"-a"}},
-			subCmd: git.SubCmd{
-				Name:        "b",
-				Options:     []git.Option{git.Option2{"-c", "d"}},
-				Args:        []string{"e"},
-				PostSepArgs: []string{"f", "g"},
+			subCmd:     git.SubCmd{Name: "meow"},
+			expectArgs: []string{"meow"},
+		},
+		{
+			globals: []git.Option{
+				git.Option1{"--aaaa-bbbb"},
 			},
-			expectArgs: []string{"-a", "b", "-c", "d", "e", "--", "f", "g"},
+			subCmd:     git.SubCmd{Name: "cccc"},
+			expectArgs: []string{"--aaaa-bbbb", "cccc"},
+		},
+		{
+			globals: []git.Option{
+				git.Option1{"-a"},
+				git.Option2{"-b", "c"},
+			},
+			subCmd: git.SubCmd{
+				Name:        "d",
+				Options:     []git.Option{git.Option2{"-e", "f"}},
+				Args:        []string{"g", "h"},
+				PostSepArgs: []string{"i", "j"},
+			},
+			expectArgs: []string{"-a", "-b", "c", "d", "-e", "f", "g", "h", "--", "i", "j"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)
 		require.NoError(t, err)
-		// ignore first 3 indeterministic args (executable and repo args)
+		// ignore first 3 indeterministic args (executable path and repo args)
 		require.Equal(t, tt.expectArgs, cmd.Args()[3:])
+
+		cmd, err = git.SafeStdinCmd(ctx, testRepo, tt.globals, tt.subCmd)
+		require.NoError(t, err)
+		require.Equal(t, tt.expectArgs, cmd.Args()[3:])
+
+		cmd, err = git.SafeBareCmd(ctx, nil, nil, nil, nil, tt.globals, tt.subCmd)
+		require.NoError(t, err)
+		// ignore first indeterministic arg (executable path)
+		require.Equal(t, tt.expectArgs, cmd.Args()[1:])
+
+		cmd, err = git.SafeCmdWithoutRepo(ctx, tt.globals, tt.subCmd)
+		require.NoError(t, err)
+		require.Equal(t, tt.expectArgs, cmd.Args()[1:])
 	}
 }

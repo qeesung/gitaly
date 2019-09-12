@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -153,8 +154,52 @@ func validateFlag(flag string) error {
 	return nil
 }
 
-// SafeCmd validates the arguments in the command before executing
+// SafeCmd creates a git.Command with the given args and Repository. It
+// validates the arguments in the command before executing.
 func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc SubCmd) (*command.Command, error) {
+	args, err := combineArgs(globals, sc)
+	if err != nil {
+		return nil, err
+	}
+
+	return Command(ctx, repo, args...)
+}
+
+// SafeBareCmd creates a git.Command with the given args, stdin/stdout/stderr,
+// and env. It validates the arguments in the command before executing.
+func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, globals []Option, sc SubCmd) (*command.Command, error) {
+	args, err := combineArgs(globals, sc)
+	if err != nil {
+		return nil, err
+	}
+
+	return BareCommand(ctx, stdin, stdout, stderr, env, args...)
+}
+
+// SafeStdinCmd creates a git.Command with the given args and Repository that is
+// suitable for Write()ing to. It validates the arguments in the command before
+// executing.
+func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc SubCmd) (*command.Command, error) {
+	args, err := combineArgs(globals, sc)
+	if err != nil {
+		return nil, err
+	}
+
+	return StdinCommand(ctx, repo, args...)
+}
+
+// SafeCmdWithoutRepo works like Command but without a git repository. It
+// validates the arugments in the command before executing.
+func SafeCmdWithoutRepo(ctx context.Context, globals []Option, sc SubCmd) (*command.Command, error) {
+	args, err := combineArgs(globals, sc)
+	if err != nil {
+		return nil, err
+	}
+
+	return CommandWithoutRepo(ctx, args...)
+}
+
+func combineArgs(globals []Option, sc SubCmd) ([]string, error) {
 	var args []string
 
 	for _, g := range globals {
@@ -170,7 +215,5 @@ func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc 
 		return nil, err
 	}
 
-	args = append(args, scArgs...)
-
-	return Command(ctx, repo, args...)
+	return append(args, scArgs...), nil
 }
