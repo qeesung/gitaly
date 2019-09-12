@@ -10,31 +10,31 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-func TestOptionValidation(t *testing.T) {
+func TestFlagValidation(t *testing.T) {
 	for _, tt := range []struct {
-		option git.Option
+		option git.Flag
 		valid  bool
 	}{
-		// valid Option1 inputs
-		{option: git.Option1{"-k"}, valid: true},
-		{option: git.Option1{"-K"}, valid: true},
-		{option: git.Option1{"--asdf"}, valid: true},
-		{option: git.Option1{"--asdf-qwer"}, valid: true},
+		// valid Flag1 inputs
+		{option: git.Flag1{"-k"}, valid: true},
+		{option: git.Flag1{"-K"}, valid: true},
+		{option: git.Flag1{"--asdf"}, valid: true},
+		{option: git.Flag1{"--asdf-qwer"}, valid: true},
 
-		// valid Option2 inputs
-		{option: git.Option2{"-k", "adsf"}, valid: true},
-		{option: git.Option2{"-k", "--anything"}, valid: true},
+		// valid Flag2 inputs
+		{option: git.Flag2{"-k", "adsf"}, valid: true},
+		{option: git.Flag2{"-k", "--anything"}, valid: true},
 
-		// invalid Option1 inputs
-		{option: git.Option1{"-aa"}},      // too many chars for single dash
-		{option: git.Option1{"-*"}},       // invalid character
-		{option: git.Option1{"a"}},        // missing dash
-		{option: git.Option1{"--a--b"}},   // too many consecutive interior dashes
-		{option: git.Option1{"--asdf-"}},  // trailing dash
-		{option: git.Option1{"--as-df-"}}, // trailing dash
+		// invalid Flag1 inputs
+		{option: git.Flag1{"-aa"}},      // too many chars for single dash
+		{option: git.Flag1{"-*"}},       // invalid character
+		{option: git.Flag1{"a"}},        // missing dash
+		{option: git.Flag1{"--a--b"}},   // too many consecutive interior dashes
+		{option: git.Flag1{"--asdf-"}},  // trailing dash
+		{option: git.Flag1{"--as-df-"}}, // trailing dash
 
-		// invalid Option2 inputs
-		{option: git.Option2{"-k", ""}}, // missing/empty value
+		// invalid Flag2 inputs
+		{option: git.Flag2{"-k", ""}}, // missing/empty value
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -49,12 +49,12 @@ func TestOptionValidation(t *testing.T) {
 
 func TestSafeCmdInvalidArg(t *testing.T) {
 	for _, tt := range []struct {
-		globals []git.Option
+		globals []git.Flag
 		subCmd  git.SubCmd
 		errMsg  string
 	}{
 		{
-			globals: []git.Option{git.Option1{"-ks"}},
+			globals: []git.Flag{git.Flag1{"-ks"}},
 			errMsg:  "flag \"-ks\" failed regex validation",
 		},
 		{
@@ -63,8 +63,8 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		},
 		{
 			subCmd: git.SubCmd{
-				Name:    "meow",
-				Options: []git.Option{git.Option1{"woof"}},
+				Name:  "meow",
+				Flags: []git.Flag{git.Flag1{"woof"}},
 			},
 			errMsg: "flag \"woof\" failed regex validation",
 		},
@@ -102,7 +102,7 @@ func TestSafeCmdValid(t *testing.T) {
 	defer cancel()
 
 	for _, tt := range []struct {
-		globals    []git.Option
+		globals    []git.Flag
 		subCmd     git.SubCmd
 		expectArgs []string
 	}{
@@ -111,20 +111,20 @@ func TestSafeCmdValid(t *testing.T) {
 			expectArgs: []string{"meow"},
 		},
 		{
-			globals: []git.Option{
-				git.Option1{"--aaaa-bbbb"},
+			globals: []git.Flag{
+				git.Flag1{"--aaaa-bbbb"},
 			},
 			subCmd:     git.SubCmd{Name: "cccc"},
 			expectArgs: []string{"--aaaa-bbbb", "cccc"},
 		},
 		{
-			globals: []git.Option{
-				git.Option1{"-a"},
-				git.Option2{"-b", "c"},
+			globals: []git.Flag{
+				git.Flag1{"-a"},
+				git.Flag2{"-b", "c"},
 			},
 			subCmd: git.SubCmd{
 				Name:        "d",
-				Options:     []git.Option{git.Option2{"-e", "f"}},
+				Flags:       []git.Flag{git.Flag2{"-e", "f"}},
 				Args:        []string{"g", "h"},
 				PostSepArgs: []string{"i", "j"},
 			},
