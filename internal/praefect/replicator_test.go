@@ -14,10 +14,12 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func TestReplicate(t *testing.T) {
@@ -68,6 +70,8 @@ func TestReplicate(t *testing.T) {
 	require.NoError(t, err)
 
 	var replicator defaultReplicator
+	replicator.log = gitalylog.Default()
+
 	require.NoError(t, replicator.Replicate(
 		ctx,
 		ReplJob{
@@ -82,10 +86,47 @@ func TestReplicate(t *testing.T) {
 			},
 		},
 		conn,
+		conn,
 	))
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)
+}
+
+func TestConfirmReplication(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	srv, srvSocketPath := runFullGitalyServer(t)
+	defer srv.Stop()
+
+	testRepoA, testRepoAPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	testRepoB, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(testhelper.RepositoryAuthToken)),
+	}
+	conn, err := grpc.Dial(srvSocketPath, connOpts...)
+	require.NoError(t, err)
+
+	var replicator defaultReplicator
+	replicator.log = gitalylog.Default()
+
+	equal, err := replicator.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(conn), gitalypb.NewRepositoryServiceClient(conn), testRepoA, testRepoB)
+	require.NoError(t, err)
+	require.True(t, equal)
+
+	testhelper.CreateCommit(t, testRepoAPath, "master", &testhelper.CreateCommitOpts{
+		Message: "a commit",
+	})
+
+	equal, err = replicator.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(conn), gitalypb.NewRepositoryServiceClient(conn), testRepoA, testRepoB)
+	require.NoError(t, err)
+	require.False(t, equal)
 }
 
 func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {

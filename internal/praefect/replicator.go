@@ -5,24 +5,25 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc"
-
-	"github.com/sirupsen/logrus"
 )
 
 // Replicator performs the actual replication logic between two nodes
 type Replicator interface {
-	Replicate(ctx context.Context, job ReplJob, target *grpc.ClientConn) error
+	Replicate(ctx context.Context, job ReplJob, source, target *grpc.ClientConn) error
 }
 
 type defaultReplicator struct {
 	log *logrus.Entry
 }
 
-func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, targetCC *grpc.ClientConn) error {
+func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	repository := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -49,6 +50,20 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, targetCC
 	}); err != nil {
 		return err
 	}
+
+	checksumsMatch, err := dr.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(sourceCC), repositoryClient, remoteRepository, repository)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Do something meaninful with the result of confirmChecksums if checksums do not match
+	if !checksumsMatch {
+		dr.log.WithFields(logrus.Fields{
+			"primary": remoteRepository,
+			"replica": repository,
+		}).Error("checksums do not match")
+	}
+
 	// TODO: ensure attribute files are synced
 	// https://gitlab.com/gitlab-org/gitaly/issues/1655
 
@@ -56,6 +71,42 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, targetCC
 	// https://gitlab.com/gitlab-org/gitaly/issues/1674
 
 	return nil
+}
+
+func getChecksumFunc(ctx context.Context, client gitalypb.RepositoryServiceClient, repo *gitalypb.Repository, checksum *string) func() error {
+	return func() error {
+		primaryChecksumRes, err := client.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{
+			Repository: repo,
+		})
+		if err != nil {
+			return err
+		}
+		*checksum = primaryChecksumRes.GetChecksum()
+		return nil
+	}
+}
+
+func (dr defaultReplicator) confirmChecksums(ctx context.Context, primaryClient, replicaClient gitalypb.RepositoryServiceClient, primary, replica *gitalypb.Repository) (bool, error) {
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	var primaryChecksum, replicaChecksum string
+
+	g.Go(getChecksumFunc(gCtx, primaryClient, primary, &primaryChecksum))
+	g.Go(getChecksumFunc(gCtx, replicaClient, replica, &replicaChecksum))
+
+	if err := g.Wait(); err != nil {
+		return false, err
+	}
+
+	dr.log.WithFields(logrus.Fields{
+		"primary":          primary,
+		"replica":          replica,
+		"primary_checksum": primaryChecksum,
+		"replica_checksum": replicaChecksum,
+	}).Info("replication finished")
+
+	return primaryChecksum == replicaChecksum, nil
 }
 
 // ReplMgr is a replication manager for handling replication jobs
@@ -184,12 +235,17 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 					return err
 				}
 
-				cc, err := r.coordinator.GetConnection(job.TargetNode.Storage)
+				targetCC, err := r.coordinator.GetConnection(job.TargetNode.Storage)
 				if err != nil {
 					return err
 				}
 
-				if err := r.replicator.Replicate(ctx, job, cc); err != nil {
+				sourceCC, err := r.coordinator.GetConnection(job.Repository.Primary.Storage)
+				if err != nil {
+					return err
+				}
+
+				if err := r.replicator.Replicate(ctx, job, sourceCC, targetCC); err != nil {
 					r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
 					return err
 				}
