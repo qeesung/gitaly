@@ -25,6 +25,10 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.Flag2{"-k", "adsf"}, valid: true},
 		{option: git.Flag2{"-k", "--anything"}, valid: true},
 
+		// valid FlagCombo inputs
+		{option: git.FlagCombo{"--asdf=qwerty"}, valid: true},
+		{option: git.FlagCombo{"-D=A"}, valid: true},
+
 		// invalid Flag1 inputs
 		{option: git.Flag1{"-aa"}},      // too many chars for single dash
 		{option: git.Flag1{"-*"}},       // invalid character
@@ -35,6 +39,12 @@ func TestFlagValidation(t *testing.T) {
 
 		// invalid Flag2 inputs
 		{option: git.Flag2{"-k", ""}}, // missing/empty value
+
+		// invalid FlagCombo inputs
+		{option: git.FlagCombo{"asdf=qwerty"}}, // missing dash
+		{option: git.FlagCombo{"--asdf="}},     // value cannot be empty
+		{option: git.FlagCombo{"-D="}},         // value cannot be empty
+		{option: git.FlagCombo{"-asdfqwerty"}}, // missing '='
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -82,6 +92,13 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 			},
 			errMsg: "positional arg \"--oink\" cannot start with dash '-'",
 		},
+		{
+			subCmd: git.SubCmd{
+				Name:  "meow",
+				Flags: []git.Flag{git.FlagCombo{"--animal="}},
+			},
+			errMsg: "combination flag \"--animal=\" failed validation",
+		},
 	} {
 		_, err := git.SafeCmd(
 			context.Background(),
@@ -123,12 +140,16 @@ func TestSafeCmdValid(t *testing.T) {
 				git.Flag2{"-b", "c"},
 			},
 			subCmd: git.SubCmd{
-				Name:        "d",
-				Flags:       []git.Flag{git.Flag2{"-e", "f"}},
-				Args:        []string{"g", "h"},
-				PostSepArgs: []string{"i", "j"},
+				Name: "d",
+				Flags: []git.Flag{
+					git.Flag1{"-e"},
+					git.Flag2{"-f", "g"},
+					git.FlagCombo{"-h=i"},
+				},
+				Args:        []string{"1", "2"},
+				PostSepArgs: []string{"3", "4", "5"},
 			},
-			expectArgs: []string{"-a", "-b", "c", "d", "-e", "f", "g", "h", "--", "i", "j"},
+			expectArgs: []string{"-a", "-b", "c", "d", "-e", "-f", "g", "-h=i", "1", "2", "--", "3", "4", "5"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)

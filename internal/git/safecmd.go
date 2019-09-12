@@ -118,6 +118,30 @@ var flagRegex = regexp.MustCompile(
 	`^((-[[:alnum:]])|(--[[:alnum:]]+(-[[:alnum:]]+)*))$`,
 )
 
+var flagComboRegex = regexp.MustCompile(
+	`^((-[[:alnum:]])|(--[[:alnum:]]+(-[[:alnum:]]+)*))=(.+)$`,
+)
+
+// FlagCombo is an optional command line argument comprised of a single token
+// that contains both a flag name and value separated by an equal character
+// (e.g. "--date=local")
+type FlagCombo struct {
+	NameValue string
+}
+
+// IsFlag is a method present on all Flag interface implementations
+func (FlagCombo) IsFlag() {}
+
+// ValidateArgs returns an error if the flag is not sanitary
+func (fc FlagCombo) ValidateArgs() ([]string, error) {
+	if !flagComboRegex.MatchString(fc.NameValue) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("combination flag %q failed validation", fc.NameValue),
+		}
+	}
+	return []string{fc.NameValue}, nil
+}
+
 type invalidArgErr struct {
 	msg string
 }
