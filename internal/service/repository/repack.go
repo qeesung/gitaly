@@ -27,10 +27,10 @@ func init() {
 }
 
 func (server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
-	options := []git.Option{
-		git.Option1{"-A"},
-		git.Option1{"--pack-kept-objects"},
-		git.Option1{"-l"},
+	options := []git.Flag{
+		git.Flag1{"-A"},
+		git.Flag1{"--pack-kept-objects"},
+		git.Flag1{"-l"},
 	}
 	if err := repackCommand(ctx, in.GetRepository(), in.GetCreateBitmap(), options...); err != nil {
 		return nil, err
@@ -45,12 +45,12 @@ func (server) RepackIncremental(ctx context.Context, in *gitalypb.RepackIncremen
 	return &gitalypb.RepackIncrementalResponse{}, nil
 }
 
-func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, args ...git.Option) error {
+func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, args ...git.Flag) error {
 	cmd, err := git.SafeCmd(ctx, repo,
 		repackConfig(ctx, bitmap), // global configs
 		git.SubCmd{
-			Name:    "repack",
-			Options: append([]git.Option{git.Option1{"-d"}}, args...),
+			Name:  "repack",
+			Flags: append([]git.Flag{git.Flag1{"-d"}}, args...),
 		},
 	)
 	if err != nil {
@@ -67,18 +67,18 @@ func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, ar
 	return nil
 }
 
-func repackConfig(ctx context.Context, bitmap bool) []git.Option {
-	args := []git.Option{
-		git.Option2{"-c", "pack.island=refs/heads"},
-		git.Option2{"-c", "pack.island=refs/tags"},
-		git.Option2{"-c", "repack.useDeltaIslands=true"},
+func repackConfig(ctx context.Context, bitmap bool) []git.Flag {
+	args := []git.Flag{
+		git.Flag2{"-c", "pack.island=refs/heads"},
+		git.Flag2{"-c", "pack.island=refs/tags"},
+		git.Flag2{"-c", "repack.useDeltaIslands=true"},
 	}
 
 	if bitmap {
-		args = append(args, git.Option2{"-c", "repack.writeBitmaps=true"})
-		args = append(args, git.Option2{"-c", "pack.writeBitmapHashCache=true"})
+		args = append(args, git.Flag2{"-c", "repack.writeBitmaps=true"})
+		args = append(args, git.Flag2{"-c", "pack.writeBitmapHashCache=true"})
 	} else {
-		args = append(args, git.Option2{"-c", "repack.writeBitmaps=false"})
+		args = append(args, git.Flag2{"-c", "repack.writeBitmaps=false"})
 	}
 
 	repackCounter.WithLabelValues(fmt.Sprint(bitmap)).Inc()
