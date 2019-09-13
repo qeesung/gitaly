@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -13,6 +14,42 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
+
+var (
+	replicationLatency = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: "gitaly",
+			Subsystem: "praefect",
+			Name:      "replication_latency",
+			Buckets:   prometheus.LinearBuckets(0, 100, 100),
+		},
+	)
+
+	replicationJobsInFlight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "gitaly",
+			Subsystem: "praefect",
+			Name:      "replication_jobs",
+		},
+	)
+
+	recordReplicationLatency = func(d float64) {
+		go replicationLatency.Observe(d)
+	}
+
+	incReplicationJobsInFlight = func() {
+		go replicationJobsInFlight.Inc()
+	}
+
+	decReplicationJobsInFlight = func() {
+		go replicationJobsInFlight.Dec()
+	}
+)
+
+func init() {
+	prometheus.MustRegister(replicationLatency)
+	prometheus.MustRegister(replicationJobsInFlight)
+}
 
 // Replicator performs the actual replication logic between two nodes
 type Replicator interface {
@@ -225,35 +262,53 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 					"to_storage":     job.TargetNode.Storage,
 					"relative_path":  job.Repository.RelativePath,
 				}).Info("processing replication job")
-
-				if err := r.datastore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
-					return err
-				}
-
-				ctx, err = helper.InjectGitalyServers(ctx, job.Repository.Primary.Storage, job.SourceNode.Address, "")
-				if err != nil {
-					return err
-				}
-
-				targetCC, err := r.coordinator.GetConnection(job.TargetNode.Storage)
-				if err != nil {
-					return err
-				}
-
-				sourceCC, err := r.coordinator.GetConnection(job.Repository.Primary.Storage)
-				if err != nil {
-					return err
-				}
-
-				if err := r.replicator.Replicate(ctx, job, sourceCC, targetCC); err != nil {
-					r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
-					return err
-				}
-
-				if err := r.datastore.UpdateReplJob(job.ID, JobStateComplete); err != nil {
+				if err := r.processReplJob(ctx, job); err != nil {
 					return err
 				}
 			}
 		}
 	}
+}
+
+func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) error {
+	if err := r.datastore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
+		return err
+	}
+
+	targetCC, err := r.coordinator.GetConnection(job.TargetNode.Storage)
+	if err != nil {
+		return err
+	}
+
+	sourceCC, err := r.coordinator.GetConnection(job.Repository.Primary.Storage)
+	if err != nil {
+		return err
+	}
+
+	if err := r.replicator.Replicate(ctx, job, sourceCC, targetCC); err != nil {
+		r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
+		return err
+	}
+	injectedCtx, err := helper.InjectGitalyServers(ctx, job.Repository.Primary.Storage, job.SourceNode.Address, "")
+	if err != nil {
+		return err
+	}
+
+	replStart := time.Now()
+	incReplicationJobsInFlight()
+	defer decReplicationJobsInFlight()
+
+	if err := r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC); err != nil {
+		r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
+		return err
+	}
+
+	replDuration := time.Since(replStart)
+	recordReplicationLatency(float64(replDuration / time.Millisecond))
+
+	if err := r.datastore.UpdateReplJob(job.ID, JobStateComplete); err != nil {
+		return err
+	}
+	return nil
+
 }
