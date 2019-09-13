@@ -36,6 +36,8 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.Flag1{"--a--b"}},   // too many consecutive interior dashes
 		{option: git.Flag1{"--asdf-"}},  // trailing dash
 		{option: git.Flag1{"--as-df-"}}, // trailing dash
+		{option: git.Flag1{"[["}},       // suspicious characters
+		{option: git.Flag1{"||"}},       // suspicious characters
 
 		// invalid Flag2 inputs
 		{option: git.Flag2{"-k", ""}}, // missing/empty value
