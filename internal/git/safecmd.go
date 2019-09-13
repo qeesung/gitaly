@@ -13,10 +13,10 @@ import (
 
 // SubCmd represents a specific git command
 type SubCmd struct {
-	Name        string
-	Flags       []Flag
-	Args        []string
-	PostSepArgs []string
+	Name        string   // e.g. "log", or "cat-file", or "worktree"
+	Flags       []Flag   // optional flags before the positional args
+	Args        []string // positional args after all flags
+	PostSepArgs []string // post separator (i.e. "--") positional args
 }
 
 var subCmdNameRegex = regexp.MustCompile(`^[[:alnum:]]+(-[[:alnum:]]+)*$`)
