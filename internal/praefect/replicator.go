@@ -285,11 +285,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) error {
 		return err
 	}
 
-	if err := r.replicator.Replicate(ctx, job, sourceCC, targetCC); err != nil {
-		r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
-		return err
-	}
-	injectedCtx, err := helper.InjectGitalyServers(ctx, job.Repository.Primary.Storage, job.SourceNode.Address, "")
+	injectedCtx, err := helper.InjectGitalyServers(ctx, job.Repository.Primary.Storage, job.SourceNode.Address, job.SourceNode.Token)
 	if err != nil {
 		return err
 	}
