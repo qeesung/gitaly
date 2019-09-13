@@ -107,6 +107,7 @@ func (f2 Flag2) ValidateArgs() ([]string, error) {
 
 // flagRegex makes sure that a flag follows these rules:
 // 1. Can be a short flag (e.g. "-L" or "-a")
+// 1.1 Short flags cannot be combined (e.g. "-aBc")
 // 2. Can be a long flag (e.g. "--long-flag")
 // 2.1 Long flags cannot end with a dash. Interior dashes cannot repeat more
 //     than once consecutively.
