@@ -51,12 +51,8 @@ func (sc SubCmd) ValidateArgs() ([]string, error) {
 		safeArgs = append(safeArgs, "--")
 	}
 
-	for _, a := range sc.PostSepArgs {
-		if err := validatePositionalArg(a); err != nil {
-			return nil, err
-		}
-		safeArgs = append(safeArgs, a)
-	}
+	// post separator args do not need any validation
+	safeArgs = append(safeArgs, sc.PostSepArgs...)
 
 	return safeArgs, nil
 }

@@ -87,13 +87,6 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		},
 		{
 			subCmd: git.SubCmd{
-				Name:        "meow",
-				PostSepArgs: []string{"--oink"},
-			},
-			errMsg: "positional arg \"--oink\" cannot start with dash '-'",
-		},
-		{
-			subCmd: git.SubCmd{
 				Name:  "meow",
 				Flags: []git.Flag{git.FlagCombo{"--animal="}},
 			},
