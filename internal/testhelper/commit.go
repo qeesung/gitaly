@@ -19,6 +19,11 @@ type CreateCommitOpts struct {
 	ParentID string
 }
 
+const (
+	committerName  = "Scrooge McDuck"
+	committerEmail = "scrooge@mcduck.com"
+)
+
 // CreateCommit makes a new empty commit and updates the named branch to point to it.
 func CreateCommit(t *testing.T, repoPath, branchName string, opts *CreateCommitOpts) string {
 	message := "message"
@@ -34,9 +39,6 @@ func CreateCommit(t *testing.T, repoPath, branchName string, opts *CreateCommitO
 			parentID = opts.ParentID
 		}
 	}
-
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
 
 	// message can be very large, passing it directly in args would blow things up!
 	stdin := bytes.NewBufferString(message)
@@ -93,7 +95,14 @@ func CreateCommitInAlternateObjectDirectory(t *testing.T, repoPath, altObjectsDi
 func CommitBlobWithName(t *testing.T, testRepoPath, blobID, fileName, commitMessage string) string {
 	mktreeIn := strings.NewReader(fmt.Sprintf("100644 blob %s\t%s", blobID, fileName))
 	treeID := text.ChompBytes(MustRunCommand(t, mktreeIn, "git", "-C", testRepoPath, "mktree"))
-	return text.ChompBytes(MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit-tree", treeID, "-m", commitMessage))
+
+	return text.ChompBytes(
+		MustRunCommand(t, nil, "git",
+			"-c", fmt.Sprintf("user.name=%s", committerName),
+			"-c", fmt.Sprintf("user.email=%s", committerEmail),
+			"-C", testRepoPath, "commit-tree", treeID, "-m", commitMessage),
+	)
+
 }
 
 // CreateCommitOnNewBranch creates a branch and a commit, returning the commit sha and the branch name respectivelyi

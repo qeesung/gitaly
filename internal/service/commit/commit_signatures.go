@@ -10,15 +10,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const getCommitSignaturesFeatureFlag = "get-commit-signatures"
 
 var gpgSiganturePrefix = []byte("gpgsig")
 
@@ -27,11 +23,7 @@ func (s *server) GetCommitSignatures(request *gitalypb.GetCommitSignaturesReques
 		return status.Errorf(codes.InvalidArgument, "GetCommitSignatures: %v", err)
 	}
 
-	if featureflag.IsEnabled(stream.Context(), getCommitSignaturesFeatureFlag) {
-		return getCommitSignatures(s, request, stream)
-	}
-
-	return rubyGetCommitSignatures(s, request, stream)
+	return getCommitSignatures(s, request, stream)
 }
 
 func getCommitSignatures(s *server, request *gitalypb.GetCommitSignaturesRequest, stream gitalypb.CommitService_GetCommitSignaturesServer) error {
@@ -73,36 +65,6 @@ func getCommitSignatures(s *server, request *gitalypb.GetCommitSignaturesRequest
 	}
 
 	return nil
-}
-
-// Gets commit signatures from ruby server
-func rubyGetCommitSignatures(s *server, request *gitalypb.GetCommitSignaturesRequest, stream gitalypb.CommitService_GetCommitSignaturesServer) error {
-	ctx := stream.Context()
-
-	client, err := s.CommitServiceClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	clientCtx, err := rubyserver.SetHeaders(ctx, request.GetRepository())
-	if err != nil {
-		return err
-	}
-
-	rubyStream, err := client.GetCommitSignatures(clientCtx, request)
-	if err != nil {
-		return err
-	}
-
-	return rubyserver.Proxy(func() error {
-		resp, err := rubyStream.Recv()
-		if err != nil {
-			md := rubyStream.Trailer()
-			stream.SetTrailer(md)
-			return err
-		}
-		return stream.Send(resp)
-	})
 }
 
 func extractSignature(reader io.Reader) ([]byte, []byte, error) {

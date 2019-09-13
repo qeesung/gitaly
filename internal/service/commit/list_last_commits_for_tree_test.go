@@ -311,6 +311,7 @@ func TestNonUtf8ListLastCommitsForTreeRequest(t *testing.T) {
 
 	client, conn := newCommitServiceClient(t, serverSockerPath)
 	defer conn.Close()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
