@@ -7,9 +7,26 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
+
+var invalidationTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "gitaly_command_invalidation_total",
+		Help: "Total number of invalid arguments tried to execute",
+	},
+	[]string{"command"},
+)
+
+func init() {
+	prometheus.MustRegister(invalidationTotal)
+}
+
+func incrInvalidArg(subcmdName string) {
+	invalidationTotal.WithLabelValues(subcmdName).Inc()
+}
 
 // SubCmd represents a specific git command
 type SubCmd struct {
@@ -220,7 +237,13 @@ func SafeCmdWithoutRepo(ctx context.Context, globals []Flag, sc SubCmd) (*comman
 	return CommandWithoutRepo(ctx, args...)
 }
 
-func combineArgs(globals []Flag, sc SubCmd) ([]string, error) {
+func combineArgs(globals []Flag, sc SubCmd) (_ []string, err error) {
+	defer func() {
+		if err != nil && IsInvalidArgErr(err) {
+			incrInvalidArg(sc.Name)
+		}
+	}()
+
 	var args []string
 
 	for _, g := range globals {
