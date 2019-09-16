@@ -25,3 +25,14 @@ entries.
 
 Note that Grafana 'templates' use a combination of PromQL and
 Grafana-specific modifiers.
+
+# Ad-hoc latency graphs with ELK
+
+Gitaly RPC latency data from Prometheus uses irregular (exponential)
+bucket sizes which gives you unrealistic numbers. To get more realistic
+percentiles you can use ELK.
+
+-   Go to [ELK](https://log.gitlab.net)
+-   Click 'Visualize'
+-   Search for `gitaly rpc latency example`
+-   Edit as needed
