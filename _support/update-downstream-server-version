@@ -112,7 +112,7 @@ end
 
 abort "Please set GITLAB_TOKEN env var" unless ENV['GITLAB_TOKEN']
 
-project_id = find_project_id("gitlab-org/gitlab-ce")
+project_id = find_project_id("gitlab-org/gitlab")
 tag_version = find_tag
 assignee_id = find_user_id
 
