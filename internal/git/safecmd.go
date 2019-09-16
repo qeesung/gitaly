@@ -174,12 +174,6 @@ func validatePositionalArg(arg string) error {
 			msg: fmt.Sprintf("positional arg %q cannot start with dash '-'", arg),
 		}
 	}
-
-	if arg == "" {
-		return &invalidArgErr{
-			msg: fmt.Sprintf("argument cannot be blank"),
-		}
-	}
 	return nil
 }
 
