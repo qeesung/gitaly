@@ -14,7 +14,7 @@ import (
 
 var invalidationTotal = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "gitaly_command_invalidation_total",
+		Name: "gitaly_invalid_commands_total",
 		Help: "Total number of invalid arguments tried to execute",
 	},
 	[]string{"command"},
