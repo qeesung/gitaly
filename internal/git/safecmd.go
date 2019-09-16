@@ -31,7 +31,7 @@ func incrInvalidArg(subcmdName string) {
 // SubCmd represents a specific git command
 type SubCmd struct {
 	Name        string   // e.g. "log", or "cat-file", or "worktree"
-	Flags       []Flag   // optional flags before the positional args
+	Flags       []Option // optional flags before the positional args
 	Args        []string // positional args after all flags
 	PostSepArgs []string // post separator (i.e. "--") positional args
 }
@@ -74,45 +74,45 @@ func (sc SubCmd) ValidateArgs() ([]string, error) {
 	return safeArgs, nil
 }
 
-// Flag is a git command line flag with validation logic
-type Flag interface {
-	IsFlag()
+// Option is a git command line flag with validation logic
+type Option interface {
+	IsOption()
 	ValidateArgs() ([]string, error)
 }
 
-// Flag1 is a single token optional command line argument that enables or
+// Flag is a single token optional command line argument that enables or
 // disables functionality (e.g. "-L")
-type Flag1 struct {
+type Flag struct {
 	Name string
 }
 
-// IsFlag is a method present on all Flag interface implementations
-func (Flag1) IsFlag() {}
+// IsOption is a method present on all Flag interface implementations
+func (Flag) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
-func (f1 Flag1) ValidateArgs() ([]string, error) {
+func (f1 Flag) ValidateArgs() ([]string, error) {
 	if err := validateFlag(f1.Name); err != nil {
 		return nil, err
 	}
 	return []string{f1.Name}, nil
 }
 
-// Flag2 is an optional command line argument that is comprised of pair of
+// ValueFlag is an optional command line argument that is comprised of pair of
 // tokens (e.g. "-n 50")
-type Flag2 struct {
+type ValueFlag struct {
 	Name  string
 	Value string
 }
 
-// IsFlag is a method present on all Flag interface implementations
-func (Flag2) IsFlag() {}
+// IsOption is a method present on all Flag interface implementations
+func (ValueFlag) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
-func (f2 Flag2) ValidateArgs() ([]string, error) {
-	if err := validateFlag(f2.Name); err != nil {
+func (vf ValueFlag) ValidateArgs() ([]string, error) {
+	if err := validateFlag(vf.Name); err != nil {
 		return nil, err
 	}
-	return []string{f2.Name, f2.Value}, nil
+	return []string{vf.Name, vf.Value}, nil
 }
 
 // flagRegex makes sure that a flag follows these rules:
@@ -136,8 +136,8 @@ type FlagCombo struct {
 	NameValue string
 }
 
-// IsFlag is a method present on all Flag interface implementations
-func (FlagCombo) IsFlag() {}
+// IsOption is a method present on all Flag interface implementations
+func (FlagCombo) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
 func (fc FlagCombo) ValidateArgs() ([]string, error) {
@@ -181,7 +181,7 @@ func validateFlag(flag string) error {
 
 // SafeCmd creates a git.Command with the given args and Repository. It
 // validates the arguments in the command before executing.
-func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Flag, sc SubCmd) (*command.Command, error) {
+func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {
 		return nil, err
@@ -192,7 +192,7 @@ func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Flag, sc Su
 
 // SafeBareCmd creates a git.Command with the given args, stdin/stdout/stderr,
 // and env. It validates the arguments in the command before executing.
-func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, globals []Flag, sc SubCmd) (*command.Command, error) {
+func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer,
 // SafeStdinCmd creates a git.Command with the given args and Repository that is
 // suitable for Write()ing to. It validates the arguments in the command before
 // executing.
-func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Flag, sc SubCmd) (*command.Command, error) {
+func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Flag, 
 
 // SafeCmdWithoutRepo works like Command but without a git repository. It
 // validates the arugments in the command before executing.
-func SafeCmdWithoutRepo(ctx context.Context, globals []Flag, sc SubCmd) (*command.Command, error) {
+func SafeCmdWithoutRepo(ctx context.Context, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {
 		return nil, err
@@ -224,7 +224,7 @@ func SafeCmdWithoutRepo(ctx context.Context, globals []Flag, sc SubCmd) (*comman
 	return CommandWithoutRepo(ctx, args...)
 }
 
-func combineArgs(globals []Flag, sc SubCmd) (_ []string, err error) {
+func combineArgs(globals []Option, sc SubCmd) (_ []string, err error) {
 	defer func() {
 		if err != nil && IsInvalidArgErr(err) {
 			incrInvalidArg(sc.Name)

@@ -12,36 +12,36 @@ import (
 
 func TestFlagValidation(t *testing.T) {
 	for _, tt := range []struct {
-		option git.Flag
+		option git.Option
 		valid  bool
 	}{
-		// valid Flag1 inputs
-		{option: git.Flag1{"-k"}, valid: true},
-		{option: git.Flag1{"-K"}, valid: true},
-		{option: git.Flag1{"--asdf"}, valid: true},
-		{option: git.Flag1{"--asdf-qwer"}, valid: true},
+		// valid Flag inputs
+		{option: git.Flag{"-k"}, valid: true},
+		{option: git.Flag{"-K"}, valid: true},
+		{option: git.Flag{"--asdf"}, valid: true},
+		{option: git.Flag{"--asdf-qwer"}, valid: true},
 
-		// valid Flag2 inputs
-		{option: git.Flag2{"-k", "adsf"}, valid: true},
-		{option: git.Flag2{"-k", "--anything"}, valid: true},
-		{option: git.Flag2{"-k", ""}, valid: true},
+		// valid ValueFlag inputs
+		{option: git.ValueFlag{"-k", "adsf"}, valid: true},
+		{option: git.ValueFlag{"-k", "--anything"}, valid: true},
+		{option: git.ValueFlag{"-k", ""}, valid: true},
 
 		// valid FlagCombo inputs
 		{option: git.FlagCombo{"--asdf=qwerty"}, valid: true},
 		{option: git.FlagCombo{"-D=A"}, valid: true},
 
-		// invalid Flag1 inputs
-		{option: git.Flag1{"-aa"}},      // too many chars for single dash
-		{option: git.Flag1{"-*"}},       // invalid character
-		{option: git.Flag1{"a"}},        // missing dash
-		{option: git.Flag1{"--a--b"}},   // too many consecutive interior dashes
-		{option: git.Flag1{"--asdf-"}},  // trailing dash
-		{option: git.Flag1{"--as-df-"}}, // trailing dash
-		{option: git.Flag1{"[["}},       // suspicious characters
-		{option: git.Flag1{"||"}},       // suspicious characters
+		// invalid Flag inputs
+		{option: git.Flag{"-aa"}},      // too many chars for single dash
+		{option: git.Flag{"-*"}},       // invalid character
+		{option: git.Flag{"a"}},        // missing dash
+		{option: git.Flag{"--a--b"}},   // too many consecutive interior dashes
+		{option: git.Flag{"--asdf-"}},  // trailing dash
+		{option: git.Flag{"--as-df-"}}, // trailing dash
+		{option: git.Flag{"[["}},       // suspicious characters
+		{option: git.Flag{"||"}},       // suspicious characters
 
-		// invalid Flag2 inputs
-		{option: git.Flag2{"k", "asdf"}}, // missing dash
+		// invalid ValueFlag inputs
+		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
 
 		// invalid FlagCombo inputs
 		{option: git.FlagCombo{"asdf=qwerty"}}, // missing dash
@@ -62,12 +62,12 @@ func TestFlagValidation(t *testing.T) {
 
 func TestSafeCmdInvalidArg(t *testing.T) {
 	for _, tt := range []struct {
-		globals []git.Flag
+		globals []git.Option
 		subCmd  git.SubCmd
 		errMsg  string
 	}{
 		{
-			globals: []git.Flag{git.Flag1{"-ks"}},
+			globals: []git.Option{git.Flag{"-ks"}},
 			errMsg:  "flag \"-ks\" failed regex validation",
 		},
 		{
@@ -77,7 +77,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
-				Flags: []git.Flag{git.Flag1{"woof"}},
+				Flags: []git.Option{git.Flag{"woof"}},
 			},
 			errMsg: "flag \"woof\" failed regex validation",
 		},
@@ -91,7 +91,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
-				Flags: []git.Flag{git.FlagCombo{"--animal="}},
+				Flags: []git.Option{git.FlagCombo{"--animal="}},
 			},
 			errMsg: "combination flag \"--animal=\" failed validation",
 		},
@@ -115,7 +115,7 @@ func TestSafeCmdValid(t *testing.T) {
 	defer cancel()
 
 	for _, tt := range []struct {
-		globals    []git.Flag
+		globals    []git.Option
 		subCmd     git.SubCmd
 		expectArgs []string
 	}{
@@ -124,22 +124,22 @@ func TestSafeCmdValid(t *testing.T) {
 			expectArgs: []string{"meow"},
 		},
 		{
-			globals: []git.Flag{
-				git.Flag1{"--aaaa-bbbb"},
+			globals: []git.Option{
+				git.Flag{"--aaaa-bbbb"},
 			},
 			subCmd:     git.SubCmd{Name: "cccc"},
 			expectArgs: []string{"--aaaa-bbbb", "cccc"},
 		},
 		{
-			globals: []git.Flag{
-				git.Flag1{"-a"},
-				git.Flag2{"-b", "c"},
+			globals: []git.Option{
+				git.Flag{"-a"},
+				git.ValueFlag{"-b", "c"},
 			},
 			subCmd: git.SubCmd{
 				Name: "d",
-				Flags: []git.Flag{
-					git.Flag1{"-e"},
-					git.Flag2{"-f", "g"},
+				Flags: []git.Option{
+					git.Flag{"-e"},
+					git.ValueFlag{"-f", "g"},
 					git.FlagCombo{"-h=i"},
 				},
 				Args:        []string{"1", "2"},

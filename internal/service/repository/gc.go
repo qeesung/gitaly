@@ -59,7 +59,7 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 
 	// run garbage collect and also write the commit graph
 	args = append(args,
-		git.Flag2{"-c", "gc.writeCommitGraph=true"},
+		git.ValueFlag{"-c", "gc.writeCommitGraph=true"},
 	)
 
 	cmd, err := git.SafeCmd(ctx, in.GetRepository(), args,
