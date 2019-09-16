@@ -24,6 +24,7 @@ func TestFlagValidation(t *testing.T) {
 		// valid Flag2 inputs
 		{option: git.Flag2{"-k", "adsf"}, valid: true},
 		{option: git.Flag2{"-k", "--anything"}, valid: true},
+		{option: git.Flag2{"-k", ""}, valid: true},
 
 		// valid FlagCombo inputs
 		{option: git.FlagCombo{"--asdf=qwerty"}, valid: true},
@@ -40,7 +41,7 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.Flag1{"||"}},       // suspicious characters
 
 		// invalid Flag2 inputs
-		{option: git.Flag2{"-k", ""}}, // missing/empty value
+		{option: git.Flag2{"k", "asdf"}}, // missing dash
 
 		// invalid FlagCombo inputs
 		{option: git.FlagCombo{"asdf=qwerty"}}, // missing dash

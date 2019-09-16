@@ -112,13 +112,6 @@ func (f2 Flag2) ValidateArgs() ([]string, error) {
 	if err := validateFlag(f2.Name); err != nil {
 		return nil, err
 	}
-
-	if f2.Value == "" {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("flag value arg for %q cannot be empty", f2.Name),
-		}
-	}
-
 	return []string{f2.Name, f2.Value}, nil
 }
 
