@@ -32,7 +32,6 @@ func TestFlagValidation(t *testing.T) {
 		// valid FlagCombo inputs
 
 		// invalid Flag inputs
-		{option: git.Flag{"-aa"}},         // too many chars for single dash
 		{option: git.Flag{"-*"}},          // invalid character
 		{option: git.Flag{"a"}},           // missing dash
 		{option: git.Flag{"[["}},          // suspicious characters
@@ -59,10 +58,6 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		subCmd  git.SubCmd
 		errMsg  string
 	}{
-		{
-			globals: []git.Option{git.Flag{"-ks"}},
-			errMsg:  "flag \"-ks\" failed regex validation",
-		},
 		{
 			subCmd: git.SubCmd{Name: "--meow"},
 			errMsg: "invalid sub command name \"--meow\"",

@@ -111,7 +111,7 @@ func (ValueFlag) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
 func (vf ValueFlag) ValidateArgs() ([]string, error) {
-	if !valueFlagRegex.MatchString(vf.Name) {
+	if !flagRegex.MatchString(vf.Name) {
 		return nil, &invalidArgErr{
 			msg: fmt.Sprintf("value flag %q failed regex validation", vf.Name),
 		}
@@ -119,10 +119,7 @@ func (vf ValueFlag) ValidateArgs() ([]string, error) {
 	return []string{vf.Name, vf.Value}, nil
 }
 
-var (
-	flagRegex      = regexp.MustCompile(`^(((-[[:alnum:]])|(--[-[:alnum:]]+))(=.*)?)$`)
-	valueFlagRegex = regexp.MustCompile(`^((-[[:alnum:]])|(--[-[:alnum:]]+))$`)
-)
+var flagRegex = regexp.MustCompile(`^(-|--)[[:alnum:]]`)
 
 type invalidArgErr struct {
 	msg string
