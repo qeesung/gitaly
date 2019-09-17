@@ -117,6 +117,14 @@ func TestSafeCmdValid(t *testing.T) {
 			expectArgs: []string{"--aaaa-bbbb", "cccc"},
 		},
 		{
+			subCmd: git.SubCmd{
+				Name:        "meow",
+				Args:        []string{""},
+				PostSepArgs: []string{"-woof", ""},
+			},
+			expectArgs: []string{"meow", "", "--", "-woof", ""},
+		},
+		{
 			globals: []git.Option{
 				git.Flag{"-a"},
 				git.ValueFlag{"-b", "c"},
