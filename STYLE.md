@@ -132,3 +132,24 @@ production. When adding new Prometheus metrics, please follow the [best
 practices](https://prometheus.io/docs/practices/naming/) and be aware of
 the
 [gotchas](https://prometheus.io/docs/practices/instrumentation/#things-to-watch-out-for).
+
+## Git Commands
+
+Gitaly relies heavily on spawning git subprocesses to perform work. Any git
+commands spawned from Go code should use the constructs found in
+[`safecmd.go`](internal/git/safecmd.go). These constructs, all beginning with
+`Safe`, help prevent certain kinds of flag injection exploits. Proper usage is
+important to mitigate these injection risks:
+
+- When toggling an option, prefer a longer flag over a short flag for
+  readability.
+	- Desired: `git.Flag{"--long-flag"}` is easier to read and audit
+	- Undesired: `git.Flag{"-L"}`
+- When providing a variable to configure a flag, make sure to include the
+  variable after an equal sign
+	- Desired: `[]git.Flag{"-a="+foo}` prevents flag injection
+	- Undesired: `[]git.Flag("-a"+foo)` allows flag injection
+- Always define a flag's name via a constant, never use a variable:
+	- Desired: `[]git.Flag{"-a"}`
+	- Undesired: `[]git.Flag{foo}` is ambiguous and difficult to audit
+

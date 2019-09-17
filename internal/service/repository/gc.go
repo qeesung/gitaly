@@ -59,12 +59,17 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 
 	// run garbage collect and also write the commit graph
 	args = append(args,
-		"-c", "gc.writeCommitGraph=true",
-		"gc",
+		git.ValueFlag{"-c", "gc.writeCommitGraph=true"},
 	)
 
-	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	cmd, err := git.SafeCmd(ctx, in.GetRepository(), args,
+		git.SubCmd{Name: "gc"},
+	)
 	if err != nil {
+		if git.IsInvalidArgErr(err) {
+			return helper.ErrInvalidArgumentf("GarbageCollect: gitCommand: %v", err)
+		}
+
 		if _, ok := status.FromError(err); ok {
 			return err
 		}

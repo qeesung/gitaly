@@ -424,3 +424,8 @@ func checkNullArgv(cmd *exec.Cmd) error {
 
 	return nil
 }
+
+// Args is an accessor for the command arguments
+func (c *Command) Args() []string {
+	return c.cmd.Args
+}
