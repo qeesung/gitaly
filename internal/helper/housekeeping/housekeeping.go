@@ -21,12 +21,16 @@ func Perform(ctx context.Context, repoPath string) error {
 	unremovableFiles := 0
 
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, _ error) error {
+		if info == nil {
+			return nil
+		}
+
 		if repoPath == path {
 			// Never consider the root path
 			return nil
 		}
 
-		if info == nil || !shouldRemove(path, info.ModTime(), info.Mode()) {
+		if !shouldRemove(path, info.ModTime(), info.Mode()) {
 			return nil
 		}
 
@@ -67,6 +71,10 @@ const minimumDirPerm = 0700
 
 func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
 	return filepath.Walk(path, func(path string, info os.FileInfo, errIncoming error) error {
+		if info == nil {
+			return nil
+		}
+
 		if !info.IsDir() || info.Mode()&minimumDirPerm == minimumDirPerm {
 			return nil
 		}
