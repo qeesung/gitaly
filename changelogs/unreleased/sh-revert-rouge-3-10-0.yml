@@ -1,0 +1,5 @@
+---
+title: Revert Rouge from v3.10.0 to v3.7.0
+merge_request: 1490
+author:
+type: fixed
