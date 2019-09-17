@@ -90,11 +90,13 @@ type Flag struct {
 func (Flag) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
-func (f1 Flag) ValidateArgs() ([]string, error) {
-	if err := validateFlag(f1.Name); err != nil {
-		return nil, err
+func (f Flag) ValidateArgs() ([]string, error) {
+	if !flagRegex.MatchString(f.Name) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("flag %q failed regex validation", f.Name),
+		}
 	}
-	return []string{f1.Name}, nil
+	return []string{f.Name}, nil
 }
 
 // ValueFlag is an optional command line argument that is comprised of pair of
@@ -109,45 +111,18 @@ func (ValueFlag) IsOption() {}
 
 // ValidateArgs returns an error if the flag is not sanitary
 func (vf ValueFlag) ValidateArgs() ([]string, error) {
-	if err := validateFlag(vf.Name); err != nil {
-		return nil, err
+	if !valueFlagRegex.MatchString(vf.Name) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("value flag %q failed regex validation", vf.Name),
+		}
 	}
 	return []string{vf.Name, vf.Value}, nil
 }
 
-// flagRegex makes sure that a flag follows these rules:
-// 1. Can be a short flag (e.g. "-L" or "-a")
-// 1.1 Short flags cannot be combined (e.g. "-aBc")
-// 2. Can be a long flag (e.g. "--long-flag")
-// 2.1 Long flags cannot end with a dash. Interior dashes cannot repeat more
-//     than once consecutively.
-var flagRegex = regexp.MustCompile(
-	`^((-[[:alnum:]])|(--[[:alnum:]]+(-[[:alnum:]]+)*))$`,
+var (
+	flagRegex      = regexp.MustCompile(`^(((-[[:alnum:]])|(--[-[:alnum:]]+))(=.*)?)$`)
+	valueFlagRegex = regexp.MustCompile(`^((-[[:alnum:]])|(--[-[:alnum:]]+))$`)
 )
-
-var flagComboRegex = regexp.MustCompile(
-	`^((-[[:alnum:]])|(--[[:alnum:]]+(-[[:alnum:]]+)*))=(.+)$`,
-)
-
-// FlagCombo is an optional command line argument comprised of a single token
-// that contains both a flag name and value separated by an equal character
-// (e.g. "--date=local")
-type FlagCombo struct {
-	NameValue string
-}
-
-// IsOption is a method present on all Flag interface implementations
-func (FlagCombo) IsOption() {}
-
-// ValidateArgs returns an error if the flag is not sanitary
-func (fc FlagCombo) ValidateArgs() ([]string, error) {
-	if !flagComboRegex.MatchString(fc.NameValue) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("combination flag %q failed validation", fc.NameValue),
-		}
-	}
-	return []string{fc.NameValue}, nil
-}
 
 type invalidArgErr struct {
 	msg string
@@ -165,15 +140,6 @@ func validatePositionalArg(arg string) error {
 	if strings.HasPrefix(arg, "-") {
 		return &invalidArgErr{
 			msg: fmt.Sprintf("positional arg %q cannot start with dash '-'", arg),
-		}
-	}
-	return nil
-}
-
-func validateFlag(flag string) error {
-	if !flagRegex.MatchString(flag) {
-		return &invalidArgErr{
-			msg: fmt.Sprintf("flag %q failed regex validation", flag),
 		}
 	}
 	return nil

@@ -20,6 +20,9 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.Flag{"-K"}, valid: true},
 		{option: git.Flag{"--asdf"}, valid: true},
 		{option: git.Flag{"--asdf-qwer"}, valid: true},
+		{option: git.Flag{"--asdf=qwerty"}, valid: true},
+		{option: git.Flag{"-D=A"}, valid: true},
+		{option: git.Flag{"-D="}, valid: true},
 
 		// valid ValueFlag inputs
 		{option: git.ValueFlag{"-k", "adsf"}, valid: true},
@@ -27,27 +30,17 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.ValueFlag{"-k", ""}, valid: true},
 
 		// valid FlagCombo inputs
-		{option: git.FlagCombo{"--asdf=qwerty"}, valid: true},
-		{option: git.FlagCombo{"-D=A"}, valid: true},
 
 		// invalid Flag inputs
-		{option: git.Flag{"-aa"}},      // too many chars for single dash
-		{option: git.Flag{"-*"}},       // invalid character
-		{option: git.Flag{"a"}},        // missing dash
-		{option: git.Flag{"--a--b"}},   // too many consecutive interior dashes
-		{option: git.Flag{"--asdf-"}},  // trailing dash
-		{option: git.Flag{"--as-df-"}}, // trailing dash
-		{option: git.Flag{"[["}},       // suspicious characters
-		{option: git.Flag{"||"}},       // suspicious characters
+		{option: git.Flag{"-aa"}},         // too many chars for single dash
+		{option: git.Flag{"-*"}},          // invalid character
+		{option: git.Flag{"a"}},           // missing dash
+		{option: git.Flag{"[["}},          // suspicious characters
+		{option: git.Flag{"||"}},          // suspicious characters
+		{option: git.Flag{"asdf=qwerty"}}, // missing dash
 
 		// invalid ValueFlag inputs
 		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
-
-		// invalid FlagCombo inputs
-		{option: git.FlagCombo{"asdf=qwerty"}}, // missing dash
-		{option: git.FlagCombo{"--asdf="}},     // value cannot be empty
-		{option: git.FlagCombo{"-D="}},         // value cannot be empty
-		{option: git.FlagCombo{"-asdfqwerty"}}, // missing '='
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -87,13 +80,6 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 				Args: []string{"--tweet"},
 			},
 			errMsg: "positional arg \"--tweet\" cannot start with dash '-'",
-		},
-		{
-			subCmd: git.SubCmd{
-				Name:  "meow",
-				Flags: []git.Option{git.FlagCombo{"--animal="}},
-			},
-			errMsg: "combination flag \"--animal=\" failed validation",
 		},
 	} {
 		_, err := git.SafeCmd(
@@ -140,7 +126,7 @@ func TestSafeCmdValid(t *testing.T) {
 				Flags: []git.Option{
 					git.Flag{"-e"},
 					git.ValueFlag{"-f", "g"},
-					git.FlagCombo{"-h=i"},
+					git.Flag{"-h=i"},
 				},
 				Args:        []string{"1", "2"},
 				PostSepArgs: []string{"3", "4", "5"},
