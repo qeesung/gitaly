@@ -86,7 +86,7 @@ func isValidRepo(ctx context.Context, repo *gitalypb.Repository) bool {
 	stdout := &bytes.Buffer{}
 	opts := []git.Option{git.ValueFlag{"-C", repoPath}}
 	cmd, err := git.SafeBareCmd(ctx, nil, stdout, nil, env, opts,
-		git.SubCmd{Name: "rev-parse", Args: []string{"--is-inside-git-dir"}})
+		git.SubCmd{Name: "rev-parse", Flags: []git.Option{git.Flag{"--is-inside-git-dir"}}})
 	if err != nil {
 		return false
 	}
