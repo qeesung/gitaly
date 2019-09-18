@@ -30,12 +30,7 @@ func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateCh
 		return nil, err
 	}
 
-	args := []string{
-		"show-ref",
-		"--head",
-	}
-
-	cmd, err := git.Command(ctx, repo, args...)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{Name: "show-ref", Flags: []git.Option{git.Flag{"--head"}}})
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return nil, err
@@ -88,9 +83,10 @@ func isValidRepo(ctx context.Context, repo *gitalypb.Repository) bool {
 		return false
 	}
 
-	args := []string{"-C", repoPath, "rev-parse", "--is-inside-git-dir"}
 	stdout := &bytes.Buffer{}
-	cmd, err := git.BareCommand(ctx, nil, stdout, nil, env, args...)
+	opts := []git.Option{git.ValueFlag{"-C", repoPath}}
+	cmd, err := git.SafeBareCmd(ctx, nil, stdout, nil, env, opts,
+		git.SubCmd{Name: "rev-parse", Flags: []git.Option{git.Flag{"--is-inside-git-dir"}}})
 	if err != nil {
 		return false
 	}
