@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 type entryFinalState int
@@ -269,6 +271,12 @@ func TestShouldUnlink(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPerformRepoDoesNotExist(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	require.NoError(t, Perform(ctx, "/does/not/exist"))
 }
 
 // This test exists only ever for manual testing purposes.
