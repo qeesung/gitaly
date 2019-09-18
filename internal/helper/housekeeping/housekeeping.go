@@ -83,7 +83,7 @@ func fixDirectoryPermissions(ctx context.Context, path string, retriedPaths map[
 		if info == nil {
 			logger.WithFields(log.Fields{
 				"path": path,
-			}).WithError(errIncoming).Error("nil FileInfo in housekeeping.Perform")
+			}).WithError(errIncoming).Error("nil FileInfo in housekeeping.fixDirectoryPermissions")
 
 			return nil
 		}
