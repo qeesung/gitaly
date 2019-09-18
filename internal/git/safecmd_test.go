@@ -29,6 +29,10 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.ValueFlag{"-k", "--anything"}, valid: true},
 		{option: git.ValueFlag{"-k", ""}, valid: true},
 
+		// valid NestedCmd inputs
+		{option: git.NestedCmd{"meow", nil}, valid: true},
+		{option: git.NestedCmd{"meow", []git.Option{git.Flag{"--loud"}}}, valid: true},
+
 		// valid FlagCombo inputs
 
 		// invalid Flag inputs
@@ -40,6 +44,10 @@ func TestFlagValidation(t *testing.T) {
 
 		// invalid ValueFlag inputs
 		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
+
+		// invalid NestedCmd inputs
+		{option: git.NestedCmd{"--meow", nil}},                       // cannot start with dash
+		{option: git.NestedCmd{"meow", []git.Option{git.Flag{"a"}}}}, // options must be valid
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -75,6 +83,13 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 				Args: []string{"--tweet"},
 			},
 			errMsg: "positional arg \"--tweet\" cannot start with dash '-'",
+		},
+		{
+			subCmd: git.SubCmd{
+				Name:  "meow",
+				Flags: []git.Option{git.NestedCmd{"-invalid", nil}},
+			},
+			errMsg: "positional arg \"-invalid\" cannot start with dash '-'",
 		},
 	} {
 		_, err := git.SafeCmd(
@@ -135,6 +150,20 @@ func TestSafeCmdValid(t *testing.T) {
 				PostSepArgs: []string{"3", "4", "5"},
 			},
 			expectArgs: []string{"-a", "-b", "c", "d", "-e", "-f", "g", "-h=i", "1", "2", "--", "3", "4", "5"},
+		},
+		{
+			subCmd: git.SubCmd{
+				Name: "noun",
+				Flags: []git.Option{
+					git.NestedCmd{
+						"verb",
+						[]git.Option{
+							git.Flag{"--adjective"},
+						},
+					},
+				},
+			},
+			expectArgs: []string{"noun", "verb", "--adjective"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)
