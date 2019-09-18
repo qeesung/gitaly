@@ -15,13 +15,17 @@ const deleteTempFilesOlderThanDuration = 7 * 24 * time.Hour
 
 // Perform will perform housekeeping duties on a repository
 func Perform(ctx context.Context, repoPath string) error {
-	logger := grpc_logrus.Extract(ctx).WithField("system", "housekeeping")
+	logger := myLogger(ctx)
 
 	filesMarkedForRemoval := 0
 	unremovableFiles := 0
 
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, _ error) error {
+	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if info == nil {
+			logger.WithFields(log.Fields{
+				"path": path,
+			}).WithError(err).Error("nil FileInfo in housekeeping.Perform")
+
 			return nil
 		}
 
@@ -36,7 +40,7 @@ func Perform(ctx context.Context, repoPath string) error {
 
 		filesMarkedForRemoval++
 
-		if err := forceRemove(path); err != nil {
+		if err := forceRemove(ctx, path); err != nil {
 			unremovableFiles++
 			logger.WithError(err).WithField("path", path).Warn("unable to remove stray file")
 		}
@@ -59,19 +63,28 @@ func Perform(ctx context.Context, repoPath string) error {
 	return err
 }
 
+func myLogger(ctx context.Context) *log.Entry {
+	return grpc_logrus.Extract(ctx).WithField("system", "housekeeping")
+}
+
 // FixDirectoryPermissions does a recursive directory walk to look for
 // directories that cannot be accessed by the current user, and tries to
 // fix those with chmod. The motivating problem is that directories with mode
 // 0 break os.RemoveAll.
-func FixDirectoryPermissions(path string) error {
-	return fixDirectoryPermissions(path, make(map[string]struct{}))
+func FixDirectoryPermissions(ctx context.Context, path string) error {
+	return fixDirectoryPermissions(ctx, path, make(map[string]struct{}))
 }
 
 const minimumDirPerm = 0700
 
-func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) error {
+func fixDirectoryPermissions(ctx context.Context, path string, retriedPaths map[string]struct{}) error {
+	logger := myLogger(ctx)
 	return filepath.Walk(path, func(path string, info os.FileInfo, errIncoming error) error {
 		if info == nil {
+			logger.WithFields(log.Fields{
+				"path": path,
+			}).WithError(errIncoming).Error("nil FileInfo in housekeeping.Perform")
+
 			return nil
 		}
 
@@ -85,7 +98,7 @@ func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) erro
 
 		if _, retried := retriedPaths[path]; !retried && os.IsPermission(errIncoming) {
 			retriedPaths[path] = struct{}{}
-			return fixDirectoryPermissions(path, retriedPaths)
+			return fixDirectoryPermissions(ctx, path, retriedPaths)
 		}
 
 		return nil
@@ -93,14 +106,14 @@ func fixDirectoryPermissions(path string, retriedPaths map[string]struct{}) erro
 }
 
 // Delete a directory structure while ensuring the current user has permission to delete the directory structure
-func forceRemove(path string) error {
+func forceRemove(ctx context.Context, path string) error {
 	err := os.RemoveAll(path)
 	if err == nil {
 		return nil
 	}
 
 	// Delete failed. Try again after chmod'ing directories recursively
-	if err := FixDirectoryPermissions(path); err != nil {
+	if err := FixDirectoryPermissions(ctx, path); err != nil {
 		return err
 	}
 

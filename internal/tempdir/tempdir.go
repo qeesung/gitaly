@@ -118,6 +118,9 @@ func StartCleaning() {
 type invalidCleanRoot string
 
 func clean(dir string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// If we start "cleaning up" the wrong directory we may delete user data
 	// which is Really Bad.
 	if !strings.HasSuffix(dir, tmpRootPrefix) {
@@ -139,7 +142,7 @@ func clean(dir string) error {
 		}
 
 		fullPath := filepath.Join(dir, info.Name())
-		if err := housekeeping.FixDirectoryPermissions(fullPath); err != nil {
+		if err := housekeeping.FixDirectoryPermissions(ctx, fullPath); err != nil {
 			return err
 		}
 

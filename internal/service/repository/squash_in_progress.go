@@ -25,7 +25,7 @@ func (s *server) IsSquashInProgress(ctx context.Context, req *gitalypb.IsSquashI
 		return nil, err
 	}
 
-	inProg, err := freshWorktree(repoPath, squashWorktreePrefix, req.GetSquashId())
+	inProg, err := freshWorktree(ctx, repoPath, squashWorktreePrefix, req.GetSquashId())
 	if err != nil {
 		return nil, err
 	}

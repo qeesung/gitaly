@@ -31,14 +31,14 @@ func (s *server) IsRebaseInProgress(ctx context.Context, req *gitalypb.IsRebaseI
 		return nil, err
 	}
 
-	inProg, err := freshWorktree(repoPath, rebaseWorktreePrefix, req.GetRebaseId())
+	inProg, err := freshWorktree(ctx, repoPath, rebaseWorktreePrefix, req.GetRebaseId())
 	if err != nil {
 		return nil, err
 	}
 	return &gitalypb.IsRebaseInProgressResponse{InProgress: inProg}, nil
 }
 
-func freshWorktree(repoPath, prefix, id string) (bool, error) {
+func freshWorktree(ctx context.Context, repoPath, prefix, id string) (bool, error) {
 	worktreePath := path.Join(repoPath, worktreePrefix, fmt.Sprintf("%s-%s", prefix, id))
 
 	fs, err := os.Stat(worktreePath)
@@ -48,7 +48,7 @@ func freshWorktree(repoPath, prefix, id string) (bool, error) {
 
 	if time.Since(fs.ModTime()) > freshTimeout {
 		if err = os.RemoveAll(worktreePath); err != nil {
-			if err = housekeeping.FixDirectoryPermissions(worktreePath); err != nil {
+			if err = housekeeping.FixDirectoryPermissions(ctx, worktreePath); err != nil {
 				return false, err
 			}
 			err = os.RemoveAll(worktreePath)
