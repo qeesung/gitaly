@@ -34,10 +34,7 @@ func methodErrLogger(method string) func(error) {
 }
 
 func shouldIgnore(fullMethod string) bool {
-	if strings.HasPrefix(fullMethod, "/grpc.health") {
-		return true // health checks don't affect cache
-	}
-	return false
+	return strings.HasPrefix(fullMethod, "/grpc.health")
 }
 
 // StreamInvalidator will invalidate any mutating RPC that targets a
