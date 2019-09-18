@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/golang/protobuf/proto"
@@ -33,9 +34,9 @@ func methodErrLogger(method string) func(error) {
 }
 
 func shouldIgnore(fullMethod string) bool {
-	// if strings.HasPrefix(fullMethod, "/grpc.health") {
-	// 	return true // health checks don't affect cache
-	// }
+	if strings.HasPrefix(fullMethod, "/grpc.health") {
+		return true // health checks don't affect cache
+	}
 	return false
 }
 
