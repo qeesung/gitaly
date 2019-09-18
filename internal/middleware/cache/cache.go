@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/golang/protobuf/proto"
@@ -32,11 +33,16 @@ func methodErrLogger(method string) func(error) {
 	}
 }
 
+func shouldIgnore(fullMethod string) bool {
+	return strings.HasPrefix(fullMethod, "/grpc.health")
+}
+
 // StreamInvalidator will invalidate any mutating RPC that targets a
 // repository in a gRPC stream based RPC
 func StreamInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if !featureflag.IsEnabled(ss.Context(), FeatureFlag) {
+		if !featureflag.IsEnabled(ss.Context(), FeatureFlag) ||
+			shouldIgnore(info.FullMethod) {
 			return handler(srv, ss)
 		}
 
@@ -63,7 +69,8 @@ func StreamInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.StreamS
 // repository in a gRPC unary RPC
 func UnaryInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		if !featureflag.IsEnabled(ctx, FeatureFlag) {
+		if !featureflag.IsEnabled(ctx, FeatureFlag) ||
+			shouldIgnore(info.FullMethod) {
 			return handler(ctx, req)
 		}
 
