@@ -87,7 +87,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 				Name:  "meow",
 				Flags: []git.Option{git.SubSubCmd{"-invalid"}},
 			},
-			errMsg: "positional arg \"-invalid\" cannot start with dash '-'",
+			errMsg: "invalid sub-sub command name \"-invalid\"",
 		},
 	} {
 		_, err := git.SafeCmd(

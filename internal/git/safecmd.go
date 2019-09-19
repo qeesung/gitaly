@@ -91,11 +91,13 @@ func (SubSubCmd) IsOption() {}
 
 // ValidateArgs returns an error if the command name or options are not
 // sanitary
-func (nc SubSubCmd) ValidateArgs() ([]string, error) {
-	if err := validatePositionalArg(nc.Name); err != nil {
-		return nil, err
+func (sc SubSubCmd) ValidateArgs() ([]string, error) {
+	if !subCmdNameRegex.MatchString(sc.Name) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("invalid sub-sub command name %q", sc.Name),
+		}
 	}
-	return []string{nc.Name}, nil
+	return []string{sc.Name}, nil
 }
 
 // Flag is a single token optional command line argument that enables or
