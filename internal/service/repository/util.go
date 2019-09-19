@@ -9,7 +9,7 @@ import (
 )
 
 func removeOriginInRepo(ctx context.Context, repository *gitalypb.Repository) error {
-	cmd, err := git.Command(ctx, repository, "remote", "remove", "origin")
+	cmd, err := git.SafeCmd(ctx, repository, nil, git.SubCmd{Name: "remote", Args: []string{"remove", "origin"}})
 
 	if err != nil {
 		return fmt.Errorf("remote cmd start: %v", err)

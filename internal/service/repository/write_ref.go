@@ -30,7 +30,7 @@ func writeRef(ctx context.Context, req *gitalypb.WriteRefRequest) error {
 }
 
 func updateSymbolicRef(ctx context.Context, req *gitalypb.WriteRefRequest) error {
-	cmd, err := git.Command(ctx, req.GetRepository(), "symbolic-ref", string(req.GetRef()), string(req.GetRevision()))
+	cmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, git.SubCmd{Name: "symbolic-ref", Args: []string{string(req.GetRef()), string(req.GetRevision())}})
 	if err != nil {
 		return fmt.Errorf("error when creating symbolic-ref command: %v", err)
 	}

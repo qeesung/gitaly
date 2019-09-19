@@ -31,18 +31,17 @@ func (s *server) SearchFilesByContent(req *gitalypb.SearchFilesByContentRequest,
 	}
 
 	ctx := stream.Context()
-	cmd, err := git.Command(ctx, repo, "grep",
-		"--ignore-case",
-		"-I", // Don't match binary, there is no long-name for this one
-		"--line-number",
-		"--null",
-		"--before-context", surroundContext,
-		"--after-context", surroundContext,
-		"--perl-regexp",
-		"-e", // next arg is pattern, keep this last
-		req.GetQuery(),
-		string(req.GetRef()),
-	)
+	cmd, err := git.SafeCmd(ctx, repo,
+		nil,
+		git.SubCmd{Name: "grep", Flags: []git.Option{
+			git.Flag{Name: "--ignore-case"},
+			git.Flag{Name: "-I"},
+			git.Flag{Name: "--line-number"},
+			git.Flag{Name: "--null"},
+			git.ValueFlag{Name: "--before-context", Value: surroundContext},
+			git.ValueFlag{Name: "--after-context", Value: surroundContext},
+			git.Flag{Name: "--perl-regexp"},
+			git.Flag{Name: "-e"}}, Args: []string{req.GetQuery(), string(req.GetRef())}})
 
 	if err != nil {
 		return status.Errorf(codes.Internal, "SearchFilesByContent: cmd start failed: %v", err)
@@ -108,7 +107,14 @@ func (s *server) SearchFilesByName(req *gitalypb.SearchFilesByNameRequest, strea
 	}
 
 	ctx := stream.Context()
-	cmd, err := git.Command(ctx, repo, "ls-tree", "--full-tree", "--name-status", "-r", string(req.GetRef()), req.GetQuery())
+	cmd, err := git.SafeCmd(
+		ctx,
+		repo,
+		nil,
+		git.SubCmd{Name: "ls-tree", Flags: []git.Option{
+			git.Flag{Name: "--full-tree"},
+			git.Flag{Name: "--name-status"},
+			git.Flag{Name: "-r"}}, Args: []string{string(req.GetRef()), req.GetQuery()}})
 	if err != nil {
 		return status.Errorf(codes.Internal, "SearchFilesByName: cmd start failed: %v", err)
 	}
