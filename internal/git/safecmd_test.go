@@ -85,7 +85,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
-				Flags: []git.Option{git.SubSubCmd{"-invalid", nil}},
+				Flags: []git.Option{git.SubSubCmd{"-invalid"}},
 			},
 			errMsg: "positional arg \"-invalid\" cannot start with dash '-'",
 		},
@@ -153,15 +153,12 @@ func TestSafeCmdValid(t *testing.T) {
 			subCmd: git.SubCmd{
 				Name: "noun",
 				Flags: []git.Option{
-					git.SubSubCmd{
-						"verb",
-						[]git.Option{
-							git.Flag{"--adjective"},
-						},
-					},
+					git.SubSubCmd{"verb"},
+					git.OutputToStdout,
+					git.Flag{"--adjective"},
 				},
 			},
-			expectArgs: []string{"noun", "verb", "--adjective"},
+			expectArgs: []string{"noun", "verb", "-", "--adjective"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)
