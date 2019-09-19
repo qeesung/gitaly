@@ -23,11 +23,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :old_oid, :string, 2
     optional :new_oid, :string, 3
   end
-  add_message "gitaly.CloseSessionRequest" do
-    optional :session_id, :string, 1
-  end
-  add_message "gitaly.CloseSessionResponse" do
-  end
 end
 
 module Gitaly
@@ -36,6 +31,4 @@ module Gitaly
   ApplyBfgObjectMapStreamRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ApplyBfgObjectMapStreamRequest").msgclass
   ApplyBfgObjectMapStreamResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ApplyBfgObjectMapStreamResponse").msgclass
   ApplyBfgObjectMapStreamResponse::Entry = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ApplyBfgObjectMapStreamResponse.Entry").msgclass
-  CloseSessionRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CloseSessionRequest").msgclass
-  CloseSessionResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CloseSessionResponse").msgclass
 end

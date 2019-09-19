@@ -17,7 +17,6 @@ module Gitaly
       # Deprecated in favour of ApplyBfgObjectMapStream
       rpc :ApplyBfgObjectMap, stream(ApplyBfgObjectMapRequest), ApplyBfgObjectMapResponse
       rpc :ApplyBfgObjectMapStream, stream(ApplyBfgObjectMapStreamRequest), stream(ApplyBfgObjectMapStreamResponse)
-      rpc :CloseSession, CloseSessionRequest, CloseSessionResponse
     end
 
     Stub = Service.rpc_stub_class

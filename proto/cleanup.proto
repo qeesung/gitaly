@@ -21,13 +21,6 @@ service CleanupService {
       target_repository_field: "1"
     };
   }
-
-  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse) {
-    option (op_type) = {
-      op: MUTATOR
-      scope_level: SERVER,
-    };
-  }
 }
 
 message ApplyBfgObjectMapRequest {
@@ -61,9 +54,3 @@ message ApplyBfgObjectMapStreamResponse {
 
 	repeated Entry entries = 1;
 }
-
-message CloseSessionRequest{
-  string session_id = 1;
-}
-
-message CloseSessionResponse{}
