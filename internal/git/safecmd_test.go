@@ -29,6 +29,9 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.ValueFlag{"-k", "--anything"}, valid: true},
 		{option: git.ValueFlag{"-k", ""}, valid: true},
 
+		// valid SubSubCmd inputs
+		{option: git.SubSubCmd{"meow"}, valid: true},
+
 		// valid FlagCombo inputs
 
 		// invalid Flag inputs
@@ -40,6 +43,9 @@ func TestFlagValidation(t *testing.T) {
 
 		// invalid ValueFlag inputs
 		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
+
+		// invalid SubSubCmd inputs
+		{option: git.SubSubCmd{"--meow"}}, // cannot start with dash
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -75,6 +81,13 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 				Args: []string{"--tweet"},
 			},
 			errMsg: "positional arg \"--tweet\" cannot start with dash '-'",
+		},
+		{
+			subCmd: git.SubCmd{
+				Name:  "meow",
+				Flags: []git.Option{git.SubSubCmd{"-invalid"}},
+			},
+			errMsg: "invalid sub-sub command name \"-invalid\"",
 		},
 	} {
 		_, err := git.SafeCmd(
@@ -135,6 +148,17 @@ func TestSafeCmdValid(t *testing.T) {
 				PostSepArgs: []string{"3", "4", "5"},
 			},
 			expectArgs: []string{"-a", "-b", "c", "d", "-e", "-f", "g", "-h=i", "1", "2", "--", "3", "4", "5"},
+		},
+		{
+			subCmd: git.SubCmd{
+				Name: "noun",
+				Flags: []git.Option{
+					git.SubSubCmd{"verb"},
+					git.OutputToStdout,
+					git.Flag{"--adjective"},
+				},
+			},
+			expectArgs: []string{"noun", "verb", "-", "--adjective"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)

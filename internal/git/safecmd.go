@@ -80,6 +80,26 @@ type Option interface {
 	ValidateArgs() ([]string, error)
 }
 
+// SubSubCmd is a positional argument that appears in the list of options for
+// a subcommand.
+type SubSubCmd struct {
+	Name string
+}
+
+// IsOption is a method present on all Flag interface implementations
+func (SubSubCmd) IsOption() {}
+
+// ValidateArgs returns an error if the command name or options are not
+// sanitary
+func (sc SubSubCmd) ValidateArgs() ([]string, error) {
+	if !subCmdNameRegex.MatchString(sc.Name) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("invalid sub-sub command name %q", sc.Name),
+		}
+	}
+	return []string{sc.Name}, nil
+}
+
 // Flag is a single token optional command line argument that enables or
 // disables functionality (e.g. "-L")
 type Flag struct {
