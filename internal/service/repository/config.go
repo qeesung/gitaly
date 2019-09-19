@@ -14,7 +14,10 @@ import (
 func (*server) DeleteConfig(ctx context.Context, req *gitalypb.DeleteConfigRequest) (*gitalypb.DeleteConfigResponse, error) {
 	for _, k := range req.Keys {
 		// We assume k does not contain any secrets; it is leaked via 'ps'.
-		cmd, err := git.Command(ctx, req.Repository, "config", "--unset-all", k)
+		cmd, err := git.SafeCmd(ctx, req.Repository, nil, git.SubCmd{
+			Name:  "config",
+			Flags: []git.Option{git.ValueFlag{"--unset-all", k}},
+		})
 		if err != nil {
 			return nil, err
 		}
