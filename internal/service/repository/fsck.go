@@ -21,7 +21,6 @@ func (s *server) Fsck(ctx context.Context, req *gitalypb.FsckRequest) (*gitalypb
 		[]git.Option{git.ValueFlag{"--git-dir", repoPath}},
 		git.SubCmd{Name: "fsck"},
 	)
-
 	if err != nil {
 		return nil, err
 	}
