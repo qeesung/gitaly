@@ -32,7 +32,8 @@ func TestFlagValidation(t *testing.T) {
 		// valid SubSubCmd inputs
 		{option: git.SubSubCmd{"meow"}, valid: true},
 
-		// valid FlagCombo inputs
+		// valid ConfigPair inputs
+		{option: git.ConfigPair{"core.cat.sound", "meow"}, valid: true},
 
 		// invalid Flag inputs
 		{option: git.Flag{"-*"}},          // invalid character
@@ -46,6 +47,10 @@ func TestFlagValidation(t *testing.T) {
 
 		// invalid SubSubCmd inputs
 		{option: git.SubSubCmd{"--meow"}}, // cannot start with dash
+
+		// invalid ConfigPair inputs
+		{option: git.ConfigPair{"", ""}},  // key cannot be empty
+		{option: git.ConfigPair{" ", ""}}, // key cannot be only whitespace
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -159,6 +164,15 @@ func TestSafeCmdValid(t *testing.T) {
 				},
 			},
 			expectArgs: []string{"noun", "verb", "-", "--adjective"},
+		},
+		{
+			subCmd: git.SubCmd{
+				Name: "config",
+				Flags: []git.Option{
+					git.ConfigPair{"user.name", "jramsay"},
+				},
+			},
+			expectArgs: []string{"config", "user.name", "jramsay"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)

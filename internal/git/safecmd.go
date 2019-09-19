@@ -100,6 +100,25 @@ func (sc SubSubCmd) ValidateArgs() ([]string, error) {
 	return []string{sc.Name}, nil
 }
 
+// ConfigPair is a sub-command option for use with commands like "git config"
+type ConfigPair struct {
+	Name  string
+	Value string
+}
+
+// IsOption is a method present on all Flag interface implementations
+func (ConfigPair) IsOption() {}
+
+// ValidateArgs validates the config pair args
+func (cp ConfigPair) ValidateArgs() ([]string, error) {
+	if strings.TrimSpace(cp.Name) == "" {
+		return nil, &invalidArgErr{
+			msg: "config key cannot be empty",
+		}
+	}
+	return []string{cp.Name, cp.Value}, nil
+}
+
 // Flag is a single token optional command line argument that enables or
 // disables functionality (e.g. "-L")
 type Flag struct {
