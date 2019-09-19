@@ -1,17 +1,19 @@
 package git
 
 // StaticOption are reusable trusted options
-type StaticOption string
+type StaticOption struct {
+	value string
+}
 
 // IsOption is a method present on all Flag interface implementations
 func (sa StaticOption) IsOption() {}
 
 // ValidateArgs just passes through the already trusted value. This never
 // returns an error.
-func (sa StaticOption) ValidateArgs() ([]string, error) { return []string{string(sa)}, nil }
+func (sa StaticOption) ValidateArgs() ([]string, error) { return []string{sa.value}, nil }
 
-const (
+var (
 	// OutputToStdout is used indicate the output should be sent to STDOUT
 	// Seen in: git bundle create
-	OutputToStdout = StaticOption("-")
+	OutputToStdout = StaticOption{value: "-"}
 )
