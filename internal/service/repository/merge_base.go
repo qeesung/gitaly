@@ -12,17 +12,19 @@ import (
 )
 
 func (s *server) FindMergeBase(ctx context.Context, req *gitalypb.FindMergeBaseRequest) (*gitalypb.FindMergeBaseResponse, error) {
-	revisions := req.GetRevisions()
+	var revisions []string
+	for _, rev := range req.GetRevisions() {
+		revisions = append(revisions, string(rev))
+	}
+
 	if len(revisions) < 2 {
 		return nil, status.Errorf(codes.InvalidArgument, "FindMergeBase: at least 2 revisions are required")
 	}
 
-	args := []string{"merge-base"}
-	for _, revision := range revisions {
-		args = append(args, string(revision))
-	}
-
-	cmd, err := git.Command(ctx, req.GetRepository(), args...)
+	cmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, git.SubCmd{
+		Name: "merge-base",
+		Args: revisions,
+	})
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return nil, err
