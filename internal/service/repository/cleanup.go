@@ -135,7 +135,10 @@ func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
 }
 
 func cleanDisconnectedWorktrees(ctx context.Context, repo *gitalypb.Repository) error {
-	cmd, err := git.Command(ctx, repo, "worktree", "prune")
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "worktree",
+		Flags: []git.Option{git.SubSubCmd{"prune"}},
+	})
 	if err != nil {
 		return err
 	}
