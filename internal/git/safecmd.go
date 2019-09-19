@@ -80,36 +80,22 @@ type Option interface {
 	ValidateArgs() ([]string, error)
 }
 
-// NestedCmd is a positional argument that appears in the list of options for
-// a subcommand. A positional argument may have it's own set of options to
-// facilitate nesting of subcommands
-type NestedCmd struct {
-	Name    string
-	Options []Option
+// SubSubCmd is a positional argument that appears in the list of options for
+// a subcommand.
+type SubSubCmd struct {
+	Name string
 }
 
 // IsOption is a method present on all Flag interface implementations
-func (NestedCmd) IsOption() {}
+func (SubSubCmd) IsOption() {}
 
 // ValidateArgs returns an error if the command name or options are not
 // sanitary
-func (nc NestedCmd) ValidateArgs() ([]string, error) {
-	var validArgs []string
-
+func (nc SubSubCmd) ValidateArgs() ([]string, error) {
 	if err := validatePositionalArg(nc.Name); err != nil {
 		return nil, err
 	}
-	validArgs = append(validArgs, nc.Name)
-
-	for _, opt := range nc.Options {
-		args, err := opt.ValidateArgs()
-		if err != nil {
-			return nil, err
-		}
-		validArgs = append(validArgs, args...)
-	}
-
-	return validArgs, nil
+	return []string{nc.Name}, nil
 }
 
 // Flag is a single token optional command line argument that enables or

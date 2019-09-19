@@ -29,9 +29,8 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.ValueFlag{"-k", "--anything"}, valid: true},
 		{option: git.ValueFlag{"-k", ""}, valid: true},
 
-		// valid NestedCmd inputs
-		{option: git.NestedCmd{"meow", nil}, valid: true},
-		{option: git.NestedCmd{"meow", []git.Option{git.Flag{"--loud"}}}, valid: true},
+		// valid SubSubCmd inputs
+		{option: git.SubSubCmd{"meow"}, valid: true},
 
 		// valid FlagCombo inputs
 
@@ -45,9 +44,8 @@ func TestFlagValidation(t *testing.T) {
 		// invalid ValueFlag inputs
 		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
 
-		// invalid NestedCmd inputs
-		{option: git.NestedCmd{"--meow", nil}},                       // cannot start with dash
-		{option: git.NestedCmd{"meow", []git.Option{git.Flag{"a"}}}}, // options must be valid
+		// invalid SubSubCmd inputs
+		{option: git.SubSubCmd{"--meow"}}, // cannot start with dash
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -87,7 +85,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
-				Flags: []git.Option{git.NestedCmd{"-invalid", nil}},
+				Flags: []git.Option{git.SubSubCmd{"-invalid", nil}},
 			},
 			errMsg: "positional arg \"-invalid\" cannot start with dash '-'",
 		},
@@ -155,7 +153,7 @@ func TestSafeCmdValid(t *testing.T) {
 			subCmd: git.SubCmd{
 				Name: "noun",
 				Flags: []git.Option{
-					git.NestedCmd{
+					git.SubSubCmd{
 						"verb",
 						[]git.Option{
 							git.Flag{"--adjective"},
