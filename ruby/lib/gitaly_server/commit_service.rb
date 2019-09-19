@@ -27,30 +27,6 @@ module GitalyServer
       end
     end
 
-    def get_commit_signatures(request, call)
-      repository = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-
-      Enumerator.new do |y|
-        request.commit_ids.each do |commit_id|
-          msg = Gitaly::GetCommitSignaturesResponse.new(commit_id: commit_id)
-
-          each_commit_signature_chunk(repository, commit_id) do |signature_chunk, signed_text_chunk|
-            if signature_chunk.present?
-              msg.signature = signature_chunk
-              y.yield msg
-            end
-
-            if signed_text_chunk.present?
-              msg.signed_text = signed_text_chunk
-              y.yield msg
-            end
-
-            msg = Gitaly::GetCommitSignaturesResponse.new
-          end
-        end
-      end
-    end
-
     private
 
     # yields either signature chunks or signed_text chunks to the passed block
