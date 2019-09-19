@@ -26,8 +26,7 @@ func (s *server) RepositoryExists(ctx context.Context, in *gitalypb.RepositoryEx
 }
 
 func (s *server) HasLocalBranches(ctx context.Context, in *gitalypb.HasLocalBranchesRequest) (*gitalypb.HasLocalBranchesResponse, error) {
-	args := []string{"for-each-ref", "--count=1", "refs/heads"}
-	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	cmd, err := git.SafeCmd(ctx, in.GetRepository(), nil, git.SubCmd{Name: "for-each-ref", Flags: []git.Option{git.Flag{Name: "--count=1"}}, Args: []string{"refs/heads"}})
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return nil, err
