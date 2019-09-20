@@ -120,16 +120,11 @@ func cloneFromPool(ctx context.Context, objectPoolRepo *gitalypb.ObjectPool, rep
 		return fmt.Errorf("could not get object pool path: %v", err)
 	}
 
-	args := []string{
-		"clone",
-		"--bare",
-		"--shared",
-		"--",
-		objectPoolPath,
-		repositoryPath,
-	}
-
-	cmd, err := git.BareCommand(ctx, nil, nil, nil, nil, args...)
+	cmd, err := git.SafeBareCmd(ctx, nil, nil, nil, nil, nil, git.SubCmd{
+		Name:        "clone",
+		Flags:       []git.Option{git.Flag{"--bare"}, git.Flag{"--shared"}},
+		PostSepArgs: []string{objectPoolPath, repositoryPath},
+	})
 	if err != nil {
 		return fmt.Errorf("clone with object pool start: %v", err)
 	}
