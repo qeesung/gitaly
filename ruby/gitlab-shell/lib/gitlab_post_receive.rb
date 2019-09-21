@@ -27,9 +27,6 @@ class GitlabPostReceive
 
     return false unless response
 
-    # Deprecated message format for backwards-compatibility
-    print_gitlab_12_2_messages(response)
-
     print_messages(response['messages'])
 
     response['reference_counter_decreased']
@@ -41,51 +38,6 @@ class GitlabPostReceive
 
   def api
     @api ||= GitlabNet.new
-  end
-
-  # Deprecated message format for backwards-compatibility
-  def print_gitlab_12_2_messages(response)
-    if response['broadcast_message']
-      puts
-      print_alert(response['broadcast_message'])
-    end
-
-    print_merge_request_links(response['merge_request_urls']) if response['merge_request_urls']
-    puts response['redirected_message'] if response['redirected_message']
-    puts response['project_created_message'] if response['project_created_message']
-
-    if response['warnings']
-      puts
-      print_warnings(response['warnings'])
-    end
-  end
-
-  # Deprecated message format for backwards-compatibility
-  def print_merge_request_links(merge_request_urls)
-    return if merge_request_urls.empty?
-    puts
-    merge_request_urls.each { |mr| print_merge_request_link(mr) }
-  end
-
-  # Deprecated message format for backwards-compatibility
-  def print_merge_request_link(merge_request)
-    message =
-      if merge_request["new_merge_request"]
-        "To create a merge request for #{merge_request['branch_name']}, visit:"
-      else
-        "View merge request for #{merge_request['branch_name']}:"
-      end
-
-    puts message
-    puts((" " * 2) + merge_request["url"])
-    puts
-  end
-
-  # Deprecated message format for backwards-compatibility
-  def print_warnings(warnings)
-    message = "WARNINGS:\n#{warnings}"
-    print_alert(message)
-    puts
   end
 
   def print_alert(message)
