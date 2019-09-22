@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -22,8 +23,8 @@ func (s *server) FindAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesReques
 }
 
 func findAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesRequest, stream gitalypb.RefService_FindAllRemoteBranchesServer) error {
-	args := []string{
-		"--format=" + strings.Join(localBranchFormatFields, "%00"),
+	args := []git.Option{
+		git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
 	}
 
 	patterns := []string{"refs/remotes/" + req.GetRemoteName()}

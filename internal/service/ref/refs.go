@@ -31,22 +31,24 @@ var (
 )
 
 type findRefsOpts struct {
-	cmdArgs []string
+	cmdArgs []git.Option
 	delim   []byte
 }
 
 func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repository, patterns []string, opts *findRefsOpts) error {
-	baseArgs := []string{"for-each-ref"}
+	var options []git.Option
 
-	var args []string
 	if len(opts.cmdArgs) == 0 {
-		args = append(baseArgs, "--format=%(refname)") // Default format
+		options = append(options, git.Flag{"--format=%(refname)"}) // Default format
 	} else {
-		args = append(baseArgs, opts.cmdArgs...)
+		options = append(options, opts.cmdArgs...)
 	}
 
-	args = append(args, patterns...)
-	cmd, err := git.Command(ctx, repo, args...)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "for-each-ref",
+		Flags: options,
+		Args:  patterns,
+	})
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,13 @@ func (t *tagSender) Send() error {
 }
 
 func parseAndReturnTags(ctx context.Context, repo *gitalypb.Repository, stream gitalypb.RefService_FindAllTagsServer) error {
-	tagsCmd, err := git.Command(ctx, repo, "for-each-ref", "--format", tagFormat, "refs/tags/")
+	tagsCmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name: "for-each-ref",
+		Flags: []git.Option{
+			git.ValueFlag{"--format", tagFormat},
+		},
+		Args: []string{"refs/tags/"},
+	})
 	if err != nil {
 		return fmt.Errorf("for-each-ref error: %v", err)
 	}
@@ -141,7 +149,11 @@ func validateFindAllTagsRequest(request *gitalypb.FindAllTagsRequest) error {
 func _findBranchNames(ctx context.Context, repo *gitalypb.Repository) ([][]byte, error) {
 	var names [][]byte
 
-	cmd, err := git.Command(ctx, repo, "for-each-ref", "refs/heads", "--format=%(refname)")
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "for-each-ref",
+		Flags: []git.Option{git.Flag{"--format=%(refname)"}},
+		Args:  []string{"refs/heads"}},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +176,11 @@ func _findBranchNames(ctx context.Context, repo *gitalypb.Repository) ([][]byte,
 func _headReference(ctx context.Context, repo *gitalypb.Repository) ([]byte, error) {
 	var headRef []byte
 
-	cmd, err := git.Command(ctx, repo, "rev-parse", "--symbolic-full-name", "HEAD")
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "rev-parse",
+		Flags: []git.Option{git.Flag{"--symbolic-full-name"}},
+		Args:  []string{"HEAD"},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -271,10 +287,10 @@ func findLocalBranches(in *gitalypb.FindLocalBranchesRequest, stream gitalypb.Re
 
 	writer := newFindLocalBranchesWriter(stream, c)
 	opts := &findRefsOpts{
-		cmdArgs: []string{
+		cmdArgs: []git.Option{
 			// %00 inserts the null character into the output (see for-each-ref docs)
-			"--format=" + strings.Join(localBranchFormatFields, "%00"),
-			"--sort=" + parseSortKey(in.GetSortBy()),
+			git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
+			git.Flag{"--sort=" + parseSortKey(in.GetSortBy())},
 		},
 	}
 
@@ -290,9 +306,9 @@ func (s *server) FindAllBranches(in *gitalypb.FindAllBranchesRequest, stream git
 }
 
 func findAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefService_FindAllBranchesServer) error {
-	args := []string{
+	args := []git.Option{
 		// %00 inserts the null character into the output (see for-each-ref docs)
-		"--format=" + strings.Join(localBranchFormatFields, "%00"),
+		git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
 	}
 
 	patterns := []string{"refs/heads", "refs/remotes"}
@@ -303,7 +319,7 @@ func findAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefSer
 			return err
 		}
 
-		args = append(args, fmt.Sprintf("--merged=%s", string(defaultBranchName)))
+		args = append(args, git.Flag{fmt.Sprintf("--merged=%s", string(defaultBranchName))})
 
 		if len(in.MergedBranches) > 0 {
 			patterns = nil
@@ -378,7 +394,13 @@ func parseTagLine(c *catfile.Batch, tagLine string) (*gitalypb.Tag, error) {
 }
 
 func findTag(ctx context.Context, repository *gitalypb.Repository, tagName []byte) (*gitalypb.Tag, error) {
-	tagCmd, err := git.Command(ctx, repository, "tag", "-l", "--format", tagFormat, string(tagName))
+	tagCmd, err := git.SafeCmd(ctx, repository, nil, git.SubCmd{
+		Name: "tag",
+		Flags: []git.Option{
+			git.Flag{"-l"}, git.ValueFlag{"--format", tagFormat},
+		},
+		Args: []string{string(tagName)},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("for-each-ref error: %v", err)
 	}
