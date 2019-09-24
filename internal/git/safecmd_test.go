@@ -32,7 +32,11 @@ func TestFlagValidation(t *testing.T) {
 		// valid SubSubCmd inputs
 		{option: git.SubSubCmd{"meow"}, valid: true},
 
-		// valid FlagCombo inputs
+		// valid ConfigPair inputs
+		{option: git.ConfigPair{"a.b.c", "d"}, valid: true},
+		{option: git.ConfigPair{"core.sound", "meow"}, valid: true},
+		{option: git.ConfigPair{"asdf-qwer.1234-5678", ""}, valid: true},
+		{option: git.ConfigPair{"http.https://user@example.com/repo.git.user", "kitty"}, valid: true},
 
 		// invalid Flag inputs
 		{option: git.Flag{"-*"}},          // invalid character
@@ -46,6 +50,15 @@ func TestFlagValidation(t *testing.T) {
 
 		// invalid SubSubCmd inputs
 		{option: git.SubSubCmd{"--meow"}}, // cannot start with dash
+
+		// invalid ConfigPair inputs
+		{option: git.ConfigPair{"", ""}},            // key cannot be empty
+		{option: git.ConfigPair{" ", ""}},           // key cannot be whitespace
+		{option: git.ConfigPair{"asdf", ""}},        // two components required
+		{option: git.ConfigPair{"asdf.", ""}},       // 2nd component must be non-empty
+		{option: git.ConfigPair{"--asdf.asdf", ""}}, // key cannot start with dash
+		{option: git.ConfigPair{"as[[df.asdf", ""}}, // 1st component cannot contain non-alphanumeric
+		{option: git.ConfigPair{"asdf.as]]df", ""}}, // 2nd component cannot contain non-alphanumeric
 	} {
 		args, err := tt.option.ValidateArgs()
 		if tt.valid {
@@ -159,6 +172,15 @@ func TestSafeCmdValid(t *testing.T) {
 				},
 			},
 			expectArgs: []string{"noun", "verb", "-", "--adjective"},
+		},
+		{
+			subCmd: git.SubCmd{
+				Name: "config",
+				Flags: []git.Option{
+					git.ConfigPair{"user.name", "jramsay"},
+				},
+			},
+			expectArgs: []string{"config", "user.name", "jramsay"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)

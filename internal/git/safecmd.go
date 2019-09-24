@@ -100,6 +100,27 @@ func (sc SubSubCmd) ValidateArgs() ([]string, error) {
 	return []string{sc.Name}, nil
 }
 
+// ConfigPair is a sub-command option for use with commands like "git config"
+type ConfigPair struct {
+	Key   string
+	Value string
+}
+
+// IsOption is a method present on all Flag interface implementations
+func (ConfigPair) IsOption() {}
+
+var configKeyRegex = regexp.MustCompile(`^[[:alnum:]]+[-[:alnum:]]*\.(.+\.)*[[:alnum:]]+[-[:alnum:]]*$`)
+
+// ValidateArgs validates the config pair args
+func (cp ConfigPair) ValidateArgs() ([]string, error) {
+	if !configKeyRegex.MatchString(cp.Key) {
+		return nil, &invalidArgErr{
+			msg: fmt.Sprintf("config key %q failed regexp validation", cp.Key),
+		}
+	}
+	return []string{cp.Key, cp.Value}, nil
+}
+
 // Flag is a single token optional command line argument that enables or
 // disables functionality (e.g. "-L")
 type Flag struct {
