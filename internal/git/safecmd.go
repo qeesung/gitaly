@@ -109,7 +109,7 @@ type ConfigPair struct {
 // IsOption is a method present on all Flag interface implementations
 func (ConfigPair) IsOption() {}
 
-var configKeyRegex = regexp.MustCompile(`^[[:alnum:]]+[-[:alnum:]]+\.(.+\.)*[[:alnum:]]+[-[:alnum:]]+$`)
+var configKeyRegex = regexp.MustCompile(`^[[:alnum:]]+[-[:alnum:]]*\.(.+\.)*[[:alnum:]]+[-[:alnum:]]*$`)
 
 // ValidateArgs validates the config pair args
 func (cp ConfigPair) ValidateArgs() ([]string, error) {

@@ -33,6 +33,7 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.SubSubCmd{"meow"}, valid: true},
 
 		// valid ConfigPair inputs
+		{option: git.ConfigPair{"a.b.c", "d"}, valid: true},
 		{option: git.ConfigPair{"core.sound", "meow"}, valid: true},
 		{option: git.ConfigPair{"asdf-qwer.1234-5678", ""}, valid: true},
 		{option: git.ConfigPair{"http.https://user@example.com/repo.git.user", "kitty"}, valid: true},
