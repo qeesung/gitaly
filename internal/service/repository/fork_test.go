@@ -36,17 +36,17 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 		StorageName:  testRepo.StorageName,
 	}
 
+	forkedRepoPath, err := helper.GetPath(forkedRepo)
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(forkedRepoPath))
+
 	req := &gitalypb.CreateForkRequest{
 		Repository:       forkedRepo,
 		SourceRepository: testRepo,
 	}
 
-	_, err := client.CreateFork(ctx, req)
+	_, err = client.CreateFork(ctx, req)
 	require.NoError(t, err)
-
-	forkedRepoPath, err := helper.GetRepoPath(forkedRepo)
-	require.NoError(t, err)
-	defer os.RemoveAll(forkedRepoPath)
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", forkedRepoPath, "fsck")
 
