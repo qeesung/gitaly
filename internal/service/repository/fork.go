@@ -78,15 +78,14 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 	}
 	env = envInjector(ctx, env)
 
-	args := []string{
-		"clone",
-		"--bare",
-		"--no-local",
-		"--",
-		fmt.Sprintf("%s:%s", gitalyInternalURL, sourceRepository.RelativePath),
-		targetRepositoryFullPath,
-	}
-	cmd, err := git.BareCommand(ctx, nil, nil, nil, env, args...)
+	cmd, err := git.SafeBareCmd(ctx, nil, nil, nil, env, nil, git.SubCmd{
+		Name:  "clone",
+		Flags: []git.Option{git.Flag{"--bare"}, git.Flag{"--no-local"}},
+		PostSepArgs: []string{
+			fmt.Sprintf("%s:%s", gitalyInternalURL, sourceRepository.RelativePath),
+			targetRepositoryFullPath,
+		},
+	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "CreateFork: clone cmd start: %v", err)
 	}
