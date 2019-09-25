@@ -25,6 +25,11 @@ func (s *server) RemoveRepository(ctx context.Context, in *gitalypb.RemoveReposi
 	base := filepath.Base(path)
 
 	tempDir := tempdir.TempDir(storage)
+
+	if err = os.MkdirAll(tempDir, 0755); err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
 	destDir := filepath.Join(tempDir, base+"+removed")
 
 	if err = os.Rename(path, destDir); err != nil {

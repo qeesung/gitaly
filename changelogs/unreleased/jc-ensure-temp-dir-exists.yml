@@ -1,0 +1,5 @@
+---
+title: Ensure temp dir exists when removing a repository
+merge_request: 1509
+author:
+type: fixed
