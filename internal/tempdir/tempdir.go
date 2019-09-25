@@ -30,6 +30,10 @@ const (
 	// storage location.
 	cachePrefix = GitalyDataPrefix + "/cache"
 
+	// statePrefix is the directory where all state data is stored on a
+	// storage location.
+	statePrefix = GitalyDataPrefix + "/state"
+
 	// MaxAge is used by ForDeleteAllRepositories. It is also a fallback
 	// for the context-scoped temporary directories, to ensure they get
 	// cleaned up if the cleanup at the end of the context failed to run.
@@ -38,6 +42,9 @@ const (
 
 // CacheDir returns the path to the cache dir for a storage location
 func CacheDir(storage config.Storage) string { return filepath.Join(storage.Path, cachePrefix) }
+
+// StateDir returns the path to the state dir for a storage location
+func StateDir(storage config.Storage) string { return filepath.Join(storage.Path, statePrefix) }
 
 // TempDir returns the path to the temp dir for a storage location
 func TempDir(storage config.Storage) string { return filepath.Join(storage.Path, tmpRootPrefix) }

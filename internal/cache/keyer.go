@@ -76,12 +76,12 @@ func (l lease) EndLease(ctx context.Context) error {
 }
 
 func updateLatest(repo *gitalypb.Repository) (string, error) {
-	repoPath, err := helper.GetPath(repo)
+	repoStatePath, err := getRepoStatePath(repo)
 	if err != nil {
 		return "", err
 	}
 
-	lPath := latestPath(repoPath)
+	lPath := latestPath(repoStatePath)
 	if err := os.MkdirAll(filepath.Dir(lPath), 0755); err != nil {
 		return "", err
 	}
@@ -141,12 +141,12 @@ func (LeaseKeyer) KeyPath(ctx context.Context, repo *gitalypb.Repository, req pr
 		return "", err
 	}
 
-	repoPath, err := helper.GetPath(repo)
+	repoStatePath, err := getRepoStatePath(repo)
 	if err != nil {
 		return "", err
 	}
 
-	pDir := pendingDir(repoPath)
+	pDir := pendingDir(repoStatePath)
 
 	anyValidPending := false
 	for _, p := range pending {
@@ -190,12 +190,12 @@ func radixPath(root, key string) (string, error) {
 }
 
 func newPendingLease(repo *gitalypb.Repository) (string, error) {
-	repoPath, err := helper.GetPath(repo)
+	repoStatePath, err := getRepoStatePath(repo)
 	if err != nil {
 		return "", err
 	}
 
-	pDir := pendingDir(repoPath)
+	pDir := pendingDir(repoStatePath)
 	if err := os.MkdirAll(pDir, 0755); err != nil {
 		return "", err
 	}
@@ -222,13 +222,33 @@ func cacheDir(repo *gitalypb.Repository) (string, error) {
 	return tempdir.CacheDir(storage), nil
 }
 
+func getRepoStatePath(repo *gitalypb.Repository) (string, error) {
+	storage, ok := config.Config.Storage(repo.StorageName)
+	if !ok {
+		return "", fmt.Errorf("getRepoStatePath: storage not found for %v", repo)
+	}
+
+	stateDir := tempdir.StateDir(storage)
+
+	relativePath := repo.GetRelativePath()
+	if len(relativePath) == 0 {
+		return "", fmt.Errorf("getRepoStatePath: relative path missing from %+v", repo)
+	}
+
+	if helper.ContainsPathTraversal(relativePath) {
+		return "", fmt.Errorf("getRepoStatePath: relative path can't contain directory traversal")
+	}
+
+	return filepath.Join(stateDir, relativePath), nil
+}
+
 func currentLeases(repo *gitalypb.Repository) ([]os.FileInfo, error) {
-	repoPath, err := helper.GetPath(repo)
+	repoStatePath, err := getRepoStatePath(repo)
 	if err != nil {
 		return nil, err
 	}
 
-	pendings, err := ioutil.ReadDir(pendingDir(repoPath))
+	pendings, err := ioutil.ReadDir(pendingDir(repoStatePath))
 	switch {
 	case os.IsNotExist(err):
 		// pending files subdir don't exist yet, that's okay
@@ -243,12 +263,12 @@ func currentLeases(repo *gitalypb.Repository) ([]os.FileInfo, error) {
 }
 
 func currentGenID(repo *gitalypb.Repository) (string, error) {
-	repoPath, err := helper.GetPath(repo)
+	repoStatePath, err := getRepoStatePath(repo)
 	if err != nil {
 		return "", err
 	}
 
-	latestBytes, err := ioutil.ReadFile(latestPath(repoPath))
+	latestBytes, err := ioutil.ReadFile(latestPath(repoStatePath))
 	switch {
 	case os.IsNotExist(err):
 		// latest file doesn't exist, so create one
@@ -260,9 +280,9 @@ func currentGenID(repo *gitalypb.Repository) (string, error) {
 	}
 }
 
-func stateDir(repoDir string) string   { return filepath.Join(repoDir, "state") }
-func pendingDir(repoDir string) string { return filepath.Join(stateDir(repoDir), "pending") }
-func latestPath(repoDir string) string { return filepath.Join(stateDir(repoDir), "latest") }
+//func stateDir(repoDir string) string   { return filepath.Join(repoDir, "state") }
+func pendingDir(repoStateDir string) string { return filepath.Join(repoStateDir, "pending") }
+func latestPath(repoStateDir string) string { return filepath.Join(repoStateDir, "latest") }
 
 // compositeKeyHashHex returns a hex encoded string that is a SHA256 hash sum of
 // the composite key made up of the following properties: Gitaly version, gRPC
