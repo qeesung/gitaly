@@ -155,7 +155,7 @@ func TestSplitIndex(t *testing.T) {
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
 	require.Empty(t, response.GetGitError())
-	require.True(t, ensureSplitIndexExists(t, testRepoPath))
+	require.False(t, ensureSplitIndexExists(t, testRepoPath))
 }
 
 func TestFailedUserSquashRequestDueToGitError(t *testing.T) {

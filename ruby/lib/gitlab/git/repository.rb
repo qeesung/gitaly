@@ -862,7 +862,7 @@ module Gitlab
       def with_worktree(worktree, branch, sparse_checkout_files: nil, env:)
         base_args = %w[worktree add --detach]
 
-        run_git!(%w[config core.splitIndex true])
+        run_git!(%w[config core.splitIndex false])
 
         # Note that we _don't_ want to test for `.present?` here: If the caller
         # passes an non nil empty value it means it still wants sparse checkout
