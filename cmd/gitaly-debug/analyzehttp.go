@@ -43,7 +43,7 @@ func doBenchGet(cloneURL string) []string {
 	defer resp.Body.Close()
 
 	body := resp.Body
-	if strings.Contains(resp.Header.Get("Content-Encoding"), "gzip") {
+	if resp.Header.Get("Content-Encoding") == "gzip" {
 		body, err = gzip.NewReader(body)
 		noError(err)
 	}
