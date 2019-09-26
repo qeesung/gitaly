@@ -42,6 +42,12 @@ func doBenchGet(cloneURL string) []string {
 	msg("HTTP status code %d", resp.StatusCode)
 	defer resp.Body.Close()
 
+	body := resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		body, err = gzip.NewReader(body)
+		noError(err)
+	}
+
 	// Expected response:
 	// - "# service=git-upload-pack\n"
 	// - FLUSH
@@ -53,7 +59,7 @@ func doBenchGet(cloneURL string) []string {
 	var wants []string
 	var size int64
 	seenFlush := false
-	scanner := pktline.NewScanner(resp.Body)
+	scanner := pktline.NewScanner(body)
 	packets := 0
 	refs := 0
 	for ; scanner.Scan(); packets++ {
