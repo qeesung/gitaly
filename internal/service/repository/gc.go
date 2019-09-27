@@ -84,9 +84,12 @@ func gc(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
 }
 
 func configureCommitGraph(ctx context.Context, in *gitalypb.GarbageCollectRequest) error {
-	args := []string{"config", "core.commitGraph", "true"}
-
-	cmd, err := git.Command(ctx, in.GetRepository(), args...)
+	cmd, err := git.SafeCmd(ctx, in.GetRepository(), nil, git.SubCmd{
+		Name: "config",
+		Flags: []git.Option{
+			git.ConfigPair{"core.commitGraph", "true"},
+		},
+	})
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err
