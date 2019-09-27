@@ -28,7 +28,9 @@ func Try(fn func()) (recovered interface{}) {
 }
 
 // Go will run the provided function in a gorourtine and recover from any
-// panics. Any non-nil recovered value will be emitted via returned channel.
+// panics. Any recovered value will be emitted via returned channel.
+// If no panic occurred, nil will be emitted. The channel is then
+// closed.
 func Go(fn func()) <-chan interface{} {
 	recoverQ := make(chan interface{}, 1)
 
