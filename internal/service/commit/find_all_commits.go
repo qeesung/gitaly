@@ -63,20 +63,20 @@ func validateFindAllCommitsRequest(in *gitalypb.FindAllCommitsRequest) error {
 func findAllCommits(in *gitalypb.FindAllCommitsRequest, stream gitalypb.CommitService_FindAllCommitsServer, revisions []string) error {
 	sender := &findAllCommitsSender{stream: stream}
 
-	var gitLogExtraOptions []string
+	var gitLogExtraOptions []git.Option
 	if maxCount := in.GetMaxCount(); maxCount > 0 {
-		gitLogExtraOptions = append(gitLogExtraOptions, fmt.Sprintf("--max-count=%d", maxCount))
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{fmt.Sprintf("--max-count=%d", maxCount)})
 	}
 	if skip := in.GetSkip(); skip > 0 {
-		gitLogExtraOptions = append(gitLogExtraOptions, fmt.Sprintf("--skip=%d", skip))
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{fmt.Sprintf("--skip=%d", skip)})
 	}
 	switch in.GetOrder() {
 	case gitalypb.FindAllCommitsRequest_NONE:
 		// Do nothing
 	case gitalypb.FindAllCommitsRequest_DATE:
-		gitLogExtraOptions = append(gitLogExtraOptions, "--date-order")
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{"--date-order"})
 	case gitalypb.FindAllCommitsRequest_TOPO:
-		gitLogExtraOptions = append(gitLogExtraOptions, "--topo-order")
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{"--topo-order"})
 	}
 
 	return sendCommits(stream.Context(), sender, in.GetRepository(), revisions, nil, gitLogExtraOptions...)
