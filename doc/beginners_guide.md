@@ -38,7 +38,7 @@ integrates into GitLab as a whole.
 
 You have the following options to combine GOPATH and GDK:
 
-1. (default and recommended) use the embedded Gitaly GOPATH in GDK 
+1. (default and recommended) use the embedded Gitaly GOPATH in GDK
 2. (if you like having a global GOPATH) run `go get
    gitlab.com/gitlab-org/gitaly` in your global GOPATH, and symlink
    `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
@@ -121,7 +121,7 @@ service is named either after the Git CLI command, or after the Git
 object type.
 
 If either your request or response data can exceed 100KB you need to use the
-`stream` keyword. To generate the server and client code, run `make proto`.  
+`stream` keyword. To generate the server and client code, run `make proto`.
 
 ##### Gitaly
 
@@ -243,7 +243,7 @@ Generally, you should always write new tests in Go even when testing Ruby code,
 since we're planning to gradually rewrite everything in Go and want to avoid
 having to rewrite the tests as well.
 
-To run the full test suite, use `make test`.  
+To run the full test suite, use `make test`.
 You'll need some [test repositories](test_repos.md), you can set these up with `make prepare-tests`.
 
 #### Go tests
@@ -316,6 +316,7 @@ To use your custom Gitaly when running Rails tests in GDK, go to the
 [gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
 [git-remote]: https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes
 [gitaly]: https://gitlab.com/gitlab-org/gitaly
+[gitaly-proto]: https://gitlab.com/gitlab-org/gitaly/tree/master/proto
 [gitaly-issue]: https://gitlab.com/gitlab-org/gitaly/issues
 [gitlab]: https://gitlab.com
 [go-workspace]: https://golang.org/doc/code.html#Workspaces

@@ -155,7 +155,7 @@ When the beta nears completion further stages will be defined.
 		* Cons
 			* Process heavy; requires custom tooling
 			* Requires a way to tell which methods are read/write
-				* [See WIP for marking modifying RPCs](https://gitlab.com/gitlab-org/gitaly-proto/merge_requests/228)
+				* [See MR for marking modifying RPCs](https://gitlab.com/gitlab-org/gitaly-proto/merge_requests/228)
 	* See also:
 		* [nRPC](https://github.com/nats-rpc/nrpc) - gRPC via NATS
 		* [grpclb](https://github.com/bsm/grpclb) - gRPC load balancer

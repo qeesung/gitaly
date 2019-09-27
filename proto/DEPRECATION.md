@@ -8,7 +8,7 @@ issue description.
 ```
 We are deprecating RPC FooBar because **REASONS**.
 
-- [ ] put a deprecation comment `// DEPRECATED: <ISSUE-LINK>` in gitaly-proto **Merge Request LINK**
+- [ ] put a deprecation comment `// DEPRECATED: <ISSUE-LINK>` in ./proto **Merge Request LINK**
 - [ ] find all client-side uses of RPC and list below
 - [ ] update all client-side uses to no longer use RPC **ADD Merge Request LINKS**
 - [ ] wait for a GitLab release in which the RPC is no longer occurring in client side code **LINK TO GITLAB-CE RELEASE TAG**

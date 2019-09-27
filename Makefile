@@ -51,7 +51,7 @@ prepare-tests: prepare-build
 .PHONY: test
 test: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@
-	
+
 .PHONY: test-with-proxies
 test-with-proxies: prepare-build
 	cd $(BUILD_DIR) && $(MAKE) $@

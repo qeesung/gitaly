@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package test;
+
+import "shared.proto";
+
+message InvalidMethodRequest {}
+
+message InvalidTargetType {
+  int32 wrong_type = 1; // RPC specifies field 1 is target repo
+}
+
+message InvalidMethodResponse{}
+
+message InvalidNestedRequest{
+  InvalidTargetType inner_message = 1;
+}
+
+service InvalidService {
+  // should fail if op_type extension is missing
+  rpc InvalidMethod0(InvalidMethodRequest) returns (InvalidMethodResponse) {}
+
+  // should fail if op type is unknown
+  rpc InvalidMethod1(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type).op = UNKNOWN;
+  }
+  // should fail if target repo is not provided for accessor
+  rpc InvalidMethod2(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: ACCESSOR
+    };
+  }
+  // should fail if target repo is provided for server-scoped mutator
+  rpc InvalidMethod3(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: SERVER
+      target_repository_field: "1"
+    };
+  }
+  // should fail if missing either target repo or non-repo-scope for mutator
+  rpc InvalidMethod4(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type).op = MUTATOR;
+  }
+  // should fail if target repo is incorrectly formatted for mutator
+  rpc InvalidMethod5(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "🐛"
+    };
+  }
+  // should fail if target field specified does not exist in request message
+  rpc InvalidMethod6(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  // should fail if target field type is not of type Repository
+  rpc InvalidMethod7(InvalidTargetType) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
+  // should fail if request message is not deep enough for specified OID
+  rpc InvalidMethod8(InvalidTargetType) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.1"
+    };
+  }
+  // should fail if nested target field type is missing
+  rpc InvalidMethod9(InvalidNestedRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.2"
+    };
+  }
+  // should fail if nested target field type is not of type Repository
+  rpc InvalidMethod10(InvalidNestedRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      target_repository_field: "1.1"
+    };
+  }
+  // should fail if target repo is specified for storage scoped RPC
+  rpc InvalidMethod11(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
+      target_repository_field: "1.1"
+    };
+  }
+}

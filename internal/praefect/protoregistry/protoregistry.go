@@ -76,7 +76,7 @@ var protoScope = map[gitalypb.OperationMsg_Scope]Scope{
 }
 
 // MethodInfo contains metadata about the RPC method. Refer to documentation
-// for message type "OperationMsg" shared.proto in gitlab-org/gitaly-proto for
+// for message type "OperationMsg" shared.proto in ./proto for
 // more documentation.
 type MethodInfo struct {
 	Operation      OpType
