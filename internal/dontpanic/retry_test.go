@@ -15,6 +15,13 @@ func TestTry(t *testing.T) {
 	require.Exactly(t, expectErr, actualErr)
 }
 
+func TestTryNoPanic(t *testing.T) {
+	invoked := false
+	actual := dontpanic.Try(func() { invoked = true })
+	require.Nil(t, actual)
+	require.True(t, invoked)
+}
+
 func TestGo(t *testing.T) {
 	expectErr := errors.New("monkey wrench")
 	recoverQ := dontpanic.Go(func() { panic(expectErr) })
