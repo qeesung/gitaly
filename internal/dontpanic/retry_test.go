@@ -2,11 +2,9 @@ package dontpanic_test
 
 import (
 	"errors"
-	"os"
+	"fmt"
 	"testing"
-	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 )
@@ -43,24 +41,11 @@ func ExampleGoRetry() {
 		panic(i)
 	}
 
-	defer logrus.SetOutput(os.Stderr)
-	logrus.SetOutput(os.Stdout)
+	panicHandler := func(r interface{}) { fmt.Println("Panic", r) }
 
-	logrus.SetFormatter(&logrus.TextFormatter{
-		TimestampFormat: "-", // make log messages deterministic
-	})
-
-	chainedHandlers := dontpanic.BackOff(time.Millisecond,
-		dontpanic.DebugTrace(
-			dontpanic.ErrorLog(nil),
-		),
-	)
-
-	<-dontpanic.GoRetry(fn, chainedHandlers)
+	<-dontpanic.GoRetry(fn, panicHandler)
 
 	// Output:
-	// time=- level=error msg="dontpanic: panic handled: 1"
-	// time=- level=info msg="dontpanic: backing off 1ms until next retry"
-	// time=- level=error msg="dontpanic: panic handled: 2"
-	// time=- level=info msg="dontpanic: backing off 1ms until next retry"
+	// Panic 1
+	// Panic 2
 }

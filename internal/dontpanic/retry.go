@@ -10,21 +10,18 @@
 package dontpanic
 
 import (
-	"runtime"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	raven "github.com/getsentry/raven-go"
+	"gitlab.com/gitlab-org/gitaly/internal/log"
 )
 
 // Try will wrap the provided function with a panic recovery and return any
 // recovered value
 func Try(fn func()) (recovered interface{}) {
-	defer func() {
-		recovered = recover()
-	}()
-
+	defer func() { recovered = recover() }()
 	fn()
-	return nil
+	return
 }
 
 // Go will run the provided function in a gorourtine and recover from any
@@ -45,18 +42,19 @@ func Go(fn func()) <-chan interface{} {
 // PanicHandler is called after a panic occurs and before the next retry attempt
 type PanicHandler func(recovered interface{})
 
-// DebugTrace is a chainable panic handler. It prints a stack trace if the
-// logrus log level is set to debug or higher.
-func DebugTrace(ph PanicHandler) PanicHandler {
+var logger = log.Default()
+
+// SentryCapture is a chainable panic handler. It re-panics the recovered
+// value inside Sentry's own recovery handler and then error logs the sentry
+// ID for later correlation.
+func SentryCapture(ph PanicHandler) PanicHandler {
 	return func(recovered interface{}) {
 		if ph != nil {
 			ph(recovered)
 		}
-		if logrus.IsLevelEnabled(logrus.DebugLevel) {
-			b := make([]byte, 1024)
-			n := runtime.Stack(b, false)
-			logrus.Debugf("dontpanic: stack trace: %s", string(b[0:n]))
-		}
+		_, id := raven.CapturePanic(func() { panic(recovered) }, nil)
+		logger.WithField("sentry_id", id).Errorf(
+			"dontpanic: recovered value %v sent to Sentry", recovered)
 	}
 }
 
@@ -67,7 +65,7 @@ func ErrorLog(ph PanicHandler) PanicHandler {
 		if ph != nil {
 			ph(recovered)
 		}
-		logrus.Errorf("dontpanic: panic handled: %+v", recovered)
+		logger.Errorf("dontpanic: panic handled: %+v", recovered)
 	}
 }
 
@@ -78,7 +76,7 @@ func BackOff(backoff time.Duration, ph PanicHandler) PanicHandler {
 		if ph != nil {
 			ph(recovered)
 		}
-		logrus.Infof("dontpanic: backing off %s until next retry", backoff)
+		logger.Infof("dontpanic: backing off %s until next retry", backoff)
 		time.Sleep(backoff)
 	}
 }
