@@ -27,7 +27,8 @@ func Try(fn func()) (recovered interface{}) {
 // Go will run the provided function in a goroutine and recover from any
 // panics. Any recovered value will be emitted via returned channel.
 // If no panic occurred, nil will be emitted. The channel is then
-// closed.
+// closed. Go is best used in fire-and-forget goroutines where
+// observability is lost.
 func Go(fn func()) <-chan interface{} {
 	recoverQ := make(chan interface{}, 1)
 
@@ -80,6 +81,11 @@ func BackOff(backoff time.Duration, ph PanicHandler) PanicHandler {
 		time.Sleep(backoff)
 	}
 }
+
+// DefaultHandlers is a collection of chained panic handlers suitable for long running
+// goroutines. It logs any panics, sends any panicked errors to sentry, and backs off
+// one minute before retrying.
+var DefaultHandlers = BackOff(time.Minute, ErrorLog(SentryCapture(nil)))
 
 // GoRetry will keep retrying a function fn in a goroutine while recovering
 // from panics. The closure can stop the retry loop by calling the provided
