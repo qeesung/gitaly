@@ -24,7 +24,7 @@ func Try(fn func()) (recovered interface{}) {
 	return
 }
 
-// Go will run the provided function in a gorourtine and recover from any
+// Go will run the provided function in a goroutine and recover from any
 // panics. Any recovered value will be emitted via returned channel.
 // If no panic occurred, nil will be emitted. The channel is then
 // closed.
