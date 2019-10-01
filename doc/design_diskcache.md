@@ -23,7 +23,7 @@ in a dedicated **state directory** for each repository:
 
 	${STATE_DIR} = ${STORAGE_PATH}/+gitaly/state/${REPO_RELATIVE_PATH}
 
-Before a mutating RPC's handler is invoked, a gRPC middleware creates a "lease"
+Before a mutating RPC handler is invoked, a gRPC middleware creates a "lease"
 file in the state directory that signifies a mutating operation is in-flight.
 These lease files reside at the following path:
 
