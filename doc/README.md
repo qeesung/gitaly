@@ -27,6 +27,7 @@ For configuration please read [praefects configuration documentation](doc/config
 #### Technical explanations
 
 - [Delta Islands](delta_islands.md)
+- [Disk-based Cache](design_diskcache.md)
 
 #### Proposals
 
