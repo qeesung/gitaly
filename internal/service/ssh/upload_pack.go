@@ -48,6 +48,8 @@ func sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb
 		return err
 	}
 
+	git.WarnIfTooManyBitmaps(ctx, repoPath)
+
 	args := []string{}
 
 	for _, params := range req.GitConfigOptions {
