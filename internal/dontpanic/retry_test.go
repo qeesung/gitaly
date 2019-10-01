@@ -52,7 +52,7 @@ func TestGoForever(t *testing.T) {
 	dontpanic.GoForever(time.Microsecond, fn)
 
 	var actualPanics int
-	for _ = range recoveredQ {
+	for range recoveredQ {
 		actualPanics++
 	}
 	require.Equal(t, expectPanics, actualPanics)
