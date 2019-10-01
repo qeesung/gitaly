@@ -53,7 +53,7 @@ specific repository state:
 ## Cache State Machine
 
 The repository state files are used to determine whether the repository is in
-a deterministic state (i.e. no mutating RPC's in-flight) and how to find the
+a deterministic state (i.e. no mutating RPCs in-flight) and how to find the
 valid cached responses for the current repository state. The state machine
 diagram follows:
 
@@ -67,7 +67,7 @@ graph TD;
     C-->|No|G;
     D[Remove stale lease files]-->A;
     E[Mutator RPC In-Flight: Cache state indeterministic]
-    F[No mutator RPC's In-Flight: Cache state deterministic]
+    F[No mutator RPCs In-Flight: Cache state deterministic]
     G[Create/Truncate latest file]-->F
 
     classDef nonfinal fill:#ccf,stroke-width;
@@ -88,7 +88,7 @@ servers where file locks are not advisable.
 ## Cached Responses
 
 When the repository is determined to be in a deterministic state (i.e. no
-in-flight mutator RPC's), it is safe to cache responses and retrieve cached
+in-flight mutator RPCs), it is safe to cache responses and retrieve cached
 responses. The aggregate key digest is used to form a hexadecimal path to the
 cached response in this format:
 
