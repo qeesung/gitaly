@@ -1,58 +1,59 @@
 package dontpanic_test
 
 import (
-	"errors"
-	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 )
 
 func TestTry(t *testing.T) {
-	expectErr := errors.New("monkey wrench")
-	actualErr := dontpanic.Try(func() { panic(expectErr) })
-	require.Exactly(t, expectErr, actualErr)
+	dontpanic.Try(func() { panic("don't panic") })
 }
 
 func TestTryNoPanic(t *testing.T) {
 	invoked := false
-	actual := dontpanic.Try(func() { invoked = true })
-	require.Nil(t, actual)
+	dontpanic.Try(func() { invoked = true })
 	require.True(t, invoked)
 }
 
 func TestGo(t *testing.T) {
-	expectErr := errors.New("monkey wrench")
-	recoverQ := dontpanic.Go(func() { panic(expectErr) })
-	for actualErr := range recoverQ {
-		require.Exactly(t, expectErr, actualErr)
-	}
+	done := make(chan struct{})
+	dontpanic.Go(func() {
+		defer close(done)
+		panic("don't panic")
+	})
+	<-done
 }
 
-func TestGoNoConsume(t *testing.T) {
+func TestGoNoPanic(t *testing.T) {
 	done := make(chan struct{})
 	dontpanic.Go(func() { close(done) })
 	<-done
 }
 
-func ExampleGoRetry() {
-	const runs = 2
+func TestGoForever(t *testing.T) {
 	var i int
+	recoveredQ := make(chan struct{})
+	expectPanics := 5
 
-	fn := func(stop func()) {
+	fn := func() {
+		defer func() { recoveredQ <- struct{}{} }()
 		i++
-		if i > runs {
-			stop()
+
+		if i > expectPanics {
+			close(recoveredQ)
 		}
-		panic(i)
+
+		panic("don't panic")
 	}
 
-	panicHandler := func(r interface{}) { fmt.Println("Panic", r) }
+	dontpanic.GoForever(time.Microsecond, fn)
 
-	<-dontpanic.GoRetry(fn, panicHandler)
-
-	// Output:
-	// Panic 1
-	// Panic 2
+	var actualPanics int
+	for _ = range recoveredQ {
+		actualPanics++
+	}
+	require.Equal(t, expectPanics, actualPanics)
 }

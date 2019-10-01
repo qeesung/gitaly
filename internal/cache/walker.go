@@ -61,7 +61,7 @@ const cleanWalkFrequency = 10 * time.Minute
 func walkLoop(storageName, walkPath string) {
 	logrus.WithField("storage", storageName).Infof("Starting file walker for %s", walkPath)
 	walkTick := time.NewTicker(cleanWalkFrequency)
-	dontpanic.GoRetry(func(stop func()) {
+	dontpanic.GoForever(time.Minute, func() {
 		for {
 			if err := cleanWalk(walkPath); err != nil {
 				logrus.WithField("storage", storageName).Error(err)
@@ -69,7 +69,7 @@ func walkLoop(storageName, walkPath string) {
 
 			<-walkTick.C
 		}
-	}, dontpanic.DefaultHandlers)
+	})
 }
 
 func startCleanWalker(storage config.Storage) {
