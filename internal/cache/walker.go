@@ -13,11 +13,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 )
 
-func cleanWalk(storage config.Storage) error {
-	walkErr := filepath.Walk(tempdir.CacheDir(storage), func(path string, info os.FileInfo, err error) error {
+func cleanWalk(walkPath string) error {
+	walkErr := filepath.Walk(walkPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -57,22 +58,27 @@ func cleanWalk(storage config.Storage) error {
 
 const cleanWalkFrequency = 10 * time.Minute
 
+func walkLoop(storageName, walkPath string) {
+	logrus.WithField("storage", storageName).Infof("Starting file walker for %s", walkPath)
+	walkTick := time.NewTicker(cleanWalkFrequency)
+	dontpanic.GoForever(time.Minute, func() {
+		for {
+			if err := cleanWalk(walkPath); err != nil {
+				logrus.WithField("storage", storageName).Error(err)
+			}
+
+			<-walkTick.C
+		}
+	})
+}
+
 func startCleanWalker(storage config.Storage) {
 	if disableWalker {
 		return
 	}
 
-	logrus.WithField("storage", storage.Name).Info("Starting disk cache object walker")
-	walkTick := time.NewTicker(cleanWalkFrequency)
-	go func() {
-		for {
-			if err := cleanWalk(storage); err != nil {
-				logrus.WithField("storage", storage.Name).Error(err)
-			}
-
-			<-walkTick.C
-		}
-	}()
+	walkLoop(storage.Name, tempdir.CacheDir(storage))
+	walkLoop(storage.Name, tempdir.StateDir(storage))
 }
 
 var (
@@ -111,14 +117,14 @@ func moveAndClear(storage config.Storage) error {
 		return err
 	}
 
-	go func() {
+	dontpanic.Go(func() {
 		start := time.Now()
 		if err := os.RemoveAll(tmpDir); err != nil {
 			logger.Errorf("unable to remove disk cache objects: %q", err)
 		}
 
 		logger.Infof("cleared all cache object files in %s after %s", tmpDir, time.Since(start))
-	}()
+	})
 
 	return nil
 }
