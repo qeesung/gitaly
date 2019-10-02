@@ -2,33 +2,47 @@ package git
 
 import (
 	"context"
-	"io/ioutil"
-	"path/filepath"
+	"os"
 	"strings"
 
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"gitlab.com/gitlab-org/gitaly/internal/git/packfile"
 )
 
 func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
-	if n, err := numBitmaps(repoPath); err == nil && n > 1 {
-		grpc_logrus.Extract(ctx).WithField("bitmaps", n).Warn("found more than one packfile bitmap in repository")
-	}
-}
+	logEntry := grpc_logrus.Extract(ctx)
 
-func numBitmaps(repoPath string) (int, error) {
-	packDir := filepath.Join(repoPath, "objects/pack")
-	entries, err := ioutil.ReadDir(packDir)
+	objdirs, err := ObjectDirectories(repoPath)
 	if err != nil {
-		return 0, err
+		logEntry.WithError(err).Info("bitmap check failed")
+		return
 	}
 
-	count := 0
-	for _, ent := range entries {
-		name := ent.Name()
-		if strings.HasPrefix(name, "pack-") && strings.HasSuffix(name, ".bitmap") {
-			count++
+	var count int
+	seen := make(map[string]struct{})
+	for _, dir := range objdirs {
+		if _, ok := seen[dir]; ok {
+			continue
+		}
+		seen[dir] = struct{}{}
+
+		packs, err := packfile.List(dir)
+		if err != nil {
+			logEntry.WithError(err).Info("bitmap check failed")
+			return
+		}
+
+		for _, p := range packs {
+			fi, err := os.Stat(strings.TrimSuffix(p, ".pack") + ".bitmap")
+			if err == nil && !fi.IsDir() {
+				count++
+			}
 		}
 	}
 
-	return count, nil
+	if count == 0 {
+		return
+	}
+
+	logEntry.WithField("bitmaps", count).Warn("found more than one packfile bitmap in repository")
 }
