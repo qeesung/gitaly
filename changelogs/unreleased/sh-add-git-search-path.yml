@@ -1,0 +1,5 @@
+---
+title: Support configurable Git config search path for Rugged
+merge_request: 1526
+author:
+type: fixed

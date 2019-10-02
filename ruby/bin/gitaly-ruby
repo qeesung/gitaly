@@ -4,6 +4,7 @@ require 'fileutils'
 
 require 'grpc'
 require 'gitlab-labkit'
+require 'rugged'
 
 require_relative '../lib/gitaly_server.rb'
 require_relative '../lib/gitaly_server/sentry_interceptor.rb'
@@ -24,6 +25,7 @@ def main
   FileUtils.mkdir_p(socket_dir)
   File.chmod(0700, socket_dir)
 
+  set_rugged_search_path
   load_distributed_tracing
 
   load_tracing
@@ -57,6 +59,14 @@ def main
   signal_thread.join
   s.stop
   run_thread.join
+end
+
+def set_rugged_search_path
+  search_path = Gitlab::Config::Git.new.rugged_git_config_search_path
+
+  return unless search_path
+
+  Rugged::Settings['search_path_system'] = search_path
 end
 
 def load_distributed_tracing
