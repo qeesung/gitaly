@@ -1,6 +1,7 @@
 package git
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,5 +20,7 @@ func TestObjectDirs(t *testing.T) {
 
 	out, err := ObjectDirectories("testdata/objdirs/repo0")
 	require.NoError(t, err)
+
+	sort.Strings(out)
 	require.Equal(t, expected, out)
 }
