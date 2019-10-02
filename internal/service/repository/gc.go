@@ -168,8 +168,10 @@ func fixRef(ctx context.Context, repo *gitalypb.Repository, batch *catfile.Batch
 	}
 
 	// The name is a valid sha, recreate the ref
-	updateRefArgs := []string{"update-ref", name, sha}
-	cmd, err := git.Command(ctx, repo, updateRefArgs...)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name: "update-ref",
+		Args: []string{name, sha},
+	})
 	if err != nil {
 		return err
 	}
