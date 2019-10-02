@@ -9,6 +9,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/packfile"
 )
 
+// WarnIfTooManyBitmaps checks for too many (more than one) bitmaps in
+// repoPath, and if it finds any, it logs a warning. This is to help us
+// investigate https://gitlab.com/gitlab-org/gitaly/issues/1728.
 func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 	logEntry := grpc_logrus.Extract(ctx)
 
