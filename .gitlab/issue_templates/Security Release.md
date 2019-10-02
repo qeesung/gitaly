@@ -115,6 +115,17 @@ As a sanity check, you can verify your repository only points to remotes in
    - [ ] There is a good chance the newly patched Gitaly master
      on `gitlab.com` will need to be used to patch the latest GitLab CE/EE.
      This will require running the regular release process on gitlab.com.
+   - [ ] Merge the stable branches for gitlab.com and dev.gitlab.org
+      1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
+      1. `git checkout X-Y-stable`
+      1. `git fetch gitlab.com X-Y-stable`
+      1. `git merge gitlab.com/X-Y-stable`
+      1. `git push gitlab.com X-Y-stable`
+      1. `git remote remove gitlab.com`
+   - [ ] Gitaly on GitLab.com uses push mirroring to dev.gitlab.com, if branches
+   are diverged this stops working. Go to `Settings > Repository > Mirroring repositories`
+   to update the mirror. When there's no error after the manual update, it will
+   resume normal operation.
 
 [gitaly-ce-version]: https://gitlab.com/gitlab-org/gitlab-ce/blob/master/GITALY_SERVER_VERSION
 [gitlab-sec-process]: https://gitlab.com/gitlab-org/release/docs/blob/master/general/security/developer.md
