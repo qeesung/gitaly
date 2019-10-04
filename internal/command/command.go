@@ -243,6 +243,7 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("GitCommand: start %v: %v", cmd.Args, err)
 	}
+	inFlightCommandGauge.Inc()
 
 	// The goroutine below is responsible for terminating and reaping the
 	// process when ctx is canceled.
@@ -359,6 +360,7 @@ func (c *Command) wait() {
 		}
 	}
 
+	inFlightCommandGauge.Dec()
 	c.logProcessComplete(c.context, exitCode)
 
 	if w := c.stderrCloser; w != nil {
