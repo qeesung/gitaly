@@ -57,6 +57,7 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 	}
 
 	if count == 1 {
+		// Exactly one bitmap: this is how things should be.
 		return
 	}
 
@@ -64,9 +65,14 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 		logEntry.WithField("bitmaps", count).Warn("found more than one packfile bitmap in repository")
 	}
 
+	// The case where count == 0 is likely to occur early in the life of a
+	// repository. We don't want to spam our logs with that, so we count but
+	// not log it.
+
 	grpcMethod, ok := grpc_ctxtags.Extract(ctx).Values()["grpc.request.fullMethod"].(string)
 	if !ok {
 		return
 	}
+
 	badBitmapRequestCount.WithLabelValues(grpcMethod, strconv.Itoa(count)).Inc()
 }
