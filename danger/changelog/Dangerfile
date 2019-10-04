@@ -1,6 +1,6 @@
 require 'yaml'
 
-NO_CHANGELOG_LABELS = %w[backstage Documentation test].freeze
+NO_CHANGELOG_LABELS = %w[backstage documentation test].freeze
 SEE_DOC = "See [the documentation](https://gitlab.com/gitlab-org/gitaly/blob/master/CONTRIBUTING.md#changelog)".freeze
 CREATE_CHANGELOG_MESSAGE = <<~MSG.freeze
 You can create one with:
