@@ -1,13 +1,16 @@
 package git
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestObjectDirs(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	expected := []string{
 		"testdata/objdirs/repo0/objects",
 		"testdata/objdirs/repo1/objects",
@@ -18,9 +21,8 @@ func TestObjectDirs(t *testing.T) {
 		"testdata/objdirs/repoB/objects",
 	}
 
-	out, err := ObjectDirectories("testdata/objdirs/repo0")
+	out, err := ObjectDirectories(ctx, "testdata/objdirs/repo0")
 	require.NoError(t, err)
 
-	sort.Strings(out)
 	require.Equal(t, expected, out)
 }

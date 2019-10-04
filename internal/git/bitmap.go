@@ -28,7 +28,7 @@ func init() { prometheus.MustRegister(badBitmapRequestCount) }
 func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 	logEntry := grpc_logrus.Extract(ctx)
 
-	objdirs, err := ObjectDirectories(repoPath)
+	objdirs, err := ObjectDirectories(ctx, repoPath)
 	if err != nil {
 		logEntry.WithError(err).Info("bitmap check failed")
 		return

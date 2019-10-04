@@ -1,19 +1,23 @@
 package git
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/log"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 )
 
 // ObjectDirectories looks for Git object directories, including
 // alternates specified in objects/info/alternates.
-func ObjectDirectories(repoPath string) ([]string, error) {
+//
+// CAVEAT Git supports quoted strings in here, but we do not. We should
+// never need those on a Gitaly server.
+func ObjectDirectories(ctx context.Context, repoPath string) ([]string, error) {
 	objDir := filepath.Join(repoPath, "objects")
-	dirs, err := altObjectDirs(objDir, 0)
+	dirs, err := altObjectDirs(ctx, objDir, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -21,15 +25,18 @@ func ObjectDirectories(repoPath string) ([]string, error) {
 	return dirs, nil
 }
 
-func altObjectDirs(objDir string, depth int) ([]string, error) {
+func altObjectDirs(ctx context.Context, objDir string, depth int) ([]string, error) {
+	logEntry := grpc_logrus.Extract(ctx)
+
 	const maxAlternatesDepth = 5 // Taken from https://github.com/git/git/blob/v2.23.0/sha1-file.c#L575
 	if depth > maxAlternatesDepth {
-		log.Default().WithField("objdir", objDir).Warn("ignoring deeply nested alternate object directory")
+		logEntry.WithField("objdir", objDir).Warn("ignoring deeply nested alternate object directory")
 		return nil, nil
 	}
 
 	fi, err := os.Stat(objDir)
 	if os.IsNotExist(err) {
+		logEntry.WithField("objdir", objDir).Warn("object directory not found")
 		return nil, nil
 	}
 	if err != nil {
@@ -58,7 +65,7 @@ func altObjectDirs(objDir string, depth int) ([]string, error) {
 			newDir = filepath.Join(objDir, newDir)
 		}
 
-		nestedDirs, err := altObjectDirs(newDir, depth+1)
+		nestedDirs, err := altObjectDirs(ctx, newDir, depth+1)
 		if err != nil {
 			return nil, err
 		}
