@@ -10,7 +10,11 @@ import (
 
 //Remove removes the remote from repository
 func Remove(ctx context.Context, repo repository.GitRepo, name string) error {
-	cmd, err := git.Command(ctx, repo, "remote", "remove", name)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "remote",
+		Flags: []git.Option{git.SubSubCmd{Name: "remove"}},
+		Args:  []string{name},
+	})
 	if err != nil {
 		return err
 	}
@@ -21,7 +25,7 @@ func Remove(ctx context.Context, repo repository.GitRepo, name string) error {
 // Exists will always return a boolean value, but should only be depended on
 // when the error value is nil
 func Exists(ctx context.Context, repo repository.GitRepo, name string) (bool, error) {
-	cmd, err := git.Command(ctx, repo, "remote")
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{Name: "remote"})
 	if err != nil {
 		return false, err
 	}
