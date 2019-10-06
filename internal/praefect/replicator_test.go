@@ -15,6 +15,7 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	gitaly_log "gitlab.com/gitlab-org/gitaly/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
@@ -96,15 +97,15 @@ func TestProceessReplicationJob(t *testing.T) {
 	var replicator defaultReplicator
 	replicator.log = gitaly_log.Default()
 
-	coordinator := &Coordinator{nodes: make(map[string]*grpc.ClientConn)}
-	coordinator.RegisterNode("default", srvSocketPath)
-	coordinator.RegisterNode("backup", srvSocketPath)
+	clientCC := conn.NewClientConnections()
+	clientCC.RegisterNode("default", srvSocketPath)
+	clientCC.RegisterNode("backup", srvSocketPath)
 
 	replMgr := &ReplMgr{
-		log:         gitaly_log.Default(),
-		datastore:   m,
-		coordinator: coordinator,
-		replicator:  replicator,
+		log:               gitaly_log.Default(),
+		datastore:         m,
+		clientConnections: clientCC,
+		replicator:        replicator,
 	}
 
 	require.NoError(t, replMgr.processReplJob(ctx, replJob))

@@ -1,6 +1,7 @@
 package praefect
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -9,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc"
 )
 
 var testLogger = logrus.New()
@@ -48,7 +49,11 @@ func TestStreamDirector(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	coordinator := NewCoordinator(log.Default(), datastore)
+	address := "gitaly-primary.example.com"
+	clientConnections := conn.NewClientConnections()
+	clientConnections.RegisterNode("praefect-internal-1", fmt.Sprintf("tcp://%s", address))
+
+	coordinator := NewCoordinator(log.Default(), datastore, clientConnections)
 	require.NoError(t, coordinator.RegisterProtos(protoregistry.GitalyProtoFileDescriptors...))
 
 	frame, err := proto.Marshal(&gitalypb.GarbageCollectRequest{
@@ -56,14 +61,9 @@ func TestStreamDirector(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cc, err := grpc.Dial("tcp://gitaly-primary.example.com", grpc.WithInsecure())
-	require.NoError(t, err)
-
-	coordinator.setConn("praefect-internal-1", cc)
-
 	_, conn, jobUpdateFunc, err := coordinator.streamDirector(ctx, "/gitaly.RepositoryService/GarbageCollect", &mockPeeker{frame})
 	require.NoError(t, err)
-	require.Equal(t, cc, conn, "stream director should choose the primary as the client connection to use")
+	require.Equal(t, address, conn.Target())
 
 	jobs, err := datastore.GetJobs(JobStatePending, 1, 10)
 	require.NoError(t, err)

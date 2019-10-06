@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -148,11 +149,11 @@ func (dr defaultReplicator) confirmChecksums(ctx context.Context, primaryClient,
 
 // ReplMgr is a replication manager for handling replication jobs
 type ReplMgr struct {
-	log         *logrus.Entry
-	datastore   Datastore
-	coordinator *Coordinator
-	targetNode  string     // which replica is this replicator responsible for?
-	replicator  Replicator // does the actual replication logic
+	log               *logrus.Entry
+	datastore         Datastore
+	clientConnections *conn.ClientConnections
+	targetNode        string     // which replica is this replicator responsible for?
+	replicator        Replicator // does the actual replication logic
 
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
@@ -163,14 +164,14 @@ type ReplMgrOpt func(*ReplMgr)
 
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
-func NewReplMgr(targetNode string, log *logrus.Entry, datastore Datastore, c *Coordinator, opts ...ReplMgrOpt) ReplMgr {
+func NewReplMgr(targetNode string, log *logrus.Entry, datastore Datastore, c *conn.ClientConnections, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
-		log:         log,
-		datastore:   datastore,
-		whitelist:   map[string]struct{}{},
-		replicator:  defaultReplicator{log},
-		targetNode:  targetNode,
-		coordinator: c,
+		log:               log,
+		datastore:         datastore,
+		whitelist:         map[string]struct{}{},
+		replicator:        defaultReplicator{log},
+		targetNode:        targetNode,
+		clientConnections: c,
 	}
 
 	for _, opt := range opts {
@@ -275,12 +276,12 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) error {
 		return err
 	}
 
-	targetCC, err := r.coordinator.GetConnection(job.TargetNode.Storage)
+	targetCC, err := r.clientConnections.GetConnection(job.TargetNode.Storage)
 	if err != nil {
 		return err
 	}
 
-	sourceCC, err := r.coordinator.GetConnection(job.Repository.Primary.Storage)
+	sourceCC, err := r.clientConnections.GetConnection(job.Repository.Primary.Storage)
 	if err != nil {
 		return err
 	}

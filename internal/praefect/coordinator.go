@@ -9,9 +9,8 @@ import (
 	"sync"
 	"syscall"
 
-	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	gitalyconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -19,7 +18,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"google.golang.org/grpc"
 )
@@ -28,26 +26,25 @@ import (
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
 type Coordinator struct {
+	connections   *conn.ClientConnections
 	log           *logrus.Entry
 	failoverMutex sync.RWMutex
-	connMutex     sync.RWMutex
 
 	datastore Datastore
 
-	nodes    map[string]*grpc.ClientConn
 	registry *protoregistry.Registry
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l *logrus.Entry, datastore Datastore, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
+func NewCoordinator(l *logrus.Entry, datastore Datastore, clientConnections *conn.ClientConnections, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
 	registry := protoregistry.New()
 	registry.RegisterFiles(fileDescriptors...)
 
 	return &Coordinator{
-		log:       l,
-		datastore: datastore,
-		nodes:     make(map[string]*grpc.ClientConn),
-		registry:  registry,
+		log:         l,
+		datastore:   datastore,
+		registry:    registry,
+		connections: clientConnections,
 	}
 }
 
@@ -91,7 +88,7 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string,
 	}
 	// We only need the primary node, as there's only one primary storage
 	// location per praefect at this time
-	cc, err := c.GetConnection(storage)
+	cc, err := c.connections.GetConnection(storage)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to find existing client connection for %s", storage)
 	}
@@ -221,43 +218,6 @@ func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository) (func()
 			}
 		}
 	}, nil
-}
-
-// RegisterNode will direct traffic to the supplied downstream connection when the storage location
-// is encountered.
-func (c *Coordinator) RegisterNode(storageName, listenAddr string) error {
-	conn, err := client.Dial(listenAddr,
-		[]grpc.DialOption{
-			grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
-			grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(gitalyconfig.Config.Auth.Token)),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	c.setConn(storageName, conn)
-
-	return nil
-}
-
-func (c *Coordinator) setConn(storageName string, conn *grpc.ClientConn) {
-	c.connMutex.Lock()
-	c.nodes[storageName] = conn
-	c.connMutex.Unlock()
-}
-
-// GetConnection gets the grpc client connection based on an address
-func (c *Coordinator) GetConnection(storageName string) (*grpc.ClientConn, error) {
-	c.connMutex.RLock()
-	cc, ok := c.nodes[storageName]
-	c.connMutex.RUnlock()
-	if !ok {
-		return nil, errors.New("client connection not found")
-	}
-
-	return cc, nil
-
 }
 
 // FailoverRotation waits for the SIGUSR1 signal, then promotes the next secondary to be primary
