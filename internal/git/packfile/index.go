@@ -21,8 +21,11 @@ import (
 
 const sumSize = sha1.Size
 
+const regexCore = `(.*/pack-)([0-9a-f]{40})`
+
 var (
-	idxFileRegex = regexp.MustCompile(`\A(.*/pack-)([0-9a-f]{40})\.idx\z`)
+	idxFileRegex  = regexp.MustCompile(`\A` + regexCore + `\.idx\z`)
+	packFileRegex = regexp.MustCompile(`\A` + regexCore + `\.pack\z`)
 )
 
 // Index is an in-memory representation of a packfile .idx file.

@@ -62,6 +62,8 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		return err
 	}
 
+	git.WarnIfTooManyBitmaps(ctx, repoPath)
+
 	args := []string{}
 	if featureflag.IsEnabled(ctx, featureflag.UploadPackFilter) {
 		args = append(args, "-c", "uploadpack.allowFilter=true", "-c", "uploadpack.allowAnySHA1InWant=true")
