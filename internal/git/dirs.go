@@ -48,7 +48,7 @@ func altObjectDirs(ctx context.Context, objDir string, depth int) ([]string, err
 
 	dirs := []string{objDir}
 
-	alternates, err := ioutil.ReadFile(filepath.Join(objDir, "info/alternates"))
+	alternates, err := ioutil.ReadFile(filepath.Join(objDir, "info", "alternates"))
 	if os.IsNotExist(err) {
 		return dirs, nil
 	}
