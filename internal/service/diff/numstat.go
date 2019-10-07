@@ -21,8 +21,11 @@ func (s *server) DiffStats(in *gitalypb.DiffStatsRequest, stream gitalypb.DiffSe
 	}
 
 	var batch []*gitalypb.DiffStats
-	cmdArgs := []string{"diff", "--numstat", "-z", in.LeftCommitId, in.RightCommitId}
-	cmd, err := git.Command(stream.Context(), in.Repository, cmdArgs...)
+	cmd, err := git.SafeCmd(stream.Context(), in.Repository, nil, git.SubCmd{
+		Name:  "diff",
+		Flags: []git.Option{git.Flag{"--numstat"}, git.Flag{"-z"}},
+		Args:  []string{in.LeftCommitId, in.RightCommitId},
+	})
 
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
