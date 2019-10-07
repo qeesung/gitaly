@@ -35,12 +35,12 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 	}
 
 	var count int
-	seen := make(map[string]struct{})
+	seen := make(map[string]bool)
 	for _, dir := range objdirs {
-		if _, ok := seen[dir]; ok {
+		if seen[dir] {
 			continue
 		}
-		seen[dir] = struct{}{}
+		seen[dir] = true
 
 		packs, err := packfile.List(dir)
 		if err != nil {
