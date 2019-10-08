@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // TestServerSimpleUnaryUnary verifies that the Praefect server is capable of
@@ -166,6 +167,18 @@ func TestGitalyServerInfo(t *testing.T) {
 	for _, storageStatus := range metadata.GetStorageStatuses() {
 		require.NotNil(t, storageStatus, "none of the storage statuses should be nil")
 	}
+}
+
+func TestHealthCheck(t *testing.T) {
+	cc, srv := runFullPraefectServer(t, config.Config{})
+	defer srv.s.Stop()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	client := healthpb.NewHealthClient(cc)
+	_, err := client.Check(ctx, &healthpb.HealthCheckRequest{})
+	require.NoError(t, err)
 }
 
 func runFullPraefectServer(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server) {

@@ -20,6 +20,8 @@ import (
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // Server is a praefect server
@@ -56,8 +58,11 @@ func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *lo
 		)),
 	}...)
 
+	srv := grpc.NewServer(grpcOpts...)
+	healthpb.RegisterHealthServer(srv, health.NewServer())
+
 	return &Server{
-		s:                 grpc.NewServer(grpcOpts...),
+		s:                 srv,
 		repl:              repl,
 		clientConnections: clientConnections,
 		conf:              conf,
