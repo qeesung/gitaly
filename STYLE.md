@@ -89,26 +89,6 @@ func TestTime(t *testing.T) {
   [Cheney blog post]: https://dave.cheney.net/2013/06/09/writing-table-driven-tests-in-go
   [Golang wiki]: https://github.com/golang/go/wiki/TableDrivenTests
 
-## Stubs
-
-Stubs should be put in the file they're expected to end up in and not in `server.go`.
-So for example `BlobService::GetBlob` should end up in `internal/service/blob/get_blob.go`.
-This is to guard against merge conflicts, and to make it easier to find.
-
-To minimize diffs (and things to review in MRs) we implement the stubs as if it were 
-being used, even though it isn't, and should end up something like this:
-```
-func (s *server) GetBlob(in *pb.GetBlobRequest, stream pb.BlobService_GetBlobServer) error {
-    return helper.Unimplemented
-}
-```  
-instead of:  
-```
-func (server) GetBlob(_ *pb.GetBlobRequest, _ pb.BlobService_GetBlobServer) error {
-    return helper.Unimplemented
-}
-```
-
 ## Black box and white box testing
 
 The dominant style of testing in Gitaly is "white box" testing, meaning
