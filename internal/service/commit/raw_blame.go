@@ -21,7 +21,12 @@ func (s *server) RawBlame(in *gitalypb.RawBlameRequest, stream gitalypb.CommitSe
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
 
-	cmd, err := git.Command(ctx, in.Repository, "blame", "-p", revision, "--", path)
+	cmd, err := git.SafeCmd(ctx, in.Repository, nil, git.SubCmd{
+		Name:        "blame",
+		Flags:       []git.Option{git.Flag{"-p"}},
+		Args:        []string{revision},
+		PostSepArgs: []string{path},
+	})
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err
