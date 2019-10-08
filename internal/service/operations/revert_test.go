@@ -348,7 +348,7 @@ func TestFailedUserRevertRequestDueToCreateTreeError(t *testing.T) {
 
 	response, err := client.UserRevert(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, "Gitlab::Git::Repository::CreateTreeError", response.CreateTreeError)
+	require.Equal(t, "conflict", response.CreateTreeError)
 }
 
 func TestFailedUserRevertRequestDueToCommitError(t *testing.T) {
