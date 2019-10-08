@@ -41,7 +41,7 @@ func runBlobServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterBlobServiceServer(grpcServer, &server{rubyServer})
+	gitalypb.RegisterBlobServiceServer(grpcServer, &server{ruby: rubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)

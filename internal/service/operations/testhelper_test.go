@@ -71,7 +71,7 @@ func runOperationServiceServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterOperationServiceServer(grpcServer, &server{RubyServer})
+	gitalypb.RegisterOperationServiceServer(grpcServer, &server{ruby: RubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)

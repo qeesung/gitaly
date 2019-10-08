@@ -59,7 +59,7 @@ func runWikiServiceServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterWikiServiceServer(grpcServer, &server{rubyServer})
+	gitalypb.RegisterWikiServiceServer(grpcServer, &server{ruby: rubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)
