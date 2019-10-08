@@ -243,10 +243,15 @@ message UserCherryPickRequest {
 }
 
 message UserCherryPickResponse {
+  enum ErrorType {
+    EMPTY = 0;
+    CONFLICT = 1;
+  }
   OperationBranchUpdate branch_update = 1;
   string create_tree_error = 2;
   string commit_error = 3;
   string pre_receive_error = 4;
+  ErrorType error_type = 5;
 }
 
 message UserRevertRequest {
@@ -260,10 +265,15 @@ message UserRevertRequest {
 }
 
 message UserRevertResponse {
+  enum ErrorType {
+    EMPTY = 0;
+    CONFLICT = 1;
+  }
   OperationBranchUpdate branch_update = 1;
   string create_tree_error = 2;
   string commit_error = 3;
   string pre_receive_error = 4;
+  ErrorType error_type = 5;
 }
 
 message UserCommitFilesActionHeader {
