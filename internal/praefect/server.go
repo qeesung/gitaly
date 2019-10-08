@@ -58,11 +58,8 @@ func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *lo
 		)),
 	}...)
 
-	srv := grpc.NewServer(grpcOpts...)
-	healthpb.RegisterHealthServer(srv, health.NewServer())
-
 	return &Server{
-		s:                 srv,
+		s:                 grpc.NewServer(grpcOpts...),
 		repl:              repl,
 		clientConnections: clientConnections,
 		conf:              conf,
@@ -89,6 +86,8 @@ func (srv *Server) Start(lis net.Listener) error {
 func (srv *Server) registerServices() {
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(srv.conf, srv.clientConnections))
+
+	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 }
 
 // Shutdown will attempt a graceful shutdown of the grpc server. If unable
