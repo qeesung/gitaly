@@ -319,8 +319,8 @@ module Gitlab
           start_repository: start_repository
         ) do |start_commit|
 
-          revert_tree_id = check_revert_content(commit, start_commit.sha)
-          raise CreateTreeError unless revert_tree_id
+          revert_tree_id, error = check_revert_content(commit, start_commit.sha)
+          raise CreateTreeError.new(error) if error
 
           committer = user_to_committer(user)
 
@@ -777,12 +777,12 @@ module Gitlab
         args << { mainline: 1 } if target_commit.merge_commit?
 
         revert_index = rugged.revert_commit(*args)
-        return false if revert_index.conflicts?
+        return [false, :conflict] if revert_index.conflicts?
 
         tree_id = revert_index.write_tree(rugged)
-        return false unless diff_exists?(source_sha, tree_id)
+        return [false, :no_changes] unless diff_exists?(source_sha, tree_id)
 
-        tree_id
+        [tree_id, nil]
       end
 
       def branches_filter(filter: nil, sort_by: nil)
@@ -817,8 +817,8 @@ module Gitlab
           start_repository: start_repository
         ) do |start_commit|
 
-          cherry_pick_tree_id = check_cherry_pick_content(commit, start_commit.sha)
-          raise CreateTreeError unless cherry_pick_tree_id
+          cherry_pick_tree_id, error = check_cherry_pick_content(commit, start_commit.sha)
+          raise CreateTreeError.new(error) if error
 
           committer = user_to_committer(user)
 
@@ -839,12 +839,12 @@ module Gitlab
         args << 1 if target_commit.merge_commit?
 
         cherry_pick_index = rugged.cherrypick_commit(*args)
-        return false if cherry_pick_index.conflicts?
+        return [false, :conflict] if cherry_pick_index.conflicts?
 
         tree_id = cherry_pick_index.write_tree(rugged)
-        return false unless diff_exists?(source_sha, tree_id)
+        return [false, :no_changes] unless diff_exists?(source_sha, tree_id)
 
-        tree_id
+        [tree_id, nil]
       end
 
       def create_commit(params = {})
