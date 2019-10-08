@@ -17,7 +17,7 @@ func (s *server) UserMergeBranch(bidi gitalypb.OperationService_UserMergeBranchS
 	}
 
 	ctx := bidi.Context()
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (s *server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (s *server) UserMergeToRef(ctx context.Context, in *gitalypb.UserMergeToRef
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}

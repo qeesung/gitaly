@@ -10,7 +10,7 @@ import (
 )
 
 func (s *server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateBranchRequest) (*gitalypb.UserCreateBranchResponse, error) {
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (s *server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 }
 
 func (s *server) UserUpdateBranch(ctx context.Context, req *gitalypb.UserUpdateBranchRequest) (*gitalypb.UserUpdateBranchResponse, error) {
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (s *server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteB
 		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty user)")
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func (s *server) WriteConfig(ctx context.Context, req *gitalypb.WriteConfigRequest) (*gitalypb.WriteConfigResponse, error) {
-	client, err := s.RepositoryServiceClient(ctx)
+	client, err := s.ruby.RepositoryServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

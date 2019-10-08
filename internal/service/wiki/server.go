@@ -6,10 +6,11 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedWikiServiceServer
 }
 
 // NewServer creates a new instance of a grpc WikiServiceServer
 func NewServer(rs *rubyserver.Server) gitalypb.WikiServiceServer {
-	return &server{rs}
+	return &server{ruby: rs}
 }

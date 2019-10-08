@@ -27,7 +27,7 @@ func (s *server) CloneFromPoolInternal(ctx context.Context, req *gitalypb.CloneF
 		return nil, helper.ErrInternal(err)
 	}
 
-	client, err := s.RemoteServiceClient(ctx)
+	client, err := s.ruby.RemoteServiceClient(ctx)
 	if err != nil {
 		return nil, helper.ErrInternalf("getting remote service client: %v", err)
 	}

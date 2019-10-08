@@ -15,7 +15,7 @@ func (s *server) UserSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		return nil, status.Errorf(codes.InvalidArgument, "UserSquash: %v", err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

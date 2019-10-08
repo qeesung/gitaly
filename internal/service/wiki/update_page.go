@@ -21,7 +21,7 @@ func (s *server) WikiUpdatePage(stream gitalypb.WikiService_WikiUpdatePageServer
 
 	ctx := stream.Context()
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

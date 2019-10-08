@@ -14,7 +14,7 @@ func (s *server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 		return nil, status.Errorf(codes.InvalidArgument, "UserRevert: %v", err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

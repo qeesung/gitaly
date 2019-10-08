@@ -15,7 +15,7 @@ func (s *server) WikiDeletePage(ctx context.Context, request *gitalypb.WikiDelet
 		return nil, status.Errorf(codes.InvalidArgument, "WikiDeletePage: %v", err)
 	}
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

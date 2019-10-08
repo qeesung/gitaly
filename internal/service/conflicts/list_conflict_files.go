@@ -16,7 +16,7 @@ func (s *server) ListConflictFiles(in *gitalypb.ListConflictFilesRequest, stream
 		return status.Errorf(codes.InvalidArgument, "ListConflictFiles: %v", err)
 	}
 
-	client, err := s.ConflictsServiceClient(ctx)
+	client, err := s.ruby.ConflictsServiceClient(ctx)
 	if err != nil {
 		return err
 	}

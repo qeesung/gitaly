@@ -20,7 +20,7 @@ func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 	}
 
 	ctx := stream.Context()
-	client, err := s.RemoteServiceClient(ctx)
+	client, err := s.ruby.RemoteServiceClient(ctx)
 	if err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ func (s *server) UserUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		return nil, status.Errorf(codes.InvalidArgument, "UserUpdateSubmodule: %v", err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,7 @@ func (s *server) UserApplyPatch(stream gitalypb.OperationService_UserApplyPatchS
 	}
 
 	requestCtx := stream.Context()
-	rubyClient, err := s.OperationServiceClient(requestCtx)
+	rubyClient, err := s.ruby.OperationServiceClient(requestCtx)
 	if err != nil {
 		return err
 	}

@@ -6,10 +6,11 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedBlobServiceServer
 }
 
 // NewServer creates a new instance of a grpc BlobServer
 func NewServer(rs *rubyserver.Server) gitalypb.BlobServiceServer {
-	return &server{rs}
+	return &server{ruby: rs}
 }

@@ -8,7 +8,7 @@ import (
 func (s *server) WikiGetAllPages(request *gitalypb.WikiGetAllPagesRequest, stream gitalypb.WikiService_WikiGetAllPagesServer) error {
 	ctx := stream.Context()
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

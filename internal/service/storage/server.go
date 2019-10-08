@@ -2,7 +2,9 @@ package storage
 
 import "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 
-type server struct{}
+type server struct {
+	gitalypb.UnimplementedStorageServiceServer
+}
 
 // NewServer creates a new instance of a gRPC storage server
 func NewServer() gitalypb.StorageServiceServer {

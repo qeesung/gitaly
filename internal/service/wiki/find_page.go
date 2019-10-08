@@ -17,7 +17,7 @@ func (s *server) WikiFindPage(request *gitalypb.WikiFindPageRequest, stream gita
 		return status.Errorf(codes.InvalidArgument, "WikiFindPage: %v", err)
 	}
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

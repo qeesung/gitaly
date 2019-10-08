@@ -14,7 +14,7 @@ func (s *server) CommitPatch(in *gitalypb.CommitPatchRequest, stream gitalypb.Di
 
 	ctx := stream.Context()
 
-	client, err := s.DiffServiceClient(ctx)
+	client, err := s.ruby.DiffServiceClient(ctx)
 	if err != nil {
 		return err
 	}

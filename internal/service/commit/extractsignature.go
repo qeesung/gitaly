@@ -8,7 +8,7 @@ import (
 func (s *server) ExtractCommitSignature(request *gitalypb.ExtractCommitSignatureRequest, stream gitalypb.CommitService_ExtractCommitSignatureServer) error {
 	ctx := stream.Context()
 
-	client, err := s.CommitServiceClient(ctx)
+	client, err := s.ruby.CommitServiceClient(ctx)
 	if err != nil {
 		return err
 	}
