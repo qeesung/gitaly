@@ -35,12 +35,10 @@ module Gitlab
       TagExistsError = Class.new(StandardError)
 
       class CreateTreeError < StandardError
-        attr_reader :error_type
+        attr_reader :error
 
-        def initialize(error_type)
-          @error_type = error_type
-
-          super(self.class.name)
+        def initialize(error)
+          @error = error
         end
       end
 

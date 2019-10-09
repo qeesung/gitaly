@@ -169,10 +169,7 @@ module GitalyServer
       branch_update = branch_update_result(result)
       Gitaly::UserCherryPickResponse.new(branch_update: branch_update)
     rescue Gitlab::Git::Repository::CreateTreeError => e
-      Gitaly::UserCherryPickResponse.new(
-        create_tree_error: set_utf8!(e.message),
-        error_type: Gitaly::UserCherryPickResponse::ErrorType.resolve(e.error_type.upcase)
-      )
+      Gitaly::UserCherryPickResponse.new(create_tree_error: Gitaly::UserCherryPickResponse::CreateTreeError.resolve(e.error.upcase))
     rescue Gitlab::Git::CommitError => e
       Gitaly::UserCherryPickResponse.new(commit_error: set_utf8!(e.message))
     rescue Gitlab::Git::PreReceiveError => e
@@ -197,10 +194,7 @@ module GitalyServer
       branch_update = branch_update_result(result)
       Gitaly::UserRevertResponse.new(branch_update: branch_update)
     rescue Gitlab::Git::Repository::CreateTreeError => e
-      Gitaly::UserRevertResponse.new(
-        create_tree_error: set_utf8!(e.message),
-        error_type: Gitaly::UserRevertResponse::ErrorType.resolve(e.error_type.upcase)
-      )
+      Gitaly::UserRevertResponse.new(create_tree_error: Gitaly::UserCherryPickResponse::CreateTreeError.resolve(e.error.upcase))
     rescue Gitlab::Git::CommitError => e
       Gitaly::UserRevertResponse.new(commit_error: set_utf8!(e.message))
     rescue Gitlab::Git::PreReceiveError => e

@@ -351,8 +351,7 @@ func TestFailedUserCherryPickRequestDueToCreateTreeError(t *testing.T) {
 
 	response, err := client.UserCherryPick(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, "Gitlab::Git::Repository::CreateTreeError", response.CreateTreeError)
-	require.Equal(t, gitalypb.UserCherryPickResponse_EMPTY, response.ErrorType)
+	require.Equal(t, gitalypb.UserCherryPickResponse_EMPTY, response.CreateTreeError)
 }
 
 func TestFailedUserCherryPickRequestDueToCommitError(t *testing.T) {
