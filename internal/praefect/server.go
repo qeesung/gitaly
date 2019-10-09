@@ -21,6 +21,8 @@ import (
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // Server is a praefect server
@@ -87,6 +89,8 @@ func (srv *Server) Start(lis net.Listener) error {
 func (srv *Server) registerServices() {
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(srv.conf, srv.clientConnections))
+
+	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 }
 
 // Shutdown will attempt a graceful shutdown of the grpc server. If unable
