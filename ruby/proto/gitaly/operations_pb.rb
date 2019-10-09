@@ -105,12 +105,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.UserCherryPickResponse" do
     optional :branch_update, :message, 1, "gitaly.OperationBranchUpdate"
-    optional :create_tree_error, :string, 2
+    optional :create_tree_error, :enum, 2, "gitaly.UserCherryPickResponse.CreateTreeError"
     optional :commit_error, :string, 3
     optional :pre_receive_error, :string, 4
-    optional :error_type, :enum, 5, "gitaly.UserCherryPickResponse.ErrorType"
   end
-  add_enum "gitaly.UserCherryPickResponse.ErrorType" do
+  add_enum "gitaly.UserCherryPickResponse.CreateTreeError" do
     value :EMPTY, 0
     value :CONFLICT, 1
   end
@@ -125,12 +124,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.UserRevertResponse" do
     optional :branch_update, :message, 1, "gitaly.OperationBranchUpdate"
-    optional :create_tree_error, :string, 2
+    optional :create_tree_error, :enum, 2, "gitaly.UserRevertResponse.CreateTreeError"
     optional :commit_error, :string, 3
     optional :pre_receive_error, :string, 4
-    optional :error_type, :enum, 5, "gitaly.UserRevertResponse.ErrorType"
   end
-  add_enum "gitaly.UserRevertResponse.ErrorType" do
+  add_enum "gitaly.UserRevertResponse.CreateTreeError" do
     value :EMPTY, 0
     value :CONFLICT, 1
   end
@@ -279,10 +277,10 @@ module Gitaly
   UserFFBranchResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserFFBranchResponse").msgclass
   UserCherryPickRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickRequest").msgclass
   UserCherryPickResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickResponse").msgclass
-  UserCherryPickResponse::ErrorType = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickResponse.ErrorType").enummodule
+  UserCherryPickResponse::CreateTreeError = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickResponse.CreateTreeError").enummodule
   UserRevertRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertRequest").msgclass
   UserRevertResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertResponse").msgclass
-  UserRevertResponse::ErrorType = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertResponse.ErrorType").enummodule
+  UserRevertResponse::CreateTreeError = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertResponse.CreateTreeError").enummodule
   UserCommitFilesActionHeader = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCommitFilesActionHeader").msgclass
   UserCommitFilesActionHeader::ActionType = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCommitFilesActionHeader.ActionType").enummodule
   UserCommitFilesAction = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCommitFilesAction").msgclass
