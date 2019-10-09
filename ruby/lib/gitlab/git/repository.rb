@@ -32,8 +32,17 @@ module Gitlab
       InvalidRef = Class.new(StandardError)
       GitError = Class.new(StandardError)
       DeleteBranchError = Class.new(StandardError)
-      CreateTreeError = Class.new(StandardError)
       TagExistsError = Class.new(StandardError)
+
+      class CreateTreeError < StandardError
+        attr_reader :error_type
+
+        def initialize(error_type)
+          @error_type = error_type
+
+          super(self.class.name)
+        end
+      end
 
       class << self
         def from_gitaly(gitaly_repository, call)
@@ -320,7 +329,7 @@ module Gitlab
         ) do |start_commit|
 
           revert_tree_id, error = check_revert_content(commit, start_commit.sha)
-          raise CreateTreeError.new(error) if error
+          raise CreateTreeError, error if error
 
           committer = user_to_committer(user)
 
@@ -780,7 +789,7 @@ module Gitlab
         return [false, :conflict] if revert_index.conflicts?
 
         tree_id = revert_index.write_tree(rugged)
-        return [false, :no_changes] unless diff_exists?(source_sha, tree_id)
+        return [false, :empty] unless diff_exists?(source_sha, tree_id)
 
         [tree_id, nil]
       end
@@ -818,7 +827,7 @@ module Gitlab
         ) do |start_commit|
 
           cherry_pick_tree_id, error = check_cherry_pick_content(commit, start_commit.sha)
-          raise CreateTreeError.new(error) if error
+          raise CreateTreeError, error if error
 
           committer = user_to_committer(user)
 
@@ -842,7 +851,7 @@ module Gitlab
         return [false, :conflict] if cherry_pick_index.conflicts?
 
         tree_id = cherry_pick_index.write_tree(rugged)
-        return [false, :no_changes] unless diff_exists?(source_sha, tree_id)
+        return [false, :empty] unless diff_exists?(source_sha, tree_id)
 
         [tree_id, nil]
       end
