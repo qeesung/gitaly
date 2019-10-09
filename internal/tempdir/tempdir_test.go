@@ -71,10 +71,8 @@ func TestCleanerSafety(t *testing.T) {
 }
 
 func TestCleanSuccess(t *testing.T) {
-	if err := chmod("a", 0700); err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-
+	require.NoError(t, os.MkdirAll(cleanRoot, 0755), "create clean root before setup")
+	testhelper.MustRunCommand(t, nil, "chmod", "-R", "0700", cleanRoot)
 	require.NoError(t, os.RemoveAll(cleanRoot), "clean up test clean root")
 
 	old := time.Unix(0, 0)
