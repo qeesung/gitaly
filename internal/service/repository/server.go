@@ -9,12 +9,13 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedRepositoryServiceServer
 }
 
 // NewServer creates a new instance of a gRPC repo server
 func NewServer(rs *rubyserver.Server) gitalypb.RepositoryServiceServer {
-	return &server{Server: rs}
+	return &server{ruby: rs}
 }
 
 func (*server) FetchHTTPRemote(context.Context, *gitalypb.FetchHTTPRemoteRequest) (*gitalypb.FetchHTTPRemoteResponse, error) {

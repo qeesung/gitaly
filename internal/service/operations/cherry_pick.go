@@ -14,7 +14,7 @@ func (s *server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 		return nil, status.Errorf(codes.InvalidArgument, "UserCherryPick: %v", err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

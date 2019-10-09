@@ -7,7 +7,8 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedCommitServiceServer
 }
 
 var (
@@ -16,5 +17,5 @@ var (
 
 // NewServer creates a new instance of a grpc CommitServiceServer
 func NewServer(rs *rubyserver.Server) gitalypb.CommitServiceServer {
-	return &server{rs}
+	return &server{ruby: rs}
 }

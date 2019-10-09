@@ -16,7 +16,7 @@ func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInt
 		return nil, status.Errorf(codes.InvalidArgument, "FetchInternalRemote: %v", err)
 	}
 
-	client, err := s.RemoteServiceClient(ctx)
+	client, err := s.ruby.RemoteServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

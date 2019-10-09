@@ -14,7 +14,7 @@ func (s *server) WikiGetPageVersions(request *gitalypb.WikiGetPageVersionsReques
 		return status.Errorf(codes.InvalidArgument, "WikiGetPageVersions: Empty Path")
 	}
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

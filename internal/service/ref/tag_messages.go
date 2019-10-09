@@ -16,7 +16,7 @@ func (s *server) GetTagMessages(request *gitalypb.GetTagMessagesRequest, stream 
 
 	ctx := stream.Context()
 
-	client, err := s.RefServiceClient(ctx)
+	client, err := s.ruby.RefServiceClient(ctx)
 	if err != nil {
 		return err
 	}

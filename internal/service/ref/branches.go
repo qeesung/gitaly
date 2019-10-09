@@ -15,7 +15,7 @@ import (
 )
 
 func (s *server) CreateBranch(ctx context.Context, req *gitalypb.CreateBranchRequest) (*gitalypb.CreateBranchResponse, error) {
-	client, err := s.RefServiceClient(ctx)
+	client, err := s.ruby.RefServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (s *server) CreateBranch(ctx context.Context, req *gitalypb.CreateBranchReq
 }
 
 func (s *server) DeleteBranch(ctx context.Context, req *gitalypb.DeleteBranchRequest) (*gitalypb.DeleteBranchResponse, error) {
-	client, err := s.RefServiceClient(ctx)
+	client, err := s.ruby.RefServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

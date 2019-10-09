@@ -19,7 +19,7 @@ func (s *server) WikiGetFormattedData(request *gitalypb.WikiGetFormattedDataRequ
 		return status.Errorf(codes.InvalidArgument, "WikiGetFormattedData: Empty Title")
 	}
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

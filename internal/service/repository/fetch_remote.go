@@ -8,7 +8,7 @@ import (
 )
 
 func (s *server) FetchRemote(ctx context.Context, in *gitalypb.FetchRemoteRequest) (*gitalypb.FetchRemoteResponse, error) {
-	client, err := s.RepositoryServiceClient(ctx)
+	client, err := s.ruby.RepositoryServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

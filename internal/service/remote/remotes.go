@@ -24,7 +24,7 @@ func (s *server) AddRemote(ctx context.Context, req *gitalypb.AddRemoteRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, "AddRemote: %v", err)
 	}
 
-	client, err := s.RemoteServiceClient(ctx)
+	client, err := s.ruby.RemoteServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

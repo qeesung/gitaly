@@ -39,7 +39,7 @@ func (s *server) SetConfig(ctx context.Context, req *gitalypb.SetConfigRequest) 
 	// We use gitaly-ruby here because in gitaly-ruby we can use Rugged, and
 	// Rugged lets us set config values without leaking secrets via 'ps'. We
 	// can't use `git config foo.bar secret` because that leaks secrets.
-	client, err := s.RepositoryServiceClient(ctx)
+	client, err := s.ruby.RepositoryServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

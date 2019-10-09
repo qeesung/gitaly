@@ -103,7 +103,7 @@ func runRefServiceServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterRefServiceServer(grpcServer, &server{rubyServer})
+	gitalypb.RegisterRefServiceServer(grpcServer, &server{ruby: rubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)

@@ -26,7 +26,7 @@ func (s *server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 	}
 
 	ctx := stream.Context()
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return err
 	}

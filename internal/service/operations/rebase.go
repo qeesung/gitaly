@@ -37,7 +37,7 @@ func (s *server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 
 func (s *server) userRebaseConfirmable(stream gitalypb.OperationService_UserRebaseConfirmableServer, firstRequest *gitalypb.UserRebaseConfirmableRequest, repository *gitalypb.Repository) error {
 	ctx := stream.Context()
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (s *server) UserRebase(ctx context.Context, req *gitalypb.UserRebaseRequest
 		return nil, status.Errorf(codes.InvalidArgument, "UserRebase: %v", err)
 	}
 
-	client, err := s.OperationServiceClient(ctx)
+	client, err := s.ruby.OperationServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

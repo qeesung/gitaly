@@ -25,7 +25,7 @@ func (s *server) ResolveConflicts(stream gitalypb.ConflictsService_ResolveConfli
 	}
 
 	ctx := stream.Context()
-	client, err := s.ConflictsServiceClient(ctx)
+	client, err := s.ruby.ConflictsServiceClient(ctx)
 	if err != nil {
 		return err
 	}

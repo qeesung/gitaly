@@ -8,7 +8,7 @@ import (
 )
 
 func (s *server) FindLicense(ctx context.Context, in *gitalypb.FindLicenseRequest) (*gitalypb.FindLicenseResponse, error) {
-	client, err := s.RepositoryServiceClient(ctx)
+	client, err := s.ruby.RepositoryServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ func (s *server) WikiFindFile(request *gitalypb.WikiFindFileRequest, stream gita
 		return status.Errorf(codes.InvalidArgument, "WikiFindFile: Empty Name")
 	}
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 func (s *server) WikiListPages(request *gitalypb.WikiListPagesRequest, stream gitalypb.WikiService_WikiListPagesServer) error {
 	ctx := stream.Context()
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

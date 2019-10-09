@@ -125,75 +125,7 @@ If either your request or response data can exceed 100KB you need to use the
 
 ##### Gitaly
 
-If proto is updated, run `make`. This will fail to compile Gitaly, as Gitaly
-doesn't yet have the new endpoint implemented. We fix this by adding a dummy implementation.
-
-###### Adding an empty Go implementation for a new RPC
-
-Often the other developers add a new protocol to gitaly/proto and it could interfere your merge request
-due to the lack of corresponding implementations in gitaly. For instance, you'd see the following
-Go compiler error in such case:
-
-```
-# gitlab.com/gitlab-org/gitaly/internal/service/repository
-_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitaly.RepositoryServiceServer in return argument:
-    *server does not implement gitaly.RepositoryServiceServer (missing RestoreCustomHooks method)
-```
-
-Remember that this sort of error can be addressed by the following method
-(even if you're not the one who added the protocol).
-
-In this case a new RPC called `RestoreCustomHooks` was added to the
-RepositoryService service, but it does not have an implementation. We
-fix this by adding a dummy implementation.
-
-Open the file that triggered the error, in this case
-`internal/service/repository/server.go`. We add a (wrong) dummy
-function so that we can get hints from the compiler:
-
-```
-func (*server) RestoreCustomHooks() {
-}
-```
-
-When we run `make` again, we now get a different error.
-
-```
-# gitlab.com/gitlab-org/gitaly/internal/service/repository
-_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:15:17: cannot use server literal (type *server) as type gitalypb.RepositoryServiceServer in return argument:
-	*server does not implement gitalypb.RepositoryServiceServer (wrong type for RestoreCustomHooks method)
-		have RestoreCustomHooks()
-		want RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error
-```
-
-This error tells us the expected signature. We copy-paste this
-signature into server.go.
-
-```
-func (*server) RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error {
-}
-```
-
-Run `make` again, now we get:
-
-```
-# gitlab.com/gitlab-org/gitaly/internal/service/repository
-_build/src/gitlab.com/gitlab-org/gitaly/internal/service/repository/server.go:19:1: missing return at end of function
-```
-
-The final solution is to add
-`"gitlab.com/gitlab-org/gitaly/internal/helper"` to the imports in
-server.go, and make the function:
-
-```
-func (*server) RestoreCustomHooks(gitalypb.RepositoryService_RestoreCustomHooksServer) error {
-	return helper.Unimplemented
-}
-```
-
-Note that the exact signature and the number of arguments / response
-values depends on the RPC type. Use the hints from the compiler to get
-the correct dummy function.
+If proto is updated, run `make`. This should compile successfully.
 
 ##### Gitaly-ruby
 

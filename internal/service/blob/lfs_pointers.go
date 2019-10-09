@@ -46,7 +46,7 @@ func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gita
 		return status.Errorf(codes.InvalidArgument, "GetLFSPointers: %v", err)
 	}
 
-	client, err := s.BlobServiceClient(ctx)
+	client, err := s.ruby.BlobServiceClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (s *server) GetNewLFSPointers(in *gitalypb.GetNewLFSPointersRequest, stream
 		return status.Errorf(codes.InvalidArgument, "GetNewLFSPointers: %v", err)
 	}
 
-	client, err := s.BlobServiceClient(ctx)
+	client, err := s.ruby.BlobServiceClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (s *server) GetAllLFSPointers(in *gitalypb.GetAllLFSPointersRequest, stream
 
 	getAllLFSPointersRequests.WithLabelValues("ruby").Inc()
 
-	client, err := s.BlobServiceClient(ctx)
+	client, err := s.ruby.BlobServiceClient(ctx)
 	if err != nil {
 		return err
 	}

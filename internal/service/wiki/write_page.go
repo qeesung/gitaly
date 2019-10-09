@@ -21,7 +21,7 @@ func (s *server) WikiWritePage(stream gitalypb.WikiService_WikiWritePageServer) 
 
 	ctx := stream.Context()
 
-	client, err := s.WikiServiceClient(ctx)
+	client, err := s.ruby.WikiServiceClient(ctx)
 	if err != nil {
 		return err
 	}

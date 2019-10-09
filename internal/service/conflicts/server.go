@@ -6,10 +6,11 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedConflictsServiceServer
 }
 
 // NewServer creates a new instance of a grpc ConflictsServer
 func NewServer(rs *rubyserver.Server) gitalypb.ConflictsServiceServer {
-	return &server{rs}
+	return &server{ruby: rs}
 }

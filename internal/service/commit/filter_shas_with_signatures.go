@@ -18,7 +18,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	}
 
 	ctx := bidi.Context()
-	client, err := s.CommitServiceClient(ctx)
+	client, err := s.ruby.CommitServiceClient(ctx)
 	if err != nil {
 		return err
 	}

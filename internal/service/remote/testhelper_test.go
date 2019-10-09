@@ -41,7 +41,7 @@ func runRemoteServiceServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterRemoteServiceServer(grpcServer, &server{RubyServer})
+	gitalypb.RegisterRemoteServiceServer(grpcServer, &server{ruby: RubyServer})
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)

@@ -6,10 +6,11 @@ import (
 )
 
 type server struct {
-	*rubyserver.Server
+	ruby *rubyserver.Server
+	gitalypb.UnimplementedRefServiceServer
 }
 
 // NewServer creates a new instance of a grpc RefServer
 func NewServer(rs *rubyserver.Server) gitalypb.RefServiceServer {
-	return &server{rs}
+	return &server{ruby: rs}
 }

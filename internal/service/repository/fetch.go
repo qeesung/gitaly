@@ -8,7 +8,7 @@ import (
 )
 
 func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourceBranchRequest) (*gitalypb.FetchSourceBranchResponse, error) {
-	client, err := s.RepositoryServiceClient(ctx)
+	client, err := s.ruby.RepositoryServiceClient(ctx)
 	if err != nil {
 		return nil, err
 	}
