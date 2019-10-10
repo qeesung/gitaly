@@ -110,8 +110,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :pre_receive_error, :string, 4
   end
   add_enum "gitaly.UserCherryPickResponse.CreateTreeError" do
-    value :EMPTY, 0
-    value :CONFLICT, 1
+    value :NONE, 0
+    value :EMPTY, 1
+    value :CONFLICT, 2
   end
   add_message "gitaly.UserRevertRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
@@ -129,8 +130,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :pre_receive_error, :string, 4
   end
   add_enum "gitaly.UserRevertResponse.CreateTreeError" do
-    value :EMPTY, 0
-    value :CONFLICT, 1
+    value :NONE, 0
+    value :EMPTY, 1
+    value :CONFLICT, 2
   end
   add_message "gitaly.UserCommitFilesActionHeader" do
     optional :action, :enum, 1, "gitaly.UserCommitFilesActionHeader.ActionType"

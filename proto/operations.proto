@@ -244,9 +244,11 @@ message UserCherryPickRequest {
 
 message UserCherryPickResponse {
   enum CreateTreeError {
-    EMPTY = 0;
-    CONFLICT = 1;
+    NONE = 0;
+    EMPTY = 1;
+    CONFLICT = 2;
   }
+
   OperationBranchUpdate branch_update = 1;
   CreateTreeError create_tree_error = 2;
   string commit_error = 3;
@@ -265,9 +267,11 @@ message UserRevertRequest {
 
 message UserRevertResponse {
   enum CreateTreeError {
-    EMPTY = 0;
-    CONFLICT = 1;
+    NONE = 0;
+    EMPTY = 1;
+    CONFLICT = 2;
   }
+
   OperationBranchUpdate branch_update = 1;
   CreateTreeError create_tree_error = 2;
   string commit_error = 3;
