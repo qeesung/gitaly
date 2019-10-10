@@ -250,9 +250,10 @@ message UserCherryPickResponse {
   }
 
   OperationBranchUpdate branch_update = 1;
-  CreateTreeError create_tree_error = 2;
+  string create_tree_error = 2;
   string commit_error = 3;
   string pre_receive_error = 4;
+  CreateTreeError create_tree_error_code = 5;
 }
 
 message UserRevertRequest {
@@ -273,9 +274,10 @@ message UserRevertResponse {
   }
 
   OperationBranchUpdate branch_update = 1;
-  CreateTreeError create_tree_error = 2;
+  string create_tree_error = 2;
   string commit_error = 3;
   string pre_receive_error = 4;
+  CreateTreeError create_tree_error_code = 5;
 }
 
 message UserCommitFilesActionHeader {

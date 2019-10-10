@@ -105,9 +105,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.UserCherryPickResponse" do
     optional :branch_update, :message, 1, "gitaly.OperationBranchUpdate"
-    optional :create_tree_error, :enum, 2, "gitaly.UserCherryPickResponse.CreateTreeError"
+    optional :create_tree_error, :string, 2
     optional :commit_error, :string, 3
     optional :pre_receive_error, :string, 4
+    optional :create_tree_error_code, :enum, 5, "gitaly.UserCherryPickResponse.CreateTreeError"
   end
   add_enum "gitaly.UserCherryPickResponse.CreateTreeError" do
     value :NONE, 0
@@ -125,9 +126,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.UserRevertResponse" do
     optional :branch_update, :message, 1, "gitaly.OperationBranchUpdate"
-    optional :create_tree_error, :enum, 2, "gitaly.UserRevertResponse.CreateTreeError"
+    optional :create_tree_error, :string, 2
     optional :commit_error, :string, 3
     optional :pre_receive_error, :string, 4
+    optional :create_tree_error_code, :enum, 5, "gitaly.UserRevertResponse.CreateTreeError"
   end
   add_enum "gitaly.UserRevertResponse.CreateTreeError" do
     value :NONE, 0
