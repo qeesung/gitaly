@@ -117,6 +117,8 @@ func TestSuccessfulUserCherryPickRequest(t *testing.T) {
 			expectedBranchUpdate.CommitId = headCommit.Id
 
 			require.Equal(t, expectedBranchUpdate, response.BranchUpdate)
+			require.Empty(t, response.CreateTreeError)
+			require.Empty(t, response.CreateTreeErrorCode)
 			require.Equal(t, testCase.request.Message, headCommit.Subject)
 			require.Equal(t, masterHeadCommit.Id, headCommit.ParentIds[0])
 		})
@@ -351,7 +353,8 @@ func TestFailedUserCherryPickRequestDueToCreateTreeError(t *testing.T) {
 
 	response, err := client.UserCherryPick(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, "Gitlab::Git::Repository::CreateTreeError", response.CreateTreeError)
+	require.NotEmpty(t, response.CreateTreeError)
+	require.Equal(t, gitalypb.UserCherryPickResponse_EMPTY, response.CreateTreeErrorCode)
 }
 
 func TestFailedUserCherryPickRequestDueToCommitError(t *testing.T) {

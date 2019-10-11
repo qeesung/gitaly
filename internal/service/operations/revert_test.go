@@ -114,6 +114,8 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			expectedBranchUpdate.CommitId = headCommit.Id
 
 			require.Equal(t, expectedBranchUpdate, response.BranchUpdate)
+			require.Empty(t, response.CreateTreeError)
+			require.Empty(t, response.CreateTreeErrorCode)
 			require.Equal(t, testCase.request.Message, headCommit.Subject)
 			require.Equal(t, masterHeadCommit.Id, headCommit.ParentIds[0])
 		})
@@ -348,7 +350,8 @@ func TestFailedUserRevertRequestDueToCreateTreeError(t *testing.T) {
 
 	response, err := client.UserRevert(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, "Gitlab::Git::Repository::CreateTreeError", response.CreateTreeError)
+	require.NotEmpty(t, response.CreateTreeError)
+	require.Equal(t, gitalypb.UserRevertResponse_CONFLICT, response.CreateTreeErrorCode)
 }
 
 func TestFailedUserRevertRequestDueToCommitError(t *testing.T) {
