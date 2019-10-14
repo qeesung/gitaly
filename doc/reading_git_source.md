@@ -34,6 +34,13 @@ searching the `t/` directory for it.
 
 TODO add section about how to modify and run an individual Git test?
 
+## Look at the technical documentation
+
+There is a lot of [technical
+documentation](https://gitlab.com/gitlab-org/git/tree/master/Documentation/technical)
+in the Git source. If you want to know more about file formats or
+network protocols, this is a good place to start.
+
 ## Code organization
 
 The Git subcommands we use to interact with Git are mostly (all?) found
