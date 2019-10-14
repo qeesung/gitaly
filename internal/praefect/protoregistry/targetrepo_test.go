@@ -35,12 +35,13 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 	}
 
 	testcases := []struct {
-		desc       string
-		svc        string
-		method     string
-		pbMsg      proto.Message
-		expectRepo *gitalypb.Repository
-		expectErr  error
+		desc                 string
+		svc                  string
+		method               string
+		pbMsg                proto.Message
+		expectRepo           *gitalypb.Repository
+		expectAdditionalRepo *gitalypb.Repository
+		expectErr            error
 	}{
 		{
 			desc:   "valid request type single depth",
@@ -71,6 +72,18 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			},
 			expectRepo: testRepos[1],
 		},
+		{
+			desc:   "target nested, includes additional repository",
+			svc:    "ObjectPoolService",
+			method: "FetchIntoObjectPool",
+			pbMsg: &gitalypb.FetchIntoObjectPoolRequest{
+				Origin:     testRepos[0],
+				ObjectPool: &gitalypb.ObjectPool{Repository: testRepos[1]},
+				Repack:     false,
+			},
+			expectRepo:           testRepos[1],
+			expectAdditionalRepo: testRepos[0],
+		},
 	}
 
 	for _, tc := range testcases {
@@ -86,6 +99,13 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			// exact same instance to be returned
 			if tc.expectRepo != actualTarget {
 				t.Fatal("pointers do not match")
+			}
+
+			if tc.expectAdditionalRepo != nil {
+				additionalRepo, ok, err := info.AdditionalRepo(tc.pbMsg)
+				require.True(t, ok)
+				require.NoError(t, err)
+				require.Equal(t, tc.expectAdditionalRepo, additionalRepo)
 			}
 		})
 	}

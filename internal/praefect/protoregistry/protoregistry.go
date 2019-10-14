@@ -82,12 +82,29 @@ type MethodInfo struct {
 	Operation      OpType
 	Scope          Scope
 	targetRepo     []int
+	additionalRepo []int
 	requestName    string // protobuf message name for input type
 	requestFactory protoFactory
 }
 
 // TargetRepo returns the target repository for a protobuf message if it exists
 func (mi MethodInfo) TargetRepo(msg proto.Message) (*gitalypb.Repository, error) {
+	return mi.getRepo(msg, mi.targetRepo)
+}
+
+// AdditionalRepo returns the additional repository for a protobuf message that needs a storage rewritten
+// if it exists
+func (mi MethodInfo) AdditionalRepo(msg proto.Message) (*gitalypb.Repository, bool, error) {
+	if mi.additionalRepo == nil {
+		return nil, false, nil
+	}
+
+	repo, err := mi.getRepo(msg, mi.additionalRepo)
+
+	return repo, true, err
+}
+
+func (mi MethodInfo) getRepo(msg proto.Message, targetOid []int) (*gitalypb.Repository, error) {
 	if mi.requestName != proto.MessageName(msg) {
 		return nil, fmt.Errorf(
 			"proto message %s does not match expected RPC request message %s",
@@ -95,7 +112,7 @@ func (mi MethodInfo) TargetRepo(msg proto.Message) (*gitalypb.Repository, error)
 		)
 	}
 
-	return reflectFindRepoTarget(msg, mi.targetRepo)
+	return reflectFindRepoTarget(msg, targetOid)
 }
 
 // UnmarshalRequestProto will unmarshal the bytes into the method's request
@@ -235,6 +252,13 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 			return MethodInfo{}, err
 		}
 		mi.targetRepo = targetRepo
+
+		if opMsg.GetAdditionalRepositoryField() != "" {
+			mi.additionalRepo, err = parseOID(opMsg.GetAdditionalRepositoryField())
+			if err != nil {
+				return MethodInfo{}, err
+			}
+		}
 	}
 
 	return mi, nil

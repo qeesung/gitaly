@@ -58,12 +58,14 @@ func TestStreamDirector(t *testing.T) {
 	coordinator := NewCoordinator(log.Default(), datastore, clientConnections, conf)
 	require.NoError(t, coordinator.RegisterProtos(protoregistry.GitalyProtoFileDescriptors...))
 
-	frame, err := proto.Marshal(&gitalypb.GarbageCollectRequest{
-		Repository: &targetRepo,
+	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
+		Origin:     &targetRepo,
+		ObjectPool: &gitalypb.ObjectPool{Repository: &targetRepo},
+		Repack:     false,
 	})
 	require.NoError(t, err)
 
-	fullMethod := "/gitaly.RepositoryService/GarbageCollect"
+	fullMethod := "/gitaly.ObjectPoolService/FetchIntoObjectPool"
 
 	peeker := &mockPeeker{frame}
 	_, conn, jobUpdateFunc, err := coordinator.streamDirector(ctx, fullMethod, peeker)
@@ -75,6 +77,10 @@ func TestStreamDirector(t *testing.T) {
 
 	m, err := protoMessageFromPeeker(mi, peeker)
 	require.NoError(t, err)
+
+	rewrittenTargetRepo, err := mi.TargetRepo(m)
+	require.NoError(t, err)
+	require.Equal(t, "praefect-internal-1", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
 	rewrittenRepo, err := mi.TargetRepo(m)
 	require.NoError(t, err)

@@ -133,6 +133,15 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 
 	targetRepo.StorageName = primary.Storage
 
+	additionalRepo, ok, err := mi.AdditionalRepo(m)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if ok {
+		additionalRepo.StorageName = primary.Storage
+	}
+
 	b, err := proxy.Codec().Marshal(m)
 	if err != nil {
 		return "", nil, err

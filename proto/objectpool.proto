@@ -11,6 +11,7 @@ service ObjectPoolService {
     option (op_type) = {
       op: MUTATOR
       target_repository_field: "1.1"
+      additional_repository_field: "2"
     };
   }
   rpc DeleteObjectPool(DeleteObjectPoolRequest) returns (DeleteObjectPoolResponse) {
@@ -24,13 +25,15 @@ service ObjectPoolService {
   rpc LinkRepositoryToObjectPool(LinkRepositoryToObjectPoolRequest) returns (LinkRepositoryToObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
-      target_repository_field: "1.1"
+      target_repository_field: "2"
+      additional_repository_field: "1.1"
     };
   }
   rpc UnlinkRepositoryFromObjectPool(UnlinkRepositoryFromObjectPoolRequest) returns (UnlinkRepositoryFromObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
       target_repository_field: "1"
+      additional_repository_field: "2"
     };
   }
 
@@ -49,7 +52,8 @@ service ObjectPoolService {
   rpc FetchIntoObjectPool(FetchIntoObjectPoolRequest) returns (FetchIntoObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
-      target_repository_field: "1"
+      target_repository_field: "2.1"
+      additional_repository_field: "1"
     };
   }
 }
@@ -57,7 +61,7 @@ service ObjectPoolService {
 // Creates an object pool from the repository. The client is responsible for
 // joining this pool later with this repository.
 message CreateObjectPoolRequest {
-  ObjectPool object_pool = 1;
+  ObjectPool object_pool = 1; // already specified as the target repo field
   Repository origin = 2;
 }
 message CreateObjectPoolResponse {}
@@ -78,7 +82,7 @@ message LinkRepositoryToObjectPoolResponse {}
 // This RPC doesn't require the ObjectPool as it will remove the alternates file
 // from the pool participant. The caller is responsible no data loss occurs.
 message UnlinkRepositoryFromObjectPoolRequest {
-  Repository repository = 1;
+  Repository repository = 1; // already specified as the target repo field
   ObjectPool object_pool = 2;
 }
 message UnlinkRepositoryFromObjectPoolResponse {}
