@@ -93,6 +93,12 @@ func UnaryInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.UnarySer
 			return handler(ctx, req)
 		}
 
+		// This should only happen during testing
+		if target == nil {
+			errLogger(fmt.Errorf("no target repository found, should only happen during tests %T", pbReq))
+			return handler(ctx, req)
+		}
+
 		le, err := ci.StartLease(target)
 		if err != nil {
 			errLogger(err)
