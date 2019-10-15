@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
 	internalauth "gitlab.com/gitlab-org/gitaly/internal/auth"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
@@ -21,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	gitalyserver "gitlab.com/gitlab-org/gitaly/internal/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -168,6 +170,11 @@ func TestGitalyServerInfo(t *testing.T) {
 	metadata, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
 	require.NoError(t, err)
 	require.Len(t, metadata.GetStorageStatuses(), len(conf.Nodes))
+	require.Equal(t, version.GetVersion(), metadata.GetServerVersion())
+
+	gitVersion, err := git.Version()
+	require.NoError(t, err)
+	require.Equal(t, gitVersion, metadata.GetGitVersion())
 
 	for _, storageStatus := range metadata.GetStorageStatuses() {
 		require.NotNil(t, storageStatus, "none of the storage statuses should be nil")

@@ -1,0 +1,5 @@
+---
+title: Fix praefect server info to include git version, server version
+merge_request: 1550
+author:
+type: fixed

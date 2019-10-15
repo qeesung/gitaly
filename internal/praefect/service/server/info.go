@@ -16,10 +16,13 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 
 	storageStatuses := make([][]*gitalypb.ServerInfoResponse_StorageStatus, len(s.conf.Nodes))
 
+	var gitVersion, serverVersion string
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	for i, node := range s.conf.Nodes {
 		i := i // necessary since it will be used in a goroutine below
+		node := node
 		cc, err := s.clientCC.GetConnection(node.Storage)
 		if err != nil {
 			return nil, helper.ErrInternalf("error getting client connection for %s: %v", node.Storage, err)
@@ -32,6 +35,10 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 			}
 
 			storageStatuses[i] = resp.GetStorageStatuses()
+
+			if node.DefaultPrimary {
+				gitVersion, serverVersion = resp.GetGitVersion(), resp.GetServerVersion()
+			}
 
 			return nil
 		})
@@ -46,6 +53,8 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 	for _, storageStatus := range storageStatuses {
 		response.StorageStatuses = append(response.StorageStatuses, storageStatus...)
 	}
+
+	response.GitVersion, response.ServerVersion = gitVersion, serverVersion
 
 	return &response, nil
 }
