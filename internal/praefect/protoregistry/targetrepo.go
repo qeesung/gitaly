@@ -1,6 +1,7 @@
 package protoregistry
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -14,6 +15,8 @@ const (
 	protobufTag      = "protobuf"
 	protobufOneOfTag = "protobuf_oneof"
 )
+
+var ErrTargetRepoMissing = errors.New("target repo is not set")
 
 // reflectFindRepoTarget finds the target repository by using the OID to
 // navigate the struct tags
