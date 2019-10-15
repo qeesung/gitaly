@@ -23,14 +23,17 @@ in an offline text editor, or on the terminal with `git grep`.
 ## Look at the tests
 
 If you want to know something that is not clear from the documentation,
-sometimes the answer is in the tests. These can be found in the `t/`
-[subdirectory](https://gitlab.com/gitlab-org/git/tree/master/t).
+sometimes the answer is in the tests. These can be found in the
+[`t/` subdirectory](https://gitlab.com/gitlab-org/git/tree/master/t).
 
-The tests are written in shell script. You don't have to run them in
-order to understand what they are doing.
+In [`t/helper`](https://gitlab.com/gitlab-org/git/tree/master/t/helper)
+you can find C executables that expose some Git internal functions that
+you normally cannot call directly.
 
-If you're interested in the workings a particular Git command, try
-searching the `t/` directory for it.
+The tests themselves are written in shell script. You don't have to run
+them in order to understand what they are doing. If you're interested in
+the workings a particular Git command, try searching the `t/` directory
+for it.
 
 TODO add section about how to modify and run an individual Git test?
 
@@ -60,7 +63,18 @@ When doing a code search for an error message you sometimes get false
 matches in the `po/` directory which contains localizations. You may
 want to ignore those or filter them out of your search.
 
+If you are trying to make sense of what some internal Git function does
+you can read its definition somewhere in a `*.c` file in the root. There
+may also be some extra explanation in the corresponding `*.h` (header)
+file; the header files define the API of the corresponding `*.c` file.
+
 ## Sub-command source files
+
+### Not all sub-commands are written in C
+
+At the top level of the repository, you will find `*.sh` and `*.perl`
+files that implement some of Git's sub-commands. For example,
+[`git-bisect.sh`](https://gitlab.com/gitlab-org/git/blob/v2.22.0/git-bisect.sh).
 
 ### Main function
 
@@ -70,12 +84,16 @@ with leaf functions at the top, and the main entrypoint will be at the
 bottom. This allows the Git source code to have fewer (or no) forward
 declarations of functions.
 
-So if you want to do a top-down walk of a Git sub-command, first jump to
-the bottom of the corresponding `builtin/*.c` file, and then scroll back
-until you see the beginning of the very last function in the file. See
-`git blame` as an
-[example](https://gitlab.com/gitlab-org/git/blob/v2.22.0/builtin/blame.c#L778),
-where `cmd_blame` is the last function in the file.
+So if you want to do a top-down walk of a Git sub-command, expect to
+find the main entry point at the bottom of the corresponding
+`builtin/*.c` file. The entry point for e.g. `git blame` will be called
+[`cmd_blame` in
+`builtin/blame.c`](https://gitlab.com/gitlab-org/git/blob/v2.22.0/builtin/blame.c#L778).
+Recall that hyphens are not allowed in function names, so the entry
+point for `git upload-pack` is `cmd_upload_pack`.
+
+Some functions are not where you expect them. For example,
+`cmd_format_patch` is in `builtin/log.c`. Use code search!
 
 ### Global state
 
@@ -105,11 +123,11 @@ in Git, you will see that `if (some_number)` is common.
 
 A variation of this has to do with zero-terminated data structures such
 as classic C strings, and linked lists. The loop below will visit each
-character in the string. Note that the test condition of the loop, `s`,
+character in the string. Note that the test condition of the loop, `*s`,
 will be `0` at the end of the string, and the loop will break.
 
 ```C
-for (s = "some string"; s; s++)
+for (s = "some string"; *s; s++)
 ```
 
 You will see the same pattern with linked lists, where the test
