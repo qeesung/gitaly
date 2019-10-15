@@ -16,6 +16,7 @@ const (
 	protobufOneOfTag = "protobuf_oneof"
 )
 
+// ErrTargetRepoMissing indicates that the target repo is missing or not set
 var ErrTargetRepoMissing = errors.New("target repo is not set")
 
 // reflectFindRepoTarget finds the target repository by using the OID to
