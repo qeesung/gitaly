@@ -112,7 +112,18 @@ func (mi MethodInfo) getRepo(msg proto.Message, targetOid []int) (*gitalypb.Repo
 		)
 	}
 
-	return reflectFindRepoTarget(msg, targetOid)
+	repo, err := reflectFindRepoTarget(msg, targetOid)
+	switch {
+	case err != nil:
+		return nil, err
+	case repo == nil:
+		// it is possible for the target repo to not be set (especially in our unit
+		// tests designed to fail and this should return an error to prevent nil
+		// pointer dereferencing
+		return nil, ErrTargetRepoMissing
+	default:
+		return repo, nil
+	}
 }
 
 // UnmarshalRequestProto will unmarshal the bytes into the method's request

@@ -84,6 +84,13 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			expectRepo:           testRepos[1],
 			expectAdditionalRepo: testRepos[0],
 		},
+		{
+			desc:      "target repo is nil",
+			svc:       "RepositoryService",
+			method:    "RepackIncremental",
+			pbMsg:     &gitalypb.RepackIncrementalRequest{Repository: nil},
+			expectErr: protoregistry.ErrTargetRepoMissing,
+		},
 	}
 
 	for _, tc := range testcases {
