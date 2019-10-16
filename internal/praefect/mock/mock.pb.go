@@ -9,10 +9,9 @@ import (
 	math "math"
 
 	proto "github.com/golang/protobuf/proto"
-	_ "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	empty "github.com/golang/protobuf/ptypes/empty"
+	gitalypb "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -104,25 +103,73 @@ func (m *SimpleResponse) GetValue() int32 {
 	return 0
 }
 
+type RepoRequest struct {
+	Repo                 *gitalypb.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *RepoRequest) Reset()         { *m = RepoRequest{} }
+func (m *RepoRequest) String() string { return proto.CompactTextString(m) }
+func (*RepoRequest) ProtoMessage()    {}
+func (*RepoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6fa4806c90f7156d, []int{2}
+}
+
+func (m *RepoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RepoRequest.Unmarshal(m, b)
+}
+func (m *RepoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RepoRequest.Marshal(b, m, deterministic)
+}
+func (m *RepoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepoRequest.Merge(m, src)
+}
+func (m *RepoRequest) XXX_Size() int {
+	return xxx_messageInfo_RepoRequest.Size(m)
+}
+func (m *RepoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepoRequest proto.InternalMessageInfo
+
+func (m *RepoRequest) GetRepo() *gitalypb.Repository {
+	if m != nil {
+		return m.Repo
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*SimpleRequest)(nil), "mock.SimpleRequest")
 	proto.RegisterType((*SimpleResponse)(nil), "mock.SimpleResponse")
+	proto.RegisterType((*RepoRequest)(nil), "mock.RepoRequest")
 }
 
 func init() { proto.RegisterFile("mock.proto", fileDescriptor_6fa4806c90f7156d) }
 
 var fileDescriptor_6fa4806c90f7156d = []byte{
-	// 154 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xca, 0xcd, 0x4f, 0xce,
-	0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x01, 0xb1, 0xa5, 0x78, 0x8a, 0x33, 0x12, 0x8b,
-	0x52, 0x53, 0x20, 0x62, 0x4a, 0xaa, 0x5c, 0xbc, 0xc1, 0x99, 0xb9, 0x05, 0x39, 0xa9, 0x41, 0xa9,
-	0x85, 0xa5, 0xa9, 0xc5, 0x25, 0x42, 0x22, 0x5c, 0xac, 0x65, 0x89, 0x39, 0xa5, 0xa9, 0x12, 0x8c,
-	0x0a, 0x8c, 0x1a, 0xac, 0x41, 0x10, 0x8e, 0x92, 0x1a, 0x17, 0x1f, 0x4c, 0x59, 0x71, 0x41, 0x7e,
-	0x5e, 0x71, 0x2a, 0x42, 0x1d, 0x13, 0x92, 0x3a, 0xa3, 0x08, 0x98, 0x71, 0xc1, 0xa9, 0x45, 0x65,
-	0x99, 0xc9, 0xa9, 0x42, 0xee, 0x5c, 0x02, 0x10, 0x81, 0xd0, 0xbc, 0xc4, 0xa2, 0x4a, 0x30, 0x21,
-	0x24, 0xac, 0x07, 0x76, 0x14, 0x8a, 0xbd, 0x52, 0x22, 0xa8, 0x82, 0x10, 0x5b, 0x94, 0x38, 0x7e,
-	0x4d, 0xd7, 0x60, 0xe1, 0x60, 0x12, 0x60, 0x4c, 0x62, 0x03, 0xbb, 0xd7, 0x18, 0x10, 0x00, 0x00,
-	0xff, 0xff, 0xe4, 0x1b, 0xb4, 0x1f, 0xd1, 0x00, 0x00, 0x00,
+	// 275 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x50, 0xcd, 0x4a, 0xc3, 0x40,
+	0x10, 0x66, 0x4b, 0x22, 0x71, 0xaa, 0xa5, 0x5d, 0x8b, 0xc8, 0x7a, 0x91, 0x80, 0x25, 0xa7, 0x2d,
+	0xad, 0xf8, 0x00, 0x1e, 0x0a, 0x7a, 0xf0, 0x92, 0xe2, 0x03, 0xa4, 0x71, 0x8c, 0xc1, 0xa4, 0xb3,
+	0xee, 0x6e, 0x0a, 0x79, 0x92, 0x3e, 0xa4, 0x6f, 0xd0, 0x93, 0x6c, 0x96, 0x60, 0x7b, 0xf5, 0x36,
+	0x33, 0xdf, 0xcf, 0x7e, 0xfb, 0x01, 0xd4, 0x94, 0x7f, 0x49, 0xa5, 0xc9, 0x12, 0x0f, 0xdc, 0x2c,
+	0x2e, 0xcc, 0x67, 0xa6, 0xf1, 0xdd, 0xdf, 0xc4, 0x6d, 0x41, 0x54, 0x54, 0x38, 0xef, 0xb6, 0x4d,
+	0xf3, 0x31, 0xc7, 0x5a, 0xd9, 0xd6, 0x83, 0xf1, 0x3d, 0x5c, 0xae, 0xcb, 0x5a, 0x55, 0x98, 0xe2,
+	0x77, 0x83, 0xc6, 0xf2, 0x29, 0x84, 0xbb, 0xac, 0x6a, 0xf0, 0x86, 0xdd, 0xb1, 0x24, 0x4c, 0xfd,
+	0x12, 0xcf, 0x60, 0xd4, 0xd3, 0x8c, 0xa2, 0xad, 0xc1, 0x3f, 0xde, 0xe0, 0x98, 0xf7, 0x08, 0xc3,
+	0x14, 0x15, 0xf5, 0x66, 0x33, 0x08, 0x34, 0x2a, 0xea, 0xbc, 0x86, 0x4b, 0x2e, 0x8b, 0xd2, 0x66,
+	0x55, 0x2b, 0x1d, 0xc5, 0x94, 0x96, 0x74, 0x9b, 0x76, 0xf8, 0xf2, 0x87, 0xf5, 0x31, 0xd6, 0xa8,
+	0x77, 0x65, 0x8e, 0x7c, 0x05, 0x23, 0x37, 0xa2, 0x7e, 0xca, 0x73, 0x34, 0x86, 0x34, 0xbf, 0x92,
+	0xdd, 0x3f, 0x4f, 0xd2, 0x8a, 0xe9, 0xe9, 0xd1, 0x67, 0x8b, 0xa3, 0xc3, 0x3e, 0x09, 0xa2, 0xc1,
+	0x98, 0xf1, 0x17, 0x98, 0xb8, 0xc7, 0x7a, 0x93, 0xb7, 0x6d, 0xa6, 0x5b, 0x3e, 0xf1, 0xa2, 0xa3,
+	0xa0, 0xe2, 0x5a, 0xfa, 0x92, 0x64, 0x5f, 0x92, 0x5c, 0xb9, 0x92, 0xe2, 0xf3, 0xc3, 0x3e, 0x09,
+	0xa3, 0x81, 0x60, 0x0b, 0xfe, 0x0c, 0x63, 0xa7, 0x78, 0x6d, 0x6c, 0x66, 0xff, 0xed, 0xc4, 0x04,
+	0x5b, 0x6c, 0xce, 0x3a, 0xe8, 0xe1, 0x37, 0x00, 0x00, 0xff, 0xff, 0x3c, 0x0c, 0xc7, 0x57, 0xb9,
+	0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -137,8 +184,12 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SimpleServiceClient interface {
-	// SimpleUnaryUnary is a simple unary request with unary response
-	SimpleUnaryUnary(ctx context.Context, in *SimpleRequest, opts ...grpc.CallOption) (*SimpleResponse, error)
+	// ServerAccessor is a unary RPC that accesses a server
+	ServerAccessor(ctx context.Context, in *SimpleRequest, opts ...grpc.CallOption) (*SimpleResponse, error)
+	// RepoAccessorUnary is a unary RPC that accesses a repo
+	RepoAccessorUnary(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	// RepoMutatorUnary is a unary RPC that mutates a repo
+	RepoMutatorUnary(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type simpleServiceClient struct {
@@ -149,9 +200,27 @@ func NewSimpleServiceClient(cc *grpc.ClientConn) SimpleServiceClient {
 	return &simpleServiceClient{cc}
 }
 
-func (c *simpleServiceClient) SimpleUnaryUnary(ctx context.Context, in *SimpleRequest, opts ...grpc.CallOption) (*SimpleResponse, error) {
+func (c *simpleServiceClient) ServerAccessor(ctx context.Context, in *SimpleRequest, opts ...grpc.CallOption) (*SimpleResponse, error) {
 	out := new(SimpleResponse)
-	err := c.cc.Invoke(ctx, "/mock.SimpleService/SimpleUnaryUnary", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/mock.SimpleService/ServerAccessor", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simpleServiceClient) RepoAccessorUnary(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, "/mock.SimpleService/RepoAccessorUnary", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *simpleServiceClient) RepoMutatorUnary(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, "/mock.SimpleService/RepoMutatorUnary", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,36 +229,68 @@ func (c *simpleServiceClient) SimpleUnaryUnary(ctx context.Context, in *SimpleRe
 
 // SimpleServiceServer is the server API for SimpleService service.
 type SimpleServiceServer interface {
-	// SimpleUnaryUnary is a simple unary request with unary response
-	SimpleUnaryUnary(context.Context, *SimpleRequest) (*SimpleResponse, error)
-}
-
-// UnimplementedSimpleServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedSimpleServiceServer struct {
-}
-
-func (*UnimplementedSimpleServiceServer) SimpleUnaryUnary(ctx context.Context, req *SimpleRequest) (*SimpleResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SimpleUnaryUnary not implemented")
+	// ServerAccessor is a unary RPC that accesses a server
+	ServerAccessor(context.Context, *SimpleRequest) (*SimpleResponse, error)
+	// RepoAccessorUnary is a unary RPC that accesses a repo
+	RepoAccessorUnary(context.Context, *RepoRequest) (*empty.Empty, error)
+	// RepoMutatorUnary is a unary RPC that mutates a repo
+	RepoMutatorUnary(context.Context, *RepoRequest) (*empty.Empty, error)
 }
 
 func RegisterSimpleServiceServer(s *grpc.Server, srv SimpleServiceServer) {
 	s.RegisterService(&_SimpleService_serviceDesc, srv)
 }
 
-func _SimpleService_SimpleUnaryUnary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SimpleService_ServerAccessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SimpleRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SimpleServiceServer).SimpleUnaryUnary(ctx, in)
+		return srv.(SimpleServiceServer).ServerAccessor(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mock.SimpleService/SimpleUnaryUnary",
+		FullMethod: "/mock.SimpleService/ServerAccessor",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SimpleServiceServer).SimpleUnaryUnary(ctx, req.(*SimpleRequest))
+		return srv.(SimpleServiceServer).ServerAccessor(ctx, req.(*SimpleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimpleService_RepoAccessorUnary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimpleServiceServer).RepoAccessorUnary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mock.SimpleService/RepoAccessorUnary",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimpleServiceServer).RepoAccessorUnary(ctx, req.(*RepoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SimpleService_RepoMutatorUnary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimpleServiceServer).RepoMutatorUnary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mock.SimpleService/RepoMutatorUnary",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimpleServiceServer).RepoMutatorUnary(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -199,8 +300,16 @@ var _SimpleService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*SimpleServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SimpleUnaryUnary",
-			Handler:    _SimpleService_SimpleUnaryUnary_Handler,
+			MethodName: "ServerAccessor",
+			Handler:    _SimpleService_ServerAccessor_Handler,
+		},
+		{
+			MethodName: "RepoAccessorUnary",
+			Handler:    _SimpleService_RepoAccessorUnary_Handler,
+		},
+		{
+			MethodName: "RepoMutatorUnary",
+			Handler:    _SimpleService_RepoMutatorUnary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
