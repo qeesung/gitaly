@@ -30,12 +30,14 @@ In [`t/helper`](https://gitlab.com/gitlab-org/git/tree/master/t/helper)
 you can find C executables that expose some Git internal functions that
 you normally cannot call directly.
 
-The tests themselves are written in shell script. You don't have to run
-them in order to understand what they are doing. If you're interested in
-the workings a particular Git command, try searching the `t/` directory
-for it.
+The tests themselves are written in shell script. Instructions for
+running them are in
+[`t/README`](https://gitlab.com/gitlab-org/git/blob/master/t/README).
+However, often you don't have to run a test in order to understand what
+it are does.
 
-TODO add section about how to modify and run an individual Git test?
+If you're interested in the workings a particular Git command, try
+searching the `t/` directory for it.
 
 ## Look at the technical documentation
 
@@ -78,7 +80,7 @@ files that implement some of Git's sub-commands. For example,
 
 ### Main function
 
-If you're used to reading Ruby or Go, the `builtin/*.c` files can be a
+If you're used to reading Ruby or Go, the `builtin/*.c` files could be a
 little disorienting. This is because the function call graph is ordered
 with leaf functions at the top, and the main entrypoint will be at the
 bottom. This allows the Git source code to have fewer (or no) forward
