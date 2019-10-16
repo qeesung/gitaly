@@ -43,7 +43,7 @@ searching the `t/` directory for it.
 
 There is a lot of [technical
 documentation](https://gitlab.com/gitlab-org/git/tree/master/Documentation/technical)
-in the Git source. If you want to know more about file formats or
+in the Git source. If you want to know more about file formats, internal Git API's or
 network protocols, this is a good place to start.
 
 ## Code organization
