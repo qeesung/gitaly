@@ -14,7 +14,10 @@ func (s *server) ReduplicateRepository(ctx context.Context, req *gitalypb.Redupl
 		return nil, status.Errorf(codes.InvalidArgument, "ReduplicateRepository: no repository")
 	}
 
-	cmd, err := git.Command(ctx, req.GetRepository(), "repack", "--quiet", "-a")
+	cmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, git.SubCmd{
+		Name:  "repack",
+		Flags: []git.Option{git.Flag{"--quiet"}, git.Flag{"-a"}},
+	})
 	if err != nil {
 		return nil, err
 	}
