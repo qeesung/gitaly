@@ -62,7 +62,10 @@ func testConfig(backends int) config.Config {
 	return cfg
 }
 
-// runPraefectServer runs a praefect server with the provided mock servers
+// runPraefectServer runs a praefect server with the provided mock servers.
+// Each mock server is keyed by the corresponding index of the node in the
+// config.Nodes. There must be a 1-to-1 mapping between backend server and
+// configured storage node.
 func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, func()) {
 	var (
 		datastore   = NewMemoryDatastore(conf)
