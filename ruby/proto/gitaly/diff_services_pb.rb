@@ -18,7 +18,6 @@ module Gitaly
       rpc :CommitDiff, CommitDiffRequest, stream(CommitDiffResponse)
       # Return a stream so we can divide the response in chunks of deltas
       rpc :CommitDelta, CommitDeltaRequest, stream(CommitDeltaResponse)
-      rpc :CommitPatch, CommitPatchRequest, stream(CommitPatchResponse)
       rpc :RawDiff, RawDiffRequest, stream(RawDiffResponse)
       rpc :RawPatch, RawPatchRequest, stream(RawPatchResponse)
       rpc :DiffStats, DiffStatsRequest, stream(DiffStatsResponse)

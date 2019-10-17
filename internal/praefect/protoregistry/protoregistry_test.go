@@ -52,7 +52,6 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 		"DiffService": map[string]protoregistry.OpType{
 			"CommitDiff":  protoregistry.OpAccessor,
 			"CommitDelta": protoregistry.OpAccessor,
-			"CommitPatch": protoregistry.OpAccessor,
 			"RawDiff":     protoregistry.OpAccessor,
 			"RawPatch":    protoregistry.OpAccessor,
 			"DiffStats":   protoregistry.OpAccessor,

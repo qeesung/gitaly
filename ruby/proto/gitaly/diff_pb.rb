@@ -52,13 +52,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.CommitDeltaResponse" do
     repeated :deltas, :message, 1, "gitaly.CommitDelta"
   end
-  add_message "gitaly.CommitPatchRequest" do
-    optional :repository, :message, 1, "gitaly.Repository"
-    optional :revision, :bytes, 2
-  end
-  add_message "gitaly.CommitPatchResponse" do
-    optional :data, :bytes, 1
-  end
   add_message "gitaly.RawDiffRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
     optional :left_commit_id, :string, 2
@@ -96,8 +89,6 @@ module Gitaly
   CommitDeltaRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitDeltaRequest").msgclass
   CommitDelta = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitDelta").msgclass
   CommitDeltaResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitDeltaResponse").msgclass
-  CommitPatchRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitPatchRequest").msgclass
-  CommitPatchResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitPatchResponse").msgclass
   RawDiffRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RawDiffRequest").msgclass
   RawDiffResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RawDiffResponse").msgclass
   RawPatchRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RawPatchRequest").msgclass

@@ -21,12 +21,6 @@ service DiffService {
       target_repository_field: "1"
     };
   }
-  rpc CommitPatch(CommitPatchRequest) returns (stream CommitPatchResponse) {
-    option (op_type) = {
-      op: ACCESSOR
-      target_repository_field: "1"
-    };
-  }
   rpc RawDiff(RawDiffRequest) returns (stream RawDiffResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -115,15 +109,6 @@ message CommitDelta {
 
 message CommitDeltaResponse {
   repeated CommitDelta deltas = 1;
-}
-
-message CommitPatchRequest {
-  Repository repository = 1;
-  bytes revision = 2;
-}
-
-message CommitPatchResponse {
-  bytes data = 1;
 }
 
 message RawDiffRequest {
