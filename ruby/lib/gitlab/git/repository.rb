@@ -213,14 +213,6 @@ module Gitlab
         end
       end
 
-      def write_config(full_path:)
-        return unless full_path.present?
-
-        raise NoRepository, 'repository does not exist' unless exists?
-
-        rugged.config['gitlab.fullpath'] = full_path
-      end
-
       def ancestor?(from, to)
         return false if from.nil? || to.nil?
 

@@ -34,7 +34,6 @@ module Gitaly
       rpc :CreateRepositoryFromURL, CreateRepositoryFromURLRequest, CreateRepositoryFromURLResponse
       rpc :CreateBundle, CreateBundleRequest, stream(CreateBundleResponse)
       rpc :CreateRepositoryFromBundle, stream(CreateRepositoryFromBundleRequest), CreateRepositoryFromBundleResponse
-      rpc :WriteConfig, WriteConfigRequest, WriteConfigResponse
       rpc :SetConfig, SetConfigRequest, SetConfigResponse
       rpc :DeleteConfig, DeleteConfigRequest, DeleteConfigResponse
       rpc :FindLicense, FindLicenseRequest, FindLicenseResponse

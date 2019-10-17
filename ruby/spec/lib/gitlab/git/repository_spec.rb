@@ -436,34 +436,6 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
     end
   end
 
-  describe '#write_config' do
-    before do
-      repository_rugged.config["gitlab.fullpath"] = repository_path
-    end
-
-    context 'is given a path' do
-      it 'writes it to disk' do
-        repository.write_config(full_path: "not-the/real-path.git")
-
-        config = File.read(File.join(repository_path, "config"))
-
-        expect(config).to include("[gitlab]")
-        expect(config).to include("fullpath = not-the/real-path.git")
-      end
-    end
-
-    context 'it is given an empty path' do
-      it 'does not write it to disk' do
-        repository.write_config(full_path: "")
-
-        config = File.read(File.join(repository_path, "config"))
-
-        expect(config).to include("[gitlab]")
-        expect(config).to include("fullpath = #{repository_path}")
-      end
-    end
-  end
-
   describe '#merge' do
     let(:repository) { mutable_repository }
     let(:source_sha) { '913c66a37b4a45b9769037c55c2d238bd0942d2e' }
