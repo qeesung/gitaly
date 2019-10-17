@@ -14,8 +14,6 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.CleanupService'
 
-      # Deprecated in favour of ApplyBfgObjectMapStream
-      rpc :ApplyBfgObjectMap, stream(ApplyBfgObjectMapRequest), ApplyBfgObjectMapResponse
       rpc :ApplyBfgObjectMapStream, stream(ApplyBfgObjectMapStreamRequest), stream(ApplyBfgObjectMapStreamResponse)
     end
 

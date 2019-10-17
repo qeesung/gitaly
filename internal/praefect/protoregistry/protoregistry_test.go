@@ -23,7 +23,7 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"GetAllLFSPointers": protoregistry.OpAccessor,
 		},
 		"CleanupService": map[string]protoregistry.OpType{
-			"ApplyBfgObjectMap": protoregistry.OpMutator,
+			"ApplyBfgObjectMapStream": protoregistry.OpMutator,
 		},
 		"CommitService": map[string]protoregistry.OpType{
 			"CommitIsAncestor":         protoregistry.OpAccessor,
