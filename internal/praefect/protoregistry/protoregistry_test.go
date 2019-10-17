@@ -139,7 +139,6 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"CreateRepositoryFromURL":      protoregistry.OpMutator,
 			"CreateBundle":                 protoregistry.OpMutator,
 			"CreateRepositoryFromBundle":   protoregistry.OpMutator,
-			"WriteConfig":                  protoregistry.OpMutator,
 			"SetConfig":                    protoregistry.OpMutator,
 			"DeleteConfig":                 protoregistry.OpMutator,
 			"FindLicense":                  protoregistry.OpAccessor,

@@ -128,12 +128,6 @@ service RepositoryService {
       target_repository_field: "1"
     };
   }
-  rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse) {
-    option (op_type) = {
-      op: MUTATOR
-      target_repository_field: "1"
-    };
-  }
   rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -440,15 +434,6 @@ message CreateBundleRequest {
 
 message CreateBundleResponse {
   bytes data = 1;
-}
-
-message WriteConfigRequest {
-  Repository repository = 1;
-  string full_path = 2;
-}
-
-message WriteConfigResponse {
-  bytes error = 1;
 }
 
 message SetConfigRequest {
