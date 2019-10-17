@@ -1,4 +1,4 @@
-image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.11-git-2.21
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
 
 stages:
   - build
@@ -7,7 +7,7 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  CUSTOM_IMAGE_VERSION: ruby-2.6-golang-1.11-git-2.18
+  CUSTOM_IMAGE_VERSION: ruby-2.6-golang-1.13-git-2.22
 
 danger-review:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
@@ -94,6 +94,10 @@ proto:
   script:
     - make proto no-changes
 
+build:go1.13:
+  <<: *build_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+
 build:go1.12:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
@@ -102,6 +106,10 @@ build:go1.11:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.11-git-2.21
 
+binaries_go1.13:
+  <<: *assemble_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+
 binaries_go1.12:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
@@ -109,6 +117,10 @@ binaries_go1.12:
 binaries_go1.11:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.11-git-2.21
+
+test:go1.13-git-2.22-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+  <<: *test_definition
 
 test:go1.12-git-2.22-ruby-2.6:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.22
