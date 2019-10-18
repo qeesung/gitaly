@@ -3,10 +3,13 @@ package praefect
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -143,4 +146,32 @@ func TestRejectBadStorage(t *testing.T) {
 	_, err := repoClient.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: &badTargetRepo})
 	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 	require.Equal(t, fmt.Sprintf("only messages for %s are allowed", conf.VirtualStorageName), status.Convert(err).Message())
+}
+
+func TestWarnDuplicateAddrs(t *testing.T) {
+	conf := config.Config{
+		VirtualStorageName: "praefect",
+		Nodes: []*models.Node{
+			&models.Node{
+				DefaultPrimary: true,
+				Storage:        "praefect-internal-0",
+				Address:        "tcp::/samesies",
+			},
+			&models.Node{
+				Storage: "praefect-internal-1",
+				Address: "tcp::/samesies",
+			},
+		},
+	}
+
+	tLogger, hook := test.NewNullLogger()
+
+	wireServer(t, conf, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, "contains duplicate address") {
+			return // pass!
+		}
+	}
+	t.Fatal("could not find expected log message")
 }

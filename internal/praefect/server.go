@@ -31,6 +31,18 @@ type Server struct {
 	repl              ReplMgr
 	s                 *grpc.Server
 	conf              config.Config
+	l                 *logrus.Entry
+}
+
+func (srv *Server) warnDupeAddrs(c config.Config) {
+	addrSet := map[string]struct{}{}
+	for _, n := range c.Nodes {
+		_, ok := addrSet[n.Address]
+		if ok {
+			srv.l.Warnf("Configuration contains duplicate address for %s", n.Address)
+		}
+		addrSet[n.Address] = struct{}{}
+	}
 }
 
 // NewServer returns an initialized praefect gPRC proxy server configured
@@ -61,12 +73,17 @@ func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *lo
 		)),
 	}...)
 
-	return &Server{
+	s := &Server{
 		s:                 grpc.NewServer(grpcOpts...),
 		repl:              repl,
 		clientConnections: clientConnections,
 		conf:              conf,
+		l:                 l,
 	}
+
+	s.warnDupeAddrs(conf)
+
+	return s
 }
 
 func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
