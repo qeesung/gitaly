@@ -28,7 +28,11 @@ func (server) RefExists(ctx context.Context, in *gitalypb.RefExistsRequest) (*gi
 }
 
 func refExists(ctx context.Context, repo *gitalypb.Repository, ref string) (bool, error) {
-	cmd, err := git.Command(ctx, repo, "show-ref", "--verify", "--quiet", ref)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "show-ref",
+		Flags: []git.Option{git.Flag{"--verify"}, git.Flag{"--quiet"}},
+		Args:  []string{ref},
+	})
 	if err != nil {
 		return false, err
 	}

@@ -55,7 +55,11 @@ func (s *server) FindBranch(ctx context.Context, req *gitalypb.FindBranchRequest
 		refName = strings.TrimPrefix(refName, "heads/")
 	}
 
-	cmd, err := git.Command(ctx, repo, "for-each-ref", "--format", "%(objectname)", "refs/heads/"+refName)
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "for-each-ref",
+		Flags: []git.Option{git.Flag{"--format=%(objectname)"}},
+		Args:  []string{"refs/heads/" + refName},
+	})
 	if err != nil {
 		return nil, err
 	}
