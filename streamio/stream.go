@@ -8,9 +8,22 @@ import (
 	"io"
 	"os"
 	"strconv"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	allocCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_streamio_buffer_allocations_total",
+			Help: "Number of buffers allocated by Gitaly stream IO helpers",
+		},
+	)
 )
 
 func init() {
+	prometheus.MustRegister(allocCount)
+
 	bufSize64, err := strconv.ParseInt(os.Getenv("GITALY_STREAMIO_WRITE_BUFFER_SIZE"), 10, 32)
 	if err == nil && bufSize64 > 0 {
 		WriteBufferSize = int(bufSize64)
@@ -112,10 +125,15 @@ func (sw *sendWriter) Write(p []byte) (int, error) {
 	return sent, nil
 }
 
+func newBuffer() []byte {
+	allocCount.Inc()
+	return make([]byte, WriteBufferSize)
+}
+
 // ReadFrom implements io.ReaderFrom.
 func (sw *sendWriter) ReadFrom(r io.Reader) (int64, error) {
 	var nRead int64
-	buf := make([]byte, WriteBufferSize)
+	buf := newBuffer()
 
 	var errRead, errSend error
 	for errSend == nil && errRead != io.EOF {
