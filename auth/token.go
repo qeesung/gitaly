@@ -12,6 +12,7 @@ import (
 	"time"
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,7 +24,19 @@ const (
 var (
 	errUnauthenticated = status.Errorf(codes.Unauthenticated, "authentication required")
 	errDenied          = status.Errorf(codes.PermissionDenied, "permission denied")
+
+	authErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_authentication_errors_total",
+			Help: "Counts of of Gitaly request authentication errors",
+		},
+		[]string{"version", "error"},
+	)
 )
+
+func init() {
+	prometheus.MustRegister(authErrors)
+}
 
 // AuthInfo contains the authentication information coming from a request
 type AuthInfo struct {
@@ -56,7 +69,7 @@ func CheckToken(ctx context.Context, secret string, targetTime time.Time) error 
 			return nil
 		}
 	case "v2":
-		if hmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, timestampThreshold) {
+		if v2HmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, timestampThreshold) {
 			return nil
 		}
 	}
@@ -93,14 +106,18 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 	return &AuthInfo{Version: version, SignedMessage: decodedSig, Message: msg}, nil
 }
 
-func hmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, timestampThreshold time.Duration) bool {
+func countV2Error(message string) { authErrors.WithLabelValues("v2", message).Inc() }
+
+func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, timestampThreshold time.Duration) bool {
 	expectedHMAC := hmacSign(secret, message)
 	if !hmac.Equal(signedMessage, expectedHMAC) {
+		countV2Error("wrong hmac signature")
 		return false
 	}
 
 	timestamp, err := strconv.ParseInt(message, 10, 64)
 	if err != nil {
+		countV2Error("cannot parse timestamp")
 		return false
 	}
 
@@ -108,7 +125,17 @@ func hmacInfoValid(message string, signedMessage, secret []byte, targetTime time
 	lowerBound := targetTime.Add(-timestampThreshold)
 	upperBound := targetTime.Add(timestampThreshold)
 
-	return issuedAt.After(lowerBound) && issuedAt.Before(upperBound)
+	if issuedAt.Before(lowerBound) {
+		countV2Error("timestamp too old")
+		return false
+	}
+
+	if issuedAt.After(upperBound) {
+		countV2Error("timestamp too new")
+		return false
+	}
+
+	return true
 }
 
 func hmacSign(secret []byte, message string) []byte {
