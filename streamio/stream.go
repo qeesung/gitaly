@@ -13,16 +13,16 @@ import (
 )
 
 var (
-	allocCount = prometheus.NewCounter(
+	methodCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "gitaly_streamio_buffer_allocations_total",
-			Help: "Number of buffers allocated by Gitaly stream IO helpers",
-		},
+			Name: "gitaly_streamio_method_calls_total",
+			Help: "Usage counters of gitaly streamio methods",
+		}, []string{"method"},
 	)
 )
 
 func init() {
-	prometheus.MustRegister(allocCount)
+	prometheus.MustRegister(methodCount)
 
 	bufSize64, err := strconv.ParseInt(os.Getenv("GITALY_STREAMIO_WRITE_BUFFER_SIZE"), 10, 32)
 	if err == nil && bufSize64 > 0 {
@@ -43,7 +43,11 @@ type receiveReader struct {
 	err      error
 }
 
+func countMethod(method string) { methodCount.WithLabelValues(method).Inc() }
+
 func (rr *receiveReader) Read(p []byte) (int, error) {
+	countMethod("reader.Read")
+
 	if len(rr.data) == 0 {
 		rr.data, rr.err = rr.receiver()
 	}
@@ -57,6 +61,8 @@ func (rr *receiveReader) Read(p []byte) (int, error) {
 
 // WriteTo implements io.WriterTo.
 func (rr *receiveReader) WriteTo(w io.Writer) (int64, error) {
+	countMethod("reader.WriteTo")
+
 	var written int64
 
 	// Deal with left-over state in rr.data and rr.err, if any
@@ -106,6 +112,8 @@ type sendWriter struct {
 }
 
 func (sw *sendWriter) Write(p []byte) (int, error) {
+	countMethod("writer.Write")
+
 	var sent int
 
 	for len(p) > 0 {
@@ -125,15 +133,12 @@ func (sw *sendWriter) Write(p []byte) (int, error) {
 	return sent, nil
 }
 
-func newBuffer() []byte {
-	allocCount.Inc()
-	return make([]byte, WriteBufferSize)
-}
-
 // ReadFrom implements io.ReaderFrom.
 func (sw *sendWriter) ReadFrom(r io.Reader) (int64, error) {
+	countMethod("writer.ReadFrom")
+
 	var nRead int64
-	buf := newBuffer()
+	buf := make([]byte, WriteBufferSize)
 
 	var errRead, errSend error
 	for errSend == nil && errRead != io.EOF {
