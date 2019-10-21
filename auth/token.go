@@ -111,7 +111,7 @@ func countV2Error(message string) { authErrors.WithLabelValues("v2", message).In
 func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, timestampThreshold time.Duration) bool {
 	expectedHMAC := hmacSign(secret, message)
 	if !hmac.Equal(signedMessage, expectedHMAC) {
-		countV2Error("invalid hmac")
+		countV2Error("wrong hmac signature")
 		return false
 	}
 
