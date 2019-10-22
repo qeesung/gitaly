@@ -16,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
-	"gitlab.com/gitlab-org/gitaly/internal/service/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/service/wiki"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -41,7 +40,6 @@ func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	gitalypb.RegisterConflictsServiceServer(grpcServer, conflicts.NewServer(rubyServer))
 	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(rubyServer))
 	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer())
-	gitalypb.RegisterStorageServiceServer(grpcServer, storage.NewServer())
 	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer())
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())

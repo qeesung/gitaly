@@ -1,0 +1,5 @@
+---
+title: Remove StorageService
+merge_request: 1544
+author:
+type: deprecated
