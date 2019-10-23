@@ -169,7 +169,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	setupServer(t, conf, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
-		if strings.Contains(entry.Message, "contains duplicate address") {
+		if strings.Contains(entry.Message, "more than one backend node") {
 			return // pass!
 		}
 	}

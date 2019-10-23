@@ -36,12 +36,17 @@ type Server struct {
 
 func (srv *Server) warnDupeAddrs(c config.Config) {
 	addrSet := map[string]struct{}{}
+	fishy := false
 	for _, n := range c.Nodes {
 		_, ok := addrSet[n.Address]
 		if ok {
-			srv.l.Warnf("Configuration contains duplicate address for %s", n.Address)
+			srv.l.Warnf("more than one backend node is hosted at %s", n.Address)
+			fishy = true
 		}
 		addrSet[n.Address] = struct{}{}
+	}
+	if fishy {
+		srv.l.Warnf("your Praefect configuration may not offer actual redundancy")
 	}
 }
 
