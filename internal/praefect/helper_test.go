@@ -63,9 +63,9 @@ func testConfig(backends int) config.Config {
 	return cfg
 }
 
-// wireServer wires all praefect dependencies together via dependency
+// setupServer wires all praefect dependencies together via dependency
 // injection
-func wireServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*MemoryDatastore, *conn.ClientConnections, *Server) {
+func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*MemoryDatastore, *conn.ClientConnections, *Server) {
 	var (
 		datastore   = NewMemoryDatastore(conf)
 		clientCC    = conn.NewClientConnections()
@@ -103,7 +103,7 @@ func wireServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descri
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, func()) {
-	datastore, clientCC, prf := wireServer(t, conf, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
+	datastore, clientCC, prf := setupServer(t, conf, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
 
 	require.Equal(t, len(backends), len(conf.Nodes),
 		"mock server count doesn't match config nodes")

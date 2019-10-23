@@ -166,7 +166,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook := test.NewNullLogger()
 
-	wireServer(t, conf, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
 		if strings.Contains(entry.Message, "contains duplicate address") {
