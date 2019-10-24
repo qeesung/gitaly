@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
 	internalauth "gitlab.com/gitlab-org/gitaly/internal/auth"
@@ -34,8 +35,8 @@ func waitUntil(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
 	}
 }
 
-// generates a praefect configuration with the specified
-// number of backend nodes
+// generates a praefect configuration with the specified number of backend
+// nodes
 func testConfig(backends int) config.Config {
 	cfg := config.Config{
 		VirtualStorageName: "praefect",
@@ -62,17 +63,47 @@ func testConfig(backends int) config.Config {
 	return cfg
 }
 
+// setupServer wires all praefect dependencies together via dependency
+// injection
+func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*MemoryDatastore, *conn.ClientConnections, *Server) {
+	var (
+		datastore   = NewMemoryDatastore(conf)
+		clientCC    = conn.NewClientConnections()
+		coordinator = NewCoordinator(l, datastore, clientCC, conf, fds...)
+	)
+
+	var defaultNode *models.Node
+	for _, n := range conf.Nodes {
+		if n.DefaultPrimary {
+			defaultNode = n
+		}
+	}
+	require.NotNil(t, defaultNode)
+
+	replmgr := NewReplMgr(
+		defaultNode.Storage,
+		l,
+		datastore,
+		clientCC,
+	)
+	server := NewServer(
+		coordinator,
+		replmgr,
+		nil,
+		l,
+		clientCC,
+		conf,
+	)
+
+	return datastore, clientCC, server
+}
+
 // runPraefectServer runs a praefect server with the provided mock servers.
 // Each mock server is keyed by the corresponding index of the node in the
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, func()) {
-	var (
-		datastore   = NewMemoryDatastore(conf)
-		logEntry    = log.Default()
-		clientCC    = conn.NewClientConnections()
-		coordinator = NewCoordinator(logEntry, datastore, clientCC, conf, mustLoadProtoReg(t))
-	)
+	datastore, clientCC, prf := setupServer(t, conf, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
 
 	require.Equal(t, len(backends), len(conf.Nodes),
 		"mock server count doesn't match config nodes")
@@ -90,21 +121,6 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[in
 		nodeStorage.Address = backendAddr
 		datastore.storageNodes.m[id] = nodeStorage
 	}
-
-	replmgr := NewReplMgr(
-		"default",
-		logEntry,
-		datastore,
-		clientCC,
-	)
-	prf := NewServer(
-		coordinator,
-		replmgr,
-		nil,
-		logEntry,
-		clientCC,
-		conf,
-	)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
@@ -200,7 +216,7 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string) 
 	return server, "unix://" + serverSocketPath
 }
 
-func mustLoadProtoReg(t *testing.T) *descriptor.FileDescriptorProto {
+func mustLoadProtoReg(t testing.TB) *descriptor.FileDescriptorProto {
 	gz, _ := (*mock.SimpleRequest)(nil).Descriptor()
 	fd, err := protoregistry.ExtractFileDescriptor(gz)
 	require.NoError(t, err)
