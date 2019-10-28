@@ -1,0 +1,5 @@
+---
+title: Count dangling refs before/after FetchIntoObjectPool
+merge_request: 1585
+author:
+type: other
