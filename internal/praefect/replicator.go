@@ -62,6 +62,17 @@ type defaultReplicator struct {
 }
 
 func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
+	switch job.Change {
+	case AdditiveChange:
+		return dr.replicateAdditively(ctx, job, sourceCC, targetCC)
+	case DestructiveChange:
+		return dr.replicateDestructively(ctx, job, sourceCC, targetCC)
+	default:
+		return fmt.Errorf("unknown replication change type encountered: %d", job.Change)
+	}
+}
+
+func (dr defaultReplicator) replicateAdditively(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	repository := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -109,6 +120,21 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC
 	// https://gitlab.com/gitlab-org/gitaly/issues/1674
 
 	return nil
+}
+
+func (dr defaultReplicator) replicateDestructively(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  job.TargetNode.Storage,
+		RelativePath: job.Repository.RelativePath,
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	_, err := repoSvcClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
+		Repository: targetRepo,
+	})
+
+	return err
 }
 
 func getChecksumFunc(ctx context.Context, client gitalypb.RepositoryServiceClient, repo *gitalypb.Repository, checksum *string) func() error {
@@ -207,7 +233,7 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo models.Repository
 		return nil
 	}
 
-	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath)
+	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath, AdditiveChange)
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,10 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+func isDestructive(methodName string) bool {
+	return methodName == "/gitaly.RepositoryService/RemoveRepository"
+}
+
 // Coordinator takes care of directing client requests to the appropriate
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
@@ -80,7 +84,7 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string,
 	var storage string
 
 	if mi.Scope == protoregistry.ScopeRepository {
-		storage, requestFinalizer, err = c.getStorageForRepositoryMessage(mi, m, peeker)
+		storage, requestFinalizer, err = c.getStorageForRepositoryMessage(mi, m, peeker, fullMethodName)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -116,7 +120,7 @@ func (c *Coordinator) getAnyStorageNode() (string, func(), error) {
 	return node[0].Storage, noopRequestFinalizer, nil
 }
 
-func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier) (string, func(), error) {
+func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier, method string) (string, func(), error) {
 	targetRepo, err := mi.TargetRepo(m)
 	if err != nil {
 		return "", nil, err
@@ -154,7 +158,12 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 	requestFinalizer := noopRequestFinalizer
 
 	if mi.Operation == protoregistry.OpMutator {
-		if requestFinalizer, err = c.createReplicaJobs(targetRepo); err != nil {
+		change := AdditiveChange
+		if isDestructive(method) {
+			change = DestructiveChange
+		}
+
+		if requestFinalizer, err = c.createReplicaJobs(targetRepo, change); err != nil {
 			return "", nil, err
 		}
 	}
@@ -222,8 +231,8 @@ func protoMessageFromPeeker(mi protoregistry.MethodInfo, peeker proxy.StreamModi
 	return m, nil
 }
 
-func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository) (func(), error) {
-	jobIDs, err := c.datastore.CreateReplicaReplJobs(targetRepo.RelativePath)
+func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, change ChangeType) (func(), error) {
+	jobIDs, err := c.datastore.CreateReplicaReplJobs(targetRepo.RelativePath, change)
 	if err != nil {
 		return nil, err
 	}

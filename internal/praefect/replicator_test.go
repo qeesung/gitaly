@@ -80,7 +80,9 @@ func TestProceessReplicationJob(t *testing.T) {
 		},
 	}
 
-	replJob := ReplJob{ID: 1,
+	replJob := ReplJob{
+		Change:     AdditiveChange,
+		ID:         1,
 		TargetNode: models.Node{Storage: backupStorageName, Address: srvSocketPath},
 		SourceNode: models.Node{Storage: "default", Address: srvSocketPath, Token: testhelper.RepositoryAuthToken},
 		Repository: models.Repository{Primary: models.Node{Storage: "default", Address: srvSocketPath}, RelativePath: testRepo.GetRelativePath()},

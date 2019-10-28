@@ -19,7 +19,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
+	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	gitalyserver "gitlab.com/gitlab-org/gitaly/internal/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -151,13 +153,16 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[in
 }
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
-func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server) {
+func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, func()) {
 	datastore := NewMemoryDatastore(conf)
 	logEntry := log.Default()
 	clientCC := conn.NewClientConnections()
 
+	var cleanups []func()
+
 	for id, nodeStorage := range datastore.storageNodes.m {
-		_, backend := runInternalGitalyServer(t, nodeStorage.Token)
+		_, backend, cleanup := runInternalGitalyServer(t, nodeStorage.Token)
+		cleanups = append(cleanups, cleanup)
 
 		clientCC.RegisterNode(nodeStorage.Storage, backend, nodeStorage.Token)
 		nodeStorage.Address = backend
@@ -187,17 +192,32 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 
 	errQ := make(chan error)
 
-	go func() {
-		errQ <- prf.Start(listener)
-	}()
+	go func() { errQ <- prf.Start(listener) }()
+
+	ctx, cancel := testhelper.Context()
+
+	go func() { errQ <- replmgr.ProcessBacklog(ctx) }()
 
 	// dial client to praefect
 	cc := dialLocalPort(t, port, false)
 
-	return cc, prf
+	cleanup := func() {
+		for _, cu := range cleanups {
+			cu()
+		}
+
+		ctx, _ := context.WithTimeout(ctx, time.Second)
+		require.NoError(t, prf.Shutdown(ctx))
+		require.NoError(t, <-errQ)
+
+		cancel()
+		require.Error(t, context.Canceled, <-errQ)
+	}
+
+	return cc, prf, cleanup
 }
 
-func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string) {
+func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, func()) {
 	streamInt := []grpc.StreamServerInterceptor{auth.StreamServerInterceptor(internalauth.Config{Token: token})}
 	unaryInt := []grpc.UnaryServerInterceptor{auth.UnaryServerInterceptor(internalauth.Config{Token: token})}
 
@@ -209,11 +229,25 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string) 
 		t.Fatal(err)
 	}
 
+	rubyServer := &rubyserver.Server{}
+	require.NoError(t, rubyServer.Start())
+
 	gitalypb.RegisterServerServiceServer(server, gitalyserver.NewServer())
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer))
 
-	go server.Serve(listener)
+	errQ := make(chan error)
 
-	return server, "unix://" + serverSocketPath
+	go func() {
+		errQ <- server.Serve(listener)
+	}()
+
+	cleanup := func() {
+		rubyServer.Stop()
+		server.Stop()
+		require.NoError(t, <-errQ)
+	}
+
+	return server, "unix://" + serverSocketPath, cleanup
 }
 
 func mustLoadProtoReg(t testing.TB) *descriptor.FileDescriptorProto {
