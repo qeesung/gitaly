@@ -29,15 +29,15 @@ func HookEnv(req ReceivePackRequest) []string {
 
 // ReceivePackConfig contains config options we want to enforce when
 // receiving a push with git-receive-pack.
-func ReceivePackConfig() []string {
-	return []string{
-		fmt.Sprintf("core.hooksPath=%s", hooks.Path()),
+func ReceivePackConfig() []Option {
+	return []Option{
+		ValueFlag{"-c", fmt.Sprintf("core.hooksPath=%s", hooks.Path())},
 
 		// In case the repository belongs to an object pool, we want to prevent
 		// Git from including the pool's refs in the ref advertisement. We do
 		// this by rigging core.alternateRefsCommand to produce no output.
 		// Because Git itself will append the pool repository directory, the
 		// command ends with a "#". The end result is that Git runs `/bin/sh -c 'exit 0 # /path/to/pool.git`.
-		"core.alternateRefsCommand=exit 0 #",
+		ValueFlag{"-c", "core.alternateRefsCommand=exit 0 #"},
 	}
 }
