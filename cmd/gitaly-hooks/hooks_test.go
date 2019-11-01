@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,10 +46,10 @@ func TestHooksPrePostReceive(t *testing.T) {
 
 	changes := "abc"
 
-	ts := gitlabTestServer(t, secretToken, key, glRepository, changes, true)
+	ts := gitlabTestServer(t, "", "", secretToken, key, glRepository, changes, true)
 	defer ts.Close()
 
-	writeTemporaryConfigFile(t, tempGitlabShellDir, ts.URL)
+	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
 	writeShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	for _, hook := range []string{"pre-receive", "post-receive"} {
@@ -76,7 +78,7 @@ func TestHooksUpdate(t *testing.T) {
 	tempGitlabShellDir, cleanup := createTempGitlabShellDir(t)
 	defer cleanup()
 
-	writeTemporaryConfigFile(t, tempGitlabShellDir, "http://www.example.com")
+	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: "http://www.example.com"})
 	writeShellSecretFile(t, tempGitlabShellDir, "the wrong token")
 
 	require.NoError(t, os.MkdirAll(filepath.Join(tempGitlabShellDir, "hooks", "update.d"), 0755))
@@ -120,10 +122,10 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	// send back {"reference_counter_increased": false}, indicating something went wrong
 	// with the call
 
-	ts := gitlabTestServer(t, secretToken, key, glRepository, "", false)
+	ts := gitlabTestServer(t, "", "", secretToken, key, glRepository, "", false)
 	defer ts.Close()
 
-	writeTemporaryConfigFile(t, tempGitlabShellDir, ts.URL)
+	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
 	writeShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
@@ -154,10 +156,10 @@ func TestHooksNotAllowed(t *testing.T) {
 	tempGitlabShellDir, cleanup := createTempGitlabShellDir(t)
 	defer cleanup()
 
-	ts := gitlabTestServer(t, secretToken, key, glRepository, "", true)
+	ts := gitlabTestServer(t, "", "", secretToken, key, glRepository, "", true)
 	defer ts.Close()
 
-	writeTemporaryConfigFile(t, tempGitlabShellDir, ts.URL)
+	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
 	writeShellSecretFile(t, tempGitlabShellDir, "the wrong token")
 
 	for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
@@ -176,8 +178,54 @@ func TestHooksNotAllowed(t *testing.T) {
 	}
 }
 
-type GitlabShellConfig struct {
-	GitlabURL string `yaml:"gitlab_url"`
+func TestCheckOK(t *testing.T) {
+	user, password := "user123", "password321"
+
+	ts := gitlabTestServer(t, user, password, "", 0, "", "", false)
+	defer ts.Close()
+
+	tempDir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer func() {
+		os.RemoveAll(tempDir)
+	}()
+
+	configPath := writeTemporaryConfigFile(t, tempDir, GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: HTTPSettings{User: user, Password: password}})
+
+	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)
+
+	var stderr, stdout bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	require.NoError(t, cmd.Run())
+	require.Empty(t, stderr.String())
+	require.Equal(t, "OK", stdout.String())
+}
+
+func TestCheckBadCreds(t *testing.T) {
+	user, password := "user123", "password321"
+
+	ts := gitlabTestServer(t, user, password, "", 0, "", "", false)
+	defer ts.Close()
+
+	tempDir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer func() {
+		os.RemoveAll(tempDir)
+	}()
+
+	configPath := writeTemporaryConfigFile(t, tempDir, GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: HTTPSettings{User: user + "wrong", Password: password}})
+
+	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)
+
+	var stderr, stdout bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	require.Error(t, cmd.Run())
+	require.Equal(t, "FAILED. code: 401", stderr.String())
+	require.Empty(t, stdout.String())
 }
 
 func handleAllowed(t *testing.T, secretToken string, key int, glRepository, changes string) func(w http.ResponseWriter, r *http.Request) {
@@ -230,11 +278,38 @@ func handlePostReceive(t *testing.T, secretToken string, key int, glRepository, 
 	}
 }
 
-func gitlabTestServer(t *testing.T, secretToken string, key int, glRepository, changes string, postReceiveCounterDecreased bool) *httptest.Server {
+func handleCheck(t *testing.T, user, password string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		auth := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+
+		if len(auth) != 2 || auth[0] != "Basic" {
+			http.Error(w, "authorization failed", http.StatusUnauthorized)
+			return
+		}
+
+		payload, _ := base64.StdEncoding.DecodeString(auth[1])
+		pair := strings.SplitN(string(payload), ":", 2)
+
+		if pair[0] != user || pair[1] != password {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func gitlabTestServer(t *testing.T,
+	user, password, secretToken string,
+	key int,
+	glRepository,
+	changes string,
+	postReceiveCounterDecreased bool) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/api/v4/internal/allowed", http.HandlerFunc(handleAllowed(t, secretToken, key, glRepository, changes)))
 	mux.Handle("/api/v4/internal/pre_receive", http.HandlerFunc(handlePreReceive(t, secretToken, glRepository)))
 	mux.Handle("/api/v4/internal/post_receive", http.HandlerFunc(handlePostReceive(t, secretToken, key, glRepository, changes, postReceiveCounterDecreased)))
+	mux.Handle("/api/v4/internal/check", http.HandlerFunc(handleCheck(t, user, password)))
 
 	return httptest.NewServer(mux)
 }
@@ -247,11 +322,14 @@ func createTempGitlabShellDir(t *testing.T) (string, func()) {
 	}
 }
 
-func writeTemporaryConfigFile(t *testing.T, dir, testServerURL string) {
-	cfg := GitlabShellConfig{GitlabURL: testServerURL}
-	out, err := yaml.Marshal(cfg)
+func writeTemporaryConfigFile(t *testing.T, dir string, config GitlabShellConfig) string {
+	out, err := yaml.Marshal(&config)
 	require.NoError(t, err)
-	require.NoError(t, ioutil.WriteFile(filepath.Join(dir, "config.yml"), out, 0644))
+
+	path := filepath.Join(dir, "config.yml")
+	require.NoError(t, ioutil.WriteFile(path, out, 0644))
+
+	return path
 }
 
 func env(t *testing.T, glRepo, gitlabShellDir string, key int) []string {
