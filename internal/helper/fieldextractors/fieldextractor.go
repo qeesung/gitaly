@@ -94,7 +94,42 @@ func FieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 	if result == nil {
 		result = make(map[string]interface{})
 	}
+
+	switch {
+	case strings.HasPrefix(fullMethod, "/gitaly.ObjectPoolService/"):
+		addObjectPool(req, result)
+	}
+
 	result["fullMethod"] = fullMethod
 
 	return result
+}
+
+type objectPoolRequest interface {
+	GetObjectPool() *gitalypb.ObjectPool
+}
+
+func addObjectPool(req interface{}, tags map[string]interface{}) {
+	oReq, ok := req.(objectPoolRequest)
+	if !ok {
+		return
+	}
+
+	pool := oReq.GetObjectPool()
+	if pool == nil {
+		return
+	}
+
+	repo := pool.GetRepository()
+	if repo == nil {
+		return
+	}
+
+	for k, v := range map[string]string{
+		"pool.storage":           repo.StorageName,
+		"pool.relativePath":      repo.RelativePath,
+		"pool.sourceProjectPath": repo.GlProjectPath,
+	} {
+		tags[k] = v
+	}
 }

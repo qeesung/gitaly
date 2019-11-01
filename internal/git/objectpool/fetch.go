@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
@@ -65,6 +66,10 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
+	if err := logDanglingRefs(ctx, o, "before fetch"); err != nil {
+		return err
+	}
+
 	refSpec := fmt.Sprintf("+refs/*:%s/*", sourceRefNamespace)
 	fetchCmd, err := git.Command(ctx, o, "fetch", "--quiet", sourceRemote, refSpec)
 	if err != nil {
@@ -76,6 +81,10 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 	}
 
 	if err := rescueDanglingObjects(ctx, o); err != nil {
+		return err
+	}
+
+	if err := logDanglingRefs(ctx, o, "after fetch"); err != nil {
 		return err
 	}
 
@@ -154,6 +163,40 @@ func repackPool(ctx context.Context, pool repository.GitRepo) error {
 	if err := repackCmd.Wait(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func logDanglingRefs(ctx context.Context, pool repository.GitRepo, when string) error {
+	forEachRef, err := git.SafeCmd(ctx, pool, nil, git.SubCmd{
+		Name:  "for-each-ref",
+		Flags: []git.Option{git.Flag{"--format=%(objecttype)"}},
+		Args:  []string{danglingObjectNamespace},
+	})
+	if err != nil {
+		return err
+	}
+
+	counts := make(map[string]int)
+	scanner := bufio.NewScanner(forEachRef)
+	for scanner.Scan() {
+		counts[scanner.Text()]++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	if err := forEachRef.Wait(); err != nil {
+		return err
+	}
+
+	entry := grpc_logrus.Extract(ctx).WithField("when", when)
+	for _, field := range []string{"blob", "commit", "tag", "tree"} {
+		key := "dangling." + field + ".ref"
+		entry = entry.WithField(key, counts[field])
+	}
+
+	entry.Info("pool dangling ref stats")
 
 	return nil
 }
