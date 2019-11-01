@@ -42,7 +42,10 @@ func sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer, req *gi
 		return stream.Send(&gitalypb.SSHUploadArchiveResponse{Stderr: p})
 	})
 
-	cmd, err := git.BareCommand(stream.Context(), stdin, stdout, stderr, nil, "upload-archive", repoPath)
+	cmd, err := git.SafeBareCmd(stream.Context(), stdin, stdout, stderr, nil, nil, git.SubCmd{
+		Name: "upload-archive",
+		Args: []string{repoPath},
+	})
 
 	if err != nil {
 		return fmt.Errorf("start cmd: %v", err)
