@@ -50,19 +50,19 @@ func handleInfoRefs(ctx context.Context, service string, req *gitalypb.InfoRefsR
 		return err
 	}
 
-	opts := req.GitConfigOptions
+	var globalOpts []git.Option
 	if service == "receive-pack" {
-		opts = append(git.ReceivePackConfig(), opts...)
+		globalOpts = append(globalOpts, git.ReceivePackConfig()...)
+	}
+	for _, o := range req.GitConfigOptions {
+		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})
 	}
 
-	var args []string
-	for _, params := range opts {
-		args = append(args, "-c", params)
-	}
-
-	args = append(args, service, "--stateless-rpc", "--advertise-refs", repoPath)
-
-	cmd, err := git.BareCommand(ctx, nil, nil, nil, env, args...)
+	cmd, err := git.SafeBareCmd(ctx, nil, nil, nil, env, globalOpts, git.SubCmd{
+		Name:  service,
+		Flags: []git.Option{git.Flag{"--stateless-rpc"}, git.Flag{"--advertise-refs"}},
+		Args:  []string{repoPath},
+	})
 
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
