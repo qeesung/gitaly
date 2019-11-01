@@ -74,18 +74,23 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 
 	git.WarnIfTooManyBitmaps(ctx, repoPath)
 
-	args := []string{}
+	var globalOpts []git.Option
 	if featureflag.IsEnabled(ctx, featureflag.UploadPackFilter) {
-		args = append(args, "-c", "uploadpack.allowFilter=true", "-c", "uploadpack.allowAnySHA1InWant=true")
+		globalOpts = append(globalOpts,
+			git.ValueFlag{"-c", "uploadpack.allowFilter=true"},
+			git.ValueFlag{"-c", "uploadpack.allowAnySHA1InWant=true"},
+		)
 	}
 
-	for _, params := range req.GitConfigOptions {
-		args = append(args, "-c", params)
+	for _, o := range req.GitConfigOptions {
+		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})
 	}
 
-	args = append(args, "upload-pack", "--stateless-rpc", repoPath)
-
-	cmd, err := git.BareCommand(ctx, stdin, stdout, nil, env, args...)
+	cmd, err := git.SafeBareCmd(ctx, stdin, stdout, nil, env, globalOpts, git.SubCmd{
+		Name:  "upload-pack",
+		Flags: []git.Option{git.Flag{"--stateless-rpc"}},
+		Args:  []string{repoPath},
+	})
 
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "PostUploadPack: cmd: %v", err)
