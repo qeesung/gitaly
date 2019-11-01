@@ -85,13 +85,13 @@ describe Gitlab::Git::SshAuth do
     opts = []
 
     if ssh_key_file
-      opts << %(-oIdentityFile=#{ssh_key_file})
-      opts << %q(-oIdentitiesOnly=yes)
+      opts << "-oIdentityFile=#{ssh_key_file}"
+      opts << '-oIdentitiesOnly=yes'
     end
 
     if known_hosts_file
-      opts << %q(-oStrictHostKeyChecking=yes)
-      opts << %(-oUserKnownHostsFile=#{known_hosts_file})
+      opts << '-oStrictHostKeyChecking=yes'
+      opts << "-oUserKnownHostsFile=#{known_hosts_file}"
     end
 
     { 'GIT_SSH_COMMAND' => %(ssh #{opts.join(' ')}) }

@@ -13,11 +13,11 @@ module Gitlab
     class SshAuth
       class Option
         def initialize(key, value)
-          if key.include?('=') || (Shellwords.shellescape(key) != key)
+          if key.include?('=') || needs_escape?(key)
             raise ArgumentError, "invalid SSH config key: #{key.inspect}"
           end
 
-          if Shellwords.shellescape(value) != value
+          if needs_escape?(value)
             raise ArgumentError, "invalid SSH config value: #{value.inspect}"
           end
 
@@ -27,6 +27,12 @@ module Gitlab
 
         def to_s
           "-o#{@key}=#{@value}"
+        end
+
+        private
+
+        def needs_escape?(str)
+          Shellwords.shellescape(str) != str
         end
       end
 
