@@ -165,6 +165,7 @@ func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) 
 	cmd := exec.Command(name, args...)
 
 	if name == "git" {
+		cmd.Env = os.Environ()
 		cmd.Env = append(command.GitEnv, cmd.Env...)
 	}
 
