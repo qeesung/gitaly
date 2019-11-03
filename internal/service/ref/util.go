@@ -37,6 +37,7 @@ func buildLocalBranch(name []byte, target *gitalypb.GitCommit) *gitalypb.FindLoc
 			Name:  author.Name,
 			Email: author.Email,
 			Date:  author.Date,
+			Tz:    author.Tz,
 		}
 	}
 
@@ -45,6 +46,7 @@ func buildLocalBranch(name []byte, target *gitalypb.GitCommit) *gitalypb.FindLoc
 			Name:  committer.Name,
 			Email: committer.Email,
 			Date:  committer.Date,
+			Tz:    committer.Tz,
 		}
 	}
 

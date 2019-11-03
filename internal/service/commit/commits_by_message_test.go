@@ -89,11 +89,13 @@ func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
 						Name:  []byte("Dmitriy Zaporozhets"),
 						Email: []byte("dmitriy.zaporozhets@gmail.com"),
 						Date:  &timestamp.Timestamp{Seconds: 1393488896},
+						Tz:    []byte("+0200"),
 					},
 					Committer: &gitalypb.CommitAuthor{
 						Name:  []byte("Dmitriy Zaporozhets"),
 						Email: []byte("dmitriy.zaporozhets@gmail.com"),
 						Date:  &timestamp.Timestamp{Seconds: 1393488896},
+						Tz:    []byte("+0200"),
 					},
 					ParentIds: []string{"cfe32cf61b73a0d5e9f13e774abde7ff789b1660"},
 					BodySize:  98,

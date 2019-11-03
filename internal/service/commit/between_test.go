@@ -35,11 +35,13 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 				Name:  []byte("Job van der Voort"),
 				Email: []byte("job@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1474987066},
+				Tz:    []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Job van der Voort"),
 				Email: []byte("job@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1474987066},
+				Tz:    []byte("+0000"),
 			},
 			ParentIds: []string{
 				"1b12f15a11fc6e62177bef08f47bc7b5ce50b141",
@@ -55,11 +57,13 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 				Name:  []byte("Luke \"Jared\" Bennett"),
 				Email: []byte("lbennett@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1491905339},
+				Tz:    []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Luke \"Jared\" Bennett"),
 				Email: []byte("lbennett@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1491905339},
+				Tz:    []byte("+0000"),
 			},
 			ParentIds: []string{"b83d6e391c22777fca1ed3012fce84f633d7fed0"},
 			BodySize:  62,
@@ -72,11 +76,13 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 				Name:  []byte("Sean McGivern"),
 				Email: []byte("sean@mcgivern.me.uk"),
 				Date:  &timestamp.Timestamp{Seconds: 1491906794},
+				Tz:    []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Sean McGivern"),
 				Email: []byte("sean@mcgivern.me.uk"),
 				Date:  &timestamp.Timestamp{Seconds: 1491906794},
+				Tz:    []byte("+0000"),
 			},
 			ParentIds: []string{
 				"b83d6e391c22777fca1ed3012fce84f633d7fed0",
@@ -93,11 +99,13 @@ func TestSuccessfulCommitsBetween(t *testing.T) {
 				Email: []byte("alejorro70@gmail.com"),
 				// Not the actual commit date, but the biggest we can represent
 				Date: &timestamp.Timestamp{Seconds: 9223371974719179007},
+				Tz:   []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Alejandro Rodríguez"),
 				Email: []byte("alejorro70@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 9223371974719179007},
+				Tz:    []byte("+0000"),
 			},
 			ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
 			BodySize:  18,

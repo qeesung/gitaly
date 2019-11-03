@@ -42,6 +42,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :name, :bytes, 1
     optional :email, :bytes, 2
     optional :date, :message, 3, "google.protobuf.Timestamp"
+    optional :tz, :bytes, 4
   end
   add_message "gitaly.ExitStatus" do
     optional :value, :int32, 1

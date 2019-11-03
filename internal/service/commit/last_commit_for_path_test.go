@@ -29,11 +29,13 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491451},
+			Tz:    []byte("+0200"),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491451},
+			Tz:    []byte("+0200"),
 		},
 		ParentIds: []string{"6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"},
 		BodySize:  86,

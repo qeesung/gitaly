@@ -450,11 +450,13 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Tz:    []byte("+0200"),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Tz:    []byte("+0200"),
 		},
 		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
 		BodySize:  84,
@@ -520,6 +522,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -532,6 +535,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -544,6 +548,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393491299},
+				Tz:    []byte("+0200"),
 			},
 		},
 		{
@@ -557,11 +562,13 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
 					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Tz:    []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
 					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Tz:    []byte("+0200"),
 				},
 				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
 				BodySize:  98,
@@ -572,6 +579,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393505709},
+				Tz:    []byte("+0200"),
 			},
 		},
 		{
@@ -583,6 +591,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -614,6 +623,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 	}
@@ -693,6 +703,7 @@ func TestFindAllTagNestedTags(t *testing.T) {
 						Name:  []byte("Scrooge McDuck"),
 						Email: []byte("scrooge@mcduck.com"),
 						Date:  &timestamp.Timestamp{Seconds: 1572776879},
+						Tz:    []byte("+0100"),
 					},
 				}
 
@@ -951,11 +962,13 @@ func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+				Tz:    []byte("+0200"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+				Tz:    []byte("+0200"),
 			},
 		},
 	}
@@ -1331,11 +1344,13 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Tz:    []byte("+0200"),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:  []byte("Dmitriy Zaporozhets"),
 			Email: []byte("dmitriy.zaporozhets@gmail.com"),
 			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Tz:    []byte("+0200"),
 		},
 		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
 		BodySize:  84,
@@ -1386,6 +1401,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -1398,6 +1414,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -1410,6 +1427,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393491299},
+				Tz:    []byte("+0200"),
 			},
 		},
 		{
@@ -1423,11 +1441,13 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
 					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Tz:    []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
 					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Tz:    []byte("+0200"),
 				},
 				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
 				BodySize:  98,
@@ -1438,6 +1458,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393505709},
+				Tz:    []byte("+0200"),
 			},
 		},
 		{
@@ -1449,6 +1470,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 		{
@@ -1480,6 +1502,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Name:  []byte("Scrooge McDuck"),
 				Email: []byte("scrooge@mcduck.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1572776879},
+				Tz:    []byte("+0100"),
 			},
 		},
 	}
@@ -1565,6 +1588,7 @@ func TestFindTagNestedTag(t *testing.T) {
 					Name:  []byte("Scrooge McDuck"),
 					Email: []byte("scrooge@mcduck.com"),
 					Date:  &timestamp.Timestamp{Seconds: 1572776879},
+					Tz:    []byte("+0100"),
 				},
 			}
 			// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep

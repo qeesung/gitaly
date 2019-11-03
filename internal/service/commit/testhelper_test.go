@@ -66,5 +66,6 @@ func dummyCommitAuthor(ts int64) *gitalypb.CommitAuthor {
 		Name:  []byte("Ahmad Sherif"),
 		Email: []byte("ahmad+gitlab-test@gitlab.com"),
 		Date:  &timestamp.Timestamp{Seconds: ts},
+		Tz:    []byte("+0200"),
 	}
 }

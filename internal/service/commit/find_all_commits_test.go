@@ -162,11 +162,13 @@ func TestSuccessfulFindAllCommitsRequest(t *testing.T) {
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393488198},
+				Tz:    []byte("-0800"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393488198},
+				Tz:    []byte("-0800"),
 			},
 			ParentIds: nil,
 			BodySize:  15,

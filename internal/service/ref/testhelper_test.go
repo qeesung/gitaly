@@ -29,11 +29,13 @@ var (
 				Name:  []byte("Stan Hu"),
 				Email: []byte("stanhu@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1471558878},
+				Tz:    []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Stan Hu"),
 				Email: []byte("stanhu@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1471558878},
+				Tz:    []byte("+0000"),
 			},
 		},
 		"refs/heads/improve/awesome": {
@@ -46,11 +48,13 @@ var (
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				Tz:    []byte("+0200"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Dmitriy Zaporozhets"),
 				Email: []byte("dmitriy.zaporozhets@gmail.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1393491698},
+				Tz:    []byte("+0200"),
 			},
 		},
 		"refs/heads/'test'": {
@@ -63,11 +67,13 @@ var (
 				Name:  []byte("Sytse Sijbrandij"),
 				Email: []byte("sytse@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1420925009},
+				Tz:    []byte("+0000"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:  []byte("Sytse Sijbrandij"),
 				Email: []byte("sytse@gitlab.com"),
 				Date:  &timestamp.Timestamp{Seconds: 1420925009},
+				Tz:    []byte("+0000"),
 			},
 		},
 	}
