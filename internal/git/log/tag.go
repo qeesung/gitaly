@@ -44,6 +44,8 @@ func GetTagCatfile(c *catfile.Batch, tagID, tagName string) (*gitalypb.Tag, erro
 type tagHeader struct {
 	oid     string
 	tagType string
+	tag     string
+	tagger  string
 }
 
 func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
@@ -75,6 +77,10 @@ func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
 			header.oid = value
 		case "type":
 			header.tagType = value
+		case "tag":
+			header.tag = value
+		case "tagger":
+			header.tagger = value
 		}
 	}
 
@@ -107,6 +113,8 @@ func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, 
 			return nil, fmt.Errorf("buildAnnotatedTag error when dereferencing tag: %v", err)
 		}
 	}
+
+	tag.Tagger = parseCommitAuthor(header.tagger)
 
 	return tag, nil
 }
