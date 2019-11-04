@@ -24,7 +24,10 @@ type Updater struct {
 // It is important that ctx gets canceled somewhere. If it doesn't, the process
 // spawned by New() may never terminate.
 func New(ctx context.Context, repo repository.GitRepo) (*Updater, error) {
-	cmd, err := git.StdinCommand(ctx, repo, "update-ref", "-z", "--stdin")
+	cmd, err := git.SafeStdinCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "update-ref",
+		Flags: []git.Option{git.Flag{"-z"}, git.Flag{"--stdin"}},
+	})
 	if err != nil {
 		return nil, err
 	}
