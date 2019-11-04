@@ -447,14 +447,16 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		Subject: []byte("More submodules"),
 		Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
 		Author: &gitalypb.CommitAuthor{
-			Name:  []byte("Dmitriy Zaporozhets"),
-			Email: []byte("dmitriy.zaporozhets@gmail.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393491261},
+			Timezone: []byte("+0200"),
 		},
 		Committer: &gitalypb.CommitAuthor{
-			Name:  []byte("Dmitriy Zaporozhets"),
-			Email: []byte("dmitriy.zaporozhets@gmail.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393491261},
+			Timezone: []byte("+0200"),
 		},
 		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
 		BodySize:  84,
@@ -516,6 +518,12 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("tag-of-tag"),
@@ -523,6 +531,12 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("v1.0.0"),
@@ -530,6 +544,12 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("Release"),
 			MessageSize:  7,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393491299},
+				Timezone: []byte("+0200"),
+			},
 		},
 		{
 			Name: []byte("v1.1.0"),
@@ -539,26 +559,40 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 				Subject: []byte("Add submodule from gitlab.com"),
 				Body:    []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
 				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Name:     []byte("Dmitriy Zaporozhets"),
+					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Timezone: []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Name:     []byte("Dmitriy Zaporozhets"),
+					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Timezone: []byte("+0200"),
 				},
 				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
 				BodySize:  98,
 			},
 			Message:     []byte("Version 1.1.0"),
 			MessageSize: 13,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393505709},
+				Timezone: []byte("+0200"),
+			},
 		},
 		{
 			Name:        []byte("v1.2.0"),
 			Id:          string(annotatedTagID),
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("v1.3.0"),
@@ -585,6 +619,12 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 	}
 
@@ -659,6 +699,12 @@ func TestFindAllTagNestedTags(t *testing.T) {
 					Id:          string(tagID),
 					Message:     []byte(tagMessage),
 					MessageSize: int64(len([]byte(tagMessage))),
+					Tagger: &gitalypb.CommitAuthor{
+						Name:     []byte("Scrooge McDuck"),
+						Email:    []byte("scrooge@mcduck.com"),
+						Date:     &timestamp.Timestamp{Seconds: 1572776879},
+						Timezone: []byte("+0100"),
+					},
 				}
 
 				// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
@@ -913,14 +959,16 @@ func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
 			BodySize:  98,
 			ParentIds: []string{"cfe32cf61b73a0d5e9f13e774abde7ff789b1660"},
 			Author: &gitalypb.CommitAuthor{
-				Name:  []byte("Dmitriy Zaporozhets"),
-				Email: []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393488896},
+				Timezone: []byte("+0200"),
 			},
 			Committer: &gitalypb.CommitAuthor{
-				Name:  []byte("Dmitriy Zaporozhets"),
-				Email: []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:  &timestamp.Timestamp{Seconds: 1393488896},
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393488896},
+				Timezone: []byte("+0200"),
 			},
 		},
 	}
@@ -1293,14 +1341,16 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 		Subject: []byte("More submodules"),
 		Body:    []byte("More submodules\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
 		Author: &gitalypb.CommitAuthor{
-			Name:  []byte("Dmitriy Zaporozhets"),
-			Email: []byte("dmitriy.zaporozhets@gmail.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393491261},
+			Timezone: []byte("+0200"),
 		},
 		Committer: &gitalypb.CommitAuthor{
-			Name:  []byte("Dmitriy Zaporozhets"),
-			Email: []byte("dmitriy.zaporozhets@gmail.com"),
-			Date:  &timestamp.Timestamp{Seconds: 1393491261},
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393491261},
+			Timezone: []byte("+0200"),
 		},
 		ParentIds: []string{"d14d6c0abdd253381df51a723d58691b2ee1ab08"},
 		BodySize:  84,
@@ -1347,6 +1397,12 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("tag-of-tag"),
@@ -1354,6 +1410,12 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("v1.0.0"),
@@ -1361,6 +1423,12 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("Release"),
 			MessageSize:  7,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393491299},
+				Timezone: []byte("+0200"),
+			},
 		},
 		{
 			Name: []byte("v1.1.0"),
@@ -1370,26 +1438,40 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 				Subject: []byte("Add submodule from gitlab.com"),
 				Body:    []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
 				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Name:     []byte("Dmitriy Zaporozhets"),
+					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Timezone: []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:  &timestamp.Timestamp{Seconds: 1393491698},
+					Name:     []byte("Dmitriy Zaporozhets"),
+					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Timezone: []byte("+0200"),
 				},
 				ParentIds: []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
 				BodySize:  98,
 			},
 			Message:     []byte("Version 1.1.0"),
 			MessageSize: 13,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Dmitriy Zaporozhets"),
+				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1393505709},
+				Timezone: []byte("+0200"),
+			},
 		},
 		{
 			Name:        []byte("v1.2.0"),
 			Id:          string(annotatedTagID),
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 		{
 			Name:         []byte("v1.3.0"),
@@ -1416,6 +1498,12 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     []byte("Scrooge McDuck"),
+				Email:    []byte("scrooge@mcduck.com"),
+				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Timezone: []byte("+0100"),
+			},
 		},
 	}
 
@@ -1496,6 +1584,12 @@ func TestFindTagNestedTag(t *testing.T) {
 				Id:          string(tagID),
 				Message:     []byte(tagMessage),
 				MessageSize: int64(len([]byte(tagMessage))),
+				Tagger: &gitalypb.CommitAuthor{
+					Name:     []byte("Scrooge McDuck"),
+					Email:    []byte("scrooge@mcduck.com"),
+					Date:     &timestamp.Timestamp{Seconds: 1572776879},
+					Timezone: []byte("+0100"),
+				},
 			}
 			// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
 			if info.Type == "commit" && tc.depth < log.MaxTagReferenceDepth {

@@ -64,6 +64,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :name, :bytes, 1
     optional :email, :bytes, 2
     optional :date, :message, 3, "google.protobuf.Timestamp"
+    optional :timezone, :bytes, 4
   end
   add_message "gitaly.FindAllBranchesRequest" do
     optional :repository, :message, 1, "gitaly.Repository"

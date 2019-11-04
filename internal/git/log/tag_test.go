@@ -69,6 +69,8 @@ func TestSplitRawTag(t *testing.T) {
 			header: tagHeader{
 				oid:     "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
 				tagType: "commit",
+				tag:     "v2.6.16.28",
+				tagger:  "Adrian Bunk <bunk@stusta.de> 1156539089 +0200",
 			},
 			body: nil,
 		},
@@ -78,6 +80,8 @@ func TestSplitRawTag(t *testing.T) {
 			header: tagHeader{
 				oid:     "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
 				tagType: "commit",
+				tag:     "v2.6.16.28",
+				tagger:  "Adrian Bunk <bunk@stusta.de> 1156539089 +0200",
 			},
 			body: []byte("message"),
 		},
@@ -87,6 +91,8 @@ func TestSplitRawTag(t *testing.T) {
 			header: tagHeader{
 				oid:     "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
 				tagType: "commit",
+				tag:     "v2.6.16.28",
+				tagger:  "Adrian Bunk <bunk@stusta.de> 1156539089 +0200",
 			},
 			body: []byte{},
 		},
@@ -96,6 +102,8 @@ func TestSplitRawTag(t *testing.T) {
 			header: tagHeader{
 				oid:     "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
 				tagType: "commit",
+				tag:     "v2.6.16.28",
+				tagger:  "Adrian Bunk <bunk@stusta.de> 1156539089 +0200",
 			},
 			body: []byte("Hello world\n\nThis is a message"),
 		},

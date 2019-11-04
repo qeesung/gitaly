@@ -165,7 +165,12 @@ func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) 
 	cmd := exec.Command(name, args...)
 
 	if name == "git" {
+		cmd.Env = os.Environ()
 		cmd.Env = append(command.GitEnv, cmd.Env...)
+		cmd.Env = append(cmd.Env,
+			"GIT_AUTHOR_DATE=1572776879 +0100",
+			"GIT_COMMITTER_DATE=1572776879 +0100",
+		)
 	}
 
 	if stdin != nil {

@@ -214,6 +214,7 @@ message FindLocalBranchCommitAuthor {
   bytes name = 1;
   bytes email = 2;
   google.protobuf.Timestamp date = 3;
+  bytes timezone = 4;
 }
 
 message FindAllBranchesRequest {
