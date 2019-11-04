@@ -1,27 +1,26 @@
 package repository
 
 import (
-	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"google.golang.org/grpc/codes"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // getForkDestination creates a repo struct and path, but does not actually create the directory
 func getForkDestination(t *testing.T) (*gitalypb.Repository, string, func()) {
-	folder := fmt.Sprintf("%s_%s", t.Name(), strconv.Itoa(rand.New(rand.NewSource(time.Now().Unix())).Int()))
+	folder, err := text.RandomHex(6)
+	require.NoError(t, err)
 	forkRepoPath := filepath.Join(testhelper.GitlabTestStoragePath(), folder)
 	forkedRepo := &gitalypb.Repository{StorageName: "default", RelativePath: folder, GlRepository: "project-1"}
 

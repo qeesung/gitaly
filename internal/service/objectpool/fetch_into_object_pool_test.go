@@ -29,7 +29,7 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 
 	repoCommit := testhelper.CreateCommit(t, testRepoPath, t.Name(), &testhelper.CreateCommitOpts{Message: t.Name()})
 
-	pool, err := objectpool.NewObjectPool("default", t.Name())
+	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -72,7 +72,7 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool("default", t.Name())
+	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 

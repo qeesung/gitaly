@@ -12,11 +12,11 @@ import (
 )
 
 func TestNewObjectPool(t *testing.T) {
-	_, err := NewObjectPool("default", t.Name())
+	_, err := NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
-	_, err = NewObjectPool("mepmep", t.Name())
-	require.Error(t, err)
+	_, err = NewObjectPool("mepmep", testhelper.NewTestObjectPoolName(t))
+	require.Error(t, err, "creating pool in storage that does not exist should fail")
 }
 
 func TestCreate(t *testing.T) {
@@ -28,7 +28,7 @@ func TestCreate(t *testing.T) {
 
 	masterSha := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "show-ref", "master")
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	err = pool.Create(ctx, testRepo)
@@ -61,7 +61,7 @@ func TestCreateSubDirsExist(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	defer pool.Remove(ctx)
 	require.NoError(t, err)
 
@@ -82,7 +82,7 @@ func TestRemove(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	err = pool.Create(ctx, testRepo)
