@@ -102,7 +102,7 @@ message CommitAuthor {
   bytes name = 1;
   bytes email = 2;
   google.protobuf.Timestamp date = 3;
-  bytes tz = 4;
+  bytes timezone = 4;
 }
 
 message ExitStatus {

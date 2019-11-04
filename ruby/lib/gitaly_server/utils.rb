@@ -24,7 +24,7 @@ module GitalyServer
         name: rugged_author[:name].b,
         email: rugged_author[:email].b,
         date: Google::Protobuf::Timestamp.new(seconds: rugged_author[:time].to_i),
-        tz: rugged_author[:time].strftime("%z")
+        timezone: rugged_author[:time].strftime("%z")
       )
     end
 

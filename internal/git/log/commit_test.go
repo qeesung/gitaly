@@ -71,10 +71,10 @@ func TestParseRawCommit(t *testing.T) {
 			out: &gitalypb.GitCommit{
 				Id: info.Oid,
 				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Jane Doe"),
-					Email: []byte("janedoe@example.com"),
-					Date:  &timestamp.Timestamp{Seconds: 9223371974719179007},
-					Tz:    []byte("+0200"),
+					Name:     []byte("Jane Doe"),
+					Email:    []byte("janedoe@example.com"),
+					Date:     &timestamp.Timestamp{Seconds: 9223371974719179007},
+					Timezone: []byte("+0200"),
 				},
 			},
 		},
@@ -84,10 +84,10 @@ func TestParseRawCommit(t *testing.T) {
 			out: &gitalypb.GitCommit{
 				Id: info.Oid,
 				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Jane Doe"),
-					Email: []byte("janedoe@example.com"),
-					Date:  &timestamp.Timestamp{Seconds: 9223371974719179007},
-					Tz:    []byte("+0200"),
+					Name:     []byte("Jane Doe"),
+					Email:    []byte("janedoe@example.com"),
+					Date:     &timestamp.Timestamp{Seconds: 9223371974719179007},
+					Timezone: []byte("+0200"),
 				},
 			},
 		},

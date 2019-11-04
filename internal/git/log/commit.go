@@ -159,7 +159,7 @@ func parseCommitAuthor(line string) *gitalypb.CommitAuthor {
 	author.Date = &timestamp.Timestamp{Seconds: sec}
 
 	if len(secSplit) == 2 {
-		author.Tz = []byte(secSplit[1])
+		author.Timezone = []byte(secSplit[1])
 	}
 
 	return author

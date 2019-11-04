@@ -34,19 +34,19 @@ func buildLocalBranch(name []byte, target *gitalypb.GitCommit) *gitalypb.FindLoc
 
 	if author := target.Author; author != nil {
 		response.CommitAuthor = &gitalypb.FindLocalBranchCommitAuthor{
-			Name:  author.Name,
-			Email: author.Email,
-			Date:  author.Date,
-			Tz:    author.Tz,
+			Name:     author.Name,
+			Email:    author.Email,
+			Date:     author.Date,
+			Timezone: author.Timezone,
 		}
 	}
 
 	if committer := target.Committer; committer != nil {
 		response.CommitCommitter = &gitalypb.FindLocalBranchCommitAuthor{
-			Name:  committer.Name,
-			Email: committer.Email,
-			Date:  committer.Date,
-			Tz:    committer.Tz,
+			Name:     committer.Name,
+			Email:    committer.Email,
+			Date:     committer.Date,
+			Timezone: committer.Timezone,
 		}
 	}
 

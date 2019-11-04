@@ -63,9 +63,9 @@ func newCommitServiceClient(t testing.TB, serviceSocketPath string) (gitalypb.Co
 
 func dummyCommitAuthor(ts int64) *gitalypb.CommitAuthor {
 	return &gitalypb.CommitAuthor{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad+gitlab-test@gitlab.com"),
-		Date:  &timestamp.Timestamp{Seconds: ts},
-		Tz:    []byte("+0200"),
+		Name:     []byte("Ahmad Sherif"),
+		Email:    []byte("ahmad+gitlab-test@gitlab.com"),
+		Date:     &timestamp.Timestamp{Seconds: ts},
+		Timezone: []byte("+0200"),
 	}
 }
