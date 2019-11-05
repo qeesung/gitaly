@@ -42,10 +42,10 @@ const (
 type ChangeType int
 
 const (
-	// AdditiveChange is when a replication only adds to what already exists
-	AdditiveChange ChangeType = iota + 1
-	// DestructiveChange is when a replication removes what may already exist
-	DestructiveChange
+	// UpdateRepo is when a replication updates a repository in place
+	UpdateRepo ChangeType = iota + 1
+	// Delete is when a replication deletes a repo
+	DeleteRepo
 )
 
 // ReplJob is an instance of a queued replication job. A replication job is

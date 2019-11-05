@@ -158,9 +158,9 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 	requestFinalizer := noopRequestFinalizer
 
 	if mi.Operation == protoregistry.OpMutator {
-		change := AdditiveChange
+		change := UpdateRepo
 		if isDestructive(method) {
-			change = DestructiveChange
+			change = DeleteRepo
 		}
 
 		if requestFinalizer, err = c.createReplicaJobs(targetRepo, change); err != nil {

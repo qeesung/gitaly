@@ -225,7 +225,7 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo models.Repository
 		return nil
 	}
 
-	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath, AdditiveChange)
+	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath, UpdateRepo)
 	if err != nil {
 		return err
 	}
@@ -326,9 +326,9 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
 	defer decReplicationJobsInFlight()
 
 	switch job.Change {
-	case AdditiveChange:
+	case UpdateRepo:
 		err = r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC)
-	case DestructiveChange:
+	case DeleteRepo:
 		err = r.replicator.Destroy(injectedCtx, job, targetCC)
 	default:
 		err = fmt.Errorf("unknown replication change type encountered: %d", job.Change)

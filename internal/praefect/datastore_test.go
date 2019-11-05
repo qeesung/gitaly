@@ -44,7 +44,7 @@ var operations = []struct {
 	{
 		desc: "insert first replication job before secondary mapped to primary",
 		opFn: func(t *testing.T, ds Datastore) {
-			_, err := ds.CreateReplicaReplJobs(repo1Repository.RelativePath, AdditiveChange)
+			_, err := ds.CreateReplicaReplJobs(repo1Repository.RelativePath, UpdateRepo)
 			require.Error(t, err, ErrInvalidReplTarget)
 		},
 	},
@@ -65,7 +65,7 @@ var operations = []struct {
 	{
 		desc: "insert first replication job after secondary mapped to primary",
 		opFn: func(t *testing.T, ds Datastore) {
-			ids, err := ds.CreateReplicaReplJobs(repo1Repository.RelativePath, AdditiveChange)
+			ids, err := ds.CreateReplicaReplJobs(repo1Repository.RelativePath, UpdateRepo)
 			require.NoError(t, err)
 			require.Equal(t, []uint64{1}, ids)
 		},
@@ -78,7 +78,7 @@ var operations = []struct {
 			require.Len(t, jobs, 1)
 
 			expectedJob := ReplJob{
-				Change: AdditiveChange,
+				Change: UpdateRepo,
 				ID:     1,
 				Repository: models.Repository{
 					RelativePath: repo1Repository.RelativePath,
