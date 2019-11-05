@@ -104,13 +104,13 @@ func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descr
 // Each mock server is keyed by the corresponding index of the node in the
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
-func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, func()) {
+func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, testhelper.Cleanup) {
 	datastore, clientCC, prf := setupServer(t, conf, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
 
 	require.Equal(t, len(backends), len(conf.Nodes),
 		"mock server count doesn't match config nodes")
 
-	var cleanups []func()
+	var cleanups []testhelper.Cleanup
 
 	for id, nodeStorage := range datastore.storageNodes.m {
 		backend, ok := backends[id]
@@ -153,12 +153,12 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[in
 }
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
-func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, func()) {
+func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	datastore := NewMemoryDatastore(conf)
 	logEntry := log.Default()
 	clientCC := conn.NewClientConnections()
 
-	var cleanups []func()
+	var cleanups []testhelper.Cleanup
 
 	for id, nodeStorage := range datastore.storageNodes.m {
 		_, backend, cleanup := runInternalGitalyServer(t, nodeStorage.Token)
