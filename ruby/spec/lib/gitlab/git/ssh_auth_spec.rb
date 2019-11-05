@@ -1,6 +1,20 @@
 require 'spec_helper'
 
 describe Gitlab::Git::SshAuth do
+  describe Gitlab::Git::SshAuth::Option do
+    it 'invalid keys' do
+      ['foo=bar', 'foo bar', "foo\nbar", %(foo'bar)].each do |key|
+        expect { described_class.new(key, 'zzz') }.to raise_error(ArgumentError)
+      end
+    end
+
+    it 'invalid values' do
+      ['foo bar', "foo\nbar", %(foo'bar)].each do |value|
+        expect { described_class.new('zzz', value) }.to raise_error(ArgumentError)
+      end
+    end
+  end
+
   describe '.from_gitaly' do
     it 'initializes based on ssh_key and known_hosts in the request' do
       result = described_class.from_gitaly(double(ssh_key: 'SSH KEY', known_hosts: 'KNOWN HOSTS'))
@@ -30,7 +44,7 @@ describe Gitlab::Git::SshAuth do
       let(:known_hosts) { nil }
 
       it 'writes the SSH key file' do
-        ssh_key_file = stub_tempfile('/tmp files/keyFile', 'gitlab-shell-key-file', chmod: 0o400)
+        ssh_key_file = stub_tempfile('/tmpfiles/keyFile', 'gitlab-shell-key-file', chmod: 0o400)
 
         is_expected.to eq(build_env(ssh_key_file: ssh_key_file.path))
 
@@ -43,7 +57,7 @@ describe Gitlab::Git::SshAuth do
       let(:known_hosts) { 'Fake known_hosts data' }
 
       it 'writes the known_hosts file and script' do
-        known_hosts_file = stub_tempfile('/tmp files/knownHosts', 'gitlab-shell-known-hosts', chmod: 0o400)
+        known_hosts_file = stub_tempfile('/tmpfiles/knownHosts', 'gitlab-shell-known-hosts', chmod: 0o400)
 
         is_expected.to eq(build_env(known_hosts_file: known_hosts_file.path))
 
@@ -71,13 +85,13 @@ describe Gitlab::Git::SshAuth do
     opts = []
 
     if ssh_key_file
-      opts << %('-oIdentityFile="#{ssh_key_file}"')
-      opts << %q('-oIdentitiesOnly="yes"')
+      opts << "-oIdentityFile=#{ssh_key_file}"
+      opts << '-oIdentitiesOnly=yes'
     end
 
     if known_hosts_file
-      opts << %q('-oStrictHostKeyChecking="yes"')
-      opts << %('-oUserKnownHostsFile="#{known_hosts_file}"')
+      opts << '-oStrictHostKeyChecking=yes'
+      opts << "-oUserKnownHostsFile=#{known_hosts_file}"
     end
 
     { 'GIT_SSH_COMMAND' => %(ssh #{opts.join(' ')}) }

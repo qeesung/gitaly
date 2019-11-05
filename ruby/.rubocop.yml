@@ -17,3 +17,6 @@ Style/RedundantBegin:
 
 Naming/RescuedExceptionsVariableName:
   Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
