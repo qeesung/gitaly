@@ -110,7 +110,7 @@ func TestProceessReplicationJob(t *testing.T) {
 		replicator:        replicator,
 	}
 
-	require.NoError(t, replMgr.processReplJob(ctx, replJob))
+	replMgr.processReplJob(ctx, replJob)
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)

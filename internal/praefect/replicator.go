@@ -247,8 +247,10 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo models.Repository
 }
 
 const (
-	jobFetchInterval = 10 * time.Millisecond
-	logWithReplJobID = "replication_job_id"
+	jobFetchInterval  = 10 * time.Millisecond
+	logWithReplJobID  = "replication_job_id"
+	logWithReplSource = "replication_job_source"
+	logWithReplTarget = "replication_job_target"
 )
 
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
@@ -288,32 +290,42 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 					"to_storage":     job.TargetNode.Storage,
 					"relative_path":  job.Repository.RelativePath,
 				}).Info("processing replication job")
-				if err := r.processReplJob(ctx, job); err != nil {
-					return err
-				}
+				r.processReplJob(ctx, job)
 			}
 		}
 	}
 }
 
-func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) error {
+// TODO: errors that occur during replication should be handled better. Logging
+// is a crutch in this situation. Ideally, we need to update state somewhere
+// with information regarding the replication failure.
+func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
+	l := r.log.
+		WithField(logWithReplJobID, job.ID).
+		WithField(logWithReplSource, job.SourceNode).
+		WithField(logWithReplTarget, job.TargetNode)
+
 	if err := r.datastore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
-		return err
+		l.WithError(err).Error("unable to update replication job to in progress")
+		return
 	}
 
 	targetCC, err := r.clientConnections.GetConnection(job.TargetNode.Storage)
 	if err != nil {
-		return err
+		l.WithError(err).Error("unable to obtain client connection for secondary node in replication job")
+		return
 	}
 
 	sourceCC, err := r.clientConnections.GetConnection(job.Repository.Primary.Storage)
 	if err != nil {
-		return err
+		l.WithError(err).Error("unable to obtain client connection for primary node in replication job")
+		return
 	}
 
 	injectedCtx, err := helper.InjectGitalyServers(ctx, job.Repository.Primary.Storage, job.SourceNode.Address, job.SourceNode.Token)
 	if err != nil {
-		return err
+		l.WithError(err).Error("unable to inject Gitaly servers into context for replication job")
+		return
 	}
 
 	replStart := time.Now()
@@ -321,15 +333,14 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) error {
 	defer decReplicationJobsInFlight()
 
 	if err := r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC); err != nil {
-		r.log.WithField(logWithReplJobID, job.ID).WithError(err).Error("error when replicating")
-		return err
+		l.WithError(err).Error("unable to replicate")
+		return
 	}
 
 	replDuration := time.Since(replStart)
 	recordReplicationLatency(float64(replDuration / time.Millisecond))
 
 	if err := r.datastore.UpdateReplJob(job.ID, JobStateComplete); err != nil {
-		return err
+		l.WithError(err).Error("error when updating replication job status to complete")
 	}
-	return nil
 }
