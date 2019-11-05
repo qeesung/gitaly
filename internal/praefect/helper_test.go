@@ -191,11 +191,9 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	t.Logf("proxy listening on port %d", port)
 
 	errQ := make(chan error)
-
-	go func() { errQ <- prf.Start(listener) }()
-
 	ctx, cancel := testhelper.Context()
 
+	go func() { errQ <- prf.Start(listener) }()
 	go func() { errQ <- replmgr.ProcessBacklog(ctx) }()
 
 	// dial client to praefect
