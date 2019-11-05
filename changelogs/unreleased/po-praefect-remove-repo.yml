@@ -1,0 +1,5 @@
+---
+title: Propagate repository removal to Praefect backends
+merge_request: 1586
+author:
+type: added
