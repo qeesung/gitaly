@@ -118,8 +118,8 @@ service RepositoryService {
   }
   rpc CreateBundle(CreateBundleRequest) returns (stream CreateBundleResponse) {
     option (op_type) = {
-      op: MUTATOR
-      scope_level: SERVER,
+      op: ACCESSOR
+      target_repository_field: "1"
     };
   }
   rpc CreateRepositoryFromBundle(stream CreateRepositoryFromBundleRequest) returns (CreateRepositoryFromBundleResponse) {

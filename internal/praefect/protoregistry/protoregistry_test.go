@@ -136,7 +136,7 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"IsRebaseInProgress":           protoregistry.OpAccessor,
 			"IsSquashInProgress":           protoregistry.OpAccessor,
 			"CreateRepositoryFromURL":      protoregistry.OpMutator,
-			"CreateBundle":                 protoregistry.OpMutator,
+			"CreateBundle":                 protoregistry.OpAccessor,
 			"CreateRepositoryFromBundle":   protoregistry.OpMutator,
 			"SetConfig":                    protoregistry.OpMutator,
 			"DeleteConfig":                 protoregistry.OpMutator,
