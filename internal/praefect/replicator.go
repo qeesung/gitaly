@@ -54,7 +54,10 @@ func init() {
 
 // Replicator performs the actual replication logic between two nodes
 type Replicator interface {
+	// Replicate propagates changes from the source to the target
 	Replicate(ctx context.Context, job ReplJob, source, target *grpc.ClientConn) error
+	// Destroy will remove the target repo on the specified target connection
+	Destroy(ctx context.Context, job ReplJob, target *grpc.ClientConn) error
 }
 
 type defaultReplicator struct {
@@ -62,17 +65,6 @@ type defaultReplicator struct {
 }
 
 func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
-	switch job.Change {
-	case AdditiveChange:
-		return dr.replicateAdditively(ctx, job, sourceCC, targetCC)
-	case DestructiveChange:
-		return dr.replicateDestructively(ctx, job, sourceCC, targetCC)
-	default:
-		return fmt.Errorf("unknown replication change type encountered: %d", job.Change)
-	}
-}
-
-func (dr defaultReplicator) replicateAdditively(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	repository := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -122,7 +114,7 @@ func (dr defaultReplicator) replicateAdditively(ctx context.Context, job ReplJob
 	return nil
 }
 
-func (dr defaultReplicator) replicateDestructively(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
+func (dr defaultReplicator) Destroy(ctx context.Context, job ReplJob, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -298,7 +290,8 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 
 // TODO: errors that occur during replication should be handled better. Logging
 // is a crutch in this situation. Ideally, we need to update state somewhere
-// with information regarding the replication failure.
+// with information regarding the replication failure. See follow up issue:
+// https://gitlab.com/gitlab-org/gitaly/issues/2138
 func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
 	l := r.log.
 		WithField(logWithReplJobID, job.ID).
@@ -332,7 +325,15 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
 	incReplicationJobsInFlight()
 	defer decReplicationJobsInFlight()
 
-	if err := r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC); err != nil {
+	switch job.Change {
+	case AdditiveChange:
+		err = r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC)
+	case DestructiveChange:
+		err = r.replicator.Destroy(injectedCtx, job, targetCC)
+	default:
+		err = fmt.Errorf("unknown replication change type encountered: %d", job.Change)
+	}
+	if err != nil {
 		l.WithError(err).Error("unable to replicate")
 		return
 	}
