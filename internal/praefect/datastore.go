@@ -44,7 +44,7 @@ type ChangeType int
 const (
 	// UpdateRepo is when a replication updates a repository in place
 	UpdateRepo ChangeType = iota + 1
-	// Delete is when a replication deletes a repo
+	// DeleteRepo is when a replication deletes a repo
 	DeleteRepo
 )
 
