@@ -248,6 +248,12 @@ service RepositoryService {
       target_repository_field: "1"
     };
   }
+  rpc ReplicateRepository(ReplicateRepositoryRequest) returns (ReplicateRepositoryResponse) {
+    option (op_type)  = {
+      op: MUTATOR
+      target_repository_field: "1"
+    };
+  }
 }
 
 message RepositoryExistsRequest {
@@ -541,16 +547,16 @@ message GetRawChangesResponse {
 
     string blob_id = 1;
     int64 size= 2;
-    
+
     // use fields 9 and 10 in place of 3 and 4 (respectively)
     string new_path = 3 [deprecated=true];
     string old_path = 4 [deprecated=true];
-    
+
     Operation operation= 5;
     string raw_operation = 6;
     int32 old_mode = 7;
     int32 new_mode = 8;
-    
+
     // the following fields, 9 and 10, will eventually replace 3 and 4
     bytes new_path_bytes = 9;
     bytes old_path_bytes = 10;
@@ -645,3 +651,10 @@ message RenameRepositoryRequest {
 
 message RenameRepositoryResponse{
 }
+
+message ReplicateRepositoryRequest {
+  Repository repository = 1;
+  Repository source = 2;
+}
+
+message ReplicateRepositoryResponse{}

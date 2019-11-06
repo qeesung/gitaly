@@ -316,6 +316,12 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.RenameRepositoryResponse" do
   end
+  add_message "gitaly.ReplicateRepositoryRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :source, :message, 2, "gitaly.Repository"
+  end
+  add_message "gitaly.ReplicateRepositoryResponse" do
+  end
 end
 
 module Gitaly
@@ -404,4 +410,6 @@ module Gitaly
   RemoveRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveRepositoryResponse").msgclass
   RenameRepositoryRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameRepositoryRequest").msgclass
   RenameRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameRepositoryResponse").msgclass
+  ReplicateRepositoryRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryRequest").msgclass
+  ReplicateRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryResponse").msgclass
 end
