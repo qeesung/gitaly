@@ -34,7 +34,7 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 		return
 	}
 
-	var count int
+	var bitmapCount, packCount int
 	seen := make(map[string]bool)
 	for _, dir := range objdirs {
 		if seen[dir] {
@@ -47,25 +47,32 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 			logEntry.WithError(err).Info("bitmap check failed")
 			return
 		}
+		packCount += len(packs)
 
 		for _, p := range packs {
 			fi, err := os.Stat(strings.TrimSuffix(p, ".pack") + ".bitmap")
 			if err == nil && !fi.IsDir() {
-				count++
+				bitmapCount++
 			}
 		}
 	}
 
-	if count == 1 {
+	if bitmapCount == 1 {
 		// Exactly one bitmap: this is how things should be.
 		return
 	}
 
-	if count > 1 {
-		logEntry.WithField("bitmaps", count).Warn("found more than one packfile bitmap in repository")
+	if packCount == 0 {
+		// If there are no packfiles we don't expect bitmaps nor do we care about
+		// them.
+		return
 	}
 
-	// The case where count == 0 is likely to occur early in the life of a
+	if bitmapCount > 1 {
+		logEntry.WithField("bitmaps", bitmapCount).Warn("found more than one packfile bitmap in repository")
+	}
+
+	// The case where bitmapCount == 0 is likely to occur early in the life of a
 	// repository. We don't want to spam our logs with that, so we count but
 	// not log it.
 
@@ -74,5 +81,5 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 		return
 	}
 
-	badBitmapRequestCount.WithLabelValues(grpcMethod, strconv.Itoa(count)).Inc()
+	badBitmapRequestCount.WithLabelValues(grpcMethod, strconv.Itoa(bitmapCount)).Inc()
 }
