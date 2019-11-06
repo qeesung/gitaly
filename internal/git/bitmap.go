@@ -34,8 +34,7 @@ func WarnIfTooManyBitmaps(ctx context.Context, repoPath string) {
 		return
 	}
 
-	var bitmapCount int
-	var packCount int
+	var bitmapCount, packCount int
 	seen := make(map[string]bool)
 	for _, dir := range objdirs {
 		if seen[dir] {
