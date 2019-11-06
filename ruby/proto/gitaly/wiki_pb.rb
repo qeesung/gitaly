@@ -97,15 +97,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :page, :message, 1, "gitaly.WikiPage"
     optional :end_of_page, :bool, 2
   end
-  add_message "gitaly.WikiGetFormattedDataRequest" do
-    optional :repository, :message, 1, "gitaly.Repository"
-    optional :title, :bytes, 2
-    optional :revision, :bytes, 3
-    optional :directory, :bytes, 4
-  end
-  add_message "gitaly.WikiGetFormattedDataResponse" do
-    optional :data, :bytes, 1
-  end
   add_message "gitaly.WikiListPagesRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
     optional :limit, :uint32, 2
@@ -141,8 +132,6 @@ module Gitaly
   WikiGetAllPagesRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiGetAllPagesRequest").msgclass
   WikiGetAllPagesRequest::SortBy = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiGetAllPagesRequest.SortBy").enummodule
   WikiGetAllPagesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiGetAllPagesResponse").msgclass
-  WikiGetFormattedDataRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiGetFormattedDataRequest").msgclass
-  WikiGetFormattedDataResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiGetFormattedDataResponse").msgclass
   WikiListPagesRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiListPagesRequest").msgclass
   WikiListPagesRequest::SortBy = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiListPagesRequest.SortBy").enummodule
   WikiListPagesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WikiListPagesResponse").msgclass

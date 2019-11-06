@@ -169,15 +169,14 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"SSHUploadArchive": protoregistry.OpMutator,
 		},
 		"WikiService": map[string]protoregistry.OpType{
-			"WikiGetPageVersions":  protoregistry.OpAccessor,
-			"WikiWritePage":        protoregistry.OpMutator,
-			"WikiUpdatePage":       protoregistry.OpMutator,
-			"WikiDeletePage":       protoregistry.OpMutator,
-			"WikiFindPage":         protoregistry.OpAccessor,
-			"WikiFindFile":         protoregistry.OpAccessor,
-			"WikiGetAllPages":      protoregistry.OpAccessor,
-			"WikiListPages":        protoregistry.OpAccessor,
-			"WikiGetFormattedData": protoregistry.OpAccessor,
+			"WikiGetPageVersions": protoregistry.OpAccessor,
+			"WikiWritePage":       protoregistry.OpMutator,
+			"WikiUpdatePage":      protoregistry.OpMutator,
+			"WikiDeletePage":      protoregistry.OpMutator,
+			"WikiFindPage":        protoregistry.OpAccessor,
+			"WikiFindFile":        protoregistry.OpAccessor,
+			"WikiGetAllPages":     protoregistry.OpAccessor,
+			"WikiListPages":       protoregistry.OpAccessor,
 		},
 	}
 

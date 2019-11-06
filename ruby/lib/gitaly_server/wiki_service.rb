@@ -179,26 +179,6 @@ module GitalyServer
       Gitaly::WikiUpdatePageResponse.new
     end
 
-    def wiki_get_formatted_data(request, call)
-      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-      wiki = Gitlab::Git::Wiki.new(repo)
-
-      page = wiki.page(
-        title: set_utf8!(request.title),
-        version: request.revision.presence,
-        dir: set_utf8!(request.directory).presence
-      )
-
-      raise GRPC::NotFound unless page
-
-      Enumerator.new do |y|
-        io = StringIO.new(page.formatted_data)
-        while chunk = io.read(Gitlab.config.git.write_buffer_size)
-          y.yield Gitaly::WikiGetFormattedDataResponse.new(data: chunk)
-        end
-      end
-    end
-
     private
 
     def get_wiki_pages(request, call)
