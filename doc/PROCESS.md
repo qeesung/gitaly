@@ -24,14 +24,8 @@ counter.
 
 Where x.y.z is a semver-compliant version number.
 
-- To automatically create a merge-request in Gitlab CE to update that
-  project to the latest tag, run
-
-```shell
-GITLAB_TOKEN=$(cat /path/to/gitlab-token) _support/update-downstream-server-version
-```
-
-- This will create a merge-request (with changelog) and assign it to you. Once the build has
+- The release will not yet be published, to prevent accidental leakage of security bug fixes. Run `_support/publish vX.Y.Z` to publish.
+- The pipeline of a tag will create a merge request on the GitLab codebase to bump the Gitaly server version, and this will be assigned to you. Once the build has
   completed successfully, assign it to a maintainer for review.
 
 ##### Security release
