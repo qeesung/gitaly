@@ -80,7 +80,9 @@ func TestProceessReplicationJob(t *testing.T) {
 		},
 	}
 
-	replJob := ReplJob{ID: 1,
+	replJob := ReplJob{
+		Change:     UpdateRepo,
+		ID:         1,
 		TargetNode: models.Node{Storage: backupStorageName, Address: srvSocketPath},
 		SourceNode: models.Node{Storage: "default", Address: srvSocketPath, Token: testhelper.RepositoryAuthToken},
 		Repository: models.Repository{Primary: models.Node{Storage: "default", Address: srvSocketPath}, RelativePath: testRepo.GetRelativePath()},
@@ -108,7 +110,7 @@ func TestProceessReplicationJob(t *testing.T) {
 		replicator:        replicator,
 	}
 
-	require.NoError(t, replMgr.processReplJob(ctx, replJob))
+	replMgr.processReplJob(ctx, replJob)
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)

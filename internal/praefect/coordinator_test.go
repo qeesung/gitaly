@@ -96,6 +96,7 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedJob := ReplJob{
+		Change:     UpdateRepo,
 		ID:         1,
 		TargetNode: targetNode,
 		SourceNode: sourceNode,

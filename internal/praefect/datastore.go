@@ -38,10 +38,21 @@ const (
 	JobStateCancelled
 )
 
+// ChangeType indicates what kind of change the replication is propagating
+type ChangeType int
+
+const (
+	// UpdateRepo is when a replication updates a repository in place
+	UpdateRepo ChangeType = iota + 1
+	// DeleteRepo is when a replication deletes a repo
+	DeleteRepo
+)
+
 // ReplJob is an instance of a queued replication job. A replication job is
 // meant for updating the repository so that it is synced with the primary
 // copy. Scheduled indicates when a replication job should be performed.
 type ReplJob struct {
+	Change                 ChangeType
 	ID                     uint64            // autoincrement ID
 	TargetNode, SourceNode models.Node       // which node to replicate to?
 	Repository             models.Repository // source for replication
@@ -99,13 +110,14 @@ type ReplJobsDatastore interface {
 	// CreateReplicaJobs will create replication jobs for each secondary
 	// replica of a repository known to the datastore. A set of replication job
 	// ID's for the created jobs will be returned upon success.
-	CreateReplicaReplJobs(relativePath string) ([]uint64, error)
+	CreateReplicaReplJobs(relativePath string, change ChangeType) ([]uint64, error)
 
 	// UpdateReplJob updates the state of an existing replication job
 	UpdateReplJob(jobID uint64, newState JobState) error
 }
 
 type jobRecord struct {
+	change                     ChangeType
 	relativePath               string // project's relative path
 	targetNodeID, sourceNodeID int
 	state                      JobState
@@ -360,6 +372,7 @@ func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (Re
 	}
 
 	return ReplJob{
+		Change:     record.change,
 		ID:         jobID,
 		Repository: *repository,
 		SourceNode: sourceNode,
@@ -374,7 +387,7 @@ var ErrInvalidReplTarget = errors.New("targetStorage repository fails preconditi
 
 // CreateReplicaReplJobs creates a replication job for each secondary that
 // backs the specified repository. Upon success, the job IDs will be returned.
-func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string) ([]uint64, error) {
+func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string, change ChangeType) ([]uint64, error) {
 	md.jobs.Lock()
 	defer md.jobs.Unlock()
 
@@ -396,6 +409,7 @@ func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string) ([]uint64,
 		nextID := uint64(len(md.jobs.records) + 1)
 
 		md.jobs.records[nextID] = jobRecord{
+			change:       change,
 			targetNodeID: secondary.ID,
 			state:        JobStatePending,
 			relativePath: relativePath,

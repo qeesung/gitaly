@@ -525,3 +525,7 @@ func gitObjectExists(t testing.TB, repoPath, sha string, exists bool) {
 	}
 	require.Error(t, cmd.Run(), "checking for object should fail")
 }
+
+// Cleanup functions should be called in a defer statement
+// immediately after they are returned from a test helper
+type Cleanup func()
