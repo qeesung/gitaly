@@ -29,7 +29,7 @@ func TestLink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist at start of test")
@@ -102,7 +102,7 @@ func TestLinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))
@@ -171,7 +171,7 @@ func TestLinkNoPool(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	// intentionally do not call pool.Create
 	defer pool.Remove(ctx)
@@ -315,7 +315,7 @@ func TestUnlinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))

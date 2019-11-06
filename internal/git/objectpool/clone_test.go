@@ -15,7 +15,7 @@ func TestClone(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), "@pools"+t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	err = pool.clone(ctx, testRepo)
@@ -33,7 +33,7 @@ func TestCloneExistingPool(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := NewObjectPool(testRepo.GetStorageName(), t.Name())
+	pool, err := NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	err = pool.clone(ctx, testRepo)
