@@ -16,13 +16,17 @@ func (s *server) RawDiff(in *gitalypb.RawDiffRequest, stream gitalypb.DiffServic
 		return status.Errorf(codes.InvalidArgument, "RawDiff: %v", err)
 	}
 
-	cmdArgs := []string{"diff", "--full-index", in.LeftCommitId, in.RightCommitId}
+	subCmd := git.SubCmd{
+		Name:  "diff",
+		Flags: []git.Option{git.Flag{"--full-index"}},
+		Args:  []string{in.LeftCommitId, in.RightCommitId},
+	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&gitalypb.RawDiffResponse{Data: p})
 	})
 
-	return sendRawOutput(stream.Context(), "RawDiff", in.Repository, sw, cmdArgs)
+	return sendRawOutput(stream.Context(), "RawDiff", in.Repository, sw, subCmd)
 }
 
 func (s *server) RawPatch(in *gitalypb.RawPatchRequest, stream gitalypb.DiffService_RawPatchServer) error {
@@ -30,17 +34,21 @@ func (s *server) RawPatch(in *gitalypb.RawPatchRequest, stream gitalypb.DiffServ
 		return status.Errorf(codes.InvalidArgument, "RawPatch: %v", err)
 	}
 
-	cmdArgs := []string{"format-patch", "--stdout", in.LeftCommitId + ".." + in.RightCommitId}
+	subCmd := git.SubCmd{
+		Name:  "format-patch",
+		Flags: []git.Option{git.Flag{"--stdout"}},
+		Args:  []string{in.LeftCommitId + ".." + in.RightCommitId},
+	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&gitalypb.RawPatchResponse{Data: p})
 	})
 
-	return sendRawOutput(stream.Context(), "RawPatch", in.Repository, sw, cmdArgs)
+	return sendRawOutput(stream.Context(), "RawPatch", in.Repository, sw, subCmd)
 }
 
-func sendRawOutput(ctx context.Context, rpc string, repo *gitalypb.Repository, sender io.Writer, cmdArgs []string) error {
-	cmd, err := git.Command(ctx, repo, cmdArgs...)
+func sendRawOutput(ctx context.Context, rpc string, repo *gitalypb.Repository, sender io.Writer, subCmd git.SubCmd) error {
+	cmd, err := git.SafeCmd(ctx, repo, nil, subCmd)
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err
