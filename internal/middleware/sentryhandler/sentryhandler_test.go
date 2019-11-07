@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Test_generateRavenPacket(t *testing.T) {
+func Test_generateSentryEvent(t *testing.T) {
 	tests := []struct {
 		name        string
 		method      string
@@ -72,20 +72,20 @@ func Test_generateRavenPacket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			start := time.Now().Add(-tt.sinceStart)
-			packet, tags := generateRavenPacket(context.Background(), tt.method, start, tt.err)
+			event := generateSentryEvent(context.Background(), tt.method, start, tt.err)
 
 			if tt.wantNil {
-				assert.Nil(t, packet)
+				assert.Nil(t, event)
 				return
 			}
 
-			assert.Equal(t, tt.wantCulprit, packet.Culprit)
-			assert.Equal(t, tt.wantMessage, packet.Message)
-			assert.Equal(t, tags["system"], "grpc")
-			assert.NotEmpty(t, tags["grpc.time_ms"])
-			assert.Equal(t, tt.method, tags["grpc.method"])
-			assert.Equal(t, tt.wantCode.String(), tags["grpc.code"])
-			assert.Equal(t, []string{"grpc", tt.wantCulprit, tt.wantCode.String()}, packet.Fingerprint)
+			assert.Equal(t, tt.wantCulprit, event.Transaction)
+			assert.Equal(t, tt.wantMessage, event.Message)
+			assert.Equal(t, event.Tags["system"], "grpc")
+			assert.NotEmpty(t, event.Tags["grpc.time_ms"])
+			assert.Equal(t, tt.method, event.Tags["grpc.method"])
+			assert.Equal(t, tt.wantCode.String(), event.Tags["grpc.code"])
+			assert.Equal(t, []string{"grpc", tt.wantCulprit, tt.wantCode.String()}, event.Fingerprint)
 		})
 	}
 }

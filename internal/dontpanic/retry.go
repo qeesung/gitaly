@@ -10,7 +10,7 @@ package dontpanic
 import (
 	"time"
 
-	raven "github.com/getsentry/raven-go"
+	sentry "github.com/getsentry/sentry-go"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 )
 
@@ -27,8 +27,20 @@ func Go(fn func()) { go func() { Try(fn) }() }
 var logger = log.Default()
 
 func catchAndLog(fn func()) {
-	recovered, id := raven.CapturePanic(fn, nil)
-	if id == "" {
+	var id *sentry.EventID
+	var recovered interface{}
+
+	func() {
+		defer func() {
+			recovered = recover()
+			if err, ok := recovered.(error); ok {
+				id = sentry.CaptureException(err)
+			}
+		}()
+		fn()
+	}()
+
+	if id == nil || *id == "" {
 		return
 	}
 
