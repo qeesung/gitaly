@@ -32,7 +32,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	getRemotes, err := git.Command(ctx, o, "remote")
+	getRemotes, err := git.SafeCmd(ctx, o, nil, git.SubCmd{Name: "remote"})
 	if err != nil {
 		return err
 	}
@@ -51,12 +51,18 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 
 	var setOriginCmd *command.Command
 	if originExists {
-		setOriginCmd, err = git.Command(ctx, o, "remote", "set-url", sourceRemote, originPath)
+		setOriginCmd, err = git.SafeCmd(ctx, o, nil, git.SubCmd{
+			Name: "remote",
+			Args: []string{"set-url", sourceRemote, originPath},
+		})
 		if err != nil {
 			return err
 		}
 	} else {
-		setOriginCmd, err = git.Command(ctx, o, "remote", "add", sourceRemote, originPath)
+		setOriginCmd, err = git.SafeCmd(ctx, o, nil, git.SubCmd{
+			Name: "remote",
+			Args: []string{"add", sourceRemote, originPath},
+		})
 		if err != nil {
 			return err
 		}
@@ -71,7 +77,11 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 	}
 
 	refSpec := fmt.Sprintf("+refs/*:%s/*", sourceRefNamespace)
-	fetchCmd, err := git.Command(ctx, o, "fetch", "--quiet", sourceRemote, refSpec)
+	fetchCmd, err := git.SafeCmd(ctx, o, nil, git.SubCmd{
+		Name:  "fetch",
+		Flags: []git.Option{git.Flag{"--quiet"}},
+		Args:  []string{sourceRemote, refSpec},
+	})
 	if err != nil {
 		return err
 	}
@@ -88,7 +98,10 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	packRefs, err := git.Command(ctx, o, "pack-refs", "--all")
+	packRefs, err := git.SafeCmd(ctx, o, nil, git.SubCmd{
+		Name:  "pack-refs",
+		Flags: []git.Option{git.Flag{"--all"}},
+	})
 	if err != nil {
 		return err
 	}
@@ -110,7 +123,10 @@ const danglingObjectNamespace = "refs/dangling"
 // an object is still used anywhere, so the only safe thing to do is to
 // assume that every object _is_ used.
 func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
-	fsck, err := git.Command(ctx, repo, "fsck", "--connectivity-only", "--dangling")
+	fsck, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+		Name:  "fsck",
+		Flags: []git.Option{git.Flag{"--connectivity-only"}, git.Flag{"--dangling"}},
+	})
 	if err != nil {
 		return err
 	}
@@ -149,13 +165,15 @@ func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
 }
 
 func repackPool(ctx context.Context, pool repository.GitRepo) error {
-	repackArgs := []string{
-		"-c", "pack.island=" + sourceRefNamespace + "/heads",
-		"-c", "pack.island=" + sourceRefNamespace + "/tags",
-		"-c", "pack.writeBitmapHashCache=true",
-		"repack", "-aidb",
+	repackArgs := []git.Option{
+		git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/heads"},
+		git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/tags"},
+		git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"},
 	}
-	repackCmd, err := git.Command(ctx, pool, repackArgs...)
+	repackCmd, err := git.SafeCmd(ctx, pool, repackArgs, git.SubCmd{
+		Name:  "repack",
+		Flags: []git.Option{git.Flag{"-aidb"}},
+	})
 	if err != nil {
 		return err
 	}
