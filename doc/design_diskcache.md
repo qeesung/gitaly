@@ -124,18 +124,18 @@ Before enabling on a production system, ensure you understand the following
 requirements and risks:
 
 - **All Gitaly servers for any given storage location must be v1.70.0 or higher**
+    - Note: GitLab v12.5 and newer will satisfy this version constraint
     - In order for the cache entries to be properly invalidated, all Gitaly nodes
-serving a [storage location](https://docs.gitlab.com/ee/administration/repository_storage_paths.html) must support the same cache invalidation feature.
-    Failing to meet this requirement can result in stale info-ref advertisements
-    being served.
+      serving a [storage location] must support the same cache invalidation feature.
 - The cache will use extra disk on the Gitaly storage locations. This should be
-    actively monitored.
+  actively monitored. [Node exporter] is recommended for tracking resource
+  usage.
 - There may be initial latency spikes when enabling this feature for large/busy
-    GitLab instances until the cache is warmed up.
+  GitLab instances until the cache is warmed up.
 
 This flag can be enabled in one of two ways:
 
-- Chat Ops command: `/chatops run feature set gitaly_inforef_uploadpack_cache true`
+- HTTP API via curl command: `curl --data "value=true" --header "PRIVATE-TOKEN: <your_access_token>" https://gitlab.example.com/api/v4/features/gitaly_inforef_uploadpack_cache`
 - Rails console command: `Feature.enable(:gitaly_inforef_uploadpack_cache)`
 
 Once enabled, the following Prometheus queries (adapted from [GitLab's dashboards])
@@ -144,20 +144,20 @@ will give you insight into the performance and behavior of the cache:
 - [Cache invalidation behavior]
     - `sum(rate(gitaly_cacheinvalidator_optype_total[1m])) by (type)`
     - Shows the Gitaly RPC types (mutator or accessor). The cache benefits from
-        Gitaly requests that are more often accessors than mutators.
+      Gitaly requests that are more often accessors than mutators.
 - [Cache Throughput Bytes]
     - `sum(rate(gitaly_diskcache_bytes_fetched_total[1m]))`
     - `sum(rate(gitaly_diskcache_bytes_stored_total[1m]))`
     - Shows the cache's throughput at the byte level. Ideally, the throughput
-        should correlate to the cache invalidation behavior.
+      should correlate to the cache invalidation behavior.
 - [Cache Effectiveness]
     - `(sum(rate(gitaly_diskcache_requests_total[1m])) - sum(rate(gitaly_diskcache_miss_total[1m]))) / sum(rate(gitaly_diskcache_requests_total[1m]))`
     - Shows how often the cache is invoked for a hit vs a miss. A value close to
-        100% is desireable.
+      100% is desireable.
 - [Cache Errors]
     - `sum(rate(gitaly_diskcache_errors_total[1m])) by (error)`
     - Shows edge case errors experienced by the cache. The following errors can
-        be ignored:
+      be ignored:
         - `ErrMissingLeaseFile`
         - `ErrPendingExists`
 
@@ -166,3 +166,5 @@ will give you insight into the performance and behavior of the cache:
 [Cache Throughput Bytes]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=6
 [Cache Effectiveness]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=8
 [Cache Errors]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=12
+[Node exporter]: https://docs.gitlab.com/ee/administration/monitoring/prometheus/node_exporter.html
+[storage location]: https://docs.gitlab.com/ee/administration/repository_storage_paths.html
