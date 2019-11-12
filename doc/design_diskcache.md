@@ -126,7 +126,8 @@ requirements and risks:
   actively monitored. [Node exporter] is recommended for tracking resource
   usage.
 - There may be initial latency spikes when enabling this feature for large/busy
-  GitLab instances until the cache is warmed up.
+  GitLab instances until the cache is warmed up. On a busy site like gitlab.com,
+  this may last as long as several seconds to a minute.
 
 This flag can be enabled in one of two ways:
 
