@@ -125,7 +125,7 @@ requirements and risks:
 
 - **All Gitaly servers for any given storage location must be v1.70.0 or higher**
     - In order for the cache entries to be properly invalidated, all Gitaly nodes
-    serving a storage location must support the same cache invalidation feature.
+serving a [storage location](https://docs.gitlab.com/ee/administration/repository_storage_paths.html) must support the same cache invalidation feature.
     Failing to meet this requirement can result in stale info-ref advertisements
     being served.
 - The cache will use extra disk on the Gitaly storage locations. This should be
