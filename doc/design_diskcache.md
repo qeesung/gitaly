@@ -110,13 +110,6 @@ state files and cached responses. Additionally, Gitaly will remove the cached
 responses on program start to guard against any chance that the cache
 invalidator was not working in a previous run.
 
-## Relevant Code
-
-- [Disk cache and lease keyer](internal/cache)
-- [gRPC Middleware Cache Invalidator](internal/middleware/cache)
-- [gRPC annotations](internal/praefect/protoregistry)
-- [InfoRef cache](internal/service/smarthttp/cache.go)
-
 ## Enabling and Observing
 
 The actual caching of info ref advertisements is guarded by a feature flag. 
