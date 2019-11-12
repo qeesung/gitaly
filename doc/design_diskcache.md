@@ -94,7 +94,7 @@ cached response in this format:
 
 	${STORAGE_PATH}/+gitaly/cache/${DIGEST:0:2}/${DIGEST:2}
 
-Note: the first two characters of the digest are used as a subdirectory to
+NOTE: **Note:** The first two characters of the digest are used as a subdirectory to
 allow the random distribution of the digest algorithm (SHA256) to evenly
 distribute the response files. This way, the digest files are evenly
 distributed across 256 folders.
