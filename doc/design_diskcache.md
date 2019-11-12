@@ -82,8 +82,8 @@ between the time the lease files are checked and the latest file is inspected,
 but this is allowed by the cache design in order to avoid distributed locking.
 This means that a stale cached response might be served momentarily, but this
 slight delay in fresh responses is a small tradeoff necessary to keep the cache
-lockless. The lockless quality is highly desired since Gitaly operates on NFS
-servers where file locks are not advisable.
+lockless. The lockless quality is highly desired since Gitaly is often operated on NFS
+mounts where file locks are not advisable.
 
 ## Cached Responses
 
