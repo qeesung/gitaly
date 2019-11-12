@@ -50,16 +50,15 @@ func sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb
 
 	git.WarnIfTooManyBitmaps(ctx, repoPath)
 
-	args := []string{}
-
-	for _, params := range req.GitConfigOptions {
-		args = append(args, "-c", params)
+	var globalOpts []git.Option
+	for _, o := range req.GitConfigOptions {
+		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})
 	}
 
-	args = append(args, "upload-pack", repoPath)
-
-	cmd, err := git.BareCommand(ctx, stdin, stdout, stderr, env, args...)
-
+	cmd, err := git.SafeBareCmd(ctx, stdin, stdout, stderr, env, globalOpts, git.SubCmd{
+		Name: "upload-pack",
+		Args: []string{repoPath},
+	})
 	if err != nil {
 		return fmt.Errorf("start cmd: %v", err)
 	}
