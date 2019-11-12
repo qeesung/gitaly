@@ -35,7 +35,7 @@ func commitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalyp
 		return nil, fmt.Errorf("commit not found: %q", in.Revision)
 	}
 
-	args := []string{"diff", "--numstat"}
+	var args []string
 
 	if len(commit.GetParentIds()) == 0 {
 		args = append(args, git.EmptyTreeID, commit.Id)
@@ -43,7 +43,11 @@ func commitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalyp
 		args = append(args, commit.Id+"^", commit.Id)
 	}
 
-	cmd, err := git.Command(ctx, in.Repository, args...)
+	cmd, err := git.SafeCmd(ctx, in.Repository, nil, git.SubCmd{
+		Name:  "diff",
+		Flags: []git.Option{git.Flag{"--numstat"}},
+		Args:  args,
+	})
 	if err != nil {
 		return nil, err
 	}
