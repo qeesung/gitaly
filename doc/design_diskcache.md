@@ -123,10 +123,12 @@ The actual caching of info ref advertisements is guarded by a feature flag.
 Before enabling on a production system, ensure you understand the following
 requirements and risks:
 
-- **All Gitaly servers for any given storage location must be v1.70.0 or higher**
+- **All Gitaly servers must be v1.71.0 or higher**
     - Note: GitLab v12.5 and newer will satisfy this version constraint
     - In order for the cache entries to be properly invalidated, all Gitaly nodes
-      serving a [storage location] must support the same cache invalidation feature.
+      serving a [storage location] must support the same cache invalidation
+      feature found in v1.71.0+. Custom Gitaly deployments with mixed versions
+      may serve stale info ref advertisements.
 - The cache will use extra disk on the Gitaly storage locations. This should be
   actively monitored. [Node exporter] is recommended for tracking resource
   usage.
