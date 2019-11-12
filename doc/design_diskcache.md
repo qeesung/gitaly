@@ -77,7 +77,7 @@ graph TD;
     class E,F final;
 ```
 
-Note: There are momentary race conditions where an RPC may become in flight
+NOTE: **Note:** There are momentary race conditions where an RPC may become in flight
 between the time the lease files are checked and the latest file is inspected,
 but this is allowed by the cache design in order to avoid distributed locking.
 This means that a stale cached response might be served momentarily, but this
