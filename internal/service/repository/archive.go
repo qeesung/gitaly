@@ -97,9 +97,12 @@ func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchive
 }
 
 func handleArchive(ctx context.Context, writer io.Writer, in *gitalypb.GetArchiveRequest, compressCmd *exec.Cmd, format string, path string) error {
-	archiveCommand, err := git.Command(ctx, in.GetRepository(), "archive",
-		"--format="+format, "--prefix="+in.GetPrefix()+"/", in.GetCommitId(), "--", path)
-
+	archiveCommand, err := git.SafeCmd(ctx, in.GetRepository(), nil, git.SubCmd{
+		Name:        "archive",
+		Flags:       []git.Option{git.ValueFlag{"--format", format}, git.ValueFlag{"--prefix", in.GetPrefix() + "/"}},
+		Args:        []string{in.GetCommitId()},
+		PostSepArgs: []string{path},
+	})
 	if err != nil {
 		return err
 	}
