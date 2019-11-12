@@ -11,8 +11,6 @@ def changelog_entry
 end
 
 required_labels = %w[devops::create]
-
-GITALY_TEAM = %w[8bitlife jacobvosmaer-gitlab johncai pokstad1 zj-gitlab]
 required_labels << "group::gitaly" if GITALY_TEAM.include?(gitlab.mr_author)
 
 TYPE_TO_LABEL = {

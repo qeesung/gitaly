@@ -1,3 +1,6 @@
+GITALY_TEAM = %w[8bitlife jacobvosmaer-gitlab johncai pokstad1 zj-gitlab]
+
+danger.import_dangerfile(path: 'danger/assignees')
 danger.import_dangerfile(path: 'danger/changelog')
 danger.import_dangerfile(path: 'danger/labels')
 danger.import_dangerfile(path: 'danger/merge_request')
