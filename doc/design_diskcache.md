@@ -77,7 +77,7 @@ graph TD;
     class E,F final;
 ```
 
-NOTE: **Note:** There are momentary race conditions where an RPC may become in flight
+**Note:** There are momentary race conditions where an RPC may become in flight
 between the time the lease files are checked and the latest file is inspected,
 but this is allowed by the cache design in order to avoid distributed locking.
 This means that a stale cached response might be served momentarily, but this
@@ -94,7 +94,7 @@ cached response in this format:
 
 	${STORAGE_PATH}/+gitaly/cache/${DIGEST:0:2}/${DIGEST:2}
 
-NOTE: **Note:** The first two characters of the digest are used as a subdirectory to
+**Note:** The first two characters of the digest are used as a subdirectory to
 allow the random distribution of the digest algorithm (SHA256) to evenly
 distribute the response files. This way, the digest files are evenly
 distributed across 256 folders.
