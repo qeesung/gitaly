@@ -21,6 +21,7 @@ func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 	if err := s.updateRemoteMirror(stream, firstRequest); err != nil {
 		return helper.ErrInternal(err)
 	}
+
 	return nil
 }
 
