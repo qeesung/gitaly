@@ -77,13 +77,13 @@ graph TD;
     class E,F final;
 ```
 
-Note: There are momentary race conditions where an RPC may become in flight
+**Note:** There are momentary race conditions where an RPC may become in flight
 between the time the lease files are checked and the latest file is inspected,
 but this is allowed by the cache design in order to avoid distributed locking.
 This means that a stale cached response might be served momentarily, but this
 slight delay in fresh responses is a small tradeoff necessary to keep the cache
-lockless. The lockless quality is highly desired since Gitaly operates on NFS
-servers where file locks are not advisable.
+lockless. The lockless quality is highly desired since Gitaly is often operated on NFS
+mounts where file locks are not advisable.
 
 ## Cached Responses
 
@@ -94,7 +94,7 @@ cached response in this format:
 
 	${STORAGE_PATH}/+gitaly/cache/${DIGEST:0:2}/${DIGEST:2}
 
-Note: the first two characters of the digest are used as a subdirectory to
+**Note:** The first two characters of the digest are used as a subdirectory to
 allow the random distribution of the digest algorithm (SHA256) to evenly
 distribute the response files. This way, the digest files are evenly
 distributed across 256 folders.
@@ -110,10 +110,57 @@ state files and cached responses. Additionally, Gitaly will remove the cached
 responses on program start to guard against any chance that the cache
 invalidator was not working in a previous run.
 
-## Relevant Code
+## Enabling and Observing
 
-- [Disk cache and lease keyer](internal/cache)
-- [gRPC Middleware Cache Invalidator](internal/middleware/cache)
-- [gRPC annotations](internal/praefect/protoregistry)
-- [InfoRef cache](internal/service/smarthttp/cache.go)
+The actual caching of info ref advertisements is guarded by a feature flag. 
+Before enabling on a production system, ensure you understand the following
+requirements and risks:
 
+- **All Gitaly servers must be v1.71.0 or higher**
+    - Note: this version is available in **Omnibus GitLab 12.5.0** and above
+    - In order for the cache entries to be properly invalidated, all Gitaly nodes
+      serving a [storage location] must support the same cache invalidation
+      feature found in v1.71.0+. Custom Gitaly deployments with mixed versions
+      may serve stale info ref advertisements.
+- The cache will use extra disk on the Gitaly storage locations. This should be
+  actively monitored. [Node exporter] is recommended for tracking resource
+  usage.
+- There may be initial latency spikes when enabling this feature for large/busy
+  GitLab instances until the cache is warmed up. On a busy site like gitlab.com,
+  this may last as long as several seconds to a minute.
+
+This flag can be enabled in one of two ways:
+
+- HTTP API via curl command: `curl --data "value=true" --header "PRIVATE-TOKEN: <your_access_token>" https://gitlab.example.com/api/v4/features/gitaly_inforef_uploadpack_cache`
+- Rails console command: `Feature.enable(:gitaly_inforef_uploadpack_cache)`
+
+Once enabled, the following Prometheus queries (adapted from [GitLab's dashboards])
+will give you insight into the performance and behavior of the cache:
+
+- [Cache invalidation behavior]
+    - `sum(rate(gitaly_cacheinvalidator_optype_total[1m])) by (type)`
+    - Shows the Gitaly RPC types (mutator or accessor). The cache benefits from
+      Gitaly requests that are more often accessors than mutators.
+- [Cache Throughput Bytes]
+    - `sum(rate(gitaly_diskcache_bytes_fetched_total[1m]))`
+    - `sum(rate(gitaly_diskcache_bytes_stored_total[1m]))`
+    - Shows the cache's throughput at the byte level. Ideally, the throughput
+      should correlate to the cache invalidation behavior.
+- [Cache Effectiveness]
+    - `(sum(rate(gitaly_diskcache_requests_total[1m])) - sum(rate(gitaly_diskcache_miss_total[1m]))) / sum(rate(gitaly_diskcache_requests_total[1m]))`
+    - Shows how often the cache is invoked for a hit vs a miss. A value close to
+      100% is desireable.
+- [Cache Errors]
+    - `sum(rate(gitaly_diskcache_errors_total[1m])) by (error)`
+    - Shows edge case errors experienced by the cache. The following errors can
+      be ignored:
+        - `ErrMissingLeaseFile`
+        - `ErrPendingExists`
+
+[GitLab's dashboards]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1
+[Cache invalidation behavior]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=2
+[Cache Throughput Bytes]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=6
+[Cache Effectiveness]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=8
+[Cache Errors]: https://dashboards.gitlab.net/d/5Y26KtFWk/gitaly-inforef-upload-pack-caching?orgId=1&fullscreen&panelId=12
+[Node exporter]: https://docs.gitlab.com/ee/administration/monitoring/prometheus/node_exporter.html
+[storage location]: https://docs.gitlab.com/ee/administration/repository_storage_paths.html
