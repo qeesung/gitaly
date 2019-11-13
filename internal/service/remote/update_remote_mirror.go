@@ -11,7 +11,7 @@ import (
 func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMirrorServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {
-		return fmt.Errorf("receive first request: %v", err)
+		return helper.ErrInternalf("receive first request: %v", err)
 	}
 
 	if err = validateUpdateRemoteMirrorRequest(firstRequest); err != nil {
