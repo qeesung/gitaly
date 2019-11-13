@@ -21,7 +21,7 @@ const (
 // GetTagCatfile looks up a commit by tagID using an existing *catfile.Batch instance.
 // note: we pass in the tagName because the tag name from refs/tags may be different
 // than the name found in the actual tag object. We want to use the tagName found in refs/tags
-func GetTagCatfile(c *catfile.Batch, tagID, tagName string) (*gitalypb.Tag, error) {
+func GetTagCatfile(c *catfile.Batch, tagID, tagName string, trim bool) (*gitalypb.Tag, error) {
 	r, err := c.Tag(tagID)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func GetTagCatfile(c *catfile.Batch, tagID, tagName string) (*gitalypb.Tag, erro
 	}
 
 	// the tagID is the oid of the tag object
-	tag, err := buildAnnotatedTag(c, tagID, tagName, header, body)
+	tag, err := buildAnnotatedTag(c, tagID, tagName, header, body, trim)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
 	return &header, body, nil
 }
 
-func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, body []byte) (*gitalypb.Tag, error) {
+func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, body []byte, trim bool) (*gitalypb.Tag, error) {
 	tag := &gitalypb.Tag{
 		Id:          tagID,
 		Name:        []byte(name),
@@ -95,7 +95,7 @@ func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, 
 		Message:     body,
 	}
 
-	if max := helper.MaxCommitOrTagMessageSize; len(body) > max {
+	if max := helper.MaxCommitOrTagMessageSize; trim && len(body) > max {
 		tag.Message = tag.Message[:max]
 	}
 

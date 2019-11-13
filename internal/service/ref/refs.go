@@ -376,7 +376,7 @@ func parseTagLine(c *catfile.Batch, tagLine string) (*gitalypb.Tag, error) {
 	switch refType {
 	// annotated tag
 	case "tag":
-		tag, err := gitlog.GetTagCatfile(c, tagID, refName)
+		tag, err := gitlog.GetTagCatfile(c, tagID, refName, true)
 		if err != nil {
 			return nil, fmt.Errorf("getting annotated tag: %v", err)
 		}

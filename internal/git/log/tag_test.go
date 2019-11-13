@@ -25,16 +25,25 @@ func TestGetTag(t *testing.T) {
 		tagName string
 		rev     string
 		message string
+		trim    bool
 	}{
+		{
+			tagName: fmt.Sprintf("%s-v1.0.2", t.Name()),
+			rev:     "master^^^^",
+			message: strings.Repeat("a", helper.MaxCommitOrTagMessageSize+1),
+			trim:    false,
+		},
 		{
 			tagName: fmt.Sprintf("%s-v1.0.0", t.Name()),
 			rev:     "master^^^",
 			message: "Prod Release v1.0.0",
+			trim:    true,
 		},
 		{
 			tagName: fmt.Sprintf("%s-v1.0.1", t.Name()),
 			rev:     "master^^",
 			message: strings.Repeat("a", helper.MaxCommitOrTagMessageSize+1),
+			trim:    true,
 		},
 	}
 
@@ -44,9 +53,9 @@ func TestGetTag(t *testing.T) {
 		t.Run(testCase.tagName, func(t *testing.T) {
 			tagID := testhelper.CreateTag(t, testRepoPath, testCase.tagName, testCase.rev, &testhelper.CreateTagOpts{Message: testCase.message})
 
-			tag, err := GetTagCatfile(c, string(tagID), testCase.tagName)
+			tag, err := GetTagCatfile(c, tagID, testCase.tagName, testCase.trim)
 			require.NoError(t, err)
-			if len(testCase.message) >= helper.MaxCommitOrTagMessageSize {
+			if testCase.trim && len(testCase.message) >= helper.MaxCommitOrTagMessageSize {
 				testCase.message = testCase.message[:helper.MaxCommitOrTagMessageSize]
 			}
 
