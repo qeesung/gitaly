@@ -61,27 +61,27 @@ func (s *server) getAndStreamTagMessages(request *gitalypb.GetTagMessagesRequest
 func getAndStreamTagMessagesGo(request *gitalypb.GetTagMessagesRequest, stream gitalypb.RefService_GetTagMessagesServer) error {
 	ctx := stream.Context()
 
-	repo := request.GetRepository()
-	c, err := catfile.New(ctx, repo)
+	c, err := catfile.New(ctx, request.GetRepository())
 	if err != nil {
 		return err
 	}
 
-	for _, tagId := range request.GetTagIds() {
-		tag, err := log.GetTagCatfile(c, tagId, "", false)
+	for _, tagID := range request.GetTagIds() {
+		tag, err := log.GetTagCatfile(c, tagID, "", false)
 		if err != nil {
 			return fmt.Errorf("failed to get tag: %v", err)
 		}
-		msgReader := bytes.NewReader(tag.Message)
 
-		if err := stream.Send(&gitalypb.GetTagMessagesResponse{TagId: tagId}); err != nil {
+		if err := stream.Send(&gitalypb.GetTagMessagesResponse{TagId: tagID}); err != nil {
 			return err
 		}
 		sw := streamio.NewWriter(func(p []byte) error {
 			return stream.Send(&gitalypb.GetTagMessagesResponse{Message: p})
 		})
-		_, err = io.Copy(sw, msgReader)
-		if err != nil {
+
+		msgReader := bytes.NewReader(tag.Message)
+
+		if _, err = io.Copy(sw, msgReader); err != nil {
 			return fmt.Errorf("failed to send response: %v", err)
 		}
 	}
