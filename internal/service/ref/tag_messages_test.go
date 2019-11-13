@@ -16,94 +16,73 @@ import (
 )
 
 func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
-	t.Run("enabled_feature_GetTagMessagesGo", func(t *testing.T) {
-		t.Parallel()
+	server, serverSocketPath := runRefServiceServer(t)
+	defer server.Stop()
 
-		server, serverSocketPath := runRefServiceServer(t)
-		defer server.Stop()
+	client, conn := newRefServiceClient(t, serverSocketPath)
+	defer conn.Close()
 
-		client, conn := newRefServiceClient(t, serverSocketPath)
-		defer conn.Close()
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
 
-		testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-		defer cleanupFn()
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-		ctx, cancel := testhelper.Context()
-		defer cancel()
+	message1 := strings.Repeat("a", helper.MaxCommitOrTagMessageSize*2)
+	message2 := strings.Repeat("b", helper.MaxCommitOrTagMessageSize)
 
-		ctx = enableGetTagMessagesFeatureFlag(ctx)
+	tag1ID := testhelper.CreateTag(t, testRepoPath, "big-tag-1", "master", &testhelper.CreateTagOpts{Message: message1})
+	tag2ID := testhelper.CreateTag(t, testRepoPath, "big-tag-2", "master~", &testhelper.CreateTagOpts{Message: message2})
 
-		message1 := strings.Repeat("a", helper.MaxCommitOrTagMessageSize*2)
-		message2 := strings.Repeat("b", helper.MaxCommitOrTagMessageSize)
+	request := &gitalypb.GetTagMessagesRequest{
+		Repository: testRepo,
+		TagIds:     []string{tag1ID, tag2ID},
+	}
 
-		tag1ID := testhelper.CreateTag(t, testRepoPath, "big-tag-1", "master", &testhelper.CreateTagOpts{Message: message1})
-		tag2ID := testhelper.CreateTag(t, testRepoPath, "big-tag-2", "master~", &testhelper.CreateTagOpts{Message: message2})
+	t.Run("parallel", func(t *testing.T) {
+		t.Run("enabled_feature_GetTagMessagesGo", func(t *testing.T) {
+			t.Parallel()
 
-		request := &gitalypb.GetTagMessagesRequest{
-			Repository: testRepo,
-			TagIds:     []string{tag1ID, tag2ID},
-		}
+			featureCtx := enableGetTagMessagesFeatureFlag(ctx)
 
-		c, err := client.GetTagMessages(ctx, request)
-		require.NoError(t, err)
+			c, err := client.GetTagMessages(featureCtx, request)
+			require.NoError(t, err)
 
-		expectedMessages := []*gitalypb.GetTagMessagesResponse{
-			{
-				TagId:   tag1ID,
-				Message: []byte(message1),
-			},
-			{
-				TagId:   tag2ID,
-				Message: []byte(message2),
-			},
-		}
-		fetchedMessages := readAllMessagesFromClient(t, c)
+			expectedMessages := []*gitalypb.GetTagMessagesResponse{
+				{
+					TagId:   tag1ID,
+					Message: []byte(message1),
+				},
+				{
+					TagId:   tag2ID,
+					Message: []byte(message2),
+				},
+			}
+			fetchedMessages := readAllMessagesFromClient(t, c)
 
-		require.Equal(t, expectedMessages, fetchedMessages)
-	})
+			require.Equal(t, expectedMessages, fetchedMessages)
+		})
 
-	t.Run("disabled_feature_GetTagMessagesGo", func(t *testing.T) {
-		t.Parallel()
+		t.Run("disabled_feature_GetTagMessagesGo", func(t *testing.T) {
+			t.Parallel()
 
-		server, serverSocketPath := runRefServiceServer(t)
-		defer server.Stop()
+			c, err := client.GetTagMessages(ctx, request)
+			require.NoError(t, err)
 
-		client, conn := newRefServiceClient(t, serverSocketPath)
-		defer conn.Close()
+			expectedMessages := []*gitalypb.GetTagMessagesResponse{
+				{
+					TagId:   tag1ID,
+					Message: []byte(message1 + "\n"),
+				},
+				{
+					TagId:   tag2ID,
+					Message: []byte(message2 + "\n"),
+				},
+			}
+			fetchedMessages := readAllMessagesFromClient(t, c)
 
-		testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-		defer cleanupFn()
-
-		ctx, cancel := testhelper.Context()
-		defer cancel()
-
-		message1 := strings.Repeat("a", helper.MaxCommitOrTagMessageSize*2)
-		message2 := strings.Repeat("b", helper.MaxCommitOrTagMessageSize)
-
-		tag1ID := testhelper.CreateTag(t, testRepoPath, "big-tag-1", "master", &testhelper.CreateTagOpts{Message: message1})
-		tag2ID := testhelper.CreateTag(t, testRepoPath, "big-tag-2", "master~", &testhelper.CreateTagOpts{Message: message2})
-
-		request := &gitalypb.GetTagMessagesRequest{
-			Repository: testRepo,
-			TagIds:     []string{tag1ID, tag2ID},
-		}
-
-		c, err := client.GetTagMessages(ctx, request)
-		require.NoError(t, err)
-
-		expectedMessages := []*gitalypb.GetTagMessagesResponse{
-			{
-				TagId:   tag1ID,
-				Message: []byte(message1 + "\n"),
-			},
-			{
-				TagId:   tag2ID,
-				Message: []byte(message2 + "\n"),
-			},
-		}
-		fetchedMessages := readAllMessagesFromClient(t, c)
-
-		require.Equal(t, expectedMessages, fetchedMessages)
+			require.Equal(t, expectedMessages, fetchedMessages)
+		})
 	})
 }
 
