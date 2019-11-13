@@ -117,7 +117,7 @@ Before enabling on a production system, ensure you understand the following
 requirements and risks:
 
 - **All Gitaly servers must be v1.71.0 or higher**
-    - Note: GitLab v12.5 and newer will satisfy this version constraint
+    - Note: this version is available in **Omnibus GitLab 12.5.0** and above
     - In order for the cache entries to be properly invalidated, all Gitaly nodes
       serving a [storage location] must support the same cache invalidation
       feature found in v1.71.0+. Custom Gitaly deployments with mixed versions
