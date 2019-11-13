@@ -3,10 +3,12 @@ package sentryhandler
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
-	raven "github.com/getsentry/raven-go"
+	sentry "github.com/getsentry/sentry-go"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"google.golang.org/grpc"
@@ -73,36 +75,64 @@ func logErrorToSentry(err error) (code codes.Code, bypass bool) {
 	return code, false
 }
 
-func generateRavenPacket(ctx context.Context, method string, start time.Time, err error) (*raven.Packet, map[string]string) {
+func generateSentryEvent(ctx context.Context, method string, start time.Time, err error) *sentry.Event {
 	grpcErrorCode, bypass := logErrorToSentry(err)
 	if bypass {
-		return nil, nil
+		return nil
 	}
 
 	tags := grpc_ctxtags.Extract(ctx)
-	ravenDetails := stringMap(tags.Values())
+	event := sentry.NewEvent()
 
-	ravenDetails["grpc.code"] = grpcErrorCode.String()
-	ravenDetails["grpc.method"] = method
-	ravenDetails["grpc.time_ms"] = fmt.Sprintf("%.0f", time.Since(start).Seconds()*1000)
-	ravenDetails["system"] = "grpc"
+	for k, v := range stringMap(tags.Values()) {
+		event.Tags[k] = v
+	}
+
+	for k, v := range map[string]string{
+		"grpc.code":    grpcErrorCode.String(),
+		"grpc.method":  method,
+		"grpc.time_ms": fmt.Sprintf("%.0f", time.Since(start).Seconds()*1000),
+		"system":       "grpc",
+	} {
+		event.Tags[k] = v
+	}
+
+	event.Message = err.Error()
 
 	// Skip the stacktrace as it's not helpful in this context
-	packet := raven.NewPacket(err.Error(), raven.NewException(err, nil))
+	event.Exception = append(event.Exception, newException(err, nil))
+
 	grpcMethod := methodToCulprit(method)
 
 	// Details on fingerprinting
 	// https://docs.sentry.io/learn/rollups/#customize-grouping-with-fingerprints
-	packet.Fingerprint = []string{"grpc", grpcMethod, grpcErrorCode.String()}
-	packet.Culprit = grpcMethod
-	return packet, ravenDetails
+	event.Fingerprint = []string{"grpc", grpcMethod, grpcErrorCode.String()}
+	event.Transaction = grpcMethod
+
+	return event
 }
 
 func logGrpcErrorToSentry(ctx context.Context, method string, start time.Time, err error) {
-	packet, tags := generateRavenPacket(ctx, method, start, err)
-	if packet == nil {
+	event := generateSentryEvent(ctx, method, start, err)
+	if event == nil {
 		return
 	}
 
-	raven.Capture(packet, tags)
+	sentry.CaptureEvent(event)
+}
+
+var errorMsgPattern = regexp.MustCompile(`\A(\w+): (.+)\z`)
+
+// newException constructs an Exception using provided Error and Stacktrace
+func newException(err error, stacktrace *sentry.Stacktrace) sentry.Exception {
+	msg := err.Error()
+	ex := sentry.Exception{
+		Stacktrace: stacktrace,
+		Value:      msg,
+		Type:       reflect.TypeOf(err).String(),
+	}
+	if m := errorMsgPattern.FindStringSubmatch(msg); m != nil {
+		ex.Module, ex.Value = m[1], m[2]
+	}
+	return ex
 }

@@ -3,7 +3,7 @@ package sentry
 import (
 	"fmt"
 
-	raven "github.com/getsentry/raven-go"
+	sentry "github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/panichandler"
 )
@@ -20,15 +20,17 @@ func ConfigureSentry(version string, sentryConf Config) {
 		return
 	}
 
-	log.Debug("Using sentry logging")
-	raven.SetDSN(sentryConf.DSN)
-	if version != "" {
-		raven.SetRelease("v" + version)
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:         sentryConf.DSN,
+		Environment: sentryConf.Environment,
+		Release:     "v" + version,
+	})
+	if err != nil {
+		log.Warnf("Unable to initialize sentry client: %v", err)
+		return
 	}
 
-	if sentryConf.Environment != "" {
-		raven.SetEnvironment(sentryConf.Environment)
-	}
+	log.Debug("Using sentry logging")
 
 	panichandler.InstallPanicHandler(func(grpcMethod string, _err interface{}) {
 		err, ok := _err.(error)
@@ -36,9 +38,10 @@ func ConfigureSentry(version string, sentryConf Config) {
 			err = fmt.Errorf("%v", _err)
 		}
 
-		raven.CaptureError(err, map[string]string{
-			"grpcMethod": grpcMethod,
-			"panic":      "1",
+		sentry.WithScope(func(scope *sentry.Scope) {
+			scope.SetTag("grpcMethod", grpcMethod)
+			scope.SetTag("panic", "1")
+			sentry.CaptureException(err)
 		})
 	})
 }
