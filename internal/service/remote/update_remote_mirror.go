@@ -3,60 +3,73 @@ package remote
 import (
 	"fmt"
 
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMirrorServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {
-		return err
+		return fmt.Errorf("receive first request: %v", err)
 	}
 
 	if err = validateUpdateRemoteMirrorRequest(firstRequest); err != nil {
-		return status.Errorf(codes.InvalidArgument, "UpdateRemoteMirror: %v", err)
+		return helper.ErrInvalidArgument(err)
 	}
 
+	if err := s.updateRemoteMirror(stream, firstRequest); err != nil {
+		return helper.ErrInternal(err)
+	}
+	return nil
+}
+
+// updateRemoteMirror has lots of decorated errors to help us debug
+// https://gitlab.com/gitlab-org/gitaly/issues/2156.
+func (s *server) updateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMirrorServer, firstRequest *gitalypb.UpdateRemoteMirrorRequest) error {
 	ctx := stream.Context()
 	client, err := s.ruby.RemoteServiceClient(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("get stub: %v", err)
 	}
 
 	clientCtx, err := rubyserver.SetHeaders(ctx, firstRequest.GetRepository())
 	if err != nil {
-		return err
+		return fmt.Errorf("set headers: %v", err)
 	}
 
 	rubyStream, err := client.UpdateRemoteMirror(clientCtx)
 	if err != nil {
-		return err
+		return fmt.Errorf("create client: %v", err)
 	}
 
 	if err := rubyStream.Send(firstRequest); err != nil {
-		return err
+		return fmt.Errorf("first request to gitaly-ruby: %v", err)
 	}
 
 	err = rubyserver.Proxy(func() error {
+		// Do not wrap errors in this callback: we must faithfully relay io.EOF
 		request, err := stream.Recv()
 		if err != nil {
 			return err
 		}
+
 		return rubyStream.Send(request)
 	})
-
 	if err != nil {
-		return err
+		return fmt.Errorf("proxy request to gitaly-ruby: %v", err)
 	}
 
 	response, err := rubyStream.CloseAndRecv()
 	if err != nil {
-		return err
+		return fmt.Errorf("close stream to gitaly-ruby: %v", err)
 	}
 
-	return stream.SendAndClose(response)
+	if err := stream.SendAndClose(response); err != nil {
+		return fmt.Errorf("close stream to client: %v", err)
+	}
+
+	return nil
 }
 
 func validateUpdateRemoteMirrorRequest(req *gitalypb.UpdateRemoteMirrorRequest) error {
