@@ -358,7 +358,16 @@ module Gitlab
           remote_repo_path = remote_repository.path
         end
 
-        with_worktree(worktree, branch, env: env) do
+        diff_range = "#{branch}...#{remote_branch}"
+        diff_files = begin
+                       run_git!(
+                         %W[diff --name-only #{diff_range}]
+                       ).chomp
+                     rescue GitError
+                       []
+                     end
+
+        with_worktree(worktree, branch, sparse_checkout_files: diff_files, env: env) do
           run_git!(
             %W[pull --rebase #{remote_repo_path} #{remote_branch}],
             chdir: worktree.path, env: env, include_stderr: true
