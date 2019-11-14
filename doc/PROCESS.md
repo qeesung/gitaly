@@ -40,6 +40,6 @@ the template.
 
 ## Experimental builds
 
-Push the release tag to dev.gitlab.org/gitlab/gitaly. After the
+Push the release tag to dev.gitlab.org/gitlab/gitaly. After
 passing the test suite, the tag will automatically be built and
 published in https://packages.gitlab.com/gitlab/unstable.
