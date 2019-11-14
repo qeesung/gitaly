@@ -49,8 +49,7 @@ func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.C
 }
 
 func findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
-	args := getLogCommandFlags(req)
-	logCmd, err := git.Command(ctx, req.GetRepository(), args...)
+	logCmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, getLogCommandSubCmd(req))
 	if err != nil {
 		return fmt.Errorf("error when creating git log command: %v", err)
 	}
@@ -154,46 +153,45 @@ func streamPaginatedCommits(getCommits *GetCommits, commitsPerPage int, stream g
 	return chunker.Flush()
 }
 
-func getLogCommandFlags(req *gitalypb.FindCommitsRequest) []string {
-	args := []string{"log", "--format=format:%H"}
+func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.SubCmd {
+	subCmd := git.SubCmd{Name: "log", Flags: []git.Option{git.Flag{Name: "--format=format:%H"}}}
 
 	//  We will perform the offset in Go because --follow doesn't play well with --skip.
 	//  See: https://gitlab.com/gitlab-org/gitlab-ce/issues/3574#note_3040520
 	if req.GetOffset() > 0 && !calculateOffsetManually(req) {
-		args = append(args, fmt.Sprintf("--skip=%d", req.GetOffset()))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--skip=%d", req.GetOffset())})
 	}
 	limit := req.GetLimit()
 	if calculateOffsetManually(req) {
 		limit += req.GetOffset()
 	}
-	args = append(args, fmt.Sprintf("--max-count=%d", limit))
+	subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--max-count=%d", limit)})
 
 	if req.GetFollow() && len(req.GetPaths()) > 0 {
-		args = append(args, "--follow")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--follow"})
 	}
 	if req.GetSkipMerges() {
-		args = append(args, "--no-merges")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--no-merges"})
 	}
 	if req.GetBefore() != nil {
-		args = append(args, fmt.Sprintf("--before=%s", req.GetBefore().String()))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--before=%s", req.GetBefore().String())})
 	}
 	if req.GetAfter() != nil {
-		args = append(args, fmt.Sprintf("--after=%s", req.GetAfter().String()))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--after=%s", req.GetAfter().String())})
 	}
 	if req.GetAll() {
-		args = append(args, "--all", "--reverse")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--all"}, git.Flag{Name: "--reverse"})
 	}
 	if req.GetRevision() != nil {
-		args = append(args, string(req.GetRevision()))
+		subCmd.Args = []string{string(req.GetRevision())}
 	}
 	if req.GetFirstParent() {
-		args = append(args, "--first-parent")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--first-parent"})
 	}
 	if len(req.GetPaths()) > 0 {
-		args = append(args, "--")
 		for _, path := range req.GetPaths() {
-			args = append(args, string(path))
+			subCmd.PostSepArgs = append(subCmd.PostSepArgs, string(path))
 		}
 	}
-	return args
+	return subCmd
 }

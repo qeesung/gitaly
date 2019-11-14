@@ -35,22 +35,24 @@ func (s *server) CommitDiff(in *gitalypb.CommitDiffRequest, stream gitalypb.Diff
 	ignoreWhitespaceChange := in.GetIgnoreWhitespaceChange()
 	paths := in.GetPaths()
 
-	cmdArgs := []string{
-		"diff",
-		"--patch",
-		"--raw",
-		"--abbrev=40",
-		"--full-index",
-		"--find-renames=30%",
+	cmd := git.SubCmd{
+		Name: "diff",
+		Flags: []git.Option{
+			git.Flag{Name: "--patch"},
+			git.Flag{Name: "--raw"},
+			git.Flag{Name: "--abbrev=40"},
+			git.Flag{Name: "--full-index"},
+			git.Flag{Name: "--find-renames=30%"},
+		},
+		Args: []string{leftSha, rightSha},
 	}
+
 	if ignoreWhitespaceChange {
-		cmdArgs = append(cmdArgs, "--ignore-space-change")
+		cmd.Flags = append(cmd.Flags, git.Flag{Name: "--ignore-space-change"})
 	}
-	cmdArgs = append(cmdArgs, leftSha, rightSha)
 	if len(paths) > 0 {
-		cmdArgs = append(cmdArgs, "--")
 		for _, path := range paths {
-			cmdArgs = append(cmdArgs, string(path))
+			cmd.PostSepArgs = append(cmd.PostSepArgs, string(path))
 		}
 	}
 
@@ -67,7 +69,7 @@ func (s *server) CommitDiff(in *gitalypb.CommitDiffRequest, stream gitalypb.Diff
 	limits.SafeMaxLines = int(in.SafeMaxLines)
 	limits.SafeMaxBytes = int(in.SafeMaxBytes)
 
-	return eachDiff(stream.Context(), "CommitDiff", in.Repository, cmdArgs, limits, func(diff *diff.Diff) error {
+	return eachDiff(stream.Context(), "CommitDiff", in.Repository, cmd, limits, func(diff *diff.Diff) error {
 		response := &gitalypb.CommitDiffResponse{
 			FromPath:       diff.FromPath,
 			ToPath:         diff.ToPath,
@@ -129,19 +131,19 @@ func (s *server) CommitDelta(in *gitalypb.CommitDeltaRequest, stream gitalypb.Di
 	rightSha := in.RightCommitId
 	paths := in.GetPaths()
 
-	cmdArgs := []string{
-		"diff",
-		"--raw",
-		"--abbrev=40",
-		"--full-index",
-		"--find-renames",
-		leftSha,
-		rightSha,
+	cmd := git.SubCmd{
+		Name: "diff",
+		Flags: []git.Option{
+			git.Flag{Name: "--raw"},
+			git.Flag{Name: "--abbrev=40"},
+			git.Flag{Name: "--full-index"},
+			git.Flag{Name: "--find-renames"},
+		},
+		Args: []string{leftSha, rightSha},
 	}
 	if len(paths) > 0 {
-		cmdArgs = append(cmdArgs, "--")
 		for _, path := range paths {
-			cmdArgs = append(cmdArgs, string(path))
+			cmd.PostSepArgs = append(cmd.PostSepArgs, string(path))
 		}
 	}
 
@@ -160,7 +162,7 @@ func (s *server) CommitDelta(in *gitalypb.CommitDeltaRequest, stream gitalypb.Di
 		return nil
 	}
 
-	err := eachDiff(stream.Context(), "CommitDelta", in.Repository, cmdArgs, diff.Limits{}, func(diff *diff.Diff) error {
+	err := eachDiff(stream.Context(), "CommitDelta", in.Repository, cmd, diff.Limits{}, func(diff *diff.Diff) error {
 		delta := &gitalypb.CommitDelta{
 			FromPath: diff.FromPath,
 			ToPath:   diff.ToPath,
@@ -203,8 +205,8 @@ func validateRequest(in requestWithLeftRightCommitIds) error {
 	return nil
 }
 
-func eachDiff(ctx context.Context, rpc string, repo *gitalypb.Repository, cmdArgs []string, limits diff.Limits, callback func(*diff.Diff) error) error {
-	cmd, err := git.Command(ctx, repo, cmdArgs...)
+func eachDiff(ctx context.Context, rpc string, repo *gitalypb.Repository, subCmd git.Cmd, limits diff.Limits, callback func(*diff.Diff) error) error {
+	cmd, err := git.SafeCmd(ctx, repo, nil, subCmd)
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return err

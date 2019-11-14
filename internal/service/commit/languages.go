@@ -92,7 +92,7 @@ func (ls languageSorter) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
 func (ls languageSorter) Less(i, j int) bool { return ls[i].Share > ls[j].Share }
 
 func lookupRevision(ctx context.Context, repo *gitalypb.Repository, revision string) (string, error) {
-	revParse, err := git.Command(ctx, repo, "rev-parse", revision)
+	revParse, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{Name: "rev-parse", Args: []string{revision}})
 	if err != nil {
 		return "", err
 	}
