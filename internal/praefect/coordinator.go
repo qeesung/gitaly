@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func isDestructive(methodName string) bool {
@@ -127,7 +128,7 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 	}
 
 	if targetRepo.StorageName != c.conf.VirtualStorageName {
-		return "", nil, grpc.Errorf(codes.InvalidArgument, "only messages for %s are allowed", c.conf.VirtualStorageName)
+		return "", nil, status.Errorf(codes.InvalidArgument, "only messages for %s are allowed", c.conf.VirtualStorageName)
 	}
 
 	primary, err := c.selectPrimary(mi, targetRepo)
