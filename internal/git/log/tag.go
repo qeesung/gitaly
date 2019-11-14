@@ -19,7 +19,7 @@ const (
 )
 
 // GetTagCatfile looks up a commit by tagID using an existing *catfile.Batch instance.
-// The flag 'trim' if 'true' trims the message length upto helper.MaxCommitOrTagMessageSize
+// When 'trim' is 'true', the tag message will be trimmed to fit in a gRPC message.
 // note: we pass in the tagName because the tag name from refs/tags may be different
 // than the name found in the actual tag object. We want to use the tagName found in refs/tags
 func GetTagCatfile(c *catfile.Batch, tagID, tagName string, trim bool) (*gitalypb.Tag, error) {
