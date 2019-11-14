@@ -50,7 +50,7 @@ you several options:
 - use a "dumb" text editor and run `go` commands in a dedicated
   terminal window with the correct exported GOPATH
 - use VSCode with `"go.inferGopath": true` in your user settings. This
-  will auto-detect the GDK embededded GOPATH
+  will auto-detect the GDK embedded GOPATH
 - launch a new Atom window with the GDK embedded GOPATH:
 
 ```
