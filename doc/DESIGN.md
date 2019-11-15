@@ -8,7 +8,7 @@ When looking at `Rugged::Repository.new` performance data we can see that our P9
 
 Our P99 access time to just create a `Rugged::Repository` object, which is loading and processing the git objects from disk, spikes over 30 seconds, making it basically unusable. We also saw that just walking through the branches of gitlab-ce requires 2.4 wall seconds.
 
-We considered to move to metal to fix our problems with higher performaning hardware. But our users are using GitLab in the cloud so it should work great there. And this way the increased performance will benefit every GitLab user.
+We considered to move to metal to fix our problems with higher performance hardware. But our users are using GitLab in the cloud so it should work great there. And this way the increased performance will benefit every GitLab user.
 
 Gitaly will make our situation better in a few steps:
 
@@ -42,7 +42,7 @@ To maintain the focus of the project, the following subjects are out-of-scope fo
 
 ## Decisions
 
-All design decision should be added here.
+All design decisions should be added here.
 
 1. Why are we considering to use Git Ketch? It is open source, uses the git protocol itself, is made by experts in distributed systems (Google), and is as simple as we can think of. We have to accept that we'll have to run the JVM on the Git servers.
 1. We'll keep using the existing sharding functionality in GitLab to be able to add new servers. Currently we can use it to have multiple file/git servers. Later we will need multiple Git Ketch clusters.
@@ -74,5 +74,5 @@ All design decision should be added here.
 1. By default all Go packages in the Gitaly repository use the `/internal` directory, unless we explicitly want to export something. The only exception is the `/cmd` directory for executables.
 1. GitLab requests should use as few Gitaly gRPC calls as possible. This means it is OK to move GitLab application logic into Gitaly when it saves us gRPC round trips.
 1. Defining new gRPC calls is cheap. It is better to define a new 'high level' gRPC call and save gRPC round trips than to chain / combine 'low level' gRPC calls.
-1. Why doesn't Gitaly use a Git library like [git2go](https://github.com/libgit2/git2go) or [go-git](https://github.com/src-d/go-git)? We intentionally isolate Git queries in indvidual processes. We could (and may) use Git libraries to make custom query executables but we seem to get by well enough with regular `git`.
+1. Why doesn't Gitaly use a Git library like [git2go](https://github.com/libgit2/git2go) or [go-git](https://github.com/src-d/go-git)? We intentionally isolate Git queries in individual processes. We could (and may) use Git libraries to make custom query executables but we seem to get by well enough with regular `git`.
 1. Why is Gitaly written in Go? At the time the project started the only practical options were Ruby and Go. We expected to be able to handle more traffic with fewer resources if we used Go. Today (Q3 2019), part of Gitaly is written in Ruby. On the particular Gitaly server that hosts gitlab-org/gitlab-ce, we have a pool of gitaly-ruby processes using a total 20GB of RSS and handling 5 requests per second. The single Gitaly Go process on that machine uses less than 3GB of memory and handles 90 requests per second.
