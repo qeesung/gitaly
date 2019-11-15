@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 // batch encapsulates a 'git cat-file --batch' process
@@ -30,16 +32,21 @@ type batchProcess struct {
 	sync.Mutex
 }
 
-func newBatchProcess(ctx context.Context, repoPath string, env []string) (*batchProcess, error) {
-	totalCatfileProcesses.Inc()
+func newBatchProcess(ctx context.Context, repo repository.GitRepo) (*batchProcess, error) {
+	repoPath, env, err := alternates.PathAndEnv(repo)
+	if err != nil {
+		return nil, err
+	}
 
+	totalCatfileProcesses.Inc()
 	b := &batchProcess{}
 
 	var stdinReader io.Reader
 	stdinReader, b.w = io.Pipe()
-	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch"}
 
-	batchCmd, err := git.BareCommand(ctx, stdinReader, nil, nil, env, batchCmdArgs...)
+	batchCmd, err := git.SafeBareCmd(ctx, stdinReader, nil, nil, env,
+		[]git.Option{git.ValueFlag{Name: "--git-dir", Value: repoPath}},
+		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{"--batch"}}})
 	if err != nil {
 		return nil, err
 	}

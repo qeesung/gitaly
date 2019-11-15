@@ -6,9 +6,8 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 var catfileCacheCounter = prometheus.NewCounterVec(
@@ -139,19 +138,14 @@ func (c *Batch) isClosed() bool {
 // New returns a new Batch instance. It is important that ctx gets canceled
 // somewhere, because if it doesn't the cat-file processes spawned by
 // New() never terminate.
-func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
+func New(ctx context.Context, repo repository.GitRepo) (*Batch, error) {
 	if ctx.Done() == nil {
 		panic("empty ctx.Done() in catfile.Batch.New()")
 	}
 
-	repoPath, env, err := alternates.PathAndEnv(repo)
-	if err != nil {
-		return nil, err
-	}
-
 	sessionID := metadata.GetValue(ctx, SessionIDField)
 	if sessionID == "" {
-		return newBatch(ctx, repoPath, env)
+		return newBatch(ctx, repo)
 	}
 
 	cacheKey := newCacheKey(sessionID, repo)
@@ -165,7 +159,7 @@ func New(ctx context.Context, repo *gitalypb.Repository) (*Batch, error) {
 	// if we are using caching, create a fresh context for the new batch
 	// and initialize the new batch with a cache key and cancel function
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
-	c, err := newBatch(cacheCtx, repoPath, env)
+	c, err := newBatch(cacheCtx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +192,7 @@ type simulatedBatchSpawnError struct{}
 
 func (simulatedBatchSpawnError) Error() string { return "simulated spawn error" }
 
-func newBatch(_ctx context.Context, repoPath string, env []string) (_ *Batch, err error) {
+func newBatch(_ctx context.Context, repo repository.GitRepo) (_ *Batch, err error) {
 	ctx, cancel := context.WithCancel(_ctx)
 	defer func() {
 		if err != nil {
@@ -206,12 +200,12 @@ func newBatch(_ctx context.Context, repoPath string, env []string) (_ *Batch, er
 		}
 	}()
 
-	batch, err := newBatchProcess(ctx, repoPath, env)
+	batch, err := newBatchProcess(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 
-	batchCheck, err := newBatchCheck(ctx, repoPath, env)
+	batchCheck, err := newBatchCheck(ctx, repo)
 	if err != nil {
 		return nil, err
 	}

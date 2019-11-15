@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 // batchCheck encapsulates a 'git cat-file --batch-check' process
@@ -17,13 +19,20 @@ type batchCheck struct {
 	sync.Mutex
 }
 
-func newBatchCheck(ctx context.Context, repoPath string, env []string) (*batchCheck, error) {
+func newBatchCheck(ctx context.Context, repo repository.GitRepo) (*batchCheck, error) {
+	repoPath, env, err := alternates.PathAndEnv(repo)
+	if err != nil {
+		return nil, err
+	}
+
 	bc := &batchCheck{}
 
 	var stdinReader io.Reader
 	stdinReader, bc.w = io.Pipe()
-	batchCmdArgs := []string{"--git-dir", repoPath, "cat-file", "--batch-check"}
-	batchCmd, err := git.BareCommand(ctx, stdinReader, nil, nil, env, batchCmdArgs...)
+
+	batchCmd, err := git.SafeBareCmd(ctx, stdinReader, nil, nil, env,
+		[]git.Option{git.ValueFlag{Name: "--git-dir", Value: repoPath}},
+		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{"--batch-check"}}})
 	if err != nil {
 		return nil, err
 	}
