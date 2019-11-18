@@ -67,7 +67,7 @@ func getAndStreamTagMessagesGo(request *gitalypb.GetTagMessagesRequest, stream g
 	}
 
 	for _, tagID := range request.GetTagIds() {
-		tag, err := log.GetTagCatfile(c, tagID, "", false)
+		tag, err := log.GetTagCatfile(c, tagID, "", false, false)
 		if err != nil {
 			return fmt.Errorf("failed to get tag: %v", err)
 		}

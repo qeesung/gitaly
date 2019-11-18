@@ -39,51 +39,42 @@ func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
 		TagIds:     []string{tag1ID, tag2ID},
 	}
 
-	t.Run("parallel", func(t *testing.T) {
-		t.Run("enabled_feature_GetTagMessagesGo", func(t *testing.T) {
-			t.Parallel()
+	expectedMessages := []*gitalypb.GetTagMessagesResponse{
+		{
+			TagId:   tag1ID,
+			Message: []byte(message1 + "\n"),
+		},
+		{
+			TagId:   tag2ID,
+			Message: []byte(message2 + "\n"),
+		},
+	}
 
-			featureCtx := enableGetTagMessagesFeatureFlag(ctx)
+	for title, ctxModifier := range map[string]func(context.Context) context.Context{
+		"enabled_feature_GetTagMessagesGo": func(ctx context.Context) context.Context {
+			return enableGetTagMessagesFeatureFlag(ctx)
+		},
+		"disabled_feature_GetTagMessagesGo": func(ctx context.Context) context.Context {
+			return ctx
+		},
+	} {
+		title := title
+		ctxModifier := ctxModifier
 
-			c, err := client.GetTagMessages(featureCtx, request)
-			require.NoError(t, err)
+		// all sub-tests are read-only
+		t.Run("parallel", func(t *testing.T) {
+			t.Run(title, func(t *testing.T) {
+				t.Parallel()
 
-			expectedMessages := []*gitalypb.GetTagMessagesResponse{
-				{
-					TagId:   tag1ID,
-					Message: []byte(message1),
-				},
-				{
-					TagId:   tag2ID,
-					Message: []byte(message2),
-				},
-			}
-			fetchedMessages := readAllMessagesFromClient(t, c)
+				c, err := client.GetTagMessages(ctxModifier(ctx), request)
+				require.NoError(t, err)
 
-			require.Equal(t, expectedMessages, fetchedMessages)
+				fetchedMessages := readAllMessagesFromClient(t, c)
+
+				require.Equal(t, expectedMessages, fetchedMessages)
+			})
 		})
-
-		t.Run("disabled_feature_GetTagMessagesGo", func(t *testing.T) {
-			t.Parallel()
-
-			c, err := client.GetTagMessages(ctx, request)
-			require.NoError(t, err)
-
-			expectedMessages := []*gitalypb.GetTagMessagesResponse{
-				{
-					TagId:   tag1ID,
-					Message: []byte(message1 + "\n"),
-				},
-				{
-					TagId:   tag2ID,
-					Message: []byte(message2 + "\n"),
-				},
-			}
-			fetchedMessages := readAllMessagesFromClient(t, c)
-
-			require.Equal(t, expectedMessages, fetchedMessages)
-		})
-	})
+	}
 }
 
 func TestFailedGetTagMessagesRequest(t *testing.T) {
