@@ -19,24 +19,10 @@ const (
 // ErrTargetRepoMissing indicates that the target repo is missing or not set
 var ErrTargetRepoMissing = errors.New("target repo is not set")
 
-// reflectFindRepoTarget finds the target repository by using the OID to
-// navigate the struct tags
-// Warning: this reflection filled function is full of forbidden dark elf magic
 func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repository, error) {
-	var targetRepo *gitalypb.Repository
-
-	msgV := reflect.ValueOf(pbMsg)
-
-	for _, fieldNo := range targetOID {
-		var err error
-
-		msgV, err = findProtoField(msgV, fieldNo)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"unable to descend OID %+v into message %s: %s",
-				targetOID, proto.MessageName(pbMsg), err,
-			)
-		}
+	msgV, e := reflectFindOID(pbMsg, targetOID)
+	if e != nil {
+		return nil, e
 	}
 
 	targetRepo, ok := msgV.Interface().(*gitalypb.Repository)
@@ -45,6 +31,39 @@ func reflectFindRepoTarget(pbMsg proto.Message, targetOID []int) (*gitalypb.Repo
 	}
 
 	return targetRepo, nil
+}
+
+func reflectFindStorage(pbMsg proto.Message, targetOID []int) (string, error) {
+	msgV, e := reflectFindOID(pbMsg, targetOID)
+	if e != nil {
+		return "", e
+	}
+
+	targetRepo, ok := msgV.Interface().(string)
+	if !ok {
+		return "", fmt.Errorf("repo target OID %v points to non-string type %+v", targetOID, msgV.Interface())
+	}
+
+	return targetRepo, nil
+}
+
+// reflectFindOID finds the target repository by using the OID to
+// navigate the struct tags
+// Warning: this reflection filled function is full of forbidden dark elf magic
+func reflectFindOID(pbMsg proto.Message, targetOID []int) (reflect.Value, error) {
+	msgV := reflect.ValueOf(pbMsg)
+	for _, fieldNo := range targetOID {
+		var err error
+
+		msgV, err = findProtoField(msgV, fieldNo)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf(
+				"unable to descend OID %+v into message %s: %s",
+				targetOID, proto.MessageName(pbMsg), err,
+			)
+		}
+	}
+	return msgV, nil
 }
 
 // matches a tag string like "bytes,1,opt,name=repository,proto3"

@@ -58,6 +58,11 @@ extend google.protobuf.MethodOptions {
   OperationMsg op_type = 82303;
 }
 
+extend google.protobuf.FieldOptions {
+  // Random high number..
+  bool storage = 91233;
+}
+
 message Repository {
   // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/151
   reserved 1;

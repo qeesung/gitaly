@@ -57,21 +57,100 @@ func (ml methodLinter) ensureValidStorageScope() error {
 	if ml.opMsg.GetTargetRepositoryField() != "" {
 		return errors.New("storage level scoped RPC should not specify target repo")
 	}
-	return nil
+
+	return ml.ensureValidStorage(1)
 }
 
 func (ml methodLinter) ensureValidServerScope() error {
 	if ml.opMsg.GetTargetRepositoryField() != "" {
 		return errors.New("server level scoped RPC should not specify target repo")
 	}
-	return nil
+	return ml.ensureValidStorage(0)
 }
 
 func (ml methodLinter) ensureValidRepoScope() error {
-	return ml.ensureValidTargetRepo()
+	if err := ml.ensureValidTargetRepo(); err != nil {
+		return err
+	}
+	return ml.ensureValidStorage(0)
 }
 
 const repoTypeName = ".gitaly.Repository"
+
+func (ml methodLinter) ensureValidStorage(expected int) error {
+	topLevelMsgs, err := ml.getTopLevelMsgs()
+	if err != nil {
+		return err
+	}
+
+	reqMsgName, err := lastName(ml.methodDesc.GetInputType())
+	if err != nil {
+		return err
+	}
+
+	msgT := topLevelMsgs[reqMsgName]
+
+	storageFields, err := findStorageFields(topLevelMsgs, reqMsgName, msgT)
+
+	if len(storageFields) != expected {
+		return fmt.Errorf("unexpected count of storage field %d, expected %d, found storage label at: %v", len(storageFields), expected, storageFields)
+	}
+
+	return nil
+}
+
+func findStorageFields(topLevelMsgs map[string]*descriptor.DescriptorProto, prefix string, t *descriptor.DescriptorProto) ([]string, error) {
+	var storageFields []string
+	for _, f := range t.GetField() {
+		storage, err := internal.GetStorageExtension(f)
+		if err != nil {
+			return nil, err
+		}
+		if storage {
+			storageFields = append(storageFields, prefix + "." + f.GetName())
+		}
+
+		childMsg, err := findChildMsg(topLevelMsgs, t, f)
+		if err != nil {
+			return nil, err
+		}
+
+		if childMsg != nil {
+			nestedStorageFields, err := findStorageFields(topLevelMsgs, prefix + "." + f.GetName(), childMsg)
+			if err != nil {
+				return nil, err
+			}
+			storageFields = append(storageFields, nestedStorageFields...)
+		}
+
+	}
+	return storageFields, nil
+}
+
+func findChildMsg(topLevelMsgs map[string]*descriptor.DescriptorProto, t *descriptor.DescriptorProto, f *descriptor.FieldDescriptorProto) (*descriptor.DescriptorProto, error) {
+	var childType *descriptor.DescriptorProto
+	const msgPrimitive = "TYPE_MESSAGE"
+	if primitive := f.GetType().String(); primitive != msgPrimitive {
+		return nil, nil
+	}
+
+	msgName, err := lastName(f.GetTypeName())
+	if err != nil {
+		return nil,  err
+	}
+
+	for _, nestedType := range t.GetNestedType() {
+		if msgName == nestedType.GetName() {
+			return nestedType, nil
+		}
+	}
+
+	if childType = topLevelMsgs[msgName]; childType != nil {
+		return childType, nil
+	}
+
+	return nil, fmt.Errorf("could not find message type %q", msgName)
+}
 
 func (ml methodLinter) ensureValidTargetRepo() error {
 	if ml.opMsg.GetTargetRepositoryField() == "" {
@@ -83,14 +162,9 @@ func (ml methodLinter) ensureValidTargetRepo() error {
 		return err
 	}
 
-	sharedMsgs, err := getSharedTypes()
+	topLevelMsgs, err := ml.getTopLevelMsgs()
 	if err != nil {
 		return err
-	}
-
-	topLevelMsgs := map[string]*descriptor.DescriptorProto{}
-	for _, msg := range append(ml.fileDesc.GetMessageType(), sharedMsgs...) {
-		topLevelMsgs[msg.GetName()] = msg
 	}
 
 	reqMsgName, err := lastName(ml.methodDesc.GetInputType())
@@ -170,6 +244,19 @@ OID_FIELDS:
 	}
 
 	return nil
+}
+
+func (ml methodLinter) getTopLevelMsgs() (map[string]*descriptor.DescriptorProto, error) {
+	sharedMsgs, err := getSharedTypes()
+	if err != nil {
+		return nil, err
+	}
+
+	topLevelMsgs := map[string]*descriptor.DescriptorProto{}
+	for _, msg := range append(ml.fileDesc.GetMessageType(), sharedMsgs...) {
+		topLevelMsgs[msg.GetName()] = msg
+	}
+	return topLevelMsgs, err
 }
 
 func lastName(inputType string) (string, error) {

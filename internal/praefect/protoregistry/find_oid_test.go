@@ -117,3 +117,51 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestProtoRegistryStorage(t *testing.T) {
+	r := protoregistry.New()
+	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+
+	testcases := []struct {
+		desc          string
+		svc           string
+		method        string
+		pbMsg         proto.Message
+		expectStorage string
+		expectErr     error
+	}{
+		{
+			desc:   "valid request type single depth",
+			svc:    "NamespaceService",
+			method: "AddNamespace",
+			pbMsg: &gitalypb.AddNamespaceRequest{
+				StorageName: "some_storage",
+			},
+			expectStorage: "some_storage",
+		},
+		{
+			desc:      "incorrect request type",
+			svc:       "RepositoryService",
+			method:    "RepackIncremental",
+			pbMsg:     &gitalypb.RepackIncrementalResponse{},
+			expectErr: errors.New("proto message gitaly.RepackIncrementalResponse does not match expected RPC request message gitaly.RepackIncrementalRequest"),
+		},
+	}
+
+	for _, tc := range testcases {
+		desc := fmt.Sprintf("%s:%s %s", tc.svc, tc.method, tc.desc)
+		t.Run(desc, func(t *testing.T) {
+			info, err := r.LookupMethod(fmt.Sprintf("/gitaly.%s/%s", tc.svc, tc.method))
+			require.NoError(t, err)
+
+			actualStorage, actualErr := info.Storage(tc.pbMsg)
+			require.Equal(t, tc.expectErr, actualErr)
+
+			// not only do we want the value to be the same, but we actually want the
+			// exact same instance to be returned
+			if tc.expectStorage != actualStorage {
+				t.Fatal("pointers do not match")
+			}
+		})
+	}
+}

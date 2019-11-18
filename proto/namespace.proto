@@ -34,23 +34,23 @@ service NamespaceService {
 }
 
 message AddNamespaceRequest {
-  string storage_name = 1;
+  string storage_name = 1 [(storage)=true];
   string name = 2;
 }
 
 message RemoveNamespaceRequest {
-  string storage_name = 1;
+  string storage_name = 1 [(storage)=true];
   string name = 2;
 }
 
 message RenameNamespaceRequest {
-  string storage_name = 1;
+  string storage_name = 1 [(storage)=true];
   string from = 2;
   string to = 3;
 }
 
 message NamespaceExistsRequest {
-  string storage_name = 1;
+  string storage_name = 1 [(storage)=true];
   string name = 2;
 }
 

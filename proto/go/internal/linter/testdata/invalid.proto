@@ -16,6 +16,28 @@ message InvalidNestedRequest{
   InvalidTargetType inner_message = 1;
 }
 
+message RequestWithStorage {
+  string storage_name = 1 [(gitaly.storage)=true];
+  gitaly.Repository destination = 2;
+}
+
+message RequestWithNestedStorage{
+  RequestWithStorage inner_message = 1;
+}
+
+message RequestWithMultipleNestedStorage{
+  RequestWithStorage inner_message = 1;
+  string storage_name = 2 [(gitaly.storage)=true];
+}
+
+message RequestWithInnerNestedStorage {
+  message Header {
+    string storage_name = 1 [(gitaly.storage) = true];
+  }
+
+  Header header = 1;
+}
+
 service InvalidService {
   // should fail if op_type extension is missing
   rpc InvalidMethod0(InvalidMethodRequest) returns (InvalidMethodResponse) {}
@@ -90,6 +112,47 @@ service InvalidService {
       op: MUTATOR
       scope_level: STORAGE
       target_repository_field: "1.1"
+    };
+  }
+
+  // should fail if storage is specified for implicit repository scoped RPC
+  rpc InvalidMethod12(RequestWithStorage) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: ACCESSOR
+      target_repository_field: "2"
+    };
+  }
+
+  // should fail if storage is specified for repository scoped RPC
+  rpc InvalidMethod13(RequestWithNestedStorage) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: REPOSITORY
+      target_repository_field: "1.2"
+    };
+  }
+
+  // should fail if storage is specified for server scoped RPC
+  rpc InvalidMethod14(RequestWithInnerNestedStorage) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: SERVER
+    };
+  }
+
+  // should fail if storage isn't specified for storage scoped RPC
+  rpc InvalidMethod15(InvalidTargetType) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
+    };
+  }
+
+  // should fail if multiple storage is specified for storage scoped RPC
+  rpc InvalidMethod16(RequestWithMultipleNestedStorage) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
     };
   }
 }

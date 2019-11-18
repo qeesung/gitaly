@@ -29,3 +29,28 @@ func GetOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 
 	return opMsg, nil
 }
+
+// GetStorageExtension gets the OperationMsg from a method descriptor
+func GetStorageExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+	options := m.GetOptions()
+
+	if !proto.HasExtension(options, gitalypb.E_Storage) {
+		return false, nil
+	}
+
+	ext, err := proto.GetExtension(options, gitalypb.E_Storage)
+	if err != nil {
+		return false, err
+	}
+
+	storageMsg, ok := ext.(*bool)
+	if !ok {
+		return false, fmt.Errorf("unable to obtain bool from %#v", ext)
+	}
+
+	if storageMsg == nil {
+		return false, nil
+	}
+
+	return *storageMsg, nil
+}

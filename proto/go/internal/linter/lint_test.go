@@ -36,6 +36,11 @@ func TestLintFile(t *testing.T) {
 				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod9": target repo OID [1 2] does not exist in request message`),
 				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod10": unexpected type TYPE_INT32 (expected .gitaly.Repository) for target repo field addressed by [1 1]`),
 				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod11": storage level scoped RPC should not specify target repo`),
+				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod12": unexpected count of storage field 1, expected 0, found storage label at: [RequestWithStorage.storage_name]`),
+				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod13": unexpected count of storage field 1, expected 0, found storage label at: [RequestWithNestedStorage.inner_message.storage_name]`),
+				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod14": unexpected count of storage field 1, expected 0, found storage label at: [RequestWithInnerNestedStorage.header.storage_name]`),
+				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod15": unexpected count of storage field 0, expected 1, found storage label at: []`),
+				errors.New(`go/internal/linter/testdata/invalid.proto: Method "InvalidMethod16": unexpected count of storage field 2, expected 1, found storage label at: [RequestWithMultipleNestedStorage.inner_message.storage_name RequestWithMultipleNestedStorage.storage_name]`),
 			},
 		},
 	} {

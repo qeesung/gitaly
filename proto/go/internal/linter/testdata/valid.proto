@@ -8,10 +8,18 @@ message ValidRequest {
   gitaly.Repository destination = 1;
 }
 
+message ValidStorageRequest {
+  string storage_name = 1 [(gitaly.storage)=true];
+}
+
 message ValidResponse{}
 
 message ValidNestedRequest{
   ValidRequest inner_message = 1;
+}
+
+message ValidStorageNestedRequest{
+  ValidStorageRequest inner_message = 1;
 }
 
 message ValidNestedSharedRequest {
@@ -23,6 +31,14 @@ message ValidInnerNestedRequest {
     gitaly.Repository destination = 1;
   }
   
+  Header header = 1;
+}
+
+message ValidStorageInnerNestedRequest {
+  message Header {
+    string storage_name = 1 [(gitaly.storage) = true];
+  }
+
   Header header = 1;
 }
 
@@ -77,7 +93,21 @@ service ValidService {
     };
   }
   
-  rpc TestMethod8(ValidRequest) returns (ValidResponse) {
+  rpc TestMethod8(ValidStorageRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
+    };
+  }
+
+  rpc TestMethod9(ValidStorageNestedRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
+    };
+  }
+
+  rpc TestMethod10(ValidStorageInnerNestedRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
       scope_level: STORAGE

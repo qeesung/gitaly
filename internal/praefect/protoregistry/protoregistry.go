@@ -85,6 +85,7 @@ type MethodInfo struct {
 	additionalRepo []int
 	requestName    string // protobuf message name for input type
 	requestFactory protoFactory
+	storage        []int
 }
 
 // TargetRepo returns the target repository for a protobuf message if it exists
@@ -126,6 +127,18 @@ func (mi MethodInfo) getRepo(msg proto.Message, targetOid []int) (*gitalypb.Repo
 	}
 }
 
+// Storage returns the storage name for a protobuf message if it exists
+func (mi MethodInfo) Storage(msg proto.Message) (string, error) {
+	if mi.requestName != proto.MessageName(msg) {
+		return "", fmt.Errorf(
+			"proto message %s does not match expected RPC request message %s",
+			proto.MessageName(msg), mi.requestName,
+		)
+	}
+
+	return reflectFindStorage(msg, mi.storage)
+}
+
 // UnmarshalRequestProto will unmarshal the bytes into the method's request
 // message type
 func (mi MethodInfo) UnmarshalRequestProto(b []byte) (proto.Message, error) {
@@ -154,7 +167,7 @@ func (pr *Registry) RegisterFiles(protos ...*descriptor.FileDescriptorProto) err
 	for _, p := range protos {
 		for _, svc := range p.GetService() {
 			for _, method := range svc.GetMethod() {
-				mi, err := parseMethodInfo(method)
+				mi, err := parseMethodInfo(p, method)
 				if err != nil {
 					return err
 				}
@@ -218,7 +231,7 @@ func methodReqFactory(method *descriptor.MethodDescriptorProto) (protoFactory, e
 	return f, nil
 }
 
-func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, error) {
+func parseMethodInfo(p *descriptor.FileDescriptorProto, methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, error) {
 	opMsg, err := getOpExtension(methodDesc)
 	if err != nil {
 		return MethodInfo{}, err
@@ -270,9 +283,145 @@ func parseMethodInfo(methodDesc *descriptor.MethodDescriptorProto) (MethodInfo, 
 				return MethodInfo{}, err
 			}
 		}
+	} else if scope == ScopeStorage {
+		topLevelMsgs, err := getTopLevelMsgs(p)
+		if err != nil {
+			return MethodInfo{}, err
+		}
+		typeName, err := lastName(methodDesc.GetInputType())
+		if err != nil {
+			return MethodInfo{}, err
+		}
+		storage, err := findStorageField(topLevelMsgs, topLevelMsgs[typeName])
+		if err != nil {
+			return MethodInfo{}, err
+		}
+		if storage == nil {
+			return MethodInfo{}, fmt.Errorf("unable to find storage for method: %s", requestName)
+		}
+		mi.storage = storage
 	}
 
 	return mi, nil
+}
+
+func getFileTypes(filename string) ([]*descriptor.DescriptorProto, error) {
+	sharedFD, err := ExtractFileDescriptor(proto.FileDescriptor(filename))
+	if err != nil {
+		return nil, err
+	}
+
+	types := sharedFD.GetMessageType()
+
+	for _, dep := range sharedFD.Dependency {
+		depTypes, err := getFileTypes(dep)
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, depTypes...)
+	}
+
+	return types, nil
+}
+
+func getTopLevelMsgs(p *descriptor.FileDescriptorProto) (map[string]*descriptor.DescriptorProto, error) {
+	topLevelMsgs := map[string]*descriptor.DescriptorProto{}
+	types, err := getFileTypes(p.GetName())
+	if err != nil {
+		return nil, err
+	}
+	for _, msg := range types {
+		topLevelMsgs[msg.GetName()] = msg
+	}
+	return topLevelMsgs, nil
+}
+
+func getStorageExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+	options := m.GetOptions()
+
+	if !proto.HasExtension(options, gitalypb.E_Storage) {
+		return false, nil
+	}
+
+	ext, err := proto.GetExtension(options, gitalypb.E_Storage)
+	if err != nil {
+		return false, err
+	}
+
+	storageMsg, ok := ext.(*bool)
+	if !ok {
+		return false, fmt.Errorf("unable to obtain bool from %#v", ext)
+	}
+
+	if storageMsg == nil {
+		return false, nil
+	}
+
+	return *storageMsg, nil
+}
+
+func findStorageField(topLevelMsgs map[string]*descriptor.DescriptorProto, t *descriptor.DescriptorProto) ([]int, error) {
+	for _, f := range t.GetField() {
+		storage, err := getStorageExtension(f)
+		if err != nil {
+			return nil, err
+		}
+		if storage {
+			return []int{int(f.GetNumber())}, nil
+		}
+
+		childMsg, err := findChildMsg(topLevelMsgs, t, f)
+		if err != nil {
+			return nil, err
+		}
+
+		if childMsg != nil {
+			nestedStorageField, err := findStorageField(topLevelMsgs, childMsg)
+			if err != nil {
+				return nil, err
+			}
+			if nestedStorageField != nil {
+				return append([]int{int(f.GetNumber())}, nestedStorageField...), nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+func findChildMsg(topLevelMsgs map[string]*descriptor.DescriptorProto, t *descriptor.DescriptorProto, f *descriptor.FieldDescriptorProto) (*descriptor.DescriptorProto, error) {
+	var childType *descriptor.DescriptorProto
+	const msgPrimitive = "TYPE_MESSAGE"
+	if primitive := f.GetType().String(); primitive != msgPrimitive {
+		return nil, nil
+	}
+
+	msgName, err := lastName(f.GetTypeName())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, nestedType := range t.GetNestedType() {
+		if msgName == nestedType.GetName() {
+			return nestedType, nil
+		}
+	}
+
+	if childType = topLevelMsgs[msgName]; childType != nil {
+		return childType, nil
+	}
+
+	return nil, fmt.Errorf("could not find message type %q", msgName)
+}
+
+func lastName(inputType string) (string, error) {
+	tokens := strings.Split(inputType, ".")
+
+	msgName := tokens[len(tokens)-1]
+	if msgName == "" {
+		return "", fmt.Errorf("unable to parse method input type: %s", inputType)
+	}
+
+	return msgName, nil
 }
 
 // parses a string like "1.1" and returns a slice of ints

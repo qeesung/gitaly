@@ -3,10 +3,12 @@
 
 package test
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import gitalypb "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	gitalypb "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -17,7 +19,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ValidRequest struct {
 	Destination          *gitalypb.Repository `protobuf:"bytes,1,opt,name=destination,proto3" json:"destination,omitempty"`
@@ -30,16 +32,17 @@ func (m *ValidRequest) Reset()         { *m = ValidRequest{} }
 func (m *ValidRequest) String() string { return proto.CompactTextString(m) }
 func (*ValidRequest) ProtoMessage()    {}
 func (*ValidRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{0}
+	return fileDescriptor_7058768ff0db2cf7, []int{0}
 }
+
 func (m *ValidRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidRequest.Unmarshal(m, b)
 }
 func (m *ValidRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidRequest.Marshal(b, m, deterministic)
 }
-func (dst *ValidRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidRequest.Merge(dst, src)
+func (m *ValidRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidRequest.Merge(m, src)
 }
 func (m *ValidRequest) XXX_Size() int {
 	return xxx_messageInfo_ValidRequest.Size(m)
@@ -57,6 +60,45 @@ func (m *ValidRequest) GetDestination() *gitalypb.Repository {
 	return nil
 }
 
+type ValidStorageRequest struct {
+	StorageName          string   `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ValidStorageRequest) Reset()         { *m = ValidStorageRequest{} }
+func (m *ValidStorageRequest) String() string { return proto.CompactTextString(m) }
+func (*ValidStorageRequest) ProtoMessage()    {}
+func (*ValidStorageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7058768ff0db2cf7, []int{1}
+}
+
+func (m *ValidStorageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ValidStorageRequest.Unmarshal(m, b)
+}
+func (m *ValidStorageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ValidStorageRequest.Marshal(b, m, deterministic)
+}
+func (m *ValidStorageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidStorageRequest.Merge(m, src)
+}
+func (m *ValidStorageRequest) XXX_Size() int {
+	return xxx_messageInfo_ValidStorageRequest.Size(m)
+}
+func (m *ValidStorageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ValidStorageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ValidStorageRequest proto.InternalMessageInfo
+
+func (m *ValidStorageRequest) GetStorageName() string {
+	if m != nil {
+		return m.StorageName
+	}
+	return ""
+}
+
 type ValidResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -67,16 +109,17 @@ func (m *ValidResponse) Reset()         { *m = ValidResponse{} }
 func (m *ValidResponse) String() string { return proto.CompactTextString(m) }
 func (*ValidResponse) ProtoMessage()    {}
 func (*ValidResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{1}
+	return fileDescriptor_7058768ff0db2cf7, []int{2}
 }
+
 func (m *ValidResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidResponse.Unmarshal(m, b)
 }
 func (m *ValidResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidResponse.Marshal(b, m, deterministic)
 }
-func (dst *ValidResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidResponse.Merge(dst, src)
+func (m *ValidResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidResponse.Merge(m, src)
 }
 func (m *ValidResponse) XXX_Size() int {
 	return xxx_messageInfo_ValidResponse.Size(m)
@@ -98,16 +141,17 @@ func (m *ValidNestedRequest) Reset()         { *m = ValidNestedRequest{} }
 func (m *ValidNestedRequest) String() string { return proto.CompactTextString(m) }
 func (*ValidNestedRequest) ProtoMessage()    {}
 func (*ValidNestedRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{2}
+	return fileDescriptor_7058768ff0db2cf7, []int{3}
 }
+
 func (m *ValidNestedRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidNestedRequest.Unmarshal(m, b)
 }
 func (m *ValidNestedRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidNestedRequest.Marshal(b, m, deterministic)
 }
-func (dst *ValidNestedRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidNestedRequest.Merge(dst, src)
+func (m *ValidNestedRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidNestedRequest.Merge(m, src)
 }
 func (m *ValidNestedRequest) XXX_Size() int {
 	return xxx_messageInfo_ValidNestedRequest.Size(m)
@@ -125,6 +169,45 @@ func (m *ValidNestedRequest) GetInnerMessage() *ValidRequest {
 	return nil
 }
 
+type ValidStorageNestedRequest struct {
+	InnerMessage         *ValidStorageRequest `protobuf:"bytes,1,opt,name=inner_message,json=innerMessage,proto3" json:"inner_message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *ValidStorageNestedRequest) Reset()         { *m = ValidStorageNestedRequest{} }
+func (m *ValidStorageNestedRequest) String() string { return proto.CompactTextString(m) }
+func (*ValidStorageNestedRequest) ProtoMessage()    {}
+func (*ValidStorageNestedRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7058768ff0db2cf7, []int{4}
+}
+
+func (m *ValidStorageNestedRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ValidStorageNestedRequest.Unmarshal(m, b)
+}
+func (m *ValidStorageNestedRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ValidStorageNestedRequest.Marshal(b, m, deterministic)
+}
+func (m *ValidStorageNestedRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidStorageNestedRequest.Merge(m, src)
+}
+func (m *ValidStorageNestedRequest) XXX_Size() int {
+	return xxx_messageInfo_ValidStorageNestedRequest.Size(m)
+}
+func (m *ValidStorageNestedRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ValidStorageNestedRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ValidStorageNestedRequest proto.InternalMessageInfo
+
+func (m *ValidStorageNestedRequest) GetInnerMessage() *ValidStorageRequest {
+	if m != nil {
+		return m.InnerMessage
+	}
+	return nil
+}
+
 type ValidNestedSharedRequest struct {
 	NestedTargetRepo     *gitalypb.ObjectPool `protobuf:"bytes,1,opt,name=nested_target_repo,json=nestedTargetRepo,proto3" json:"nested_target_repo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
@@ -136,16 +219,17 @@ func (m *ValidNestedSharedRequest) Reset()         { *m = ValidNestedSharedReque
 func (m *ValidNestedSharedRequest) String() string { return proto.CompactTextString(m) }
 func (*ValidNestedSharedRequest) ProtoMessage()    {}
 func (*ValidNestedSharedRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{3}
+	return fileDescriptor_7058768ff0db2cf7, []int{5}
 }
+
 func (m *ValidNestedSharedRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidNestedSharedRequest.Unmarshal(m, b)
 }
 func (m *ValidNestedSharedRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidNestedSharedRequest.Marshal(b, m, deterministic)
 }
-func (dst *ValidNestedSharedRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidNestedSharedRequest.Merge(dst, src)
+func (m *ValidNestedSharedRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidNestedSharedRequest.Merge(m, src)
 }
 func (m *ValidNestedSharedRequest) XXX_Size() int {
 	return xxx_messageInfo_ValidNestedSharedRequest.Size(m)
@@ -174,16 +258,17 @@ func (m *ValidInnerNestedRequest) Reset()         { *m = ValidInnerNestedRequest
 func (m *ValidInnerNestedRequest) String() string { return proto.CompactTextString(m) }
 func (*ValidInnerNestedRequest) ProtoMessage()    {}
 func (*ValidInnerNestedRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{4}
+	return fileDescriptor_7058768ff0db2cf7, []int{6}
 }
+
 func (m *ValidInnerNestedRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidInnerNestedRequest.Unmarshal(m, b)
 }
 func (m *ValidInnerNestedRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidInnerNestedRequest.Marshal(b, m, deterministic)
 }
-func (dst *ValidInnerNestedRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidInnerNestedRequest.Merge(dst, src)
+func (m *ValidInnerNestedRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidInnerNestedRequest.Merge(m, src)
 }
 func (m *ValidInnerNestedRequest) XXX_Size() int {
 	return xxx_messageInfo_ValidInnerNestedRequest.Size(m)
@@ -212,16 +297,17 @@ func (m *ValidInnerNestedRequest_Header) Reset()         { *m = ValidInnerNested
 func (m *ValidInnerNestedRequest_Header) String() string { return proto.CompactTextString(m) }
 func (*ValidInnerNestedRequest_Header) ProtoMessage()    {}
 func (*ValidInnerNestedRequest_Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_valid_28fe26eda283975a, []int{4, 0}
+	return fileDescriptor_7058768ff0db2cf7, []int{6, 0}
 }
+
 func (m *ValidInnerNestedRequest_Header) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValidInnerNestedRequest_Header.Unmarshal(m, b)
 }
 func (m *ValidInnerNestedRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValidInnerNestedRequest_Header.Marshal(b, m, deterministic)
 }
-func (dst *ValidInnerNestedRequest_Header) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValidInnerNestedRequest_Header.Merge(dst, src)
+func (m *ValidInnerNestedRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidInnerNestedRequest_Header.Merge(m, src)
 }
 func (m *ValidInnerNestedRequest_Header) XXX_Size() int {
 	return xxx_messageInfo_ValidInnerNestedRequest_Header.Size(m)
@@ -239,45 +325,134 @@ func (m *ValidInnerNestedRequest_Header) GetDestination() *gitalypb.Repository {
 	return nil
 }
 
+type ValidStorageInnerNestedRequest struct {
+	Header               *ValidStorageInnerNestedRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                               `json:"-"`
+	XXX_unrecognized     []byte                                 `json:"-"`
+	XXX_sizecache        int32                                  `json:"-"`
+}
+
+func (m *ValidStorageInnerNestedRequest) Reset()         { *m = ValidStorageInnerNestedRequest{} }
+func (m *ValidStorageInnerNestedRequest) String() string { return proto.CompactTextString(m) }
+func (*ValidStorageInnerNestedRequest) ProtoMessage()    {}
+func (*ValidStorageInnerNestedRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7058768ff0db2cf7, []int{7}
+}
+
+func (m *ValidStorageInnerNestedRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest.Unmarshal(m, b)
+}
+func (m *ValidStorageInnerNestedRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest.Marshal(b, m, deterministic)
+}
+func (m *ValidStorageInnerNestedRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidStorageInnerNestedRequest.Merge(m, src)
+}
+func (m *ValidStorageInnerNestedRequest) XXX_Size() int {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest.Size(m)
+}
+func (m *ValidStorageInnerNestedRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ValidStorageInnerNestedRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ValidStorageInnerNestedRequest proto.InternalMessageInfo
+
+func (m *ValidStorageInnerNestedRequest) GetHeader() *ValidStorageInnerNestedRequest_Header {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+type ValidStorageInnerNestedRequest_Header struct {
+	StorageName          string   `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ValidStorageInnerNestedRequest_Header) Reset()         { *m = ValidStorageInnerNestedRequest_Header{} }
+func (m *ValidStorageInnerNestedRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*ValidStorageInnerNestedRequest_Header) ProtoMessage()    {}
+func (*ValidStorageInnerNestedRequest_Header) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7058768ff0db2cf7, []int{7, 0}
+}
+
+func (m *ValidStorageInnerNestedRequest_Header) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest_Header.Unmarshal(m, b)
+}
+func (m *ValidStorageInnerNestedRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest_Header.Marshal(b, m, deterministic)
+}
+func (m *ValidStorageInnerNestedRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValidStorageInnerNestedRequest_Header.Merge(m, src)
+}
+func (m *ValidStorageInnerNestedRequest_Header) XXX_Size() int {
+	return xxx_messageInfo_ValidStorageInnerNestedRequest_Header.Size(m)
+}
+func (m *ValidStorageInnerNestedRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_ValidStorageInnerNestedRequest_Header.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ValidStorageInnerNestedRequest_Header proto.InternalMessageInfo
+
+func (m *ValidStorageInnerNestedRequest_Header) GetStorageName() string {
+	if m != nil {
+		return m.StorageName
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*ValidRequest)(nil), "test.ValidRequest")
+	proto.RegisterType((*ValidStorageRequest)(nil), "test.ValidStorageRequest")
 	proto.RegisterType((*ValidResponse)(nil), "test.ValidResponse")
 	proto.RegisterType((*ValidNestedRequest)(nil), "test.ValidNestedRequest")
+	proto.RegisterType((*ValidStorageNestedRequest)(nil), "test.ValidStorageNestedRequest")
 	proto.RegisterType((*ValidNestedSharedRequest)(nil), "test.ValidNestedSharedRequest")
 	proto.RegisterType((*ValidInnerNestedRequest)(nil), "test.ValidInnerNestedRequest")
 	proto.RegisterType((*ValidInnerNestedRequest_Header)(nil), "test.ValidInnerNestedRequest.Header")
+	proto.RegisterType((*ValidStorageInnerNestedRequest)(nil), "test.ValidStorageInnerNestedRequest")
+	proto.RegisterType((*ValidStorageInnerNestedRequest_Header)(nil), "test.ValidStorageInnerNestedRequest.Header")
 }
 
 func init() {
-	proto.RegisterFile("go/internal/linter/testdata/valid.proto", fileDescriptor_valid_28fe26eda283975a)
+	proto.RegisterFile("go/internal/linter/testdata/valid.proto", fileDescriptor_7058768ff0db2cf7)
 }
 
-var fileDescriptor_valid_28fe26eda283975a = []byte{
-	// 408 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0xd3, 0x41, 0x8b, 0xd3, 0x40,
-	0x14, 0x07, 0x70, 0x66, 0xad, 0x35, 0x4e, 0xba, 0xb8, 0x8c, 0x07, 0x4b, 0x40, 0x91, 0x20, 0x98,
-	0x53, 0x42, 0xbb, 0xab, 0xeb, 0x41, 0xa4, 0x82, 0x07, 0xf7, 0xd0, 0x5d, 0xc9, 0x2e, 0x9e, 0x84,
-	0x32, 0x6d, 0x1e, 0xe9, 0x48, 0x9c, 0x89, 0x33, 0xcf, 0x42, 0x3f, 0x49, 0xbe, 0x91, 0x1f, 0xaa,
-	0x27, 0xc9, 0x34, 0xd6, 0x89, 0x2d, 0x4b, 0xdb, 0x5b, 0x78, 0xfc, 0xf3, 0xcb, 0x9b, 0xf7, 0x26,
-	0xf4, 0x75, 0xae, 0x12, 0x21, 0x11, 0xb4, 0xe4, 0x45, 0x52, 0xd8, 0xa7, 0x04, 0xc1, 0x60, 0xc6,
-	0x91, 0x27, 0x0b, 0x5e, 0x88, 0x2c, 0x2e, 0xb5, 0x42, 0xc5, 0x3a, 0x75, 0x35, 0xe8, 0x99, 0x39,
-	0xd7, 0xd0, 0xd4, 0xc2, 0x4f, 0xb4, 0xf7, 0xb5, 0x8e, 0xa4, 0xf0, 0xf3, 0x17, 0x18, 0x64, 0x17,
-	0xd4, 0xcf, 0xc0, 0xa0, 0x90, 0x1c, 0x85, 0x92, 0x7d, 0xf2, 0x92, 0x44, 0xfe, 0x90, 0xc5, 0xb9,
-	0x40, 0x5e, 0x2c, 0xe3, 0x14, 0x4a, 0x65, 0x04, 0x2a, 0xbd, 0x4c, 0xdd, 0x58, 0xf8, 0x84, 0x9e,
-	0x36, 0x8a, 0x29, 0x95, 0x34, 0x10, 0x8e, 0x29, 0xb3, 0x85, 0x6b, 0x30, 0x08, 0x1b, 0xfc, 0x92,
-	0x9e, 0x0a, 0x29, 0x41, 0x4f, 0x7e, 0x80, 0x31, 0x3c, 0x87, 0x0d, 0x5f, 0x37, 0x16, 0xbb, 0x7d,
-	0xa4, 0x3d, 0x1b, 0x1c, 0xaf, 0x73, 0xe1, 0x37, 0xda, 0x77, 0xb8, 0x5b, 0x7b, 0x80, 0xbf, 0xe8,
-	0x88, 0x32, 0x69, 0xcb, 0x13, 0xe4, 0x3a, 0x07, 0x9c, 0x68, 0x28, 0xd5, 0xff, 0x8d, 0xdf, 0x4c,
-	0xbf, 0xc3, 0x0c, 0xbf, 0x28, 0x55, 0xa4, 0x67, 0xeb, 0xf4, 0x9d, 0x0d, 0xd7, 0x07, 0x0a, 0x2b,
-	0x42, 0x9f, 0x59, 0xfe, 0xaa, 0xfe, 0x66, 0xbb, 0xe5, 0xf7, 0xb4, 0x3b, 0x07, 0x9e, 0x81, 0x6e,
-	0xc4, 0x57, 0x4e, 0xaf, 0xdb, 0xf1, 0xf8, 0xb3, 0xcd, 0xa6, 0xcd, 0x3b, 0xc1, 0x07, 0xda, 0x5d,
-	0x57, 0x8e, 0x9b, 0xeb, 0xf0, 0x77, 0xa7, 0x59, 0xcf, 0x2d, 0xe8, 0x85, 0x98, 0x01, 0x1b, 0x51,
-	0x7a, 0x07, 0x06, 0xc7, 0x80, 0x73, 0x95, 0xb1, 0x1d, 0x83, 0x0b, 0x9e, 0xb6, 0x6a, 0xcd, 0x3a,
-	0x1e, 0xaf, 0xaa, 0xe8, 0xa1, 0x77, 0x12, 0x90, 0x01, 0xfb, 0x48, 0xfd, 0x7f, 0xc2, 0xf0, 0x50,
-	0x82, 0x6c, 0x11, 0xe7, 0x47, 0x11, 0x23, 0x97, 0xb8, 0xd8, 0x9f, 0xf0, 0x56, 0x55, 0xd4, 0xf1,
-	0xc8, 0x19, 0x61, 0x57, 0xae, 0xf0, 0x86, 0xf5, 0x9d, 0x74, 0x6b, 0x25, 0xbb, 0x1d, 0x7f, 0x55,
-	0x45, 0x8f, 0x3c, 0x12, 0x3c, 0x18, 0xc4, 0x03, 0x76, 0xe3, 0x52, 0x6f, 0xd9, 0x8b, 0x2d, 0xaa,
-	0x75, 0xe1, 0xf6, 0x00, 0xaf, 0x5d, 0xf0, 0x92, 0x3d, 0xbf, 0xf7, 0xce, 0xec, 0xe1, 0xb5, 0xa6,
-	0xf5, 0xee, 0xf0, 0x69, 0x9d, 0x4c, 0xbb, 0xf6, 0x6f, 0x3f, 0xff, 0x13, 0x00, 0x00, 0xff, 0xff,
-	0x0e, 0x93, 0x1a, 0xd9, 0x2c, 0x04, 0x00, 0x00,
+var fileDescriptor_7058768ff0db2cf7 = []byte{
+	// 521 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0xd4, 0xdd, 0x6e, 0x12, 0x41,
+	0x14, 0x07, 0xf0, 0x4c, 0xa5, 0x48, 0x0f, 0x34, 0x36, 0xd3, 0x0b, 0xe9, 0x26, 0x56, 0xb3, 0x69,
+	0x52, 0x12, 0xcd, 0xe2, 0xd2, 0x6a, 0x35, 0x31, 0x04, 0x3f, 0x12, 0xed, 0x05, 0xd4, 0x2c, 0x8d,
+	0x37, 0x9a, 0x90, 0x69, 0xf7, 0x64, 0x59, 0xb3, 0xec, 0xe0, 0xcc, 0xd8, 0xa4, 0x6f, 0xe0, 0x1b,
+	0xe0, 0x13, 0xf9, 0x3e, 0xde, 0x72, 0x65, 0x76, 0xd8, 0xc2, 0x2c, 0x8b, 0xed, 0xb6, 0x77, 0xe4,
+	0x70, 0xf8, 0xf1, 0x9f, 0xb3, 0x67, 0x16, 0xf6, 0x03, 0xde, 0x0c, 0x63, 0x85, 0x22, 0x66, 0x51,
+	0x33, 0xd2, 0x9f, 0x9a, 0x0a, 0xa5, 0xf2, 0x99, 0x62, 0xcd, 0x0b, 0x16, 0x85, 0xbe, 0x33, 0x16,
+	0x5c, 0x71, 0x5a, 0x4a, 0xaa, 0x56, 0x4d, 0x0e, 0x99, 0xc0, 0xb4, 0x66, 0x7f, 0x80, 0xda, 0x97,
+	0xa4, 0xc5, 0xc3, 0x1f, 0x3f, 0x51, 0x2a, 0x7a, 0x08, 0x55, 0x1f, 0xa5, 0x0a, 0x63, 0xa6, 0x42,
+	0x1e, 0xd7, 0xc9, 0x13, 0xd2, 0xa8, 0xb6, 0xa8, 0x13, 0x84, 0x8a, 0x45, 0x97, 0x8e, 0x87, 0x63,
+	0x2e, 0x43, 0xc5, 0xc5, 0xa5, 0x67, 0xb6, 0xd9, 0x6d, 0xd8, 0xd6, 0x4a, 0x5f, 0x71, 0xc1, 0x02,
+	0xbc, 0xc2, 0xf6, 0xa1, 0x26, 0x67, 0x95, 0x41, 0xcc, 0x46, 0xa8, 0xb5, 0x8d, 0x77, 0xa5, 0x5f,
+	0x7f, 0x9e, 0x11, 0xaf, 0x9a, 0x7e, 0xd3, 0x63, 0x23, 0xb4, 0x1f, 0xc0, 0x66, 0x9a, 0x42, 0x8e,
+	0x79, 0x2c, 0xd1, 0xee, 0x02, 0xd5, 0x85, 0x1e, 0x4a, 0x85, 0xf3, 0x70, 0x47, 0xb0, 0x19, 0xc6,
+	0x31, 0x8a, 0xc1, 0x08, 0xa5, 0x64, 0x01, 0xce, 0xe3, 0x25, 0x07, 0x73, 0xcc, 0x73, 0x78, 0x35,
+	0xdd, 0xd8, 0x9d, 0xf5, 0xd9, 0x5f, 0x61, 0xc7, 0xcc, 0x97, 0x55, 0xdb, 0xab, 0xd5, 0x1d, 0x43,
+	0xcd, 0x9e, 0x6b, 0x09, 0xff, 0x06, 0x75, 0x23, 0x6b, 0x5f, 0x4f, 0xf7, 0xca, 0xee, 0x00, 0x8d,
+	0x75, 0x79, 0xa0, 0x98, 0x08, 0x50, 0x0d, 0x04, 0x8e, 0xf9, 0xf2, 0x54, 0x4f, 0xce, 0xbe, 0xe3,
+	0xb9, 0xfa, 0xcc, 0x79, 0xe4, 0x6d, 0xcd, 0xba, 0x4f, 0x75, 0x73, 0x32, 0x6d, 0x7b, 0x42, 0xe0,
+	0xa1, 0xe6, 0x8f, 0x93, 0xff, 0xcc, 0x26, 0x7f, 0x03, 0xe5, 0x21, 0x32, 0x1f, 0x45, 0x2a, 0xee,
+	0x19, 0x91, 0xf3, 0xed, 0xce, 0x27, 0xdd, 0xeb, 0xa5, 0xbf, 0xb1, 0xda, 0x50, 0x9e, 0x55, 0xee,
+	0xf8, 0xd0, 0x7f, 0x13, 0xd8, 0x35, 0xa7, 0xb3, 0x22, 0xe0, 0xfb, 0xa5, 0x80, 0x4f, 0xf3, 0x33,
+	0xbd, 0x39, 0xa7, 0x3b, 0xcf, 0x59, 0x74, 0x9f, 0x5a, 0x7f, 0xd7, 0xd3, 0xb5, 0xee, 0xa3, 0xb8,
+	0x08, 0xcf, 0x91, 0x76, 0x00, 0x4e, 0x51, 0xaa, 0x2e, 0xaa, 0x21, 0xf7, 0xe9, 0x8a, 0x85, 0xb1,
+	0xb6, 0x33, 0xb5, 0x74, 0x0d, 0x37, 0xa6, 0x93, 0xc6, 0x7a, 0x65, 0xcd, 0x22, 0x2e, 0x7d, 0x0b,
+	0xd5, 0x85, 0xd0, 0xba, 0x2d, 0x41, 0x72, 0xc4, 0xc1, 0x9d, 0x88, 0x8e, 0x49, 0x1c, 0x16, 0x27,
+	0x2a, 0xd3, 0x49, 0xa3, 0x54, 0x21, 0x5b, 0x84, 0x1e, 0x9b, 0xc2, 0x0b, 0x5a, 0x37, 0xba, 0x33,
+	0x4f, 0x61, 0xb5, 0x53, 0x9d, 0x4e, 0x1a, 0xf7, 0x2b, 0xc4, 0xba, 0xe7, 0x3a, 0x2e, 0x3d, 0x31,
+	0xa9, 0x97, 0x74, 0x37, 0x47, 0x65, 0xee, 0x42, 0x01, 0xb0, 0x67, 0x82, 0x47, 0xf4, 0xd1, 0xb5,
+	0xeb, 0x5c, 0xc0, 0xfb, 0x68, 0x7a, 0xaf, 0xe8, 0xff, 0x6f, 0xf4, 0xf5, 0x43, 0x5b, 0xa3, 0x5d,
+	0x13, 0x7a, 0x4d, 0x1f, 0xe7, 0xa1, 0x02, 0xd1, 0x16, 0x5c, 0x1f, 0x6a, 0x0b, 0xce, 0x7d, 0x4e,
+	0xf7, 0x8a, 0x5c, 0x8b, 0x1b, 0xd0, 0xb3, 0xb2, 0x7e, 0xa1, 0x1f, 0xfc, 0x0b, 0x00, 0x00, 0xff,
+	0xff, 0xe7, 0xe0, 0xdf, 0xba, 0x0f, 0x06, 0x00, 0x00,
 }
