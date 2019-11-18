@@ -19,21 +19,23 @@ const (
 )
 
 // GetTagCatfile looks up a commit by tagID using an existing *catfile.Batch instance.
+// When 'trim' is 'true', the tag message will be trimmed to fit in a gRPC message.
+// When 'trimRightNewLine' is 'true', the tag message will be trimmed to remove all '\n' characters from right.
 // note: we pass in the tagName because the tag name from refs/tags may be different
 // than the name found in the actual tag object. We want to use the tagName found in refs/tags
-func GetTagCatfile(c *catfile.Batch, tagID, tagName string) (*gitalypb.Tag, error) {
+func GetTagCatfile(c *catfile.Batch, tagID, tagName string, trimLen, trimRightNewLine bool) (*gitalypb.Tag, error) {
 	r, err := c.Tag(tagID)
 	if err != nil {
 		return nil, err
 	}
 
-	header, body, err := splitRawTag(r)
+	header, body, err := splitRawTag(r, trimRightNewLine)
 	if err != nil {
 		return nil, err
 	}
 
 	// the tagID is the oid of the tag object
-	tag, err := buildAnnotatedTag(c, tagID, tagName, header, body)
+	tag, err := buildAnnotatedTag(c, tagID, tagName, header, body, trimLen, trimRightNewLine)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ type tagHeader struct {
 	tagger  string
 }
 
-func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
+func splitRawTag(r io.Reader, trimRightNewLine bool) (*tagHeader, []byte, error) {
 	raw, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, nil, err
@@ -57,10 +59,13 @@ func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
 	var body []byte
 	split := bytes.SplitN(raw, []byte("\n\n"), 2)
 	if len(split) == 2 {
-		// Remove trailing newline, if any, to preserve existing behavior the old GitLab tag finding code.
-		// See https://gitlab.com/gitlab-org/gitaly/blob/5e94dc966ac1900c11794b107a77496552591f9b/ruby/lib/gitlab/git/repository.rb#L211.
-		// Maybe this belongs in the FindAllTags handler, or even on the gitlab-ce client side, instead of here?
-		body = bytes.TrimRight(split[1], "\n")
+		body = split[1]
+		if trimRightNewLine {
+			// Remove trailing newline, if any, to preserve existing behavior the old GitLab tag finding code.
+			// See https://gitlab.com/gitlab-org/gitaly/blob/5e94dc966ac1900c11794b107a77496552591f9b/ruby/lib/gitlab/git/repository.rb#L211.
+			// Maybe this belongs in the FindAllTags handler, or even on the gitlab-ce client side, instead of here?
+			body = bytes.TrimRight(body, "\n")
+		}
 	}
 
 	var header tagHeader
@@ -87,7 +92,7 @@ func splitRawTag(r io.Reader) (*tagHeader, []byte, error) {
 	return &header, body, nil
 }
 
-func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, body []byte) (*gitalypb.Tag, error) {
+func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, body []byte, trimLen, trimRightNewLine bool) (*gitalypb.Tag, error) {
 	tag := &gitalypb.Tag{
 		Id:          tagID,
 		Name:        []byte(name),
@@ -95,7 +100,7 @@ func buildAnnotatedTag(b *catfile.Batch, tagID, name string, header *tagHeader, 
 		Message:     body,
 	}
 
-	if max := helper.MaxCommitOrTagMessageSize; len(body) > max {
+	if max := helper.MaxCommitOrTagMessageSize; trimLen && len(body) > max {
 		tag.Message = tag.Message[:max]
 	}
 
@@ -138,7 +143,7 @@ func dereferenceTag(b *catfile.Batch, Oid string) (*gitalypb.GitCommit, error) {
 				return nil, err
 			}
 
-			header, _, err := splitRawTag(r)
+			header, _, err := splitRawTag(r, true)
 			if err != nil {
 				return nil, err
 			}

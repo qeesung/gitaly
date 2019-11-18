@@ -1,15 +1,18 @@
 package ref
 
 import (
+	"context"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
@@ -36,9 +39,6 @@ func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
 		TagIds:     []string{tag1ID, tag2ID},
 	}
 
-	c, err := client.GetTagMessages(ctx, request)
-	require.NoError(t, err)
-
 	expectedMessages := []*gitalypb.GetTagMessagesResponse{
 		{
 			TagId:   tag1ID,
@@ -49,9 +49,32 @@ func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
 			Message: []byte(message2 + "\n"),
 		},
 	}
-	fetchedMessages := readAllMessagesFromClient(t, c)
 
-	require.Equal(t, expectedMessages, fetchedMessages)
+	for title, ctxModifier := range map[string]func(context.Context) context.Context{
+		"enabled_feature_GetTagMessagesGo": func(ctx context.Context) context.Context {
+			return enableGetTagMessagesFeatureFlag(ctx)
+		},
+		"disabled_feature_GetTagMessagesGo": func(ctx context.Context) context.Context {
+			return ctx
+		},
+	} {
+		title := title
+		ctxModifier := ctxModifier
+
+		// all sub-tests are read-only
+		t.Run("parallel", func(t *testing.T) {
+			t.Run(title, func(t *testing.T) {
+				t.Parallel()
+
+				c, err := client.GetTagMessages(ctxModifier(ctx), request)
+				require.NoError(t, err)
+
+				fetchedMessages := readAllMessagesFromClient(t, c)
+
+				require.Equal(t, expectedMessages, fetchedMessages)
+			})
+		})
+	}
 }
 
 func TestFailedGetTagMessagesRequest(t *testing.T) {
@@ -115,4 +138,10 @@ func readAllMessagesFromClient(t *testing.T, c gitalypb.RefService_GetTagMessage
 	}
 
 	return
+}
+
+func enableGetTagMessagesFeatureFlag(ctx context.Context) context.Context {
+	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
+		featureflag.HeaderKey(featureflag.GetTagMessagesGo): "true",
+	}))
 }
