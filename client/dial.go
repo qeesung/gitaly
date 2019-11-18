@@ -71,12 +71,13 @@ func Dial(rawAddress string, connOpts []grpc.DialOption) (*grpc.ClientConn, erro
 
 				return net.DialTimeout("unix", path, timeout)
 			}),
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{
-				Time:                20 * time.Second,
-				PermitWithoutStream: true,
-			}),
 		)
 	}
+
+	connOpts = append(connOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:                20 * time.Second,
+		PermitWithoutStream: true,
+	}))
 
 	conn, err := grpc.Dial(canonicalAddress, connOpts...)
 	if err != nil {
