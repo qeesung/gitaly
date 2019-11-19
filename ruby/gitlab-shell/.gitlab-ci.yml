@@ -82,10 +82,6 @@ go:1.10:
   <<: *go_definition
   image: golang:1.10
 
-go:1.11:
-  <<: *go_definition
-  image: golang:1.10
-
 codequality:
   image: docker:stable
   variables:
