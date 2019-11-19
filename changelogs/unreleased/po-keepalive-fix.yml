@@ -1,0 +1,5 @@
+---
+title: Fix client keep alive for all network types
+merge_request: 1637
+author:
+type: fixed
