@@ -674,7 +674,8 @@ module Gitlab
         nil
       end
 
-      def commit(ref = 'HEAD')
+      def commit(ref = nil)
+        ref ||= root_ref
         Gitlab::Git::Commit.find(self, ref)
       end
 

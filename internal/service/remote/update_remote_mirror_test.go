@@ -43,6 +43,11 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 		{"branch", "-D", "not-merged-branch"},                                                 // Delete branch
 		// Scoped to the project, so will be removed after
 		{"tag", "-d", "v0.0.1"}, // Delete tag
+
+		// Catch bug https://gitlab.com/gitlab-org/gitaly/issues/1421 (reliance
+		// on 'HEAD' as the default branch). By making HEAD point to something
+		// invalid, we ensure this gets handled correctly.
+		{"symbolic-ref", "HEAD", "refs/does/not/exist"},
 	}
 
 	for _, args := range setupCommands {
