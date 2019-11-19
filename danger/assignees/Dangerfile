@@ -6,9 +6,9 @@ if gitlab.mr_json["assignees"].none?
   case suggestions.size
   when 0
   when 1
-    message "Suggested maintainer: @#{suggestions.first}"
+    message "Suggested maintainer: `@#{suggestions.first}`"
   else
-    message "Suggested maintainers: @#{suggestions.first}, and @#{suggestions.last}"
+    message "Suggested maintainers: `@#{suggestions.first}`, and `@#{suggestions.last}`"
   end
 end
 
