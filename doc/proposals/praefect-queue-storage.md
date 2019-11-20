@@ -3,12 +3,12 @@
 ## Rationale
 
 Praefect is the traffic router and replication manager for Gitaly HA.
-Praefect is under development and far from being a minimum viable HA
-solution. The router detects Gitaly calls that modify repositories, and
-submits jobs to a job queue indicating that the repository that got
-modified needs to have its replicas updated. The replication manager
-consumes the job queue. Currently, this queue is implemented in-memory
-in the Praefect process.
+Praefect is currently (November 2019) under development and far from
+being a minimum viable HA solution. The router detects Gitaly calls that
+modify repositories, and submits jobs to a job queue indicating that the
+repository that got modified needs to have its replicas updated. The
+replication manager consumes the job queue. Currently, this queue is
+implemented in-memory in the Praefect process.
 
 While useful for prototyping, this is unsuitable for real HA Gitaly for
 two reasons:
@@ -59,9 +59,9 @@ Praefect clusters, with 1 million queue database instances (one behind
 each Praefect cluster). Each queue database would then see a very, very
 low job insertion rate.
 
-This scenario is unpractical from an operation standpoint, but
-functionally, it would be OK. In other words, we should never be forced
-to vertically scale the queue database. There will of course be
+This scenario is unpractical from an operational standpoint, but
+functionally, it would be OK. In other words, we have horizontal leeway
+to avoid vertically scaling the queue database. There will of course be
 practical limits on how many instances of the queue database we can run.
 Especially because the queue database must be highly available.
 
@@ -70,3 +70,86 @@ Especially because the queue database must be highly available.
 If the queue database is unavailable, Praefect should be forced into a
 read-only mode. This is undesirable, so I think we can say we want the
 queue database to be highly available itself.
+
+## Running the queue database should be operationally feasible
+
+As always at GitLab, we want to choose solutions that are suitable for
+self-managed GitLab installations.
+
+-   Should be open source
+-   Don't pick an open core solution, and rely on features that are not
+    in the core
+-   Don't assume that "the cloud" makes problems go away; assume there
+    is no cloud
+-   Running the queue database should require as little expertise as
+    possible, or it should be a commodity component
+
+## Do we have other database needs in Praefect
+
+This takes us into YAGNI territory but it's worth considering.
+
+Praefect serves as a front end for a cluster of Gitaly servers (the
+"internal Gitaly nodes") that store the actual repository data. We will
+need some form of consensus over which internal Gitaly nodes are good
+(available) or bad (offline). This is not a YAGNI, we will need this.
+Like the queue this would be shared state. The most natural fit for
+this, within GitLab's current architecture, would be Consul. But Consul
+is not a good fit for storing the queue.
+
+We might want Praefect to have a catalogue of all repositories it is
+storing. With Gitaly, there is no such catalogue; the filesystem is the
+single source of truth. This strikes me as a YAGNI though. Even with
+Praefect, there will be filesystems "in the back" on the internal Gitaly
+nodes, and those could serve as the source of truth.
+
+## What are our options
+
+### Redis
+
+Pro:
+
+-   Already used in GitLab
+-   Has queue primitives
+
+Con:
+
+-   Deployed with snapshot persistence (RDB dump) in GitLab, which is
+    not the durability I think we want
+
+### Postgres
+
+Pro:
+
+-   Already used in GitLab
+-   Gold standard for persistence
+-   General purpose database: likely to be able to grow with us as we
+    develop other needs
+
+Con:
+
+-   Can be used for queues, but not meant for it
+-   Need to find queueing library, or develop SQL-backed queue ourselves
+    (hard, subtle)
+-   Because not meant to be a queue, may have a lower ceiling where we
+    are forced to scale horizontally. When we hit the ceiling we would
+    have to run multiple Praefect clusters each with their own HA
+    Postgres cluster behind it)
+
+### Kafka
+
+Pro:
+
+-   Closely matches description of "durable queue"
+
+Con:
+
+-   Would be new to GitLab: no development experience nor operational
+    experience
+
+### ... ?
+
+## Conclusion
+
+I am strongly leaning towards Postgres because it seems like a safe,
+boring choice. It has strong persistence and it is generic, which is
+useful because we don't know what our needs are yet.
