@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -36,20 +37,20 @@ type Coordinator struct {
 	log           *logrus.Entry
 	failoverMutex sync.RWMutex
 
-	datastore Datastore
+	datastore datastore.Datastore
 
 	registry *protoregistry.Registry
 	conf     config.Config
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l *logrus.Entry, datastore Datastore, clientConnections *conn.ClientConnections, conf config.Config, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
+func NewCoordinator(l *logrus.Entry, ds datastore.Datastore, clientConnections *conn.ClientConnections, conf config.Config, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
 	registry := protoregistry.New()
 	registry.RegisterFiles(fileDescriptors...)
 
 	return &Coordinator{
 		log:         l,
-		datastore:   datastore,
+		datastore:   ds,
 		registry:    registry,
 		connections: clientConnections,
 		conf:        conf,
@@ -158,9 +159,9 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 	requestFinalizer := noopRequestFinalizer
 
 	if mi.Operation == protoregistry.OpMutator {
-		change := UpdateRepo
+		change := datastore.UpdateRepo
 		if isDestructive(method) {
-			change = DeleteRepo
+			change = datastore.DeleteRepo
 		}
 
 		if requestFinalizer, err = c.createReplicaJobs(targetRepo, change); err != nil {
@@ -178,7 +179,7 @@ func (c *Coordinator) selectPrimary(mi protoregistry.MethodInfo, targetRepo *git
 	primary, err = c.datastore.GetPrimary(targetRepo.GetRelativePath())
 
 	if err != nil {
-		if err != ErrPrimaryNotSet {
+		if err != datastore.ErrPrimaryNotSet {
 			return nil, err
 		}
 		// if there are no primaries for this repository, pick one
@@ -231,7 +232,7 @@ func protoMessageFromPeeker(mi protoregistry.MethodInfo, peeker proxy.StreamModi
 	return m, nil
 }
 
-func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, change ChangeType) (func(), error) {
+func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, change datastore.ChangeType) (func(), error) {
 	jobIDs, err := c.datastore.CreateReplicaReplJobs(targetRepo.RelativePath, change)
 	if err != nil {
 		return nil, err
@@ -239,8 +240,8 @@ func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, change 
 
 	return func() {
 		for _, jobID := range jobIDs {
-			if err := c.datastore.UpdateReplJob(jobID, JobStateReady); err != nil {
-				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %d", JobStateReady)
+			if err := c.datastore.UpdateReplJob(jobID, datastore.JobStateReady); err != nil {
+				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %d", datastore.JobStateReady)
 			}
 		}
 	}, nil

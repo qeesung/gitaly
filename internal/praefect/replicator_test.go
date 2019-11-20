@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +14,9 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	gitaly_log "gitlab.com/gitlab-org/gitaly/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
@@ -69,25 +70,35 @@ func TestProceessReplicationJob(t *testing.T) {
 		},
 	)
 
-	job := jobRecord{state: JobStateReady}
-
-	m := &MemoryDatastore{
-		jobs: &struct {
-			sync.RWMutex
-			records map[uint64]jobRecord // all jobs indexed by ID
-		}{
-			records: map[uint64]jobRecord{1: job},
+	config := config.Config{
+		Nodes: []*models.Node{
+			&models.Node{
+				ID:             0,
+				Storage:        "default",
+				Address:        srvSocketPath,
+				Token:          gitaly_config.Config.Auth.Token,
+				DefaultPrimary: true,
+			},
+			&models.Node{
+				ID:      1,
+				Storage: backupStorageName,
+				Address: srvSocketPath,
+				Token:   gitaly_config.Config.Auth.Token,
+			},
 		},
 	}
 
-	replJob := ReplJob{
-		Change:     UpdateRepo,
-		ID:         1,
-		TargetNode: models.Node{Storage: backupStorageName, Address: srvSocketPath},
-		SourceNode: models.Node{Storage: "default", Address: srvSocketPath, Token: testhelper.RepositoryAuthToken},
-		Repository: models.Repository{Primary: models.Node{Storage: "default", Address: srvSocketPath}, RelativePath: testRepo.GetRelativePath()},
-		State:      JobStateReady,
-	}
+	ds := datastore.NewInMemory(config)
+
+	ds.SetPrimary(testRepo.GetRelativePath(), 0)
+	ds.AddReplica(testRepo.GetRelativePath(), 1)
+
+	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), datastore.UpdateRepo)
+	require.NoError(t, err)
+
+	jobs, err := ds.GetJobs(datastore.JobStateReady|datastore.JobStatePending, 1, 1)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -105,12 +116,12 @@ func TestProceessReplicationJob(t *testing.T) {
 
 	replMgr := &ReplMgr{
 		log:               gitaly_log.Default(),
-		datastore:         m,
+		datastore:         ds,
 		clientConnections: clientCC,
 		replicator:        replicator,
 	}
 
-	replMgr.processReplJob(ctx, replJob)
+	replMgr.processReplJob(ctx, jobs[0])
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)

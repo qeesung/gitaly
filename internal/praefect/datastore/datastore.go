@@ -1,9 +1,9 @@
-// Package praefect provides data models and datastore persistence abstractions
+// Package datastore provides data models and datastore persistence abstractions
 // for tracking the state of repository replicas.
 //
 // See original design discussion:
 // https://gitlab.com/gitlab-org/gitaly/issues/1495
-package praefect
+package datastore
 
 import (
 	"errors"
@@ -143,8 +143,8 @@ type MemoryDatastore struct {
 	}
 }
 
-// NewMemoryDatastore returns an initialized in-memory datastore
-func NewMemoryDatastore(cfg config.Config) *MemoryDatastore {
+// NewInMemory returns an initialized in-memory datastore
+func NewInMemory(cfg config.Config) *MemoryDatastore {
 	m := &MemoryDatastore{
 		storageNodes: &struct {
 			sync.RWMutex

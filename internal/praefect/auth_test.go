@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
@@ -183,14 +184,14 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	}
 
 	logEntry := log.Default()
-	datastore := NewMemoryDatastore(conf)
+	ds := datastore.NewInMemory(conf)
 
 	clientConnections := conn.NewClientConnections()
 	clientConnections.RegisterNode("praefect-internal-0", backend, backendToken)
 
-	coordinator := NewCoordinator(logEntry, datastore, clientConnections, conf, fd)
+	coordinator := NewCoordinator(logEntry, ds, clientConnections, conf, fd)
 
-	replMgr := NewReplMgr("praefect-internal-0", logEntry, datastore, clientConnections)
+	replMgr := NewReplMgr("praefect-internal-0", logEntry, ds, clientConnections)
 
 	srv := NewServer(coordinator, replMgr, nil, logEntry, clientConnections, conf)
 

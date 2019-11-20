@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -55,16 +56,16 @@ func init() {
 // Replicator performs the actual replication logic between two nodes
 type Replicator interface {
 	// Replicate propagates changes from the source to the target
-	Replicate(ctx context.Context, job ReplJob, source, target *grpc.ClientConn) error
+	Replicate(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error
 	// Destroy will remove the target repo on the specified target connection
-	Destroy(ctx context.Context, job ReplJob, target *grpc.ClientConn) error
+	Destroy(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
 }
 
 type defaultReplicator struct {
 	log *logrus.Entry
 }
 
-func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
+func (dr defaultReplicator) Replicate(ctx context.Context, job datastore.ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	repository := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -114,7 +115,7 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job ReplJob, sourceCC
 	return nil
 }
 
-func (dr defaultReplicator) Destroy(ctx context.Context, job ReplJob, targetCC *grpc.ClientConn) error {
+func (dr defaultReplicator) Destroy(ctx context.Context, job datastore.ReplJob, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
@@ -167,7 +168,7 @@ func (dr defaultReplicator) confirmChecksums(ctx context.Context, primaryClient,
 // ReplMgr is a replication manager for handling replication jobs
 type ReplMgr struct {
 	log               *logrus.Entry
-	datastore         Datastore
+	datastore         datastore.Datastore
 	clientConnections *conn.ClientConnections
 	targetNode        string     // which replica is this replicator responsible for?
 	replicator        Replicator // does the actual replication logic
@@ -181,7 +182,7 @@ type ReplMgrOpt func(*ReplMgr)
 
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
-func NewReplMgr(targetNode string, log *logrus.Entry, datastore Datastore, c *conn.ClientConnections, opts ...ReplMgrOpt) ReplMgr {
+func NewReplMgr(targetNode string, log *logrus.Entry, datastore datastore.Datastore, c *conn.ClientConnections, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
 		log:               log,
 		datastore:         datastore,
@@ -225,7 +226,7 @@ func (r ReplMgr) ScheduleReplication(ctx context.Context, repo models.Repository
 		return nil
 	}
 
-	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath, UpdateRepo)
+	id, err := r.datastore.CreateReplicaReplJobs(repo.RelativePath, datastore.UpdateRepo)
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 		}
 
 		for _, node := range nodes {
-			jobs, err := r.datastore.GetJobs(JobStateReady, node.ID, 10)
+			jobs, err := r.datastore.GetJobs(datastore.JobStateReady, node.ID, 10)
 			if err != nil {
 				return err
 			}
@@ -292,13 +293,13 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context) error {
 // is a crutch in this situation. Ideally, we need to update state somewhere
 // with information regarding the replication failure. See follow up issue:
 // https://gitlab.com/gitlab-org/gitaly/issues/2138
-func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
+func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) {
 	l := r.log.
 		WithField(logWithReplJobID, job.ID).
 		WithField(logWithReplSource, job.SourceNode).
 		WithField(logWithReplTarget, job.TargetNode)
 
-	if err := r.datastore.UpdateReplJob(job.ID, JobStateInProgress); err != nil {
+	if err := r.datastore.UpdateReplJob(job.ID, datastore.JobStateInProgress); err != nil {
 		l.WithError(err).Error("unable to update replication job to in progress")
 		return
 	}
@@ -326,9 +327,9 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
 	defer decReplicationJobsInFlight()
 
 	switch job.Change {
-	case UpdateRepo:
+	case datastore.UpdateRepo:
 		err = r.replicator.Replicate(injectedCtx, job, sourceCC, targetCC)
-	case DeleteRepo:
+	case datastore.DeleteRepo:
 		err = r.replicator.Destroy(injectedCtx, job, targetCC)
 	default:
 		err = fmt.Errorf("unknown replication change type encountered: %d", job.Change)
@@ -341,7 +342,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job ReplJob) {
 	replDuration := time.Since(replStart)
 	recordReplicationLatency(float64(replDuration / time.Millisecond))
 
-	if err := r.datastore.UpdateReplJob(job.ID, JobStateComplete); err != nil {
+	if err := r.datastore.UpdateReplJob(job.ID, datastore.JobStateComplete); err != nil {
 		l.WithError(err).Error("error when updating replication job status to complete")
 	}
 }

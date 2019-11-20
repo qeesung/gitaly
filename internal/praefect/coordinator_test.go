@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -41,7 +42,7 @@ func TestStreamDirector(t *testing.T) {
 				Storage: "praefect-internal-2",
 			}},
 	}
-	datastore := NewMemoryDatastore(conf)
+	ds := datastore.NewInMemory(conf)
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -55,7 +56,7 @@ func TestStreamDirector(t *testing.T) {
 	clientConnections := conn.NewClientConnections()
 	clientConnections.RegisterNode("praefect-internal-1", fmt.Sprintf("tcp://%s", address), "token")
 
-	coordinator := NewCoordinator(log.Default(), datastore, clientConnections, conf)
+	coordinator := NewCoordinator(log.Default(), ds, clientConnections, conf)
 	require.NoError(t, coordinator.RegisterProtos(protoregistry.GitalyProtoFileDescriptors...))
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
@@ -86,21 +87,21 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "praefect-internal-1", rewrittenRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
-	jobs, err := datastore.GetJobs(JobStatePending, 1, 10)
+	jobs, err := ds.GetJobs(datastore.JobStatePending, 1, 10)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
-	targetNode, err := datastore.GetStorageNode(1)
+	targetNode, err := ds.GetStorageNode(1)
 	require.NoError(t, err)
-	sourceNode, err := datastore.GetStorageNode(0)
+	sourceNode, err := ds.GetStorageNode(0)
 	require.NoError(t, err)
 
-	expectedJob := ReplJob{
-		Change:     UpdateRepo,
+	expectedJob := datastore.ReplJob{
+		Change:     datastore.UpdateRepo,
 		ID:         1,
 		TargetNode: targetNode,
 		SourceNode: sourceNode,
-		State:      JobStatePending,
+		State:      datastore.JobStatePending,
 		Repository: models.Repository{RelativePath: targetRepo.RelativePath, Primary: sourceNode, Replicas: []models.Node{targetNode}},
 	}
 
@@ -108,11 +109,11 @@ func TestStreamDirector(t *testing.T) {
 
 	jobUpdateFunc()
 
-	jobs, err = coordinator.datastore.GetJobs(JobStateReady, 1, 10)
+	jobs, err = coordinator.datastore.GetJobs(datastore.JobStateReady, 1, 10)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
-	expectedJob.State = JobStateReady
+	expectedJob.State = datastore.JobStateReady
 	require.Equal(t, expectedJob, jobs[0], "ensure replication job's status has been updatd to JobStateReady")
 }
 

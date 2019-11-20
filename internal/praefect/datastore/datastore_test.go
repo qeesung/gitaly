@@ -1,4 +1,4 @@
-package praefect
+package datastore
 
 import (
 	"testing"
@@ -112,7 +112,7 @@ var operations = []struct {
 // TODO: add SQL datastore flavor
 var flavors = map[string]func() Datastore{
 	"in-memory-datastore": func() Datastore {
-		return NewMemoryDatastore(config.Config{
+		return NewInMemory(config.Config{
 			Nodes: []*models.Node{&stor1, &stor2},
 		})
 	},

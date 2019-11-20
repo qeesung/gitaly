@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -67,11 +68,10 @@ func testConfig(backends int) config.Config {
 
 // setupServer wires all praefect dependencies together via dependency
 // injection
-func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*MemoryDatastore, *conn.ClientConnections, *Server) {
+func setupServer(t testing.TB, conf config.Config, clientCC *conn.ClientConnections, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*datastore.MemoryDatastore, *Server) {
 	var (
-		datastore   = NewMemoryDatastore(conf)
-		clientCC    = conn.NewClientConnections()
-		coordinator = NewCoordinator(l, datastore, clientCC, conf, fds...)
+		ds          = datastore.NewInMemory(conf)
+		coordinator = NewCoordinator(l, ds, clientCC, conf, fds...)
 	)
 
 	var defaultNode *models.Node
@@ -85,7 +85,7 @@ func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descr
 	replmgr := NewReplMgr(
 		defaultNode.Storage,
 		l,
-		datastore,
+		ds,
 		clientCC,
 	)
 	server := NewServer(
@@ -97,7 +97,7 @@ func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descr
 		conf,
 	)
 
-	return datastore, clientCC, server
+	return ds, server
 }
 
 // runPraefectServer runs a praefect server with the provided mock servers.
@@ -105,24 +105,25 @@ func setupServer(t testing.TB, conf config.Config, l *logrus.Entry, fds []*descr
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[int]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, testhelper.Cleanup) {
-	datastore, clientCC, prf := setupServer(t, conf, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
+	clientCC := conn.NewClientConnections()
+	var cleanups []testhelper.Cleanup
+
+	for i, node := range conf.Nodes {
+		backend, ok := backends[i]
+		require.True(t, ok, "missing backend server for node %d", i)
+
+		backendAddr, cleanup := newMockDownstream(t, node.Token, backend)
+		cleanups = append(cleanups, cleanup)
+
+		clientCC.RegisterNode(node.Storage, backendAddr, node.Token)
+		node.Address = backendAddr
+		conf.Nodes[i] = node
+	}
+
+	_, prf := setupServer(t, conf, clientCC, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
 
 	require.Equal(t, len(backends), len(conf.Nodes),
 		"mock server count doesn't match config nodes")
-
-	var cleanups []testhelper.Cleanup
-
-	for id, nodeStorage := range datastore.storageNodes.m {
-		backend, ok := backends[id]
-		require.True(t, ok, "missing backend server for node %d", id)
-
-		backendAddr, cleanup := newMockDownstream(t, nodeStorage.Token, backend)
-		cleanups = append(cleanups, cleanup)
-
-		clientCC.RegisterNode(nodeStorage.Storage, backendAddr, nodeStorage.Token)
-		nodeStorage.Address = backendAddr
-		datastore.storageNodes.m[id] = nodeStorage
-	}
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
@@ -154,27 +155,27 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[in
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
-	datastore := NewMemoryDatastore(conf)
-	logEntry := log.Default()
 	clientCC := conn.NewClientConnections()
-
 	var cleanups []testhelper.Cleanup
 
-	for id, nodeStorage := range datastore.storageNodes.m {
-		_, backend, cleanup := runInternalGitalyServer(t, nodeStorage.Token)
+	for i, node := range conf.Nodes {
+		_, backendAddr, cleanup := runInternalGitalyServer(t, node.Token)
 		cleanups = append(cleanups, cleanup)
 
-		clientCC.RegisterNode(nodeStorage.Storage, backend, nodeStorage.Token)
-		nodeStorage.Address = backend
-		datastore.storageNodes.m[id] = nodeStorage
+		clientCC.RegisterNode(node.Storage, backendAddr, node.Token)
+		node.Address = backendAddr
+		conf.Nodes[i] = node
 	}
 
-	coordinator := NewCoordinator(logEntry, datastore, clientCC, conf, protoregistry.GitalyProtoFileDescriptors...)
+	ds := datastore.NewInMemory(conf)
+	logEntry := log.Default()
+
+	coordinator := NewCoordinator(logEntry, ds, clientCC, conf, protoregistry.GitalyProtoFileDescriptors...)
 
 	replmgr := NewReplMgr(
 		"",
 		logEntry,
-		datastore,
+		ds,
 		clientCC,
 	)
 
