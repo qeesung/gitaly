@@ -47,19 +47,20 @@ func validateCountDivergingCommitsRequest(req *gitalypb.CountDivergingCommitsReq
 	return nil
 }
 
-func buildRevListCountArgs(from, to string, maxCount int) []string {
-	cmdArgs := []string{"rev-list", "--count", "--left-right"}
-	if maxCount != 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--max-count=%d", maxCount))
+func buildRevListCountCmd(from, to string, maxCount int) git.SubCmd {
+	subCmd := git.SubCmd{
+		Name:  "rev-list",
+		Flags: []git.Option{git.Flag{Name: "--count"}, git.Flag{Name: "--left-right"}},
+		Args:  []string{fmt.Sprintf("%s...%s", from, to)},
 	}
-
-	return append(cmdArgs, fmt.Sprintf("%s...%s", from, to))
+	if maxCount != 0 {
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--max-count=%d", maxCount)})
+	}
+	return subCmd
 }
 
 func findLeftRightCount(ctx context.Context, repo *gitalypb.Repository, from, to string, maxCount int) (int32, int32, error) {
-	cmdArgs := buildRevListCountArgs(from, to, maxCount)
-
-	cmd, err := git.Command(ctx, repo, cmdArgs...)
+	cmd, err := git.SafeCmd(ctx, repo, nil, buildRevListCountCmd(from, to, maxCount))
 	if err != nil {
 		return 0, 0, fmt.Errorf("git rev-list cmd: %v", err)
 	}

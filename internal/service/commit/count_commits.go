@@ -20,31 +20,31 @@ func (s *server) CountCommits(ctx context.Context, in *gitalypb.CountCommitsRequ
 		return nil, status.Errorf(codes.InvalidArgument, "CountCommits: %v", err)
 	}
 
-	cmdArgs := []string{"rev-list", "--count"}
+	subCmd := git.SubCmd{Name: "rev-list", Flags: []git.Option{git.Flag{Name: "--count"}}}
 
 	if in.GetAll() {
-		cmdArgs = append(cmdArgs, "--all")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--all"})
 	} else {
-		cmdArgs = append(cmdArgs, string(in.GetRevision()))
+		subCmd.Args = []string{string(in.GetRevision())}
 	}
 
 	if before := in.GetBefore(); before != nil {
-		cmdArgs = append(cmdArgs, "--before="+timestampToRFC3339(before.Seconds))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--before=" + timestampToRFC3339(before.Seconds)})
 	}
 	if after := in.GetAfter(); after != nil {
-		cmdArgs = append(cmdArgs, "--after="+timestampToRFC3339(after.Seconds))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--after=" + timestampToRFC3339(after.Seconds)})
 	}
 	if maxCount := in.GetMaxCount(); maxCount != 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--max-count=%d", maxCount))
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--max-count=%d", maxCount)})
 	}
 	if in.GetFirstParent() {
-		cmdArgs = append(cmdArgs, "--first-parent")
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--first-parent"})
 	}
 	if path := in.GetPath(); path != nil {
-		cmdArgs = append(cmdArgs, "--", string(path))
+		subCmd.PostSepArgs = []string{string(path)}
 	}
 
-	cmd, err := git.Command(ctx, in.Repository, cmdArgs...)
+	cmd, err := git.SafeCmd(ctx, in.Repository, nil, subCmd)
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return nil, err

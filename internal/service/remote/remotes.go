@@ -109,7 +109,7 @@ func (s *server) ListRemotes(req *gitalypb.ListRemotesRequest, stream gitalypb.R
 	repo := req.GetRepository()
 
 	ctx := stream.Context()
-	cmd, err := git.Command(ctx, repo, "remote", "-v")
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{Name: "remote", Flags: []git.Option{git.Flag{Name: "-v"}}})
 	if err != nil {
 		return err
 	}

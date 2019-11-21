@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -63,13 +64,14 @@ func Dial(rawAddress string, connOpts []grpc.DialOption) (*grpc.ClientConn, erro
 			// Use a custom dialer to ensure that we don't experience
 			// issues in environments that have proxy configurations
 			// https://gitlab.com/gitlab-org/gitaly/merge_requests/1072#note_140408512
-			grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (conn net.Conn, err error) {
 				path, err := extractPathFromSocketURL(addr)
 				if err != nil {
 					return nil, err
 				}
 
-				return net.DialTimeout("unix", path, timeout)
+				d := net.Dialer{}
+				return d.DialContext(ctx, "unix", path)
 			}),
 		)
 	}
