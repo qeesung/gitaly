@@ -1,0 +1,5 @@
+---
+title: 'UpdateRemoteMirror: fix default branch resolution'
+merge_request: 1641
+author:
+type: fixed
