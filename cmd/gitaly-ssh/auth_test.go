@@ -20,12 +20,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-func buildGitalySSH(t *testing.T) {
-	// Build the test-binary that we need
-	os.Remove("gitaly-ssh")
-	testhelper.MustRunCommand(nil, nil, "go", "build", "gitlab.com/gitlab-org/gitaly/cmd/gitaly-ssh")
-}
-
 func TestConnectivity(t *testing.T) {
 	config.Config.TLS = config.TLS{
 		CertPath: "testdata/certs/gitalycert.pem",
@@ -37,10 +31,7 @@ func TestConnectivity(t *testing.T) {
 
 	certPoolPath := path.Join(cwd, "testdata/certs")
 
-	buildGitalySSH(t)
 	testRepo := testhelper.TestRepository()
-
-	gitalySSHPath := path.Join(cwd, "gitaly-ssh")
 
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
 
