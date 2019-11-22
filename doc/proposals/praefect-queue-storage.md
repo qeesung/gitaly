@@ -4,11 +4,14 @@
 
 Praefect is the traffic router and replication manager for Gitaly HA.
 Praefect is currently (November 2019) under development and far from
-being a minimum viable HA solution. The router detects Gitaly calls that
-modify repositories, and submits jobs to a job queue indicating that the
+being a minimum viable HA solution. We are at a point where we think we
+need to add database to Praefect's architecture.
+
+The router part of Praefect detects Gitaly calls that modify
+repositories, and submits jobs to a job queue indicating that the
 repository that got modified needs to have its replicas updated. The
-replication manager consumes the job queue. Currently, this queue is
-implemented in-memory in the Praefect process.
+replication manager part consumes the job queue. Currently, this queue
+is implemented in-memory in the Praefect process.
 
 While useful for prototyping, this is unsuitable for real HA Gitaly for
 two reasons:
