@@ -31,7 +31,7 @@ We don't strictly need a queue. We need a shared, persistent database
 that allows the router to mark a repository as being in need of
 replication, and that allows the replication manager to query for
 repositories that need to be replicated -- and to clear them as "needing
-replication" afterwards. A queue is just a natural way of modeling this
+replication" afterwards. A queue is just a way of modeling this
 communication pattern.
 
 ## Does the queue need to have special properties?
