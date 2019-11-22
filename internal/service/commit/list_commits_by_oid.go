@@ -5,7 +5,22 @@ import (
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	listCommitsbyOidHistogram = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gitaly_list_commits_by_oid_request_size",
+			Help:    "Number of commits requested in a ListCommitsByOid request",
+			Buckets: []float64{0.001, 1, 5, 10, 20},
+		})
+)
+
+func init() {
+	prometheus.MustRegister(listCommitsbyOidHistogram)
+}
 
 func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream gitalypb.CommitService_ListCommitsByOidServer) error {
 	ctx := stream.Context()
@@ -16,6 +31,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 	}
 
 	sender := chunk.New(&commitsByOidSender{stream: stream})
+	listCommitsbyOidHistogram.Observe(float64(len(in.Oid)))
 
 	for _, oid := range in.Oid {
 		commit, err := gitlog.GetCommitCatfile(c, oid)
