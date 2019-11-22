@@ -34,9 +34,9 @@ repositories that need to be replicated -- and to clear them as "needing
 replication" afterwards. A queue is just a way of modeling this
 communication pattern.
 
-## Does the queue need to have special properties?
+## Does the queue database need to have special properties?
 
-Different types of queues make different trade-offs in their semantics
+Different types of databases make different trade-offs in their semantics
 and reliability. For our purposes, the most important thing is that
 **messages get delivered at least once**. Delivering more than once is
 wasteful but otherwise harmless: this is because we are doing idempotent
@@ -87,7 +87,7 @@ self-managed GitLab installations.
 -   Running the queue database should require as little expertise as
     possible, or it should be a commodity component
 
-## Do we have other database needs in Praefect
+## Do we have other database needs in Praefect?
 
 This takes us into YAGNI territory but it's worth considering.
 
