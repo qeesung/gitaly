@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "shared.proto";
+
+service InfoService {
+  rpc ListRepositories(ListRepositoriesRequest) returns (stream ListRepositoriesResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+      scope_level: SERVER
+    };
+  }
+}
+
+message ListRepositoriesRequest{}
+
+message ListRepositoriesResponse{
+  message RepositoryDetails {
+    Repository repository = 1;	
+    string checksum = 2;
+  };
+
+  RepositoryDetails primary = 1;
+  repeated RepositoryDetails replicas = 2;
+}
