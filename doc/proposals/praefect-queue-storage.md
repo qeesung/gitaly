@@ -146,10 +146,32 @@ Con:
 -   Would be new to GitLab: no development experience nor operational
     experience
 
-### ... ?
+### SQLite or BoltDB
+
+Embedded databases such as SQLite or BoltDB don't meet our requirements
+because we need shared access. Being embedded implies you don't have to
+go over a network, while going over a network is an essential feature
+for us: this enables us to have multiple machines running Praefect.
+
+### Consul
+
+Consul is something that GitLab already relies on. You could consider it
+a database although it is not presented as that by it authors. The
+advertised use cases are service discovery and having service mesh.
+
+Consul does contain a key-value store you can use to store values
+smaller than 512KB in. But the [documentation
+states](https://www.consul.io/docs/install/performance.html#memory-requirements):
+
+> NOTE: Consul is not designed to serve as a general purpose database,
+> and you should keep this in mind when choosing what data are populated
+> to the key/value store.
 
 ## Conclusion
 
 I am strongly leaning towards Postgres because it seems like a safe,
 boring choice. It has strong persistence and it is generic, which is
 useful because we don't know what our needs are yet.
+
+Running your own HA Postgres is challenging but it's a challenge you
+need to take on anyway when you deploy HA GitLab.
