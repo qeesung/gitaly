@@ -54,7 +54,7 @@ second. Each job may need multiple writes as it progresses through
 different states; say 5 state changes. That makes 1500 writes per
 second.
 
-Note that we have room to manoeuver with sharding. Contrary to the SQL
+Note that we have room to maneuver with sharding. Contrary to the SQL
 database of GitLab itself, which is more or less monolithic across all
 projects, there is no functional requirement to co-locate any two
 repositories on the same Gitaly server, nor on the same Praefect
