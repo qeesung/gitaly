@@ -3,20 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
+	"gitlab.com/gitlab-org/labkit/monitoring"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -36,28 +33,6 @@ func loadConfig(configPath string) error {
 	}
 
 	return config.Validate()
-}
-
-// registerServerVersionPromGauge registers a label with the current server version
-// making it easy to see what versions of Gitaly are running across a cluster
-func registerServerVersionPromGauge() {
-	gitVersion, err := git.Version()
-	if err != nil {
-		fmt.Printf("git version: %v\n", err)
-		os.Exit(1)
-	}
-	gitlabBuildInfoGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gitlab_build_info",
-		Help: "Current build info for this GitLab Service",
-		ConstLabels: prometheus.Labels{
-			"version":     version.GetVersion(),
-			"built":       version.GetBuildTime(),
-			"git_version": gitVersion,
-		},
-	})
-
-	prometheus.MustRegister(gitlabBuildInfoGauge)
-	gitlabBuildInfoGauge.Set(1)
 }
 
 func flagUsage() {
@@ -89,7 +64,6 @@ func main() {
 	}
 
 	log.WithField("version", version.GetVersionString()).Info("Starting Gitaly")
-	registerServerVersionPromGauge()
 
 	configPath := flag.Arg(0)
 	if err := loadConfig(configPath); err != nil {
@@ -134,15 +108,22 @@ func run(b *bootstrap.Bootstrap) error {
 				return err
 			}
 
+			gitVersion, err := git.Version()
+			if err != nil {
+				return err
+			}
+
 			log.WithField("address", addr).Info("starting prometheus listener")
 
-			promMux := http.NewServeMux()
-			promMux.Handle("/metrics", promhttp.Handler())
-
-			server.AddPprofHandlers(promMux)
-
 			go func() {
-				if err := http.Serve(l, promMux); err != nil {
+				if err := monitoring.Serve(
+					monitoring.WithListener(l),
+					monitoring.WithBuildInformation(
+						version.GetVersion(),
+						version.GetBuildTime()),
+					monitoring.WithBuildExtraLabels(
+						map[string]string{"git_version": gitVersion},
+					)); err != nil {
 					log.WithError(err).Error("Unable to serve prometheus")
 				}
 			}()

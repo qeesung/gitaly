@@ -6,15 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
@@ -24,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
+	"gitlab.com/gitlab-org/labkit/monitoring"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -80,15 +77,16 @@ func configure() (config.Config, error) {
 
 	if conf.PrometheusListenAddr != "" {
 		logger.WithField("address", conf.PrometheusListenAddr).Info("Starting prometheus listener")
-		promMux := http.NewServeMux()
-		promMux.Handle("/metrics", promhttp.Handler())
 
 		go func() {
-			http.ListenAndServe(conf.PrometheusListenAddr, promMux)
+			if err := monitoring.Serve(
+				monitoring.WithListenerAddress(conf.PrometheusListenAddr),
+				monitoring.WithBuildInformation(praefect.GetVersion(), praefect.GetBuildTime())); err != nil {
+				logger.WithError(err).Errorf("Unable to start healthcheck listener: %v", conf.PrometheusListenAddr)
+			}
 		}()
 	}
 
-	registerServerVersionPromGauge()
 	logger.WithField("version", praefect.GetVersionString()).Info("Starting Praefect")
 
 	sentry.ConfigureSentry(version.GetVersion(), conf.Sentry)
@@ -179,20 +177,4 @@ func getListeners(socketPath, listenAddr string) ([]net.Listener, error) {
 	}
 
 	return listeners, nil
-}
-
-// registerServerVersionPromGauge registers a label with the current server version
-// making it easy to see what versions of Gitaly are running across a cluster
-func registerServerVersionPromGauge() {
-	gitlabBuildInfoGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gitlab_build_info",
-		Help: "Current build info for this GitLab Service",
-		ConstLabels: prometheus.Labels{
-			"version": praefect.GetVersion(),
-			"built":   praefect.GetBuildTime(),
-		},
-	})
-
-	prometheus.MustRegister(gitlabBuildInfoGauge)
-	gitlabBuildInfoGauge.Set(1)
 }
