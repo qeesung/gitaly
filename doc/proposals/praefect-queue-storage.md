@@ -47,11 +47,12 @@ If a message gets lost, that can lead to data loss.
 ## What sort of throughput do we expect?
 
 Currently (November 2019), gitlab.com has about 5000 Gitaly calls per
-second. A [loose
-analysis](https://prometheus.gprd.gitlab.net/graph?g0.range_input=1h&g0.expr=gitaly%3Agrpc_server_handled_total%3Arate1m%7B%20grpc_method!~%22.*TreeEntr.*%22%2Cgrpc_method!~%22.*Ancestor.*%22%2C%20grpc_method!~%22.*(Get%7CDiff%7CExists%7CUpload%7CFind%7CList%7CCount%7CStats%7CHasLocal%7CLastCommit%7CDelta%7CFilter%7CLanguage%7CServerInfo).*%22%2Cgrpc_service!~%22.*.v1.Health%22%7D&g0.tab=0)
-suggests about 10% would cause replication jobs to be created. So if we
-had one "queue database" behind Praefect on gitlab.com, we would be
-inserting 500 jobs per second.
+second. About 300 of those [are labeled as
+"mutators"](https://prometheus.gprd.gitlab.net/graph?g0.range_input=7d&g0.expr=sum(rate(gitaly_cacheinvalidator_optype_total%5B5m%5D))%20by%20(type)&g0.tab=0),
+which suggests that today we'd see about 300 replication jobs per
+second. Each job may need multiple writes as it progresses through
+different states; say 5 state changes. That makes 1500 writes per
+second.
 
 Note that we have room to manoeuver with sharding. Contrary to the SQL
 database of GitLab itself, which is more or less monolithic across all
