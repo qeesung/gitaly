@@ -18,14 +18,15 @@ func TestGRPCMetadataFeatureFlag(t *testing.T) {
 		{"flag", nil, false},
 		{"flag", map[string]string{"flag": "true"}, false},
 		{"flag", map[string]string{"gitaly-feature-flag": "TRUE"}, false},
-		{"flag", map[string]string{"gitaly-feature-flag": "true"}, true},
+		{"flag_underscore", map[string]string{"gitaly-feature-flag-underscore": "true"}, true},
+		{"flag-dash", map[string]string{"gitaly-feature-flag-dash": "true"}, true},
 	}
 
 	for _, tc := range testCases {
 		md := metadata.New(tc.headers)
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 
-		assert.Equal(t, tc.enabled, IsEnabled(ctx, tc.flag))
-		assert.NotEqual(t, tc.enabled, IsDisabled(ctx, tc.flag))
+		assert.Equal(t, tc.enabled, IsEnabled(ctx, tc.flag), tc.flag)
+		assert.NotEqual(t, tc.enabled, IsDisabled(ctx, tc.flag), tc.flag)
 	}
 }
