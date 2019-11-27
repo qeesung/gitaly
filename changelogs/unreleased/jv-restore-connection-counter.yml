@@ -1,0 +1,5 @@
+---
+title: Restore gitaly_connections_total prometheus metric
+merge_request: 1657
+author:
+type: fixed
