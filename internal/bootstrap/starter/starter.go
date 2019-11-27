@@ -3,6 +3,7 @@ package starter
 import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
+	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
 )
 
 const (
@@ -40,6 +41,7 @@ func New(cfg Config, servers bootstrap.GracefulStoppableServer) bootstrap.Starte
 		}
 
 		logrus.WithField("address", cfg.Addr).Infof("listening at %s address", cfg.Name)
+		l = connectioncounter.New(cfg.family(), l)
 
 		go func() {
 			errCh <- servers.Serve(l, cfg.isSecure())
