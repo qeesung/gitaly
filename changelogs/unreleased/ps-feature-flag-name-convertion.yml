@@ -1,0 +1,5 @@
+---
+title: 'Gitaly feature flags are broken: convert underscores to dashes'
+merge_request: 1659
+author:
+type: fixed

@@ -3,6 +3,7 @@ package featureflag
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -34,5 +35,5 @@ func IsDisabled(ctx context.Context, flag string) bool {
 
 // HeaderKey returns the feature flag key to be used in the metadata map
 func HeaderKey(flag string) string {
-	return fmt.Sprintf("gitaly-feature-%s", flag)
+	return fmt.Sprintf("gitaly-feature-%s", strings.ReplaceAll(flag, "_", "-"))
 }
