@@ -3,7 +3,6 @@ package ssh
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -11,10 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-)
-
-var (
-	uploadPackRequestTimeout = 10 * time.Minute
 )
 
 func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) error {
@@ -27,14 +22,14 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 		return helper.ErrInvalidArgument(err)
 	}
 
-	if err = sshUploadPack(stream, req); err != nil {
+	if err = s.sshUploadPack(stream, req); err != nil {
 		return helper.ErrInternal(err)
 	}
 
 	return nil
 }
 
-func sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb.SSHUploadPackRequest) error {
+func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb.SSHUploadPackRequest) error {
 	ctx, cancelCtx := context.WithCancel(stream.Context())
 	defer cancelCtx()
 
@@ -77,7 +72,7 @@ func sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, req *gitalypb
 	// "flush" tells the server it can terminate, while "done" tells it to start
 	// generating a packfile. Add a timeout to the second case to mitigate
 	// use-after-check attacks.
-	go monitor.Monitor(pktline.PktDone(), uploadPackRequestTimeout, cancelCtx)
+	go monitor.Monitor(pktline.PktDone(), s.uploadPackRequestTimeout, cancelCtx)
 
 	if err := cmd.Wait(); err != nil {
 		if status, ok := command.ExitStatus(err); ok {

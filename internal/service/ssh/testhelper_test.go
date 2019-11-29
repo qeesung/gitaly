@@ -57,7 +57,7 @@ func mustGetCwd() string {
 	return wd
 }
 
-func runSSHServer(t *testing.T) (*grpc.Server, string) {
+func runSSHServer(t *testing.T, serverOpts ...ServerOpt) (*grpc.Server, string) {
 	server := testhelper.NewTestGrpcServer(t, nil, nil)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
@@ -66,7 +66,7 @@ func runSSHServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterSSHServiceServer(server, NewServer())
+	gitalypb.RegisterSSHServiceServer(server, NewServer(serverOpts...))
 	reflection.Register(server)
 
 	go server.Serve(listener)

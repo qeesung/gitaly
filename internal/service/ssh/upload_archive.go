@@ -3,7 +3,6 @@ package ssh
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -11,10 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
-)
-
-var (
-	uploadArchiveRequestTimeout = time.Minute
 )
 
 func (s *server) SSHUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer) error {
@@ -26,14 +21,14 @@ func (s *server) SSHUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 		return helper.ErrInvalidArgument(err)
 	}
 
-	if err = sshUploadArchive(stream, req); err != nil {
+	if err = s.sshUploadArchive(stream, req); err != nil {
 		return helper.ErrInternal(err)
 	}
 
 	return nil
 }
 
-func sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer, req *gitalypb.SSHUploadArchiveRequest) error {
+func (s *server) sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer, req *gitalypb.SSHUploadArchiveRequest) error {
 	ctx, cancelCtx := context.WithCancel(stream.Context())
 	defer cancelCtx()
 
@@ -66,7 +61,7 @@ func sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer, req *gi
 	//
 	// Place a timeout on receiving the flush packet to mitigate use-after-check
 	// attacks
-	go monitor.Monitor(pktline.PktFlush(), uploadArchiveRequestTimeout, cancelCtx)
+	go monitor.Monitor(pktline.PktFlush(), s.uploadArchiveRequestTimeout, cancelCtx)
 
 	if err := cmd.Wait(); err != nil {
 		if status, ok := command.ExitStatus(err); ok {

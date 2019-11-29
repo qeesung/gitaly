@@ -20,15 +20,9 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-var (
-	originalUploadPackRequestTimeout = uploadPackRequestTimeout
-)
-
 func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
-	uploadPackRequestTimeout = time.Millisecond
-	defer func() { uploadPackRequestTimeout = originalUploadPackRequestTimeout }()
+	server, serverSocketPath := runSSHServer(t, WithUploadPackRequestTimeout(10*time.Microsecond))
 
-	server, serverSocketPath := runSSHServer(t)
 	defer server.Stop()
 
 	client, conn := newSSHClient(t, serverSocketPath)
