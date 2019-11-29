@@ -3,7 +3,6 @@ package ssh
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"testing"
@@ -32,9 +31,14 @@ func TestFailedUploadArchiveRequestDueToTimeout(t *testing.T) {
 	// The first request is not limited by timeout, but also not under attacker control
 	require.NoError(t, stream.Send(&gitalypb.SSHUploadArchiveRequest{Repository: testRepo}))
 
-	// The RPC should time out after a short period of sending no data
-	err = testUploadArchiveFailedResponse(t, stream)
-	require.Equal(t, io.EOF, err)
+	requireFailedSSHStream(t, func() (int32, error) {
+		resp, err := stream.Recv()
+		if status := resp.GetExitStatus(); status != nil {
+			return status.Value, err
+		}
+
+		return 0, err
+	})
 }
 
 func TestFailedUploadArchiveRequestDueToValidationError(t *testing.T) {

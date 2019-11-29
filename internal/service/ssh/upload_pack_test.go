@@ -37,9 +37,38 @@ func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
 	// The first request is not limited by timeout, but also not under attacker control
 	require.NoError(t, stream.Send(&gitalypb.SSHUploadPackRequest{Repository: testRepo}))
 
-	// The RPC should time out after a short period of sending no data
-	err = testPostUploadPackFailedResponse(t, stream)
-	require.Equal(t, io.EOF, err)
+	requireFailedSSHStream(t, func() (int32, error) {
+		resp, err := stream.Recv()
+		if status := resp.GetExitStatus(); status != nil {
+			return status.Value, err
+		}
+
+		return 0, err
+	})
+}
+
+func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
+	type result struct {
+		code int32
+		err  error
+	}
+	resCh := make(chan result, 1)
+
+	go func() {
+		var res result
+		for res.err == nil {
+			res.code, res.err = recv()
+		}
+		resCh <- res
+	}()
+
+	select {
+	case res := <-resCh:
+		require.Equal(t, io.EOF, res.err)
+		require.NotEqual(t, 0, res.code, "exit status")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for SSH stream")
+	}
 }
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
