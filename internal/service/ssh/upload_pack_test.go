@@ -37,6 +37,9 @@ func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
 	// The first request is not limited by timeout, but also not under attacker control
 	require.NoError(t, stream.Send(&gitalypb.SSHUploadPackRequest{Repository: testRepo}))
 
+	// Because the client says nothing, the server would block. Because of
+	// the timeout, it won't block forever, and return with a non-zero exit
+	// code instead.
 	requireFailedSSHStream(t, func() (int32, error) {
 		resp, err := stream.Recv()
 		if status := resp.GetExitStatus(); status != nil {
