@@ -42,11 +42,16 @@ func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
 	// code instead.
 	requireFailedSSHStream(t, func() (int32, error) {
 		resp, err := stream.Recv()
-		if status := resp.GetExitStatus(); status != nil {
-			return status.Value, err
+		if err != nil {
+			return 0, err
 		}
 
-		return 0, err
+		var code int32
+		if status := resp.GetExitStatus(); status != nil {
+			code = status.Value
+		}
+
+		return code, nil
 	})
 }
 
