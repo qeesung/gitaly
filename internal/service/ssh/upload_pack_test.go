@@ -56,24 +56,22 @@ func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
 }
 
 func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
-	type result struct {
-		code int32
-		err  error
-	}
-	resCh := make(chan result, 1)
+	done := make(chan struct{})
+	var code int32
+	var err error
 
 	go func() {
-		var res result
-		for res.err == nil {
-			res.code, res.err = recv()
+
+		for err == nil {
+			code, err = recv()
 		}
-		resCh <- res
+		close(done)
 	}()
 
 	select {
-	case res := <-resCh:
-		require.Equal(t, io.EOF, res.err)
-		require.NotEqual(t, 0, res.code, "exit status")
+	case <-done:
+		require.Equal(t, io.EOF, err)
+		require.NotEqual(t, 0, code, "exit status")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for SSH stream")
 	}
