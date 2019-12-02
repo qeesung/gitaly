@@ -61,7 +61,6 @@ func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
 	var err error
 
 	go func() {
-
 		for err == nil {
 			code, err = recv()
 		}
