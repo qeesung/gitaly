@@ -1,18 +1,27 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
+	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 )
 
 func main() {
@@ -41,12 +50,15 @@ func main() {
 		logger.Fatal(errors.New("GITALY_RUBY_DIR not set"))
 	}
 
-	rubyHookPath := filepath.Join(gitlabRubyDir, "gitlab-shell", "hooks", subCmd)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var hookCmd *exec.Cmd
+	conn, err := client.Dial(os.Getenv("GITALY_SOCKET"), dialOpts())
+	if err != nil {
+		logger.Fatalf("error when dialing: %v", err)
+	}
+
+	c := gitalypb.NewHookServiceClient(conn)
 
 	switch subCmd {
 	case "update":
@@ -54,23 +66,109 @@ func main() {
 		if len(args) != 3 {
 			logger.Fatal(errors.New("update hook missing required arguments"))
 		}
+		ref, oldValue, newValue := args[0], args[1], args[2]
 
-		hookCmd = exec.Command(rubyHookPath, args...)
-	case "pre-receive", "post-receive":
-		hookCmd = exec.Command(rubyHookPath)
+		req := &gitalypb.UpdateHookRequest{
+			Repository: &gitalypb.Repository{
+				StorageName:  os.Getenv("GL_REPO_STORAGE"),
+				RelativePath: os.Getenv("GL_REPO_RELATIVE_PATH"),
+				GlRepository: os.Getenv("GL_REPOSITORY"),
+			},
+			KeyId:    os.Getenv("GL_ID"),
+			Ref:      []byte(ref),
+			OldValue: oldValue,
+			NewValue: newValue,
+		}
 
+		resp, err := c.UpdateHook(ctx, req)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		io.Copy(os.Stdout, bytes.NewBuffer(resp.GetStdout()))
+		io.Copy(os.Stderr, bytes.NewBuffer(resp.GetStderr()))
+
+		if !resp.GetSuccess() {
+			os.Exit(1)
+		}
+	case "pre-receive":
+		stdin, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			logger.Fatalf("error when copying from stdin: %v", err)
+		}
+
+		req := &gitalypb.PreReceiveHookRequest{
+			Repository: &gitalypb.Repository{
+				StorageName:  os.Getenv("GL_REPO_STORAGE"),
+				RelativePath: os.Getenv("GL_REPO_RELATIVE_PATH"),
+				GlRepository: os.Getenv("GL_REPOSITORY"),
+			},
+			KeyId:    os.Getenv("GL_ID"),
+			Protocol: os.Getenv("GL_PROTOCOL"),
+			Stdin:    stdin,
+		}
+
+		resp, err := c.PreReceiveHook(ctx, req)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		io.Copy(os.Stdout, bytes.NewBuffer(resp.GetStdout()))
+		io.Copy(os.Stderr, bytes.NewBuffer(resp.GetStderr()))
+
+		if !resp.GetSuccess() {
+			os.Exit(1)
+		}
+	case "post-receive":
+		stdin, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			logger.Fatalf("error when copying from stdin: %v", err)
+		}
+
+		req := &gitalypb.PostReceiveHookRequest{
+			Repository: &gitalypb.Repository{
+				StorageName:  os.Getenv("GL_REPO_STORAGE"),
+				RelativePath: os.Getenv("GL_REPO_RELATIVE_PATH"),
+				GlRepository: os.Getenv("GL_REPOSITORY"),
+			},
+			KeyId: os.Getenv("GL_ID"),
+			Stdin: stdin,
+		}
+
+		resp, err := c.PostReceiveHook(ctx, req)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		io.Copy(os.Stdout, bytes.NewBuffer(resp.GetStdout()))
+		io.Copy(os.Stderr, bytes.NewBuffer(resp.GetStderr()))
+
+		if !resp.GetSuccess() {
+			os.Exit(1)
+		}
 	default:
 		logger.Fatal(errors.New("hook name invalid"))
 	}
+}
 
-	cmd, err := command.New(ctx, hookCmd, os.Stdin, os.Stdout, os.Stderr, os.Environ()...)
-	if err != nil {
-		logger.Fatalf("error when starting command for %v: %v", rubyHookPath, err)
-	}
+func dialOpts() []grpc.DialOption {
+	connOpts := client.DefaultDialOpts
+	connOpts = append(connOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(config.Config.Auth.Token)))
 
-	if err = cmd.Wait(); err != nil {
-		os.Exit(1)
-	}
+	// Add grpc client interceptors
+	connOpts = append(connOpts, grpc.WithStreamInterceptor(
+		grpc_middleware.ChainStreamClient(
+			grpctracing.StreamClientTracingInterceptor(),         // Tracing
+			grpccorrelation.StreamClientCorrelationInterceptor(), // Correlation
+		)),
+
+		grpc.WithUnaryInterceptor(
+			grpc_middleware.ChainUnaryClient(
+				grpctracing.UnaryClientTracingInterceptor(),         // Tracing
+				grpccorrelation.UnaryClientCorrelationInterceptor(), // Correlation
+			)))
+
+	return connOpts
 }
 
 // GitlabShellConfig contains a subset of gitlabshell's config.yml

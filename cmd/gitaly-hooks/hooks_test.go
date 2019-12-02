@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,7 +22,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
+
+	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 )
 
 func TestMain(m *testing.M) {
@@ -41,19 +45,41 @@ func TestHooksPrePostReceive(t *testing.T) {
 	key := 1234
 	glRepository := "some_repo"
 
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
 	tempGitlabShellDir, cleanup := createTempGitlabShellDir(t)
 	defer cleanup()
 
 	changes := "abc"
+	var err error
+
+	oldConfig := config.Config
+
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.BinDir, err = filepath.Abs("../../testdata/gitaly-libexec")
+	require.NoError(t, err)
+	config.Config.Ruby.Dir, err = filepath.Abs("../../ruby")
+	require.NoError(t, err)
+
+	defer func() {
+		config.Config = oldConfig
+	}()
 
 	ts := gitlabTestServer(t, "", "", secretToken, key, glRepository, changes, true)
 	defer ts.Close()
 
 	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
+	srv, socket := runFullServer(t)
+	defer srv.Stop()
+
 	writeShellSecretFile(t, tempGitlabShellDir, secretToken)
 
-	for _, hook := range []string{"pre-receive", "post-receive"} {
-		for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
+	for _, hook := range []string{"post-receive"} {
+		for envName, env := range map[string][]string{
+			"new": env(t, glRepository, tempGitlabShellDir, testRepo.GetStorageName(), testRepo.GetRelativePath(), socket, key),
+			"old": oldEnv(t, glRepository, tempGitlabShellDir, key),
+		} {
 			t.Run(hook+"."+envName, func(t *testing.T) {
 				var stderr, stdout bytes.Buffer
 				stdin := bytes.NewBuffer([]byte(changes))
@@ -63,15 +89,19 @@ func TestHooksPrePostReceive(t *testing.T) {
 				cmd.Stdin = stdin
 				cmd.Env = env
 
-				require.NoError(t, cmd.Run())
+				err := cmd.Run()
+				//	require.NoError(t, cmd.Run())
 				require.Empty(t, stderr.String())
 				require.Empty(t, stdout.String())
+				require.NoError(t, err)
 			})
 		}
 	}
 }
 
 func TestHooksUpdate(t *testing.T) {
+	var err error
+
 	key := 1234
 	glRepository := "some_repo"
 
@@ -79,12 +109,29 @@ func TestHooksUpdate(t *testing.T) {
 	defer cleanup()
 
 	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: "http://www.example.com"})
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
 	writeShellSecretFile(t, tempGitlabShellDir, "the wrong token")
+
+	oldConfig := config.Config
+	defer func() {
+		config.Config = oldConfig
+	}()
+
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.BinDir, err = filepath.Abs("../../testdata/gitaly-libexec")
+	require.NoError(t, err)
+
+	srv, socket := runFullServer(t)
+	defer srv.Stop()
 
 	require.NoError(t, os.MkdirAll(filepath.Join(tempGitlabShellDir, "hooks", "update.d"), 0755))
 	testhelper.MustRunCommand(t, nil, "cp", "testdata/update", filepath.Join(tempGitlabShellDir, "hooks", "update.d", "update"))
 
-	for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
+	for envName, env := range map[string][]string{
+		"new": env(t, glRepository, tempGitlabShellDir, testRepo.GetStorageName(), testRepo.GetRelativePath(), socket, key),
+		"old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
 		t.Run(envName, func(t *testing.T) {
 			refval, oldval, newval := "refval", "oldval", "newval"
 			var stdout, stderr bytes.Buffer
@@ -118,6 +165,9 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	tempGitlabShellDir, cleanup := createTempGitlabShellDir(t)
 	defer cleanup()
 
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
 	// By setting the last parameter to false, the post-receive API call will
 	// send back {"reference_counter_increased": false}, indicating something went wrong
 	// with the call
@@ -128,7 +178,24 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
 	writeShellSecretFile(t, tempGitlabShellDir, secretToken)
 
-	for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
+	oldConfig := config.Config
+
+	var err error
+
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.BinDir, err = filepath.Abs("../../testdata/gitaly-libexec")
+	require.NoError(t, err)
+
+	srv, socket := runFullServer(t)
+	defer srv.Stop()
+
+	defer func() {
+		config.Config = oldConfig
+	}()
+
+	for envName, env := range map[string][]string{
+		"new": env(t, glRepository, tempGitlabShellDir, testRepo.GetStorageName(), testRepo.GetRelativePath(), socket, key),
+		"old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
 		t.Run(envName, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 
@@ -157,12 +224,32 @@ func TestHooksNotAllowed(t *testing.T) {
 	defer cleanup()
 
 	ts := gitlabTestServer(t, "", "", secretToken, key, glRepository, "", true)
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
 	defer ts.Close()
 
 	writeTemporaryConfigFile(t, tempGitlabShellDir, GitlabShellConfig{GitlabURL: ts.URL})
 	writeShellSecretFile(t, tempGitlabShellDir, "the wrong token")
 
-	for envName, env := range map[string][]string{"new": env(t, glRepository, tempGitlabShellDir, key), "old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
+	oldConfig := config.Config
+
+	var err error
+
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.BinDir, err = filepath.Abs("../../testdata/gitaly-libexec")
+	require.NoError(t, err)
+
+	defer func() {
+		config.Config = oldConfig
+	}()
+
+	srv, socket := runFullServer(t)
+	defer srv.Stop()
+
+	for envName, env := range map[string][]string{
+		"new": env(t, glRepository, tempGitlabShellDir, testRepo.GetStorageName(), testRepo.GetRelativePath(), socket, key),
+		"old": oldEnv(t, glRepository, tempGitlabShellDir, key)} {
 		t.Run(envName, func(t *testing.T) {
 			var stderr, stdout bytes.Buffer
 
@@ -226,6 +313,20 @@ func TestCheckBadCreds(t *testing.T) {
 	require.Error(t, cmd.Run())
 	require.Equal(t, "FAILED. code: 401", stderr.String())
 	require.Empty(t, stdout.String())
+}
+
+func runFullServer(t *testing.T) (*grpc.Server, string) {
+	server := serverPkg.NewInsecure(nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", serverSocketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go server.Serve(listener)
+
+	return server, "unix://" + serverSocketPath
 }
 
 func handleAllowed(t *testing.T, secretToken string, key int, glRepository, changes string) func(w http.ResponseWriter, r *http.Request) {
@@ -332,13 +433,16 @@ func writeTemporaryConfigFile(t *testing.T, dir string, config GitlabShellConfig
 	return path
 }
 
-func env(t *testing.T, glRepo, gitlabShellDir string, key int) []string {
+func env(t *testing.T, glRepo, gitlabShellDir, glStorage, glRelativePath, gitalySocket string, key int) []string {
 	rubyDir, err := filepath.Abs("../../ruby")
 	require.NoError(t, err)
 
 	return append(oldEnv(t, glRepo, gitlabShellDir, key), []string{
 		"GITALY_BIN_DIR=testdata/gitaly-libexec",
 		fmt.Sprintf("GITALY_RUBY_DIR=%s", rubyDir),
+		fmt.Sprintf("GL_REPO_STORAGE=%s", glStorage),
+		fmt.Sprintf("GL_REPO_RELATIVE_PATH=%s", glRelativePath),
+		fmt.Sprintf("GITALY_SOCKET=%s", gitalySocket),
 	}...)
 }
 
@@ -351,7 +455,6 @@ func oldEnv(t *testing.T, glRepo, gitlabShellDir string, key int) []string {
 		fmt.Sprintf("GITALY_LOG_DIR=%s", gitlabShellDir),
 		"GITALY_LOG_LEVEL=info",
 		"GITALY_LOG_FORMAT=json",
-		fmt.Sprintf("GITALY_LOG_DIR=%s", gitlabShellDir),
 	}, os.Environ()...)
 }
 
