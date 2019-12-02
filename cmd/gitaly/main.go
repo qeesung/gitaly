@@ -46,6 +46,12 @@ func main() {
 	flag.Usage = flagUsage
 	flag.Parse()
 
+	configPath := flag.Arg(0)
+	if err := loadConfig(configPath); err != nil {
+		log.WithError(err).WithField("config_path", configPath).Fatal("load config")
+	}
+	config.ConfigureLogging()
+
 	// gitaly-wrapper is supposed to set config.EnvUpgradesEnabled in order to enable graceful upgrades
 	_, isWrapped := os.LookupEnv(config.EnvUpgradesEnabled)
 	b, err := bootstrap.New(os.Getenv(config.EnvPidFile), isWrapped)
@@ -66,12 +72,6 @@ func main() {
 
 	log.WithField("version", version.GetVersionString()).Info("Starting Gitaly")
 
-	configPath := flag.Arg(0)
-	if err := loadConfig(configPath); err != nil {
-		log.WithError(err).WithField("config_path", configPath).Fatal("load config")
-	}
-
-	config.ConfigureLogging()
 	sentry.ConfigureSentry(version.GetVersion(), sentry.Config(config.Config.Logging.Sentry))
 	config.ConfigurePrometheus()
 	config.ConfigureConcurrencyLimits()
@@ -145,9 +145,12 @@ func run(b *bootstrap.Bootstrap) error {
 		return fmt.Errorf("unable to start the bootstrap: %v", err)
 	}
 
+	log.Info("Bootstrap started")
+
 	if err := servers.StartRuby(); err != nil {
 		return fmt.Errorf("initialize gitaly-ruby: %v", err)
 	}
 
+	log.Info("Bootstrap waiting")
 	return b.Wait()
 }

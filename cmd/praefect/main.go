@@ -138,7 +138,12 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return fmt.Errorf("unable to start the bootstrap: %v", err)
 	}
 
-	go func() { serverErrors <- b.Wait() }()
+	logger.Info("Bootstrap started")
+
+	go func() {
+		logger.Info("Bootstrap waiting")
+		serverErrors <- b.Wait()
+	}()
 	go func() { serverErrors <- repl.ProcessBacklog(ctx) }()
 
 	go coordinator.FailoverRotation()
