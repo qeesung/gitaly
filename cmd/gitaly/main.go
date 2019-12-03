@@ -46,6 +46,12 @@ func main() {
 	flag.Usage = flagUsage
 	flag.Parse()
 
+	// If invoked with -version
+	if *flagVersion {
+		fmt.Println(version.GetVersionString())
+		os.Exit(0)
+	}
+
 	configPath := flag.Arg(0)
 	if err := loadConfig(configPath); err != nil {
 		log.WithError(err).WithField("config_path", configPath).Fatal("load config")
@@ -57,12 +63,6 @@ func main() {
 	b, err := bootstrap.New(os.Getenv(config.EnvPidFile), isWrapped)
 	if err != nil {
 		log.WithError(err).Fatal("init bootstrap")
-	}
-
-	// If invoked with -version
-	if *flagVersion {
-		fmt.Println(version.GetVersionString())
-		os.Exit(0)
 	}
 
 	if flag.NArg() != 1 || flag.Arg(0) == "" {
