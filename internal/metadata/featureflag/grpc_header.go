@@ -3,6 +3,7 @@ package featureflag
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,9 +26,13 @@ func init() {
 
 // IsEnabled checks if the feature flag is enabled for the passed context.
 // Only return true if the metadata for the feature flag is set to "true"
-func IsEnabled(ctx context.Context, flag string) (enabled bool) {
-	defer func() { flagChecks.WithLabelValues(flag, fmt.Sprintf("%v", enabled)).Inc() }()
+func IsEnabled(ctx context.Context, flag string) bool {
+	enabled := isEnabled(ctx, flag)
+	flagChecks.WithLabelValues(flag, strconv.FormatBool(enabled)).Inc()
+	return enabled
+}
 
+func isEnabled(ctx context.Context, flag string) bool {
 	if flag == "" {
 		return false
 	}
