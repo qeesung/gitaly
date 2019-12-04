@@ -3,14 +3,36 @@ package featureflag
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/metadata"
 )
+
+var (
+	flagChecks = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_feature_flag_checks_total",
+			Help: "Number of enabled/disabled checks for Gitaly server side feature flags",
+		},
+		[]string{"flag", "enabled"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(flagChecks)
+}
 
 // IsEnabled checks if the feature flag is enabled for the passed context.
 // Only return true if the metadata for the feature flag is set to "true"
 func IsEnabled(ctx context.Context, flag string) bool {
+	enabled := isEnabled(ctx, flag)
+	flagChecks.WithLabelValues(flag, strconv.FormatBool(enabled)).Inc()
+	return enabled
+}
+
+func isEnabled(ctx context.Context, flag string) bool {
 	if flag == "" {
 		return false
 	}
