@@ -57,7 +57,6 @@ func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
 
 	check := func(t *testing.T, ctx context.Context, testCases []testCase) {
 		for _, tc := range testCases {
-			tc := tc
 			t.Run(tc.desc, func(t *testing.T) {
 				stream, err := client.FilterShasWithSignatures(ctx)
 				require.NoError(t, err)
@@ -70,19 +69,13 @@ func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
 		}
 	}
 
-	t.Run("parallel", func(t *testing.T) {
-		t.Run("enabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
-			t.Parallel()
+	t.Run("enabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
+		featureCtx := enableFilterShasWithSignaturesGo(ctx)
+		check(t, featureCtx, testCases)
+	})
 
-			featureCtx := enableFilterShasWithSignaturesGo(ctx)
-			check(t, featureCtx, testCases)
-		})
-
-		t.Run("disabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
-			t.Parallel()
-
-			check(t, ctx, testCases)
-		})
+	t.Run("disabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
+		check(t, ctx, testCases)
 	})
 }
 
