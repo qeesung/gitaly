@@ -1,0 +1,5 @@
+---
+title: 'Filter collection of SHAs which has signatures and return those SHAs: go implementation'
+merge_request: 1672
+author:
+type: performance
