@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"context"
 	"io"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,10 +49,7 @@ func verifyFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSigna
 	return nil
 }
 
-func (s *server) filterShasWithSignatures(
-	bidi gitalypb.CommitService_FilterShasWithSignaturesServer,
-	firstRequest *gitalypb.FilterShasWithSignaturesRequest,
-) error {
+func (s *server) filterShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
 	if featureflag.IsEnabled(bidi.Context(), featureflag.FilterShasWithSignaturesGo) {
 		filterShasWithSignaturesRequests.WithLabelValues("go").Inc()
 		return filterShasWithSignaturesGo(bidi, firstRequest)
@@ -63,15 +59,15 @@ func (s *server) filterShasWithSignatures(
 	return filterShasWithSignaturesRuby(s.ruby, bidi, firstRequest)
 }
 
-func filterShasWithSignaturesGo(
-	bidi gitalypb.CommitService_FilterShasWithSignaturesServer,
-	firstRequest *gitalypb.FilterShasWithSignaturesRequest,
-) error {
-	ctx := bidi.Context()
+func filterShasWithSignaturesGo(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
+	c, err := catfile.New(bidi.Context(), firstRequest.GetRepository())
+	if err != nil {
+		return err
+	}
 
 	var request = firstRequest
 	for {
-		shas, err := filterShasWithSignatures(ctx, request.GetRepository(), request.GetShas())
+		shas, err := filterShasWithSignatures(c, request.GetShas())
 		if err != nil {
 			return err
 		}
@@ -91,12 +87,7 @@ func filterShasWithSignaturesGo(
 	}
 }
 
-func filterShasWithSignatures(ctx context.Context, repository *gitalypb.Repository, shas [][]byte) ([][]byte, error) {
-	c, err := catfile.New(ctx, repository)
-	if err != nil {
-		return nil, err
-	}
-
+func filterShasWithSignatures(c *catfile.Batch, shas [][]byte) ([][]byte, error) {
 	var foundShas [][]byte
 	for _, sha := range shas {
 		commit, err := log.GetCommitCatfile(c, string(sha))
@@ -118,11 +109,7 @@ func filterShasWithSignatures(ctx context.Context, repository *gitalypb.Reposito
 	return foundShas, nil
 }
 
-func filterShasWithSignaturesRuby(
-	ruby *rubyserver.Server,
-	bidi gitalypb.CommitService_FilterShasWithSignaturesServer,
-	firstRequest *gitalypb.FilterShasWithSignaturesRequest,
-) error {
+func filterShasWithSignaturesRuby(ruby *rubyserver.Server, bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
 	ctx := bidi.Context()
 	client, err := ruby.CommitServiceClient(ctx)
 	if err != nil {
