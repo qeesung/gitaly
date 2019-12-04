@@ -10,7 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 )
 
 func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
@@ -70,7 +69,7 @@ func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
 	}
 
 	t.Run("enabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
-		featureCtx := enableFilterShasWithSignaturesGo(ctx)
+		featureCtx := featureflag.ContextWithFeatureFlag(ctx, featureflag.FilterShasWithSignaturesGo)
 		check(t, featureCtx, testCases)
 	})
 
@@ -110,10 +109,4 @@ func recvFSWS(stream gitalypb.CommitService_FilterShasWithSignaturesClient) ([][
 		return nil, err
 	}
 	return ret, nil
-}
-
-func enableFilterShasWithSignaturesGo(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
-		featureflag.HeaderKey(featureflag.FilterShasWithSignaturesGo): "true",
-	}))
 }
