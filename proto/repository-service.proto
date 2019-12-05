@@ -206,12 +206,6 @@ service RepositoryService {
       target_repository_field: "1"
     };
   }
-  rpc PreFetch(PreFetchRequest) returns (PreFetchResponse) {
-    option (op_type) = {
-      op: MUTATOR
-      target_repository_field: "1"
-    };
-  }
   rpc FetchHTTPRemote(FetchHTTPRemoteRequest) returns (FetchHTTPRemoteResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -587,14 +581,6 @@ message SearchFilesByContentResponse {
   bytes match_data = 2;
   bool end_of_match = 3;
 }
-
-message PreFetchRequest {
-  Repository source_repository = 1;
-  Repository target_repository = 2;
-  ObjectPool object_pool = 3;
-}
-
-message PreFetchResponse {}
 
 message Remote {
   string url = 1;

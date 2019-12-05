@@ -151,7 +151,6 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"SearchFilesByName":            protoregistry.OpAccessor,
 			"RestoreCustomHooks":           protoregistry.OpMutator,
 			"BackupCustomHooks":            protoregistry.OpAccessor,
-			"PreFetch":                     protoregistry.OpMutator,
 			"FetchHTTPRemote":              protoregistry.OpMutator,
 		},
 		"ServerService": map[string]protoregistry.OpType{
