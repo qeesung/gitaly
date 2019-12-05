@@ -32,7 +32,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 		return err
 	}
 
-	if err = verifyFirstFilterShasWithSignaturesRequest(firstRequest); err != nil {
+	if err = validateFilterShasWithSignaturesRequest(firstRequest); err != nil {
 		return err
 	}
 
@@ -42,7 +42,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	return nil
 }
 
-func verifyFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSignaturesRequest) error {
+func validateFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSignaturesRequest) error {
 	if in.Repository == nil {
 		return status.Errorf(codes.InvalidArgument, "no repository given")
 	}
@@ -52,14 +52,14 @@ func verifyFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSigna
 func (s *server) filterShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
 	if featureflag.IsEnabled(bidi.Context(), featureflag.FilterShasWithSignaturesGo) {
 		filterShasWithSignaturesRequests.WithLabelValues("go").Inc()
-		return filterShasWithSignaturesGo(bidi, firstRequest)
+		return streamShasWithSignatures(bidi, firstRequest)
 	}
 
 	filterShasWithSignaturesRequests.WithLabelValues("ruby").Inc()
 	return filterShasWithSignaturesRuby(s.ruby, bidi, firstRequest)
 }
 
-func filterShasWithSignaturesGo(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
+func streamShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
 	c, err := catfile.New(bidi.Context(), firstRequest.GetRepository())
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func filterShasWithSignaturesGo(bidi gitalypb.CommitService_FilterShasWithSignat
 
 	var request = firstRequest
 	for {
-		shas, err := filterShasWithSignatures(c, request.GetShas())
+		shas, err := filterCommitShasWithSignatures(c, request.GetShas())
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,7 @@ func filterShasWithSignaturesGo(bidi gitalypb.CommitService_FilterShasWithSignat
 	}
 }
 
-func filterShasWithSignatures(c *catfile.Batch, shas [][]byte) ([][]byte, error) {
+func filterCommitShasWithSignatures(c *catfile.Batch, shas [][]byte) ([][]byte, error) {
 	var foundShas [][]byte
 	for _, sha := range shas {
 		commit, err := log.GetCommitCatfile(c, string(sha))
