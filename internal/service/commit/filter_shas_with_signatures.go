@@ -32,7 +32,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 		return err
 	}
 
-	if err = validateFilterShasWithSignaturesRequest(firstRequest); err != nil {
+	if err = validateFirstFilterShasWithSignaturesRequest(firstRequest); err != nil {
 		return err
 	}
 
@@ -42,7 +42,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	return nil
 }
 
-func validateFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSignaturesRequest) error {
+func validateFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSignaturesRequest) error {
 	if in.Repository == nil {
 		return status.Errorf(codes.InvalidArgument, "no repository given")
 	}
