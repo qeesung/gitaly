@@ -1,0 +1,5 @@
+---
+title: 'PreFetch: remove unused RPC'
+merge_request: 1675
+author:
+type: deprecated
