@@ -14,7 +14,7 @@ cmd/gitaly-remote/gitaly-remote
 /internal/service/smarthttp/testdata
 /internal/testhelper/testdata/data
 /internal/testhelper/testdata/gitaly-libexec
-/config.toml
+/*.toml
 /.ruby-bundle
 /ruby/vendor/bundle
 /ruby/.bundle
