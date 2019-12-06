@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	internallog "gitlab.com/gitlab-org/gitaly/internal/config/log"
+	"gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
@@ -30,20 +31,20 @@ var (
 
 // Cfg is a container for all config derived from config.toml.
 type Cfg struct {
-	SocketPath                 string        `toml:"socket_path" split_words:"true"`
-	ListenAddr                 string        `toml:"listen_addr" split_words:"true"`
-	TLSListenAddr              string        `toml:"tls_listen_addr" split_words:"true"`
-	PrometheusListenAddr       string        `toml:"prometheus_listen_addr" split_words:"true"`
-	BinDir                     string        `toml:"bin_dir"`
-	Git                        Git           `toml:"git" envconfig:"git"`
-	Storages                   []Storage     `toml:"storage" envconfig:"storage"`
-	Logging                    Logging       `toml:"logging" envconfig:"logging"`
-	Prometheus                 Prometheus    `toml:"prometheus"`
-	Auth                       auth.Config   `toml:"auth"`
-	TLS                        TLS           `toml:"tls"`
-	Ruby                       Ruby          `toml:"gitaly-ruby"`
-	GitlabShell                GitlabShell   `toml:"gitlab-shell"`
-	Concurrency                []Concurrency `toml:"concurrency"`
+	SocketPath                 string            `toml:"socket_path" split_words:"true"`
+	ListenAddr                 string            `toml:"listen_addr" split_words:"true"`
+	TLSListenAddr              string            `toml:"tls_listen_addr" split_words:"true"`
+	PrometheusListenAddr       string            `toml:"prometheus_listen_addr" split_words:"true"`
+	BinDir                     string            `toml:"bin_dir"`
+	Git                        Git               `toml:"git" envconfig:"git"`
+	Storages                   []Storage         `toml:"storage" envconfig:"storage"`
+	Logging                    Logging           `toml:"logging" envconfig:"logging"`
+	Prometheus                 prometheus.Config `toml:"prometheus"`
+	Auth                       auth.Config       `toml:"auth"`
+	TLS                        TLS               `toml:"tls"`
+	Ruby                       Ruby              `toml:"gitaly-ruby"`
+	GitlabShell                GitlabShell       `toml:"gitlab-shell"`
+	Concurrency                []Concurrency     `toml:"concurrency"`
 	GracefulRestartTimeout     time.Duration
 	GracefulRestartTimeoutToml duration `toml:"graceful_restart_timeout"`
 	InternalSocketDir          string   `toml:"internal_socket_dir"`
@@ -94,11 +95,6 @@ type Logging struct {
 	Sentry
 
 	RubySentryDSN string `toml:"ruby_sentry_dsn"`
-}
-
-// Prometheus contains additional configuration data for prometheus
-type Prometheus struct {
-	GRPCLatencyBuckets []float64 `toml:"grpc_latency_buckets"`
 }
 
 // Concurrency allows endpoints to be limited to a maximum concurrency per repo

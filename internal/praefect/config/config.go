@@ -9,6 +9,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
+	"gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
@@ -20,12 +21,13 @@ type Config struct {
 	VirtualStorages []*VirtualStorage `toml:"virtual_storage"`
 	//TODO: Remove VirtualStorageName and Nodes once omnibus and gdk are updated with support for
 	// VirtualStorages
-	VirtualStorageName   string         `toml:"virtual_storage_name"`
-	Nodes                []*models.Node `toml:"node"`
-	Logging              log.Config     `toml:"logging"`
-	Sentry               sentry.Config  `toml:"sentry"`
-	PrometheusListenAddr string         `toml:"prometheus_listen_addr"`
-	Auth                 auth.Config    `toml:"auth"`
+	VirtualStorageName   string            `toml:"virtual_storage_name"`
+	Nodes                []*models.Node    `toml:"node"`
+	Logging              log.Config        `toml:"logging"`
+	Sentry               sentry.Config     `toml:"sentry"`
+	PrometheusListenAddr string            `toml:"prometheus_listen_addr"`
+	Prometheus           prometheus.Config `toml:"prometheus"`
+	Auth                 auth.Config       `toml:"auth"`
 }
 
 // VirtualStorage represents a set of nodes for a storage

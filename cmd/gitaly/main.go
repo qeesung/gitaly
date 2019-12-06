@@ -71,7 +71,7 @@ func main() {
 
 	config.ConfigureLogging()
 	sentry.ConfigureSentry(version.GetVersion(), sentry.Config(config.Config.Logging.Sentry))
-	config.ConfigurePrometheus()
+	config.Config.Prometheus.Configure()
 	config.ConfigureConcurrencyLimits()
 	tracing.Initialize(tracing.WithServiceName("gitaly"))
 

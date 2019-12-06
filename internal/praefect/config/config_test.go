@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
+	gitaly_prometheus "gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
@@ -163,6 +164,9 @@ func TestConfigParsing(t *testing.T) {
 							},
 						},
 					},
+				},
+				Prometheus: gitaly_prometheus.Config{
+					GRPCLatencyBuckets: []float64{0.1, 0.2, 0.3},
 				},
 			},
 		},

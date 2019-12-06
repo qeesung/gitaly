@@ -75,6 +75,7 @@ func configure() (config.Config, error) {
 
 	if conf.PrometheusListenAddr != "" {
 		logger.WithField("address", conf.PrometheusListenAddr).Info("Starting prometheus listener")
+		conf.Prometheus.Configure()
 
 		go func() {
 			if err := monitoring.Serve(

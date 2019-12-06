@@ -25,3 +25,6 @@ name = "praefect"
   [[virtual_storage.node]]
     address = "tcp://gitaly-internal-3.example.com"
     storage = "praefect-internal-3"
+
+[prometheus]
+  grpc_latency_buckets = [0.1, 0.2, 0.3] 
