@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/internal/ps"
 )
 
@@ -35,7 +35,7 @@ func main() {
 	log.Info("Wrapper started")
 
 	if pidFile() == "" {
-		log.Fatalf("missing pid file ENV variable %q", config.EnvPidFile)
+		log.Fatalf("missing pid file ENV variable %q", bootstrap.EnvPidFile)
 	}
 
 	log.WithField("pid_file", pidFile()).Info("finding gitaly")
@@ -91,7 +91,7 @@ func findGitaly() (*os.Process, error) {
 
 func spawnGitaly(bin string, args []string) (*os.Process, error) {
 	cmd := exec.Command(bin, args...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=true", config.EnvUpgradesEnabled))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=true", bootstrap.EnvUpgradesEnabled))
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -153,7 +153,7 @@ func isGitaly(p *os.Process, gitalyBin string) bool {
 }
 
 func pidFile() string {
-	return os.Getenv(config.EnvPidFile)
+	return os.Getenv(bootstrap.EnvPidFile)
 }
 
 func jsonLogging() bool {

@@ -13,6 +13,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
+const (
+	// EnvPidFile is the name of the environment variable containing the pid file path
+	EnvPidFile = "GITALY_PID_FILE"
+	// EnvUpgradesEnabled is an environment variable that when defined gitaly must enable graceful upgrades on SIGHUP
+	EnvUpgradesEnabled = "GITALY_UPGRADES_ENABLED"
+)
+
 // Bootstrap handles graceful upgrades
 type Bootstrap struct {
 	// StopAction will be invoked during a graceful stop. It must wait until the shutdown is completed
@@ -54,7 +61,11 @@ type upgrader interface {
 // * upg.Exit() channel in p1 will be closed now and p1 can gracefully terminate already accepted connections
 // * upgrades cannot starts again if p1 and p2 are both running, an hard termination should be scheduled to overcome
 //   freezes during a graceful shutdown
-func New(pidFile string, upgradesEnabled bool) (*Bootstrap, error) {
+// gitaly-wrapper is supposed to set EnvUpgradesEnabled in order to enable graceful upgrades
+func New() (*Bootstrap, error) {
+	pidFile := os.Getenv(EnvPidFile)
+	_, upgradesEnabled := os.LookupEnv(EnvUpgradesEnabled)
+
 	// PIDFile is optional, if provided tableflip will keep it updated
 	upg, err := tableflip.New(tableflip.Options{PIDFile: pidFile})
 	if err != nil {

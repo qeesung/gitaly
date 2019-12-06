@@ -1,0 +1,5 @@
+---
+title: Move bootstrap env vars into bootstrap constructor
+merge_request: 1670
+author:
+type: other
