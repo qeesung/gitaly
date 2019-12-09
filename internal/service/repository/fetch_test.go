@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	gitLog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
@@ -187,10 +188,13 @@ func runFullServer(t *testing.T) (*grpc.Server, string) {
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
+	//listen on internal socket
+	internalListener, err := net.Listen("unix", config.GitalyInternalSocketPath())
+	require.NoError(t, err)
+
+	go server.Serve(internalListener)
 	go server.Serve(listener)
 
 	return server, "unix://" + serverSocketPath

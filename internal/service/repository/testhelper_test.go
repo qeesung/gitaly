@@ -42,6 +42,7 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.Reposi
 }
 
 var NewRepositoryClient = newRepositoryClient
+var RunRepoServer = runRepoServer
 
 func runRepoServer(t *testing.T) (*grpc.Server, string) {
 	streamInt := []grpc.StreamServerInterceptor{auth.StreamServerInterceptor(config.Config.Auth)}
