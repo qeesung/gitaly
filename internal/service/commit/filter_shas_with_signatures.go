@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"errors"
 	"io"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,8 +11,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var filterShasWithSignaturesRequests = prometheus.NewCounterVec(
@@ -33,7 +32,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	}
 
 	if err = validateFirstFilterShasWithSignaturesRequest(firstRequest); err != nil {
-		return err
+		return helper.ErrInvalidArgument(err)
 	}
 
 	if err := s.filterShasWithSignatures(bidi, firstRequest); err != nil {
@@ -44,7 +43,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 
 func validateFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSignaturesRequest) error {
 	if in.Repository == nil {
-		return status.Errorf(codes.InvalidArgument, "no repository given")
+		return errors.New("no repository given")
 	}
 	return nil
 }
