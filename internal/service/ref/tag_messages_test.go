@@ -58,21 +58,13 @@ func TestSuccessfulGetTagMessagesRequest(t *testing.T) {
 			return ctx
 		},
 	} {
-		title := title
-		ctxModifier := ctxModifier
+		t.Run(title, func(t *testing.T) {
+			c, err := client.GetTagMessages(ctxModifier(ctx), request)
+			require.NoError(t, err)
 
-		// all sub-tests are read-only
-		t.Run("parallel", func(t *testing.T) {
-			t.Run(title, func(t *testing.T) {
-				t.Parallel()
+			fetchedMessages := readAllMessagesFromClient(t, c)
 
-				c, err := client.GetTagMessages(ctxModifier(ctx), request)
-				require.NoError(t, err)
-
-				fetchedMessages := readAllMessagesFromClient(t, c)
-
-				require.Equal(t, expectedMessages, fetchedMessages)
-			})
+			require.Equal(t, expectedMessages, fetchedMessages)
 		})
 	}
 }

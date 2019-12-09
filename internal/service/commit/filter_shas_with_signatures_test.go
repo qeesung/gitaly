@@ -1,10 +1,12 @@
 package commit
 
 import (
+	"context"
 	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -23,11 +25,13 @@ func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	testCases := []struct {
+	type testCase struct {
 		desc string
 		in   [][]byte
 		out  [][]byte
-	}{
+	}
+
+	testCases := []testCase{
 		{
 			desc: "3 shas, none signed",
 			in:   [][]byte{[]byte("6907208d755b60ebeacb2e9dfea74c92c3449a1f"), []byte("c347ca2e140aa667b968e51ed0ffe055501fe4f4"), []byte("d59c60028b053793cecfb4022de34602e1a9218e")},
@@ -50,17 +54,28 @@ func TestFilterShasWithSignaturesSuccessful(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			stream, err := client.FilterShasWithSignatures(ctx)
-			require.NoError(t, err)
-			require.NoError(t, stream.Send(&gitalypb.FilterShasWithSignaturesRequest{Repository: testRepo, Shas: testCase.in}))
-			require.NoError(t, stream.CloseSend())
-			recvOut, err := recvFSWS(stream)
-			require.NoError(t, err)
-			require.Equal(t, testCase.out, recvOut)
-		})
+	check := func(t *testing.T, ctx context.Context, testCases []testCase) {
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				stream, err := client.FilterShasWithSignatures(ctx)
+				require.NoError(t, err)
+				require.NoError(t, stream.Send(&gitalypb.FilterShasWithSignaturesRequest{Repository: testRepo, Shas: tc.in}))
+				require.NoError(t, stream.CloseSend())
+				recvOut, err := recvFSWS(stream)
+				require.NoError(t, err)
+				require.Equal(t, tc.out, recvOut)
+			})
+		}
 	}
+
+	t.Run("enabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
+		featureCtx := featureflag.ContextWithFeatureFlag(ctx, featureflag.FilterShasWithSignaturesGo)
+		check(t, featureCtx, testCases)
+	})
+
+	t.Run("disabled_feature_FilterShasWithSignaturesGo", func(t *testing.T) {
+		check(t, ctx, testCases)
+	})
 }
 
 func TestFilterShasWithSignaturesValidationError(t *testing.T) {
