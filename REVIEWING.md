@@ -13,26 +13,25 @@ The Gitaly team uses the following process:
 With larger changes feel free to use the traditional author-reviewer
 1-author-reviewer 1-reviewer 2-author-reviewer 2-cycle.
 
-# Tips for streamlined and thorough reviews
+## Tips for streamlined and thorough reviews
 
 Goals of these tips:
 
 1. Streamline the review and acceptance process: improve throughput
 2. Ensure a thorough review: minimize the number of problems that are discovered after merging
 
-## Roles
+### Roles
 
 There is one **contributor**: the person who owns the MR and is trying to get it
 merged. There is at least one **reviewer**.
 
-Some main review criteria:
+The main review criteria are:
 
-- readability: humans should be able to understand the code after this change is
-  applied
-- correctness: the code behaves the way the contributor wants it to
-- is this change what we want: do we want to do this?
+- **readability**: can humans understand the code?
+- **correctness**: will a computer do the right thing when running the code?
+- **desirability**: do we want this change?
 
-### Contributor
+### Tips for the Contributor
 
 The contributor has a dual role. They are driving the change in the MR, but they 
 are also the **first reviewer** of the MR. Below you will find some tips for reviewing
@@ -55,15 +54,18 @@ going on.
 After you have read the diff of your MR in the GitLab UI, take a moment
 to think what the title of your MR should be, and update the MR title if needed.
 
+Imagine your title appearing as a [CHANGELOG](CHANGELOG.md) entry.
+Will your title give a good indication of what changed?
+
 #### Your MR description should pass the lunch test
 
 Imagine you are having lunch with a colleague and they ask you what you are
 working on. You want to tell them about your MR. What do you say to them? This is
 roughly what should go in your MR description.
 
-Note that you would probably tell your colleague more than just the title of the 
-MR. And also more than "I'm fixing issue 1234". On the other hand it should also
-not be a long story because you have no time to tell that over lunch.
+Note that you would probably tell your colleague more than just the
+title of the MR. And also more than "I'm fixing issue 1234". The
+description should be a summary of _what_ is changing and _why_
 
 #### Leave notes on your MR as you self-review it
 
@@ -82,9 +84,10 @@ MR to another reviewer.
 - The MR description explains the "what" and "why", and contains issue links if
   applicable
 - The MR is not in an unmergeable WIP ("work in progress") state
+- GitalyBot comments have been addressed (labels, changelog etc.)
 - The CI build is green
 
-### Reviewer
+### Tips for the Reviewer
 
 #### Use the "Start/Submit Review" feature of GitLab
 
@@ -135,7 +138,7 @@ For all these reasons and more it is important to flag things that are hard to
 read and ask for them to be improved.
 
 But **be honest**. Ask yourself if a "readability improvement" is really
-objectively better, or just a manner of taste.
+objectively better, or just a matter of taste.
 
 #### Be thorough in every review round
 
