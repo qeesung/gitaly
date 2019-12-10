@@ -151,3 +151,9 @@ find a deep problem. Ideally, the deep problem is found as early as possible,
 but in practice it doesn't always work that way. If you find a deep problem or
 a hard question, no matter which review round you're in, you need to bring it
 up and at least discuss it.
+
+### Conclusion
+
+Getting your merge request through review can be hard. Reviewing
+someone else's merge request can be hard. But if we hold ourselves to
+a high standard, I think we can make it easier for all involved.
