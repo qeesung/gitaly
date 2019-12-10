@@ -33,7 +33,7 @@ The main review criteria are:
 
 ### Tips for the Contributor
 
-The contributor has a dual role. They are driving the change in the MR, but they 
+As the contributor you have a dual role. You are driving the change in the MR, but you 
 are also the **first reviewer** of the MR. Below you will find some tips for reviewing
 your own MR. Doing this costs time, but it should also save time for the other
 reviewers and thereby speed up the acceptance of your MR.
