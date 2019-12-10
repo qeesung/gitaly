@@ -9,19 +9,16 @@ import (
 	"sync"
 	"syscall"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"google.golang.org/grpc"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func isDestructive(methodName string) bool {
@@ -62,7 +59,7 @@ func (c *Coordinator) RegisterProtos(protos ...*descriptor.FileDescriptorProto) 
 }
 
 // streamDirector determines which downstream servers receive requests
-func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (context.Context, *grpc.ClientConn, func(), error) {
+func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 	// For phase 1, we need to route messages based on the storage location
 	// to the appropriate Gitaly node.
 	c.log.Debugf("Stream director received method %s", fullMethodName)
@@ -72,12 +69,12 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string,
 
 	mi, err := c.registry.LookupMethod(fullMethodName)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	m, err := protoMessageFromPeeker(mi, peeker)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	var requestFinalizer func()
@@ -86,22 +83,22 @@ func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string,
 	if mi.Scope == protoregistry.ScopeRepository {
 		storage, requestFinalizer, err = c.getStorageForRepositoryMessage(mi, m, peeker, fullMethodName)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 	} else {
 		storage, requestFinalizer, err = c.getAnyStorageNode()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 	}
 	// We only need the primary node, as there's only one primary storage
 	// location per praefect at this time
 	cc, err := c.connections.GetConnection(storage)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to find existing client connection for %s", storage)
+		return nil, fmt.Errorf("unable to find existing client connection for %s", storage)
 	}
 
-	return helper.IncomingToOutgoing(ctx), cc, requestFinalizer, nil
+	return proxy.NewStreamParameters(ctx, cc, requestFinalizer, nil), nil
 }
 
 var noopRequestFinalizer = func() {}

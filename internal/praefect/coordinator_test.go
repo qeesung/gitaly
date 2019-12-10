@@ -73,9 +73,9 @@ func TestStreamDirector(t *testing.T) {
 	fullMethod := "/gitaly.ObjectPoolService/FetchIntoObjectPool"
 
 	peeker := &mockPeeker{frame}
-	_, conn, jobUpdateFunc, err := coordinator.streamDirector(ctx, fullMethod, peeker)
+	streamParams, err := coordinator.streamDirector(ctx, fullMethod, peeker)
 	require.NoError(t, err)
-	require.Equal(t, address, conn.Target())
+	require.Equal(t, address, streamParams.Conn().Target())
 
 	mi, err := coordinator.registry.LookupMethod(fullMethod)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestStreamDirector(t *testing.T) {
 
 	require.Equal(t, expectedJob, jobs[0], "ensure replication job created by stream director is correct")
 
-	jobUpdateFunc()
+	streamParams.RequestFinalizer()
 
 	jobs, err = coordinator.datastore.GetJobs(datastore.JobStateReady, "praefect-internal-2", 10)
 	require.NoError(t, err)

@@ -4,6 +4,7 @@
 package proxy
 
 import (
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -21,4 +22,45 @@ import (
 // are invoked. So decisions around authorization, monitoring etc. are better to be handled there.
 //
 // See the rather rich example.
-type StreamDirector func(ctx context.Context, fullMethodName string, peeker StreamModifier) (context.Context, *grpc.ClientConn, func(), error)
+type StreamDirector func(ctx context.Context, fullMethodName string, peeker StreamModifier) (*StreamParameters, error)
+
+// StreamParameters encapsulates streaming parameters the praefect coordinator returns to the
+// proxy handler
+type StreamParameters struct {
+	ctx          context.Context
+	conn         *grpc.ClientConn
+	reqFinalizer func()
+	callOptions  []grpc.CallOption
+}
+
+// NewStreamParameters returns a new instance of StreamParameters
+func NewStreamParameters(ctx context.Context, conn *grpc.ClientConn, reqFinalizer func(), callOpts []grpc.CallOption) *StreamParameters {
+	return &StreamParameters{
+		ctx:          helper.IncomingToOutgoing(ctx),
+		conn:         conn,
+		reqFinalizer: reqFinalizer,
+		callOptions:  callOpts,
+	}
+}
+
+// Context returns the outgoing context
+func (s *StreamParameters) Context() context.Context {
+	return s.ctx
+}
+
+// Conn returns a grpc client connection
+func (s *StreamParameters) Conn() *grpc.ClientConn {
+	return s.conn
+}
+
+// RequestFinalizer calls the request finalizer
+func (s *StreamParameters) RequestFinalizer() {
+	if s.reqFinalizer != nil {
+		s.reqFinalizer()
+	}
+}
+
+// CallOptions returns call options
+func (s *StreamParameters) CallOptions() []grpc.CallOption {
+	return s.callOptions
+}
