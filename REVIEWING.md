@@ -65,12 +65,13 @@ roughly what should go in your MR description.
 
 Note that you would probably tell your colleague more than just the
 title of the MR. And also more than "I'm fixing issue 1234". The
-description should be a summary of _what_ is changing and _why_
+description should be a summary of _what_ is changing and _why_.
 
 #### Leave notes on your MR as you self-review it
 
-It may feel funny to literally talk to yourself but it works. If you have comments
-on your own MR as you review it, use the comment function and just write them down.
+It may feel funny to literally talk to yourself but it works. If
+thoughts occur to you as you read your MR, use the comment function
+and just write them down.
 
 You probably want to address some or most of your comments before you send your 
 MR to another reviewer.
@@ -96,7 +97,7 @@ only visible to you. Until you submit the review as a whole, you can still add,
 change and remove comments.
 
 In order to keep your review focused it is important
-to be selective about what you comment on, and the Start/Submit feature is very
+to be selective about what you do and do not say, and the Start/Submit feature is very
 helpful for this.
 
 #### Ask yourself if your comments are necessary
