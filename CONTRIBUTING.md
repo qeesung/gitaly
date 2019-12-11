@@ -113,7 +113,7 @@ Debug logging can be enabled in Gitaly using `level = "debug"` under `[logging]`
 
 Gitaly will reexport `GIT_TRACE*` [environment variables](https://git-scm.com/book/en/v2/Git-Internals-Environment-Variables) if they are set.
 
-This can be an aid to debugging some sets of problems. For example, if you would like to know what git is going internally, you can set `GIT_TRACE=true`:
+This can be an aid to debugging some sets of problems. For example, if you would like to know what git is doing internally, you can set `GIT_TRACE=true`:
 
 Note that since git stderr stream will be logged at debug level, you need to enable debug logging in `config.toml`.
 
