@@ -86,7 +86,7 @@ func tryCache(ctx context.Context, in *gitalypb.InfoRefsRequest, w io.Writer, mi
 
 			tr := io.TeeReader(pr, w)
 			if err := infoRefCache.PutStream(ctx, in.Repository, in, tr); err != nil {
-				logger.Errorf("unable to store info-ref response in cache: %q", err)
+				logger.Errorf("unable to store InfoRefsUploadPack response in cache: %q", err)
 			}
 		}()
 
