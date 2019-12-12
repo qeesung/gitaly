@@ -73,7 +73,7 @@ func tryCache(ctx context.Context, in *gitalypb.InfoRefsRequest, w io.Writer, mi
 
 	case cache.ErrReqNotFound:
 		countMiss()
-		logger.Info("cache miss for UploadPack response")
+		logger.Info("cache miss for InfoRefsUploadPack response")
 
 		var wg sync.WaitGroup
 		defer wg.Wait()
