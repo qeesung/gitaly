@@ -138,7 +138,7 @@ important to mitigate these injection risks:
 When adding new package dependencies to a source code file, keep all standard
 library packages in one contiguous import block, and all third party packages
 (which includes Gitaly packages) in another contiguous block. This way, the
-goimports tool will deterministically sort the packages which reduce the noise
+goimports tool will deterministically sort the packages which reduces the noise
 in reviews.
 
 Example of **valid** usage:
