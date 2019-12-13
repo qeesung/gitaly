@@ -4,7 +4,7 @@ unless gitlab.mr_json["milestone"]
   milestone_id = issues
     .map { |i| i.milestone }
     .compact
-    .reject { |m| m.state == "closed" }
+    .reject { |m| m.state == "closed" || m.due_date.nil? }
     .sort_by { |m| m.due_date }
     .first
     &.id
