@@ -4,8 +4,6 @@ const (
 	// UploadPackFilter enables partial clones by sending uploadpack.allowFilter and uploadpack.allowAnySHA1InWant
 	// to upload-pack
 	UploadPackFilter = "upload_pack_filter"
-	// GetTagMessagesGo will cause the GetTagMessages RPC to use the go implementation when set
-	GetTagMessagesGo = "get_tag_messages_go"
 	// FilterShasWithSignaturesGo will cause the FilterShasWithSignatures RPC to use the go implementation when set
 	FilterShasWithSignaturesGo = "filter_shas_with_signatures_go"
 	// LinguistFileCountStats will invoke an additional git-linguist command to get the number of files per language
