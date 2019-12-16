@@ -2,7 +2,9 @@ package repository_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -49,6 +51,11 @@ func TestReplicateRepository(t *testing.T) {
 	repoClient, conn := repository.NewRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
+	// write info attributes
+	attrFilePath := path.Join(testRepoPath, "info", "attributes")
+	attrData := []byte("*.pbxproj binary\n")
+	require.NoError(t, ioutil.WriteFile(attrFilePath, attrData, 0644))
+
 	targetRepo := *testRepo
 	targetRepo.StorageName = "replica"
 
@@ -68,9 +75,10 @@ func TestReplicateRepository(t *testing.T) {
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", targetRepoPath, "fsck")
 
-	sourceRefs := testhelper.GetRepositoryRefs(t, testRepoPath)
-	targetRefs := testhelper.GetRepositoryRefs(t, targetRepoPath)
-	require.Equal(t, sourceRefs, targetRefs)
+	replicatedAttrFilePath := path.Join(targetRepoPath, "info", "attributes")
+	replicatedAttrData, err := ioutil.ReadFile(replicatedAttrFilePath)
+	require.NoError(t, err)
+	require.Equal(t, string(attrData), string(replicatedAttrData), "info/attributes files must match")
 
 	// create another branch
 	_, anotherNewBranch := testhelper.CreateCommitOnNewBranch(t, testRepoPath)

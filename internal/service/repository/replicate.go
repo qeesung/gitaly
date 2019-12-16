@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
+	"gitlab.com/gitlab-org/gitaly/internal/safe"
 
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/streamio"
+	"golang.org/x/sync/errgroup"
 )
 
 func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) (*gitalypb.ReplicateRepositoryResponse, error) {
@@ -22,9 +29,18 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 		return nil, helper.ErrInternal(err)
 	}
 
-	outCtx := helper.IncomingToOutgoing(ctx)
+	g, ctx := errgroup.WithContext(ctx)
+	outgoingCtx := helper.IncomingToOutgoing(ctx)
 
-	if err := syncRepository(outCtx, in); err != nil {
+	for _, f := range []func(context.Context, *gitalypb.ReplicateRepositoryRequest) error{
+		syncRepository,
+		syncInfoAttributes,
+	} {
+		f := f // rescoping f
+		g.Go(func() error { return f(outgoingCtx, in) })
+	}
+
+	if err := g.Wait(); err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
@@ -67,6 +83,55 @@ func syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest
 	return nil
 }
 
+func syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
+	repoClient, err := newRepoClient(ctx, in.GetSource().GetStorageName())
+	if err != nil {
+		return err
+	}
+
+	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	if err != nil {
+		return err
+	}
+
+	infoPath := filepath.Join(repoPath, "info")
+	attributesPath := filepath.Join(infoPath, "attributes")
+
+	if err := os.MkdirAll(infoPath, 0755); err != nil {
+		return err
+	}
+
+	fw, err := safe.CreateFileWriter(attributesPath)
+	if err != nil {
+		return err
+	}
+	defer fw.Close()
+
+	stream, err := repoClient.GetInfoAttributes(ctx, &gitalypb.GetInfoAttributesRequest{
+		Repository: in.GetSource(),
+	})
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(fw, streamio.NewReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetAttributes(), err
+	})); err != nil {
+		return err
+	}
+
+	if err = fw.Commit(); err != nil {
+		return err
+	}
+
+	if err := os.Chmod(attributesPath, attributesFileMode); err != nil {
+		return err
+	}
+
+	return os.Rename(attributesPath, attributesPath)
+}
+
 // newRemoteClient creates a new RemoteClient that talks to the same gitaly server
 func newRemoteClient() (gitalypb.RemoteServiceClient, error) {
 	conn, err := client.Dial(fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()), nil)
@@ -75,4 +140,14 @@ func newRemoteClient() (gitalypb.RemoteServiceClient, error) {
 	}
 
 	return gitalypb.NewRemoteServiceClient(conn), nil
+}
+
+// newRepoClient creates a new RepositoryClient that talks to the gitaly of the source repository
+func newRepoClient(ctx context.Context, storageName string) (gitalypb.RepositoryServiceClient, error) {
+	conn, err := helper.ClientConnection(ctx, storageName)
+	if err != nil {
+		return nil, err
+	}
+
+	return gitalypb.NewRepositoryServiceClient(conn), nil
 }

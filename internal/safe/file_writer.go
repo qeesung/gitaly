@@ -91,7 +91,7 @@ func (fw *FileWriter) syncDir() error {
 	return f.Sync()
 }
 
-// Close will close and remove the temp file artifact iff it exists. If the file
+// Close will close and remove the temp file artifact if it exists. If the file
 // was already committed, an ErrAlreadyClosed error will be returned and no
 // changes will be made to the filesystem.
 func (fw *FileWriter) Close() error {

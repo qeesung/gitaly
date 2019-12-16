@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -59,4 +61,29 @@ func InjectGitalyServers(ctx context.Context, name, address, token string) (cont
 	}
 
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))), nil
+}
+
+// ClientConnection creates a grpc.ClientConn from the injected gitaly-servers metadata
+func ClientConnection(ctx context.Context, storageName string) (*grpc.ClientConn, error) {
+	gitalyServersInfo, err := ExtractGitalyServers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	repoStorageInfo, ok := gitalyServersInfo[storageName]
+	if !ok {
+		return nil, fmt.Errorf("gitaly server info for %q not found", storageName)
+	}
+
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(repoStorageInfo["token"])),
+	}
+
+	conn, err := grpc.Dial(repoStorageInfo["address"], connOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("could not dial source: %v", err)
+	}
+
+	return conn, nil
 }
