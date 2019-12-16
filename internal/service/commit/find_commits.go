@@ -170,6 +170,9 @@ func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.SubCmd {
 	if req.GetFollow() && len(req.GetPaths()) > 0 {
 		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--follow"})
 	}
+	if req.GetAuthor() != nil {
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: fmt.Sprintf("--author=%s", string(req.GetAuthor()))})
+	}
 	if req.GetSkipMerges() {
 		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--no-merges"})
 	}
