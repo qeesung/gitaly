@@ -133,3 +133,40 @@ important to mitigate these injection risks:
 	- Desired: `[]git.Flag{"-a"}`
 	- Undesired: `[]git.Flag{foo}` is ambiguous and difficult to audit
 
+## Go Imports Style
+
+When adding new package dependencies to a source code file, keep all standard
+library packages in one contiguous import block, and all third party packages
+(which includes Gitaly packages) in another contiguous block. This way, the
+goimports tool will deterministically sort the packages which reduces the noise
+in reviews.
+
+Example of **valid** usage:
+
+```go
+import (
+	"context"
+	"io"
+	"os/exec"
+
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+)
+```
+
+Example of **invalid** usage:
+
+```go
+import (
+	"io"
+	"os/exec"
+	
+	"context"
+	
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+)
+```
