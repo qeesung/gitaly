@@ -126,6 +126,8 @@ message GetNewLFSPointersResponse {
 
 message GetAllLFSPointersRequest {
   Repository repository = 1;
+  // This revision field is ignored by the implementation; it should be
+  // removed! https://gitlab.com/gitlab-org/gitaly/issues/2247
   bytes revision = 2;
 }
 

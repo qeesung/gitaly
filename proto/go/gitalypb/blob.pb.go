@@ -649,11 +649,13 @@ func (m *GetNewLFSPointersResponse) GetLfsPointers() []*LFSPointer {
 }
 
 type GetAllLFSPointersRequest struct {
-	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	Revision             []byte      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This revision field is ignored by the implementation; it should be
+	// removed! https://gitlab.com/gitlab-org/gitaly/issues/2247
+	Revision             []byte   `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *GetAllLFSPointersRequest) Reset()         { *m = GetAllLFSPointersRequest{} }
