@@ -50,6 +50,7 @@ const UploadPackCacheFeatureFlagKey = "inforef-uploadpack-cache"
 
 func tryCache(ctx context.Context, in *gitalypb.InfoRefsRequest, w io.Writer, missFn func(io.Writer) error) error {
 	if !featureflag.IsEnabled(ctx, UploadPackCacheFeatureFlagKey) ||
+		!featureflag.IsEnabled(ctx, featureflag.CacheInvalidator) ||
 		len(in.GetGitConfigOptions()) > 0 ||
 		len(in.GetGitProtocol()) > 0 {
 		return missFn(w)

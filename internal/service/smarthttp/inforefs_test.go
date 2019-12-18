@@ -342,6 +342,7 @@ func replaceCachedResponse(t testing.TB, req *gitalypb.InfoRefsRequest, newConte
 func enableCacheFeatureFlag(ctx context.Context) context.Context {
 	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
 		featureflag.HeaderKey(UploadPackCacheFeatureFlagKey): "true",
+		featureflag.HeaderKey(featureflag.CacheInvalidator):  "true",
 	}))
 }
 
