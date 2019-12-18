@@ -1,0 +1,5 @@
+---
+title: Remove get_tag_messages_go feature flag
+merge_request: 1698
+author:
+type: changed
