@@ -52,7 +52,7 @@ your WIP MR when you first pushed it is often not the best title for what is rea
 going on.
 
 After you have read the diff of your MR in the GitLab UI, take a moment
-to think what the title of your MR should be, and update the MR title if needed.
+to consider what the title of your MR should be, and update the MR title if needed.
 
 Imagine your title appearing as a [CHANGELOG](CHANGELOG.md) entry.
 Will your title give a good indication of what changed?
