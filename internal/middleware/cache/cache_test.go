@@ -21,7 +21,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/metadata"
 )
 
 //go:generate make testdata/stream.pb.go
@@ -47,7 +46,7 @@ func TestInvalidators(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	ctx = enableCache(ctx)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 
 	svc := &testSvc{}
 
@@ -129,12 +128,6 @@ func TestInvalidators(t *testing.T) {
 	require.Equal(t, expectedInvalidations, mCache.(*mockCache).invalidatedRepos)
 	require.Equal(t, expectedSvcRequests, svc.repoRequests)
 	require.Equal(t, 3, mCache.(*mockCache).endedLeases.count)
-}
-
-func enableCache(ctx context.Context) context.Context {
-	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
-		featureflag.HeaderKey(featureflag.CacheInvalidator): "true",
-	}))
 }
 
 // mockCache allows us to relay back via channel which repos are being
