@@ -48,7 +48,7 @@ helps to get in the reviewer mindset.
 
 When you are in the contributor mindset, you don't always know 
 what you are doing, or why. You discover this as you go along. The title you wrote for
-your WIP MR when you first pushed it is often not the best title for what is really
+your MR when you first pushed it is often not the best title for what is really
 going on.
 
 After you have read the diff of your MR in the GitLab UI, take a moment
