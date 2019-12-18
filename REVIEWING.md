@@ -139,6 +139,25 @@ but in practice it doesn't always work that way. If you find a deep problem or
 a hard question, no matter which review round you're in, you need to bring it
 up and at least discuss it.
 
+#### Be vocal if you don't understand something
+
+Sometimes, as a reviewer, you may feel ashamed to ask a question. You
+see something in the MR you don't understand but "it's probably
+something everybody knows". This is a trap.
+
+In the context of a review, that feeling that says "I don't understand
+this" is a very important signal. Put it into words, write a comment.
+Think out loud about why you don't understand the thing that gives you
+this feeling.
+
+Maybe now is the time to spend 15-30 minutes brushing up your
+knowledge on this subject. Or to ask a colleague if they know more
+about this. Or to bring in another reviewer who knows more about this.
+Or you have stumbled on something in the MR that is wrong and that
+everybody else has been overlooking.
+
+Either way, say something.
+
 ### Conclusion
 
 Getting your merge request through review can be hard. Reviewing
