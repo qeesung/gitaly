@@ -4,26 +4,11 @@ import (
 	"errors"
 	"io"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
-
-var filterShasWithSignaturesRequests = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "gitaly_filter_shas_with_signatures_total",
-		Help: "Counter of go vs ruby implementation of FilterShasWithSignatures",
-	},
-	[]string{"implementation"},
-)
-
-func init() {
-	prometheus.MustRegister(filterShasWithSignaturesRequests)
-}
 
 func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer) error {
 	firstRequest, err := bidi.Recv()
@@ -49,16 +34,6 @@ func validateFirstFilterShasWithSignaturesRequest(in *gitalypb.FilterShasWithSig
 }
 
 func (s *server) filterShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
-	if featureflag.IsEnabled(bidi.Context(), featureflag.FilterShasWithSignaturesGo) {
-		filterShasWithSignaturesRequests.WithLabelValues("go").Inc()
-		return streamShasWithSignatures(bidi, firstRequest)
-	}
-
-	filterShasWithSignaturesRequests.WithLabelValues("ruby").Inc()
-	return filterShasWithSignaturesRuby(s.ruby, bidi, firstRequest)
-}
-
-func streamShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
 	c, err := catfile.New(bidi.Context(), firstRequest.GetRepository())
 	if err != nil {
 		return err
@@ -106,46 +81,4 @@ func filterCommitShasWithSignatures(c *catfile.Batch, shas [][]byte) ([][]byte, 
 	}
 
 	return foundShas, nil
-}
-
-func filterShasWithSignaturesRuby(ruby *rubyserver.Server, bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {
-	ctx := bidi.Context()
-	client, err := ruby.CommitServiceClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	clientCtx, err := rubyserver.SetHeaders(ctx, firstRequest.GetRepository())
-	if err != nil {
-		return err
-	}
-
-	rubyBidi, err := client.FilterShasWithSignatures(clientCtx)
-	if err != nil {
-		return err
-	}
-
-	if err := rubyBidi.Send(firstRequest); err != nil {
-		return err
-	}
-
-	return rubyserver.ProxyBidi(
-		func() error {
-			request, err := bidi.Recv()
-			if err != nil {
-				return err
-			}
-
-			return rubyBidi.Send(request)
-		},
-		rubyBidi,
-		func() error {
-			response, err := rubyBidi.Recv()
-			if err != nil {
-				return err
-			}
-
-			return bidi.Send(response)
-		},
-	)
 }
