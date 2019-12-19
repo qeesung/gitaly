@@ -11,7 +11,7 @@ const (
 	// CacheInvalidator controls the tracking of repo state via gRPC
 	// annotations (i.e. accessor and mutator RPC's). This enables cache
 	// invalidation by changing state when the repo is modified.
-	CacheInvalidator = "cache-invalidator"
+	CacheInvalidator = "cache_invalidator"
 )
 
 const (
