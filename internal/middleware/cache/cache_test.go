@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache/testdata"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
@@ -44,6 +45,8 @@ func TestInvalidators(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 
 	svc := &testSvc{}
 
