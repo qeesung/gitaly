@@ -176,7 +176,7 @@ GEM
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 1.4.0, < 1.7)
     ruby-progressbar (1.10.0)
-    rugged (0.28.3.1)
+    rugged (0.28.4.1)
     safe_yaml (1.0.5)
     sanitize (4.6.6)
       crass (~> 1.0.2)
