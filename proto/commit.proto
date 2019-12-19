@@ -333,6 +333,7 @@ message FindCommitsRequest {
   // all and revision are mutually exclusive
   bool all = 11;
   bool first_parent = 12;
+  bytes author = 13;
 }
 
 // A single 'page' of the result set

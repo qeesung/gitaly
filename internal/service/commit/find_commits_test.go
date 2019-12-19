@@ -197,6 +197,16 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 		minCommits int
 	}{
 		{
+			desc: "commit by author",
+			request: &gitalypb.FindCommitsRequest{
+				Repository: testRepo,
+				Revision:   []byte("0031876facac3f2b2702a0e53a26e89939a42209"),
+				Author:     []byte("Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>"),
+				Limit:      20,
+			},
+			ids: []string{"1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"},
+		},
+		{
 			desc: "only revision, limit commits",
 			request: &gitalypb.FindCommitsRequest{
 				Repository: testRepo,
