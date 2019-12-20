@@ -66,34 +66,26 @@ type defaultReplicator struct {
 }
 
 func (dr defaultReplicator) Replicate(ctx context.Context, job datastore.ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
-	repository := &gitalypb.Repository{
+	targetRepository := &gitalypb.Repository{
 		StorageName:  job.TargetNode.Storage,
 		RelativePath: job.Repository.RelativePath,
 	}
 
-	remoteRepository := &gitalypb.Repository{
+	sourceRepository := &gitalypb.Repository{
 		StorageName:  job.SourceNode.Storage,
 		RelativePath: job.Repository.RelativePath,
 	}
 
 	repositoryClient := gitalypb.NewRepositoryServiceClient(targetCC)
-	remoteClient := gitalypb.NewRemoteServiceClient(targetCC)
 
-	// CreateRepository is idempotent
-	if _, err := repositoryClient.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
-		Repository: repository,
+	if _, err := repositoryClient.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
+		Source:     sourceRepository,
+		Repository: targetRepository,
 	}); err != nil {
 		return fmt.Errorf("failed to create repository: %v", err)
 	}
 
-	if _, err := remoteClient.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
-		Repository:       repository,
-		RemoteRepository: remoteRepository,
-	}); err != nil {
-		return err
-	}
-
-	checksumsMatch, err := dr.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(sourceCC), repositoryClient, remoteRepository, repository)
+	checksumsMatch, err := dr.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(sourceCC), repositoryClient, sourceRepository, targetRepository)
 	if err != nil {
 		return err
 	}
@@ -101,8 +93,8 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job datastore.ReplJob
 	// TODO: Do something meaninful with the result of confirmChecksums if checksums do not match
 	if !checksumsMatch {
 		dr.log.WithFields(logrus.Fields{
-			"primary": remoteRepository,
-			"replica": repository,
+			"primary": sourceRepository,
+			"replica": targetRepository,
 		}).Error("checksums do not match")
 	}
 

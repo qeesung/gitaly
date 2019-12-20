@@ -177,8 +177,12 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	//listen on internal socket
+	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
+	require.NoError(t, err)
 
 	go server.Serve(listener)
+	go server.Serve(internalListener)
 
 	return server, "unix://" + serverSocketPath
 }
