@@ -227,7 +227,7 @@ func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Option
 }
 
 // SafeCmdWithoutRepo works like Command but without a git repository. It
-// validates the arugments in the command before executing.
+// validates the arguments in the command before executing.
 func SafeCmdWithoutRepo(ctx context.Context, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {

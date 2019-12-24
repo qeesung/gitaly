@@ -46,7 +46,7 @@ func (fw *FileWriter) Write(p []byte) (n int, err error) {
 
 // Commit will close the temporary file and rename it to the target file name
 // the first call to Commit() will close and delete the temporary file, so
-// subsequenty calls to Commit() are gauaranteed to return an error.
+// subsequently calls to Commit() are gauaranteed to return an error.
 func (fw *FileWriter) Commit() error {
 	err := ErrAlreadyDone
 

@@ -344,7 +344,7 @@ func TestGetRawChangesInvalidUTF8Paths(t *testing.T) {
 		testRepoPath,
 		blobID2,
 		nonUTF8Filename,
-		"hostile extraterrestials won't use UTF",
+		"hostile extraterrestrials won't use UTF",
 	)
 
 	ctx, cancel := testhelper.Context()

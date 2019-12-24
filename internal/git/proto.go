@@ -158,7 +158,7 @@ func SupportsDeltaIslands(versionStr string) (bool, error) {
 
 // NoMissingWantErrMessage checks if the git version is before Git 2.22,
 // in which versions the missing objects in the wants didn't yield an explicit
-// error message, but no ouput at all.
+// error message, but no output at all.
 func NoMissingWantErrMessage() bool {
 	ver, err := Version()
 	if err != nil {

@@ -149,7 +149,7 @@ will give you insight into the performance and behavior of the cache:
 - [Cache Effectiveness]
     - `(sum(rate(gitaly_diskcache_requests_total[1m])) - sum(rate(gitaly_diskcache_miss_total[1m]))) / sum(rate(gitaly_diskcache_requests_total[1m]))`
     - Shows how often the cache is invoked for a hit vs a miss. A value close to
-      100% is desireable.
+      100% is desirable.
 - [Cache Errors]
     - `sum(rate(gitaly_diskcache_errors_total[1m])) by (error)`
     - Shows edge case errors experienced by the cache. The following errors can
