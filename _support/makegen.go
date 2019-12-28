@@ -293,12 +293,12 @@ type protoDownloadInfo struct {
 
 var protoCDownload = map[string]protoDownloadInfo{
 	"darwin/amd64": protoDownloadInfo{
-		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-osx-x86_64.zip",
-		sha256: "0decc6ce5beed07f8c20361ddeb5ac7666f09cf34572cca530e16814093f9c0c",
+		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.8.0/protoc-3.8.0-osx-x86_64.zip",
+		sha256: "8093a79ca6f22bd9b178cc457a3cf44945c088f162e237b075584f6851ca316c",
 	},
 	"linux/amd64": protoDownloadInfo{
-		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip",
-		sha256: "6003de742ea3fcf703cfec1cd4a3380fd143081a2eb0e559065563496af27807",
+		url:    "https://github.com/protocolbuffers/protobuf/releases/download/v3.8.0/protoc-3.8.0-linux-x86_64.zip",
+		sha256: "717903f32653f07cd895cfe89ca18ff4ca35f825afa7fe17bcb5cb13bf628be0",
 	},
 }
 

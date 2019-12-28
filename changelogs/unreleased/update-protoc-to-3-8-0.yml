@@ -1,0 +1,5 @@
+---
+title: Update protoc to 3.8.0 to align with google-protobuf Gem
+merge_request: 1726
+author: Takuya Noguchi
+type: other
