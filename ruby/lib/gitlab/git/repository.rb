@@ -358,7 +358,7 @@ module Gitlab
           remote_repo_path = remote_repository.path
         end
 
-        diff_range = "#{branch}...#{remote_branch}"
+        diff_range = "#{remote_branch}...#{branch}"
         diff_files = begin
                        run_git!(
                          %W[diff --name-only #{diff_range}]

@@ -1,0 +1,5 @@
+---
+title: Fix order of branches in git diff when preparing sparse checkout rebase
+merge_request: 1716
+author:
+type: other
