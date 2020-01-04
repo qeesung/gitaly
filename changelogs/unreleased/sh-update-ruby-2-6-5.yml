@@ -1,0 +1,5 @@
+---
+title: Update Ruby version to 2.6.5
+merge_request: 1729
+author:
+type: security
