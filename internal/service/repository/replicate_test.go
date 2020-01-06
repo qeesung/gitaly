@@ -19,7 +19,7 @@ import (
 )
 
 func TestReplicateRepository(t *testing.T) {
-	tmpPath, cleanup := testhelper.TempDir(t, testhelper.GitlabTestStoragePath(), t.Name())
+	tmpPath, cleanup := testhelper.TempDir(t, t.Name())
 	defer cleanup()
 
 	replicaPath := filepath.Join(tmpPath, "replica")
