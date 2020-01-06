@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	gitalyserver "gitlab.com/gitlab-org/gitaly/internal/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
@@ -184,8 +185,9 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		logEntry,
 		ds,
 		clientCC,
+		WithQueueMetric(&promtest.MockGauge{}),
+		WithLatencyMetric(&promtest.MockHistogram{}),
 	)
-
 	prf := NewServer(
 		coordinator,
 		replmgr,

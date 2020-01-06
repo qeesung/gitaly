@@ -5,53 +5,18 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
-
-var (
-	replicationLatency = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: "gitaly",
-			Subsystem: "praefect",
-			Name:      "replication_latency",
-			Buckets:   prometheus.LinearBuckets(0, 100, 100),
-		},
-	)
-
-	replicationJobsInFlight = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "gitaly",
-			Subsystem: "praefect",
-			Name:      "replication_jobs",
-		},
-	)
-
-	recordReplicationLatency = func(d float64) {
-		go replicationLatency.Observe(d)
-	}
-
-	incReplicationJobsInFlight = func() {
-		go replicationJobsInFlight.Inc()
-	}
-
-	decReplicationJobsInFlight = func() {
-		go replicationJobsInFlight.Dec()
-	}
-)
-
-func init() {
-	prometheus.MustRegister(replicationLatency)
-	prometheus.MustRegister(replicationJobsInFlight)
-}
 
 // Replicator performs the actual replication logic between two nodes
 type Replicator interface {
@@ -164,6 +129,8 @@ type ReplMgr struct {
 	clientConnections *conn.ClientConnections
 	targetNode        string     // which replica is this replicator responsible for?
 	replicator        Replicator // does the actual replication logic
+	replQueueMetric   metrics.Gauge
+	replLatencyMetric metrics.Histogram
 
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
@@ -171,6 +138,20 @@ type ReplMgr struct {
 
 // ReplMgrOpt allows a replicator to be configured with additional options
 type ReplMgrOpt func(*ReplMgr)
+
+// WithQueueMetric is an option to set the queue size prometheus metric
+func WithQueueMetric(g metrics.Gauge) func(*ReplMgr) {
+	return func(m *ReplMgr) {
+		m.replQueueMetric = g
+	}
+}
+
+// WithLatencyMetric is an option to set the queue size prometheus metric
+func WithLatencyMetric(h metrics.Histogram) func(*ReplMgr) {
+	return func(m *ReplMgr) {
+		m.replLatencyMetric = h
+	}
+}
 
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
@@ -182,6 +163,8 @@ func NewReplMgr(targetNode string, log *logrus.Entry, datastore datastore.Datast
 		replicator:        defaultReplicator{log},
 		targetNode:        targetNode,
 		clientConnections: c,
+		replLatencyMetric: prometheus.NewHistogram(prometheus.HistogramOpts{}),
+		replQueueMetric:   prometheus.NewGauge(prometheus.GaugeOpts{}),
 	}
 
 	for _, opt := range opts {
@@ -315,8 +298,8 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) {
 	}
 
 	replStart := time.Now()
-	incReplicationJobsInFlight()
-	defer decReplicationJobsInFlight()
+	r.replQueueMetric.Inc()
+	defer r.replQueueMetric.Dec()
 
 	switch job.Change {
 	case datastore.UpdateRepo:
@@ -332,7 +315,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) {
 	}
 
 	replDuration := time.Since(replStart)
-	recordReplicationLatency(float64(replDuration / time.Millisecond))
+	r.replLatencyMetric.Observe(float64(replDuration / time.Millisecond))
 
 	if err := r.datastore.UpdateReplJob(job.ID, datastore.JobStateComplete); err != nil {
 		l.WithError(err).Error("error when updating replication job status to complete")

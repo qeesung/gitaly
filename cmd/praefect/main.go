@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
@@ -116,11 +117,27 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		}
 	}
 
+	latencyMetric, err := metrics.RegisterReplicationLatency(conf.Prometheus)
+	if err != nil {
+		return err
+	}
+
+	queueMetric, err := metrics.RegisterReplicationJobsInFlight()
+	if err != nil {
+		return err
+	}
+
 	var (
 		// top level server dependencies
-		ds           = datastore.NewInMemory(conf)
-		coordinator  = praefect.NewCoordinator(logger, ds, clientConnections, conf, protoregistry.GitalyProtoFileDescriptors...)
-		repl         = praefect.NewReplMgr("default", logger, ds, clientConnections)
+		ds          = datastore.NewInMemory(conf)
+		coordinator = praefect.NewCoordinator(logger, ds, clientConnections, conf, protoregistry.GitalyProtoFileDescriptors...)
+		repl        = praefect.NewReplMgr(
+			"default",
+			logger,
+			ds,
+			clientConnections,
+			praefect.WithLatencyMetric(latencyMetric),
+			praefect.WithQueueMetric(queueMetric))
 		srv          = praefect.NewServer(coordinator, repl, nil, logger, clientConnections, conf)
 		serverErrors = make(chan error, 1)
 	)

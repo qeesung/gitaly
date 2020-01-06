@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	gitaly_log "gitlab.com/gitlab-org/gitaly/internal/log"
@@ -21,25 +19,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 )
 
 func TestProceessReplicationJob(t *testing.T) {
-	mockReplicationLatency := &testhelper.MockHistogram{}
-	mockReplicationGauge := &testhelper.MockGauge{}
-
-	recordReplicationLatency = func(d float64) {
-		mockReplicationLatency.Observe(d)
-	}
-
-	incReplicationJobsInFlight = func() {
-		mockReplicationGauge.Inc()
-	}
-
-	decReplicationJobsInFlight = func() {
-		mockReplicationGauge.Dec()
-	}
-
 	srv, srvSocketPath := runFullGitalyServer(t)
 	defer srv.Stop()
 
@@ -116,21 +101,20 @@ func TestProceessReplicationJob(t *testing.T) {
 	clientCC.RegisterNode("default", srvSocketPath, gitaly_config.Config.Auth.Token)
 	clientCC.RegisterNode("backup", srvSocketPath, gitaly_config.Config.Auth.Token)
 
-	replMgr := &ReplMgr{
-		log:               gitaly_log.Default(),
-		datastore:         ds,
-		clientConnections: clientCC,
-		replicator:        replicator,
-	}
+	var mockReplicationGauge promtest.MockGauge
+	var mockReplicationHistogram promtest.MockHistogram
+
+	replMgr := NewReplMgr("", gitaly_log.Default(), ds, clientCC, WithLatencyMetric(&mockReplicationHistogram), WithQueueMetric(&mockReplicationGauge))
+	replMgr.replicator = replicator
 
 	replMgr.processReplJob(ctx, jobs[0])
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)
 
-	require.Equal(t, 1, mockReplicationGauge.IncrementCalled)
-	require.Equal(t, 1, mockReplicationGauge.DecrementCalled)
-	require.Len(t, mockReplicationLatency.Values, 1)
+	require.Equal(t, 1, mockReplicationGauge.IncsCalled())
+	require.Equal(t, 1, mockReplicationGauge.DecsCalled())
+	require.Len(t, mockReplicationHistogram.Values, 1)
 }
 
 func TestConfirmReplication(t *testing.T) {

@@ -1,0 +1,5 @@
+---
+title: Use configurable buckets for praefect replication metrics
+merge_request: 1719
+author:
+type: changed
