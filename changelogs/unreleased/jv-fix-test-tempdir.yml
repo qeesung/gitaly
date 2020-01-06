@@ -1,0 +1,5 @@
+---
+title: Fix call to testhelper.TempDir
+merge_request: 1730
+author:
+type: other
