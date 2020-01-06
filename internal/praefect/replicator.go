@@ -41,16 +41,40 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job datastore.ReplJob
 		RelativePath: job.Repository.RelativePath,
 	}
 
-	repositoryClient := gitalypb.NewRepositoryServiceClient(targetCC)
+	targetRepositoryClient := gitalypb.NewRepositoryServiceClient(targetCC)
 
-	if _, err := repositoryClient.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
+	if _, err := targetRepositoryClient.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 		Source:     sourceRepository,
 		Repository: targetRepository,
 	}); err != nil {
 		return fmt.Errorf("failed to create repository: %v", err)
 	}
 
-	checksumsMatch, err := dr.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(sourceCC), repositoryClient, sourceRepository, targetRepository)
+	// check if the repository has an object pool
+	sourceObjectPoolClient := gitalypb.NewObjectPoolServiceClient(sourceCC)
+
+	resp, err := sourceObjectPoolClient.GetObjectPool(ctx, &gitalypb.GetObjectPoolRequest{
+		Repository: sourceRepository,
+	})
+	if err != nil {
+		return err
+	}
+
+	sourceObjectPool := resp.GetObjectPool()
+
+	if sourceObjectPool != nil {
+		targetObjectPoolClient := gitalypb.NewObjectPoolServiceClient(targetCC)
+		targetObjectPool := *sourceObjectPool
+		targetObjectPool.GetRepository().StorageName = targetRepository.GetStorageName()
+		if _, err := targetObjectPoolClient.LinkRepositoryToObjectPool(ctx, &gitalypb.LinkRepositoryToObjectPoolRequest{
+			ObjectPool: &targetObjectPool,
+			Repository: targetRepository,
+		}); err != nil {
+			return err
+		}
+	}
+
+	checksumsMatch, err := dr.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(sourceCC), targetRepositoryClient, sourceRepository, targetRepository)
 	if err != nil {
 		return err
 	}

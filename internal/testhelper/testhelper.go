@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -562,3 +563,19 @@ func gitObjectExists(t testing.TB, repoPath, sha string, exists bool) {
 // Cleanup functions should be called in a defer statement
 // immediately after they are returned from a test helper
 type Cleanup func()
+
+// GetGitObjectDirSize gets the number of 1k blocks of a git object directory
+func GetGitObjectDirSize(t *testing.T, repoPath string) int64 {
+	cmd := exec.Command("du", "-s", "-k", filepath.Join(repoPath, "objects"))
+	output, err := cmd.Output()
+	require.NoError(t, err)
+	if len(output) < 2 {
+		t.Error("invalid output of du -s -k")
+	}
+
+	outputSplit := strings.SplitN(string(output), "\t", 2)
+	blocks, err := strconv.ParseInt(outputSplit[0], 10, 64)
+	require.NoError(t, err)
+
+	return blocks
+}

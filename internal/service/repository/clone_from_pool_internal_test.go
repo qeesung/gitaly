@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,20 +34,6 @@ func getForkDestination(t *testing.T) (*gitalypb.Repository, string, func()) {
 	forkedRepo := &gitalypb.Repository{StorageName: "default", RelativePath: folder, GlRepository: "project-1"}
 
 	return forkedRepo, forkRepoPath, func() { os.RemoveAll(forkRepoPath) }
-}
-
-// getGitObjectDirSize gets the number of 1k blocks of a git object directory
-func getGitObjectDirSize(t *testing.T, repoPath string) int64 {
-	output := testhelper.MustRunCommand(t, nil, "du", "-s", "-k", filepath.Join(repoPath, "objects"))
-	if len(output) < 2 {
-		t.Error("invalid output of du -s -k")
-	}
-
-	outputSplit := strings.SplitN(string(output), "\t", 2)
-	blocks, err := strconv.ParseInt(outputSplit[0], 10, 64)
-	require.NoError(t, err)
-
-	return blocks
 }
 
 func TestCloneFromPoolInternal(t *testing.T) {
@@ -92,7 +76,7 @@ func TestCloneFromPoolInternal(t *testing.T) {
 	_, err := client.CloneFromPoolInternal(ctx, req)
 	require.NoError(t, err)
 
-	assert.True(t, getGitObjectDirSize(t, forkRepoPath) < 100)
+	assert.True(t, testhelper.GetGitObjectDirSize(t, forkRepoPath) < 100)
 
 	isLinked, err := pool.LinkedToRepository(testRepo)
 	require.NoError(t, err)

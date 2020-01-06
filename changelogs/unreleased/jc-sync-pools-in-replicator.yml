@@ -1,0 +1,5 @@
+---
+title: praefect replicator links object pool if it exists
+merge_request: 1718
+author:
+type: changed

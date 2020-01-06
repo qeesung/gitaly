@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	gitaly_log "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
@@ -22,9 +23,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
-func TestProceessReplicationJob(t *testing.T) {
+func TestProcessReplicationJob(t *testing.T) {
 	srv, srvSocketPath := runFullGitalyServer(t)
 	defer srv.Stop()
 
@@ -77,8 +79,37 @@ func TestProceessReplicationJob(t *testing.T) {
 
 	ds := datastore.NewInMemory(config)
 
-	ds.SetPrimary(testRepo.GetRelativePath(), "default")
-	ds.AddReplica(testRepo.GetRelativePath(), backupStorageName)
+	require.NoError(t, ds.SetPrimary(testRepo.GetRelativePath(), "default"))
+	require.NoError(t, ds.AddReplica(testRepo.GetRelativePath(), backupStorageName))
+
+	// create object pool on the source
+	objectPoolPath := testhelper.NewTestObjectPoolName(t)
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectPoolPath)
+	require.NoError(t, err)
+
+	poolCtx, cancel := testhelper.Context()
+	defer cancel()
+
+	require.NoError(t, pool.Create(poolCtx, testRepo))
+	require.NoError(t, pool.Link(poolCtx, testRepo))
+
+	// replicate object pool repository to target node
+	targetObjectPoolRepo := *pool.ToProto().GetRepository()
+	targetObjectPoolRepo.StorageName = "backup"
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	injectedCtx := metadata.NewOutgoingContext(ctx, testhelper.GitalyServersMetadata(t, srvSocketPath))
+
+	repoClient, con := newRepositoryClient(t, srvSocketPath)
+	defer con.Close()
+
+	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+		Repository: &targetObjectPoolRepo,
+		Source:     pool.ToProto().GetRepository(),
+	})
+	require.NoError(t, err)
 
 	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), datastore.UpdateRepo)
 	require.NoError(t, err)
@@ -86,9 +117,6 @@ func TestProceessReplicationJob(t *testing.T) {
 	jobs, err := ds.GetJobs(datastore.JobStateReady|datastore.JobStatePending, backupStorageName, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	commitID := testhelper.CreateCommit(t, testRepoPath, "master", &testhelper.CreateCommitOpts{
 		Message: "a commit",
@@ -98,8 +126,8 @@ func TestProceessReplicationJob(t *testing.T) {
 	replicator.log = gitaly_log.Default()
 
 	clientCC := conn.NewClientConnections()
-	clientCC.RegisterNode("default", srvSocketPath, gitaly_config.Config.Auth.Token)
-	clientCC.RegisterNode("backup", srvSocketPath, gitaly_config.Config.Auth.Token)
+	require.NoError(t, clientCC.RegisterNode("default", srvSocketPath, gitaly_config.Config.Auth.Token))
+	require.NoError(t, clientCC.RegisterNode("backup", srvSocketPath, gitaly_config.Config.Auth.Token))
 
 	var mockReplicationGauge promtest.MockGauge
 	var mockReplicationHistogram promtest.MockHistogram
@@ -110,7 +138,10 @@ func TestProceessReplicationJob(t *testing.T) {
 	replMgr.processReplJob(ctx, jobs[0])
 
 	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
+
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)
+	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "gc")
+	require.Less(t, testhelper.GetGitObjectDirSize(t, replicatedPath), int64(100), "expect a small object directory")
 
 	require.Equal(t, 1, mockReplicationGauge.IncsCalled())
 	require.Equal(t, 1, mockReplicationGauge.DecsCalled())
@@ -169,6 +200,19 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	go server.Serve(internalListener)
 
 	return server, "unix://" + serverSocketPath
+}
+
+func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(testhelper.RepositoryAuthToken)),
+	}
+	conn, err := grpc.Dial(serverSocketPath, connOpts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return gitalypb.NewRepositoryServiceClient(conn), conn
 }
 
 var RubyServer = &rubyserver.Server{}
