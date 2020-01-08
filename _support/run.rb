@@ -15,7 +15,7 @@ end
 def capture!(cmd, chdir='.')
   GitalySupport.print_cmd(cmd)
   output = IO.popen(cmd, chdir: chdir) { |io| io.read }
-  fail_cmd!(cmd) unless $?.success?
+  GitalySupport.fail_cmd!(cmd) unless $?.success?
   output
 end
 
