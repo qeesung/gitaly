@@ -88,18 +88,7 @@ Merge requests need to **approval by at least two
 
 ### Review Process
 
-The Gitaly team uses the following process:
-
-- When you merge request is ready for review, select two approvers from the Merge Request edit view.
-- Assign the first reviewer
-- When the first reviewer is done, they assign the second reviewer
-- When the second reviewer is done
-  - If there are no discussions, they are free to merge
-  - Otherwise assign back to the author for next round of review.
-
-**Note**: the author-reviewer 1-reviewer 2-author cycle works best with small changes.
-With larger changes feel free to use the traditional author-reviewer
-1-author-reviewer 1-reviewer 2-author-reviewer 2-cycle.
+See [REVIEWING.md](REVIEWING.md).
 
 ## Gitaly Developer Quick-start Guide
 
