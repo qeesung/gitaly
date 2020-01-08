@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"go/scanner"
 	"go/token"
 	"regexp"
@@ -24,7 +25,7 @@ var (
 	nonStdlibImportRegex = regexp.MustCompile(`^[^/]+\..*/`)
 )
 
-func format(src []byte) []byte {
+func format(src []byte) ([]byte, error) {
 	var s scanner.Scanner
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
@@ -58,11 +59,16 @@ func format(src []byte) []byte {
 		case token.RPAREN:
 			inImports = false
 		case token.STRING:
-			if inImports && nonStdlibImportRegex.MatchString(lit) {
-				if currentLine-lastNonStdlibImportLine > 1 && lastNonStdlibImportLine > 0 {
-					nextEdit = edit{line: currentLine - 1, cmd: removeLine}
+			if inImports {
+				if nonStdlibImportRegex.MatchString(lit) {
+					if currentLine-lastNonStdlibImportLine > 1 && lastNonStdlibImportLine > 0 {
+						nextEdit = edit{line: currentLine - 1, cmd: removeLine}
+					}
+					lastNonStdlibImportLine = currentLine
+				} else if lastNonStdlibImportLine > 0 {
+					// It would be nicer to fix this automatically, but how?
+					return nil, errors.New("stdlib import after non-stdlib import is not allowed")
 				}
-				lastNonStdlibImportLine = currentLine
 			}
 		case token.RBRACE:
 			if currentLine-lastNonEmptyLine > 1 {
@@ -123,5 +129,5 @@ func format(src []byte) []byte {
 		}
 	}
 
-	return bytes.Join(srcLines, []byte("\n"))
+	return bytes.Join(srcLines, []byte("\n")), nil
 }
