@@ -6,12 +6,11 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/streamio"
-
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 )
 
 type hookRequest interface {

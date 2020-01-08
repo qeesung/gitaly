@@ -5,7 +5,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
-
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 

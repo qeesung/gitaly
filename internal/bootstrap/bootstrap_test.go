@@ -13,9 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/internal/config"
-
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
 var testConfigGracefulRestartTimeout = 2 * time.Second

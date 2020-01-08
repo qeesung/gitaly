@@ -7,7 +7,6 @@ import (
 
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
-
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 

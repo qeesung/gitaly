@@ -6,12 +6,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"golang.org/x/net/context"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
+	"golang.org/x/net/context"
 )
 
 // TestStreamPeeking demonstrates that a director function is able to peek

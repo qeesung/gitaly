@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
 	"gitlab.com/gitlab-org/gitaly/internal/config/prometheus"

@@ -6,11 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
-
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func createRepoWithDivergentBranches(t *testing.T, leftCommits, rightCommits int, leftBranchName, rightBranchName string) (*gitalypb.Repository, func()) {
