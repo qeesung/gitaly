@@ -159,24 +159,24 @@ lint: {{ .GoLint }}
 	go get golang.org/x/lint/golint@959b441ac422379a43da2230f62be024250818b0
 
 .PHONY: check-formatting
-check-formatting: {{ .GoImports }} {{ .BraceFmt }}
+check-formatting: {{ .GoImports }} {{ .GitalyFmt }}
 	# goimports
 	@cd {{ .SourceDir }} && goimports -e -l {{ join .GoFiles " " }} | {{ .MakeFormatCheck }}
-	# bracefmt
-	@cd {{ .SourceDir }} && {{ .BraceFmt }} {{ join .GoFiles " " }} | {{ .MakeFormatCheck }}
+	# gitalyfmt
+	@cd {{ .SourceDir }} && {{ .GitalyFmt }} {{ join .GoFiles " " }} | {{ .MakeFormatCheck }}
 
 {{ .GoImports }}:
 	go get golang.org/x/tools/cmd/goimports@2538eef75904eff384a2551359968e40c207d9d2
 
-{{ .BraceFmt }}:
-	@cd {{ .SourceDir }} && go build -o $@ ./internal/cmd/bracefmt
+{{ .GitalyFmt }}:
+	@cd {{ .SourceDir }} && go build -o $@ ./internal/cmd/gitalyfmt
 
 .PHONY: format
-format: {{ .GoImports }} {{ .BraceFmt }}
+format: {{ .GoImports }} {{ .GitalyFmt }}
 	# goimports pass 1
 	@cd {{ .SourceDir }} && goimports -w -l {{ join .GoFiles " " }}
-	# bracefmt
-	@cd {{ .SourceDir }} && {{ .BraceFmt }} -w {{ join .GoFiles " " }}
+	# gitalyfmt
+	@cd {{ .SourceDir }} && {{ .GitalyFmt }} -w {{ join .GoFiles " " }}
 	# goimports pass 2
 	@cd {{ .SourceDir }} && goimports -w -l {{ join .GoFiles " " }}
 

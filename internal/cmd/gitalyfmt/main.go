@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	progName = "bracefmt"
+	progName = "gitalyfmt"
 )
 
 var (
@@ -42,7 +42,7 @@ func _main(args []string) error {
 			return err
 		}
 
-		dst := braceFmt(src)
+		dst := format(src)
 		if bytes.Equal(src, dst) {
 			continue
 		}
