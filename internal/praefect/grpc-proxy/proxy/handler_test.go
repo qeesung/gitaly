@@ -8,6 +8,7 @@
 package proxy_test
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -20,15 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
+	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/metadata"
-
-	"fmt"
-
-	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 )
 
 const (

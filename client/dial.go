@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
-
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
-
 	"net/url"
+	"time"
 
 	gitaly_x509 "gitlab.com/gitlab-org/gitaly/internal/x509"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 )
 
 // DefaultDialOpts hold the default DialOptions for connection to Gitaly over UNIX-socket
