@@ -16,7 +16,11 @@ The main review criteria are:
 
 - **readability**: can humans understand the code?
 - **correctness**: will a computer do the right thing when running the code?
-- **desirability**: do we want this change?
+- **do we want to make this change**: is this change the right thing to do?
+
+The last point is easy to overlook. For example, you don't want to merge some
+crystal clear water-tight piece of code that causes a production
+outage, because causing an outage is not the right thing to do.
 
 ### Tips for the Contributor
 
