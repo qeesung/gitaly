@@ -42,6 +42,7 @@ func CheckPostgresVersion(conf config.Config) error {
 
 func openDB(conf config.Config) (*sql.DB, error) { return sql.Open("postgres", conf.DB.ToPQString()) }
 
+// Migrate will apply all pending SQL migrations
 func Migrate(conf config.Config) error {
 	db, err := openDB(conf)
 	if err != nil {
@@ -57,7 +58,7 @@ func Migrate(conf config.Config) error {
 	}
 
 	if n > 0 {
-		log.WithField("migrations", n).Info("applied migrations")
+		log.WithField("migrations", n).Info("applied SQL migrations")
 	}
 
 	return nil
