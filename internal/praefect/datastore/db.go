@@ -43,13 +43,13 @@ func CheckPostgresVersion(conf config.Config) error {
 func openDB(conf config.Config) (*sql.DB, error) { return sql.Open("postgres", conf.DB.ToPQString()) }
 
 func Migrate(conf config.Config) error {
-	migrationSource := &migrate.MemoryMigrationSource{Migrations: migrations.All()}
-
 	db, err := openDB(conf)
 	if err != nil {
 		return fmt.Errorf("sql open: %v", err)
 	}
 	defer db.Close()
+
+	migrationSource := &migrate.MemoryMigrationSource{Migrations: migrations.All()}
 
 	n, err := migrate.Exec(db, "postgres", migrationSource, migrate.Up)
 	if err != nil {
