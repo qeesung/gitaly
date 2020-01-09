@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-require 'fileutils'
+require 'erb'
 
 PROGNAME = File.basename(__FILE__)
 MIGRATIONS_DIR = 'internal/praefect/db/migrations'
@@ -10,15 +10,30 @@ def main(migration_name)
   end
 
   sequence_number = Time.now.strftime('%Y%m%d%H%S')
-  files = %w[up down].map do |direction|
-    File.join(MIGRATIONS_DIR, "#{sequence_number}_#{migration_name}.#{direction}.sql")
-  end
-
-  FileUtils.touch(files, verbose: true)
+ 
+  migration_file =  File.join(MIGRATIONS_DIR, "#{sequence_number}_#{migration_name}.go")
+  warn "#{PROGNAME}: creating #{migration_file}"
+  IO.write(migration_file, ERB.new(DATA.read).result(binding))
 end
 
 unless ARGV.count == 1
   abort "usage: #{PROGNAME} MIGRATION_NAME"
 end
 
+
 main(*ARGV)
+
+__END__
+package migrations
+
+import migrate "github.com/rubenv/sql-migrate"
+
+func init() {
+	m := &migrate.Migration{
+		Id:   "<%= sequence_number %>_<%= migration_name %>",
+		Up:   []string{},
+		Down: []string{},
+	}
+
+	allMigrations = append(allMigrations, m)
+}
