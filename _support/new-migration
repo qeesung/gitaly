@@ -20,7 +20,6 @@ unless ARGV.count == 1
   abort "usage: #{PROGNAME} MIGRATION_NAME"
 end
 
-
 main(*ARGV)
 
 __END__
