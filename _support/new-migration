@@ -9,7 +9,7 @@ def main(migration_name)
     abort "invalid migration name #{migration_name.inspect} (only a-z0-9_ are allowed)"
   end
 
-  sequence_number = Time.now.strftime('%Y%m%d%H%S')
+  sequence_number = Time.now.utc.strftime('%Y%m%d%H%M%S')
  
   migration_file =  File.join(MIGRATIONS_DIR, "#{sequence_number}_#{migration_name}.go")
   warn "#{PROGNAME}: creating #{migration_file}"
