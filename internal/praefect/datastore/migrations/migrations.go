@@ -1,15 +1,12 @@
 package migrations
 
 import (
-	"log"
-
 	migrate "github.com/rubenv/sql-migrate"
 )
 
 var allMigrations []*migrate.Migration
 
-func List() {
-	for _, m := range allMigrations {
-		log.Printf("migration: %s", m.Id)
-	}
+// All returns all migrations defined in the package
+func All() []*migrate.Migration {
+	return allMigrations
 }

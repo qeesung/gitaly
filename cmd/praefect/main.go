@@ -231,4 +231,13 @@ func sqlPing(conf config.Config) int {
 	return 0
 }
 
-func dbMigrate(conf config.Config) int { return 0 }
+func dbMigrate(conf config.Config) int {
+	const subCmd = progname + " db-migrate"
+
+	if err := datastore.Migrate(conf); err != nil {
+		fmt.Printf("%s: fail: %v\n", subCmd, err)
+		return 1
+	}
+
+	return 0
+}

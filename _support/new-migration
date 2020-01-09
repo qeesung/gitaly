@@ -2,7 +2,7 @@
 require 'erb'
 
 PROGNAME = File.basename(__FILE__)
-MIGRATIONS_DIR = 'internal/praefect/db/migrations'
+MIGRATIONS_DIR = 'internal/praefect/datastore/migrations'
 
 def main(migration_name)
   unless /\A[a-z0-9_]+\z/ =~ migration_name
