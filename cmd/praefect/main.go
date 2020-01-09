@@ -211,6 +211,8 @@ func subCommand(conf config.Config, arg0 string, argRest []string) int {
 	switch arg0 {
 	case "sql-ping":
 		return sqlPing(conf)
+	case "db-migrate":
+		return dbMigrate(conf)
 	default:
 		fmt.Printf("%s: unknown subcommand: %q\n", progname, arg0)
 		return 1
@@ -228,3 +230,5 @@ func sqlPing(conf config.Config) int {
 	fmt.Printf("%s: OK\n", subCmd)
 	return 0
 }
+
+func dbMigrate(conf config.Config) int { return 0 }
