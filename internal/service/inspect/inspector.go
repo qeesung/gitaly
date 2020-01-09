@@ -4,28 +4,33 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
 
-// Write returns Writer that will feed 'action' with data on each write to it.
+// NewWriter returns Writer that will feed 'action' with data on each write to it.
 // The 'reader' for 'action' would be closed when ctx would be cancelled/expired.
-func Write(ctx context.Context, writer io.Writer, action func(reader io.Reader)) io.Writer {
+func NewWriter(writer io.Writer, action func(reader io.Reader)) io.WriteCloser {
 	pr, pw := io.Pipe()
+
 	multiOut := io.MultiWriter(writer, pw)
 
 	go func() {
-		go func() {
-			<-ctx.Done()
-			_ = pw.Close()
-		}()
-
 		action(pr)
+		// we need to be sure that all data consumed from pipe otherwise write to multi writer would be blocked
+		_, _ = io.Copy(ioutil.Discard, pr)
 	}()
 
-	return multiOut
+	return struct {
+		io.Writer
+		io.Closer
+	}{
+		Writer: multiOut,
+		Closer: pw,
+	}
 }
 
 // LogPackInfoStatistic inspect data stream for the informational messages

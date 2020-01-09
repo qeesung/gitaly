@@ -3,6 +3,7 @@ package inspect
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -14,32 +15,83 @@ import (
 )
 
 func TestWrite(t *testing.T) {
-	content := []byte("test\x02data")
-	pr, pw := io.Pipe()
+	for _, tc := range []struct {
+		desc      string
+		action    func(io.Reader)
+		src       io.Reader
+		exp       []byte
+		expErrStr string
+	}{
+		{
+			desc: "all data consumed without errors",
+			action: func(reader io.Reader) {
+				data, err := ioutil.ReadAll(reader)
+				require.NoError(t, err)
+				require.Equal(t, []byte("somedata"), data)
+			},
+			src: strings.NewReader("somedata"),
+			exp: []byte("somedata"),
+		},
+		{
+			desc: "no data is ok",
+			action: func(reader io.Reader) {
+				data, err := ioutil.ReadAll(reader)
+				require.NoError(t, err)
+				require.Empty(t, data)
+			},
+			src: bytes.NewReader(nil),
+			exp: []byte{},
+		},
+		{
+			desc: "consumed by action partially",
+			action: func(reader io.Reader) {
+				b := make([]byte, 4)
+				n, err := reader.Read(b)
+				require.NoError(t, err)
+				require.Equal(t, 4, n)
+				require.Equal(t, []byte("some"), b)
+			},
+			src: strings.NewReader("somedata"),
+			exp: []byte("somedata"),
+		},
+		{
+			desc:      "error on read",
+			action:    func(reader io.Reader) {},
+			src:       errReader("bad read"),
+			exp:       []byte{},
+			expErrStr: "bad read",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			mainWriter := &bytes.Buffer{}
+			checked := make(chan struct{})
 
-	checked := make(chan struct{})
+			writer := NewWriter(mainWriter, func(reader io.Reader) {
+				tc.action(reader)
+				close(checked)
+			})
 
-	ctx, cancel := context.WithCancel(context.TODO())
+			_, err := io.Copy(writer, tc.src)
+			if tc.expErrStr != "" {
+				require.EqualError(t, err, tc.expErrStr)
+			} else {
+				require.NoError(t, err)
+			}
 
-	writer := Write(ctx, pw, func(reader io.Reader) {
-		data, err := ioutil.ReadAll(reader)
-		require.NoError(t, err)
-		require.Equal(t, content, data)
-		close(checked)
-	})
+			data, err := ioutil.ReadAll(mainWriter)
+			require.NoError(t, err)
+			require.Equal(t, tc.exp, data)
 
-	go func() {
-		_, err := io.Copy(writer, bytes.NewReader(content))
-		require.NoError(t, err)
-		require.NoError(t, pw.Close())
-	}()
+			require.NoError(t, writer.Close())
+			<-checked
+		})
+	}
+}
 
-	data, err := ioutil.ReadAll(pr)
-	require.NoError(t, err)
-	require.Equal(t, content, data)
+type errReader string
 
-	cancel()
-	<-checked
+func (e errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New(string(e))
 }
 
 func TestLogPackInfoStatistic(t *testing.T) {

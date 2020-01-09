@@ -39,12 +39,13 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 		return request.GetStdin(), err
 	})
 
-	stdout := streamio.NewWriter(func(p []byte) error {
+	stdoutWriter := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadPackResponse{Stdout: p})
 	})
 	// TODO: it is first step of the https://gitlab.com/gitlab-org/gitaly/issues/1519
 	// needs to be removed after we get some statistics on this
-	stdout = inspect.Write(ctx, stdout, inspect.LogPackInfoStatistic(ctx))
+	stdout := inspect.NewWriter(stdoutWriter, inspect.LogPackInfoStatistic(ctx))
+	defer stdout.Close()
 
 	stderr := streamio.NewWriter(func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadPackResponse{Stderr: p})
