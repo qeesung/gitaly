@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/internal/service/inspect"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -64,6 +65,10 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		respBytes += int64(len(p))
 		return stream.Send(&gitalypb.PostUploadPackResponse{Data: p})
 	})
+
+	// TODO: it is first step of the https://gitlab.com/gitlab-org/gitaly/issues/1519
+	// needs to be removed after we get some statistics on this
+	stdout = inspect.Write(ctx, stdout, inspect.LogPackInfoStatistic(ctx))
 
 	env := git.AddGitProtocolEnv(ctx, req, command.GitEnv)
 
