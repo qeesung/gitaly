@@ -5,11 +5,10 @@ import (
 	"sync"
 
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"golang.org/x/sync/errgroup"
-
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"golang.org/x/sync/errgroup"
 )
 
 // ServerInfo sends ServerInfoRequest to all of a praefect server's internal gitaly nodes and aggregates the results into

@@ -8,7 +8,6 @@ import (
 
 	// Blank import to enable integration of github.com/lib/pq into database/sql
 	_ "github.com/lib/pq"
-
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 )
 

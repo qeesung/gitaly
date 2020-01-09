@@ -6,12 +6,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBraceFmt(t *testing.T) {
+func TestFormat(t *testing.T) {
 	testCases := []struct {
 		desc      string
 		in        string
 		out       string
 		unchanged bool
+		fail      bool
 	}{
 		{
 			desc: "empty lines inside braces",
@@ -114,11 +115,60 @@ func foo() {
 `,
 			unchanged: true,
 		},
+		{
+			desc: "empty lines between non-stdlib imports",
+			in: `package main
+
+import (
+	"net/http"
+
+	"example.com/foo"
+
+	bar "example.com/bar"
+)
+
+func main() {}
+`,
+			out: `package main
+
+import (
+	"net/http"
+
+	"example.com/foo"
+	bar "example.com/bar"
+)
+
+func main() {}
+`,
+		},
+		{
+			desc: "alternating stdlib and non stdlib",
+			in: `package main
+
+import (
+	"net/http"
+
+	"example.com/foo"
+
+	"io"
+)
+
+func main() {}
+`,
+			fail: true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			out := braceFmt([]byte(tc.in))
+			out, err := format([]byte(tc.in))
+
+			if tc.fail {
+				require.Error(t, err, "expect format error")
+				return
+			}
+
+			require.NoError(t, err, "format error")
 
 			if tc.unchanged {
 				require.Equal(t, tc.in, string(out))

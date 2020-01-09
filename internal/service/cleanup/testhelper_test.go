@@ -4,11 +4,10 @@ import (
 	"net"
 	"testing"
 
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func runCleanupServiceServer(t *testing.T) (*grpc.Server, string) {

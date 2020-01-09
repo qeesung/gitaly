@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"go/scanner"
 	"go/token"
+	"regexp"
 )
 
 type editCommand int
@@ -19,20 +21,26 @@ type edit struct {
 	cmd  editCommand
 }
 
-func braceFmt(src []byte) []byte {
+var (
+	nonStdlibImportRegex = regexp.MustCompile(`^[^/]+\..*/`)
+)
+
+func format(src []byte) ([]byte, error) {
 	var s scanner.Scanner
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
 	s.Init(file, src, nil, scanner.ScanComments)
 
 	var (
-		edits                            []edit
-		lastNonEmptyLine, lastLBraceLine int
-		lastOuterRBraceLine              = -1
+		edits                               []edit
+		lastNonEmptyLine, lastLBraceLine    int
+		lastOuterRBraceLine                 = -1
+		importLine, lastNonStdlibImportLine int
+		inImports                           bool
 	)
 
 	for {
-		pos, tok, _ := s.Scan()
+		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
 		}
@@ -42,6 +50,26 @@ func braceFmt(src []byte) []byte {
 		var nextEdit edit
 
 		switch tok {
+		case token.IMPORT:
+			importLine = currentLine
+		case token.LPAREN:
+			if currentLine == importLine {
+				inImports = true
+			}
+		case token.RPAREN:
+			inImports = false
+		case token.STRING:
+			if inImports {
+				if nonStdlibImportRegex.MatchString(lit) {
+					if currentLine-lastNonStdlibImportLine > 1 && lastNonStdlibImportLine > 0 {
+						nextEdit = edit{line: currentLine - 1, cmd: removeLine}
+					}
+					lastNonStdlibImportLine = currentLine
+				} else if lastNonStdlibImportLine > 0 {
+					// It would be nicer to fix this automatically, but how?
+					return nil, errors.New("stdlib import after non-stdlib import is not allowed")
+				}
+			}
 		case token.RBRACE:
 			if currentLine-lastNonEmptyLine > 1 {
 				// ......foo
@@ -101,5 +129,5 @@ func braceFmt(src []byte) []byte {
 		}
 	}
 
-	return bytes.Join(srcLines, []byte("\n"))
+	return bytes.Join(srcLines, []byte("\n")), nil
 }

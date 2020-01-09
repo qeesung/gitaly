@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )

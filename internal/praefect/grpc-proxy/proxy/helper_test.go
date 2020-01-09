@@ -6,10 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
+	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-
-	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 )
 
 func newListener(tb testing.TB) net.Listener {

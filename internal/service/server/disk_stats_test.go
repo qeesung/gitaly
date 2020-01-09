@@ -4,12 +4,11 @@ import (
 	"math"
 	"testing"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"golang.org/x/sys/unix"
 )
 
 func TestStorageDiskStatistics(t *testing.T) {

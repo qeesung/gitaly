@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	progName = "bracefmt"
+	progName = "gitalyfmt"
 )
 
 var (
@@ -25,7 +25,7 @@ func main() {
 	}
 
 	if err := _main(flag.Args()); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: fatal: %v", progName, err)
+		fmt.Fprintf(os.Stderr, "%s: fatal: %v\n", progName, err)
 		os.Exit(1)
 	}
 }
@@ -42,7 +42,10 @@ func _main(args []string) error {
 			return err
 		}
 
-		dst := braceFmt(src)
+		dst, err := format(src)
+		if err != nil {
+			return fmt.Errorf("%s: %v", f, err)
+		}
 		if bytes.Equal(src, dst) {
 			continue
 		}

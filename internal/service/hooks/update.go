@@ -4,10 +4,9 @@ import (
 	"errors"
 	"os/exec"
 
-	"gitlab.com/gitlab-org/gitaly/streamio"
-
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 )
 
 func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.HookService_UpdateHookServer) error {

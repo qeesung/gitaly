@@ -3,9 +3,8 @@ package remote
 import (
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 

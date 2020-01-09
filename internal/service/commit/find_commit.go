@@ -3,10 +3,9 @@ package commit
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 

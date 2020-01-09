@@ -1,12 +1,11 @@
 package commit
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
