@@ -12,7 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
+	dcache "gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	mcache "gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -64,8 +67,14 @@ func newSecureRepoClient(t *testing.T, serverSocketPath string, pool *x509.CertP
 var NewSecureRepoClient = newSecureRepoClient
 
 func runRepoServer(t *testing.T) (*grpc.Server, string) {
-	streamInt := []grpc.StreamServerInterceptor{auth.StreamServerInterceptor(config.Config.Auth)}
-	unaryInt := []grpc.UnaryServerInterceptor{auth.UnaryServerInterceptor(config.Config.Auth)}
+	streamInt := []grpc.StreamServerInterceptor{
+		auth.StreamServerInterceptor(config.Config.Auth),
+		mcache.StreamInvalidator(dcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
+	}
+	unaryInt := []grpc.UnaryServerInterceptor{
+		auth.UnaryServerInterceptor(config.Config.Auth),
+		mcache.UnaryInvalidator(dcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
+	}
 
 	server := testhelper.NewTestGrpcServer(t, streamInt, unaryInt)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()

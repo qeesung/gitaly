@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -199,11 +200,20 @@ func TestGetArchiveFailure(t *testing.T) {
 			path:     []byte("../../foo"),
 			code:     codes.InvalidArgument,
 		},
+		{
+			desc:     "repo missing fields",
+			repo:     &gitalypb.Repository{StorageName: "default"},
+			prefix:   "qwert",
+			commitID: "sadf",
+			format:   gitalypb.GetArchiveRequest_TAR,
+			path:     []byte("Here is a string...."),
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
+			ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 			defer cancel()
 
 			req := &gitalypb.GetArchiveRequest{
