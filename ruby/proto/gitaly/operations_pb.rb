@@ -209,6 +209,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :branch_sha, :string, 5
     optional :remote_repository, :message, 6, "gitaly.Repository"
     optional :remote_branch, :bytes, 7
+    optional :skip_ci, :bool, 8
   end
   add_message "gitaly.UserRebaseConfirmableResponse" do
     optional :pre_receive_error, :string, 3
