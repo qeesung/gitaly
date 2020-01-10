@@ -96,9 +96,9 @@ module Gitlab
         end
       end
 
-      def update_branch(branch_name, newrev, oldrev)
+      def update_branch(branch_name, newrev, oldrev, skip_ci: false)
         ref = Gitlab::Git::BRANCH_REF_PREFIX + branch_name
-        update_ref_in_hooks(ref, newrev, oldrev)
+        update_ref_in_hooks(ref, newrev, oldrev, skip_ci: skip_ci)
       end
 
       # Yields the given block (which should return a commit) and
@@ -172,19 +172,20 @@ module Gitlab
         end
       end
 
-      def update_ref_in_hooks(ref, newrev, oldrev)
-        with_hooks(ref, newrev, oldrev) do
+      def update_ref_in_hooks(ref, newrev, oldrev, skip_ci: false)
+        with_hooks(ref, newrev, oldrev, skip_ci: skip_ci) do
           update_ref(ref, newrev, oldrev)
         end
       end
 
-      def with_hooks(ref, newrev, oldrev)
+      def with_hooks(ref, newrev, oldrev, skip_ci: false)
         Gitlab::Git::HooksService.new.execute(
           user,
           repository,
           oldrev,
           newrev,
-          ref
+          ref,
+          skip_ci: skip_ci
         ) do |service|
 
           yield(service)

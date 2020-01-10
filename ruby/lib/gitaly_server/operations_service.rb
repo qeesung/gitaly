@@ -222,7 +222,8 @@ module GitalyServer
             branch: header.branch,
             branch_sha: header.branch_sha,
             remote_repository: remote_repository,
-            remote_branch: header.remote_branch
+            remote_branch: header.remote_branch,
+            skip_ci: header.skip_ci
           ) do |rebase_sha|
             y << Gitaly::UserRebaseConfirmableResponse.new(rebase_sha: rebase_sha)
 
