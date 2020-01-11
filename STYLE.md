@@ -227,7 +227,7 @@ func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
 Note the heavy usage of defer statements. Using defer statements means that
 clean up will occur even if a panic bubbles up the call stack. This means we
 still get resource cleanup (**IMPORTANT**). Also, the resource cleanup will
-occur in a predictable manner since each defer statement is push onto a LIFO
+occur in a predictable manner since each defer statement is pushed onto a LIFO
 stack of defers. Once the function ends, they are popped off one by one.
 
 #### Context-Done Cleanup
