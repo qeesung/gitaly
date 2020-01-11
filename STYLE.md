@@ -199,7 +199,7 @@ reason about goroutine cleanup.
 #### Defer-based Cleanup
 
 One of the safest ways to clean up goroutines (as well as other resources) is
-via a deferred statements. For example:
+via deferred statements. For example:
 
 ```go
 func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
