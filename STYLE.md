@@ -185,7 +185,7 @@ following guide:
 
 These are goroutines we expect to run the entire life of the process. If they
 crash, we expect them to be restarted. If they restart often, we may want a way
-to delay subsequent restarts to prevent resource consumption. See the
+to delay subsequent restarts to prevent resource consumption. See
 [`dontpanic.GoForever`] for a useful function to handle goroutine restarts with
 Sentry observability.
 
