@@ -194,12 +194,16 @@ Sentry observability.
 These are goroutines created to help handle an RPC. Except for in rare
 conditions, typically a goroutine that is started during an RPC will also need
 to end before the RPC returns. This quality of most goroutines makes it easy to
-reason about goroutine cleanup. When in doubt, the goroutine cleanup can be
-handled via a deferred statement. For example:
+reason about goroutine cleanup.
+
+#### Defer-based Cleanup
+
+One of the safest ways to clean up goroutines (as well as other resources) is
+via a deferred statements. For example:
 
 ```go
-func (scs SuperCoolService) MyAwesomeRPC(rs RequestStream) error {
-    xCh := make(chan stuff)
+func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
+    xCh := make(chan Request)
     done := make(chan struct{}) // signals the goroutine is done
     
     defer func() {
@@ -214,13 +218,61 @@ func (scs SuperCoolService) MyAwesomeRPC(rs RequestStream) error {
         }
     }()
     
-    xCh<-stuff{}
+    xCh <- r
+    
+    return nil
 }
 ```
 
 Note the heavy usage of defer statements. Using defer statements means that
 clean up will occur even if a panic bubbles up the call stack. This means we
-still get resource cleanup (**IMPORTANT**).
+still get resource cleanup (**IMPORTANT**). Also, the resource cleanup will
+occur in a predictable manner since each defer statement is push onto a LIFO
+stack of defers and are popped off one by one after function ends.
+
+#### Context-Done Cleanup
+
+Sometimes you may have a difficult or impossible time figuring out how to apply
+the above pattern. In those cases, you may want to rely on the `<-ctx.Done`
+pattern:
+
+```go
+func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
+    rCh := make(chan Request)
+    go func() {
+        for {
+            select {
+            case <-ctx.Done():
+                return
+            case r :=<-rCh:
+                doSomething(r)
+            }
+        }
+    }()
+    
+    rCh <- r
+    
+    return nil
+}
+```
+
+This pattern works in RPC's because the context will always be cancelled after
+the RPC completes. However, we aren't as confident that the goroutine exited
+since we never waited for confirmation.
+
+Ignoring confirmation of the goroutine's completion is bad for a few reasons:
+
+- We lose observability - most of our metrics are derived from the performance
+  of the RPC. If we perform the real work outside the RPC, and the RPC returns
+  immediately, we end up with a false sense of how slow/fast an RPC is (e.g.
+  "Wow, that garbage compaction is running real fast! Let's run it more often!")
+- Goroutine leaks - if the goroutines never complete, we can end up with a leak.
+  While goroutines are much cheaper than threads or processes, they still incur
+  a cost. A goroutine starts with a minimum of 2KB stack space and grows.
+  
+  This issue is easier to spot when the RPC waits for child goroutines to finish
+  since the RPC will never complete. This means that the leak has a higher
+  chance of being spotted in testing.
 
 ### Goroutine Panic Risks
 
@@ -230,6 +282,15 @@ flight requests (**VERY BAD**). When writing code that creates a goroutine,
 consider the following question: How confident are you that the code in the
 goroutine won't panic? If you can't answer confidently, you may want to use a
 helper function to handle panic recovery: [`dontpanic.Go`].
+
+### Limiting Goroutines
+
+When spawning goroutines, you should always be aware of how many goroutines you
+will be creating. While cheap, goroutines are not free. Ideally, each RPC should
+have a fixed number of goroutines. If it is not known how many goroutines are
+needed to complete a request, that is a red flag. It is possible that the RPC
+can end up generating many goroutines for every client request and enable a
+denial of service attack.
 
 [`dontpanic.GoForever`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#GoForever
 [`dontpanic.Go`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#Go
