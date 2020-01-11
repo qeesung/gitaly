@@ -170,3 +170,66 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 )
 ```
+
+## Goroutine Guidelines
+
+Gitaly is a long lived process. This means that every goroutine spawned carries
+liability until either the goroutine ends or the program exits. Some goroutines
+are expected to run until program termination (e.g. server listeners and file
+walkers). However, the vast majority of goroutines spawned are in response to
+an RPC, and in most cases should end before the RPC returns. Proper cleanup of
+goroutines is crucial to prevent leaks. When in doubt, you can consult the
+following guide:
+
+### Background Task Goroutines
+
+These are goroutines we expect to run the entire life of the process. If they
+crash, we expect them to be restarted. If they restart often, we may want a way
+to delay subsequent restarts to prevent resource consumption. See the
+[`dontpanic.GoForever`] for a useful function to handle goroutine restarts with
+Sentry observability.
+
+### RPC Goroutines
+
+These are goroutines created to help handle an RPC. Except for in rare
+conditions, typically a goroutine that is started during an RPC will also need
+to end before the RPC returns. This quality of most goroutines makes it easy to
+reason about goroutine cleanup. When in doubt, the goroutine cleanup can be
+handled via a deferred statement. For example:
+
+```go
+func (scs SuperCoolService) MyAwesomeRPC(rs RequestStream) error {
+    xCh := make(chan stuff)
+    done := make(chan struct{}) // signals the goroutine is done
+    
+    defer func() {
+        close(xCh) // signals the RPC is done, stop processing work
+        <-done     // waits until the goroutine is done
+    }()
+    
+    go func() {
+        defer func() { <-done }() // signal when the goroutine returns
+        for x := range xCh {      // consume values until the channel is closed
+            fmt.Println(xCh)
+        }
+    }()
+    
+    xCh<-stuff{}
+}
+```
+
+Note the heavy usage of defer statements. Using defer statements means that
+clean up will occur even if a panic bubbles up the call stack. This means we
+still get resource cleanup (**IMPORTANT**).
+
+### Goroutine Panic Risks
+
+Additionally, every new goroutine has the potential to crash the process. Any
+unrecovered panic can cause the entire process to crash and take out any in-
+flight requests (**VERY BAD**). When writing code that creates a goroutine,
+consider the following question: How confident are you that the code in the
+goroutine won't panic? If you can't answer confidently, you may want to use a
+helper function to handle panic recovery: [`dontpanic.Go`].
+
+[`dontpanic.GoForever`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#GoForever
+[`dontpanic.Go`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#Go
