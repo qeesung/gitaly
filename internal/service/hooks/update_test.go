@@ -58,7 +58,7 @@ func TestUpdate(t *testing.T) {
 	testCases := []struct {
 		desc           string
 		req            gitalypb.UpdateHookRequest
-		success        bool
+		status         int32
 		stdout, stderr string
 	}{
 		{
@@ -70,9 +70,9 @@ func TestUpdate(t *testing.T) {
 				NewValue:   "b",
 				KeyId:      "key",
 			},
-			success: true,
-			stdout:  "OK",
-			stderr:  "",
+			status: 0,
+			stdout: "OK",
+			stderr: "",
 		},
 		{
 			desc: "missing ref",
@@ -83,9 +83,9 @@ func TestUpdate(t *testing.T) {
 				NewValue:   "b",
 				KeyId:      "key",
 			},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
 			desc: "missing old value",
@@ -96,9 +96,9 @@ func TestUpdate(t *testing.T) {
 				NewValue:   "b",
 				KeyId:      "key",
 			},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
 			desc: "missing new value",
@@ -109,9 +109,9 @@ func TestUpdate(t *testing.T) {
 				NewValue:   "",
 				KeyId:      "key",
 			},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
 			desc: "missing key_id value",
@@ -122,9 +122,9 @@ func TestUpdate(t *testing.T) {
 				NewValue:   "b",
 				KeyId:      "",
 			},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 	}
 
@@ -133,7 +133,7 @@ func TestUpdate(t *testing.T) {
 			stream, err := client.UpdateHook(ctx, &tc.req)
 			require.NoError(t, err)
 
-			var success bool
+			var status int32
 			var stderr, stdout bytes.Buffer
 			for {
 				resp, err := stream.Recv()
@@ -148,11 +148,11 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("error when receiving stream: %v", err)
 				}
 
-				success = resp.GetSuccess()
+				status = resp.GetExitStatus().GetValue()
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.success, success)
+			require.Equal(t, tc.status, status)
 			assert.Equal(t, tc.stderr, text.ChompBytes(stderr.Bytes()), "hook stderr")
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})

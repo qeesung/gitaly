@@ -39,7 +39,7 @@ func (s *server) PostReceiveHook(stream gitalypb.HookService_PostReceiveHookServ
 	c := exec.Command(gitlabShellHook("post-receive"))
 	c.Dir = repoPath
 
-	success, err := streamCommandResponse(
+	status, err := streamCommandResponse(
 		stream.Context(),
 		stdin,
 		stdout, stderr,
@@ -52,7 +52,7 @@ func (s *server) PostReceiveHook(stream gitalypb.HookService_PostReceiveHookServ
 	}
 
 	if err := stream.SendMsg(&gitalypb.PostReceiveHookResponse{
-		Success: success,
+		ExitStatus: &gitalypb.ExitStatus{Value: status},
 	}); err != nil {
 		return helper.ErrInternal(err)
 	}

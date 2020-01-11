@@ -55,36 +55,36 @@ func TestPostReceive(t *testing.T) {
 	defer conn.Close()
 
 	testCases := []struct {
-		desc    string
-		stdin   io.Reader
-		req     gitalypb.PostReceiveHookRequest
-		success bool
-		stdout  string
-		stderr  string
+		desc   string
+		stdin  io.Reader
+		req    gitalypb.PostReceiveHookRequest
+		status int32
+		stdout string
+		stderr string
 	}{
 		{
-			desc:    "valid stdin",
-			stdin:   bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:     gitalypb.PostReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
-			success: true,
-			stdout:  "OK",
-			stderr:  "",
+			desc:   "valid stdin",
+			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req:    gitalypb.PostReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
+			status: 0,
+			stdout: "OK",
+			stderr: "",
 		},
 		{
-			desc:    "missing stdin",
-			stdin:   bytes.NewBuffer(nil),
-			req:     gitalypb.PostReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			desc:   "missing stdin",
+			stdin:  bytes.NewBuffer(nil),
+			req:    gitalypb.PostReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
-			desc:    "missing key_id",
-			stdin:   bytes.NewBuffer(nil),
-			req:     gitalypb.PostReceiveHookRequest{Repository: testRepo},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			desc:   "missing key_id",
+			stdin:  bytes.NewBuffer(nil),
+			req:    gitalypb.PostReceiveHookRequest{Repository: testRepo},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestPostReceive(t *testing.T) {
 				require.NoError(t, stream.CloseSend(), "close send")
 			}()
 
-			var success bool
+			var status int32
 			var stdout, stderr bytes.Buffer
 			for {
 				resp, err := stream.Recv()
@@ -117,13 +117,10 @@ func TestPostReceive(t *testing.T) {
 				_, err = stdout.Write(resp.GetStdout())
 				require.NoError(t, err)
 				stderr.Write(resp.GetStderr())
-				require.NoError(t, err)
-
-				success = resp.GetSuccess()
-				require.NoError(t, err)
+				status = resp.GetExitStatus().GetValue()
 			}
 
-			require.Equal(t, tc.success, success)
+			require.Equal(t, tc.status, status)
 			assert.Equal(t, tc.stderr, text.ChompBytes(stderr.Bytes()), "hook stderr")
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})

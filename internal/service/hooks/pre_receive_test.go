@@ -61,40 +61,40 @@ func TestPreReceive(t *testing.T) {
 		desc           string
 		stdin          io.Reader
 		req            gitalypb.PreReceiveHookRequest
-		success        bool
+		status         int32
 		stdout, stderr string
 	}{
 		{
-			desc:    "valid stdin",
-			stdin:   bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:     gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
-			success: true,
-			stdout:  "OK",
-			stderr:  "",
+			desc:   "valid stdin",
+			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
+			status: 0,
+			stdout: "OK",
+			stderr: "",
 		},
 		{
-			desc:    "missing stdin",
-			stdin:   bytes.NewBuffer(nil),
-			req:     gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			desc:   "missing stdin",
+			stdin:  bytes.NewBuffer(nil),
+			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
-			desc:    "missing protocol",
-			stdin:   bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:     gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			desc:   "missing protocol",
+			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 		{
-			desc:    "missing key_id",
-			stdin:   bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:     gitalypb.PreReceiveHookRequest{Repository: testRepo, Protocol: "protocol"},
-			success: false,
-			stdout:  "",
-			stderr:  "FAIL",
+			desc:   "missing key_id",
+			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, Protocol: "protocol"},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
 		},
 	}
 
@@ -113,7 +113,7 @@ func TestPreReceive(t *testing.T) {
 				require.NoError(t, stream.CloseSend(), "close send")
 			}()
 
-			var success bool
+			var status int32
 			var stdout, stderr bytes.Buffer
 			for {
 				resp, err := stream.Recv()
@@ -129,11 +129,11 @@ func TestPreReceive(t *testing.T) {
 				_, err = stderr.Write(resp.GetStderr())
 				require.NoError(t, err)
 
-				success = resp.GetSuccess()
+				status = resp.GetExitStatus().GetValue()
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.success, success)
+			require.Equal(t, tc.status, status)
 			assert.Equal(t, tc.stderr, text.ChompBytes(stderr.Bytes()), "hook stderr")
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})

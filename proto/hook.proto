@@ -37,7 +37,7 @@ message PreReceiveHookRequest {
 message PreReceiveHookResponse{
   bytes stdout = 1;
   bytes stderr = 2;
-  bool success = 3;
+  ExitStatus exit_status = 3;
 }
 
 message PostReceiveHookRequest {
@@ -49,7 +49,7 @@ message PostReceiveHookRequest {
 message PostReceiveHookResponse{
   bytes stdout = 1;
   bytes stderr = 2;
-  bool success = 3;
+  ExitStatus exit_status = 3;
 }
 
 message UpdateHookRequest {
@@ -63,5 +63,5 @@ message UpdateHookRequest {
 message UpdateHookResponse{
   bytes stdout = 1;
   bytes stderr = 2;
-  bool success = 3;
+  ExitStatus exit_status = 3;
 }

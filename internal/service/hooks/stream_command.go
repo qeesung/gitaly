@@ -15,21 +15,20 @@ func streamCommandResponse(
 	stdout, stderr io.Writer,
 	c *exec.Cmd,
 	env []string,
-) (bool, error) {
+) (int32, error) {
 	cmd, err := command.New(ctx, c, stdin, stdout, stderr, env...)
 	if err != nil {
-		return false, helper.ErrInternal(err)
+		return 1, helper.ErrInternal(err)
 	}
 
 	err = cmd.Wait()
 	if err == nil {
-		return true, nil
+		return 0, nil
 	}
 
-	code, ok := command.ExitStatus(err)
-	if ok && code != 0 {
-		return false, nil
+	if code, ok := command.ExitStatus(err); ok {
+		return int32(code), nil
 	}
 
-	return false, err
+	return 1, err
 }

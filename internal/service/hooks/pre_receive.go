@@ -60,7 +60,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 	c := exec.Command(gitlabShellHook("pre-receive"))
 	c.Dir = repoPath
 
-	success, err := streamCommandResponse(
+	status, err := streamCommandResponse(
 		stream.Context(),
 		stdin,
 		stdout, stderr,
@@ -73,7 +73,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 	}
 
 	if err := stream.SendMsg(&gitalypb.PreReceiveHookResponse{
-		Success: success,
+		ExitStatus: &gitalypb.ExitStatus{Value: status},
 	}); err != nil {
 		return helper.ErrInternal(err)
 	}

@@ -14,7 +14,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.PreReceiveHookResponse" do
     optional :stdout, :bytes, 1
     optional :stderr, :bytes, 2
-    optional :success, :bool, 3
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
   end
   add_message "gitaly.PostReceiveHookRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
@@ -24,7 +24,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.PostReceiveHookResponse" do
     optional :stdout, :bytes, 1
     optional :stderr, :bytes, 2
-    optional :success, :bool, 3
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
   end
   add_message "gitaly.UpdateHookRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
@@ -36,7 +36,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.UpdateHookResponse" do
     optional :stdout, :bytes, 1
     optional :stderr, :bytes, 2
-    optional :success, :bool, 3
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
   end
 end
 
