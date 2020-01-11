@@ -134,3 +134,29 @@ func TestDatastoreInterface(t *testing.T) {
 		})
 	}
 }
+
+func TestMemoryDatastore_GetRepository(t *testing.T) {
+	ds := NewInMemory(config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Nodes: []*models.Node{&stor1, &stor2},
+			},
+		},
+	})
+	require.NoError(t, ds.SetPrimary(repo1Repository.RelativePath, stor1.Storage))
+	require.NoError(t, ds.AddReplica(repo1Repository.RelativePath, stor2.Storage))
+
+	repBefore, err := ds.GetRepository(repo1Repository.RelativePath)
+	require.NoError(t, err)
+	require.Len(t, repBefore.Replicas, 1)
+	require.Equal(t, models.Repository{
+		RelativePath: repo1Repository.RelativePath,
+		Primary:      stor1,
+		Replicas:     []models.Node{stor2},
+	}, repBefore)
+	repBefore.Replicas[0].Address += "/"
+
+	repAfter, err := ds.GetRepository(repo1Repository.RelativePath)
+	require.NoError(t, err)
+	require.NotEqual(t, repAfter, repBefore)
+}

@@ -80,7 +80,7 @@ type Datastore interface {
 // ReplicasDatastore manages accessing and setting which secondary replicas
 // backup a repository
 type ReplicasDatastore interface {
-	PickAPrimary(virtualStorage string) (*models.Node, error)
+	PickAPrimary(virtualStorage string) (models.Node, error)
 
 	GetReplicas(relativePath string) ([]models.Node, error)
 
@@ -88,7 +88,7 @@ type ReplicasDatastore interface {
 
 	GetStorageNodes() ([]models.Node, error)
 
-	GetPrimary(relativePath string) (*models.Node, error)
+	GetPrimary(relativePath string) (models.Node, error)
 
 	SetPrimary(relativePath, nodeStorage string) error
 
@@ -96,7 +96,7 @@ type ReplicasDatastore interface {
 
 	RemoveReplica(relativePath, nodeStorage string) error
 
-	GetRepository(relativePath string) (*models.Repository, error)
+	GetRepository(relativePath string) (models.Repository, error)
 }
 
 // ReplJobsDatastore represents the behavior needed for fetching and updating
@@ -132,31 +132,24 @@ type MemoryDatastore struct {
 		records map[uint64]jobRecord // all jobs indexed by ID
 	}
 
-	storageNodes *struct {
-		sync.RWMutex
-		m map[string]models.Node
-	}
+	// storageNodes is read-only after initialization
+	// if modification needed there must be synchronization for concurrent access to it
+	storageNodes map[string]models.Node
 
 	repositories *struct {
 		sync.RWMutex
 		m map[string]models.Repository
 	}
 
-	virtualStorages *struct {
-		sync.RWMutex
-		m map[string][]*models.Node
-	}
+	// virtualStorages is read-only after initialization
+	// if modification needed there must be synchronization for concurrent access to it
+	virtualStorages map[string][]*models.Node
 }
 
 // NewInMemory returns an initialized in-memory datastore
 func NewInMemory(cfg config.Config) *MemoryDatastore {
 	m := &MemoryDatastore{
-		storageNodes: &struct {
-			sync.RWMutex
-			m map[string]models.Node
-		}{
-			m: map[string]models.Node{},
-		},
+		storageNodes: map[string]models.Node{},
 		jobs: &struct {
 			sync.RWMutex
 			records map[uint64]jobRecord // all jobs indexed by ID
@@ -169,22 +162,17 @@ func NewInMemory(cfg config.Config) *MemoryDatastore {
 		}{
 			m: map[string]models.Repository{},
 		},
-		virtualStorages: &struct {
-			sync.RWMutex
-			m map[string][]*models.Node
-		}{
-			m: map[string][]*models.Node{},
-		},
+		virtualStorages: map[string][]*models.Node{},
 	}
 
 	for _, virtualStorage := range cfg.VirtualStorages {
-		m.virtualStorages.m[virtualStorage.Name] = virtualStorage.Nodes
+		m.virtualStorages[virtualStorage.Name] = virtualStorage.Nodes
 
 		for _, node := range virtualStorage.Nodes {
-			if _, ok := m.storageNodes.m[node.Storage]; ok {
+			if _, ok := m.storageNodes[node.Storage]; ok {
 				continue
 			}
-			m.storageNodes.m[node.Storage] = *node
+			m.storageNodes[node.Storage] = *node
 		}
 	}
 
@@ -192,24 +180,19 @@ func NewInMemory(cfg config.Config) *MemoryDatastore {
 }
 
 // PickAPrimary returns the primary configured in the config file
-func (md *MemoryDatastore) PickAPrimary(virtualStorage string) (*models.Node, error) {
-	md.storageNodes.RLock()
-	defer md.storageNodes.RUnlock()
-
-	for _, node := range md.virtualStorages.m[virtualStorage] {
+func (md *MemoryDatastore) PickAPrimary(virtualStorage string) (models.Node, error) {
+	for _, node := range md.virtualStorages[virtualStorage] {
 		if node.DefaultPrimary {
-			return node, nil
+			return *node, nil
 		}
 	}
 
-	return nil, errors.New("no default primaries found")
+	return models.Node{}, errors.New("no default primaries found")
 }
 
 // GetReplicas gets the secondaries for a repository based on the relative path
 func (md *MemoryDatastore) GetReplicas(relativePath string) ([]models.Node, error) {
 	md.repositories.RLock()
-	md.storageNodes.RLock()
-	defer md.storageNodes.RUnlock()
 	defer md.repositories.RUnlock()
 
 	repository, ok := md.repositories.m[relativePath]
@@ -217,15 +200,14 @@ func (md *MemoryDatastore) GetReplicas(relativePath string) ([]models.Node, erro
 		return nil, errors.New("repository not found")
 	}
 
-	return repository.Replicas, nil
+	// to prevent possible modification of element of the slice
+	copied := repository.Clone()
+	return copied.Replicas, nil
 }
 
 // GetStorageNode gets all storage nodes
 func (md *MemoryDatastore) GetStorageNode(nodeStorage string) (models.Node, error) {
-	md.storageNodes.RLock()
-	defer md.storageNodes.RUnlock()
-
-	node, ok := md.storageNodes.m[nodeStorage]
+	node, ok := md.storageNodes[nodeStorage]
 	if !ok {
 		return models.Node{}, errors.New("node not found")
 	}
@@ -235,11 +217,8 @@ func (md *MemoryDatastore) GetStorageNode(nodeStorage string) (models.Node, erro
 
 // GetStorageNodes gets all storage nodes
 func (md *MemoryDatastore) GetStorageNodes() ([]models.Node, error) {
-	md.storageNodes.RLock()
-	defer md.storageNodes.RUnlock()
-
 	var storageNodes []models.Node
-	for _, storageNode := range md.storageNodes.m {
+	for _, storageNode := range md.storageNodes {
 		storageNodes = append(storageNodes, storageNode)
 	}
 
@@ -247,16 +226,16 @@ func (md *MemoryDatastore) GetStorageNodes() ([]models.Node, error) {
 }
 
 // GetPrimary gets the primary storage node for a repository of a repository relative path
-func (md *MemoryDatastore) GetPrimary(relativePath string) (*models.Node, error) {
+func (md *MemoryDatastore) GetPrimary(relativePath string) (models.Node, error) {
 	md.repositories.RLock()
 	defer md.repositories.RUnlock()
 
 	repository, ok := md.repositories.m[relativePath]
 	if !ok {
-		return nil, ErrPrimaryNotSet
+		return models.Node{}, ErrPrimaryNotSet
 	}
 
-	return &repository.Primary, nil
+	return repository.Primary, nil
 }
 
 // SetPrimary sets the primary storagee node for a repository of a repository relative path
@@ -269,7 +248,7 @@ func (md *MemoryDatastore) SetPrimary(relativePath, nodeStorage string) error {
 		repository = models.Repository{RelativePath: relativePath}
 	}
 
-	storageNode, ok := md.storageNodes.m[nodeStorage]
+	storageNode, ok := md.storageNodes[nodeStorage]
 	if !ok {
 		return errors.New("node storage not found")
 	}
@@ -290,7 +269,7 @@ func (md *MemoryDatastore) AddReplica(relativePath, nodeStorage string) error {
 		return errors.New("repository not found")
 	}
 
-	storageNode, ok := md.storageNodes.m[nodeStorage]
+	storageNode, ok := md.storageNodes[nodeStorage]
 	if !ok {
 		return errors.New("node storage not found")
 	}
@@ -324,16 +303,16 @@ func (md *MemoryDatastore) RemoveReplica(relativePath, nodeStorage string) error
 }
 
 // GetRepository gets the repository for a repository relative path
-func (md *MemoryDatastore) GetRepository(relativePath string) (*models.Repository, error) {
+func (md *MemoryDatastore) GetRepository(relativePath string) (models.Repository, error) {
 	md.repositories.Lock()
 	defer md.repositories.Unlock()
 
 	repository, ok := md.repositories.m[relativePath]
 	if !ok {
-		return nil, errors.New("repository not found")
+		return models.Repository{}, errors.New("repository not found")
 	}
 
-	return &repository, nil
+	return repository.Clone(), nil
 }
 
 // ErrReplicasMissing indicates the repository does not have any backup
@@ -387,7 +366,7 @@ func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (Re
 	return ReplJob{
 		Change:     record.change,
 		ID:         jobID,
-		Repository: *repository,
+		Repository: repository,
 		SourceNode: sourceNode,
 		State:      record.state,
 		TargetNode: targetNode,
