@@ -167,10 +167,7 @@ func (c *Coordinator) getStorageForRepositoryMessage(mi protoregistry.MethodInfo
 }
 
 func (c *Coordinator) selectPrimary(mi protoregistry.MethodInfo, targetRepo *gitalypb.Repository) (*models.Node, error) {
-	var primary *models.Node
-	var err error
-
-	primary, err = c.datastore.GetPrimary(targetRepo.GetRelativePath())
+	primary, err := c.datastore.GetPrimary(targetRepo.GetRelativePath())
 
 	if err != nil {
 		if err != datastore.ErrPrimaryNotSet {
@@ -206,10 +203,10 @@ func (c *Coordinator) selectPrimary(mi protoregistry.MethodInfo, targetRepo *git
 			}
 		}
 
-		return newPrimary, nil
+		return &newPrimary, nil
 	}
 
-	return primary, nil
+	return &primary, nil
 }
 
 func protoMessageFromPeeker(mi protoregistry.MethodInfo, peeker proxy.StreamModifier) (proto.Message, error) {

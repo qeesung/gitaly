@@ -14,3 +14,10 @@ type Repository struct {
 	Primary      Node
 	Replicas     []Node
 }
+
+func (r Repository) Clone() Repository {
+	clone := r
+	clone.Replicas = make([]Node, len(r.Replicas))
+	copy(clone.Replicas, r.Replicas)
+	return clone
+}
