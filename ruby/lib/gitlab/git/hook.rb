@@ -28,13 +28,13 @@ module Gitlab
         File.exist?(path)
       end
 
-      def trigger(gl_id, gl_username, oldrev, newrev, ref, skip_ci: false)
+      def trigger(gl_id, gl_username, oldrev, newrev, ref, push_options: nil)
         return [true, nil] unless exists?
 
         Bundler.with_clean_env do
           case name
           when "pre-receive", "post-receive"
-            call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, skip_ci: skip_ci)
+            call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options)
           when "update"
             call_update_hook(gl_id, gl_username, oldrev, newrev, ref)
           end
@@ -43,18 +43,14 @@ module Gitlab
 
       private
 
-      def call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, skip_ci: false)
+      def call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options)
         changes = [oldrev, newrev, ref].join(" ")
 
         exit_status = false
         exit_message = nil
 
         vars = env_base_vars(gl_id, gl_username)
-
-        if skip_ci
-          vars['GIT_PUSH_OPTION_COUNT'] = '1'
-          vars['GIT_PUSH_OPTION_1'] = 'ci.skip'
-        end
+        vars.merge!(push_options.env_data) if push_options
 
         options = {
           chdir: repo_path

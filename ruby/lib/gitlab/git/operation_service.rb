@@ -173,19 +173,22 @@ module Gitlab
       end
 
       def update_ref_in_hooks(ref, newrev, oldrev, skip_ci: false)
-        with_hooks(ref, newrev, oldrev, skip_ci: skip_ci) do
+        push_options = PushOptions.new
+        push_options.enable_ci_skip if skip_ci
+
+        with_hooks(ref, newrev, oldrev, push_options: push_options) do
           update_ref(ref, newrev, oldrev)
         end
       end
 
-      def with_hooks(ref, newrev, oldrev, skip_ci: false)
+      def with_hooks(ref, newrev, oldrev, push_options: nil)
         Gitlab::Git::HooksService.new.execute(
           user,
           repository,
           oldrev,
           newrev,
           ref,
-          skip_ci: skip_ci
+          push_options: push_options
         ) do |service|
 
           yield(service)
