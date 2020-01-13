@@ -17,6 +17,10 @@ describe Gitlab::Git::Hook do
       Gitlab::Git::PushOptions.new.tap(&:enable_ci_skip)
     end
 
+    def trigger_with_stub_data(hook, push_options)
+      hook.trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
+    end
+
     before do
       hook_names.each do |f|
         path = File.join(tmp_dir, f)
@@ -87,9 +91,47 @@ describe Gitlab::Git::Hook do
       let(:script) { "#!/bin/sh\nexit 1\n" }
 
       it 'returns false' do
-        hook_names.each do |hook|
-          trigger_result = described_class.new(hook, repo)
-                                          .trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
+        hook_names.each do |name|
+          hook = described_class.new(name, repo)
+          trigger_result = trigger_with_stub_data(hook, push_options)
+
+          expect(trigger_result.first).to be(false)
+        end
+      end
+    end
+
+    context 'when push options are passed' do
+      let(:script) do
+        <<~EOSH
+          #!/bin/sh
+          if [ $GIT_PUSH_OPTION_COUNT == "1" ] && [ $GIT_PUSH_OPTION_0 == "ci.skip" ]
+          then
+            exit 0
+          else
+            exit 1
+          fi
+        EOSH
+      end
+
+      context 'for pre-receive and post-receive hooks' do
+        let(:hooks) do
+          %w[pre-receive post-receive].map { |name| described_class.new(name, repo) }
+        end
+
+        it 'sets the push options environment variables' do
+          hooks.each do |hook|
+            trigger_result = trigger_with_stub_data(hook, push_options)
+
+            expect(trigger_result.first).to be(true)
+          end
+        end
+      end
+
+      context 'for update hook' do
+        let(:hook) { described_class.new('update', repo) }
+
+        it 'does not set the push options environment variables' do
+          trigger_result = trigger_with_stub_data(hook, push_options)
 
           expect(trigger_result.first).to be(false)
         end
