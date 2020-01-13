@@ -286,11 +286,10 @@ helper function to handle panic recovery: [`dontpanic.Go`].
 ### Limiting Goroutines
 
 When spawning goroutines, you should always be aware of how many goroutines you
-will be creating. While cheap, goroutines are not free. Ideally, each RPC should
-have a fixed number of goroutines. If it is not known how many goroutines are
-needed to complete a request, that is a red flag. It is possible that the RPC
-can end up generating many goroutines for every client request and enable a
-denial of service attack.
+will be creating. While cheap, goroutines are not free. If it is not known how
+many goroutines are needed to complete a request, that is a red flag. It is
+possible that the RPC can end up generating many goroutines for every client
+request and enable a denial of service attack.
 
 [`dontpanic.GoForever`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#GoForever
 [`dontpanic.Go`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#Go
