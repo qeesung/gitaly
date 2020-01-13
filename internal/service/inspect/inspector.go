@@ -12,16 +12,20 @@ import (
 )
 
 // NewWriter returns Writer that will feed 'action' with data on each write to it.
-// The 'reader' for 'action' would be closed when ctx would be cancelled/expired.
+// It is required to call Close once all data is processed.
+// Close will be blocked until action is completed.
 func NewWriter(writer io.Writer, action func(reader io.Reader)) io.WriteCloser {
 	pr, pw := io.Pipe()
 
 	multiOut := io.MultiWriter(writer, pw)
+	c := closer{c: pw, done: make(chan struct{})}
 
 	go func() {
+		defer close(c.done) // channel close signals that action is completed
+
 		action(pr)
-		// we need to be sure that all data consumed from pipe otherwise write to multi writer would be blocked
-		_, _ = io.Copy(ioutil.Discard, pr)
+
+		_, _ = io.Copy(ioutil.Discard, pr) // consume all data to unblock multiOut
 	}()
 
 	return struct {
@@ -29,8 +33,19 @@ func NewWriter(writer io.Writer, action func(reader io.Reader)) io.WriteCloser {
 		io.Closer
 	}{
 		Writer: multiOut,
-		Closer: pw,
+		Closer: c, // pw must be closed otherwise goroutine serving 'action' won't be terminated
 	}
+}
+
+type closer struct {
+	c    io.Closer
+	done chan struct{}
+}
+
+// Close closes wrapped Closer and waits for done to be closed.
+func (c closer) Close() error {
+	defer func() { <-c.done }()
+	return c.c.Close()
 }
 
 // LogPackInfoStatistic inspect data stream for the informational messages

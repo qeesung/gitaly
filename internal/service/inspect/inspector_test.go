@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -64,11 +65,11 @@ func TestWrite(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			mainWriter := &bytes.Buffer{}
-			checked := make(chan struct{})
+			var checked int32
 
 			writer := NewWriter(mainWriter, func(reader io.Reader) {
 				tc.action(reader)
-				close(checked)
+				atomic.StoreInt32(&checked, 1)
 			})
 
 			_, err := io.Copy(writer, tc.src)
@@ -83,7 +84,7 @@ func TestWrite(t *testing.T) {
 			require.Equal(t, tc.exp, data)
 
 			require.NoError(t, writer.Close())
-			<-checked
+			require.Equal(t, int32(1), atomic.LoadInt32(&checked))
 		})
 	}
 }
