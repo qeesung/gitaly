@@ -1,0 +1,5 @@
+---
+title: Add sql-migrate subcommand to Praefect
+merge_request: 1738
+author:
+type: added
