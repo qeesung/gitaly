@@ -13,6 +13,9 @@ describe Gitlab::Git::Hook do
     let(:tmp_dir) { Dir.mktmpdir }
     let(:hook_names) { %w[pre-receive post-receive update] }
     let(:repo) { gitlab_git_from_gitaly(test_repo_read_only) }
+    let(:push_options) do
+      Gitlab::Git::PushOptions.new.tap(&:enable_ci_skip)
+    end
 
     before do
       hook_names.each do |f|
@@ -59,8 +62,8 @@ describe Gitlab::Git::Hook do
 
       it 'returns true' do
         hook_names.each do |hook|
-          trigger_result = described_class.new(hook, repo)
-                                          .trigger(vars['GL_ID'], vars['GL_USERNAME'], '0' * 40, 'a' * 40, 'master')
+          trigger_result = described_class.new(hook, repo,)
+                                          .trigger(vars['GL_ID'], vars['GL_USERNAME'], '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(true), "#{hook} failed:  #{trigger_result.last}"
         end
@@ -73,7 +76,7 @@ describe Gitlab::Git::Hook do
       it 'returns true' do
         hook_names.each do |hook|
           trigger_result = described_class.new(hook, repo)
-                                          .trigger('user-456', 'admin', '0' * 40, 'a' * 40, 'master')
+                                          .trigger('user-456', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(true)
         end
@@ -86,7 +89,7 @@ describe Gitlab::Git::Hook do
       it 'returns false' do
         hook_names.each do |hook|
           trigger_result = described_class.new(hook, repo)
-                                          .trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master')
+                                          .trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(false)
         end
