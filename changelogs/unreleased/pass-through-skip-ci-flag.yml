@@ -1,0 +1,5 @@
+---
+title: Allow skip_ci to be passed to rebase
+merge_request: 1748
+author:
+type: added

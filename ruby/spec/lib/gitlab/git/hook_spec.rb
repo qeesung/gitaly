@@ -62,7 +62,7 @@ describe Gitlab::Git::Hook do
 
       it 'returns true' do
         hook_names.each do |hook|
-          trigger_result = described_class.new(hook, repo,)
+          trigger_result = described_class.new(hook, repo)
                                           .trigger(vars['GL_ID'], vars['GL_USERNAME'], '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(true), "#{hook} failed:  #{trigger_result.last}"
