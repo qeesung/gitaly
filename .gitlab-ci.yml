@@ -211,4 +211,4 @@ praefect_sql_connect:
     - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DB -c 'select now()'
     - ruby -rerb -e 'ERB.new(ARGF.read).run' _support/config.praefect.toml.ci-sql-test.erb > config.praefect.toml
     - ./praefect -config config.praefect.toml sql-ping
-    - ./praefect -config config.praefect.toml db-migrate
+    - ./praefect -config config.praefect.toml sql-migrate

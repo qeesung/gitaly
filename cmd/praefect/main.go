@@ -211,7 +211,7 @@ func subCommand(conf config.Config, arg0 string, argRest []string) int {
 	switch arg0 {
 	case "sql-ping":
 		return sqlPing(conf)
-	case "db-migrate":
+	case "sql-migrate":
 		return dbMigrate(conf)
 	default:
 		fmt.Printf("%s: unknown subcommand: %q\n", progname, arg0)
@@ -232,7 +232,7 @@ func sqlPing(conf config.Config) int {
 }
 
 func dbMigrate(conf config.Config) int {
-	const subCmd = progname + " db-migrate"
+	const subCmd = progname + " sql-migrate"
 
 	if err := datastore.Migrate(conf); err != nil {
 		fmt.Printf("%s: fail: %v\n", subCmd, err)
