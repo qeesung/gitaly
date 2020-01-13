@@ -103,8 +103,8 @@ describe Gitlab::Git::Hook do
     context 'when push options are passed' do
       let(:script) do
         <<~EOSH
-          #!/bin/sh
-          if [ $GIT_PUSH_OPTION_COUNT == "1" ] && [ $GIT_PUSH_OPTION_0 == "ci.skip" ]
+          #!/bin/bash
+          if [ "$GIT_PUSH_OPTION_COUNT" == "1" ] && [ "$GIT_PUSH_OPTION_0" == "ci.skip" ]
           then
             exit 0
           else
