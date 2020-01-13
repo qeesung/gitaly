@@ -16,6 +16,7 @@ The reference guide is documented in https://gitlab.com/gitlab-org/gitlab/blob/m
 - When developing on Gitaly-Ruby, read the [Gitaly-Ruby doc](doc/ruby_endpoint.md)
 - The Gitaly release process is described in [our process doc](doc/PROCESS.md)
 - Tests use Git repositories too, [read more about them](doc/test_repos.md)
+- Praefect uses SQL. To create a new SQL migration see [sql_migrations.md](sql_migrations.md)
 
 #### Gitaly HA
 
