@@ -23,56 +23,19 @@ The protocol definitions can be found in `proto/*.proto`.
 Gitaly is a component that calls procedure on the Git data when it's requested
 to do so.
 
-You can find a clone of the gitaly repository in `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`.
-You can check out your working branch here, but be aware that `gdk update` will reset it to the tag specified by `/path/to/gdk/gitlab/GITALY_SERVER_VERSION`.
+You can find a clone of the gitaly repository in
+`/path/to/gdk/gitaly`. You can check out your working branch here, but
+be aware that `gdk update` will reset it to the tag specified by
+`/path/to/gdk/gitlab/GITALY_SERVER_VERSION`.
 
-##### GOPATH and GDK
+If you do a lot of Gitaly development this can get annoying. If you
+want to stop `gdk update` from messing with your Gitaly checkout, put
+the following in `/path/to/gdk/gdk.yml`:
 
-> If you don't know what GOPATH is you can skip this section.
-
-Although you can compile and test Gitaly using `make` without having to set a
-GOPATH, you often want to do your Go development work in the context
-of a GOPATH. At the same time, when working on GitLab, it is useful to
-use GDK so that you can see e.g. how your Gitaly contribution
-integrates into GitLab as a whole.
-
-You have the following options to combine GOPATH and GDK:
-
-1. (default and recommended) use the embedded Gitaly GOPATH in GDK
-2. (if you like having a global GOPATH) run `go get
-   gitlab.com/gitlab-org/gitaly` in your global GOPATH, and symlink
-   `/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` to
-   `$GOPATH/src/gitlab.com/gitlab-org/gitaly`
-
-Option 1 is set up automatically for you when you install GDK. It gives
-you several options:
-
-- use a "dumb" text editor and run `go` commands in a dedicated
-  terminal window with the correct exported GOPATH
-- use VSCode with `"go.inferGopath": true` in your user settings. This
-  will auto-detect the GDK embedded GOPATH
-- launch a new Atom window with the GDK embedded GOPATH:
-
+```yaml
+gitaly:
+  auto_update: false
 ```
-cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly
-GOPATH=/path/to/gdk/gitaly atom .
-```
-
-About option 2: most editors with Go language integration should have a
-way to let you set GOPATH for a specific editor session. If you want
-to use a global GOPATH anyway, you can do the following to still get
-GDK integration:
-
-```
-cd /path/to/gdk/gitaly/src/gitlab.com/gitlab-org/
-mv gitaly gitaly.deleted
-ln -s /path/to/global/gopath/src/gitlab.com/gitlab-org/gitaly gitaly
-```
-
-Now you can open the copy of Gitaly inside your global GOPATH with
-your favourite editor, and all your plugins should work. Note that when
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly` is a symlink,
-some tools break. In this case run commands in your global GOPATH instead.
 
 ### Development
 
@@ -82,7 +45,7 @@ some tools break. In this case run commands in your global GOPATH instead.
 
 If you're used to Ruby on Rails development you may be used to a "edit
 code and reload" cycle where you keep editing and reloading until you
-have your change working. This is not a good workflow for Gitaly
+have your change working. This is usually not the best workflow for Gitaly
 development.
 
 At some point you will know which Gitaly RPC you need to work on. This
@@ -102,6 +65,15 @@ is "edit code, run tests".
 
 This is many times faster than "edit gitaly, reinstall Gitaly into GDK,
 restart, reload localhost:3000".
+
+Regardless, if you do want to see your locally changed Gitaly in
+action on `localhost:3000`, you can. Run the following commands in
+your GDK directory:
+
+```shell
+make gitaly-setup
+gdk restart gitaly
+```
 
 #### Process
 
@@ -199,14 +171,7 @@ the package it lives in (e.g. `internal/service/repository`) and the
 test name (e.g. `TestRepositoryExists`).
 
 To run the test you need a terminal window with working directory
-`/path/to/gdk/gitaly/src/gitlab.com/gitlab-org/gitaly`. Make sure
-GOPATH is set correctly in your terminal window:
-
-```
-export GOPATH=/path/to/gdk/gitaly
-```
-
-Now you can run the one test you're interested in:
+`/path/to/gdk/gitaly`. To run just the one test you're interested in:
 
 ```
 go test -count 1 -run TestRepositoryExists ./internal/service/repository
