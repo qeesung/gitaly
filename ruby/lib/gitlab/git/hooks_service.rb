@@ -19,7 +19,9 @@ module Gitlab
         end
 
         yield(self).tap do
-          run_hook('post-receive')
+          status, message = run_hook('post-receive')
+
+          raise PostReceiveError, message unless status
         end
       end
 

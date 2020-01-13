@@ -67,6 +67,21 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 		rebaseStream, err := client.UserRebaseConfirmable(ctx)
 		require.NoError(t, err, tc.desc)
 
+		if tc.skipCi {
+			hookContent := []byte(`#!/bin/bash
+			if [ "$GIT_PUSH_OPTION_COUNT" == "1" ] && [ "$GIT_PUSH_OPTION_0" == "ci.skip" ]
+			then
+				exit 0
+			else
+				exit 1
+			fi
+			`)
+
+			remove, err := operations.OverrideHooks("post-receive", []byte(hookContent))
+			require.NoError(t, err, "set up hooks override")
+			defer remove()
+		}
+
 		headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", tc.skipCi)
 		require.NoError(t, rebaseStream.Send(headerRequest), tc.desc, "send header")
 
