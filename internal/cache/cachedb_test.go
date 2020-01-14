@@ -189,14 +189,3 @@ func (lr leashedReader) Read(p []byte) (n int, err error) {
 
 	return 1, nil // on receive, return 1 byte read
 }
-
-func TestInvalidRepo(t *testing.T) {
-	k := cache.LeaseKeyer{}
-	l, err := k.StartLease(&gitalypb.Repository{
-		StorageName:  "default",
-		RelativePath: "asdf\x00",
-	})
-	config.Config.Storages = nil
-	require.NoError(t, err)
-	l.EndLease(context.Background())
-}
