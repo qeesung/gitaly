@@ -9,7 +9,6 @@ import (
 	// Blank import to enable integration of github.com/lib/pq into database/sql
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
-	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/migrations"
 )
@@ -43,23 +42,14 @@ func CheckPostgresVersion(conf config.Config) error {
 func openDB(conf config.Config) (*sql.DB, error) { return sql.Open("postgres", conf.DB.ToPQString()) }
 
 // Migrate will apply all pending SQL migrations
-func Migrate(conf config.Config) error {
+func Migrate(conf config.Config) (int, error) {
 	db, err := openDB(conf)
 	if err != nil {
-		return fmt.Errorf("sql open: %v", err)
+		return 0, fmt.Errorf("sql open: %v", err)
 	}
 	defer db.Close()
 
 	migrationSource := &migrate.MemoryMigrationSource{Migrations: migrations.All()}
 
-	n, err := migrate.Exec(db, "postgres", migrationSource, migrate.Up)
-	if err != nil {
-		return err
-	}
-
-	if n > 0 {
-		log.WithField("migrations", n).Info("applied SQL migrations")
-	}
-
-	return nil
+	return migrate.Exec(db, "postgres", migrationSource, migrate.Up)
 }
