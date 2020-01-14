@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -24,7 +25,7 @@ func sqlPing(conf config.Config) int {
 	const subCmd = progname + " sql-ping"
 
 	if err := datastore.CheckPostgresVersion(conf); err != nil {
-		fmt.Printf("%s: fail: %v\n", subCmd, err)
+		printfErr("%s: fail: %v\n", subCmd, err)
 		return 1
 	}
 
@@ -37,10 +38,14 @@ func sqlMigrate(conf config.Config) int {
 
 	n, err := datastore.Migrate(conf)
 	if err != nil {
-		fmt.Printf("%s: fail: %v\n", subCmd, err)
+		printfErr("%s: fail: %v\n", subCmd, err)
 		return 1
 	}
 
 	fmt.Printf("%s: OK (applied %d migrations)\n", subCmd, n)
 	return 0
+}
+
+func printfErr(format string, a ...interface{}) (int, error) {
+	return fmt.Fprintf(os.Stderr, format, a...)
 }
