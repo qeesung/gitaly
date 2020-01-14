@@ -14,18 +14,17 @@ require (
 	github.com/libgit2/git2go v0.0.0-20190104134018-ecaeb7a21d47
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/procfs v0.0.3 // indirect
-	github.com/sirupsen/logrus v1.3.0
+	github.com/rubenv/sql-migrate v0.0.0-20191213152630-06338513c237
+	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/tinylib/msgp v1.1.0 // indirect
 	gitlab.com/gitlab-org/labkit v0.0.0-20190902063225-3253d7975ca7
-	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
-	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20181202183823-bd91e49a0898 // indirect
 	google.golang.org/grpc v1.24.0
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.5
 )
 
 go 1.12

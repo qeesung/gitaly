@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+require 'erb'
+
+PROGNAME = File.basename(__FILE__)
+MIGRATIONS_DIR = 'internal/praefect/datastore/migrations'
+
+def main(migration_name)
+  unless /\A[a-z0-9_]+\z/ =~ migration_name
+    abort "invalid migration name #{migration_name.inspect} (only a-z0-9_ are allowed)"
+  end
+
+  sequence_number = Time.now.utc.strftime('%Y%m%d%H%M%S')
+ 
+  migration_file =  File.join(MIGRATIONS_DIR, "#{sequence_number}_#{migration_name}.go")
+  warn "#{PROGNAME}: creating #{migration_file}"
+  IO.write(migration_file, ERB.new(DATA.read).result(binding))
+end
+
+unless ARGV.count == 1
+  abort "usage: #{PROGNAME} MIGRATION_NAME"
+end
+
+main(*ARGV)
+
+__END__
+package migrations
+
+import migrate "github.com/rubenv/sql-migrate"
+
+func init() {
+	m := &migrate.Migration{
+		Id:   "<%= sequence_number %>_<%= migration_name %>",
+		Up:   []string{},
+		Down: []string{},
+	}
+
+	allMigrations = append(allMigrations, m)
+}
