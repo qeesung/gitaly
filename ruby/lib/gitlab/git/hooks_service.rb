@@ -21,7 +21,7 @@ module Gitlab
         yield(self).tap do
           status, message = run_hook('post-receive')
 
-          raise PostReceiveError, message unless status
+          Gitlab::GitLogger.error("post-receive hook: #{message}") unless status
         end
       end
 

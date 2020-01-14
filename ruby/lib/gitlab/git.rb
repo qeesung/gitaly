@@ -55,7 +55,6 @@ module Gitlab
     OSError = Class.new(BaseError)
     UnknownRef = Class.new(BaseError)
     PreReceiveError = Class.new(BaseError)
-    PostReceiveError = Class.new(BaseError)
     PatchError = Class.new(BaseError)
 
     class << self
