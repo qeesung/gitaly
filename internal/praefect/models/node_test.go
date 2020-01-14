@@ -27,12 +27,10 @@ func TestRepository_Clone(t *testing.T) {
 			},
 		},
 	}
-	srcCp := src
 
 	clone := src.Clone()
 	require.Equal(t, src, clone)
 
 	clone.Replicas[0].Address = "0.0.0.3"
-	require.NotEqual(t, src, clone)
-	require.Equal(t, srcCp, src)
+	require.Equal(t, "0.0.0.1", src.Replicas[0].Address)
 }

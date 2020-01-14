@@ -148,15 +148,18 @@ func TestMemoryDatastore_GetRepository(t *testing.T) {
 
 	repBefore, err := ds.GetRepository(repo1Repository.RelativePath)
 	require.NoError(t, err)
-	require.Len(t, repBefore.Replicas, 1)
-	require.Equal(t, models.Repository{
+
+	expRepo := models.Repository{
 		RelativePath: repo1Repository.RelativePath,
 		Primary:      stor1,
 		Replicas:     []models.Node{stor2},
-	}, repBefore)
+	}
+	require.Equal(t, expRepo, repBefore)
+
+	initialAddrs := repBefore.Replicas[0].Address
 	repBefore.Replicas[0].Address += "/"
 
 	repAfter, err := ds.GetRepository(repo1Repository.RelativePath)
 	require.NoError(t, err)
-	require.NotEqual(t, repAfter, repBefore)
+	require.Equal(t, initialAddrs, repAfter.Replicas[0].Address, "modification from outside should not affect what is inside storage")
 }
