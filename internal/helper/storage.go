@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -80,7 +81,7 @@ func ClientConnection(ctx context.Context, storageName string) (*grpc.ClientConn
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(repoStorageInfo["token"])),
 	}
 
-	conn, err := grpc.Dial(repoStorageInfo["address"], connOpts...)
+	conn, err := client.Dial(repoStorageInfo["address"], connOpts)
 	if err != nil {
 		return nil, fmt.Errorf("could not dial source: %v", err)
 	}
