@@ -58,6 +58,18 @@ var (
 			Help: "Total number of errors during diskcache filesystem walks",
 		},
 	)
+	walkerEmptyDirTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_diskcache_walker_empty_dir_total",
+			Help: "Total number of empty directories encountered",
+		},
+	)
+	walkerEmptyDirRemovalTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gitaly_diskcache_walker_empty_dir_removal_total",
+			Help: "Total number of empty directories removed",
+		},
+	)
 )
 
 func init() {
@@ -70,6 +82,8 @@ func init() {
 	prometheus.MustRegister(walkerCheckTotal)
 	prometheus.MustRegister(walkerRemovalTotal)
 	prometheus.MustRegister(walkerErrorTotal)
+	prometheus.MustRegister(walkerEmptyDirTotal)
+	prometheus.MustRegister(walkerEmptyDirRemovalTotal)
 }
 
 func countErr(err error) error {
@@ -83,12 +97,14 @@ func countErr(err error) error {
 }
 
 var (
-	countRequest     = func() { requestTotals.Inc() }
-	countMiss        = func() { missTotals.Inc() }
-	countWriteBytes  = func(n float64) { bytesStoredtotals.Add(n) }
-	countReadBytes   = func(n float64) { bytesFetchedtotals.Add(n) }
-	countLoserBytes  = func(n float64) { bytesLoserTotals.Add(n) }
-	countWalkRemoval = func() { walkerRemovalTotal.Inc() }
-	countWalkCheck   = func() { walkerCheckTotal.Inc() }
-	countWalkError   = func() { walkerErrorTotal.Inc() }
+	countRequest         = func() { requestTotals.Inc() }
+	countMiss            = func() { missTotals.Inc() }
+	countWriteBytes      = func(n float64) { bytesStoredtotals.Add(n) }
+	countReadBytes       = func(n float64) { bytesFetchedtotals.Add(n) }
+	countLoserBytes      = func(n float64) { bytesLoserTotals.Add(n) }
+	countWalkRemoval     = func() { walkerRemovalTotal.Inc() }
+	countWalkCheck       = func() { walkerCheckTotal.Inc() }
+	countWalkError       = func() { walkerErrorTotal.Inc() }
+	countEmptyDir        = func() { walkerEmptyDirTotal.Inc() }
+	countEmptyDirRemoval = func() { walkerEmptyDirRemovalTotal.Inc() }
 )

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -33,9 +34,9 @@ func cleanWalk(path string) error {
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logWalkErr(err, path, "unable to stat directory")
 			return nil
 		}
+		logWalkErr(err, path, "unable to stat directory")
 		return err
 	}
 
@@ -50,25 +51,32 @@ func cleanWalk(path string) error {
 		}
 
 		countWalkCheck()
-		if time.Since(e.ModTime()) >= staleAge {
-			if err := os.Remove(ePath); err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				logWalkErr(err, ePath, "unable to remove file")
-				return err
-			}
-			countWalkRemoval()
+		if time.Since(e.ModTime()) < staleAge {
+			continue // still fresh
 		}
+
+		// file is stale
+		if err := os.Remove(ePath); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			logWalkErr(err, ePath, "unable to remove file")
+			return err
+		}
+		countWalkRemoval()
 	}
 
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		logWalkErr(err, path, "unable to stat directory after walk")
 		return err
 	}
 
 	if len(files) == 0 {
+		countEmptyDir()
 		if err := os.Remove(path); err != nil {
 			if os.IsNotExist(err) {
 				return nil
@@ -76,6 +84,7 @@ func cleanWalk(path string) error {
 			logWalkErr(err, path, "unable to remove empty directory")
 			return err
 		}
+		countEmptyDirRemoval()
 		countWalkRemoval()
 	}
 
@@ -156,14 +165,21 @@ func moveAndClear(storage config.Storage) error {
 }
 
 func init() {
+	oncePerStorage := map[string]*sync.Once{}
+	var err error
+
 	config.RegisterHook(func(cfg config.Cfg) error {
 		for _, storage := range cfg.Storages {
-			if err := moveAndClear(storage); err != nil {
-				return err
+			if _, ok := oncePerStorage[storage.Name]; !ok {
+				oncePerStorage[storage.Name] = new(sync.Once)
 			}
-
-			startCleanWalker(storage)
+			oncePerStorage[storage.Name].Do(func() {
+				if err = moveAndClear(storage); err != nil {
+					return
+				}
+				startCleanWalker(storage)
+			})
 		}
-		return nil
+		return err
 	})
 }
