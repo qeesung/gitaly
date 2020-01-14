@@ -207,6 +207,7 @@ func TestGetArchiveFailure(t *testing.T) {
 			commitID: "sadf",
 			format:   gitalypb.GetArchiveRequest_TAR,
 			path:     []byte("Here is a string...."),
+			code:     codes.InvalidArgument,
 		},
 	}
 
