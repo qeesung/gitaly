@@ -161,11 +161,12 @@ func invalidateCache(ci Invalidator, mInfo protoregistry.MethodInfo, handler grp
 		le.Lock()
 		defer le.Unlock()
 
-		le.LeaseEnder, err = ci.StartLease(target)
+		l, err := ci.StartLease(target)
 		if err != nil {
 			errLogger(err)
 			return
 		}
+		le.LeaseEnder = l
 	}
 
 	return wrappedHandler, peekerCallback
