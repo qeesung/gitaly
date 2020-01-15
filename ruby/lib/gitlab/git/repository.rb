@@ -242,8 +242,8 @@ module Gitlab
         raise TagExistsError
       end
 
-      def update_branch(branch_name, user:, newrev:, oldrev:, skip_ci: false)
-        OperationService.new(user, self).update_branch(branch_name, newrev, oldrev, skip_ci: skip_ci)
+      def update_branch(branch_name, user:, newrev:, oldrev:, push_options: nil)
+        OperationService.new(user, self).update_branch(branch_name, newrev, oldrev, push_options: push_options)
       end
 
       def rm_branch(branch_name, user:)
@@ -347,7 +347,7 @@ module Gitlab
         rugged.diff(sha1, sha2).size.positive?
       end
 
-      def rebase(user, rebase_id, branch:, branch_sha:, remote_repository:, remote_branch:, skip_ci: false)
+      def rebase(user, rebase_id, branch:, branch_sha:, remote_repository:, remote_branch:, push_options: nil)
         worktree = Gitlab::Git::Worktree.new(path, REBASE_WORKTREE_PREFIX, rebase_id)
         env = git_env.merge(user.git_env)
 
@@ -377,7 +377,7 @@ module Gitlab
 
           yield rebase_sha if block_given?
 
-          update_branch(branch, user: user, newrev: rebase_sha, oldrev: branch_sha, skip_ci: skip_ci)
+          update_branch(branch, user: user, newrev: rebase_sha, oldrev: branch_sha, push_options: push_options)
 
           rebase_sha
         end

@@ -5,16 +5,8 @@ module Gitlab
     class PushOptions
       attr_accessor :options
 
-      def initialize
-        @options = []
-      end
-
-      def enable_ci_skip
-        add_option("ci.skip")
-      end
-
-      def add_option(opt)
-        options << opt
+      def initialize(options = [])
+        @options = options
       end
 
       def env_data

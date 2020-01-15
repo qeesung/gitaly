@@ -96,9 +96,9 @@ module Gitlab
         end
       end
 
-      def update_branch(branch_name, newrev, oldrev, skip_ci: false)
+      def update_branch(branch_name, newrev, oldrev, push_options: nil)
         ref = Gitlab::Git::BRANCH_REF_PREFIX + branch_name
-        update_ref_in_hooks(ref, newrev, oldrev, skip_ci: skip_ci)
+        update_ref_in_hooks(ref, newrev, oldrev, push_options: push_options)
       end
 
       # Yields the given block (which should return a commit) and
@@ -172,10 +172,7 @@ module Gitlab
         end
       end
 
-      def update_ref_in_hooks(ref, newrev, oldrev, skip_ci: false)
-        push_options = PushOptions.new
-        push_options.enable_ci_skip if skip_ci
-
+      def update_ref_in_hooks(ref, newrev, oldrev, push_options: nil)
         with_hooks(ref, newrev, oldrev, push_options: push_options) do
           update_ref(ref, newrev, oldrev)
         end
@@ -190,7 +187,6 @@ module Gitlab
           ref,
           push_options: push_options
         ) do |service|
-
           yield(service)
         end
       end

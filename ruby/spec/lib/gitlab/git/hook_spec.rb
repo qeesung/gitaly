@@ -14,7 +14,7 @@ describe Gitlab::Git::Hook do
     let(:hook_names) { %w[pre-receive post-receive update] }
     let(:repo) { gitlab_git_from_gitaly(test_repo_read_only) }
     let(:push_options) do
-      Gitlab::Git::PushOptions.new.tap(&:enable_ci_skip)
+      Gitlab::Git::PushOptions.new(['ci.skip'])
     end
 
     def trigger_with_stub_data(hook, push_options)

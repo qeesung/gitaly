@@ -223,7 +223,7 @@ module GitalyServer
             branch_sha: header.branch_sha,
             remote_repository: remote_repository,
             remote_branch: header.remote_branch,
-            skip_ci: header.skip_ci
+            push_options: Gitlab::Git::PushOptions.new(header.git_push_options)
           ) do |rebase_sha|
             y << Gitaly::UserRebaseConfirmableResponse.new(rebase_sha: rebase_sha)
 
