@@ -30,16 +30,15 @@ var (
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	testCases := []struct {
-		desc   string
-		skipCi bool
+		desc        string
+		pushOptions []string
 	}{
 		{
-			desc:   "with default skipCi False",
-			skipCi: false,
+			desc: "without push options",
 		},
 		{
-			desc:   "with skipCi True",
-			skipCi: true,
+			desc:        "with push options",
+			pushOptions: []string{"ci.skip"},
 		},
 	}
 
@@ -67,7 +66,7 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 		rebaseStream, err := client.UserRebaseConfirmable(ctx)
 		require.NoError(t, err, tc.desc)
 
-		if tc.skipCi {
+		if len(tc.pushOptions) > 0 {
 			hookContent := []byte(`#!/bin/bash
 			if [ "$GIT_PUSH_OPTION_COUNT" == "1" ] && [ "$GIT_PUSH_OPTION_0" == "ci.skip" ]
 			then
@@ -82,7 +81,7 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 			defer remove()
 		}
 
-		headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", tc.skipCi)
+		headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", tc.pushOptions)
 		require.NoError(t, rebaseStream.Send(headerRequest), tc.desc, "send header")
 
 		firstResponse, err := rebaseStream.Recv()
@@ -133,33 +132,35 @@ func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
+	var pushOptions []string
+
 	testCases := []struct {
 		desc string
 		req  *gitalypb.UserRebaseConfirmableRequest
 	}{
 		{
 			desc: "empty Repository",
-			req:  buildHeaderRequest(nil, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", false),
+			req:  buildHeaderRequest(nil, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", pushOptions),
 		},
 		{
 			desc: "empty User",
-			req:  buildHeaderRequest(testRepo, nil, "1", branchName, branchSha, testRepoCopy, "master", false),
+			req:  buildHeaderRequest(testRepo, nil, "1", branchName, branchSha, testRepoCopy, "master", pushOptions),
 		},
 		{
 			desc: "empty Branch",
-			req:  buildHeaderRequest(testRepo, rebaseUser, "1", "", branchSha, testRepoCopy, "master", false),
+			req:  buildHeaderRequest(testRepo, rebaseUser, "1", "", branchSha, testRepoCopy, "master", pushOptions),
 		},
 		{
 			desc: "empty BranchSha",
-			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, "", testRepoCopy, "master", false),
+			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, "", testRepoCopy, "master", pushOptions),
 		},
 		{
 			desc: "empty RemoteRepository",
-			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, nil, "master", false),
+			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, nil, "master", pushOptions),
 		},
 		{
 			desc: "empty RemoteBranch",
-			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "", false),
+			req:  buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "", pushOptions),
 		},
 	}
 
@@ -212,7 +213,8 @@ func TestAbortedUserRebaseConfirmable(t *testing.T) {
 
 			branchSha := getBranchSha(t, testRepoPath, branchName)
 
-			headerRequest := buildHeaderRequest(testRepo, rebaseUser, fmt.Sprintf("%v", i), branchName, branchSha, testRepoCopy, "master", false)
+			var pushOptions []string
+			headerRequest := buildHeaderRequest(testRepo, rebaseUser, fmt.Sprintf("%v", i), branchName, branchSha, testRepoCopy, "master", pushOptions)
 
 			rebaseStream, err := client.UserRebaseConfirmable(ctx)
 			require.NoError(t, err)
@@ -270,7 +272,8 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", false)
+	var pushOptions []string
+	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master", pushOptions)
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
 	firstResponse, err := rebaseStream.Recv()
@@ -324,7 +327,8 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 			rebaseStream, err := client.UserRebaseConfirmable(ctx)
 			require.NoError(t, err)
 
-			headerRequest := buildHeaderRequest(testRepo, rebaseUser, fmt.Sprintf("%v", i), branchName, branchSha, testRepoCopy, "master", false)
+			var pushOptions []string
+			headerRequest := buildHeaderRequest(testRepo, rebaseUser, fmt.Sprintf("%v", i), branchName, branchSha, testRepoCopy, "master", pushOptions)
 			require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
 			firstResponse, err := rebaseStream.Recv()
@@ -379,7 +383,8 @@ func TestFailedUserRebaseConfirmableDueToGitError(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", failedBranchName, branchSha, testRepoCopy, "master", false)
+	var pushOptions []string
+	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", failedBranchName, branchSha, testRepoCopy, "master", pushOptions)
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
 	firstResponse, err := rebaseStream.Recv()
@@ -675,7 +680,7 @@ func recvTimeout(bidi gitalypb.OperationService_UserRebaseConfirmableClient, tim
 	}
 }
 
-func buildHeaderRequest(repo *gitalypb.Repository, user *gitalypb.User, rebaseId string, branchName string, branchSha string, remoteRepo *gitalypb.Repository, remoteBranch string, skipCi bool) *gitalypb.UserRebaseConfirmableRequest {
+func buildHeaderRequest(repo *gitalypb.Repository, user *gitalypb.User, rebaseId string, branchName string, branchSha string, remoteRepo *gitalypb.Repository, remoteBranch string, pushOptions []string) *gitalypb.UserRebaseConfirmableRequest {
 	return &gitalypb.UserRebaseConfirmableRequest{
 		UserRebaseConfirmableRequestPayload: &gitalypb.UserRebaseConfirmableRequest_Header_{
 			&gitalypb.UserRebaseConfirmableRequest_Header{
@@ -686,7 +691,7 @@ func buildHeaderRequest(repo *gitalypb.Repository, user *gitalypb.User, rebaseId
 				BranchSha:        branchSha,
 				RemoteRepository: remoteRepo,
 				RemoteBranch:     []byte(remoteBranch),
-				SkipCi:           skipCi,
+				GitPushOptions:   pushOptions,
 			},
 		},
 	}
