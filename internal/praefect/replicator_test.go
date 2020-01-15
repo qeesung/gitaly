@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
@@ -182,6 +183,26 @@ func TestConfirmReplication(t *testing.T) {
 	equal, err = replicator.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(conn), gitalypb.NewRepositoryServiceClient(conn), testRepoA, testRepoB)
 	require.NoError(t, err)
 	require.False(t, equal)
+}
+
+func TestBackoff(t *testing.T) {
+	start := 1 * time.Microsecond
+	max := 6 * time.Microsecond
+	expectedBackoffs := []time.Duration{
+		1 * time.Microsecond,
+		2 * time.Microsecond,
+		4 * time.Microsecond,
+		6 * time.Microsecond,
+		6 * time.Microsecond,
+		6 * time.Microsecond,
+	}
+	b, reset := expBackoff(start, max)
+	for _, expectedBackoff := range expectedBackoffs {
+		require.Equal(t, expectedBackoff, b())
+	}
+
+	reset()
+	require.Equal(t, start, b())
 }
 
 func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {

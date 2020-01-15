@@ -1,0 +1,5 @@
+---
+title: Add exponential backoff to replication manager
+merge_request: 1746
+author:
+type: changed
