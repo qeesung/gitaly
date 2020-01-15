@@ -102,15 +102,12 @@ describe Gitlab::Git::Hook do
 
     context 'when push options are passed' do
       let(:script) do
-        <<~EOSH
-          #!/bin/bash
-          if [ "$GIT_PUSH_OPTION_COUNT" == "1" ] && [ "$GIT_PUSH_OPTION_0" == "ci.skip" ]
-          then
-            exit 0
-          else
-            exit 1
-          fi
-        EOSH
+        <<~HOOK
+          #!/usr/bin/env ruby
+          unless ENV['GIT_PUSH_OPTION_COUNT'] == '1' && ENV['GIT_PUSH_OPTION_0'] == 'ci.skip'
+            abort 'missing GIT_PUSH_OPTION env vars'
+          end
+        HOOK
       end
 
       context 'for pre-receive and post-receive hooks' do
