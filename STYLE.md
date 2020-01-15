@@ -212,8 +212,8 @@ func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
     }()
     
     go func() {
-        defer func() { <-done }() // signal when the goroutine returns
-        for x := range xCh {      // consume values until the channel is closed
+        defer close(done)    // signal when the goroutine returns
+        for x := range xCh { // consume values until the channel is closed
             fmt.Println(xCh)
         }
     }()
@@ -257,22 +257,24 @@ func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
 ```
 
 This pattern works in RPC's because the context will always be cancelled after
-the RPC completes. However, we aren't as confident that the goroutine exited
-since we never waited for confirmation.
+the RPC completes.
 
-Ignoring confirmation of the goroutine's completion is bad for a few reasons:
+#### Confirming Goroutine Cleanup
+
+No matter which way you decide to clean up a goroutine, you always need to be
+confident that it does in fact get cleaned up. The simplest way to do this in
+an RPC is to simply wait until the clean up happens. If this is not reasonable,
+you may want to rely on designing the goroutine as simple as possible so that
+it can be easily verified by code review.
+
+Why is this so important?
 
 - We lose observability - most of our metrics are derived from the performance
   of the RPC. If we perform the real work outside the RPC, and the RPC returns
-  immediately, we end up with a false sense of how slow/fast an RPC is (e.g.
-  "Wow, that garbage compaction is running real fast! Let's run it more often!")
-- Goroutine leaks - if the goroutines never complete, we can end up with a leak.
+  immediately, we end up with a false sense of how slow/fast an RPC is.
+- Goroutine leaks - if the goroutines never cleanup, we can end up with a leak.
   While goroutines are much cheaper than threads or processes, they still incur
   a cost. A goroutine starts with a minimum of 2KB stack space and grows.
-  
-  This issue is easier to spot when the RPC waits for child goroutines to finish
-  since the RPC will never complete. This means that the leak has a higher
-  chance of being spotted in testing.
 
 ### Goroutine Panic Risks
 
