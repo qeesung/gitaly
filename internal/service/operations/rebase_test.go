@@ -5,10 +5,10 @@ package operations_test
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
-	"io/ioutil"
 
 	"github.com/stretchr/testify/require"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
@@ -55,17 +55,8 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	hookContent := `#!/usr/bin/env ruby
-		content = "GIT_PUSH_OPTION_COUNT=#{ENV['GIT_PUSH_OPTION_COUNT']}
-		GIT_PUSH_OPTION_0=#{ENV['GIT_PUSH_OPTION_0']}
-		GIT_PUSH_OPTION_1=#{ENV['GIT_PUSH_OPTION_1']}"
-
-		File.write('push-options-env-vars-from-hook', content)
-		`
-
-	remove, err := operations.OverrideHooks("post-receive", []byte(hookContent))
-	require.NoError(t, err, "set up hooks override")
-	defer remove()
+	hookOutputTempPath := operations.WriteEnvToHook(t, testRepoPath, "post-receive")
+	defer os.Remove(hookOutputTempPath)
 
 	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master")
 	headerRequest.GetHeader().GitPushOptions = pushOptions
@@ -96,11 +87,10 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 
 	require.True(t, secondResponse.GetRebaseApplied(), "the second rebase is applied")
 
-	data, err := ioutil.ReadFile("push-options-env-vars-from-hook")
-	require.NoError(t, err, "opening env vars dump file")
-	require.Equal(t, string(data), `GIT_PUSH_OPTION_COUNT=2
-	GIT_PUSH_OPTION_0=ci.skip
-	GIT_PUSH_OPTION_1=test=var`)
+	output := testhelper.MustReadFile(t, hookOutputTempPath)
+	require.Contains(t, string(output), "GIT_PUSH_OPTION_COUNT=2")
+	require.Contains(t, string(output), "GIT_PUSH_OPTION_0=ci.skip")
+	require.Contains(t, string(output), "GIT_PUSH_OPTION_1=test=value")
 }
 
 func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T) {
