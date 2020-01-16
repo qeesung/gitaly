@@ -5,6 +5,7 @@ package operations_test
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,8 @@ var (
 )
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
+	pushOptions := []string{"ci.skip", "test=value"}
+
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
@@ -52,7 +55,13 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
+	preReceiveHookOutputPath := operations.WriteEnvToHook(t, testRepoPath, "pre-receive")
+	postReceiveHookOutputPath := operations.WriteEnvToHook(t, testRepoPath, "post-receive")
+	defer os.Remove(preReceiveHookOutputPath)
+	defer os.Remove(postReceiveHookOutputPath)
+
 	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master")
+	headerRequest.GetHeader().GitPushOptions = pushOptions
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
 	firstResponse, err := rebaseStream.Recv()
@@ -79,6 +88,13 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	require.Equal(t, newBranchSha, firstResponse.GetRebaseSha())
 
 	require.True(t, secondResponse.GetRebaseApplied(), "the second rebase is applied")
+
+	for _, outputPath := range []string{preReceiveHookOutputPath, postReceiveHookOutputPath} {
+		output := string(testhelper.MustReadFile(t, outputPath))
+		require.Contains(t, output, "GIT_PUSH_OPTION_COUNT=2")
+		require.Contains(t, output, "GIT_PUSH_OPTION_0=ci.skip")
+		require.Contains(t, output, "GIT_PUSH_OPTION_1=test=value")
+	}
 }
 
 func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T) {

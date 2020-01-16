@@ -13,6 +13,13 @@ describe Gitlab::Git::Hook do
     let(:tmp_dir) { Dir.mktmpdir }
     let(:hook_names) { %w[pre-receive post-receive update] }
     let(:repo) { gitlab_git_from_gitaly(test_repo_read_only) }
+    let(:push_options) do
+      Gitlab::Git::PushOptions.new(['ci.skip'])
+    end
+
+    def trigger_with_stub_data(hook, push_options)
+      hook.trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
+    end
 
     before do
       hook_names.each do |f|
@@ -60,7 +67,7 @@ describe Gitlab::Git::Hook do
       it 'returns true' do
         hook_names.each do |hook|
           trigger_result = described_class.new(hook, repo)
-                                          .trigger(vars['GL_ID'], vars['GL_USERNAME'], '0' * 40, 'a' * 40, 'master')
+                                          .trigger(vars['GL_ID'], vars['GL_USERNAME'], '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(true), "#{hook} failed:  #{trigger_result.last}"
         end
@@ -73,7 +80,7 @@ describe Gitlab::Git::Hook do
       it 'returns true' do
         hook_names.each do |hook|
           trigger_result = described_class.new(hook, repo)
-                                          .trigger('user-456', 'admin', '0' * 40, 'a' * 40, 'master')
+                                          .trigger('user-456', 'admin', '0' * 40, 'a' * 40, 'master', push_options: push_options)
 
           expect(trigger_result.first).to be(true)
         end
@@ -84,9 +91,44 @@ describe Gitlab::Git::Hook do
       let(:script) { "#!/bin/sh\nexit 1\n" }
 
       it 'returns false' do
-        hook_names.each do |hook|
-          trigger_result = described_class.new(hook, repo)
-                                          .trigger('user-1', 'admin', '0' * 40, 'a' * 40, 'master')
+        hook_names.each do |name|
+          hook = described_class.new(name, repo)
+          trigger_result = trigger_with_stub_data(hook, push_options)
+
+          expect(trigger_result.first).to be(false)
+        end
+      end
+    end
+
+    context 'when push options are passed' do
+      let(:script) do
+        <<~HOOK
+          #!/usr/bin/env ruby
+          unless ENV['GIT_PUSH_OPTION_COUNT'] == '1' && ENV['GIT_PUSH_OPTION_0'] == 'ci.skip'
+            abort 'missing GIT_PUSH_OPTION env vars'
+          end
+        HOOK
+      end
+
+      context 'for pre-receive and post-receive hooks' do
+        let(:hooks) do
+          %w[pre-receive post-receive].map { |name| described_class.new(name, repo) }
+        end
+
+        it 'sets the push options environment variables' do
+          hooks.each do |hook|
+            trigger_result = trigger_with_stub_data(hook, push_options)
+
+            expect(trigger_result.first).to be(true)
+          end
+        end
+      end
+
+      context 'for update hook' do
+        let(:hook) { described_class.new('update', repo) }
+
+        it 'does not set the push options environment variables' do
+          trigger_result = trigger_with_stub_data(hook, push_options)
 
           expect(trigger_result.first).to be(false)
         end

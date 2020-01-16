@@ -366,6 +366,7 @@ message UserRebaseConfirmableRequest {
     string branch_sha = 5;
     Repository remote_repository = 6;
     bytes remote_branch = 7;
+    repeated string git_push_options = 8;
   }
 
   oneof user_rebase_confirmable_request_payload {

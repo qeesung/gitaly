@@ -1,0 +1,5 @@
+---
+title: Allow git_push_options to be passed to UserRebaseConfirmable RPC
+merge_request: 1748
+author:
+type: added
