@@ -29,8 +29,6 @@ var (
 )
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
-	pushOptions := []string{"ci.skip", "test=value"}
-
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
@@ -54,16 +52,8 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	hookContent := `#!/usr/bin/env ruby
-		unless ENV['GIT_PUSH_OPTION_COUNT'] == '2' && ENV['GIT_PUSH_OPTION_0'] == 'ci.skip'
-			abort 'missing GIT_PUSH_OPTION env vars'
-		end`
-
-	remove, err := operations.OverrideHooks("post-receive", []byte(hookContent))
-	require.NoError(t, err, "set up hooks override")
-	defer remove()
-
 	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branchName, branchSha, testRepoCopy, "master")
+	pushOptions := []string{"ci.skip", "test=value"}
 	headerRequest.GetHeader().GitPushOptions = pushOptions
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
