@@ -195,10 +195,9 @@ Sentry observability.
 
 ### RPC Goroutines
 
-These are goroutines created to help handle an RPC. Except for in rare
-conditions, a goroutine that is started during an RPC will also need
-to end before the RPC returns. This quality of most goroutines makes it easy to
-reason about goroutine cleanup.
+These are goroutines created to help handle an RPC. A goroutine that is started
+during an RPC will also need to end when the RPC completes. This quality makes
+it easy to reason about goroutine cleanup.
 
 #### Defer-based Cleanup
 
