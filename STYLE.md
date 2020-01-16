@@ -181,6 +181,10 @@ an RPC, and in most cases should end before the RPC returns. Proper cleanup of
 goroutines is crucial to prevent leaks. When in doubt, you can consult the
 following guide:
 
+### Is A Goroutine Necessary?
+
+Avoid using goroutines if the job at hand can be done just as easily and just as well without them.
+
 ### Background Task Goroutines
 
 These are goroutines we expect to run the entire life of the process. If they
