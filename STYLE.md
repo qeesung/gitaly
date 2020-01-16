@@ -225,52 +225,6 @@ Also, the resource cleanup will
 occur in a predictable manner since each defer statement is pushed onto a LIFO
 stack of defers. Once the function ends, they are popped off one by one.
 
-#### Context-Done Cleanup
-
-Sometimes you may have a difficult or impossible time figuring out how to apply
-the above pattern. In those cases, you may want to rely on the `<-ctx.Done`
-pattern:
-
-```go
-func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
-    rCh := make(chan Request)
-    go func() {
-        for {
-            select {
-            case <-ctx.Done():
-                return
-            case r :=<-rCh:
-                doSomething(r)
-            }
-        }
-    }()
-    
-    rCh <- r
-    
-    return nil
-}
-```
-
-This pattern works in RPC's because the context will always be cancelled after
-the RPC completes.
-
-#### Confirming Goroutine Cleanup
-
-No matter which way you decide to clean up a goroutine, you always need to be
-confident that it does in fact get cleaned up. The simplest way to do this in
-an RPC is to simply wait until the clean up happens. If this is not reasonable,
-you may want to rely on designing the goroutine as simple as possible so that
-it can be easily verified by code review.
-
-Why is this so important?
-
-- We lose observability - most of our metrics are derived from the performance
-  of the RPC. If we perform the real work outside the RPC, and the RPC returns
-  immediately, we end up with a false sense of how slow/fast an RPC is.
-- Goroutine leaks - if the goroutines never cleanup, we can end up with a leak.
-  While goroutines are much cheaper than threads or processes, they still incur
-  a cost. A goroutine starts with a minimum of 2KB stack space and grows.
-
 ### Goroutine Panic Risks
 
 Additionally, every new goroutine has the potential to crash the process. Any
