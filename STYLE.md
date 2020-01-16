@@ -207,22 +207,13 @@ via deferred statements. For example:
 
 ```go
 func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
-    xCh := make(chan Request)
     done := make(chan struct{}) // signals the goroutine is done
-    
-    defer func() {
-        close(xCh) // signals the RPC is done, stop processing work
-        <-done     // waits until the goroutine is done
-    }()
+    defer func() { <-done }() // wait until the goroutine is done
     
     go func() {
         defer close(done)    // signal when the goroutine returns
-        for x := range xCh { // consume values until the channel is closed
-            fmt.Println(xCh)
-        }
+	doWork(r)
     }()
-    
-    xCh <- r
     
     return nil
 }
