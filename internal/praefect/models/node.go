@@ -14,3 +14,11 @@ type Repository struct {
 	Primary      Node
 	Replicas     []Node
 }
+
+// Clone returns deep copy of the Repository
+func (r Repository) Clone() Repository {
+	clone := r
+	clone.Replicas = make([]Node, len(r.Replicas))
+	copy(clone.Replicas, r.Replicas)
+	return clone
+}
