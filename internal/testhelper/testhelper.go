@@ -3,8 +3,10 @@ package testhelper
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -396,12 +398,26 @@ func Context() (context.Context, func()) {
 	return context.WithCancel(context.Background())
 }
 
+func hashedRepoPath(sha string) (string, error) {
+	if len(sha) != 40 {
+		return "", errors.New("sha is invalid")
+	}
+
+	return filepath.Join(sha[0:2], sha[2:4], sha), nil
+}
+
 // CreateRepo creates a temporary directory for a repo, without initializing it
 func CreateRepo(t testing.TB, storagePath string) (repo *gitalypb.Repository, repoPath, relativePath string) {
-	normalizedPrefix := strings.Replace(t.Name(), "/", "-", -1) //TempDir doesn't like a prefix containing slashes
-
-	repoPath, err := ioutil.TempDir(storagePath, normalizedPrefix)
+	random, err := text.RandomHex(20)
 	require.NoError(t, err)
+	h := sha1.New()
+	h.Write([]byte(random))
+	sha := h.Sum(nil)
+	hashedPath, err := hashedRepoPath(fmt.Sprintf("%x", sha))
+	require.NoError(t, err)
+
+	repoPath = filepath.Join(storagePath, hashedPath)
+	require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), 0755), "making repo parent dir")
 
 	relativePath, err = filepath.Rel(storagePath, repoPath)
 	require.NoError(t, err)
