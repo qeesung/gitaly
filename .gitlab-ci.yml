@@ -188,7 +188,16 @@ update-downstream-server-version:
   allow_failure: true
 
 include:
-  template: Security/License-Management.gitlab-ci.yml
+  - template: Security/License-Management.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+
+variables:
+  SAST_DISABLE_DIND: "true"
+  SAST_DEFAULT_ANALYZERS: "gosec"
+
+gosec-sast:
+  before_script:
+    - apk add pkgconfig libgit2-dev gcc libc-dev
 
 license_management:
   before_script:
