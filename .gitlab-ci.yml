@@ -8,6 +8,8 @@ stages:
 variables:
   DOCKER_DRIVER: overlay2
   CUSTOM_IMAGE_VERSION: ruby-2.6-golang-1.13-git-2.24
+  SAST_DISABLE_DIND: "true"
+  SAST_DEFAULT_ANALYZERS: "gosec"
 
 danger-review:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
@@ -190,10 +192,6 @@ update-downstream-server-version:
 include:
   - template: Security/License-Management.gitlab-ci.yml
   - template: SAST.gitlab-ci.yml
-
-variables:
-  SAST_DISABLE_DIND: "true"
-  SAST_DEFAULT_ANALYZERS: "gosec"
 
 gosec-sast:
   before_script:
