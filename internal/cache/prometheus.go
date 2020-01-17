@@ -1,6 +1,9 @@
 package cache
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+)
 
 var (
 	requestTotals = prometheus.NewCounter(
@@ -58,17 +61,19 @@ var (
 			Help: "Total number of errors during diskcache filesystem walks",
 		},
 	)
-	walkerEmptyDirTotal = prometheus.NewCounter(
+	walkerEmptyDirTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_diskcache_walker_empty_dir_total",
 			Help: "Total number of empty directories encountered",
 		},
+		[]string{"storage"},
 	)
-	walkerEmptyDirRemovalTotal = prometheus.NewCounter(
+	walkerEmptyDirRemovalTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_diskcache_walker_empty_dir_removal_total",
 			Help: "Total number of empty directories removed",
 		},
+		[]string{"storage"},
 	)
 )
 
@@ -105,6 +110,6 @@ var (
 	countWalkRemoval     = func() { walkerRemovalTotal.Inc() }
 	countWalkCheck       = func() { walkerCheckTotal.Inc() }
 	countWalkError       = func() { walkerErrorTotal.Inc() }
-	countEmptyDir        = func() { walkerEmptyDirTotal.Inc() }
-	countEmptyDirRemoval = func() { walkerEmptyDirRemovalTotal.Inc() }
+	countEmptyDir        = func(s config.Storage) { walkerEmptyDirTotal.With(prometheus.Labels{"storage": s.Name}).Inc() }
+	countEmptyDirRemoval = func(s config.Storage) { walkerEmptyDirRemovalTotal.With(prometheus.Labels{"storage": s.Name}).Inc() }
 )

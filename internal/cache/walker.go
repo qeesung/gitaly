@@ -27,7 +27,7 @@ func logWalkErr(err error, path, msg string) {
 		Warn(msg)
 }
 
-func cleanWalk(path string) error {
+func cleanWalk(s config.Storage, path string) error {
 	defer time.Sleep(100 * time.Microsecond) // relieve pressure
 
 	countWalkCheck()
@@ -44,7 +44,7 @@ func cleanWalk(path string) error {
 		ePath := filepath.Join(path, e.Name())
 
 		if e.IsDir() {
-			if err := cleanWalk(ePath); err != nil {
+			if err := cleanWalk(s, ePath); err != nil {
 				return err
 			}
 			continue
@@ -76,7 +76,7 @@ func cleanWalk(path string) error {
 	}
 
 	if len(files) == 0 {
-		countEmptyDir()
+		countEmptyDir(s)
 		if err := os.Remove(path); err != nil {
 			if os.IsNotExist(err) {
 				return nil
@@ -84,7 +84,7 @@ func cleanWalk(path string) error {
 			logWalkErr(err, path, "unable to remove empty directory")
 			return err
 		}
-		countEmptyDirRemoval()
+		countEmptyDirRemoval(s)
 		countWalkRemoval()
 	}
 
@@ -93,13 +93,13 @@ func cleanWalk(path string) error {
 
 const cleanWalkFrequency = 10 * time.Minute
 
-func walkLoop(storageName, walkPath string) {
-	logrus.WithField("storage", storageName).Infof("Starting file walker for %s", walkPath)
+func walkLoop(s config.Storage, walkPath string) {
+	logrus.WithField("storage", s.Name).Infof("Starting file walker for %s", walkPath)
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	dontpanic.GoForever(time.Minute, func() {
 		for {
-			if err := cleanWalk(walkPath); err != nil {
-				logrus.WithField("storage", storageName).Error(err)
+			if err := cleanWalk(s, walkPath); err != nil {
+				logrus.WithField("storage", s.Name).Error(err)
 			}
 
 			<-walkTick.C
@@ -112,8 +112,8 @@ func startCleanWalker(storage config.Storage) {
 		return
 	}
 
-	walkLoop(storage.Name, tempdir.CacheDir(storage))
-	walkLoop(storage.Name, tempdir.StateDir(storage))
+	walkLoop(storage, tempdir.CacheDir(storage))
+	walkLoop(storage, tempdir.StateDir(storage))
 }
 
 var (
