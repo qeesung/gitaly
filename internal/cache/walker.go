@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -26,16 +27,16 @@ func logWalkErr(err error, path, msg string) {
 		Warn(msg)
 }
 
-func cleanWalk(path string) error {
+func cleanWalk(s config.Storage, path string) error {
 	defer time.Sleep(100 * time.Microsecond) // relieve pressure
 
 	countWalkCheck()
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logWalkErr(err, path, "unable to stat directory")
 			return nil
 		}
+		logWalkErr(err, path, "unable to stat directory")
 		return err
 	}
 
@@ -43,32 +44,39 @@ func cleanWalk(path string) error {
 		ePath := filepath.Join(path, e.Name())
 
 		if e.IsDir() {
-			if err := cleanWalk(ePath); err != nil {
+			if err := cleanWalk(s, ePath); err != nil {
 				return err
 			}
 			continue
 		}
 
 		countWalkCheck()
-		if time.Since(e.ModTime()) >= staleAge {
-			if err := os.Remove(ePath); err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				logWalkErr(err, ePath, "unable to remove file")
-				return err
-			}
-			countWalkRemoval()
+		if time.Since(e.ModTime()) < staleAge {
+			continue // still fresh
 		}
+
+		// file is stale
+		if err := os.Remove(ePath); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			logWalkErr(err, ePath, "unable to remove file")
+			return err
+		}
+		countWalkRemoval()
 	}
 
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		logWalkErr(err, path, "unable to stat directory after walk")
 		return err
 	}
 
 	if len(files) == 0 {
+		countEmptyDir(s)
 		if err := os.Remove(path); err != nil {
 			if os.IsNotExist(err) {
 				return nil
@@ -76,6 +84,7 @@ func cleanWalk(path string) error {
 			logWalkErr(err, path, "unable to remove empty directory")
 			return err
 		}
+		countEmptyDirRemoval(s)
 		countWalkRemoval()
 	}
 
@@ -84,13 +93,13 @@ func cleanWalk(path string) error {
 
 const cleanWalkFrequency = 10 * time.Minute
 
-func walkLoop(storageName, walkPath string) {
-	logrus.WithField("storage", storageName).Infof("Starting file walker for %s", walkPath)
+func walkLoop(s config.Storage, walkPath string) {
+	logrus.WithField("storage", s.Name).Infof("Starting file walker for %s", walkPath)
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	dontpanic.GoForever(time.Minute, func() {
 		for {
-			if err := cleanWalk(walkPath); err != nil {
-				logrus.WithField("storage", storageName).Error(err)
+			if err := cleanWalk(s, walkPath); err != nil {
+				logrus.WithField("storage", s.Name).Error(err)
 			}
 
 			<-walkTick.C
@@ -103,8 +112,8 @@ func startCleanWalker(storage config.Storage) {
 		return
 	}
 
-	walkLoop(storage.Name, tempdir.CacheDir(storage))
-	walkLoop(storage.Name, tempdir.StateDir(storage))
+	walkLoop(storage, tempdir.CacheDir(storage))
+	walkLoop(storage, tempdir.StateDir(storage))
 }
 
 var (
@@ -156,14 +165,21 @@ func moveAndClear(storage config.Storage) error {
 }
 
 func init() {
+	oncePerStorage := map[string]*sync.Once{}
+	var err error
+
 	config.RegisterHook(func(cfg config.Cfg) error {
 		for _, storage := range cfg.Storages {
-			if err := moveAndClear(storage); err != nil {
-				return err
+			if _, ok := oncePerStorage[storage.Name]; !ok {
+				oncePerStorage[storage.Name] = new(sync.Once)
 			}
-
-			startCleanWalker(storage)
+			oncePerStorage[storage.Name].Do(func() {
+				if err = moveAndClear(storage); err != nil {
+					return
+				}
+				startCleanWalker(storage)
+			})
 		}
-		return nil
+		return err
 	})
 }
