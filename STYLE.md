@@ -170,3 +170,83 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 )
 ```
+
+## Goroutine Guidelines
+
+Gitaly is a long lived process. This means that every goroutine spawned carries
+liability until either the goroutine ends or the program exits. Some goroutines
+are expected to run until program termination (e.g. server listeners and file
+walkers). However, the vast majority of goroutines spawned are in response to
+an RPC, and in most cases should end before the RPC returns. Proper cleanup of
+goroutines is crucial to prevent leaks. When in doubt, you can consult the
+following guide:
+
+### Is A Goroutine Necessary?
+
+Avoid using goroutines if the job at hand can be done just as easily and just as well without them.
+
+### Background Task Goroutines
+
+These are goroutines we expect to run the entire life of the process. If they
+crash, we expect them to be restarted. If they restart often, we may want a way
+to delay subsequent restarts to prevent resource consumption. See
+[`dontpanic.GoForever`] for a useful function to handle goroutine restarts with
+Sentry observability.
+
+### RPC Goroutines
+
+These are goroutines created to help handle an RPC. A goroutine that is started
+during an RPC will also need to end when the RPC completes. This quality makes
+it easy to reason about goroutine cleanup.
+
+#### Defer-based Cleanup
+
+One of the safest ways to clean up goroutines (as well as other resources) is
+via deferred statements. For example:
+
+```go
+func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
+    done := make(chan struct{}) // signals the goroutine is done
+    defer func() { <-done }() // wait until the goroutine is done
+    
+    go func() {
+        defer close(done)    // signal when the goroutine returns
+	doWork(r)
+    }()
+    
+    return nil
+}
+```
+
+Note the heavy usage of defer statements. Using defer statements means that
+clean up will occur even if a panic bubbles up the call stack (**IMPORTANT**).
+Also, the resource cleanup will
+occur in a predictable manner since each defer statement is pushed onto a LIFO
+stack of defers. Once the function ends, they are popped off one by one.
+
+### Goroutine Panic Risks
+
+Additionally, every new goroutine has the potential to crash the process. Any
+unrecovered panic can cause the entire process to crash and take out any in-
+flight requests (**VERY BAD**). When writing code that creates a goroutine,
+consider the following question: How confident are you that the code in the
+goroutine won't panic? If you can't answer confidently, you may want to use a
+helper function to handle panic recovery: [`dontpanic.Go`].
+
+### Limiting Goroutines
+
+When spawning goroutines, you should always be aware of how many goroutines you
+will be creating. While cheap, goroutines are not free. Consult the following
+questions if you need help deciding if goroutines are being improperly used:
+
+1. How many goroutines will it take the task/RPC to complete?
+   - Fixed number - 👍 Good
+   - Variable number - 👇 See next question...
+1. Does the goroutine count scale with a configuration value (e.g. storage
+   locations or concurrency limit)?
+   - Yes - 👍 Good
+   - No - 🚩 this is a red flag! An RPC where the goroutines do not scale
+     predictably will open up the service to denial of service attacks.
+
+[`dontpanic.GoForever`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#GoForever
+[`dontpanic.Go`]: https://pkg.go.dev/gitlab.com/gitlab-org/gitaly/internal/dontpanic?tab=doc#Go
