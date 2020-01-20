@@ -1,8 +1,11 @@
 package blob
 
 import (
+	"bytes"
 	"io"
 	"os/exec"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -481,4 +484,74 @@ func drainAllPointers(c gitalypb.BlobService_GetAllLFSPointersClient) error {
 			return err
 		}
 	}
+}
+
+func TestGetAllLFSPointersIgnoresRevision(t *testing.T) {
+	server, serverSocketPath := runBlobServer(t)
+	defer server.Stop()
+
+	client, conn := newBlobClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, repoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	request := &gitalypb.GetAllLFSPointersRequest{
+		Repository: testRepo,
+	}
+
+	c, err := client.GetAllLFSPointers(ctx, request)
+	require.NoError(t, err)
+
+	lfsPtr := &gitalypb.LFSPointer{
+		Size: 127,
+		Data: []byte("version https://git-lfs.github.com/spec/v1\noid sha256:f2b0a1e7550e9b718dafc9b525a04879a766de62e4fbdfc46593d47f7ab74636\nsize 20\n"),
+		Oid:  "f78df813119a79bfbe0442ab92540a61d3ab7ff3",
+	}
+
+	require.True(t, refHasPtr(t, repoPath, "moar-lfs-ptrs", lfsPtr))
+
+	// prerequisite: default branch cannot contain the LFS pointer
+	require.False(t, refHasPtr(t, repoPath, "master", lfsPtr))
+
+	require.Contains(t, getAllPointers(t, c), lfsPtr)
+
+}
+
+var lsTreeRegex = regexp.MustCompile(`^\d+ (blob|tree|commit) ([a-f0-9]+)\s`)
+
+func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) bool {
+	ptrHash := string(testhelper.MustRunCommand(t, bytes.NewReader(lfsPtr.Data),
+		"git", "hash-object", "--stdin"))
+	ptrHash = strings.TrimSpace(ptrHash)
+
+	trees := string(testhelper.MustRunCommand(t, nil,
+		"git", "-C", repoPath, "log", "--pretty=format:%T", ref))
+
+	for _, tree := range strings.Split(trees, "\n") {
+		blobs := testhelper.MustRunCommand(t, nil,
+			"git", "-C", repoPath, "ls-tree", "-r", "-z", tree)
+
+		for _, blob := range strings.Split(string(blobs), "\x00") {
+			if len(blob) == 0 {
+				continue
+			}
+
+			match := lsTreeRegex.FindStringSubmatch(blob)
+			require.NotNil(t, match)
+
+			objectType, objectHash := match[1], match[2]
+			if objectType != "blob" {
+				continue
+			}
+
+			if objectHash == ptrHash {
+				return true
+			}
+		}
+	}
+	return false
 }
