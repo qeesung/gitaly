@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -507,37 +506,15 @@ func TestGetAllLFSPointersVerifyScope(t *testing.T) {
 		"RPC should return all LFS pointers, not just ones in the default branch")
 }
 
-var lsTreeRegex = regexp.MustCompile(`^\d+ (blob|tree|commit) ([a-f0-9]+)\s`)
-
+// refHasPtr verifies the provided ref has connectivity to the LFS pointer
 func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) bool {
-	ptrHash := string(testhelper.MustRunCommand(t, bytes.NewReader(lfsPtr.Data),
-		"git", "hash-object", "--stdin"))
+	ptrHash := string(
+		testhelper.MustRunCommand(t, bytes.NewReader(lfsPtr.Data),
+			"git", "hash-object", "--stdin"))
 	ptrHash = strings.TrimSpace(ptrHash)
 
-	trees := string(testhelper.MustRunCommand(t, nil,
-		"git", "-C", repoPath, "log", "--pretty=format:%T", ref))
+	objects := string(testhelper.MustRunCommand(t, nil,
+		"git", "-C", repoPath, "rev-list", "--objects", "--no-object-names", ref))
 
-	for _, tree := range strings.Split(trees, "\n") {
-		blobs := testhelper.MustRunCommand(t, nil,
-			"git", "-C", repoPath, "ls-tree", "-r", "-z", tree)
-
-		for _, blob := range strings.Split(string(blobs), "\x00") {
-			if blob == "" {
-				continue
-			}
-
-			match := lsTreeRegex.FindStringSubmatch(blob)
-			require.NotNil(t, match)
-
-			objectType, objectHash := match[1], match[2]
-			if objectType != "blob" {
-				continue
-			}
-
-			if objectHash == ptrHash {
-				return true
-			}
-		}
-	}
-	return false
+	return strings.Contains(objects, ptrHash)
 }
