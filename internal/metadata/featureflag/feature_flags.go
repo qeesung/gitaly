@@ -16,6 +16,8 @@ const (
 	// The old one with query fot Info before fetching info about Commit
 	// or the new one that skips Info call and checks object type in Commit method call.
 	CommitWithoutBatchCheck = "commit_without_batch_check"
+	// UseCoreDeltaIslands enables support of core delta islands for 'repack'.
+	UseCoreDeltaIslands = "use_core_delta_islands"
 )
 
 const (
