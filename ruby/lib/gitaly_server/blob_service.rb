@@ -32,7 +32,9 @@ module GitalyServer
 
     def get_all_lfs_pointers(request, call)
       Enumerator.new do |y|
-        changes = lfs_changes(request, call)
+        repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+
+        changes = Gitlab::Git::LfsChanges.new(repo, "")
 
         sliced_gitaly_lfs_pointers(changes.all_pointers) do |lfs_pointers|
           y.yield Gitaly::GetAllLFSPointersResponse.new(lfs_pointers: lfs_pointers)

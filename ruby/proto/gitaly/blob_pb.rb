@@ -63,7 +63,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.GetAllLFSPointersRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
-    optional :revision, :bytes, 2
   end
   add_message "gitaly.GetAllLFSPointersResponse" do
     repeated :lfs_pointers, :message, 1, "gitaly.LFSPointer"

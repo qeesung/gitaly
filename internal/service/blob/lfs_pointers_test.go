@@ -368,7 +368,6 @@ func TestSuccessfulGetAllLFSPointersRequest(t *testing.T) {
 
 	request := &gitalypb.GetAllLFSPointersRequest{
 		Repository: testRepo,
-		Revision:   []byte("54fcc214b94e78d7a41a9a8fe6d87a5e59500e51"),
 	}
 
 	expectedLFSPointers := []*gitalypb.LFSPointer{
@@ -443,7 +442,6 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 		{
 			desc:       "empty Repository",
 			repository: nil,
-			revision:   []byte("master"),
 		},
 	}
 
@@ -451,7 +449,6 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			request := &gitalypb.GetAllLFSPointersRequest{
 				Repository: tc.repository,
-				Revision:   tc.revision,
 			}
 
 			c, err := client.GetAllLFSPointers(ctx, request)
@@ -505,7 +502,6 @@ func TestGetAllLFSPointersIgnoresRevision(t *testing.T) {
 	require.False(t, refHasPtr(t, repoPath, "master", lfsPtr))
 
 	require.Contains(t, getAllPointers(t, c), lfsPtr)
-
 }
 
 var lsTreeRegex = regexp.MustCompile(`^\d+ (blob|tree|commit) ([a-f0-9]+)\s`)
