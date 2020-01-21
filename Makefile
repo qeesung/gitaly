@@ -20,7 +20,6 @@ PKG = gitlab.com/gitlab-org/gitaly
 MAKEGEN = $(BUILD_DIR)/makegen
 
 # These variables are used by makegen
-export PATH := $(BUILD_DIR)/bin:$(PATH)
 export SOURCE_DIR := $(CURDIR)
 
 # Used to build _support/makegen.go
