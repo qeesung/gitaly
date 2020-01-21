@@ -12,7 +12,8 @@
 # foobar: prepare-build
 # 	cd $(BUILD_DIR) && $(MAKE) $@
 #
-# All other logic should happen in _support/Makefile.template.
+# All other logic should happen in _support/Makefile.template and
+# _support/makegen.go.
 #
 
 BUILD_DIR = _build
