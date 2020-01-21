@@ -518,7 +518,7 @@ func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) 
 			"git", "-C", repoPath, "ls-tree", "-r", "-z", tree)
 
 		for _, blob := range strings.Split(string(blobs), "\x00") {
-			if len(blob) == 0 {
+			if blob == "" {
 				continue
 			}
 
