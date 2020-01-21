@@ -432,9 +432,6 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 	client, conn := newBlobClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -447,16 +444,6 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 			desc:       "empty Repository",
 			repository: nil,
 			revision:   []byte("master"),
-		},
-		{
-			desc:       "empty revision",
-			repository: testRepo,
-			revision:   nil,
-		},
-		{
-			desc:       "revision can't start with '-'",
-			repository: testRepo,
-			revision:   []byte("-suspicious-revision"),
 		},
 	}
 
