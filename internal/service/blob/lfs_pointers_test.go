@@ -514,7 +514,7 @@ func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) 
 	ptrHash = strings.TrimSpace(ptrHash)
 
 	objects := string(testhelper.MustRunCommand(t, nil,
-		"git", "-C", repoPath, "rev-list", "--objects", "--no-object-names", ref))
+		"git", "-C", repoPath, "rev-list", "--objects", ref))
 
 	return strings.Contains(objects, ptrHash)
 }
