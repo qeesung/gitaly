@@ -501,7 +501,6 @@ func TestGetAllLFSPointersIgnoresRevision(t *testing.T) {
 	require.False(t, refHasPtr(t, repoPath, "master", lfsPtr))
 
 	require.Contains(t, getAllPointers(t, c), lfsPtr)
-
 }
 
 var lsTreeRegex = regexp.MustCompile(`^\d+ (blob|tree|commit) ([a-f0-9]+)\s`)
