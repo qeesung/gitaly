@@ -5,16 +5,25 @@
 # - re-generate _build/Makefile from makegen.go on each run
 # - dispatch commands to _build/Makefile
 #
-# "Magic" should happen in the makegen.go dynamic template. We want
-# _build/Makefile to be as static as possible.
+# Besides the targets that manage _build and _build/Makefile, all
+# targets in this Makefile should look like this:
+#
+# .PHONY: foobar
+# foobar: prepare-build
+# 	cd $(BUILD_DIR) && $(MAKE) $@
+#
+# All other logic should happen in _support/Makefile.template.
+#
 
 BUILD_DIR = _build
 PKG = gitlab.com/gitlab-org/gitaly
 MAKEGEN = $(BUILD_DIR)/makegen
 
-# These variables are handed down to make in _build
+# These variables are used by makegen
 export PATH := $(BUILD_DIR)/bin:$(PATH)
 export SOURCE_DIR := $(CURDIR)
+
+# Used to build _support/makegen.go
 export GO111MODULE = on
 
 all: build
