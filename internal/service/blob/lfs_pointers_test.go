@@ -469,7 +469,9 @@ func drainAllPointers(c gitalypb.BlobService_GetAllLFSPointersClient) error {
 	}
 }
 
-func TestGetAllLFSPointersIgnoresRevision(t *testing.T) {
+// TestGetAllLFSPointersVerifyScope verifies that this RPC returns all LFS
+// pointers in a repository, not only ones reachable from the default branch
+func TestGetAllLFSPointersVerifyScope(t *testing.T) {
 	server, serverSocketPath := runBlobServer(t)
 	defer server.Stop()
 
@@ -495,12 +497,14 @@ func TestGetAllLFSPointersIgnoresRevision(t *testing.T) {
 		Oid:  "f78df813119a79bfbe0442ab92540a61d3ab7ff3",
 	}
 
+	// the LFS pointer is reachable from a non-default branch:
 	require.True(t, refHasPtr(t, repoPath, "moar-lfs-ptrs", lfsPtr))
 
-	// prerequisite: default branch cannot contain the LFS pointer
+	// the same pointer is not reachable from a default branch
 	require.False(t, refHasPtr(t, repoPath, "master", lfsPtr))
 
-	require.Contains(t, getAllPointers(t, c), lfsPtr)
+	require.Contains(t, getAllPointers(t, c), lfsPtr,
+		"RPC should return all LFS pointers, not just ones in the default branch")
 }
 
 var lsTreeRegex = regexp.MustCompile(`^\d+ (blob|tree|commit) ([a-f0-9]+)\s`)
