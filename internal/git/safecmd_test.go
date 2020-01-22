@@ -174,13 +174,19 @@ func TestSafeCmdValid(t *testing.T) {
 			expectArgs: []string{"noun", "verb", "-", "--adjective"},
 		},
 		{
+			globals: []git.Option{
+				git.Flag{"--contributing"},
+				git.ValueFlag{"--author", "a-gopher"},
+			},
 			subCmd: git.SubCmd{
-				Name: "config",
+				Name: "accept",
+				Args: []string{"mr"},
 				Flags: []git.Option{
-					git.ConfigPair{"user.name", "jramsay"},
+					git.Flag{Name: "--is-important"},
+					git.ValueFlag{"--why", "looking-for-first-contribution"},
 				},
 			},
-			expectArgs: []string{"config", "user.name", "jramsay"},
+			expectArgs: []string{"--contributing", "--author", "a-gopher", "accept", "--is-important", "--why", "looking-for-first-contribution", "mr"},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)
