@@ -1,0 +1,5 @@
+---
+title: Do not log entire node struct because it includes tokens
+merge_request: 1766
+author:
+type: security
