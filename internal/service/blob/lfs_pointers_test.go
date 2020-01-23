@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"bytes"
 	"io"
 	"os/exec"
 	"strings"
@@ -508,13 +507,8 @@ func TestGetAllLFSPointersVerifyScope(t *testing.T) {
 
 // refHasPtr verifies the provided ref has connectivity to the LFS pointer
 func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) bool {
-	ptrHash := string(
-		testhelper.MustRunCommand(t, bytes.NewReader(lfsPtr.Data),
-			"git", "hash-object", "--stdin"))
-	ptrHash = strings.TrimSpace(ptrHash)
-
 	objects := string(testhelper.MustRunCommand(t, nil,
 		"git", "-C", repoPath, "rev-list", "--objects", ref))
 
-	return strings.Contains(objects, ptrHash)
+	return strings.Contains(objects, lfsPtr.Oid)
 }
