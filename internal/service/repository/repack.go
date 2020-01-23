@@ -77,16 +77,16 @@ func repackConfig(ctx context.Context, bitmap bool) []git.Option {
 			git.ValueFlag{"-c", "pack.island=r(e)fs/heads"},
 			git.ValueFlag{"-c", "pack.island=r(e)fs/tags"},
 			git.ValueFlag{"-c", "pack.islandCore=e"},
-			git.ValueFlag{"-c", "repack.useDeltaIslands=true"},
 		}
 	} else {
 		objectpool.FullRepackCounter.WithLabelValues("no").Inc()
 		args = []git.Option{
 			git.ValueFlag{"-c", "pack.island=refs/heads"},
 			git.ValueFlag{"-c", "pack.island=refs/tags"},
-			git.ValueFlag{"-c", "repack.useDeltaIslands=true"},
 		}
 	}
+
+	args = append(args, git.ValueFlag{"-c", "repack.useDeltaIslands=true"})
 
 	if bitmap {
 		args = append(args, git.ValueFlag{"-c", "repack.writeBitmaps=true"})

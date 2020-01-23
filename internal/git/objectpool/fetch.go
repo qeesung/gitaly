@@ -26,8 +26,6 @@ import (
 const (
 	sourceRemote       = "origin"
 	sourceRefNamespace = "refs/remotes/" + sourceRemote
-
-	sourceRefNamespaceCoreIslands = "r(e)fs/remotes/" + sourceRemote
 )
 
 var (
@@ -194,19 +192,19 @@ func repackPool(ctx context.Context, pool repository.GitRepo) error {
 	if featureflag.IsEnabled(ctx, featureflag.UseCoreDeltaIslands) {
 		FullRepackCounter.WithLabelValues("yes").Inc()
 		repackArgs = []git.Option{
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespaceCoreIslands + "/heads"},
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespaceCoreIslands + "/tags"},
-			git.ValueFlag{"-c", "pack.islandCore=e"},
-			git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"},
+			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/he(a)ds"},
+			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/t(a)gs"},
+			git.ValueFlag{"-c", "pack.islandCore=a"},
 		}
 	} else {
 		FullRepackCounter.WithLabelValues("no").Inc()
 		repackArgs = []git.Option{
 			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/heads"},
 			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/tags"},
-			git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"},
 		}
 	}
+
+	repackArgs = append(repackArgs, git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"})
 
 	repackCmd, err := git.SafeCmd(ctx, pool, repackArgs, git.SubCmd{
 		Name:  "repack",
