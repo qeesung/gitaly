@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -121,6 +122,9 @@ func TestSafeCmdValid(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	reenableGitCmd := disableGitCmd()
+	defer reenableGitCmd()
+
 	for _, tt := range []struct {
 		globals    []git.Option
 		subCmd     git.SubCmd
@@ -207,4 +211,10 @@ func TestSafeCmdValid(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, tt.expectArgs, cmd.Args()[1:])
 	}
+}
+
+func disableGitCmd() testhelper.Cleanup {
+	oldBinPath := config.Config.Git.BinPath
+	config.Config.Git.BinPath = "/bin/echo"
+	return func() { config.Config.Git.BinPath = oldBinPath }
 }
