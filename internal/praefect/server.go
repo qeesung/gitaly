@@ -119,6 +119,8 @@ func (srv *Server) RegisterServices() {
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(srv.conf, srv.clientConnections))
 
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
+
+	grpc_prometheus.Register(srv.s)
 }
 
 // Shutdown will attempt a graceful shutdown of the grpc server. If unable

@@ -18,7 +18,7 @@ func (c *Config) Configure() {
 		return
 	}
 
-	log.WithField("latencies", c.GRPCLatencyBuckets).Debug("grpc prometheus histograms enabled")
+	log.WithField("latencies", c.GRPCLatencyBuckets).Info("grpc prometheus histograms enabled")
 
 	grpc_prometheus.EnableHandlingTimeHistogram(func(histogramOpts *prometheus.HistogramOpts) {
 		histogramOpts.Buckets = c.GRPCLatencyBuckets
