@@ -108,8 +108,15 @@ func (o *ObjectPool) Init(ctx context.Context) (err error) {
 		return nil
 	}
 
-	initArgs := []string{"init", "--bare", targetDir}
-	cmd, err := git.CommandWithoutRepo(ctx, initArgs...)
+	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
+		git.SubCmd{
+			Name: "init",
+			Flags: []git.Option{
+				git.Flag{Name: "--bare"},
+			},
+			Args: []string{targetDir},
+		},
+	)
 	if err != nil {
 		return err
 	}
