@@ -113,12 +113,7 @@ func (gm *gitalyMake) SourceDir() string {
 }
 
 func (gm *gitalyMake) TestRepoStoragePath() string {
-	path := os.Getenv("TEST_REPO_STORAGE_PATH")
-	if len(path) == 0 {
-		log.Fatal("TEST_REPO_STORAGE_PATH is not set")
-	}
-
-	return path
+	return filepath.Join(gm.SourceDir(), "internal/testhelper/testdata/data")
 }
 
 func (gm *gitalyMake) TestRepo() string {

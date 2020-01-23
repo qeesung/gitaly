@@ -94,17 +94,6 @@ func MustReadFile(t *testing.T, filename string) []byte {
 
 // GitlabTestStoragePath returns the storage path to the gitlab-test repo.
 func GitlabTestStoragePath() string {
-	// If TEST_REPO_STORAGE_PATH has been set (by the Makefile) then use that
-	testRepoPath := os.Getenv("TEST_REPO_STORAGE_PATH")
-	if testRepoPath != "" {
-		testRepoPathAbs, err := filepath.Abs(testRepoPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		return testRepoPathAbs
-	}
-
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		log.Fatal("Could not get caller info")

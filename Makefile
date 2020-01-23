@@ -14,7 +14,6 @@ MAKEGEN = $(BUILD_DIR)/makegen
 
 # These variables are handed down to make in _build
 export PATH := $(BUILD_DIR)/bin:$(PATH)
-export TEST_REPO_STORAGE_PATH := $(CURDIR)/internal/testhelper/testdata/data
 export SOURCE_DIR := $(CURDIR)
 export GO111MODULE = on
 
