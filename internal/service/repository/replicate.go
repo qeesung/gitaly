@@ -141,6 +141,10 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		return err
 	}
 
+	if err = os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		return err
+	}
+
 	if err := os.Rename(tempPath, targetPath); err != nil {
 		return err
 	}

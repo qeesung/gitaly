@@ -138,7 +138,9 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	replMgr.processReplJob(ctx, jobs[0])
 
-	replicatedPath := filepath.Join(backupDir, filepath.Base(testRepoPath))
+	relativeRepoPath, err := filepath.Rel(testhelper.GitlabTestStoragePath(), testRepoPath)
+	require.NoError(t, err)
+	replicatedPath := filepath.Join(backupDir, relativeRepoPath)
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "cat-file", "-e", commitID)
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "gc")

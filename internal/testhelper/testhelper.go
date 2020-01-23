@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -385,12 +386,24 @@ func Context() (context.Context, func()) {
 	return context.WithCancel(context.Background())
 }
 
+func hashedRepoPath(dirName string) (string, error) {
+	if len(dirName) < 4 {
+		return "", errors.New("dirname is too short")
+	}
+
+	return filepath.Join(dirName[0:2], dirName[2:4], dirName[4:]), nil
+}
+
 // CreateRepo creates a temporary directory for a repo, without initializing it
 func CreateRepo(t testing.TB, storagePath string) (repo *gitalypb.Repository, repoPath, relativePath string) {
-	normalizedPrefix := strings.Replace(t.Name(), "/", "-", -1) //TempDir doesn't like a prefix containing slashes
-
-	repoPath, err := ioutil.TempDir(storagePath, normalizedPrefix)
+	random, err := text.RandomHex(20)
 	require.NoError(t, err)
+
+	hashedPath, err := hashedRepoPath(random)
+	require.NoError(t, err)
+
+	repoPath = filepath.Join(storagePath, hashedPath)
+	require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), 0755), "making repo parent dir")
 
 	relativePath, err = filepath.Rel(storagePath, repoPath)
 	require.NoError(t, err)
