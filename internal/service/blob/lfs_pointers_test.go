@@ -3,6 +3,7 @@ package blob
 import (
 	"io"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -365,7 +366,6 @@ func TestSuccessfulGetAllLFSPointersRequest(t *testing.T) {
 
 	request := &gitalypb.GetAllLFSPointersRequest{
 		Repository: testRepo,
-		Revision:   []byte("54fcc214b94e78d7a41a9a8fe6d87a5e59500e51"),
 	}
 
 	expectedLFSPointers := []*gitalypb.LFSPointer{
@@ -429,31 +429,16 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 	client, conn := newBlobClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	testCases := []struct {
 		desc       string
 		repository *gitalypb.Repository
-		revision   []byte
 	}{
 		{
 			desc:       "empty Repository",
 			repository: nil,
-			revision:   []byte("master"),
-		},
-		{
-			desc:       "empty revision",
-			repository: testRepo,
-			revision:   nil,
-		},
-		{
-			desc:       "revision can't start with '-'",
-			repository: testRepo,
-			revision:   []byte("-suspicious-revision"),
 		},
 	}
 
@@ -461,7 +446,6 @@ func TestFailedGetAllLFSPointersRequestDueToValidations(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			request := &gitalypb.GetAllLFSPointersRequest{
 				Repository: tc.repository,
-				Revision:   tc.revision,
 			}
 
 			c, err := client.GetAllLFSPointers(ctx, request)
@@ -481,4 +465,50 @@ func drainAllPointers(c gitalypb.BlobService_GetAllLFSPointersClient) error {
 			return err
 		}
 	}
+}
+
+// TestGetAllLFSPointersVerifyScope verifies that this RPC returns all LFS
+// pointers in a repository, not only ones reachable from the default branch
+func TestGetAllLFSPointersVerifyScope(t *testing.T) {
+	server, serverSocketPath := runBlobServer(t)
+	defer server.Stop()
+
+	client, conn := newBlobClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, repoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	request := &gitalypb.GetAllLFSPointersRequest{
+		Repository: testRepo,
+	}
+
+	c, err := client.GetAllLFSPointers(ctx, request)
+	require.NoError(t, err)
+
+	lfsPtr := &gitalypb.LFSPointer{
+		Size: 127,
+		Data: []byte("version https://git-lfs.github.com/spec/v1\noid sha256:f2b0a1e7550e9b718dafc9b525a04879a766de62e4fbdfc46593d47f7ab74636\nsize 20\n"),
+		Oid:  "f78df813119a79bfbe0442ab92540a61d3ab7ff3",
+	}
+
+	// the LFS pointer is reachable from a non-default branch:
+	require.True(t, refHasPtr(t, repoPath, "moar-lfs-ptrs", lfsPtr))
+
+	// the same pointer is not reachable from a default branch
+	require.False(t, refHasPtr(t, repoPath, "master", lfsPtr))
+
+	require.Contains(t, getAllPointers(t, c), lfsPtr,
+		"RPC should return all LFS pointers, not just ones in the default branch")
+}
+
+// refHasPtr verifies the provided ref has connectivity to the LFS pointer
+func refHasPtr(t *testing.T, repoPath, ref string, lfsPtr *gitalypb.LFSPointer) bool {
+	objects := string(testhelper.MustRunCommand(t, nil,
+		"git", "-C", repoPath, "rev-list", "--objects", ref))
+
+	return strings.Contains(objects, lfsPtr.Oid)
 }

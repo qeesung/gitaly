@@ -108,8 +108,8 @@ func (s *server) GetNewLFSPointers(in *gitalypb.GetNewLFSPointersRequest, stream
 func (s *server) GetAllLFSPointers(in *gitalypb.GetAllLFSPointersRequest, stream gitalypb.BlobService_GetAllLFSPointersServer) error {
 	ctx := stream.Context()
 
-	if err := validateGetLfsPointersByRevisionRequest(in); err != nil {
-		return helper.ErrInvalidArgument(err)
+	if in.GetRepository() == nil {
+		return helper.ErrInvalidArgument(fmt.Errorf("empty Repository"))
 	}
 
 	client, err := s.ruby.BlobServiceClient(ctx)
