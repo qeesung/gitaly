@@ -10,29 +10,29 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
-// Command creates a git.Command with the given args and Repository
+// unsafeCmd creates a git.unsafeCmd with the given args and Repository
 //
 // Deprecated: use git.SafeCmd instead
-func Command(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
+func unsafeCmd(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return BareCommand(ctx, nil, nil, nil, env, args...)
+	return unsafeBareCmd(ctx, nil, nil, nil, env, args...)
 }
 
-// StdinCommand creates a git.Command with the given args and Repository that is
+// unsafeStdinCmd creates a git.Command with the given args and Repository that is
 // suitable for Write()ing to
 //
 // Deprecated: Use git.SafeStdinCmd instead
-func StdinCommand(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
+func unsafeStdinCmd(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return BareCommand(ctx, command.SetupStdin, nil, nil, env, args...)
+	return unsafeBareCmd(ctx, command.SetupStdin, nil, nil, env, args...)
 }
 
 func argsAndEnv(repo repository.GitRepo, args ...string) ([]string, []string, error) {
@@ -46,16 +46,16 @@ func argsAndEnv(repo repository.GitRepo, args ...string) ([]string, []string, er
 	return args, env, nil
 }
 
-// BareCommand creates a git.Command with the given args, stdin/stdout/stderr, and env
+// unsafeBareCmd creates a git.Command with the given args, stdin/stdout/stderr, and env
 //
 // Deprecated: use git.SafeBareCmd
-func BareCommand(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, args ...string) (*command.Command, error) {
+func unsafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, args ...string) (*command.Command, error) {
 	env = append(env, command.GitEnv...)
 
 	return command.New(ctx, exec.Command(command.GitPath(), args...), stdin, stdout, stderr, env...)
 }
 
-// CommandWithoutRepo works like Command but without a git repository
-func CommandWithoutRepo(ctx context.Context, args ...string) (*command.Command, error) {
-	return BareCommand(ctx, nil, nil, nil, nil, args...)
+// unsafeCmdWithoutRepo works like Command but without a git repository
+func unsafeCmdWithoutRepo(ctx context.Context, args ...string) (*command.Command, error) {
+	return unsafeBareCmd(ctx, nil, nil, nil, nil, args...)
 }
