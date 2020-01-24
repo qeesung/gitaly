@@ -200,7 +200,7 @@ func SafeCmd(ctx context.Context, repo repository.GitRepo, globals []Option, sc 
 		return nil, err
 	}
 
-	return Command(ctx, repo, args...)
+	return unsafeCmd(ctx, repo, args...)
 }
 
 // SafeBareCmd creates a git.Command with the given args, stdin/stdout/stderr,
@@ -211,7 +211,7 @@ func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer,
 		return nil, err
 	}
 
-	return BareCommand(ctx, stdin, stdout, stderr, env, args...)
+	return unsafeBareCmd(ctx, stdin, stdout, stderr, env, args...)
 }
 
 // SafeStdinCmd creates a git.Command with the given args and Repository that is
@@ -223,7 +223,7 @@ func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Option
 		return nil, err
 	}
 
-	return StdinCommand(ctx, repo, args...)
+	return unsafeStdinCmd(ctx, repo, args...)
 }
 
 // SafeCmdWithoutRepo works like Command but without a git repository. It
@@ -234,7 +234,7 @@ func SafeCmdWithoutRepo(ctx context.Context, globals []Option, sc SubCmd) (*comm
 		return nil, err
 	}
 
-	return CommandWithoutRepo(ctx, args...)
+	return unsafeCmdWithoutRepo(ctx, args...)
 }
 
 func combineArgs(globals []Option, sc Cmd) (_ []string, err error) {

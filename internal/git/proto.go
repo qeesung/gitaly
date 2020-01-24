@@ -54,7 +54,7 @@ func Version() (string, error) {
 	defer cancel()
 
 	var buf bytes.Buffer
-	cmd, err := BareCommand(ctx, nil, &buf, nil, nil, "version")
+	cmd, err := unsafeBareCmd(ctx, nil, &buf, nil, nil, "version")
 	if err != nil {
 		return "", err
 	}

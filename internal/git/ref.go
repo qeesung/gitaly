@@ -12,7 +12,7 @@ func IsValidRef(ctx context.Context, repo *gitalypb.Repository, ref string) bool
 		return false
 	}
 
-	cmd, err := Command(ctx, repo, "log", "--max-count=1", ref)
+	cmd, err := unsafeCmd(ctx, repo, "log", "--max-count=1", ref)
 	if err != nil {
 		return false
 	}
