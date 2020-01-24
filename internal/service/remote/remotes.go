@@ -73,8 +73,7 @@ func (s *server) FindRemoteRepository(ctx context.Context, req *gitalypb.FindRem
 		return nil, status.Error(codes.InvalidArgument, "FindRemoteRepository: empty remote can't be checked.")
 	}
 
-	cmd, err := git.SafeCmdWithoutRepo(ctx,
-		[]git.Option{},
+	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
 		git.SubCmd{
 			Name: "ls-remote",
 			Args: []string{
