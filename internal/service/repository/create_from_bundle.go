@@ -64,14 +64,15 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return err
 	}
 
-	args := []string{
-		"clone",
-		"--bare",
-		"--",
-		bundlePath,
-		repoPath,
-	}
-	cmd, err := git.CommandWithoutRepo(ctx, args...)
+	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
+		git.SubCmd{
+			Name: "clone",
+			Flags: []git.Option{
+				git.Flag{Name: "--bare"},
+			},
+			PostSepArgs: []string{bundlePath, repoPath},
+		},
+	)
 	if err != nil {
 		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd start failed: %v", err)
 		return status.Error(codes.Internal, cleanError)
@@ -82,15 +83,13 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 	}
 
 	// We do a fetch to get all refs including keep-around refs
-	args = []string{
-		"-C",
-		repoPath,
-		"fetch",
-		bundlePath,
-		"refs/*:refs/*",
-	}
-
-	cmd, err = git.CommandWithoutRepo(ctx, args...)
+	cmd, err = git.SafeCmdWithoutRepo(ctx,
+		[]git.Option{git.ValueFlag{Name: "-C", Value: repoPath}},
+		git.SubCmd{
+			Name: "fetch",
+			Args: []string{bundlePath, "refs/*:refs/*"},
+		},
+	)
 	if err != nil {
 		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd start failed fetching refs: %v", err)
 		return status.Error(codes.Internal, cleanError)

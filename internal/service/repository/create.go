@@ -19,7 +19,16 @@ func (s *server) CreateRepository(ctx context.Context, req *gitalypb.CreateRepos
 		return nil, helper.ErrInternal(err)
 	}
 
-	cmd, err := git.CommandWithoutRepo(ctx, "init", "--bare", "--quiet", diskPath)
+	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
+		git.SubCmd{
+			Name: "init",
+			Flags: []git.Option{
+				git.Flag{Name: "--bare"},
+				git.Flag{Name: "--quiet"},
+			},
+			Args: []string{diskPath},
+		},
+	)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}

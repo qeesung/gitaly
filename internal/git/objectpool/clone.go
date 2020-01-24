@@ -24,8 +24,23 @@ func (o *ObjectPool) clone(ctx context.Context, repo *gitalypb.Repository) error
 		return err
 	}
 
-	cloneArgs := []string{"-C", path.Dir(targetDir), "clone", "--quiet", "--bare", "--local", repoPath, targetName}
-	cmd, err := git.CommandWithoutRepo(ctx, cloneArgs...)
+	cmd, err := git.SafeCmdWithoutRepo(ctx,
+		[]git.Option{
+			git.ValueFlag{
+				Name:  "-C",
+				Value: path.Dir(targetDir),
+			},
+		},
+		git.SubCmd{
+			Name: "clone",
+			Flags: []git.Option{
+				git.Flag{Name: "--quiet"},
+				git.Flag{Name: "--bare"},
+				git.Flag{Name: "--local"},
+			},
+			Args: []string{repoPath, targetName},
+		},
+	)
 	if err != nil {
 		return err
 	}

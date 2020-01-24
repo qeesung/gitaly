@@ -1,0 +1,5 @@
+---
+title: Replace CommandWithoutRepo usage with safe version
+merge_request: 1783
+author:
+type: security
