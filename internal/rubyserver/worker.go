@@ -131,7 +131,7 @@ func (w *worker) monitor() {
 				// we may leave the system without the capacity to make gitaly-ruby
 				// requests.
 				if bal.RemoveAddress(w.address) {
-					w.logPid(currentPid).Info("removed from balancer due to high memory")
+					w.logPid(currentPid).Info("removed gitaly-ruby worker from balancer due to high memory")
 					go w.waitTerminate(currentPid)
 					swMem.reset()
 				}
@@ -154,7 +154,7 @@ func (w *worker) monitor() {
 					break nextEvent
 				}
 
-				w.log().WithError(e.Error).Warn("health check failed")
+				w.log().WithError(e.Error).Warn("gitaly-ruby worker health check failed")
 
 				swHealth.mark()
 				if swHealth.elapsed() <= healthRestartDelay {
@@ -162,7 +162,7 @@ func (w *worker) monitor() {
 				}
 
 				if bal.RemoveAddress(w.address) {
-					w.logPid(currentPid).Info("removed from balancer due to sustained failing health checks")
+					w.logPid(currentPid).Info("removed gitaly-ruby worker from balancer due to sustained failing health checks")
 					go w.waitTerminate(currentPid)
 					swHealth.reset()
 				}

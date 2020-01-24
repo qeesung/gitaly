@@ -2,6 +2,7 @@ package rubyserver
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -22,7 +23,7 @@ func ping(address string) error {
 		}),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to gitaly-ruby worker: %v", err)
 	}
 	defer conn.Close()
 

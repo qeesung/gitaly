@@ -233,7 +233,7 @@ func (s *Server) createConnection(ctx context.Context) (*grpc.ClientConn, error)
 
 	conn, err := grpc.DialContext(dialCtx, balancer.Scheme+":///gitaly-ruby", dialOptions()...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to gitaly-ruby worker: %v", err)
 	}
 
 	s.clientConn = conn
