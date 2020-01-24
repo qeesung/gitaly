@@ -11,8 +11,6 @@ import (
 )
 
 // unsafeCmd creates a git.unsafeCmd with the given args and Repository
-//
-// Deprecated: use git.SafeCmd instead
 func unsafeCmd(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
@@ -24,8 +22,6 @@ func unsafeCmd(ctx context.Context, repo repository.GitRepo, args ...string) (*c
 
 // unsafeStdinCmd creates a git.Command with the given args and Repository that is
 // suitable for Write()ing to
-//
-// Deprecated: Use git.SafeStdinCmd instead
 func unsafeStdinCmd(ctx context.Context, repo repository.GitRepo, args ...string) (*command.Command, error) {
 	args, env, err := argsAndEnv(repo, args...)
 	if err != nil {
@@ -47,8 +43,6 @@ func argsAndEnv(repo repository.GitRepo, args ...string) ([]string, []string, er
 }
 
 // unsafeBareCmd creates a git.Command with the given args, stdin/stdout/stderr, and env
-//
-// Deprecated: use git.SafeBareCmd
 func unsafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, env []string, args ...string) (*command.Command, error) {
 	env = append(env, command.GitEnv...)
 
