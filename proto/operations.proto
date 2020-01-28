@@ -396,8 +396,7 @@ message UserSquashRequest {
   Repository repository = 1;
   User user = 2;
   string squash_id = 3;
-  reserved 4;
-  reserved "branch";
+  bytes branch = 4 [deprecated=true];
   string start_sha = 5;
   string end_sha = 6;
   User author = 7;
