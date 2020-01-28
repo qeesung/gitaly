@@ -647,13 +647,11 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
   describe '#squash' do
     let(:repository) { mutable_repository }
     let(:squash_id) { '1' }
-    let(:branch_name) { 'fix' }
     let(:start_sha) { '4b4918a572fa86f9771e5ba40fbd48e1eb03e2c6' }
     let(:end_sha) { '12d65c8dd2b2676fa3ac47d955accc085a37a9c1' }
 
     subject do
       opts = {
-        branch: branch_name,
         start_sha: start_sha,
         end_sha: end_sha,
         author: user,

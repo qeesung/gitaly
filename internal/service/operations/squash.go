@@ -41,10 +41,6 @@ func validateUserSquashRequest(req *gitalypb.UserSquashRequest) error {
 		return fmt.Errorf("empty SquashId")
 	}
 
-	if len(req.GetBranch()) == 0 {
-		return fmt.Errorf("empty Branch")
-	}
-
 	if req.GetStartSha() == "" {
 		return fmt.Errorf("empty StartSha")
 	}

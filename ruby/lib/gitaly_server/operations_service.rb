@@ -299,7 +299,6 @@ module GitalyServer
       author = Gitlab::Git::User.from_gitaly(request.author)
 
       squash_sha = repo.squash(user, request.squash_id,
-                               branch: request.branch,
                                start_sha: request.start_sha,
                                end_sha: request.end_sha,
                                author: author,

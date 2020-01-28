@@ -383,7 +383,7 @@ module Gitlab
         end
       end
 
-      def squash(user, squash_id, branch:, start_sha:, end_sha:, author:, message:)
+      def squash(user, squash_id, start_sha:, end_sha:, author:, message:)
         worktree = Gitlab::Git::Worktree.new(path, SQUASH_WORKTREE_PREFIX, squash_id)
         env = git_env.merge(user.git_env).merge(
           'GIT_AUTHOR_NAME' => author.name,
@@ -394,7 +394,7 @@ module Gitlab
           %W[diff --name-only --diff-filter=ar --binary #{diff_range}]
         ).chomp
 
-        with_worktree(worktree, branch, sparse_checkout_files: diff_files, env: env) do
+        with_worktree(worktree, start_sha, sparse_checkout_files: diff_files, env: env) do
           # Apply diff of the `diff_range` to the worktree
           diff = run_git!(%W[diff --binary #{diff_range}])
           run_git!(%w[apply --index --3way --whitespace=nowarn], chdir: worktree.path, env: env, include_stderr: true) do |stdin|
