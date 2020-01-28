@@ -198,5 +198,12 @@ func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.SubCmd {
 			subCmd.PostSepArgs = append(subCmd.PostSepArgs, string(path))
 		}
 	}
+	switch req.GetOrder() {
+	case gitalypb.FindCommitsRequest_NONE:
+		// Do nothing
+	case gitalypb.FindCommitsRequest_TOPO:
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--topo-order"})
+	}
+
 	return subCmd
 }

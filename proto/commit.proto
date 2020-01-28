@@ -334,6 +334,11 @@ message FindCommitsRequest {
   bool all = 11;
   bool first_parent = 12;
   bytes author = 13;
+  enum Order {
+    NONE = 0;
+    TOPO = 1;
+  }
+  Order order = 14;
 }
 
 // A single 'page' of the result set

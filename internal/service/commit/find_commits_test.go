@@ -188,6 +188,39 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
+	normalCommits := []*gitalypb.GitCommit{
+		{
+			Id:        "bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb",
+			ParentIds: []string{"9d526f87b82e2b2fd231ca44c95508e5e85624ca"},
+		},
+		{
+			Id:        "9d526f87b82e2b2fd231ca44c95508e5e85624ca",
+			ParentIds: []string{"1039376155a0d507eba0ea95c29f8f5b983ea34b"},
+		},
+		{
+			Id:        "1039376155a0d507eba0ea95c29f8f5b983ea34b",
+			ParentIds: []string{"54188278422b1fa877c2e71c4e37fc6640a58ad1"},
+		},
+	}
+
+	alternateCommits := []*gitalypb.GitCommit{
+		{
+			Id: "0031876facac3f2b2702a0e53a26e89939a42209",
+			ParentIds: []string{
+				normalCommits[0].Id,
+				"48ca272b947f49eee601639d743784a176574a09",
+			},
+		},
+		{
+			Id:        "48ca272b947f49eee601639d743784a176574a09",
+			ParentIds: []string{"335bc94d5b7369b10251e612158da2e4a4aaa2a5"},
+		},
+		{
+			Id:        "335bc94d5b7369b10251e612158da2e4a4aaa2a5",
+			ParentIds: []string{normalCommits[2].Id},
+		},
+	}
+
 	testCases := []struct {
 		desc    string
 		request *gitalypb.FindCommitsRequest
@@ -328,6 +361,40 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 				"5f923865dde3436854e9ceb9cdb7815618d4e849",
 				"d2d430676773caa88cdaf7c55944073b2fd5561a",
 				"59e29889be61e6e0e5e223bfa9ac2721d31605b8",
+			},
+		},
+		{
+			desc: "ordered by none",
+			request: &gitalypb.FindCommitsRequest{
+				Repository: testRepo,
+				Revision:   []byte(alternateCommits[0].Id),
+				Order:      gitalypb.FindCommitsRequest_NONE,
+				Limit:      6,
+			},
+			ids: []string{
+				alternateCommits[0].Id,
+				normalCommits[0].Id,
+				alternateCommits[1].Id,
+				normalCommits[1].Id,
+				alternateCommits[2].Id,
+				normalCommits[2].Id,
+			},
+		},
+		{
+			desc: "ordered by topo",
+			request: &gitalypb.FindCommitsRequest{
+				Repository: testRepo,
+				Revision:   []byte(alternateCommits[0].Id),
+				Order:      gitalypb.FindCommitsRequest_TOPO,
+				Limit:      6,
+			},
+			ids: []string{
+				alternateCommits[0].Id,
+				alternateCommits[1].Id,
+				alternateCommits[2].Id,
+				normalCommits[0].Id,
+				normalCommits[1].Id,
+				normalCommits[2].Id,
 			},
 		},
 	}

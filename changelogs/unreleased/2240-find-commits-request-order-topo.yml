@@ -1,0 +1,5 @@
+---
+title: Support FindCommitsRequest with order (--topo-order)
+merge_request: 1791
+author:
+type: added

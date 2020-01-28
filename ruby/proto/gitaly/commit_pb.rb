@@ -153,6 +153,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :all, :bool, 11
     optional :first_parent, :bool, 12
     optional :author, :bytes, 13
+    optional :order, :enum, 14, "gitaly.FindCommitsRequest.Order"
+  end
+  add_enum "gitaly.FindCommitsRequest.Order" do
+    value :NONE, 0
+    value :TOPO, 1
   end
   add_message "gitaly.FindCommitsResponse" do
     repeated :commits, :message, 1, "gitaly.GitCommit"
@@ -276,6 +281,7 @@ module Gitaly
   FindAllCommitsRequest::Order = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllCommitsRequest.Order").enummodule
   FindAllCommitsResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllCommitsResponse").msgclass
   FindCommitsRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindCommitsRequest").msgclass
+  FindCommitsRequest::Order = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindCommitsRequest.Order").enummodule
   FindCommitsResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindCommitsResponse").msgclass
   CommitLanguagesRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitLanguagesRequest").msgclass
   CommitLanguagesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CommitLanguagesResponse").msgclass
