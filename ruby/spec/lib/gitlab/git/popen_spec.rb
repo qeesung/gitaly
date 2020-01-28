@@ -39,6 +39,15 @@ describe 'Gitlab::Git::Popen' do
       it { expect(output).to eq('') }
     end
 
+    context 'when stderr is included' do
+      let(:result) { klass.new.popen(['ruby', '-e', 'warn "hello world"'], path, include_stderr: true) }
+      let(:output) { result.first }
+      let(:status) { result.last }
+
+      it { expect(status).to eq(0) }
+      it { expect(output).to eq("hello world\n") }
+    end
+
     context 'unsafe string command' do
       it 'raises an error when it gets called with a string argument' do
         expect { klass.new.popen('ls', path) }.to raise_error(RuntimeError)

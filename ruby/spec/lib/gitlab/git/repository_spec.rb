@@ -702,6 +702,21 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
           subject
         end
       end
+
+      describe 'when worktree throws an error' do
+        before do
+          allow(repository).to receive(:run_git).and_return(['ok', 0])
+          expect(repository).to receive(:run_git)
+            .with(array_including('worktree'), chdir: anything, env: anything, nice: false, include_stderr: true, lazy_block: anything)
+            .and_return(['error', 1])
+        end
+
+        it 'includes the stderr output' do
+          expect do
+            subject
+          end.to raise_error(described_class::GitError, 'error')
+        end
+      end
     end
 
     describe 'with an ASCII-8BIT diff' do

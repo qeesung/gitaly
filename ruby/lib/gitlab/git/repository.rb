@@ -877,21 +877,21 @@ module Gitlab
         # checkout files in by a changeset but that changeset only adds files.
         if sparse_checkout_files
           # Create worktree without checking out
-          run_git!(base_args + ['--no-checkout', worktree.path], env: env)
+          run_git!(base_args + ['--no-checkout', worktree.path], env: env, include_stderr: true)
           worktree_git_path = run_git!(%w[rev-parse --git-dir], chdir: worktree.path).chomp
 
           configure_sparse_checkout(worktree_git_path, sparse_checkout_files)
 
           # After sparse checkout configuration, checkout `branch` in worktree
-          run_git!(%W[checkout --detach #{branch}], chdir: worktree.path, env: env)
+          run_git!(%W[checkout --detach #{branch}], chdir: worktree.path, env: env, include_stderr: true)
         else
           # Create worktree and checkout `branch` in it
-          run_git!(base_args + [worktree.path, branch], env: env)
+          run_git!(base_args + [worktree.path, branch], env: env, include_stderr: true)
         end
 
         yield
       ensure
-        run_git(%W[worktree remove -f #{worktree.name}])
+        run_git(%W[worktree remove -f #{worktree.name}], include_stderr: true)
       end
 
       # Adding a worktree means checking out the repository. For large repos,
