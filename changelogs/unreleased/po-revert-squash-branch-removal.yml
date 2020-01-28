@@ -1,0 +1,5 @@
+---
+title: Revert branch field removal in UserSquashRequest message for RPC operations.UserSquash
+merge_request: 1792
+author:
+type: deprecated
