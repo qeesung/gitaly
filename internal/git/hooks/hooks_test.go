@@ -34,3 +34,38 @@ func TestPath(t *testing.T) {
 		require.Equal(t, "/var/empty", Path())
 	})
 }
+
+func TestGitPushOptions(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		input    []string
+		expected []string
+	}{
+		{
+			desc:     "empty input",
+			input:    []string{},
+			expected: []string{},
+		},
+		{
+			desc:     "nil input",
+			input:    nil,
+			expected: []string{},
+		},
+		{
+			desc:     "one option",
+			input:    []string{"option1"},
+			expected: []string{"GIT_PUSH_OPTION_COUNT=1", "GIT_PUSH_OPTION_0=option1"},
+		},
+		{
+			desc:     "multiple options",
+			input:    []string{"option1", "option2"},
+			expected: []string{"GIT_PUSH_OPTION_COUNT=2", "GIT_PUSH_OPTION_0=option1", "GIT_PUSH_OPTION_1=option2"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.Equal(t, tc.expected, GitPushOptions(tc.input))
+		})
+	}
+}
