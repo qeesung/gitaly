@@ -188,39 +188,6 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	normalCommits := []*gitalypb.GitCommit{
-		{
-			Id:        "bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb",
-			ParentIds: []string{"9d526f87b82e2b2fd231ca44c95508e5e85624ca"},
-		},
-		{
-			Id:        "9d526f87b82e2b2fd231ca44c95508e5e85624ca",
-			ParentIds: []string{"1039376155a0d507eba0ea95c29f8f5b983ea34b"},
-		},
-		{
-			Id:        "1039376155a0d507eba0ea95c29f8f5b983ea34b",
-			ParentIds: []string{"54188278422b1fa877c2e71c4e37fc6640a58ad1"},
-		},
-	}
-
-	alternateCommits := []*gitalypb.GitCommit{
-		{
-			Id: "0031876facac3f2b2702a0e53a26e89939a42209",
-			ParentIds: []string{
-				normalCommits[0].Id,
-				"48ca272b947f49eee601639d743784a176574a09",
-			},
-		},
-		{
-			Id:        "48ca272b947f49eee601639d743784a176574a09",
-			ParentIds: []string{"335bc94d5b7369b10251e612158da2e4a4aaa2a5"},
-		},
-		{
-			Id:        "335bc94d5b7369b10251e612158da2e4a4aaa2a5",
-			ParentIds: []string{normalCommits[2].Id},
-		},
-	}
-
 	testCases := []struct {
 		desc    string
 		request *gitalypb.FindCommitsRequest
@@ -364,37 +331,61 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 			},
 		},
 		{
+			// Ordering by none implies that commits appear in
+			// chronological order:
+			//
+			// git log --graph -n 6 --pretty=format:"%h" --date-order 0031876
+			// *   0031876
+			// |\
+			// * | bf6e164
+			// | * 48ca272
+			// * | 9d526f8
+			// | * 335bc94
+			// |/
+			// * 1039376
 			desc: "ordered by none",
 			request: &gitalypb.FindCommitsRequest{
 				Repository: testRepo,
-				Revision:   []byte(alternateCommits[0].Id),
+				Revision:   []byte("0031876"),
 				Order:      gitalypb.FindCommitsRequest_NONE,
 				Limit:      6,
 			},
 			ids: []string{
-				alternateCommits[0].Id,
-				normalCommits[0].Id,
-				alternateCommits[1].Id,
-				normalCommits[1].Id,
-				alternateCommits[2].Id,
-				normalCommits[2].Id,
+				"0031876facac3f2b2702a0e53a26e89939a42209",
+				"bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb",
+				"48ca272b947f49eee601639d743784a176574a09",
+				"9d526f87b82e2b2fd231ca44c95508e5e85624ca",
+				"335bc94d5b7369b10251e612158da2e4a4aaa2a5",
+				"1039376155a0d507eba0ea95c29f8f5b983ea34b",
 			},
 		},
 		{
+			// When ordering by topology, all commit children will
+			// be shown before parents:
+			//
+			// git log --graph -n 6 --pretty=format:"%h" --topo-order 0031876
+			// *   0031876
+			// |\
+			// | * 48ca272
+			// | * 335bc94
+			// * | bf6e164
+			// * | 9d526f8
+			// |/
+			// * 1039376
 			desc: "ordered by topo",
 			request: &gitalypb.FindCommitsRequest{
 				Repository: testRepo,
-				Revision:   []byte(alternateCommits[0].Id),
+				Revision:   []byte("0031876"),
 				Order:      gitalypb.FindCommitsRequest_TOPO,
 				Limit:      6,
 			},
 			ids: []string{
-				alternateCommits[0].Id,
-				alternateCommits[1].Id,
-				alternateCommits[2].Id,
-				normalCommits[0].Id,
-				normalCommits[1].Id,
-				normalCommits[2].Id,
+				"0031876facac3f2b2702a0e53a26e89939a42209",
+				"48ca272b947f49eee601639d743784a176574a09",
+				"335bc94d5b7369b10251e612158da2e4a4aaa2a5",
+				"bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb",
+				"9d526f87b82e2b2fd231ca44c95508e5e85624ca",
+				"1039376155a0d507eba0ea95c29f8f5b983ea34b",
 			},
 		},
 	}
