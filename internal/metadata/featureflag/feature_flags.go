@@ -18,6 +18,8 @@ const (
 	CommitWithoutBatchCheck = "commit_without_batch_check"
 	// UseCoreDeltaIslands enables support of core delta islands for 'repack'.
 	UseCoreDeltaIslands = "use_core_delta_islands"
+	// UseGitProtocolV2 enables support for git wire protocol v2
+	UseGitProtocolV2 = "use_git_protocol_v2"
 )
 
 const (
