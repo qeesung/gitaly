@@ -1,15 +1,21 @@
 package objectpool
 
 import (
+	"bytes"
+	"encoding/json"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/labkit/log"
 	"google.golang.org/grpc/codes"
 )
 
@@ -56,6 +62,57 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	_, err = client.FetchIntoObjectPool(ctx, req)
 	require.NoError(t, err, "calling FetchIntoObjectPool twice should be OK")
 	require.True(t, pool.IsValid(), "ensure that pool is valid")
+}
+
+func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
+	defer func(tl func(tb testing.TB) *logrus.Logger) {
+		testhelper.NewTestLogger = tl
+	}(testhelper.NewTestLogger)
+
+	logBuffer := &bytes.Buffer{}
+	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
+
+	server, serverSocketPath := runObjectPoolServer(t)
+	defer server.Stop()
+
+	client, conn := newObjectPoolClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
+	require.NoError(t, err)
+	defer pool.Remove(ctx)
+
+	req := &gitalypb.FetchIntoObjectPoolRequest{
+		ObjectPool: pool.ToProto(),
+		Origin:     testRepo,
+		Repack:     true,
+	}
+
+	_, err = client.FetchIntoObjectPool(ctx, req)
+	require.NoError(t, err)
+
+	msgs := strings.Split(logBuffer.String(), "\n")
+	const key = "count_objects"
+	for _, msg := range msgs {
+		if strings.Contains(msg, key) {
+			var out map[string]interface{}
+			require.NoError(t, json.NewDecoder(strings.NewReader(msg)).Decode(&out))
+			require.Contains(t, out, key, "there is no any information about statistics")
+			countObjects := out[key].(map[string]interface{})
+			assert.Contains(t, countObjects, "count")
+			return
+		}
+	}
+	require.FailNow(t, "no info about statistics")
 }
 
 func TestFetchIntoObjectPool_Failure(t *testing.T) {
