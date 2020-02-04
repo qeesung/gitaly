@@ -65,8 +65,9 @@ func (s *shard) GetSecondaries() ([]Node, error) {
 
 // NodeMgr is a concrete type that adheres to the NodeManager interface
 type NodeMgr struct {
-	shards map[string]*shard
-	log    *logrus.Entry
+	shards          map[string]*shard
+	log             *logrus.Entry
+	failoverEnabled bool
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
@@ -74,10 +75,10 @@ type NodeMgr struct {
 var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 
 // NewNodeManager creates a new NodeMgr based on virtual storage configs
-func NewNodeManager(log *logrus.Entry, virtualStorages []config.VirtualStorage) (*NodeMgr, error) {
+func NewNodeManager(log *logrus.Entry, c config.Config) (*NodeMgr, error) {
 	shards := make(map[string]*shard)
 
-	for _, virtualStorage := range virtualStorages {
+	for _, virtualStorage := range c.VirtualStorages {
 		var secondaries []*nodeStatus
 		var primary *nodeStatus
 		for _, node := range virtualStorage.Nodes {
@@ -99,6 +100,7 @@ func NewNodeManager(log *logrus.Entry, virtualStorages []config.VirtualStorage) 
 
 			secondaries = append(secondaries, ns)
 		}
+
 		shards[virtualStorage.Name] = &shard{
 			primary:     primary,
 			secondaries: secondaries,
@@ -106,8 +108,9 @@ func NewNodeManager(log *logrus.Entry, virtualStorages []config.VirtualStorage) 
 	}
 
 	return &NodeMgr{
-		shards: shards,
-		log:    log,
+		shards:          shards,
+		log:             log,
+		failoverEnabled: c.FailoverEnabled,
 	}, nil
 }
 
@@ -145,8 +148,10 @@ func (n *NodeMgr) monitor(d time.Duration) {
 // Start will bootstrap the node manager by calling healthcheck on the nodes as well as kicking off
 // the monitoring process. Start must be called before NodeMgr can be used.
 func (n *NodeMgr) Start(bootstrapInterval, monitorInterval time.Duration) {
-	n.bootstrap(bootstrapInterval)
-	go n.monitor(monitorInterval)
+	if n.failoverEnabled {
+		n.bootstrap(bootstrapInterval)
+		go n.monitor(monitorInterval)
+	}
 }
 
 // GetShard retrieves a shard for a virtual storage name
@@ -156,8 +161,10 @@ func (n *NodeMgr) GetShard(virtualStorageName string) (Shard, error) {
 		return nil, errors.New("virtual storage does not exist")
 	}
 
-	if !shard.primary.isHealthy() {
-		return nil, ErrPrimaryNotHealthy
+	if n.failoverEnabled {
+		if !shard.primary.isHealthy() {
+			return nil, ErrPrimaryNotHealthy
+		}
 	}
 
 	return shard, nil
