@@ -173,6 +173,8 @@ func TestUploadPackRequestWithGitProtocol(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
+
 	testRepo := testhelper.TestRepository()
 	testRepoPath, err := helper.GetRepoPath(testRepo)
 	require.NoError(t, err)
