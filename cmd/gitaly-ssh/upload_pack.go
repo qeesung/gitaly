@@ -32,7 +32,7 @@ func uploadPack(ctx context.Context, conn *grpc.ClientConn, req string) (int32, 
 	defer cancel()
 
 	if request.GetGitProtocol() == git.ProtocolV2 {
-		ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
+		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
 	}
 
 	return client.UploadPack(ctx, conn, os.Stdin, os.Stdout, os.Stderr, &request)

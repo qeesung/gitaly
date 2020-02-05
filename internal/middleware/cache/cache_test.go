@@ -46,7 +46,7 @@ func TestInvalidators(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CacheInvalidator)
+	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 
 	svc := &testSvc{}
 

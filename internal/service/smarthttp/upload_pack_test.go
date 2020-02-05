@@ -173,7 +173,7 @@ func TestUploadPackRequestWithGitProtocol(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
+	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
 
 	testRepo := testhelper.TestRepository()
 	testRepoPath, err := helper.GetRepoPath(testRepo)
@@ -384,7 +384,7 @@ func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
 	_, err = makePostUploadPackRequest(ctx, t, serverSocketPath, req, &requestBufferForFailed)
 	require.Error(t, err, "trying to use filters without the feature flag should result in an error")
 
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UploadPackFilter)
+	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UploadPackFilter)
 
 	responseBuffer, err := makePostUploadPackRequest(ctx, t, serverSocketPath, req, &requestBuffer)
 	require.NoError(t, err)
