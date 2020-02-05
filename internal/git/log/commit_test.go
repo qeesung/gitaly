@@ -165,7 +165,7 @@ func TestGetCommitCatfile(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.featureOn {
-				ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CommitWithoutBatchCheck)
+				ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.CommitWithoutBatchCheck)
 			}
 
 			c, err := GetCommitCatfile(ctx, c, tc.revision)

@@ -85,7 +85,7 @@ func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
+	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
 
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)

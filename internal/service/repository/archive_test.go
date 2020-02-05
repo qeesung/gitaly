@@ -214,7 +214,9 @@ func TestGetArchiveFailure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
-			ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CacheInvalidator)
+			// enable cache invalidator to test against bad inputs
+			// See https://gitlab.com/gitlab-org/gitaly/issues/2262
+			ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 			defer cancel()
 
 			req := &gitalypb.GetArchiveRequest{

@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"google.golang.org/grpc/metadata"
 )
 
 type fakeProtocolMessage struct {
@@ -18,17 +17,7 @@ func (f fakeProtocolMessage) GetGitProtocol() string {
 }
 
 func enableProtocolV2(ctx context.Context) context.Context {
-	// TODO: replace this implementation with a helper function that deals
-	// with the incoming context
-	flag := featureflag.UseGitProtocolV2
-
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		md = metadata.New(map[string]string{featureflag.HeaderKey(flag): "true"})
-	}
-	md.Set(featureflag.HeaderKey(flag), "true")
-
-	return metadata.NewIncomingContext(ctx, md)
+	return featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
 }
 
 func TestAddGitProtocolEnv(t *testing.T) {
