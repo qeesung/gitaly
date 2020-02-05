@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
@@ -37,6 +38,21 @@ func ExtractGitalyServers(ctx context.Context) (gitalyServersInfo storage.Gitaly
 	return
 }
 
+// ExtractGitalyServer extracts server information for a specific storage
+func ExtractGitalyServer(ctx context.Context, storageName string) (map[string]string, error) {
+	gitalyServers, err := ExtractGitalyServers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	gitalyServer, ok := gitalyServers[storageName]
+	if !ok {
+		return nil, errors.New("storage name not found")
+	}
+
+	return gitalyServer, nil
+}
+
 // IncomingToOutgoing creates an outgoing context out of an incoming context with the same storage metadata
 func IncomingToOutgoing(ctx context.Context) context.Context {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -64,24 +80,14 @@ func InjectGitalyServers(ctx context.Context, name, address, token string) (cont
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))), nil
 }
 
-// ClientConnection creates a grpc.ClientConn from the injected gitaly-servers metadata
-func ClientConnection(ctx context.Context, storageName string) (*grpc.ClientConn, error) {
-	gitalyServersInfo, err := ExtractGitalyServers(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	repoStorageInfo, ok := gitalyServersInfo[storageName]
-	if !ok {
-		return nil, fmt.Errorf("gitaly server info for %q not found", storageName)
-	}
-
+// DialServer creates a client connection for a gitaly server
+func DialServer(gitalyServer map[string]string) (*grpc.ClientConn, error) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(repoStorageInfo["token"])),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(gitalyServer["token"])),
 	}
 
-	conn, err := client.Dial(repoStorageInfo["address"], connOpts)
+	conn, err := client.Dial(gitalyServer["address"], connOpts)
 	if err != nil {
 		return nil, fmt.Errorf("could not dial source: %v", err)
 	}

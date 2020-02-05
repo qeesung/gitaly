@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -19,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
 
 func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) (*gitalypb.ReplicateRepositoryResponse, error) {
@@ -27,7 +29,7 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 	}
 
 	syncFuncs := []func(context.Context, *gitalypb.ReplicateRepositoryRequest) error{
-		syncInfoAttributes,
+		s.syncInfoAttributes,
 	}
 
 	repoPath, err := helper.GetPath(in.GetRepository())
@@ -36,7 +38,7 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 	}
 
 	if helper.IsGitDirectory(repoPath) {
-		syncFuncs = append(syncFuncs, syncRepository)
+		syncFuncs = append(syncFuncs, s.syncRepository)
 	} else {
 		if err = s.create(ctx, in, repoPath); err != nil {
 			return nil, helper.ErrInternal(err)
@@ -112,7 +114,7 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		return err
 	}
 
-	repoClient, err := newRepoClient(ctx, in.GetSource().GetStorageName())
+	repoClient, err := s.newRepoClient(ctx, in.GetSource().GetStorageName())
 	if err != nil {
 		return err
 	}
@@ -152,8 +154,8 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 	return nil
 }
 
-func syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	remoteClient, err := newRemoteClient()
+func (s *server) syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
+	remoteClient, err := s.newRemoteClient()
 	if err != nil {
 		return err
 	}
@@ -168,8 +170,8 @@ func syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest
 	return nil
 }
 
-func syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	repoClient, err := newRepoClient(ctx, in.GetSource().GetStorageName())
+func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
+	repoClient, err := s.newRepoClient(ctx, in.GetSource().GetStorageName())
 	if err != nil {
 		return err
 	}
@@ -218,21 +220,70 @@ func syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateRepositoryReq
 }
 
 // newRemoteClient creates a new RemoteClient that talks to the same gitaly server
-func newRemoteClient() (gitalypb.RemoteServiceClient, error) {
-	conn, err := client.Dial(fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()), nil)
+func (s *server) newRemoteClient() (gitalypb.RemoteServiceClient, error) {
+	cc, err := s.getOrCreateConnection(map[string]string{
+		"address": fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("could not dial source: %v", err)
+		return nil, err
 	}
 
-	return gitalypb.NewRemoteServiceClient(conn), nil
+	return gitalypb.NewRemoteServiceClient(cc), nil
 }
 
 // newRepoClient creates a new RepositoryClient that talks to the gitaly of the source repository
-func newRepoClient(ctx context.Context, storageName string) (gitalypb.RepositoryServiceClient, error) {
-	conn, err := helper.ClientConnection(ctx, storageName)
+func (s *server) newRepoClient(ctx context.Context, storageName string) (gitalypb.RepositoryServiceClient, error) {
+	conn, err := s.getConnectionByStorage(ctx, storageName)
 	if err != nil {
 		return nil, err
 	}
 
 	return gitalypb.NewRepositoryServiceClient(conn), nil
+}
+
+func (s *server) getConnectionByStorage(ctx context.Context, storageName string) (*grpc.ClientConn, error) {
+	gitalyServerInfo, err := helper.ExtractGitalyServer(ctx, storageName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.getOrCreateConnection(gitalyServerInfo)
+}
+
+func (s *server) getOrCreateConnection(server map[string]string) (*grpc.ClientConn, error) {
+	address, token := server["address"], server["token"]
+	if address == "" {
+		return nil, errors.New("address is empty")
+	}
+
+	s.connsMtx.RLock()
+	cc, ok := s.connsByAddress[address]
+	s.connsMtx.RUnlock()
+
+	if ok {
+		return cc, nil
+	}
+
+	s.connsMtx.Lock()
+	defer s.connsMtx.Unlock()
+
+	connOpts := []grpc.DialOption{grpc.WithInsecure()}
+
+	if token != "" {
+		connOpts = append(connOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(token)))
+	}
+
+	cc, ok = s.connsByAddress[address]
+	if ok {
+		return cc, nil
+	}
+
+	cc, err := client.Dial(address, connOpts)
+	if err != nil {
+		return nil, fmt.Errorf("could not dial source: %v", err)
+	}
+
+	s.connsByAddress[address] = cc
+
+	return cc, nil
 }
