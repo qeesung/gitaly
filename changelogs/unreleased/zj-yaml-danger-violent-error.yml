@@ -1,0 +1,5 @@
+---
+title: 'Incorrect changelogs should be caught by Danger'
+merge_request: 1811
+author:
+type: fixed
