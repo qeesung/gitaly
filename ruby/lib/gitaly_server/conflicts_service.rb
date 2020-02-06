@@ -1,5 +1,3 @@
-require 'active_support/core_ext/hash/indifferent_access'
-
 module GitalyServer
   class ConflictsService < Gitaly::ConflictsService::Service
     include Utils

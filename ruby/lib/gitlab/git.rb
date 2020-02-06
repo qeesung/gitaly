@@ -9,7 +9,6 @@ require 'active_support/core_ext/numeric/bytes'
 require 'active_support/core_ext/numeric/time'
 require 'active_support/core_ext/integer/time'
 require 'active_support/core_ext/module/delegation'
-require 'active_support/core_ext/hash/transform_values'
 require 'active_support/core_ext/enumerable'
 
 require_relative 'git_logger.rb'
