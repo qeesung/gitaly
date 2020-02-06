@@ -14,7 +14,7 @@ consider adding any of the %<labels>s labels.
 MSG
 
 def check_changelog(path)
-  yaml = YAML.safe_load(File.read(path))
+  yaml = YAML.load_file(path)
 
   fail "`title` should be set, in #{gitlab.html_link(path)}! #{SEE_DOC}" if yaml["title"].nil?
   fail "`type` should be set, in #{gitlab.html_link(path)}! #{SEE_DOC}" if yaml["type"].nil?
