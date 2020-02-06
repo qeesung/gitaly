@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
-	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -20,15 +18,8 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
-var rubyServer = &rubyserver.Server{}
-
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
-
-	if err := rubyServer.Start(); err != nil {
-		log.Fatal(err)
-	}
-	defer rubyServer.Stop()
 
 	return m.Run()
 }
@@ -42,7 +33,7 @@ func startTestServices(t testing.TB) (*grpc.Server, string) {
 		t.Fatal("failed to start server")
 	}
 
-	gitalypb.RegisterCommitServiceServer(server, NewServer(rubyServer))
+	gitalypb.RegisterCommitServiceServer(server, NewServer())
 	reflection.Register(server)
 
 	go server.Serve(listener)

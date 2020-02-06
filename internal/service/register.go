@@ -29,8 +29,8 @@ import (
 func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	gitalypb.RegisterBlobServiceServer(grpcServer, blob.NewServer(rubyServer))
 	gitalypb.RegisterCleanupServiceServer(grpcServer, cleanup.NewServer())
-	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer(rubyServer))
-	gitalypb.RegisterDiffServiceServer(grpcServer, diff.NewServer(rubyServer))
+	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer())
+	gitalypb.RegisterDiffServiceServer(grpcServer, diff.NewServer())
 	gitalypb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer())
 	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(rubyServer))
 	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer(rubyServer))

@@ -5,8 +5,6 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -17,15 +15,8 @@ func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
-var rubyServer = &rubyserver.Server{}
-
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
-
-	if err := rubyServer.Start(); err != nil {
-		log.Fatal(err)
-	}
-	defer rubyServer.Stop()
 
 	return m.Run()
 }
@@ -39,7 +30,7 @@ func runDiffServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterDiffServiceServer(server, NewServer(rubyServer))
+	gitalypb.RegisterDiffServiceServer(server, NewServer())
 	reflection.Register(server)
 
 	go server.Serve(listener)
