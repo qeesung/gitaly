@@ -56,7 +56,7 @@ func TestLogObjectInfo(t *testing.T) {
 		defer func() { require.NoError(t, os.RemoveAll(tmpDir)) }()
 
 		// clone existing local repo with two alternates
-		testhelper.MustRunCommand(t, nil, "git", "clone", "--shared", repoPath1, "--reference", repoPath1, "--reference", repoPath2, tmpDir)
+		testhelper.MustRunCommand(t, nil, "git", "clone", "--bare", "--shared", repoPath1, "--reference", repoPath1, "--reference", repoPath2, tmpDir)
 
 		logBuffer.Reset()
 		LogObjectsInfo(testCtx, &gitalypb.Repository{
