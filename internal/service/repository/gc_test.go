@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -10,12 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/labkit/log"
 	"google.golang.org/grpc/codes"
 )
 
@@ -117,6 +121,35 @@ func TestGarbageCollectSuccess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGarbageCollectLogStatistics(t *testing.T) {
+	defer func(tl func(tb testing.TB) *logrus.Logger) {
+		testhelper.NewTestLogger = tl
+	}(testhelper.NewTestLogger)
+
+	logBuffer := &bytes.Buffer{}
+	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
+
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: testRepo})
+	require.NoError(t, err)
+
+	mustCountObjectLog(t, logBuffer.String())
 }
 
 func TestGarbageCollectDeletesRefsLocks(t *testing.T) {

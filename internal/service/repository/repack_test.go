@@ -1,18 +1,24 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/labkit/log"
 	"google.golang.org/grpc/codes"
 )
 
@@ -41,6 +47,35 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 
 	// Entire `path`-folder gets updated so this is fine :D
 	assertModTimeAfter(t, testTime, packPath)
+}
+
+func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
+	defer func(tl func(tb testing.TB) *logrus.Logger) {
+		testhelper.NewTestLogger = tl
+	}(testhelper.NewTestLogger)
+
+	logBuffer := &bytes.Buffer{}
+	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
+
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	_, err := client.RepackIncremental(ctx, &gitalypb.RepackIncrementalRequest{Repository: testRepo})
+	assert.NoError(t, err)
+
+	mustCountObjectLog(t, logBuffer.String())
 }
 
 func TestRepackLocal(t *testing.T) {
@@ -161,6 +196,53 @@ func TestRepackFullSuccess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRepackFullCollectLogStatistics(t *testing.T) {
+	defer func(tl func(tb testing.TB) *logrus.Logger) {
+		testhelper.NewTestLogger = tl
+	}(testhelper.NewTestLogger)
+
+	logBuffer := &bytes.Buffer{}
+	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
+
+	server, serverSocketPath := runRepoServer(t)
+	defer server.Stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	_, err := client.RepackFull(ctx, &gitalypb.RepackFullRequest{Repository: testRepo})
+	require.NoError(t, err)
+
+	mustCountObjectLog(t, logBuffer.String())
+}
+
+func mustCountObjectLog(t testing.TB, logData string) {
+	msgs := strings.Split(logData, "\n")
+	const key = "count_objects"
+	for _, msg := range msgs {
+		if strings.Contains(msg, key) {
+			var out map[string]interface{}
+			require.NoError(t, json.NewDecoder(strings.NewReader(msg)).Decode(&out))
+			require.Contains(t, out, "grpc.request.glProjectPath")
+			require.Contains(t, out, "grpc.request.glRepository")
+			require.Contains(t, out, key, "there is no any information about statistics")
+			countObjects := out[key].(map[string]interface{})
+			require.Contains(t, countObjects, "count")
+			return
+		}
+	}
+	require.FailNow(t, "no info about statistics")
 }
 
 func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {

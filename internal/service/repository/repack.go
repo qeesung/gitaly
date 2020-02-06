@@ -9,6 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/internal/stats"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -65,6 +66,8 @@ func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, ar
 	if err := cmd.Wait(); err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
+
+	stats.LogObjectsInfo(ctx, repo)
 
 	return nil
 }

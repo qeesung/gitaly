@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/internal/stats"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/status"
 )
@@ -24,7 +25,8 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 		"WriteBitmaps": in.GetCreateBitmap(),
 	}).Debug("GarbageCollect")
 
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	repo := in.GetRepository()
+	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +52,8 @@ func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectReq
 	if err != nil {
 		ctxlogger.WithError(err).Warn("Post gc housekeeping failed")
 	}
+
+	stats.LogObjectsInfo(ctx, repo)
 
 	return &gitalypb.GarbageCollectResponse{}, nil
 }
