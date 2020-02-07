@@ -1,5 +1,5 @@
 ---
-title: Enable feature flag toggling in node manager
+title: Enable toggling on the node manager through a config value
 merge_request: 1803
 author:
 type: changed
