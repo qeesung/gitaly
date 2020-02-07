@@ -19,7 +19,7 @@ func (s *server) ListCommitsByRefName(in *gitalypb.ListCommitsByRefNameRequest, 
 	sender := chunk.New(&commitsByRefNameSender{stream: stream})
 
 	for _, refName := range in.RefNames {
-		commit, err := gitlog.GetCommitCatfile(ctx, c, string(refName))
+		commit, err := gitlog.GetCommitCatfile(c, string(refName))
 		if catfile.IsNotFound(err) {
 			continue
 		}

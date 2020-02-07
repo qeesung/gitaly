@@ -56,13 +56,13 @@ func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) erro
 	}
 	defer os.Remove(tempFile.Name())
 
-	blobReader, err := c.Blob(blobInfo.Oid)
+	blobObj, err := c.Blob(blobInfo.Oid)
 	if err != nil {
 		return err
 	}
 
 	// Write attributes to temp file
-	if _, err := io.CopyN(tempFile, blobReader, blobInfo.Size); err != nil {
+	if _, err := io.CopyN(tempFile, blobObj.Reader, blobInfo.Size); err != nil {
 		return err
 	}
 

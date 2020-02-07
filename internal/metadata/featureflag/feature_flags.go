@@ -12,10 +12,6 @@ const (
 	// annotations (i.e. accessor and mutator RPC's). This enables cache
 	// invalidation by changing state when the repo is modified.
 	CacheInvalidator = "cache_invalidator"
-	// CommitWithoutBatchCheck controls which implementation of the GetCommitCatfile needs to be used.
-	// The old one with query fot Info before fetching info about Commit
-	// or the new one that skips Info call and checks object type in Commit method call.
-	CommitWithoutBatchCheck = "commit_without_batch_check"
 	// UseCoreDeltaIslands enables support of core delta islands for 'repack'.
 	UseCoreDeltaIslands = "use_core_delta_islands"
 	// UseGitProtocolV2 enables support for git wire protocol v2
