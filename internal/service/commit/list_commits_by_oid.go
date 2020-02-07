@@ -37,7 +37,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 	listCommitsbyOidHistogram.Observe(float64(len(in.Oid)))
 
 	for _, oid := range in.Oid {
-		commit, err := gitlog.GetCommitCatfile(ctx, c, oid)
+		commit, err := gitlog.GetCommitCatfile(c, oid)
 		if catfile.IsNotFound(err) {
 			continue
 		}

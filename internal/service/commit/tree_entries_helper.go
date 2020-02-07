@@ -58,8 +58,8 @@ const (
 	defaultFlatTreeRecursion = 10
 )
 
-func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, rootPath string, treeInfo *catfile.ObjectInfo) ([]*gitalypb.TreeEntry, error) {
-	if len(treeInfo.Oid) == 0 {
+func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, rootPath, oid string) ([]*gitalypb.TreeEntry, error) {
+	if len(oid) == 0 {
 		return nil, fmt.Errorf("empty tree oid")
 	}
 
@@ -118,30 +118,20 @@ func treeEntries(c *catfile.Batch, revision, path string, rootOid string, recurs
 		rootOid = rootTreeInfo.Oid
 	}
 
-	treeEntryInfo, err := c.Info(fmt.Sprintf("%s:%s", revision, path))
+	treeObj, err := c.Tree(fmt.Sprintf("%s:%s", revision, path))
 	if err != nil {
 		if catfile.IsNotFound(err) {
 			return nil, nil
 		}
-
-		return nil, err
-	}
-
-	if treeEntryInfo.Type != "tree" {
-		return nil, nil
-	}
-
-	treeReader, err := c.Tree(treeEntryInfo.Oid)
-	if err != nil {
 		return nil, err
 	}
 
 	treeBytes := &bytes.Buffer{}
-	if _, err := treeBytes.ReadFrom(treeReader); err != nil {
+	if _, err := treeBytes.ReadFrom(treeObj.Reader); err != nil {
 		return nil, err
 	}
 
-	entries, err := extractEntryInfoFromTreeData(treeBytes, revision, rootOid, path, treeEntryInfo)
+	entries, err := extractEntryInfoFromTreeData(treeBytes, revision, rootOid, path, treeObj.Oid)
 	if err != nil {
 		return nil, err
 	}

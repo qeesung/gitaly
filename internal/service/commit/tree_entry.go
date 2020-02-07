@@ -80,7 +80,7 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c *catfile.Bat
 		return helper.DecorateError(codes.Unavailable, stream.Send(response))
 	}
 
-	blobReader, err := c.Blob(objectInfo.Oid)
+	blobObj, err := c.Blob(objectInfo.Oid)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c *catfile.Bat
 		return nil
 	})
 
-	_, err = io.CopyN(sw, blobReader, dataLength)
+	_, err = io.CopyN(sw, blobObj.Reader, dataLength)
 	return err
 }
 

@@ -19,7 +19,6 @@ type Parser struct {
 	currentCommit *gitalypb.GitCommit
 	err           error
 	c             *catfile.Batch
-	ctx           context.Context
 }
 
 // NewLogParser returns a new Parser
@@ -32,7 +31,6 @@ func NewLogParser(ctx context.Context, repo *gitalypb.Repository, src io.Reader)
 	parser := &Parser{
 		scanner: bufio.NewScanner(src),
 		c:       c,
-		ctx:     ctx,
 	}
 
 	return parser, nil
@@ -48,7 +46,7 @@ func (parser *Parser) Parse() bool {
 
 	commitID := parser.scanner.Text()
 
-	commit, err := GetCommitCatfile(parser.ctx, parser.c, commitID)
+	commit, err := GetCommitCatfile(parser.c, commitID)
 	if err != nil {
 		parser.err = err
 		return false

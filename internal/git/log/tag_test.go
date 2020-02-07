@@ -52,7 +52,7 @@ func TestGetTag(t *testing.T) {
 		t.Run(testCase.tagName, func(t *testing.T) {
 			tagID := testhelper.CreateTag(t, testRepoPath, testCase.tagName, testCase.rev, &testhelper.CreateTagOpts{Message: testCase.message})
 
-			tag, err := GetTagCatfile(ctx, c, tagID, testCase.tagName, testCase.trim, true)
+			tag, err := GetTagCatfile(c, tagID, testCase.tagName, testCase.trim, true)
 			require.NoError(t, err)
 			if testCase.trim && len(testCase.message) >= helper.MaxCommitOrTagMessageSize {
 				testCase.message = testCase.message[:helper.MaxCommitOrTagMessageSize]

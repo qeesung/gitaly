@@ -35,26 +35,15 @@ func getCommitSignatures(s *server, request *gitalypb.GetCommitSignaturesRequest
 	}
 
 	for _, commitID := range request.CommitIds {
-		info, err := c.Info(commitID)
-
+		commitObj, err := c.Commit(commitID)
 		if err != nil {
 			if catfile.IsNotFound(err) {
 				continue
-			} else {
-				return helper.ErrInternal(err)
 			}
-		}
-
-		if info.Type != "commit" {
-			return helper.ErrInternal(fmt.Errorf("%q is not a commit", commitID))
-		}
-
-		reader, err := c.Commit(commitID)
-		if err != nil {
 			return helper.ErrInternal(err)
 		}
 
-		signatureKey, commitText, err := extractSignature(reader)
+		signatureKey, commitText, err := extractSignature(commitObj.Reader)
 		if err != nil {
 			return helper.ErrInternal(err)
 		}

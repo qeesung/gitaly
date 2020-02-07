@@ -98,7 +98,7 @@ func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.Blob
 
 	// For correctness it does not matter, but for performance, the order is
 	// important: first check if readlimit == 0, if not, only then create
-	// blobReader.
+	// blobObj.
 	if readLimit == 0 {
 		if err := stream.Send(response); err != nil {
 			return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
@@ -106,7 +106,7 @@ func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.Blob
 		return nil
 	}
 
-	blobReader, err := c.Blob(response.Oid)
+	blobObj, err := c.Blob(response.Oid)
 	if err != nil {
 		return status.Errorf(codes.Internal, "GetBlobs: %v", err)
 	}
@@ -123,12 +123,12 @@ func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.Blob
 		return stream.Send(msg)
 	})
 
-	_, err = io.CopyN(sw, blobReader, readLimit)
+	_, err = io.CopyN(sw, blobObj.Reader, readLimit)
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
 	}
 
-	if _, err := io.Copy(ioutil.Discard, blobReader); err != nil {
+	if _, err := io.Copy(ioutil.Discard, blobObj.Reader); err != nil {
 		return status.Errorf(codes.Unavailable, "GetBlobs: discarding data: %v", err)
 	}
 

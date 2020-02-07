@@ -1,0 +1,5 @@
+---
+title: 'Skip the batch check for commits and tags'
+merge_request: 1812
+author:
+type: performance

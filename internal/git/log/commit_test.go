@@ -7,7 +7,6 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
@@ -119,44 +118,23 @@ func TestGetCommitCatfile(t *testing.T) {
 	const blobSha = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"
 
 	testCases := []struct {
-		desc      string
-		revision  string
-		featureOn bool
-		errStr    string
+		desc     string
+		revision string
+		errStr   string
 	}{
 		{
-			desc:      "feature off | commit",
-			revision:  commitSha,
-			featureOn: false,
+			desc:     "commit",
+			revision: commitSha,
 		},
 		{
-			desc:      "feature on | commit",
-			revision:  commitSha,
-			featureOn: true,
+			desc:     "not existing commit",
+			revision: "not existing revision",
+			errStr:   "object not found",
 		},
 		{
-			desc:      "feature off | not existing commit",
-			revision:  "not existing revision",
-			featureOn: false,
-			errStr:    "object not found",
-		},
-		{
-			desc:      "feature on | not existing commit",
-			revision:  "not existing revision",
-			featureOn: true,
-			errStr:    "object not found",
-		},
-		{
-			desc:      "feature off | blob sha",
-			revision:  blobSha,
-			featureOn: false,
-			errStr:    "object not found",
-		},
-		{
-			desc:      "feature on | blob sha",
-			revision:  blobSha,
-			featureOn: true,
-			errStr:    "object not found",
+			desc:     "blob sha",
+			revision: blobSha,
+			errStr:   "object not found",
 		},
 	}
 
@@ -164,11 +142,7 @@ func TestGetCommitCatfile(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if tc.featureOn {
-				ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.CommitWithoutBatchCheck)
-			}
-
-			c, err := GetCommitCatfile(ctx, c, tc.revision)
+			c, err := GetCommitCatfile(c, tc.revision)
 
 			if tc.errStr == "" {
 				require.NoError(t, err)

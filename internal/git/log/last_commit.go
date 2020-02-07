@@ -27,7 +27,7 @@ func LastCommitForPath(ctx context.Context, batch *catfile.Batch, repo *gitalypb
 		return nil, err
 	}
 
-	return GetCommitCatfile(ctx, batch, text.ChompBytes(commitID))
+	return GetCommitCatfile(batch, text.ChompBytes(commitID))
 }
 
 // GitLogCommand returns a Command that executes git log with the given the arguments
