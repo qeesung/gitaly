@@ -29,6 +29,7 @@ type Config struct {
 	Prometheus           prometheus.Config `toml:"prometheus"`
 	Auth                 auth.Config       `toml:"auth"`
 	DB                   `toml:"database"`
+	FailoverEnabled      bool `toml:"failover_enabled"`
 }
 
 // VirtualStorage represents a set of nodes for a storage
