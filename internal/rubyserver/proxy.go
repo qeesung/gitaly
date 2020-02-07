@@ -4,9 +4,11 @@ import (
 	"context"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
@@ -61,6 +63,12 @@ func setHeaders(ctx context.Context, repo *gitalypb.Repository, mustExist bool) 
 		glRepositoryHeader, repo.GlRepository,
 		repoAltDirsHeader, repoAltDirsCombined,
 	)
+
+	// Feature flags for the Ruby server, passed via metadata headers
+	for _, rubyFf := range featureflag.RubyFeatureFlags {
+		headerName := featureflag.HeaderKey(rubyFf)
+		md = metadata.Join(md, metadata.Pairs(headerName, strconv.FormatBool(featureflag.IsEnabled(ctx, rubyFf))))
+	}
 
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
 		for _, header := range ProxyHeaderWhitelist {

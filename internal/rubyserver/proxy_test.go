@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc/metadata"
 )
@@ -42,4 +43,22 @@ func TestSetHeadersPreservesWhitelistedMetadata(t *testing.T) {
 	require.True(t, ok, "outgoing context should have metadata")
 
 	require.Equal(t, []string{value}, outMd[key], "outgoing MD should contain whitelisted key")
+}
+
+func TestRubyHeaders(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	key := featureflag.RubyFeatureFlags[0]
+	value := "false"
+	inCtx := metadata.NewIncomingContext(ctx, metadata.Pairs(key, value))
+
+	outCtx, err := SetHeaders(inCtx, testRepo)
+	require.NoError(t, err)
+
+	outMd, ok := metadata.FromOutgoingContext(outCtx)
+	require.True(t, ok, "outgoing context should have metadata")
+
+	headerName := featureflag.HeaderKey(key)
+	require.Equal(t, []string{value}, outMd[headerName], "outgoing MD should contain whitelisted feature key")
 }

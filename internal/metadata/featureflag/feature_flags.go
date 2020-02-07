@@ -1,5 +1,9 @@
 package featureflag
 
+// RubyFeatureFlags allows specific flags to be passed to the Ruby server
+// via metadata headers. All features should start with `ruby_` for clarity.
+var RubyFeatureFlags = []string{"ruby_push_mirror_retries"}
+
 const (
 	// UploadPackFilter enables partial clones by sending uploadpack.allowFilter and uploadpack.allowAnySHA1InWant
 	// to upload-pack
