@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"google.golang.org/grpc"
@@ -71,6 +72,7 @@ func (npr *nodePing) dial() (*grpc.ClientConn, error) {
 	return client.Dial(npr.address, []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithTimeout(30 * time.Second),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(npr.token)),
 	})
 }
 
