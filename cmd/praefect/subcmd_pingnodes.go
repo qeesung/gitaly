@@ -69,11 +69,20 @@ func dialNodes(conf config.Config) int {
 }
 
 func (npr *nodePing) dial() (*grpc.ClientConn, error) {
-	return client.Dial(npr.address, []grpc.DialOption{
+	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithTimeout(30 * time.Second),
-		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(npr.token)),
-	})
+	}
+
+	if len(npr.token) > 0 {
+		opts = append(opts,
+			grpc.WithPerRPCCredentials(
+				gitalyauth.RPCCredentialsV2(npr.token),
+			),
+		)
+	}
+
+	return client.Dial(npr.address, opts)
 }
 
 func (npr *nodePing) healthCheck(cc *grpc.ClientConn) (grpc_health_v1.HealthCheckResponse_ServingStatus, error) {
