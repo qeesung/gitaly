@@ -55,7 +55,7 @@ func TestBlob(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, repoPath, clean := testhelper.NewTestRepo(t)
+	repo, _, clean := testhelper.NewTestRepo(t)
 	defer clean()
 
 	c, err := New(ctx, repo)
@@ -63,8 +63,6 @@ func TestBlob(t *testing.T) {
 
 	gitignoreBytes, err := ioutil.ReadFile("testdata/blob-dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82")
 	require.NoError(t, err)
-
-	headCommit := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "HEAD"))
 
 	testCases := []struct {
 		desc       string
@@ -74,24 +72,28 @@ func TestBlob(t *testing.T) {
 		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:    "gitignore",
-			spec:    "60ecb67744cb56576c30214ff52294f8ce2def98:.gitignore",
-			objInfo: ObjectInfo{Oid: "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82", Type: "blob", Size: int64(len(gitignoreBytes))},
+			desc: "gitignore",
+			spec: "60ecb67744cb56576c30214ff52294f8ce2def98:.gitignore",
+			objInfo: ObjectInfo{
+				Oid:  "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
+				Type: "blob",
+				Size: int64(len(gitignoreBytes)),
+			},
 			content: gitignoreBytes,
 		},
 		{
 			desc: "not existing ref",
 			spec: "stub",
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "object not found")
 			},
 		},
 		{
 			desc: "wrong object type",
-			spec: headCommit,
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a blob, got commit")
 			},
 		},
@@ -155,7 +157,7 @@ func TestTag(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, repoPath, clean := testhelper.NewTestRepo(t)
+	repo, _, clean := testhelper.NewTestRepo(t)
 	defer clean()
 
 	c, err := New(ctx, repo)
@@ -163,8 +165,6 @@ func TestTag(t *testing.T) {
 
 	tagBytes, err := ioutil.ReadFile("testdata/tag-a509fa67c27202a2bc9dd5e014b4af7e6063ac76")
 	require.NoError(t, err)
-
-	headCommit := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "HEAD"))
 
 	testCases := []struct {
 		desc       string
@@ -174,24 +174,28 @@ func TestTag(t *testing.T) {
 		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:    "tag",
-			spec:    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
-			objInfo: ObjectInfo{Oid: "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8", Type: "tag", Size: int64(len(tagBytes))},
+			desc: "tag",
+			spec: "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			objInfo: ObjectInfo{
+				Oid:  "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				Type: "tag",
+				Size: int64(len(tagBytes)),
+			},
 			content: tagBytes,
 		},
 		{
 			desc: "not existing ref",
 			spec: "stub",
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "object not found")
 			},
 		},
 		{
 			desc: "wrong object type",
-			spec: headCommit,
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a tag, got commit")
 			},
 		},
@@ -220,7 +224,7 @@ func TestTree(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, repoPath, clean := testhelper.NewTestRepo(t)
+	repo, _, clean := testhelper.NewTestRepo(t)
 	defer clean()
 
 	c, err := New(ctx, repo)
@@ -228,8 +232,6 @@ func TestTree(t *testing.T) {
 
 	treeBytes, err := ioutil.ReadFile("testdata/tree-7e2f26d033ee47cd0745649d1a28277c56197921")
 	require.NoError(t, err)
-
-	headCommit := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", "HEAD"))
 
 	testCases := []struct {
 		desc       string
@@ -239,24 +241,28 @@ func TestTree(t *testing.T) {
 		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:    "tree with non-oid spec",
-			spec:    "60ecb67744cb56576c30214ff52294f8ce2def98^{tree}",
-			objInfo: ObjectInfo{Oid: "7e2f26d033ee47cd0745649d1a28277c56197921", Type: "tree", Size: int64(len(treeBytes))},
+			desc: "tree with non-oid spec",
+			spec: "60ecb67744cb56576c30214ff52294f8ce2def98^{tree}",
+			objInfo: ObjectInfo{
+				Oid:  "7e2f26d033ee47cd0745649d1a28277c56197921",
+				Type: "tree",
+				Size: int64(len(treeBytes)),
+			},
 			content: treeBytes,
 		},
 		{
-			desc: "not existing ref ",
+			desc: "not existing ref",
 			spec: "stud",
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "object not found")
 			},
 		},
 		{
 			desc: "wrong object type",
-			spec: headCommit,
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
 			requireErr: func(t *testing.T, err error) {
-				require.True(t, IsNotFound(err))
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
 				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a tree, got commit")
 			},
 		},
