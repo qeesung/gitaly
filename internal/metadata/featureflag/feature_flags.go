@@ -12,7 +12,7 @@ const (
 	// annotations (i.e. accessor and mutator RPC's). This enables cache
 	// invalidation by changing state when the repo is modified.
 	CacheInvalidator = "cache_invalidator"
-  // UseGitProtocolV2 enables support for git wire protocol v2
+	// UseGitProtocolV2 enables support for git wire protocol v2
 	UseGitProtocolV2 = "use_git_protocol_v2"
 )
 
