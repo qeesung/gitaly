@@ -4,11 +4,9 @@ import (
 	"context"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
@@ -16,6 +14,9 @@ import (
 // ProxyHeaderWhitelist is the list of http/2 headers that will be
 // forwarded as-is to gitaly-ruby.
 var ProxyHeaderWhitelist = []string{"gitaly-servers"}
+
+// Headers prefixed with this string get whitelisted automatically
+const rubyFeaturePrefix = "gitaly-feature-ruby-"
 
 const (
 	storagePathHeader  = "gitaly-storage-path"
@@ -64,13 +65,14 @@ func setHeaders(ctx context.Context, repo *gitalypb.Repository, mustExist bool) 
 		repoAltDirsHeader, repoAltDirsCombined,
 	)
 
-	// Feature flags for the Ruby server, passed via metadata headers
-	for _, rubyFf := range featureflag.RubyFeatureFlags {
-		headerName := featureflag.HeaderKey(rubyFf)
-		md = metadata.Join(md, metadata.Pairs(headerName, strconv.FormatBool(featureflag.IsEnabled(ctx, rubyFf))))
-	}
-
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
+		// Automatically whitelist any Ruby-specific feature flag
+		for header := range inMD {
+			if strings.HasPrefix(header, rubyFeaturePrefix) {
+				ProxyHeaderWhitelist = append(ProxyHeaderWhitelist, header)
+			}
+		}
+
 		for _, header := range ProxyHeaderWhitelist {
 			for _, v := range inMD[header] {
 				md = metadata.Join(md, metadata.Pairs(header, v))
