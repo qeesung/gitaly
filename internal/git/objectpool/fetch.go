@@ -12,14 +12,12 @@ import (
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -27,21 +25,6 @@ const (
 	sourceRemote       = "origin"
 	sourceRefNamespace = "refs/remotes/" + sourceRemote
 )
-
-var (
-	// FullRepackCounter is a counter used to track full repacks (with/without core delta islands).
-	FullRepackCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "gitaly_full_repack_total",
-			Help: "Counter of repack commands run with/without core delta island use",
-		},
-		[]string{"core_island"},
-	)
-)
-
-func init() {
-	prometheus.Register(FullRepackCounter)
-}
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
 func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repository) error {
@@ -188,23 +171,12 @@ func rescueDanglingObjects(ctx context.Context, repo repository.GitRepo) error {
 }
 
 func repackPool(ctx context.Context, pool repository.GitRepo) error {
-	var repackArgs []git.Option
-	if featureflag.IsEnabled(ctx, featureflag.UseCoreDeltaIslands) {
-		FullRepackCounter.WithLabelValues("yes").Inc()
-		repackArgs = []git.Option{
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/he(a)ds"},
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/t(a)gs"},
-			git.ValueFlag{"-c", "pack.islandCore=a"},
-		}
-	} else {
-		FullRepackCounter.WithLabelValues("no").Inc()
-		repackArgs = []git.Option{
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/heads"},
-			git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/tags"},
-		}
+	repackArgs := []git.Option{
+		git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/he(a)ds"},
+		git.ValueFlag{"-c", "pack.island=" + sourceRefNamespace + "/t(a)gs"},
+		git.ValueFlag{"-c", "pack.islandCore=a"},
+		git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"},
 	}
-
-	repackArgs = append(repackArgs, git.ValueFlag{"-c", "pack.writeBitmapHashCache=true"})
 
 	repackCmd, err := git.SafeCmd(ctx, pool, repackArgs, git.SubCmd{
 		Name:  "repack",

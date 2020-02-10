@@ -6,9 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/stats"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -73,23 +71,12 @@ func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, ar
 }
 
 func repackConfig(ctx context.Context, bitmap bool) []git.Option {
-	var args []git.Option
-	if featureflag.IsEnabled(ctx, featureflag.UseCoreDeltaIslands) {
-		objectpool.FullRepackCounter.WithLabelValues("yes").Inc()
-		args = []git.Option{
-			git.ValueFlag{"-c", "pack.island=r(e)fs/heads"},
-			git.ValueFlag{"-c", "pack.island=r(e)fs/tags"},
-			git.ValueFlag{"-c", "pack.islandCore=e"},
-		}
-	} else {
-		objectpool.FullRepackCounter.WithLabelValues("no").Inc()
-		args = []git.Option{
-			git.ValueFlag{"-c", "pack.island=refs/heads"},
-			git.ValueFlag{"-c", "pack.island=refs/tags"},
-		}
+	args := []git.Option{
+		git.ValueFlag{"-c", "pack.island=r(e)fs/heads"},
+		git.ValueFlag{"-c", "pack.island=r(e)fs/tags"},
+		git.ValueFlag{"-c", "pack.islandCore=e"},
+		git.ValueFlag{"-c", "repack.useDeltaIslands=true"},
 	}
-
-	args = append(args, git.ValueFlag{"-c", "repack.useDeltaIslands=true"})
 
 	if bitmap {
 		args = append(args, git.ValueFlag{"-c", "repack.writeBitmaps=true"})
