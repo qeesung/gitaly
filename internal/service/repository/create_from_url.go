@@ -23,9 +23,17 @@ func cloneFromURLCommand(ctx context.Context, repoURL, repositoryFullPath string
 
 	flags := []git.Option{git.Flag{Name: "--bare"}, git.ValueFlag{Name: "-c", Value: "http.followRedirects=false"}}
 	if u.User != nil {
-		userInfo := *u.User
+		pwd, set := u.User.Password()
+
+		var creds string
+		if set {
+			creds = u.User.Username() + ":" + pwd
+		} else {
+			creds = u.User.Username()
+		}
+
 		u.User = nil
-		authHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte(userInfo.String())))
+		authHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte(creds)))
 		flags = append(flags, git.ValueFlag{Name: "-c", Value: fmt.Sprintf("http.%s.extraHeader=%s", u.String(), authHeader)})
 	}
 

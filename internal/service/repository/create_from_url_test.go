@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -70,7 +69,7 @@ func TestCloneRepositoryFromUrlCommand(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	userInfo := "username:password"
+	userInfo := "user:pass%21%3F%40"
 	repositoryFullPath := "full/path/to/repository"
 	url := fmt.Sprintf("https://%s@www.example.com/secretrepo.git", userInfo)
 
@@ -78,22 +77,13 @@ func TestCloneRepositoryFromUrlCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedScrubbedURL := "https://www.example.com/secretrepo.git"
-	expectedBasicAuthHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte(userInfo)))
+	expectedBasicAuthHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte("user:pass!?@")))
 	expectedHeader := fmt.Sprintf("http.%s.extraHeader=%s", expectedScrubbedURL, expectedBasicAuthHeader)
 
-	var urlFound, headerFound bool
-	for _, arg := range cmd.Args() {
-		require.False(t, strings.Contains(arg, userInfo), "username and password should be scrubbed")
-		if arg == expectedScrubbedURL {
-			urlFound = true
-		}
-		if arg == expectedHeader {
-			headerFound = true
-		}
-	}
-
-	require.True(t, urlFound)
-	require.True(t, headerFound)
+	var args = cmd.Args()
+	require.Contains(t, args, expectedScrubbedURL)
+	require.Contains(t, args, expectedHeader)
+	require.NotContains(t, args, userInfo)
 }
 
 func TestFailedCreateRepositoryFromURLRequestDueToExistingTarget(t *testing.T) {
