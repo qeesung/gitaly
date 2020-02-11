@@ -62,26 +62,55 @@ func TestBlob(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		desc   string
-		spec   string
-		output string
+		desc       string
+		spec       string
+		objInfo    ObjectInfo
+		content    []byte
+		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:   "gitignore",
-			spec:   "60ecb67744cb56576c30214ff52294f8ce2def98:.gitignore",
-			output: string(gitignoreBytes),
+			desc: "gitignore",
+			spec: "60ecb67744cb56576c30214ff52294f8ce2def98:.gitignore",
+			objInfo: ObjectInfo{
+				Oid:  "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
+				Type: "blob",
+				Size: int64(len(gitignoreBytes)),
+			},
+			content: gitignoreBytes,
+		},
+		{
+			desc: "not existing ref",
+			spec: "stub",
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "object not found")
+			},
+		},
+		{
+			desc: "wrong object type",
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a blob, got commit")
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			r, err := c.Blob(tc.spec)
-			require.NoError(t, err)
+			blobObj, err := c.Blob(tc.spec)
 
-			contents, err := ioutil.ReadAll(r)
-			require.NoError(t, err)
+			if tc.requireErr != nil {
+				tc.requireErr(t, err)
+				return
+			}
 
-			require.Equal(t, tc.output, string(contents))
+			require.NoError(t, err)
+			require.Equal(t, tc.objInfo, blobObj.ObjectInfo)
+
+			contents, err := ioutil.ReadAll(blobObj.Reader)
+			require.NoError(t, err)
+			require.Equal(t, tc.content, contents)
 		})
 	}
 }
@@ -132,26 +161,55 @@ func TestTag(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		desc   string
-		spec   string
-		output string
+		desc       string
+		spec       string
+		objInfo    ObjectInfo
+		content    []byte
+		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:   "tag",
-			spec:   "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
-			output: string(tagBytes),
+			desc: "tag",
+			spec: "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			objInfo: ObjectInfo{
+				Oid:  "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				Type: "tag",
+				Size: int64(len(tagBytes)),
+			},
+			content: tagBytes,
+		},
+		{
+			desc: "not existing ref",
+			spec: "stub",
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "object not found")
+			},
+		},
+		{
+			desc: "wrong object type",
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a tag, got commit")
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tagReader, err := c.Tag(tc.spec)
-			require.NoError(t, err)
+			tagObj, err := c.Tag(tc.spec)
 
-			contents, err := ioutil.ReadAll(tagReader)
-			require.NoError(t, err)
+			if tc.requireErr != nil {
+				tc.requireErr(t, err)
+				return
+			}
 
-			require.Equal(t, tc.output, string(contents))
+			require.NoError(t, err)
+			require.Equal(t, tc.objInfo, tagObj.ObjectInfo)
+
+			contents, err := ioutil.ReadAll(tagObj.Reader)
+			require.NoError(t, err)
+			require.Equal(t, tc.content, contents)
 		})
 	}
 }
@@ -167,26 +225,55 @@ func TestTree(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		desc   string
-		spec   string
-		output string
+		desc       string
+		spec       string
+		objInfo    ObjectInfo
+		content    []byte
+		requireErr func(*testing.T, error)
 	}{
 		{
-			desc:   "tree with non-oid spec",
-			spec:   "60ecb67744cb56576c30214ff52294f8ce2def98^{tree}",
-			output: string(treeBytes),
+			desc: "tree with non-oid spec",
+			spec: "60ecb67744cb56576c30214ff52294f8ce2def98^{tree}",
+			objInfo: ObjectInfo{
+				Oid:  "7e2f26d033ee47cd0745649d1a28277c56197921",
+				Type: "tree",
+				Size: int64(len(treeBytes)),
+			},
+			content: treeBytes,
+		},
+		{
+			desc: "not existing ref",
+			spec: "stud",
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "object not found")
+			},
+		},
+		{
+			desc: "wrong object type",
+			spec: "1e292f8fedd741b75372e19097c76d327140c312", // is commit SHA1
+			requireErr: func(t *testing.T, err error) {
+				require.True(t, IsNotFound(err), "the error must be from 'not found' family")
+				require.EqualError(t, err, "expected 1e292f8fedd741b75372e19097c76d327140c312 to be a tree, got commit")
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			treeReader, err := c.Tree(tc.spec)
-			require.NoError(t, err)
+			treeObj, err := c.Tree(tc.spec)
 
-			contents, err := ioutil.ReadAll(treeReader)
-			require.NoError(t, err)
+			if tc.requireErr != nil {
+				tc.requireErr(t, err)
+				return
+			}
 
-			require.Equal(t, tc.output, string(contents))
+			require.NoError(t, err)
+			require.Equal(t, tc.objInfo, treeObj.ObjectInfo)
+
+			contents, err := ioutil.ReadAll(treeObj.Reader)
+			require.NoError(t, err)
+			require.Equal(t, tc.content, contents)
 		})
 	}
 }
@@ -202,10 +289,10 @@ func TestRepeatedCalls(t *testing.T) {
 	treeBytes, err := ioutil.ReadFile("testdata/tree-7e2f26d033ee47cd0745649d1a28277c56197921")
 	require.NoError(t, err)
 
-	tree1Reader, err := c.Tree(treeOid)
+	tree1Obj, err := c.Tree(treeOid)
 	require.NoError(t, err)
 
-	tree1, err := ioutil.ReadAll(tree1Reader)
+	tree1, err := ioutil.ReadAll(tree1Obj.Reader)
 	require.NoError(t, err)
 
 	require.Equal(t, string(treeBytes), string(tree1))
@@ -225,10 +312,10 @@ func TestRepeatedCalls(t *testing.T) {
 	_, err = io.Copy(ioutil.Discard, blobReader)
 	require.NoError(t, err, "blob reading should still work")
 
-	tree2Reader, err := c.Tree(treeOid)
+	tree2Obj, err := c.Tree(treeOid)
 	require.NoError(t, err)
 
-	tree2, err := ioutil.ReadAll(tree2Reader)
+	tree2, err := ioutil.ReadAll(tree2Obj.Reader)
 	require.NoError(t, err, "request should succeed because blob was consumed")
 
 	require.Equal(t, string(treeBytes), string(tree2))

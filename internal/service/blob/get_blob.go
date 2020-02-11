@@ -43,7 +43,7 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 		return helper.DecorateError(codes.Unavailable, stream.Send(firstMessage))
 	}
 
-	blobReader, err := c.Blob(objectInfo.Oid)
+	blobObj, err := c.Blob(objectInfo.Oid)
 	if err != nil {
 		return status.Errorf(codes.Internal, "GetBlob: %v", err)
 	}
@@ -58,7 +58,7 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 		return stream.Send(msg)
 	})
 
-	_, err = io.CopyN(sw, blobReader, readLimit)
+	_, err = io.CopyN(sw, blobObj.Reader, readLimit)
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "GetBlob: send: %v", err)
 	}

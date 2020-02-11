@@ -45,7 +45,7 @@ func listNewCommits(in *gitalypb.ListNewCommitsRequest, stream gitalypb.RefServi
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		commit, err := log.GetCommitCatfile(ctx, batch, line)
+		commit, err := log.GetCommitCatfile(batch, line)
 		if err != nil {
 			return err
 		}
