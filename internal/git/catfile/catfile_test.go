@@ -55,10 +55,7 @@ func TestBlob(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, _, clean := testhelper.NewTestRepo(t)
-	defer clean()
-
-	c, err := New(ctx, repo)
+	c, err := New(ctx, testhelper.TestRepository())
 	require.NoError(t, err)
 
 	gitignoreBytes, err := ioutil.ReadFile("testdata/blob-dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82")
@@ -157,10 +154,7 @@ func TestTag(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, _, clean := testhelper.NewTestRepo(t)
-	defer clean()
-
-	c, err := New(ctx, repo)
+	c, err := New(ctx, testhelper.TestRepository())
 	require.NoError(t, err)
 
 	tagBytes, err := ioutil.ReadFile("testdata/tag-a509fa67c27202a2bc9dd5e014b4af7e6063ac76")
@@ -224,10 +218,7 @@ func TestTree(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	repo, _, clean := testhelper.NewTestRepo(t)
-	defer clean()
-
-	c, err := New(ctx, repo)
+	c, err := New(ctx, testhelper.TestRepository())
 	require.NoError(t, err)
 
 	treeBytes, err := ioutil.ReadFile("testdata/tree-7e2f26d033ee47cd0745649d1a28277c56197921")
