@@ -43,3 +43,20 @@ func TestSetHeadersPreservesWhitelistedMetadata(t *testing.T) {
 
 	require.Equal(t, []string{value}, outMd[key], "outgoing MD should contain whitelisted key")
 }
+
+func TestRubyFeatureHeaders(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	key := "gitaly-feature-ruby-test-feature"
+	value := "true"
+	inCtx := metadata.NewIncomingContext(ctx, metadata.Pairs(key, value))
+
+	outCtx, err := SetHeaders(inCtx, testRepo)
+	require.NoError(t, err)
+
+	outMd, ok := metadata.FromOutgoingContext(outCtx)
+	require.True(t, ok, "outgoing context should have metadata")
+
+	require.Equal(t, []string{value}, outMd[key], "outgoing MD should contain whitelisted feature key")
+}
