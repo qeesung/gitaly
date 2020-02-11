@@ -330,7 +330,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) {
 	}
 
 	replDuration := time.Since(replStart)
-	r.replLatencyMetric.Observe(float64(replDuration / time.Millisecond))
+	r.replLatencyMetric.Observe(float64(replDuration) / float64(time.Second))
 
 	if err := r.datastore.UpdateReplJob(job.ID, datastore.JobStateComplete); err != nil {
 		l.WithError(err).Error("error when updating replication job status to complete")
