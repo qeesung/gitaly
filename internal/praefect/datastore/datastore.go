@@ -36,6 +36,11 @@ const (
 	// JobStateCancelled indicates the job was cancelled. This can occur if the
 	// job is no longer relevant (e.g. a node is moved out of a repository)
 	JobStateCancelled
+	// JobStateFailed indicates the job did not succeed. The Replicator will retry
+	// failed jobs.
+	JobStateFailed
+	// JobStateDead indicates the job was retried up to the maximum retries
+	JobStateDead
 )
 
 // ChangeType indicates what kind of change the replication is propagating
@@ -57,6 +62,7 @@ type ReplJob struct {
 	TargetNode, SourceNode models.Node // which node to replicate to?
 	RelativePath           string      // source for replication
 	State                  JobState
+	Attempts               int
 }
 
 // replJobs provides sort manipulation behavior
@@ -104,8 +110,10 @@ type ReplJobsDatastore interface {
 	// ID's for the created jobs will be returned upon success.
 	CreateReplicaReplJobs(relativePath string, primary models.Node, secondaries []models.Node, change ChangeType) ([]uint64, error)
 
-	// UpdateReplJob updates the state of an existing replication job
-	UpdateReplJob(jobID uint64, newState JobState) error
+	// UpdateReplJobState updates the state of an existing replication job
+	UpdateReplJobState(jobID uint64, newState JobState) error
+
+	IncrReplJobAttempts(jobID uint64) error
 }
 
 type jobRecord struct {
@@ -113,6 +121,7 @@ type jobRecord struct {
 	relativePath                         string // project's relative path
 	targetNodeStorage, sourceNodeStorage string
 	state                                JobState
+	attempts                             int
 }
 
 // MemoryDatastore is a simple datastore that isn't persisted to disk. It is
@@ -283,6 +292,7 @@ func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (Re
 		SourceNode:   sourceNode,
 		State:        record.state,
 		TargetNode:   targetNode,
+		Attempts:     record.attempts,
 	}, nil
 }
 
@@ -319,8 +329,8 @@ func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string, primary mo
 	return jobIDs, nil
 }
 
-// UpdateReplJob updates an existing replication job's state
-func (md *MemoryDatastore) UpdateReplJob(jobID uint64, newState JobState) error {
+// UpdateReplJobState updates an existing replication job's state
+func (md *MemoryDatastore) UpdateReplJobState(jobID uint64, newState JobState) error {
 	md.jobs.Lock()
 	defer md.jobs.Unlock()
 
@@ -336,6 +346,21 @@ func (md *MemoryDatastore) UpdateReplJob(jobID uint64, newState JobState) error 
 	}
 
 	job.state = newState
+	md.jobs.records[jobID] = job
+	return nil
+}
+
+// IncrReplJobAttempts updates an existing replication job's state
+func (md *MemoryDatastore) IncrReplJobAttempts(jobID uint64) error {
+	md.jobs.Lock()
+	defer md.jobs.Unlock()
+
+	job, ok := md.jobs.records[jobID]
+	if !ok {
+		return fmt.Errorf("job ID %d does not exist", jobID)
+	}
+
+	job.attempts++
 	md.jobs.records[jobID] = job
 	return nil
 }

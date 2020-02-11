@@ -205,10 +205,10 @@ func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, primary
 
 	return func() {
 		for _, jobID := range jobIDs {
-			if err := c.datastore.UpdateReplJob(jobID, datastore.JobStateReady); err != nil {
-				// TODO: in case of error the job remains in queue in 'pending' state and leads to:
-				//  - additional memory consumption
-				//  - stale state of one of the git data stores
+			// TODO: in case of error the job remains in queue in 'pending' state and leads to:
+			//  - additional memory consumption
+			//  - stale state of one of the git data stores
+			if err := c.datastore.UpdateReplJobState(jobID, datastore.JobStateReady); err != nil {
 				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %d", datastore.JobStateReady)
 			}
 		}

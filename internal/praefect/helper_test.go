@@ -159,6 +159,12 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 	return mock.NewSimpleServiceClient(cc), prf, cleanup
 }
 
+func noopBackoffFunc() (backoff, backoffReset) {
+	return func() time.Duration {
+		return 0
+	}, func() {}
+}
+
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
 func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
@@ -205,7 +211,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 
 	prf.RegisterServices()
 	go func() { errQ <- prf.Serve(listener, false) }()
-	go func() { errQ <- replmgr.ProcessBacklog(ctx) }()
+	go func() { errQ <- replmgr.ProcessBacklog(ctx, noopBackoffFunc) }()
 
 	// dial client to praefect
 	cc := dialLocalPort(t, port, false)

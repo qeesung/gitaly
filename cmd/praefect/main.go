@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
@@ -190,7 +191,9 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	}
 
 	go func() { serverErrors <- b.Wait() }()
-	go func() { serverErrors <- repl.ProcessBacklog(ctx) }()
+	go func() {
+		serverErrors <- repl.ProcessBacklog(ctx, praefect.ExpBackoffFunc(1*time.Second, 5*time.Minute))
+	}()
 
 	go coordinator.FailoverRotation()
 

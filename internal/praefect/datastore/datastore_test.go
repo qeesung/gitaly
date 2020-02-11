@@ -69,7 +69,7 @@ var operations = []struct {
 	{
 		desc: "mark replication job done",
 		opFn: func(t *testing.T, ds Datastore) {
-			err := ds.UpdateReplJob(1, JobStateComplete)
+			err := ds.UpdateReplJobState(1, JobStateComplete)
 			require.NoError(t, err)
 		},
 	},
