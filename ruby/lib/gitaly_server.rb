@@ -13,6 +13,7 @@ require_relative 'gitaly_server/wiki_service.rb'
 require_relative 'gitaly_server/conflicts_service.rb'
 require_relative 'gitaly_server/remote_service.rb'
 require_relative 'gitaly_server/health_service.rb'
+require_relative 'gitaly_server/feature_flags.rb'
 
 module GitalyServer
   STORAGE_PATH_HEADER = 'gitaly-storage-path'.freeze
@@ -20,7 +21,6 @@ module GitalyServer
   GL_REPOSITORY_HEADER = 'gitaly-gl-repository'.freeze
   REPO_ALT_DIRS_HEADER = 'gitaly-repo-alt-dirs'.freeze
   GITALY_SERVERS_HEADER = 'gitaly-servers'.freeze
-  RUBY_FEATURE_HEADER = 'gitaly-feature-ruby-'.freeze
 
   def self.storage_path(call)
     call.metadata.fetch(STORAGE_PATH_HEADER)
@@ -39,9 +39,7 @@ module GitalyServer
   end
 
   def self.feature_flags(call)
-    call.metadata.select do |key, _|
-      key.start_with?(RUBY_FEATURE_HEADER)
-    end
+    FeatureFlags.new(call.metadata)
   end
 
   def self.client(call)

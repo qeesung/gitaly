@@ -1,5 +1,5 @@
 ---
-title: Pass specific feature flags to the Ruby server
+title: Pass Ruby-specific feature flags to the Ruby server
 merge_request: 1818
 author:
 type: added
