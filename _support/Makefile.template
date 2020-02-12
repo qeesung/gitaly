@@ -237,7 +237,7 @@ rubocop: ../.ruby-bundle
 cover: prepare-tests
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "{{ .CoverageDir }}"
-	rm -f {{ .CoverageDir }}/*.out "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
+	rm -f "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
 	@cd {{ .SourceDir }} && go test -coverprofile "{{ .CoverageDir }}/all.merged" {{ join .AllPackages " " }}
 	@cd {{ .SourceDir }} && go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
 	@echo ""
