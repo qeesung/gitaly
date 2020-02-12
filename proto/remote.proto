@@ -83,6 +83,7 @@ message UpdateRemoteMirrorRequest {
   repeated bytes only_branches_matching = 3;
   string ssh_key = 4;
   string known_hosts = 5;
+  bool delete_divergent_refs = 6;
 }
 
 message UpdateRemoteMirrorResponse {}
