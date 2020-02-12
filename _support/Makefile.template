@@ -234,20 +234,16 @@ rubocop: ../.ruby-bundle
 	cd  {{ .GitalyRubyDir }} && bundle exec rubocop --parallel
 
 .PHONY: cover
-cover: prepare-tests {{ .GoCovMerge }}
+cover: prepare-tests
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "{{ .CoverageDir }}"
 	rm -f {{ .CoverageDir }}/*.out "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
-	@cd {{ .SourceDir }} && go run _support/test-cover-parallel.go {{ .CoverageDir }} {{ join .AllPackages " " }}
-	{{ .GoCovMerge }} {{ .CoverageDir }}/*.out > "{{ .CoverageDir }}/all.merged"
+	@cd {{ .SourceDir }} && go test -coverprofile "{{ .CoverageDir }}/all.merged" {{ join .AllPackages " " }}
 	@cd {{ .SourceDir }} && go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
 	@echo ""
 	@echo "=====> Total test coverage: <====="
 	@echo ""
 	@@cd {{ .SourceDir }} && go tool cover -func "{{ .CoverageDir }}/all.merged"
-
-{{ .GoCovMerge }}:
-	go get github.com/wadey/gocovmerge@b5bfa59ec0adc420475f97f89b58045c721d761c
 
 .PHONY: docker
 docker:

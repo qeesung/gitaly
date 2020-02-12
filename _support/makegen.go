@@ -73,7 +73,6 @@ func (gm *gitalyMake) BuildDir() string {
 func (gm *gitalyMake) Pkg() string         { return "gitlab.com/gitlab-org/gitaly" }
 func (gm *gitalyMake) GoImports() string   { return "bin/goimports" }
 func (gm *gitalyMake) GitalyFmt() string   { return filepath.Join(gm.BuildDir(), "bin/gitalyfmt") }
-func (gm *gitalyMake) GoCovMerge() string  { return "bin/gocovmerge" }
 func (gm *gitalyMake) GoLint() string      { return filepath.Join(gm.BuildDir(), "bin/golangci-lint") }
 func (gm *gitalyMake) GoVendor() string    { return "bin/govendor" }
 func (gm *gitalyMake) StaticCheck() string { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
