@@ -3,7 +3,7 @@ module Gitlab
     class RemoteMirror
       attr_reader :repository, :remote_name, :ssh_auth, :only_branches_matching
 
-      def initialize(repository, remote_name, ssh_auth:, only_branches_matching: [], keep_divergent_refs: true)
+      def initialize(repository, remote_name, ssh_auth:, only_branches_matching: [], keep_divergent_refs: false)
         @repository = repository
         @remote_name = remote_name
         @ssh_auth = ssh_auth
