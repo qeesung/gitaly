@@ -33,7 +33,7 @@ module GitalyServer
         first_request.ref_name,
         ssh_auth: Gitlab::Git::SshAuth.from_gitaly(first_request),
         only_branches_matching: only_branches_matching,
-        delete_divergent_refs: first_request.delete_divergent_refs
+        keep_divergent_refs: first_request.keep_divergent_refs
       )
 
       remote_mirror.update

@@ -3,12 +3,12 @@ module Gitlab
     class RemoteMirror
       attr_reader :repository, :remote_name, :ssh_auth, :only_branches_matching
 
-      def initialize(repository, remote_name, ssh_auth:, only_branches_matching: [], delete_divergent_refs: true)
+      def initialize(repository, remote_name, ssh_auth:, only_branches_matching: [], keep_divergent_refs: true)
         @repository = repository
         @remote_name = remote_name
         @ssh_auth = ssh_auth
         @only_branches_matching = only_branches_matching
-        @delete_divergent_refs = delete_divergent_refs
+        @keep_divergent_refs = keep_divergent_refs
       end
 
       def update
@@ -82,7 +82,7 @@ module Gitlab
       end
 
       def delete_refs(local_refs, remote_refs, env:)
-        return unless @delete_divergent_refs
+        return if @keep_divergent_refs
 
         refs = refs_to_delete(local_refs, remote_refs)
 
