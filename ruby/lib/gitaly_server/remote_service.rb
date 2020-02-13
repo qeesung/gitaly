@@ -24,16 +24,16 @@ module GitalyServer
     def update_remote_mirror(call)
       request_enum = call.each_remote_read
       first_request = request_enum.next
-      repo = Gitlab::Git::Repository.from_gitaly(first_request.repository, call)
-      only_branches_matching = first_request.only_branches_matching.to_a
 
+      only_branches_matching = first_request.only_branches_matching.to_a
       only_branches_matching += request_enum.flat_map(&:only_branches_matching)
 
       remote_mirror = Gitlab::Git::RemoteMirror.new(
-        repo,
+        Gitlab::Git::Repository.from_gitaly(first_request.repository, call),
         first_request.ref_name,
+        ssh_auth: Gitlab::Git::SshAuth.from_gitaly(first_request),
         only_branches_matching: only_branches_matching,
-        ssh_auth: Gitlab::Git::SshAuth.from_gitaly(first_request)
+        delete_divergent_refs: first_request.delete_divergent_refs
       )
 
       remote_mirror.update
