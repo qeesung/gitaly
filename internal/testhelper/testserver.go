@@ -27,6 +27,8 @@ import (
 	praefectconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/yaml.v2"
 )
@@ -350,4 +352,18 @@ type GitlabShellConfig struct {
 type HTTPSettings struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
+}
+
+func NewServerWithHealth(t testing.TB, socketName string) (*grpc.Server, *health.Server) {
+	srv := NewTestGrpcServer(t, nil, nil)
+	healthSrvr := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(srv, healthSrvr)
+	healthSrvr.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	lis, err := net.Listen("unix", socketName)
+	require.NoError(t, err)
+
+	go srv.Serve(lis)
+
+	return srv, healthSrvr
 }

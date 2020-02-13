@@ -17,3 +17,8 @@ func DiscardTestLogger(tb testing.TB) *log.Logger {
 
 	return logger
 }
+
+// DiscardTestLogger created a logrus entry that discards everything.
+func DiscardTestEntry(tb testing.TB) *log.Entry {
+	return log.NewEntry(DiscardTestLogger(tb))
+}

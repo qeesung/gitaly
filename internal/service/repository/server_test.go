@@ -48,7 +48,7 @@ func TestGetConnectionsConcurrentAccess(t *testing.T) {
 
 	go func() {
 		var err error
-		cc, err = s.getOrCreateConnection(map[string]string{"address": address})
+		cc, err = s.getOrCreateConnection(address, "")
 		require.NoError(t, err)
 		wg.Done()
 	}()

@@ -8,9 +8,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -148,12 +148,12 @@ func (dr defaultReplicator) confirmChecksums(ctx context.Context, primaryClient,
 type ReplMgr struct {
 	log               *logrus.Entry
 	datastore         datastore.Datastore
-	clientConnections *conn.ClientConnections
-	targetNode        string     // which replica is this replicator responsible for?
+	nodeManager       nodes.Manager
+	virtualStorage    string     // which replica is this replicator responsible for?
 	replicator        Replicator // does the actual replication logic
 	replQueueMetric   metrics.Gauge
 	replLatencyMetric metrics.Histogram
-
+	replJobTimeout    time.Duration
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
 }
@@ -177,14 +177,14 @@ func WithLatencyMetric(h metrics.Histogram) func(*ReplMgr) {
 
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
-func NewReplMgr(targetNode string, log *logrus.Entry, datastore datastore.Datastore, c *conn.ClientConnections, opts ...ReplMgrOpt) ReplMgr {
+func NewReplMgr(virtualStorage string, log *logrus.Entry, datastore datastore.Datastore, nodeMgr nodes.Manager, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
 		log:               log,
 		datastore:         datastore,
 		whitelist:         map[string]struct{}{},
 		replicator:        defaultReplicator{log},
-		targetNode:        targetNode,
-		clientConnections: c,
+		virtualStorage:    virtualStorage,
+		nodeManager:       nodeMgr,
 		replLatencyMetric: prometheus.NewHistogram(prometheus.HistogramOpts{}),
 		replQueueMetric:   prometheus.NewGauge(prometheus.GaugeOpts{}),
 	}
@@ -248,65 +248,80 @@ const (
 	maxAttempts = 3
 )
 
+func (r ReplMgr) getPrimaryAndSecondaries() (primary nodes.Node, secondaries []nodes.Node, err error) {
+	shard, err := r.nodeManager.GetShard(r.virtualStorage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	primary, err = shard.GetPrimary()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	secondaries, err = shard.GetSecondaries()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return primary, secondaries, nil
+}
+
 // ProcessBacklog will process queued jobs. It will block while processing jobs.
 func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 	backoff, reset := b()
 
 	for {
-		nodes, err := r.datastore.GetStorageNodes()
-		if err != nil {
-			r.log.WithError(err).Error("error when getting storage nodes")
-			return err
-		}
-
 		var totalJobs int
-		for _, node := range nodes {
-			jobs, err := r.datastore.GetJobs(datastore.JobStateReady|datastore.JobStateFailed, node.Storage, 10)
-			if err != nil {
-				r.log.WithField("storage", node.Storage).WithError(err).Error("error when retrieving jobs for replication")
-				continue
-			}
-
-			totalJobs += len(jobs)
-
-			reposReplicated := make(map[string]struct{})
-			for _, job := range jobs {
-				if job.Attempts >= maxAttempts {
-					if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateDead); err != nil {
-						r.log.WithError(err).Error("error when updating replication job status to cancelled")
-					}
-					continue
+		primary, secondaries, err := r.getPrimaryAndSecondaries()
+		if err == nil {
+			for _, secondary := range secondaries {
+				jobs, err := r.datastore.GetJobs(datastore.JobStateReady|datastore.JobStateFailed, secondary.GetStorage(), 10)
+				if err != nil {
+					return err
 				}
 
-				if _, ok := reposReplicated[job.RelativePath]; ok {
-					if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateCancelled); err != nil {
-						r.log.WithError(err).Error("error when updating replication job status to cancelled")
-					}
-					continue
-				}
+				totalJobs += len(jobs)
 
-				if err := r.processReplJob(ctx, job); err != nil {
-					r.log.WithFields(logrus.Fields{
-						logWithReplJobID: job.ID,
-						"from_storage":   job.SourceNode.Storage,
-						"to_storage":     job.TargetNode.Storage,
-					}).WithError(err).Error("replication job failed")
-
-					if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateFailed); err != nil {
-						r.log.WithError(err).Error("error when updating replication job status to failed")
+				reposReplicated := make(map[string]struct{})
+				for _, job := range jobs {
+					if job.Attempts >= maxAttempts {
+						if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateDead); err != nil {
+							r.log.WithError(err).Error("error when updating replication job status to cancelled")
+						}
 						continue
 					}
-				}
 
-				reposReplicated[job.RelativePath] = struct{}{}
+					if _, ok := reposReplicated[job.RelativePath]; ok {
+						if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateCancelled); err != nil {
+							r.log.WithError(err).Error("error when updating replication job status to cancelled")
+						}
+						continue
+					}
+
+					if err = r.processReplJob(ctx, job, primary.GetConnection(), secondary.GetConnection()); err != nil {
+						r.log.WithFields(logrus.Fields{
+							logWithReplJobID: job.ID,
+							"from_storage":   job.SourceNode.Storage,
+							"to_storage":     job.TargetNode.Storage,
+						}).WithError(err).Error("replication job failed")
+						if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateFailed); err != nil {
+							r.log.WithError(err).Error("error when updating replication job status to failed")
+						}
+						continue
+					}
+
+					reposReplicated[job.RelativePath] = struct{}{}
+				}
 			}
+		} else {
+			r.log.WithError(err).WithField("virtual_storage", r.virtualStorage).Error("error when getting primary and secondaries")
 		}
 
 		if totalJobs == 0 {
 			select {
 			case <-time.After(backoff()):
 				continue
-
 			case <-ctx.Done():
 				return ctx.Err()
 			}
@@ -320,7 +335,8 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 // is a crutch in this situation. Ideally, we need to update state somewhere
 // with information regarding the replication failure. See follow up issue:
 // https://gitlab.com/gitlab-org/gitaly/issues/2138
-func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) error {
+
+func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	l := r.log.
 		WithField(logWithReplJobID, job.ID).
 		WithField(logWithReplSource, job.SourceNode).
@@ -336,19 +352,17 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob) erro
 		return err
 	}
 
-	targetCC, err := r.clientConnections.GetConnection(job.TargetNode.Storage)
-	if err != nil {
-		l.WithError(err).Error("unable to obtain client connection for secondary node in replication job")
-		return err
-	}
+	var replCtx context.Context
+	var cancel func()
 
-	sourceCC, err := r.clientConnections.GetConnection(job.SourceNode.Storage)
-	if err != nil {
-		l.WithError(err).Error("unable to obtain client connection for primary node in replication job")
-		return err
+	if r.replJobTimeout > 0 {
+		replCtx, cancel = context.WithTimeout(ctx, r.replJobTimeout)
+	} else {
+		replCtx, cancel = context.WithCancel(ctx)
 	}
+	defer cancel()
 
-	injectedCtx, err := helper.InjectGitalyServers(ctx, job.SourceNode.Storage, job.SourceNode.Address, job.SourceNode.Token)
+	injectedCtx, err := helper.InjectGitalyServers(replCtx, job.SourceNode.Storage, job.SourceNode.Address, job.SourceNode.Token)
 	if err != nil {
 		l.WithError(err).Error("unable to inject Gitaly servers into context for replication job")
 		return err

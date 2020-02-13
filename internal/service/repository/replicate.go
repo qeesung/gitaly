@@ -221,9 +221,7 @@ func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateR
 
 // newRemoteClient creates a new RemoteClient that talks to the same gitaly server
 func (s *server) newRemoteClient() (gitalypb.RemoteServiceClient, error) {
-	cc, err := s.getOrCreateConnection(map[string]string{
-		"address": fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()),
-	})
+	cc, err := s.getOrCreateConnection(fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()), "")
 	if err != nil {
 		return nil, err
 	}
@@ -247,11 +245,10 @@ func (s *server) getConnectionByStorage(ctx context.Context, storageName string)
 		return nil, err
 	}
 
-	return s.getOrCreateConnection(gitalyServerInfo)
+	return s.getOrCreateConnection(gitalyServerInfo["address"], gitalyServerInfo["token"])
 }
 
-func (s *server) getOrCreateConnection(server map[string]string) (*grpc.ClientConn, error) {
-	address, token := server["address"], server["token"]
+func (s *server) getOrCreateConnection(address, token string) (*grpc.ClientConn, error) {
 	if address == "" {
 		return nil, errors.New("address is empty")
 	}

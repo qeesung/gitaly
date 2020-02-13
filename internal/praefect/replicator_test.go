@@ -13,18 +13,21 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	gitaly_log "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
+	objectpoolservice "gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
+	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
+	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
 )
 
 func TestProcessReplicationJob(t *testing.T) {
@@ -115,7 +118,11 @@ func TestProcessReplicationJob(t *testing.T) {
 	secondaries, err := ds.GetSecondaries(config.VirtualStorages[0].Name)
 	require.NoError(t, err)
 
-	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary, secondaries, datastore.UpdateRepo)
+	var secondaryStorages []string
+	for _, secondary := range secondaries {
+		secondaryStorages = append(secondaryStorages, secondary.Storage)
+	}
+	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, secondaryStorages, datastore.UpdateRepo)
 	require.NoError(t, err)
 
 	jobs, err := ds.GetJobs(datastore.JobStateReady|datastore.JobStatePending, backupStorageName, 1)
@@ -127,19 +134,28 @@ func TestProcessReplicationJob(t *testing.T) {
 	})
 
 	var replicator defaultReplicator
-	replicator.log = gitaly_log.Default()
+	entry := testhelper.DiscardTestEntry(t)
+	replicator.log = entry
 
-	clientCC := conn.NewClientConnections()
-	require.NoError(t, clientCC.RegisterNode("default", srvSocketPath, gitaly_config.Config.Auth.Token))
-	require.NoError(t, clientCC.RegisterNode("backup", srvSocketPath, gitaly_config.Config.Auth.Token))
+	nodeMgr, err := nodes.NewManager(entry, config)
+	require.NoError(t, err)
+	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
 	var mockReplicationGauge promtest.MockGauge
 	var mockReplicationHistogram promtest.MockHistogram
 
-	replMgr := NewReplMgr("", gitaly_log.Default(), ds, clientCC, WithLatencyMetric(&mockReplicationHistogram), WithQueueMetric(&mockReplicationGauge))
+	replMgr := NewReplMgr("", testhelper.DiscardTestEntry(t), ds, nodeMgr, WithLatencyMetric(&mockReplicationHistogram), WithQueueMetric(&mockReplicationGauge))
 	replMgr.replicator = replicator
 
-	replMgr.processReplJob(ctx, jobs[0])
+	shard, err := nodeMgr.GetShard(config.VirtualStorages[0].Name)
+	require.NoError(t, err)
+	primaryNode, err := shard.GetPrimary()
+	require.NoError(t, err)
+	secondaryNodes, err := shard.GetSecondaries()
+	require.NoError(t, err)
+	require.Len(t, secondaryNodes, 1)
+
+	replMgr.processReplJob(ctx, jobs[0], primaryNode.GetConnection(), secondaryNodes[0].GetConnection())
 
 	relativeRepoPath, err := filepath.Rel(testhelper.GitlabTestStoragePath(), testRepoPath)
 	require.NoError(t, err)
@@ -175,7 +191,8 @@ func TestConfirmReplication(t *testing.T) {
 	require.NoError(t, err)
 
 	var replicator defaultReplicator
-	replicator.log = gitaly_log.Default()
+	entry := testhelper.DiscardTestEntry(t)
+	replicator.log = entry
 
 	equal, err := replicator.confirmChecksums(ctx, gitalypb.NewRepositoryServiceClient(conn), gitalypb.NewRepositoryServiceClient(conn), testRepoA, testRepoB)
 	require.NoError(t, err)
@@ -190,9 +207,16 @@ func TestConfirmReplication(t *testing.T) {
 	require.False(t, equal)
 }
 
-func TestProcessBacklog(t *testing.T) {
-	srv, srvSocketPath := runFullGitalyServer(t)
-	defer srv.Stop()
+func TestProcessBacklog_FailedJobs(t *testing.T) {
+	primarySvr, primarySocket := newReplicationService(t)
+	defer primarySvr.Stop()
+
+	backupSvr, backupSocket := newReplicationService(t)
+	backupSvr.Stop()
+
+	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
+	require.NoError(t, err)
+	go backupSvr.Serve(internalListener)
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -204,32 +228,15 @@ func TestProcessBacklog(t *testing.T) {
 
 	defer os.RemoveAll(backupDir)
 
-	oldStorages := gitaly_config.Config.Storages
-	defer func() {
-		gitaly_config.Config.Storages = oldStorages
-	}()
-
-	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
-		Name: backupStorageName,
-		Path: backupDir,
-	},
-		gitaly_config.Storage{
-			Name: "default",
-			Path: testhelper.GitlabTestStoragePath(),
-		},
-	)
-
 	primary := models.Node{
 		Storage:        "default",
-		Address:        srvSocketPath,
-		Token:          gitaly_config.Config.Auth.Token,
+		Address:        "unix://" + primarySocket,
 		DefaultPrimary: true,
 	}
 
 	secondary := models.Node{
 		Storage: backupStorageName,
-		Address: srvSocketPath,
-		Token:   gitaly_config.Config.Auth.Token,
+		Address: "unix://" + backupSocket,
 	}
 
 	config := config.Config{
@@ -244,24 +251,41 @@ func TestProcessBacklog(t *testing.T) {
 		},
 	}
 
+	ctx, cancel := testhelper.Context()
+	defer func(oldStorages []gitaly_config.Storage) {
+		gitaly_config.Config.Storages = oldStorages
+		cancel()
+	}(gitaly_config.Config.Storages)
+
+	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
+		Name: backupStorageName,
+		Path: backupDir,
+	},
+		gitaly_config.Storage{
+			Name: "default",
+			Path: testhelper.GitlabTestStoragePath(),
+		},
+	)
+
 	ds := datastore.NewInMemory(config)
-	ids, err := ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary, []models.Node{secondary}, datastore.UpdateRepo)
+	ids, err := ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
 	require.NoError(t, err)
 	require.Len(t, ids, 1)
 
+	entry := testhelper.DiscardTestEntry(t)
+
 	require.NoError(t, ds.UpdateReplJobState(ids[0], datastore.JobStateReady))
 
-	clientCC := conn.NewClientConnections()
-	require.NoError(t, clientCC.RegisterNode("default", srvSocketPath, gitaly_config.Config.Auth.Token))
+	nodeMgr, err := nodes.NewManager(entry, config)
+	require.NoError(t, err)
 
-	replMgr := NewReplMgr(backupStorageName, gitaly_log.Default(), ds, clientCC)
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+	replMgr := NewReplMgr("default", entry, ds, nodeMgr)
+	replMgr.replJobTimeout = 100 * time.Millisecond
 
 	go replMgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	timeLimit := time.NewTimer(5 * time.Second)
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(1 * time.Second)
 
 	// the job will fail to process because the client connection for "backup" is not registered. It should fail maxAttempts times
 	// and get cancelled.
@@ -273,33 +297,108 @@ TestJobGetsCancelled:
 			require.NoError(t, err)
 			if len(replJobs) == 1 {
 				//success
+				timeLimit.Stop()
 				break TestJobGetsCancelled
 			}
 		case <-timeLimit.C:
-			t.Fatal("time limit expired for job to complete")
+			t.Fatal("time limit expired for job to be deemed dead")
 		}
 	}
+}
 
-	require.NoError(t, clientCC.RegisterNode("backup", srvSocketPath, gitaly_config.Config.Auth.Token))
-	ids, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary, []models.Node{secondary}, datastore.UpdateRepo)
+func TestProcessBacklog_Success(t *testing.T) {
+	primarySvr, primarySocket := newReplicationService(t)
+	defer primarySvr.Stop()
+
+	backupSvr, backupSocket := newReplicationService(t)
+	defer backupSvr.Stop()
+
+	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
+	require.NoError(t, err)
+	go backupSvr.Serve(internalListener)
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	backupStorageName := "backup"
+
+	backupDir, err := ioutil.TempDir(testhelper.GitlabTestStoragePath(), backupStorageName)
+	require.NoError(t, err)
+
+	defer os.RemoveAll(backupDir)
+
+	primary := models.Node{
+		Storage:        "default",
+		Address:        "unix://" + primarySocket,
+		DefaultPrimary: true,
+	}
+
+	secondary := models.Node{
+		Storage: backupStorageName,
+		Address: "unix://" + backupSocket,
+	}
+
+	config := config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Name: "default",
+				Nodes: []*models.Node{
+					&primary,
+					&secondary,
+				},
+			},
+		},
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer func(oldStorages []gitaly_config.Storage) {
+		gitaly_config.Config.Storages = oldStorages
+		cancel()
+	}(gitaly_config.Config.Storages)
+
+	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
+		Name: backupStorageName,
+		Path: backupDir,
+	},
+		gitaly_config.Storage{
+			Name: "default",
+			Path: testhelper.GitlabTestStoragePath(),
+		},
+	)
+
+	ds := datastore.NewInMemory(config)
+	ids, err := ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
 	require.NoError(t, err)
 	require.Len(t, ids, 1)
-	require.NoError(t, ds.UpdateReplJobState(ids[0], datastore.JobStateReady))
-	timeLimit.Reset(5 * time.Second)
 
-	// Once the node is registered, and we try the job again it should succeed
+	entry := testhelper.DiscardTestEntry(t)
+
+	require.NoError(t, ds.UpdateReplJobState(ids[0], datastore.JobStateReady))
+
+	nodeMgr, err := nodes.NewManager(entry, config)
+	require.NoError(t, err)
+
+	replMgr := NewReplMgr("default", entry, ds, nodeMgr)
+	replMgr.replJobTimeout = 5 * time.Second
+
+	go replMgr.ProcessBacklog(ctx, noopBackoffFunc)
+
+	timeLimit := time.NewTimer(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
+
+	// Once the listener is being served, and we try the job again it should succeed
 TestJobSucceeds:
 	for {
 		select {
 		case <-ticker.C:
-			replJobs, err := ds.GetJobs(datastore.JobStateFailed|datastore.JobStateInProgress|datastore.JobStateReady, "backup", 10)
+			replJobs, err := ds.GetJobs(datastore.JobStateFailed|datastore.JobStateInProgress|datastore.JobStateReady|datastore.JobStateDead, "backup", 10)
 			require.NoError(t, err)
 			if len(replJobs) == 0 {
 				//success
 				break TestJobSucceeds
 			}
 		case <-timeLimit.C:
-			t.Error("time limit expired for job to complete")
+			t.Fatal("time limit expired for job to complete")
 		}
 	}
 }
@@ -326,6 +425,7 @@ func TestBackoff(t *testing.T) {
 
 func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	server := serverPkg.NewInsecure(RubyServer)
+
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -340,6 +440,26 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	go server.Serve(internalListener)
 
 	return server, "unix://" + serverSocketPath
+}
+
+// newReplicationService is a grpc service that has the Repository, Remote and ObjectPool services, which
+// are the only ones needed for replication
+func newReplicationService(tb testing.TB) (*grpc.Server, string) {
+	socketName := testhelper.GetTemporaryGitalySocketFileName()
+
+	svr := testhelper.NewTestGrpcServer(tb, nil, nil)
+
+	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(&rubyserver.Server{}))
+	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer())
+	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(&rubyserver.Server{}))
+	reflection.Register(svr)
+
+	listener, err := net.Listen("unix", socketName)
+	require.NoError(tb, err)
+
+	go svr.Serve(listener)
+
+	return svr, socketName
 }
 
 func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {

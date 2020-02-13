@@ -1,42 +1,51 @@
-package praefect
+package nodes
 
 import (
-	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestNodeStatus(t *testing.T) {
-	cc, healthSvr, cleanup := newHealthServer(t, testhelper.GetTemporaryGitalySocketFileName())
-	defer cleanup()
+	socket := testhelper.GetTemporaryGitalySocketFileName()
+	svr, healthSvr := testhelper.NewServerWithHealth(t, socket)
+	defer svr.Stop()
 
-	cs := newConnectionStatus(models.Node{}, cc)
+	cc, err := grpc.Dial(
+		"unix://"+socket,
+		grpc.WithInsecure(),
+	)
+
+	require.NoError(t, err)
+
+	cs := newConnectionStatus(models.Node{}, cc, testhelper.DiscardTestEntry(t))
 
 	require.False(t, cs.isHealthy())
 
 	for i := 0; i < healthcheckThreshold; i++ {
-		require.NoError(t, cs.check())
+		cs.check()
 	}
 	require.True(t, cs.isHealthy())
 
-	healthSvr.SetServingStatus("TestService", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	healthSvr.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
-	require.NoError(t, cs.check())
+	cs.check()
 	require.False(t, cs.isHealthy())
 }
 
 func TestNodeManager(t *testing.T) {
-	internalSocket0 := testhelper.GetTemporaryGitalySocketFileName()
-	internalSocket1 := testhelper.GetTemporaryGitalySocketFileName()
+	internalSocket0, internalSocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	srv0, healthSrv0 := testhelper.NewServerWithHealth(t, internalSocket0)
+	defer srv0.Stop()
+
+	srv1, healthSrv1 := testhelper.NewServerWithHealth(t, internalSocket1)
+	defer srv1.Stop()
 
 	virtualStorages := []*config.VirtualStorage{
 		{
@@ -64,16 +73,10 @@ func TestNodeManager(t *testing.T) {
 		FailoverEnabled: false,
 	}
 
-	_, srv0, cancel0 := newHealthServer(t, internalSocket0)
-	defer cancel0()
-
-	_, _, cancel1 := newHealthServer(t, internalSocket1)
-	defer cancel1()
-
-	nm, err := NewNodeManager(log.Default(), confWithFailover)
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover)
 	require.NoError(t, err)
 
-	nmWithoutFailover, err := NewNodeManager(log.Default(), confWithoutFailover)
+	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover)
 	require.NoError(t, err)
 
 	nm.Start(1*time.Millisecond, 5*time.Second)
@@ -109,7 +112,7 @@ func TestNodeManager(t *testing.T) {
 	require.Equal(t, virtualStorages[0].Nodes[1].Storage, secondaries[0].GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[1].Address, secondaries[0].GetAddress())
 
-	srv0.SetServingStatus("TestService", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
 
 	// since the primary is unhealthy, we expect checkShards to demote primary to secondary, and promote the healthy
@@ -149,34 +152,9 @@ func TestNodeManager(t *testing.T) {
 	require.Equal(t, virtualStorages[0].Nodes[0].Storage, secondaries[0].GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[0].Address, secondaries[0].GetAddress())
 
-	cancel1()
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
 
 	_, err = nm.GetShard("virtual-storage-0")
 	require.Error(t, err, "should return error since no nodes are healthy")
-}
-
-func newHealthServer(t testing.TB, socketName string) (*grpc.ClientConn, *health.Server, func()) {
-	srv := testhelper.NewTestGrpcServer(t, nil, nil)
-	healthSrvr := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(srv, healthSrvr)
-	healthSrvr.SetServingStatus("TestService", grpc_health_v1.HealthCheckResponse_SERVING)
-
-	lis, err := net.Listen("unix", socketName)
-	require.NoError(t, err)
-
-	go srv.Serve(lis)
-
-	cleanup := func() {
-		srv.Stop()
-	}
-
-	cc, err := grpc.Dial(
-		"unix://"+socketName,
-		grpc.WithInsecure(),
-	)
-
-	require.NoError(t, err)
-
-	return cc, healthSrvr, cleanup
 }

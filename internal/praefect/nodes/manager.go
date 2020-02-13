@@ -1,7 +1,6 @@
-package praefect
+package nodes
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -23,8 +22,8 @@ type Shard interface {
 	GetSecondaries() ([]Node, error)
 }
 
-// NodeManager is responsible for returning shards for virtual storages
-type NodeManager interface {
+// Manager is responsible for returning shards for virtual storages
+type Manager interface {
 	GetShard(virtualStorageName string) (Shard, error)
 }
 
@@ -63,11 +62,13 @@ func (s *shard) GetSecondaries() ([]Node, error) {
 	return secondaries, nil
 }
 
-// NodeMgr is a concrete type that adheres to the NodeManager interface
-type NodeMgr struct {
-	shards          map[string]*shard
-	log             *logrus.Entry
+// Mgr is a concrete type that adheres to the Manager interface
+type Mgr struct {
+	shards map[string]*shard
+	// staticShards never changes based on node health. It is a static set of shards that comes from the config's
+	// VirtualStorages
 	failoverEnabled bool
+	log             *logrus.Entry
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
@@ -75,23 +76,23 @@ type NodeMgr struct {
 var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 
 // NewNodeManager creates a new NodeMgr based on virtual storage configs
-func NewNodeManager(log *logrus.Entry, c config.Config) (*NodeMgr, error) {
+func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	shards := make(map[string]*shard)
-
 	for _, virtualStorage := range c.VirtualStorages {
 		var secondaries []*nodeStatus
 		var primary *nodeStatus
 		for _, node := range virtualStorage.Nodes {
 			conn, err := client.Dial(node.Address,
-				[]grpc.DialOption{
-					grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
-					grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(node.Token)),
-				},
+				append(
+					[]grpc.DialOption{
+						grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
+						grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(node.Token)),
+					}, dialOpts...),
 			)
 			if err != nil {
 				return nil, err
 			}
-			ns := newConnectionStatus(*node, conn)
+			ns := newConnectionStatus(*node, conn, log)
 
 			if node.DefaultPrimary {
 				primary = ns
@@ -107,7 +108,7 @@ func NewNodeManager(log *logrus.Entry, c config.Config) (*NodeMgr, error) {
 		}
 	}
 
-	return &NodeMgr{
+	return &Mgr{
 		shards:          shards,
 		log:             log,
 		failoverEnabled: c.FailoverEnabled,
@@ -118,36 +119,32 @@ func NewNodeManager(log *logrus.Entry, c config.Config) (*NodeMgr, error) {
 // for deeming a node "healthy"
 const healthcheckThreshold = 3
 
-func (n *NodeMgr) bootstrap(d time.Duration) error {
+func (n *Mgr) bootstrap(d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 
 	for i := 0; i < healthcheckThreshold; i++ {
 		<-timer.C
-		if err := n.checkShards(); err != nil {
-			return err
-		}
+		n.checkShards()
 		timer.Reset(d)
 	}
 
 	return nil
 }
 
-func (n *NodeMgr) monitor(d time.Duration) {
+func (n *Mgr) monitor(d time.Duration) {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 
 	for {
 		<-ticker.C
-		if err := n.checkShards(); err != nil {
-			n.log.WithError(err).Error("error when checking shards")
-		}
+		n.checkShards()
 	}
 }
 
 // Start will bootstrap the node manager by calling healthcheck on the nodes as well as kicking off
 // the monitoring process. Start must be called before NodeMgr can be used.
-func (n *NodeMgr) Start(bootstrapInterval, monitorInterval time.Duration) {
+func (n *Mgr) Start(bootstrapInterval, monitorInterval time.Duration) {
 	if n.failoverEnabled {
 		n.bootstrap(bootstrapInterval)
 		go n.monitor(monitorInterval)
@@ -155,7 +152,7 @@ func (n *NodeMgr) Start(bootstrapInterval, monitorInterval time.Duration) {
 }
 
 // GetShard retrieves a shard for a virtual storage name
-func (n *NodeMgr) GetShard(virtualStorageName string) (Shard, error) {
+func (n *Mgr) GetShard(virtualStorageName string) (Shard, error) {
 	shard, ok := n.shards[virtualStorageName]
 	if !ok {
 		return nil, errors.New("virtual storage does not exist")
@@ -170,28 +167,11 @@ func (n *NodeMgr) GetShard(virtualStorageName string) (Shard, error) {
 	return shard, nil
 }
 
-type errCollection []error
-
-func (e errCollection) Error() string {
-	sb := bytes.NewBufferString("")
-	for _, err := range e {
-		sb.WriteString(err.Error())
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-func (n *NodeMgr) checkShards() error {
-	var errs errCollection
+func (n *Mgr) checkShards() {
 	for _, shard := range n.shards {
-		if err := shard.primary.check(); err != nil {
-			errs = append(errs, err)
-		}
+		shard.primary.check()
 		for _, secondary := range shard.secondaries {
-			if err := secondary.check(); err != nil {
-				errs = append(errs, err)
-			}
+			secondary.check()
 		}
 
 		if shard.primary.isHealthy() {
@@ -217,19 +197,14 @@ func (n *NodeMgr) checkShards() error {
 		shard.primary = newPrimary
 		shard.m.Unlock()
 	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	return nil
 }
 
-func newConnectionStatus(node models.Node, cc *grpc.ClientConn) *nodeStatus {
+func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry) *nodeStatus {
 	return &nodeStatus{
 		Node:       node,
 		ClientConn: cc,
 		statuses:   make([]healthpb.HealthCheckResponse_ServingStatus, 0),
+		log:        l,
 	}
 }
 
@@ -237,6 +212,7 @@ type nodeStatus struct {
 	models.Node
 	*grpc.ClientConn
 	statuses []healthpb.HealthCheckResponse_ServingStatus
+	log      *logrus.Entry
 }
 
 // GetStorage gets the storage name of a node
@@ -273,13 +249,14 @@ func (n *nodeStatus) isHealthy() bool {
 	return true
 }
 
-func (n *nodeStatus) check() error {
+func (n *nodeStatus) check() {
 	client := healthpb.NewHealthClient(n.ClientConn)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: "TestService"})
+	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
 	if err != nil {
+		n.log.WithError(err).WithField("address", n.Address).Warn("error when pinging healthcheck")
 		resp = &healthpb.HealthCheckResponse{
 			Status: healthpb.HealthCheckResponse_UNKNOWN,
 		}
@@ -289,6 +266,4 @@ func (n *nodeStatus) check() error {
 	if len(n.statuses) > healthcheckThreshold {
 		n.statuses = n.statuses[1:]
 	}
-
-	return err
 }

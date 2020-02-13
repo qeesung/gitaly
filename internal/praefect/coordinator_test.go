@@ -1,18 +1,16 @@
 package praefect
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/conn"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -57,10 +55,13 @@ func TestStreamDirector(t *testing.T) {
 	defer cancel()
 
 	address := "gitaly-primary.example.com"
-	clientConnections := conn.NewClientConnections()
-	clientConnections.RegisterNode("praefect-internal-1", fmt.Sprintf("tcp://%s", address), "token")
 
-	coordinator := NewCoordinator(log.Default(), ds, clientConnections, conf)
+	entry := testhelper.DiscardTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(entry, conf)
+	require.NoError(t, err)
+
+	coordinator := NewCoordinator(entry, ds, nodeMgr, conf)
 	require.NoError(t, coordinator.RegisterProtos(protoregistry.GitalyProtoFileDescriptors...))
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
