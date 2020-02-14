@@ -1,0 +1,5 @@
+---
+title: Pass in virtual storage name to repl manager
+merge_request: 1831
+author:
+type: fixed

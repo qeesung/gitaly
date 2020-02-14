@@ -150,7 +150,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		ds          = datastore.NewInMemory(conf)
 		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, protoregistry.GitalyProtoFileDescriptors...)
 		repl        = praefect.NewReplMgr(
-			"default",
+			conf.VirtualStorages[0].Name,
 			logger,
 			ds,
 			nodeManager,
