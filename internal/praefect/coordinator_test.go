@@ -60,9 +60,10 @@ func TestStreamDirector(t *testing.T) {
 
 	nodeMgr, err := nodes.NewManager(entry, conf)
 	require.NoError(t, err)
+	r := protoregistry.New()
+	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, conf)
-	require.NoError(t, coordinator.RegisterProtos(protoregistry.GitalyProtoFileDescriptors...))
+	coordinator := NewCoordinator(entry, ds, nodeMgr, conf, r)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,
@@ -74,7 +75,7 @@ func TestStreamDirector(t *testing.T) {
 	fullMethod := "/gitaly.ObjectPoolService/FetchIntoObjectPool"
 
 	peeker := &mockPeeker{frame}
-	streamParams, err := coordinator.streamDirector(ctx, fullMethod, peeker)
+	streamParams, err := coordinator.StreamDirector(ctx, fullMethod, peeker)
 	require.NoError(t, err)
 	require.Equal(t, address, streamParams.Conn().Target())
 

@@ -19,7 +19,7 @@ message SimpleResponse {
 }
 
 message RepoRequest {
-	gitaly.Repository repo = 1;
+	gitaly.Repository repo = 1 [(gitaly.target_repository)=true];
 }
 
 service SimpleService {
@@ -36,7 +36,6 @@ service SimpleService {
     option (gitaly.op_type) = {
       op: ACCESSOR
       scope_level: REPOSITORY
-      target_repository_field: "1"
     };
   }
 	
@@ -45,7 +44,6 @@ service SimpleService {
     option (gitaly.op_type) = {
       op: MUTATOR
       scope_level: REPOSITORY
-      target_repository_field: "1"
     };
   }
 }
