@@ -72,10 +72,10 @@ func testConfig(backends int) config.Config {
 
 // setupServer wires all praefect dependencies together via dependency
 // injection
-func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, fds []*descriptor.FileDescriptorProto) (*datastore.MemoryDatastore, *Server) {
+func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) (*datastore.MemoryDatastore, *Server) {
 	var (
 		ds          = datastore.NewInMemory(conf)
-		coordinator = NewCoordinator(l, ds, nodeMgr, conf, fds...)
+		coordinator = NewCoordinator(l, ds, nodeMgr, conf, r)
 	)
 
 	var defaultNode *models.Node
@@ -86,20 +86,7 @@ func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *log
 	}
 	require.NotNil(t, defaultNode)
 
-	replmgr := NewReplMgr(
-		defaultNode.Storage,
-		l,
-		ds,
-		nodeMgr,
-	)
-	server := NewServer(
-		coordinator,
-		replmgr,
-		nil,
-		l,
-		nodeMgr,
-		conf,
-	)
+	server := NewServer(coordinator.StreamDirector, l, r, conf)
 
 	return ds, server
 }
@@ -131,14 +118,17 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
-	_, prf := setupServer(t, conf, nodeMgr, log.Default(), []*descriptor.FileDescriptorProto{mustLoadProtoReg(t)})
+	r := protoregistry.New()
+	require.NoError(t, r.RegisterFiles(mustLoadProtoReg(t)))
+
+	_, prf := setupServer(t, conf, nodeMgr, log.Default(), r)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
 
 	errQ := make(chan error)
 
-	prf.RegisterServices()
+	prf.RegisterServices(nodeMgr, conf)
 	go func() {
 		errQ <- prf.Serve(listener, false)
 	}()
@@ -189,7 +179,9 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, protoregistry.GitalyProtoFileDescriptors...)
+	registry := protoregistry.New()
+	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
 
 	replmgr := NewReplMgr(
 		conf.VirtualStorages[0].Name,
@@ -200,11 +192,9 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		WithLatencyMetric(&promtest.MockHistogram{}),
 	)
 	prf := NewServer(
-		coordinator,
-		replmgr,
-		nil,
+		coordinator.StreamDirector,
 		logEntry,
-		nodeMgr,
+		registry,
 		conf,
 	)
 
@@ -214,7 +204,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	errQ := make(chan error)
 	ctx, cancel := testhelper.Context()
 
-	prf.RegisterServices()
+	prf.RegisterServices(nodeMgr, conf)
 	go func() { errQ <- prf.Serve(listener, false) }()
 	go func() { errQ <- replmgr.ProcessBacklog(ctx, noopBackoffFunc) }()
 

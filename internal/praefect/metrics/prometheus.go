@@ -33,6 +33,18 @@ func RegisterReplicationJobsInFlight() (Gauge, error) {
 	return replicationJobsInFlight, prometheus.Register(replicationJobsInFlight)
 }
 
+var MethodTypeCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "gitaly",
+		Subsystem: "praefect",
+		Name:      "method_types",
+	}, []string{"method_type"},
+)
+
+func init() {
+	prometheus.Register(MethodTypeCounter)
+}
+
 // Gauge is a subset of a prometheus Gauge
 type Gauge interface {
 	Inc()
