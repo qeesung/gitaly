@@ -128,7 +128,10 @@ func (gm *gitalyMake) GitalyRemotePackage() string {
 }
 
 func (gm *gitalyMake) MakegenDep() string {
-	return filepath.Join(gm.SourceDir(), "_support/makegen.go")
+	return strings.Join([]string{
+		filepath.Join(gm.SourceDir(), "_support/makegen.go"),
+		filepath.Join(gm.SourceDir(), "_support/Makefile.template"),
+	}, " ")
 }
 
 func (gm *gitalyMake) CommandPackages() []string {
