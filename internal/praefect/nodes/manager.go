@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
@@ -87,6 +88,8 @@ func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption)
 					[]grpc.DialOption{
 						grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
 						grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(node.Token)),
+						grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+						grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 					}, dialOpts...),
 			)
 			if err != nil {
