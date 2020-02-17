@@ -59,6 +59,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :commit_subject, :bytes, 3
     optional :commit_author, :message, 4, "gitaly.FindLocalBranchCommitAuthor"
     optional :commit_committer, :message, 5, "gitaly.FindLocalBranchCommitAuthor"
+    optional :commit, :message, 6, "gitaly.GitCommit"
   end
   add_message "gitaly.FindLocalBranchCommitAuthor" do
     optional :name, :bytes, 1

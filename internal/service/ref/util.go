@@ -29,6 +29,10 @@ func buildLocalBranch(name []byte, target *gitalypb.GitCommit) *gitalypb.FindLoc
 		return response
 	}
 
+	response.Commit = target
+
+	// all code below exists for compatibility and must be removed after
+	// https://gitlab.com/gitlab-org/gitlab/issues/205685
 	response.CommitId = target.Id
 	response.CommitSubject = target.Subject
 

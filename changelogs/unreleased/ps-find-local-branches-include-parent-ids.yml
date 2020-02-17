@@ -1,0 +1,5 @@
+---
+title: Return full GitCommit message as part of FindLocalBranch gRPC response.
+merge_request: 1827
+author:
+type: fixed

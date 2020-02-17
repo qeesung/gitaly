@@ -136,6 +136,7 @@ func assertContainsLocalBranch(t *testing.T, branches []*gitalypb.FindLocalBranc
 			if !testhelper.FindLocalBranchResponsesEqual(branch, b) {
 				t.Errorf("Expected branch\n%v\ngot\n%v", branch, b)
 			}
+			require.Equal(t, branch.Commit, b.Commit)
 			return // Found the branch and it maches. Success!
 		}
 	}

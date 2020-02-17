@@ -869,6 +869,7 @@ func TestSuccessfulFindLocalBranches(t *testing.T) {
 				Email: target.Committer.Email,
 				Date:  target.Committer.Date,
 			},
+			Commit: target,
 		}
 		assertContainsLocalBranch(t, branches, localBranch)
 	}

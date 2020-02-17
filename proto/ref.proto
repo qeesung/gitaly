@@ -188,6 +188,7 @@ message FindLocalBranchResponse {
   bytes commit_subject = 3;
   FindLocalBranchCommitAuthor commit_author = 4;
   FindLocalBranchCommitAuthor commit_committer = 5;
+  GitCommit commit = 6;
 }
 
 message FindLocalBranchCommitAuthor {
