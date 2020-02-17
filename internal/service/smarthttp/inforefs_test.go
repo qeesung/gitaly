@@ -80,8 +80,6 @@ func TestSuccessfulInfoRefsUploadPackWithGitProtocol(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UseGitProtocolV2)
-
 	c, err := client.InfoRefsUploadPack(ctx, rpcRequest)
 
 	for {
