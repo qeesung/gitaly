@@ -227,6 +227,7 @@ praefect_sql_test:
     PGHOST: postgres
     PGPORT: 5432
     PGUSER: postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
   script:
     - go version
     - git version
