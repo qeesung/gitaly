@@ -181,6 +181,7 @@ docker-tag:
 # Create a MR in GitLab-CE when releasing a Gitaly version
 update-downstream-server-version:
   stage: publish
+  when: manual
   only:
     - tags@gitlab-org/gitaly
   script:
