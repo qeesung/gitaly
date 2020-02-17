@@ -8,20 +8,22 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const mockFeatureFlag = "turn meow on"
+
 func TestIncomingCtxWithFeatureFlag(t *testing.T) {
 	ctx := context.Background()
-	require.False(t, IsEnabled(ctx, UseGitProtocolV2))
+	require.False(t, IsEnabled(ctx, mockFeatureFlag))
 
-	ctx = IncomingCtxWithFeatureFlag(ctx, UseGitProtocolV2)
-	require.True(t, IsEnabled(ctx, UseGitProtocolV2))
+	ctx = IncomingCtxWithFeatureFlag(ctx, mockFeatureFlag)
+	require.True(t, IsEnabled(ctx, mockFeatureFlag))
 }
 
 func TestOutgoingCtxWithFeatureFlag(t *testing.T) {
 	ctx := context.Background()
-	require.False(t, IsEnabled(ctx, UseGitProtocolV2))
+	require.False(t, IsEnabled(ctx, mockFeatureFlag))
 
-	ctx = OutgoingCtxWithFeatureFlag(ctx, UseGitProtocolV2)
-	require.False(t, IsEnabled(ctx, UseGitProtocolV2))
+	ctx = OutgoingCtxWithFeatureFlag(ctx, mockFeatureFlag)
+	require.False(t, IsEnabled(ctx, mockFeatureFlag))
 
 	// simulate an outgoing context leaving the process boundary and then
 	// becoming an incoming context in a new process boundary
@@ -29,5 +31,5 @@ func TestOutgoingCtxWithFeatureFlag(t *testing.T) {
 	require.True(t, ok)
 
 	ctx = metadata.NewIncomingContext(context.Background(), md)
-	require.True(t, IsEnabled(ctx, UseGitProtocolV2))
+	require.True(t, IsEnabled(ctx, mockFeatureFlag))
 }
