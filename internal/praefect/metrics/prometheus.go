@@ -33,6 +33,27 @@ func RegisterReplicationJobsInFlight() (Gauge, error) {
 	return replicationJobsInFlight, prometheus.Register(replicationJobsInFlight)
 }
 
+var MethodTypeCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "gitaly",
+		Subsystem: "praefect",
+		Name:      "method_types",
+	}, []string{"method_type"},
+)
+
+var PrimaryGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Namespace: "gitaly",
+		Subsystem: "praefect",
+		Name:      "primaries",
+	}, []string{"storage"},
+)
+
+func init() {
+	prometheus.MustRegister(MethodTypeCounter)
+	prometheus.MustRegister(PrimaryGauge)
+}
+
 // Gauge is a subset of a prometheus Gauge
 type Gauge interface {
 	Inc()
