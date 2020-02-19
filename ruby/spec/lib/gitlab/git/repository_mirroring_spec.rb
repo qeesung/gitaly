@@ -38,7 +38,8 @@ describe Gitlab::Git::RepositoryMirroring do
         output = "Oh no, push mirroring failed!"
         logger = spy
 
-        allow(projects_stub).to receive(:output).once.and_return(output)
+        # Once for parsing, once for the exception
+        allow(projects_stub).to receive(:output).twice.and_return(output)
         allow(projects_stub).to receive(:logger).and_return(logger)
 
         push_results = double(
@@ -49,7 +50,7 @@ describe Gitlab::Git::RepositoryMirroring do
           .with(output)
           .and_return(push_results)
 
-        # Cause an exception via gitlab_projects_error
+        # Push fails
         expect(projects_stub).to receive(:push_branches).and_return(false)
 
         # The CommandError gets re-raised, matching existing behavior
