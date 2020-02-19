@@ -12,20 +12,18 @@ module Gitlab
         #
         # See https://git-scm.com/docs/git-push#_output
         @all = raw_output.each_line.map do |line|
-          fields = line.split("\t")
+          line.chomp!
+
+          fields = line.split(" \t ", 3)
 
           # Sanity check for porcelain output
           next unless fields.size >= 3
 
-          # The fast-forward flag is a space, but there's also a space before
-          # the tab delimiter, so we end up with a String of two spaces. Just
-          # take the first character.
-          flag = fields.shift.slice(0)
-
+          flag = fields.shift
           next unless Result.valid_flag?(flag)
 
-          from, to = fields.shift.split(':').map(&:strip)
-          summary = fields.shift.strip
+          from, to = fields.shift.split(':')
+          summary = fields.shift
 
           Result.new(flag, from, to, summary)
         end.compact
@@ -53,7 +51,7 @@ module Gitlab
         }.freeze
 
         def self.valid_flag?(flag)
-          FLAGS.keys.include?(flag)
+          FLAGS.key?(flag)
         end
 
         def flag
