@@ -33,6 +33,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     repeated :only_branches_matching, :bytes, 3
     optional :ssh_key, :string, 4
     optional :known_hosts, :string, 5
+    optional :keep_divergent_refs, :bool, 6
   end
   add_message "gitaly.UpdateRemoteMirrorResponse" do
   end

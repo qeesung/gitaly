@@ -18,7 +18,8 @@ describe Gitlab::Git::RemoteMirror do
       repository,
       ref_name,
       ssh_auth: ssh_auth,
-      only_branches_matching: []
+      only_branches_matching: [],
+      keep_divergent_refs: false
     )
   end
 
@@ -33,7 +34,8 @@ describe Gitlab::Git::RemoteMirror do
           repository,
           ref_name,
           ssh_auth: ssh_auth,
-          only_branches_matching: ['master', '*-stable']
+          only_branches_matching: ['master', '*-stable'],
+          keep_divergent_refs: false
         )
       end
 

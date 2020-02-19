@@ -1,0 +1,5 @@
+---
+title: Optionally keep divergent refs when mirroring
+merge_request: 1828
+author:
+type: added

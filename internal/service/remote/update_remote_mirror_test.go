@@ -172,6 +172,62 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 	require.NotContains(t, mirrorRefs, "refs/tags/v1.2.0")
 }
 
+func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) {
+	server, serverSocketPath := runRemoteServiceServer(t)
+	defer server.Stop()
+
+	client, conn := NewRemoteClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	_, mirrorPath, mirrorCleanupFn := testhelper.NewTestRepo(t)
+	defer mirrorCleanupFn()
+
+	remoteName := "remote_mirror_1"
+
+	testhelper.CreateTag(t, mirrorPath, "v2.0.0", "master", nil)
+
+	setupCommands := [][]string{
+		// Preconditions
+		{"config", "user.email", "gitalytest@example.com"},
+		{"remote", "add", remoteName, mirrorPath},
+		{"fetch", remoteName},
+
+		// Delete a branch and a tag to ensure they're kept around in the mirror
+		{"branch", "-D", "not-merged-branch"},
+		{"tag", "-d", "v2.0.0"},
+	}
+
+	for _, args := range setupCommands {
+		gitArgs := []string{"-C", testRepoPath}
+		gitArgs = append(gitArgs, args...)
+		testhelper.MustRunCommand(t, nil, "git", gitArgs...)
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	firstRequest := &gitalypb.UpdateRemoteMirrorRequest{
+		Repository:        testRepo,
+		RefName:           remoteName,
+		KeepDivergentRefs: true,
+	}
+
+	stream, err := client.UpdateRemoteMirror(ctx)
+	require.NoError(t, err)
+	require.NoError(t, stream.Send(firstRequest))
+
+	_, err = stream.CloseAndRecv()
+	require.NoError(t, err)
+
+	mirrorRefs := string(testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "for-each-ref"))
+
+	require.Contains(t, mirrorRefs, "refs/heads/not-merged-branch")
+	require.Contains(t, mirrorRefs, "refs/tags/v2.0.0")
+}
+
 func TestFailedUpdateRemoteMirrorRequestDueToValidation(t *testing.T) {
 	server, serverSocketPath := runRemoteServiceServer(t)
 	defer server.Stop()
