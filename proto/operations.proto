@@ -380,7 +380,7 @@ message UserSquashRequest {
   Repository repository = 1 [(target_repository)=true];
   User user = 2;
   string squash_id = 3;
-  bytes branch = 4 [deprecated=true];
+  reserved 4;
   string start_sha = 5;
   string end_sha = 6;
   User author = 7;
