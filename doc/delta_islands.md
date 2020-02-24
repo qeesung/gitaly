@@ -45,7 +45,7 @@ less work and reuses previous work better.
 
 #### Further reading
 
-As usually the case, the [tests of Git][git-delta-test] provide a good overview
+As is usually the case, the [tests of Git][git-delta-test] provide a good overview
 of how the feature works.
 
 [git-delta-test]: https://github.com/git/git/blob/041f5ea1cf987a4068ef5f39ba0a09be85952064/t/t5320-delta-islands.sh
