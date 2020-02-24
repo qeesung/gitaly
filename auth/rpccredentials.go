@@ -11,46 +11,42 @@ import (
 )
 
 // RPCCredentials can be used with grpc.WithPerRPCCredentials to create a
-// grpc.DialOption that inserts the supplied token for authentication
-// with a Gitaly server.
-func RPCCredentials(token string) credentials.PerRPCCredentials {
-	return &rpcCredentials{token: base64.StdEncoding.EncodeToString([]byte(token))}
+// grpc.DialOption that uses v1 Gitaly authentication for authentication
+// with a Gitaly server. The shared secret must match the one used on the
+// Gitaly server.
+func RPCCredentials(sharedSecret string) credentials.PerRPCCredentials {
+	return &rpcCredentials{sharedSecret: base64.StdEncoding.EncodeToString([]byte(sharedSecret))}
 }
 
 type rpcCredentials struct {
-	token string
+	sharedSecret string
 }
 
 func (*rpcCredentials) RequireTransportSecurity() bool { return false }
 
 func (rc *rpcCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
-	return map[string]string{"authorization": "Bearer " + rc.token}, nil
+	return map[string]string{"authorization": "Bearer " + rc.sharedSecret}, nil
 }
 
-// RPCCredentialsV2 can be used with grpc.WithPerRPCCredentials to create a
-// grpc.DialOption that inserts an HMAC token with the current timestamp
-// for authentication with a Gitaly server.
-func RPCCredentialsV2(token string) credentials.PerRPCCredentials {
-	return &rpcCredentialsV2{token: token}
+// RPCCredentialsV2 can be used with grpc.WithPerRPCCredentials to create
+// a grpc.DialOption that inserts an V2 (HMAC) token with the current
+// timestamp for authentication with a Gitaly server. The shared secret
+// must match the one used on the Gitaly server.
+func RPCCredentialsV2(sharedSecret string) credentials.PerRPCCredentials {
+	return &rpcCredentialsV2{sharedSecret: sharedSecret}
 }
 
 type rpcCredentialsV2 struct {
-	token string
+	sharedSecret string
 }
 
 func (*rpcCredentialsV2) RequireTransportSecurity() bool { return false }
 
-func (rc *rpcCredentialsV2) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
-	return map[string]string{"authorization": "Bearer " + rc.hmacToken()}, nil
-}
+func (rc2 *rpcCredentialsV2) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
+	message := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := hmacSign([]byte(rc2.sharedSecret), message)
 
-func (rc *rpcCredentialsV2) hmacToken() string {
-	return hmacToken("v2", []byte(rc.token), time.Now())
-}
-
-func hmacToken(version string, secret []byte, timestamp time.Time) string {
-	intTime := timestamp.Unix()
-	signedTimestamp := hmacSign(secret, strconv.FormatInt(intTime, 10))
-
-	return fmt.Sprintf("%s.%x.%d", version, signedTimestamp, intTime)
+	return map[string]string{
+		"authorization": "Bearer " + fmt.Sprintf("v2.%x.%s", signature, message),
+	}, nil
 }

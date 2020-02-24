@@ -87,8 +87,8 @@ module Gitlab
         addr
       end
 
-      def token
-        gitaly_client.token(storage).to_s
+      def shared_secret
+        gitaly_client.shared_secret(storage).to_s
       end
 
       def request_kwargs
@@ -104,7 +104,7 @@ module Gitlab
 
       def authorization_token
         issued_at = Time.now.to_i.to_s
-        hmac = OpenSSL::HMAC.hexdigest(OpenSSL::Digest::SHA256.new, token, issued_at)
+        hmac = OpenSSL::HMAC.hexdigest(OpenSSL::Digest::SHA256.new, shared_secret, issued_at)
 
         "v2.#{hmac}.#{issued_at}"
       end

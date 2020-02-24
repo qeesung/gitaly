@@ -9,7 +9,7 @@ module GitalyServer
       @servers = encoded_servers.present? ? JSON.parse(Base64.strict_decode64(encoded_servers)) : {}
     end
 
-    def token(storage)
+    def shared_secret(storage)
       server(storage)['token']
     end
 

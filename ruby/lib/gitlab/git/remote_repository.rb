@@ -38,7 +38,7 @@ module Gitlab
       def fetch_env(git_config_options: [])
         gitaly_ssh = File.absolute_path(File.join(Gitlab.config.gitaly.bin_dir, 'gitaly-ssh'))
         gitaly_address = gitaly_client.address(storage)
-        gitaly_token = gitaly_client.token(storage)
+        shared_secret = gitaly_client.shared_secret(storage)
 
         request = Gitaly::SSHUploadPackRequest.new(repository: gitaly_repository, git_config_options: git_config_options)
         env = {
@@ -47,7 +47,7 @@ module Gitlab
           'GITALY_WD' => Dir.pwd,
           'GIT_SSH_COMMAND' => "#{gitaly_ssh} upload-pack"
         }
-        env['GITALY_TOKEN'] = gitaly_token if gitaly_token.present?
+        env['GITALY_TOKEN'] = shared_secret if shared_secret.present?
 
         env
       end

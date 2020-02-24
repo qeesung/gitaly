@@ -65,7 +65,7 @@ describe Gitlab::Git::RemoteRepository do
 
     let(:gitaly_client) { double(:gitaly_client) }
     let(:address) { 'fake-address' }
-    let(:token) { 'fake-token' }
+    let(:shared_secret) { 'fake-secret' }
 
     subject { remote_repository.fetch_env }
 
@@ -73,12 +73,12 @@ describe Gitlab::Git::RemoteRepository do
       allow(remote_repository).to receive(:gitaly_client).and_return(gitaly_client)
 
       expect(gitaly_client).to receive(:address).with(repository.storage).and_return(address)
-      expect(gitaly_client).to receive(:token).with(repository.storage).and_return(token)
+      expect(gitaly_client).to receive(:shared_secret).with(repository.storage).and_return(shared_secret)
     end
 
     it { expect(subject).to be_a(Hash) }
     it { expect(subject['GITALY_ADDRESS']).to eq(address) }
-    it { expect(subject['GITALY_TOKEN']).to eq(token) }
+    it { expect(subject['GITALY_TOKEN']).to eq(shared_secret) }
     it { expect(subject['GITALY_WD']).to eq(Dir.pwd) }
 
     it 'creates a plausible GIT_SSH_COMMAND' do
@@ -95,7 +95,7 @@ describe Gitlab::Git::RemoteRepository do
     end
 
     context 'when the token is blank' do
-      let(:token) { '' }
+      let(:shared_secret) { '' }
 
       it { expect(subject.keys).not_to include('GITALY_TOKEN') }
     end
