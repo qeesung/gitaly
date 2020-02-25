@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +34,10 @@ func (s *server) storagePath(storageName string) (string, error) {
 
 func walkStorage(ctx context.Context, storagePath string, stream proto.InternalGitaly_WalkReposServer) error {
 	return filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -42,16 +45,22 @@ func walkStorage(ctx context.Context, storagePath string, stream proto.InternalG
 			// keep walking
 		}
 
-		log.Default().WithField("path", path).Debug("walking dir")
 		if helper.IsGitDirectory(path) {
 			relPath, err := filepath.Rel(storagePath, path)
 			if err != nil {
 				return err
 			}
 
-			return stream.Send(&proto.WalkReposResponse{
+			if err := stream.Send(&proto.WalkReposResponse{
 				RelativePath: relPath,
-			})
+			}); err != nil {
+				return err
+			}
+
+			// once we know we are inside a git directory, we don't
+			// want to continue walking inside since that is
+			// resource intensive and unnecessary
+			return filepath.SkipDir
 		}
 
 		return nil
