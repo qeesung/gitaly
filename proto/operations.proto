@@ -57,12 +57,6 @@ service OperationService {
       op: MUTATOR
     };
   }
-  rpc UserRebase(UserRebaseRequest) returns (UserRebaseResponse) {
-    option deprecated = true;
-    option (op_type) = {
-      op: MUTATOR
-    };
-  }
   rpc UserRebaseConfirmable(stream UserRebaseConfirmableRequest) returns (stream UserRebaseConfirmableResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -317,28 +311,6 @@ message UserCommitFilesResponse {
   OperationBranchUpdate branch_update = 1;
   string index_error = 2;
   string pre_receive_error = 3;
-}
-
-// DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/1628
-message UserRebaseRequest {
-  option deprecated = true;
-
-  Repository repository = 1 [(target_repository)=true];
-  User user = 2;
-  string rebase_id = 3;
-  bytes branch = 4;
-  string branch_sha = 5;
-  Repository remote_repository = 6;
-  bytes remote_branch = 7;
-}
-
-// DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/1628
-message UserRebaseResponse {
-  option deprecated = true;
-
-  string rebase_sha = 1;
-  string pre_receive_error = 2;
-  string git_error = 3;
 }
 
 message UserRebaseConfirmableRequest {

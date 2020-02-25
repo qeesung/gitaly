@@ -241,26 +241,6 @@ module GitalyServer
       end
     end
 
-    # DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/1628
-    def user_rebase(request, call)
-      repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
-      user = Gitlab::Git::User.from_gitaly(request.user)
-      remote_repository = Gitlab::Git::GitalyRemoteRepository.new(request.remote_repository, call)
-      rebase_sha = repo.rebase(user, request.rebase_id,
-                               branch: request.branch,
-                               branch_sha: request.branch_sha,
-                               remote_repository: remote_repository,
-                               remote_branch: request.remote_branch)
-
-      Gitaly::UserRebaseResponse.new(rebase_sha: rebase_sha)
-    rescue Gitlab::Git::PreReceiveError => e
-      Gitaly::UserRebaseResponse.new(pre_receive_error: set_utf8!(e.message))
-    rescue Gitlab::Git::Repository::GitError => e
-      Gitaly::UserRebaseResponse.new(git_error: set_utf8!(e.message))
-    rescue Gitlab::Git::CommitError => e
-      raise GRPC::FailedPrecondition.new(e.message)
-    end
-
     def user_commit_files(call)
       actions = []
       request_enum = call.each_remote_read

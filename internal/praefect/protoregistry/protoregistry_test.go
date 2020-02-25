@@ -81,7 +81,6 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 			"UserFFBranch":        protoregistry.OpMutator,
 			"UserCherryPick":      protoregistry.OpMutator,
 			"UserCommitFiles":     protoregistry.OpMutator,
-			"UserRebase":          protoregistry.OpMutator,
 			"UserRevert":          protoregistry.OpMutator,
 			"UserSquash":          protoregistry.OpMutator,
 			"UserApplyPatch":      protoregistry.OpMutator,

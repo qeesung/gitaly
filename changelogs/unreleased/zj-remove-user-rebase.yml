@@ -1,0 +1,5 @@
+---
+title: Remove deprecated UserRebase RPC
+merge_request: 1851
+author:
+type: changed

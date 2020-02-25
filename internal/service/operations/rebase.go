@@ -3,15 +3,12 @@ package operations
 //lint:file-ignore SA1019 due to planned removal in issue https://gitlab.com/gitlab-org/gitaly/issues/1628
 
 import (
-	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) UserRebaseConfirmable(stream gitalypb.OperationService_UserRebaseConfirmableServer) error {
@@ -111,62 +108,6 @@ func validateUserRebaseConfirmableHeader(header *gitalypb.UserRebaseConfirmableR
 	}
 
 	if err := git.ValidateRevision(header.GetRemoteBranch()); err != nil {
-		return ErrInvalidBranch
-	}
-
-	return nil
-}
-
-// DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/1628
-func (s *server) UserRebase(ctx context.Context, req *gitalypb.UserRebaseRequest) (*gitalypb.UserRebaseResponse, error) {
-	if err := validateUserRebaseRequest(req); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "UserRebase: %v", err)
-	}
-
-	client, err := s.ruby.OperationServiceClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
-	if err != nil {
-		return nil, err
-	}
-
-	return client.UserRebase(clientCtx, req)
-}
-
-// DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/1628
-func validateUserRebaseRequest(req *gitalypb.UserRebaseRequest) error {
-	if req.GetRepository() == nil {
-		return errors.New("empty Repository")
-	}
-
-	if req.GetUser() == nil {
-		return errors.New("empty User")
-	}
-
-	if req.GetRebaseId() == "" {
-		return errors.New("empty RebaseId")
-	}
-
-	if req.GetBranch() == nil {
-		return errors.New("empty Branch")
-	}
-
-	if req.GetBranchSha() == "" {
-		return errors.New("empty BranchSha")
-	}
-
-	if req.GetRemoteRepository() == nil {
-		return errors.New("empty RemoteRepository")
-	}
-
-	if req.GetRemoteBranch() == nil {
-		return errors.New("empty RemoteBranch")
-	}
-
-	if err := git.ValidateRevision(req.GetRemoteBranch()); err != nil {
 		return ErrInvalidBranch
 	}
 
