@@ -1,6 +1,4 @@
 # Example Praefect configuration file
-virtual_storage_name = "praefect"
-
 # # TCP address to listen on
 listen_addr = "127.0.0.1:2305"
 
@@ -28,19 +26,21 @@ listen_addr = "127.0.0.1:2305"
 # as shard. listen_addr should be unique for all nodes.
 # Requires the protocol to be defined, e.g. tcp://host.tld:1234
 
-[[node]]
+[[virtual_storage]]
+name = 'praefect'
+
+[[virtual_storage.node]]
   storage = "praefect-git-0"
   address = "tcp://praefect-git-0.internal"
   primary = true
   token = 'token1'
 
-[[node]]
+[[virtual_storage.node]]
   storage = "praefect-git-1"
   address = "tcp://praefect-git-1.internal"
   token = 'token2'
 
-[[node]]
+[[virtual_storage.node]]
   storage = "praefect-git-2"
   address = "tcp://praefect-git-2.internal"
   token = 'token3'
-
