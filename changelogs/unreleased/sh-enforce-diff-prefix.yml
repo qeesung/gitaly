@@ -1,0 +1,5 @@
+---
+title: Enforce diff.noprefix=false for generating Git diffs
+merge_request: 1854
+author:
+type: fixed

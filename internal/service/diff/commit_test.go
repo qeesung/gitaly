@@ -21,20 +21,11 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 	client, conn := newDiffClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
 	rightCommit := "ab2c9622c02288a2bbaaf35d96088cfdff31d9d9"
 	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
-	rpcRequest := &gitalypb.CommitDiffRequest{Repository: testRepo, RightCommitId: rightCommit, LeftCommitId: leftCommit, IgnoreWhitespaceChange: false}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c, err := client.CommitDiff(ctx, rpcRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	expectedDiffs := []diff.Diff{
 		{
 			FromID:   "faaf198af3a36dbf41961466703cc1d47c61d051",
@@ -175,7 +166,29 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 		},
 	}
 
-	assertExactReceivedDiffs(t, c, expectedDiffs)
+	testCases := []struct {
+		noPrefixConfig string
+		desc           string
+	}{
+		{noPrefixConfig: "false", desc: "Git config diff.noprefix set to false"},
+		{noPrefixConfig: "true", desc: "Git config diff.noprefix set to true"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "diff.noprefix", testCase.noPrefixConfig)
+			rpcRequest := &gitalypb.CommitDiffRequest{Repository: testRepo, RightCommitId: rightCommit, LeftCommitId: leftCommit, IgnoreWhitespaceChange: false}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			c, err := client.CommitDiff(ctx, rpcRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assertExactReceivedDiffs(t, c, expectedDiffs)
+		})
+	}
 }
 
 func TestSuccessfulCommitDiffRequestWithPaths(t *testing.T) {
