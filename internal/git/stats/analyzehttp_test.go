@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -66,6 +67,36 @@ func TestClone(t *testing.T) {
 		require.True(t, m.value > previousValue, "post: expect %s (%v) to be greater than previous value %v", m.desc, m.value, previousValue)
 		previousValue = m.value
 	}
+}
+
+func TestCloneWithAuth(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	_, repoPath, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	const (
+		user     = "test-user"
+		password = "test-password"
+	)
+
+	serverPort, stopGitServer := testhelper.GitServer(t, repoPath, func(w http.ResponseWriter, r *http.Request, next http.Handler) {
+		actualUser, actualPassword, ok := r.BasicAuth()
+		require.True(t, ok, "request should have basic auth")
+		require.Equal(t, user, actualUser)
+		require.Equal(t, password, actualPassword)
+
+		next.ServeHTTP(w, r)
+	})
+	defer stopGitServer()
+
+	clone := Clone{
+		URL:      fmt.Sprintf("http://localhost:%d/%s", serverPort, filepath.Base(repoPath)),
+		User:     user,
+		Password: password,
+	}
+	require.NoError(t, clone.Perform(ctx), "perform analysis clone")
 }
 
 func TestBandToHuman(t *testing.T) {
