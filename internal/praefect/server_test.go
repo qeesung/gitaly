@@ -24,7 +24,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/labkit/correlation"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -416,12 +415,9 @@ func TestRepoRemoval(t *testing.T) {
 
 	rClient := gitalypb.NewRepositoryServiceClient(cc)
 
-	_, err := rClient.RemoveRepository(
-		correlation.ContextWithCorrelation(ctx, "1"),
-		&gitalypb.RemoveRepositoryRequest{
-			Repository: &virtualRepo,
-		},
-	)
+	_, err := rClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
+		Repository: &virtualRepo,
+	})
 	require.NoError(t, err)
 
 	resp, err := rClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{

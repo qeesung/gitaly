@@ -25,7 +25,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -104,7 +103,6 @@ func TestProcessReplicationJob(t *testing.T) {
 	defer cancel()
 
 	injectedCtx := metadata.NewOutgoingContext(ctx, testhelper.GitalyServersMetadata(t, srvSocketPath))
-	injectedCtx = correlation.ContextWithCorrelation(injectedCtx, "1")
 
 	repoClient, con := newRepositoryClient(t, srvSocketPath)
 	defer con.Close()
@@ -124,7 +122,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	for _, secondary := range secondaries {
 		secondaryStorages = append(secondaryStorages, secondary.Storage)
 	}
-	_, err = ds.CreateReplicaReplJobs("1", testRepo.GetRelativePath(), primary.Storage, secondaryStorages, datastore.UpdateRepo)
+	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, secondaryStorages, datastore.UpdateRepo)
 	require.NoError(t, err)
 
 	jobs, err := ds.GetJobs(datastore.JobStateReady|datastore.JobStatePending, backupStorageName, 1)
@@ -270,7 +268,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	)
 
 	ds := datastore.NewInMemory(config)
-	ids, err := ds.CreateReplicaReplJobs("1", testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
+	ids, err := ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
 	require.NoError(t, err)
 	require.Len(t, ids, 1)
 
@@ -369,7 +367,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	)
 
 	ds := datastore.NewInMemory(config)
-	ids, err := ds.CreateReplicaReplJobs("1", testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
+	ids, err := ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo)
 	require.NoError(t, err)
 	require.Len(t, ids, 1)
 

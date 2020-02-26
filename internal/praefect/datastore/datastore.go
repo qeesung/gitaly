@@ -63,7 +63,6 @@ type ReplJob struct {
 	RelativePath           string      // source for replication
 	State                  JobState
 	Attempts               int
-	CorrelationID          string // from original request
 }
 
 // replJobs provides sort manipulation behavior
@@ -109,7 +108,7 @@ type ReplJobsDatastore interface {
 	// CreateReplicaReplJobs will create replication jobs for each secondary
 	// replica of a repository known to the datastore. A set of replication job
 	// ID's for the created jobs will be returned upon success.
-	CreateReplicaReplJobs(correlationID string, relativePath string, primaryStorage string, secondaryStorages []string, change ChangeType) ([]uint64, error)
+	CreateReplicaReplJobs(relativePath string, primaryStorage string, secondaryStorages []string, change ChangeType) ([]uint64, error)
 
 	// UpdateReplJobState updates the state of an existing replication job
 	UpdateReplJobState(jobID uint64, newState JobState) error
@@ -123,7 +122,6 @@ type jobRecord struct {
 	targetNodeStorage, sourceNodeStorage string
 	state                                JobState
 	attempts                             int
-	correlationID                        string // from original request
 }
 
 // MemoryDatastore is a simple datastore that isn't persisted to disk. It is
@@ -288,14 +286,13 @@ func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (Re
 	}
 
 	return ReplJob{
-		Change:        record.change,
-		ID:            jobID,
-		RelativePath:  record.relativePath,
-		SourceNode:    sourceNode,
-		State:         record.state,
-		TargetNode:    targetNode,
-		Attempts:      record.attempts,
-		CorrelationID: record.correlationID,
+		Change:       record.change,
+		ID:           jobID,
+		RelativePath: record.relativePath,
+		SourceNode:   sourceNode,
+		State:        record.state,
+		TargetNode:   targetNode,
+		Attempts:     record.attempts,
 	}, nil
 }
 
@@ -305,15 +302,12 @@ var ErrInvalidReplTarget = errors.New("targetStorage repository fails preconditi
 
 // CreateReplicaReplJobs creates a replication job for each secondary that
 // backs the specified repository. Upon success, the job IDs will be returned.
-func (md *MemoryDatastore) CreateReplicaReplJobs(correlationID string, relativePath string, primaryStorage string, secondaryStorages []string, change ChangeType) ([]uint64, error) {
+func (md *MemoryDatastore) CreateReplicaReplJobs(relativePath string, primaryStorage string, secondaryStorages []string, change ChangeType) ([]uint64, error) {
 	md.jobs.Lock()
 	defer md.jobs.Unlock()
 
 	if relativePath == "" {
 		return nil, errors.New("invalid source repository")
-	}
-	if correlationID == "" {
-		return nil, errors.New("invalid correlation ID")
 	}
 
 	var jobIDs []uint64
@@ -327,7 +321,6 @@ func (md *MemoryDatastore) CreateReplicaReplJobs(correlationID string, relativeP
 			state:             JobStatePending,
 			relativePath:      relativePath,
 			sourceNodeStorage: primaryStorage,
-			correlationID:     correlationID,
 		}
 
 		jobIDs = append(jobIDs, nextID)

@@ -16,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -98,7 +97,7 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi prot
 			return nil, err
 		}
 
-		if requestFinalizer, err = c.createReplicaJobs(ctx, targetRepo, primary, secondaries, change); err != nil {
+		if requestFinalizer, err = c.createReplicaJobs(targetRepo, primary, secondaries, change); err != nil {
 			return nil, err
 		}
 	}
@@ -189,13 +188,12 @@ func protoMessageFromPeeker(mi protoregistry.MethodInfo, peeker proxy.StreamModi
 	return m, nil
 }
 
-func (c *Coordinator) createReplicaJobs(ctx context.Context, targetRepo *gitalypb.Repository, primary nodes.Node, secondaries []nodes.Node, change datastore.ChangeType) (func(), error) {
+func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, primary nodes.Node, secondaries []nodes.Node, change datastore.ChangeType) (func(), error) {
 	var secondaryStorages []string
 	for _, secondary := range secondaries {
 		secondaryStorages = append(secondaryStorages, secondary.GetStorage())
 	}
-
-	jobIDs, err := c.datastore.CreateReplicaReplJobs(correlation.ExtractFromContext(ctx), targetRepo.RelativePath, primary.GetStorage(), secondaryStorages, change)
+	jobIDs, err := c.datastore.CreateReplicaReplJobs(targetRepo.RelativePath, primary.GetStorage(), secondaryStorages, change)
 	if err != nil {
 		return nil, err
 	}

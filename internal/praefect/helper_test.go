@@ -27,7 +27,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	correlation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -289,8 +288,6 @@ func listenAvailPort(tb testing.TB) (net.Listener, int) {
 func dialLocalPort(tb testing.TB, port int, backend bool) *grpc.ClientConn {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithUnaryInterceptor(correlation.UnaryClientCorrelationInterceptor()),
-		grpc.WithStreamInterceptor(correlation.StreamClientCorrelationInterceptor()),
 	}
 	if backend {
 		opts = append(

@@ -13,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
-	correlation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -87,8 +86,6 @@ func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption)
 			conn, err := client.Dial(node.Address,
 				append(
 					[]grpc.DialOption{
-						grpc.WithUnaryInterceptor(correlation.UnaryClientCorrelationInterceptor()),
-						grpc.WithStreamInterceptor(correlation.StreamClientCorrelationInterceptor()),
 						grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
 						grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(node.Token)),
 						grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
