@@ -81,7 +81,11 @@ func TestCloneWithAuth(t *testing.T) {
 		password = "test-password"
 	)
 
+	authWasChecked := false
+
 	serverPort, stopGitServer := testhelper.GitServer(t, repoPath, func(w http.ResponseWriter, r *http.Request, next http.Handler) {
+		authWasChecked = true
+
 		actualUser, actualPassword, ok := r.BasicAuth()
 		require.True(t, ok, "request should have basic auth")
 		require.Equal(t, user, actualUser)
@@ -97,6 +101,8 @@ func TestCloneWithAuth(t *testing.T) {
 		Password: password,
 	}
 	require.NoError(t, clone.Perform(ctx), "perform analysis clone")
+
+	require.True(t, authWasChecked, "authentication middleware should have gotten triggered")
 }
 
 func TestBandToHuman(t *testing.T) {
