@@ -1,0 +1,5 @@
+---
+title: Internal RPC for walking Gitaly repos
+merge_request: 1855
+author:
+type: added
