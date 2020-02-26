@@ -6,13 +6,13 @@ describe Gitlab::Git::PushResults do
   it 'parses porcelain output' do
     output = <<~OUTPUT
       To gitlab.com:gitlab-org/security/gitlab-foss.git
-      = \t refs/heads/12-5-stable:refs/heads/12-5-stable \t [up to date]
-      = \t refs/heads/12-6-stable:refs/heads/12-6-stable \t [up to date]
-      * \t refs/heads/rs-some-new-branch:refs/heads/rs-some-new-branch \t [new branch]
-        \t refs/heads/rs-fast-forward:refs/heads/rs-fast-forward \t [fast-forward]
-      - \t refs/heads/rs-deleted:refs/heads/rs-deleted \t [deleted]
-      + \t refs/heads/rs-forced:refs/heads/rs-forced \t [forced]
-      ! \t refs/heads/12-7-stable:refs/heads/12-7-stable \t [rejected] (fetch first)
+      =\trefs/heads/12-5-stable:refs/heads/12-5-stable\t[up to date]
+      =\trefs/heads/12-6-stable:refs/heads/12-6-stable\t[up to date]
+      *\trefs/heads/rs-some-new-branch:refs/heads/rs-some-new-branch\t[new branch]
+       \trefs/heads/rs-fast-forward:refs/heads/rs-fast-forward\t[fast-forward]
+      -\trefs/heads/rs-deleted:refs/heads/rs-deleted\t[deleted]
+      +\trefs/heads/rs-forced:refs/heads/rs-forced\t[forced]
+      !\trefs/heads/12-7-stable:refs/heads/12-7-stable\t[rejected] (fetch first)
       Done
       error: failed to push some refs to 'git@gitlab.com:gitlab-org/security/gitlab-foss.git'
       hint: Updates were rejected because the remote contains work that you do

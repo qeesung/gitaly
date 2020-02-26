@@ -11,13 +11,14 @@ module Gitlab
         #     <flag> \t <from>:<to> \t <summary> (<reason>)
         #
         # See https://git-scm.com/docs/git-push#_output
+        # and https://github.com/git/git/blob/v2.25.1/transport.c#L466-L475
         @all = raw_output.each_line.map do |line|
           line.chomp!
 
-          fields = line.split(" \t ", 3)
+          fields = line.split("\t", 3)
 
           # Sanity check for porcelain output
-          next unless fields.size >= 3
+          next unless fields.size == 3
 
           flag = fields.shift
           next unless Result.valid_flag?(flag)
