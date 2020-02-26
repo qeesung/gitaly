@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -20,7 +20,7 @@ func runInternalGitalyServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	proto.RegisterInternalGitalyServer(grpcServer, NewServer(config.Config.Storages))
+	gitalypb.RegisterInternalGitalyServer(grpcServer, NewServer(config.Config.Storages))
 	reflection.Register(grpcServer)
 
 	go grpcServer.Serve(listener)
@@ -28,7 +28,7 @@ func runInternalGitalyServer(t *testing.T) (*grpc.Server, string) {
 	return grpcServer, "unix://" + serverSocketPath
 }
 
-func newInternalGitalyClient(t *testing.T, serverSocketPath string) (proto.InternalGitalyClient, *grpc.ClientConn) {
+func newInternalGitalyClient(t *testing.T, serverSocketPath string) (gitalypb.InternalGitalyClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
@@ -37,5 +37,5 @@ func newInternalGitalyClient(t *testing.T, serverSocketPath string) (proto.Inter
 		t.Fatal(err)
 	}
 
-	return proto.NewInternalGitalyClient(conn), conn
+	return gitalypb.NewInternalGitalyClient(conn), conn
 }

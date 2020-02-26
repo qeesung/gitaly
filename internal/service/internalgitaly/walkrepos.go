@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/proto"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (s *server) WalkRepos(req *proto.WalkReposRequest, stream proto.InternalGitaly_WalkReposServer) error {
+func (s *server) WalkRepos(req *gitalypb.WalkReposRequest, stream gitalypb.InternalGitaly_WalkReposServer) error {
 	sPath, err := s.storagePath(req.GetStorageName())
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func (s *server) storagePath(storageName string) (string, error) {
 	)
 }
 
-func walkStorage(ctx context.Context, storagePath string, stream proto.InternalGitaly_WalkReposServer) error {
+func walkStorage(ctx context.Context, storagePath string, stream gitalypb.InternalGitaly_WalkReposServer) error {
 	return filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -51,7 +51,7 @@ func walkStorage(ctx context.Context, storagePath string, stream proto.InternalG
 				return err
 			}
 
-			if err := stream.Send(&proto.WalkReposResponse{
+			if err := stream.Send(&gitalypb.WalkReposResponse{
 				RelativePath: relPath,
 			}); err != nil {
 				return err

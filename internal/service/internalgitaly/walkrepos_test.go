@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func TestWalkRepos(t *testing.T) {
@@ -23,7 +23,7 @@ func TestWalkRepos(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	stream, err := client.WalkRepos(ctx, &proto.WalkReposRequest{
+	stream, err := client.WalkRepos(ctx, &gitalypb.WalkReposRequest{
 		StorageName: config.Config.Storages[0].Name,
 	})
 	require.NoError(t, err)
@@ -32,7 +32,7 @@ func TestWalkRepos(t *testing.T) {
 	require.Contains(t, actualRepos, testRepo.GetRelativePath())
 }
 
-func consumeWalkReposStream(t *testing.T, stream proto.InternalGitaly_WalkReposClient) []string {
+func consumeWalkReposStream(t *testing.T, stream gitalypb.InternalGitaly_WalkReposClient) []string {
 	var repos []string
 	for {
 		resp, err := stream.Recv()
