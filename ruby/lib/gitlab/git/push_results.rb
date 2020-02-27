@@ -30,14 +30,14 @@ module Gitlab
         end.compact
       end
 
-      # Returns an Array of branch names that were not rejected nor up-to-date
-      def accepted_branches
-        all.select(&:accepted?).collect(&:branch_name)
+      # Returns an Array of ref names that were not rejected nor up-to-date
+      def accepted_refs
+        all.select(&:accepted?).collect(&:ref_name)
       end
 
-      # Returns an Array of branch names that were rejected
-      def rejected_branches
-        all.select(&:rejected?).collect(&:branch_name)
+      # Returns an Array of ref names that were rejected
+      def rejected_refs
+        all.select(&:rejected?).collect(&:ref_name)
       end
 
       Result = Struct.new(:flag_char, :from, :to, :summary) do
@@ -67,8 +67,8 @@ module Gitlab
           !rejected? && flag != :up_to_date
         end
 
-        def branch_name
-          to.delete_prefix('refs/heads/')
+        def ref_name
+          to.delete_prefix('refs/heads/').delete_prefix('refs/tags/')
         end
       end
     end

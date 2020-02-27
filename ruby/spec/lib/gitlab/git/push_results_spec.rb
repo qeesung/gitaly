@@ -13,6 +13,7 @@ describe Gitlab::Git::PushResults do
       -\trefs/heads/rs-deleted:refs/heads/rs-deleted\t[deleted]
       +\trefs/heads/rs-forced:refs/heads/rs-forced\t[forced]
       !\trefs/heads/12-7-stable:refs/heads/12-7-stable\t[rejected] (fetch first)
+      *\trefs/tags/v1.2.3:refs/tags/v1.2.3\t[new tag]
       Done
       error: failed to push some refs to 'git@gitlab.com:gitlab-org/security/gitlab-foss.git'
       hint: Updates were rejected because the remote contains work that you do
@@ -24,14 +25,15 @@ describe Gitlab::Git::PushResults do
 
     results = described_class.new(output)
 
-    expect(results.all.size).to eq(7)
-    expect(results.accepted_branches).to contain_exactly(
+    expect(results.all.size).to eq(8)
+    expect(results.accepted_refs).to contain_exactly(
       'rs-some-new-branch',
       'rs-fast-forward',
       'rs-forced',
-      'rs-deleted'
+      'rs-deleted',
+      'v1.2.3'
     )
-    expect(results.rejected_branches).to contain_exactly('12-7-stable')
+    expect(results.rejected_refs).to contain_exactly('12-7-stable')
   end
 
   it 'ignores non-porcelain output' do

@@ -43,8 +43,8 @@ describe Gitlab::Git::RepositoryMirroring do
         allow(projects_stub).to receive(:logger).and_return(logger)
 
         push_results = double(
-          accepted_branches: %w[develop],
-          rejected_branches: %w[master]
+          accepted_refs: %w[develop],
+          rejected_refs: %w[master]
         )
         expect(Gitlab::Git::PushResults).to receive(:new)
           .with(output)
