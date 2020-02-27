@@ -12,7 +12,7 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
   CHECK_TIMEOUT = 5
   API_INACCESSIBLE_MESSAGE = 'API is not accessible'.freeze
 
-  def check_access(cmd, gl_repository, repo, who, changes, protocol, env: {})
+  def check_access(cmd, gl_repository, repo, gl_id, changes, protocol, env: {})
     changes = changes.join("\n") unless changes.is_a?(String)
 
     params = {
@@ -24,8 +24,8 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
       env: env
     }
 
-    who_sym, _, who_v = self.class.parse_who(who)
-    params[who_sym] = who_v
+    gl_id_sym, gl_id_value = self.class.parse_gl_id(gl_id)
+    params[gl_id_sym] = gl_id_value
 
     url = "#{internal_api_endpoint}/allowed"
     resp = post(url, params)
@@ -97,19 +97,19 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
     JSON.parse(resp.body) if resp.code == '200'
   end
 
-  def self.parse_who(who)
-    if who.start_with?("key-")
-      value = who.gsub("key-", "")
-      raise ArgumentError, "who='#{who}' is invalid!" unless value =~ /\A[0-9]+\z/
-      [:key_id, 'key_id', value]
-    elsif who.start_with?("user-")
-      value = who.gsub("user-", "")
-      raise ArgumentError, "who='#{who}' is invalid!" unless value =~ /\A[0-9]+\z/
-      [:user_id, 'user_id', value]
-    elsif who.start_with?("username-")
-      [:username, 'username', who.gsub("username-", "")]
+  def self.parse_gl_id(gl_id)
+    if gl_id.start_with?("key-")
+      value = gl_id.gsub("key-", "")
+      raise ArgumentError, "gl_id='#{gl_id}' is invalid!" unless value =~ /\A[0-9]+\z/
+      [:key_id, value]
+    elsif gl_id.start_with?("user-")
+      value = gl_id.gsub("user-", "")
+      raise ArgumentError, "gl_id='#{gl_id}' is invalid!" unless value =~ /\A[0-9]+\z/
+      [:user_id, value]
+    elsif gl_id.start_with?("username-")
+      [:username, gl_id.gsub("username-", "")]
     else
-      raise ArgumentError, "who='#{who}' is invalid!"
+      raise ArgumentError, "gl_id='#{gl_id}' is invalid!"
     end
   end
 
