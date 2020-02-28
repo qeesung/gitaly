@@ -80,7 +80,7 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
       gl_repository: gl_repository,
       identifier: gl_id,
       changes: changes,
-      :"push_options[]" => push_options,	# rubocop:disable Style/HashSyntax
+      :'push_options[]' => push_options,	# rubocop:disable Style/HashSyntax
     }
     resp = post("#{internal_api_endpoint}/post_receive", params)
 
@@ -98,16 +98,16 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
   end
 
   def self.parse_gl_id(gl_id)
-    if gl_id.start_with?("key-")
-      value = gl_id.gsub("key-", "")
+    if gl_id.start_with?('key-')
+      value = gl_id.gsub('key-', '')
       raise ArgumentError, "gl_id='#{gl_id}' is invalid!" unless value =~ /\A[0-9]+\z/
       [:key_id, value]
-    elsif gl_id.start_with?("user-")
-      value = gl_id.gsub("user-", "")
+    elsif gl_id.start_with?('user-')
+      value = gl_id.gsub('user-', '')
       raise ArgumentError, "gl_id='#{gl_id}' is invalid!" unless value =~ /\A[0-9]+\z/
       [:user_id, value]
-    elsif gl_id.start_with?("username-")
-      [:username, gl_id.gsub("username-", "")]
+    elsif gl_id.start_with?('username-')
+      [:username, gl_id.gsub('username-', '')]
     else
       raise ArgumentError, "gl_id='#{gl_id}' is invalid!"
     end
