@@ -73,7 +73,9 @@ func (cl *Clone) doGet(ctx context.Context) error {
 	}
 
 	req = req.WithContext(ctx)
-	req.SetBasicAuth(cl.User, cl.Password)
+	if cl.User != "" {
+		req.SetBasicAuth(cl.User, cl.Password)
+	}
 
 	for k, v := range map[string]string{
 		"User-Agent":      "gitaly-debug",
@@ -237,7 +239,9 @@ func (cl *Clone) buildPost(ctx context.Context) (*http.Request, error) {
 	}
 
 	req = req.WithContext(ctx)
-	req.SetBasicAuth(cl.User, cl.Password)
+	if cl.User != "" {
+		req.SetBasicAuth(cl.User, cl.Password)
+	}
 
 	for k, v := range map[string]string{
 		"User-Agent":       "gitaly-debug",
