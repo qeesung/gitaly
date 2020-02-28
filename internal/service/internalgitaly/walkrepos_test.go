@@ -8,6 +8,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestWalkRepos(t *testing.T) {
@@ -24,6 +26,17 @@ func TestWalkRepos(t *testing.T) {
 	defer cancel()
 
 	stream, err := client.WalkRepos(ctx, &gitalypb.WalkReposRequest{
+		StorageName: "invalid storage name",
+	})
+	require.NoError(t, err)
+
+	_, err = stream.Recv()
+	require.NotNil(t, err)
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.NotFound, s.Code())
+
+	stream, err = client.WalkRepos(ctx, &gitalypb.WalkReposRequest{
 		StorageName: config.Config.Storages[0].Name,
 	})
 	require.NoError(t, err)
