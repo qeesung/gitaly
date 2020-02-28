@@ -132,6 +132,15 @@ tagging a RC is a good way to make sure the feature branch has the proper gitaly
   has a **manual** job, `update-downstream-server-version`, that will create a merge request on the GitLab codebase to bump the Gitaly server version, and this will be assigned to you. 
   Once the build has completed successfully, assign it to a maintainer for review.
 
+### Publishing the ruby gem
+
+If an updated version of the ruby proto gem is needed, it can be published to rubygems.org with the `_support/publish-gem` script.
+
+If the changes needed are not yet released, [create a release candidate](#creating-a-release-candidate) first.
+
+- Checkout the tag to publish (vX.Y.Z)
+- run `_support/publish-gem X.Y.Z`
+
 ##### Security release
 
 Security releases involve additional processes to ensure that recent releases
