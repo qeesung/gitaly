@@ -10,7 +10,7 @@ REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
   https://gitlab.com/gitlab-org/gitaly.git
   https://janedoe@gitlab.com/gitlab-org/gitaly.git
 ].each do |remote|
-  abort "regex check failed failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
+  abort "regex check failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
 end
 
 def main(tag)
@@ -21,10 +21,22 @@ def main(tag)
 
   version = tag.sub(/^v/, '')
 
-  unless version.match?(/\d+\.\d+\.\d+/)
+  unless version.match?(/\d+\.\d+\.\d+(-rc\d+)?/)
     abort "Version string #{version.inspect} does not look like a Gitaly Release tag (e.g. \"v1.0.2\"). Aborting."
   end
 
+  ref = capture!(%w[git describe --tag]).chomp
+  if ref != "v#{version}"
+    abort "Checkout tag v#{version} to publish.\n\t git checkout v#{version}"
+  end
+
+  puts 'Testing for changed files'
+  run!(%w[git diff --quiet --exit-code])
+
+  puts 'Testing for staged changes'
+  run!(%w[git diff --quiet --cached --exit-code])
+
+  run!(%w[gem build gitaly.gemspec])
   gem = "gitaly-#{version}.gem"
   abort "gem not found: #{gem}" unless File.exist?(gem)
 
@@ -32,15 +44,7 @@ def main(tag)
   $stdout.flush
   abort unless $stdin.gets.chomp == 'Yes'
 
-  run!(%W[git push origin HEAD #{tag}])
   run!(%W[gem push #{gem}])
-
-  # If this tag is not a patch release, we want a stable branch to be created
-  return unless version.match?(/\.0\z/)
-
-  stable_branch = "#{version.gsub(/\.0\z/, '').gsub('.', '-')}-stable"
-  run!(%W[git branch #{stable_branch} #{tag}])
-  run!(%W[git push -u origin #{stable_branch}])
 end
 
 unless ARGV.count == 1
