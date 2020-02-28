@@ -25,6 +25,7 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 		"GlRepository":     req.GlRepository,
 		"GlUsername":       req.GlUsername,
 		"GitConfigOptions": req.GitConfigOptions,
+		"GitProtocol":      req.GitProtocol,
 	}).Debug("SSHReceivePack")
 
 	if err = validateFirstReceivePackRequest(req); err != nil {

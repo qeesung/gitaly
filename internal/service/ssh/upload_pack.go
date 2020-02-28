@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
@@ -18,6 +20,17 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
+
+	repository := ""
+	if req.Repository != nil {
+		repository = req.Repository.GlRepository
+	}
+
+	grpc_logrus.Extract(stream.Context()).WithFields(log.Fields{
+		"GlRepository":     repository,
+		"GitConfigOptions": req.GitConfigOptions,
+		"GitProtocol":      req.GitProtocol,
+	}).Debug("SSHUploadPack")
 
 	if err = validateFirstUploadPackRequest(req); err != nil {
 		return helper.ErrInvalidArgument(err)
