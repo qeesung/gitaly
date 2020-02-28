@@ -69,4 +69,16 @@ describe Gitlab::Git::PushResults do
 
     expect(described_class.new(output).all).to eq([])
   end
+
+  describe Gitlab::Git::PushResults::Result do
+    describe '#ref_name' do
+      it 'deletes only one prefix' do
+        # It's  valid (albeit insane) for a branch to be named `refs/tags/foo`
+        ref_name = 'refs/heads/refs/tags/branch'
+        result = described_class.new('!', ref_name, ref_name, '')
+
+        expect(result.ref_name).to eq('refs/tags/branch')
+      end
+    end
+  end
 end

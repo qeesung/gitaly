@@ -68,7 +68,7 @@ module Gitlab
         end
 
         def ref_name
-          to.delete_prefix('refs/heads/').delete_prefix('refs/tags/')
+          to.sub(%r{\Arefs/(heads|tags)/}, '')
         end
       end
     end
