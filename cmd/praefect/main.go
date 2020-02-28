@@ -152,10 +152,15 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return err
 	}
 
+	registry := protoregistry.New()
+	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {
+		return err
+	}
+
 	var (
 		// top level server dependencies
 		ds          = datastore.NewInMemory(conf)
-		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, protoregistry.GitalyProtoFileDescriptors...)
+		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, registry)
 		repl        = praefect.NewReplMgr(
 			conf.VirtualStorages[0].Name,
 			logger,
@@ -163,7 +168,8 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			nodeManager,
 			praefect.WithLatencyMetric(latencyMetric),
 			praefect.WithQueueMetric(queueMetric))
-		srv          = praefect.NewServer(coordinator, repl, nil, logger, nodeManager, conf)
+		srv = praefect.NewServer(coordinator.StreamDirector, logger, registry, conf)
+
 		serverErrors = make(chan error, 1)
 	)
 
@@ -177,7 +183,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return fmt.Errorf("unable to create a bootstrap: %v", err)
 	}
 
-	srv.RegisterServices()
+	srv.RegisterServices(nodeManager, conf)
 
 	b.StopAction = srv.GracefulStop
 	for _, cfg := range cfgs {
@@ -192,8 +198,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	go func() {
 		serverErrors <- repl.ProcessBacklog(ctx, praefect.ExpBackoffFunc(1*time.Second, 5*time.Second))
 	}()
-
-	go coordinator.FailoverRotation()
 
 	return <-serverErrors
 }

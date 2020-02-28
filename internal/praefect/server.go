@@ -18,7 +18,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/middleware"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -31,11 +33,8 @@ import (
 
 // Server is a praefect server
 type Server struct {
-	nodeManager nodes.Manager
-	repl        ReplMgr
-	s           *grpc.Server
-	conf        config.Config
-	l           *logrus.Entry
+	s *grpc.Server
+	l *logrus.Entry
 }
 
 func (srv *Server) warnDupeAddrs(c config.Config) {
@@ -60,16 +59,17 @@ func (srv *Server) warnDupeAddrs(c config.Config) {
 
 // NewServer returns an initialized praefect gPRC proxy server configured
 // with the provided gRPC server options
-func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *logrus.Entry, nodeManager nodes.Manager, conf config.Config) *Server {
+func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.Registry, conf config.Config, grpcOpts ...grpc.ServerOption) *Server {
 	ctxTagOpts := []grpc_ctxtags.Option{
 		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}
 
-	grpcOpts = append(grpcOpts, proxyRequiredOpts(c.streamDirector)...)
+	grpcOpts = append(grpcOpts, proxyRequiredOpts(director)...)
 	grpcOpts = append(grpcOpts, []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
 			grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
+			middleware.MethodTypeStreamInterceptor(r),
 			metadatahandler.StreamInterceptor,
 			grpc_prometheus.StreamServerInterceptor,
 			grpc_logrus.StreamServerInterceptor(l),
@@ -84,6 +84,7 @@ func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *lo
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(ctxTagOpts...),
 			grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
+			middleware.MethodTypeUnaryInterceptor(r),
 			metadatahandler.UnaryInterceptor,
 			grpc_prometheus.UnaryServerInterceptor,
 			grpc_logrus.UnaryServerInterceptor(l),
@@ -98,11 +99,8 @@ func NewServer(c *Coordinator, repl ReplMgr, grpcOpts []grpc.ServerOption, l *lo
 	}...)
 
 	s := &Server{
-		s:           grpc.NewServer(grpcOpts...),
-		repl:        repl,
-		nodeManager: nodeManager,
-		conf:        conf,
-		l:           l,
+		s: grpc.NewServer(grpcOpts...),
+		l: l,
 	}
 
 	s.warnDupeAddrs(conf)
@@ -123,9 +121,9 @@ func (srv *Server) Serve(l net.Listener, secure bool) error {
 }
 
 // RegisterServices will register any services praefect needs to handle rpcs on its own
-func (srv *Server) RegisterServices() {
+func (srv *Server) RegisterServices(nm nodes.Manager, conf config.Config) {
 	// ServerServiceServer is necessary for the ServerInfo RPC
-	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(srv.conf, srv.nodeManager))
+	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(conf, nm))
 
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 

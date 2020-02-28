@@ -2,13 +2,8 @@ package praefect
 
 import (
 	"context"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -28,33 +23,22 @@ func isDestructive(methodName string) bool {
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
 type Coordinator struct {
-	nodeMgr       nodes.Manager
-	log           *logrus.Entry
-	failoverMutex sync.RWMutex
-
+	nodeMgr   nodes.Manager
+	log       logrus.FieldLogger
 	datastore datastore.Datastore
-
-	registry *protoregistry.Registry
-	conf     config.Config
+	registry  *protoregistry.Registry
+	conf      config.Config
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l *logrus.Entry, ds datastore.Datastore, nodeMgr nodes.Manager, conf config.Config, fileDescriptors ...*descriptor.FileDescriptorProto) *Coordinator {
-	registry := protoregistry.New()
-	registry.RegisterFiles(fileDescriptors...)
-
+func NewCoordinator(l logrus.FieldLogger, ds datastore.Datastore, nodeMgr nodes.Manager, conf config.Config, r *protoregistry.Registry) *Coordinator {
 	return &Coordinator{
 		log:       l,
 		datastore: ds,
-		registry:  registry,
+		registry:  r,
 		nodeMgr:   nodeMgr,
 		conf:      conf,
 	}
-}
-
-// RegisterProtos allows coordinator to register new protos on the fly
-func (c *Coordinator) RegisterProtos(protos ...*descriptor.FileDescriptorProto) error {
-	return c.registry.RegisterFiles(protos...)
 }
 
 func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi protoregistry.MethodInfo, peeker proxy.StreamModifier, fullMethodName string, m proto.Message) (*proxy.StreamParameters, error) {
@@ -106,13 +90,10 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi prot
 }
 
 // streamDirector determines which downstream servers receive requests
-func (c *Coordinator) streamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
+func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 	// For phase 1, we need to route messages based on the storage location
 	// to the appropriate Gitaly node.
 	c.log.Debugf("Stream director received method %s", fullMethodName)
-
-	c.failoverMutex.RLock()
-	defer c.failoverMutex.RUnlock()
 
 	mi, err := c.registry.LookupMethod(fullMethodName)
 	if err != nil {
@@ -208,23 +189,4 @@ func (c *Coordinator) createReplicaJobs(targetRepo *gitalypb.Repository, primary
 			}
 		}
 	}, nil
-}
-
-// FailoverRotation waits for the SIGUSR1 signal, then promotes the next secondary to be primary
-func (c *Coordinator) FailoverRotation() {
-	c.handleSignalAndRotate()
-}
-
-func (c *Coordinator) handleSignalAndRotate() {
-	failoverChan := make(chan os.Signal, 1)
-	signal.Notify(failoverChan, syscall.SIGUSR1)
-
-	for {
-		<-failoverChan
-
-		c.failoverMutex.Lock()
-		// TODO: update failover logic
-		c.log.Info("failover happens")
-		c.failoverMutex.Unlock()
-	}
 }

@@ -184,7 +184,7 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	gz := proto.FileDescriptor("mock.proto")
 	fd, err := protoregistry.ExtractFileDescriptor(gz)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	logEntry := testhelper.DiscardTestEntry(t)
@@ -193,11 +193,12 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	nodeMgr, err := nodes.NewManager(logEntry, conf)
 	require.NoError(t, err)
 
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, fd)
+	registry := protoregistry.New()
+	require.NoError(t, registry.RegisterFiles(fd))
 
-	replMgr := NewReplMgr("praefect-internal-0", logEntry, ds, nodeMgr)
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
 
-	srv := NewServer(coordinator, replMgr, nil, logEntry, nodeMgr, conf)
+	srv := NewServer(coordinator.StreamDirector, logEntry, registry, conf)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
