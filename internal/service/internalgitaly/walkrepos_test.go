@@ -19,8 +19,11 @@ func TestWalkRepos(t *testing.T) {
 	client, conn := newInternalGitalyClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
+	testRepo1, _, cleanupFn1 := testhelper.NewTestRepo(t)
+	defer cleanupFn1()
+
+	testRepo2, _, cleanupFn2 := testhelper.NewTestRepo(t)
+	defer cleanupFn2()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -42,7 +45,8 @@ func TestWalkRepos(t *testing.T) {
 	require.NoError(t, err)
 
 	actualRepos := consumeWalkReposStream(t, stream)
-	require.Contains(t, actualRepos, testRepo.GetRelativePath())
+	require.Contains(t, actualRepos, testRepo1.GetRelativePath())
+	require.Contains(t, actualRepos, testRepo2.GetRelativePath())
 }
 
 func consumeWalkReposStream(t *testing.T, stream gitalypb.InternalGitaly_WalkReposClient) []string {
