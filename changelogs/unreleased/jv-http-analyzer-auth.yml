@@ -1,0 +1,5 @@
+---
+title: Add basic auth support to clone analyzer
+merge_request: 1866
+author:
+type: added
