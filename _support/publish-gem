@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+
+require_relative 'run.rb'
+
+def main(tag)
+  version = tag.sub(/^v/, '')
+
+  unless version.match?(/\d+\.\d+\.\d+(-rc\d+)?/)
+    abort "Version string #{version.inspect} does not look like a Gitaly Release tag (e.g. \"v1.0.2\"). Aborting."
+  end
+
+  ref = capture!(%w[git describe --tag]).chomp
+  if ref != "v#{version}"
+    abort "Checkout tag v#{version} to publish.\n\t git checkout v#{version}"
+  end
+
+  puts 'Testing for changed files'
+  run!(%w[git diff --quiet --exit-code])
+
+  puts 'Testing for staged changes'
+  run!(%w[git diff --quiet --cached --exit-code])
+
+  run!(%w[gem build gitaly.gemspec])
+  gem = "gitaly-#{version}.gem"
+  abort "gem not found: #{gem}" unless File.exist?(gem)
+
+  puts "Proceed to publish version #{tag}? Enter 'Yes' to continue; Ctrl-C to abort"
+  $stdout.flush
+  abort unless $stdin.gets.chomp == 'Yes'
+
+  run!(%W[gem push #{gem}])
+end
+
+unless ARGV.count == 1
+  warn "Usage: #{$0} TAG"
+  abort
+end
+
+main(ARGV[0])
