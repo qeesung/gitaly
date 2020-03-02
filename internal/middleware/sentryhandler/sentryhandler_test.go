@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,6 +15,7 @@ import (
 func Test_generateSentryEvent(t *testing.T) {
 	tests := []struct {
 		name        string
+		ctx         context.Context
 		method      string
 		sinceStart  time.Duration
 		wantNil     bool
@@ -68,11 +70,30 @@ func Test_generateSentryEvent(t *testing.T) {
 			err:        status.Errorf(codes.FailedPrecondition, "Something failed"),
 			wantNil:    true,
 		},
+		{
+			name: "marked to skip",
+			ctx: func() context.Context {
+				var result context.Context
+				ctx := context.Background()
+				// this is the only way how we could populate context with `tags` assembler
+				grpc_ctxtags.UnaryServerInterceptor()(ctx, nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
+					result = ctx
+					return nil, nil
+				})
+				MarkToSkip(result)
+				return result
+			}(),
+			wantNil: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tt.ctx != nil {
+				ctx = tt.ctx
+			}
 			start := time.Now().Add(-tt.sinceStart)
-			event := generateSentryEvent(context.Background(), tt.method, start, tt.err)
+			event := generateSentryEvent(ctx, tt.method, start, tt.err)
 
 			if tt.wantNil {
 				assert.Nil(t, event)

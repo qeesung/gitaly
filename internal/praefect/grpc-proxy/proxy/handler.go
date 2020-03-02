@@ -10,6 +10,7 @@ package proxy
 import (
 	"io"
 
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -109,9 +110,14 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 			// This happens when the clientStream has nothing else to offer (io.EOF), returned a gRPC error. In those two
 			// cases we may have received Trailers as part of the call. In case of other errors (stream closed) the trailers
 			// will be nil.
-			serverStream.SetTrailer(clientStream.Trailer())
+			trailer := clientStream.Trailer()
+			serverStream.SetTrailer(trailer)
 			// c2sErr will contain RPC error from client code. If not io.EOF return the RPC error as server stream error.
 			if c2sErr != io.EOF {
+				if trailer != nil {
+					// we must not propagate Gitaly errors into Sentry
+					sentryhandler.MarkToSkip(serverStream.Context())
+				}
 				return c2sErr
 			}
 			return nil

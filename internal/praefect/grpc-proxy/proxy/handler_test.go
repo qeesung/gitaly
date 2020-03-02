@@ -17,9 +17,12 @@ import (
 	"testing"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 	"golang.org/x/net/context"
@@ -141,10 +144,12 @@ func (s *ProxyHappySuite) TestPingCarriesServerHeadersAndTrailers() {
 }
 
 func (s *ProxyHappySuite) TestPingErrorPropagatesAppError() {
-	_, err := s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"})
+	md := metadata.New(nil)
+	_, err := s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"}, grpc.Trailer(&md))
 	require.Error(s.T(), err, "PingError should never succeed")
 	assert.Equal(s.T(), codes.FailedPrecondition, grpc.Code(err))
 	assert.Equal(s.T(), "Userspace error.", grpc.ErrorDesc(err))
+	assert.Equal(s.T(), []string{"{}"}, md.Get("sentry.skip"), "proxying errors must be marked to omit sentry event duplication")
 }
 
 func (s *ProxyHappySuite) TestDirectorErrorIsPropagated() {
@@ -215,8 +220,15 @@ func (s *ProxyHappySuite) SetupSuite() {
 		// Explicitly copy the metadata, otherwise the tests will fail.
 		return proxy.NewStreamParameters(ctx, s.serverClientConn, nil, nil), nil
 	}
+
 	s.proxy = grpc.NewServer(
 		grpc.CustomCodec(proxy.Codec()),
+		grpc.StreamInterceptor(
+			grpc_middleware.ChainStreamServer(
+				grpc_ctxtags.StreamServerInterceptor(grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor)),
+				streamFetchContextTagsStream,
+			),
+		),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(director)),
 	)
 	// Ping handler is handled as an explicit registration and not as a TransparentHandler.
@@ -237,6 +249,24 @@ func (s *ProxyHappySuite) SetupSuite() {
 	clientConn, err := grpc.Dial(strings.Replace(s.proxyListener.Addr().String(), "127.0.0.1", "localhost", 1), grpc.WithInsecure(), grpc.WithTimeout(1*time.Second))
 	require.NoError(s.T(), err, "must not error on deferred client Dial")
 	s.testClient = pb.NewTestServiceClient(clientConn)
+}
+
+// streamFetchContextTagsStream in case of error it copies context tags into trailers using same key and "%v" formatting for value.
+func streamFetchContextTagsStream(srv interface{}, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	err := handler(srv, ss)
+	if err == nil {
+		return nil
+	}
+
+	md, ok := metadata.FromIncomingContext(ss.Context())
+	if ok {
+		tags := grpc_ctxtags.Extract(ss.Context())
+		for k, v := range tags.Values() {
+			md.Set(k, fmt.Sprintf("%v", v))
+		}
+	}
+	ss.SetTrailer(md)
+	return err
 }
 
 func (s *ProxyHappySuite) TearDownSuite() {

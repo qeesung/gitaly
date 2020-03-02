@@ -15,6 +15,10 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+const (
+	skipSubmission = "sentry.skip"
+)
+
 var ignoredCodes = []codes.Code{
 	// OK means there was no error
 	codes.OK,
@@ -63,7 +67,7 @@ func methodToCulprit(methodName string) string {
 	return methodName
 }
 
-func logErrorToSentry(err error) (code codes.Code, bypass bool) {
+func logErrorToSentry(ctx context.Context, err error) (code codes.Code, bypass bool) {
 	code = helper.GrpcCode(err)
 
 	for _, ignoredCode := range ignoredCodes {
@@ -72,11 +76,16 @@ func logErrorToSentry(err error) (code codes.Code, bypass bool) {
 		}
 	}
 
+	tags := grpc_ctxtags.Extract(ctx)
+	if tags.Has(skipSubmission) {
+		return code, true
+	}
+
 	return code, false
 }
 
 func generateSentryEvent(ctx context.Context, method string, start time.Time, err error) *sentry.Event {
-	grpcErrorCode, bypass := logErrorToSentry(err)
+	grpcErrorCode, bypass := logErrorToSentry(ctx, err)
 	if bypass {
 		return nil
 	}
@@ -135,4 +144,10 @@ func newException(err error, stacktrace *sentry.Stacktrace) sentry.Exception {
 		ex.Module, ex.Value = m[1], m[2]
 	}
 	return ex
+}
+
+// MarkToSkip propagate context with a special tag that signals to sentry handler that the error must not be reported.
+func MarkToSkip(ctx context.Context) {
+	tags := grpc_ctxtags.Extract(ctx)
+	tags.Set(skipSubmission, struct{}{})
 }
