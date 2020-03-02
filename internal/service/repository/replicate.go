@@ -160,11 +160,16 @@ func (s *server) syncRepository(ctx context.Context, in *gitalypb.ReplicateRepos
 		return err
 	}
 
-	if _, err = remoteClient.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
+	resp, err := remoteClient.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
 		Repository:       in.GetRepository(),
 		RemoteRepository: in.GetSource(),
-	}); err != nil {
+	})
+	if err != nil {
 		return err
+	}
+
+	if !resp.Result {
+		return errors.New("FetchInternalRemote failed")
 	}
 
 	return nil

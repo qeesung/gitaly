@@ -1,0 +1,5 @@
+---
+title: ReplicateRepository error when result from FetchInternalRemote is false
+merge_request: 1879
+author:
+type: fixed

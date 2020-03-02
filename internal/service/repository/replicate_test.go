@@ -2,8 +2,10 @@ package repository_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,8 +18,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
 )
 
 func TestReplicateRepository(t *testing.T) {
@@ -247,4 +251,96 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 	require.NoError(t, err)
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", targetRepoPath, "fsck")
+}
+
+func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
+	tmpPath, cleanup := testhelper.TempDir(t, t.Name())
+	defer cleanup()
+
+	replicaPath := filepath.Join(tmpPath, "replica")
+	require.NoError(t, os.MkdirAll(replicaPath, 0755))
+
+	defer func(storages []config.Storage) {
+		config.Config.Storages = storages
+	}(config.Config.Storages)
+
+	config.Config.Storages = []config.Storage{
+		config.Storage{
+			Name: "default",
+			Path: testhelper.GitlabTestStoragePath(),
+		},
+		config.Storage{
+			Name: "replica",
+			Path: replicaPath,
+		},
+	}
+
+	server, serverSocketPath := runServerWithBadFetchInternalRemote(t)
+	defer server.Stop()
+
+	testRepo, _, cleanupRepo := testhelper.NewTestRepo(t)
+	defer cleanupRepo()
+
+	config.Config.SocketPath = serverSocketPath
+
+	repoClient, conn := repository.NewRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	targetRepo := *testRepo
+	targetRepo.StorageName = "replica"
+
+	targetRepoPath, err := helper.GetPath(&targetRepo)
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(targetRepoPath, 0755))
+	testhelper.MustRunCommand(t, nil, "touch", filepath.Join(targetRepoPath, "invalid_git_repo"))
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+	injectedCtx := metadata.NewOutgoingContext(ctx, md)
+
+	// first ReplicateRepository call will replicate via snapshot
+	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+		Repository: &targetRepo,
+		Source:     testRepo,
+	})
+	require.NoError(t, err)
+
+	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+		Repository: &targetRepo,
+		Source:     testRepo,
+	})
+	require.Error(t, err)
+}
+
+func runServerWithBadFetchInternalRemote(t *testing.T) (*grpc.Server, string) {
+	server := testhelper.NewTestGrpcServer(t, nil, nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", serverSocketPath)
+	require.NoError(t, err)
+
+	internalListener, err := net.Listen("unix", config.GitalyInternalSocketPath())
+	require.NoError(t, err)
+
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(repository.RubyServer))
+	gitalypb.RegisterRemoteServiceServer(server, &mockRemoteServer{})
+	reflection.Register(server)
+
+	go server.Serve(listener)
+	go server.Serve(internalListener)
+
+	return server, "unix://" + serverSocketPath
+}
+
+type mockRemoteServer struct {
+	gitalypb.UnimplementedRemoteServiceServer
+}
+
+func (m *mockRemoteServer) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInternalRemoteRequest) (*gitalypb.FetchInternalRemoteResponse, error) {
+	return &gitalypb.FetchInternalRemoteResponse{
+		Result: false,
+	}, nil
 }
