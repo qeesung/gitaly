@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service/blob"
 	"gitlab.com/gitlab-org/gitaly/internal/service/cleanup"
@@ -8,6 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/conflicts"
 	"gitlab.com/gitlab-org/gitaly/internal/service/diff"
 	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/internalgitaly"
 	"gitlab.com/gitlab-org/gitaly/internal/service/namespace"
 	"gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
@@ -43,6 +45,7 @@ func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer())
 	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer())
 	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer())
+	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(config.Config.Storages))
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 }

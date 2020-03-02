@@ -15,6 +15,8 @@ require 'gitaly/diff_services_pb'
 
 require 'gitaly/hook_services_pb'
 
+require 'gitaly/internal_services_pb'
+
 require 'gitaly/namespace_services_pb'
 
 require 'gitaly/objectpool_services_pb'
