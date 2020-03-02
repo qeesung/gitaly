@@ -38,13 +38,13 @@ module Gitlab
 
         results = PushResults.new(@gitlab_projects.output)
 
-        accepted_branches = results.accepted_branches.join(', ')
-        rejected_branches = results.rejected_branches.join(', ')
+        accepted_refs = results.accepted_refs.join(', ')
+        rejected_refs = results.rejected_refs.join(', ')
 
         @gitlab_projects.logger.info(
           "Failed to push to remote #{remote_name}. " \
-          "Accepted: #{accepted_branches} / " \
-          "Rejected: #{rejected_branches}"
+          "Accepted: #{accepted_refs} / " \
+          "Rejected: #{rejected_refs}"
         )
 
         gitlab_projects_error
