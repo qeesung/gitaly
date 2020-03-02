@@ -72,7 +72,8 @@ RPC name. So for a change to RPC `FooBar` you would get:
 |@johncai |
 |@pks-t|
 |@pokstad1 |
-|@zj |
+|@proglottis|
+|@zj-gitlab |
 
 ## Development Process
 

@@ -1,4 +1,12 @@
-GITALY_TEAM = %w[8bitlife jacobvosmaer-gitlab johncai pks-t pokstad1 zj-gitlab]
+GITALY_TEAM = %w[
+  8bitlife
+  jacobvosmaer-gitlab
+  johncai
+  pks-t
+  pokstad1
+  proglottis
+  zj-gitlab
+]
 
 danger.import_dangerfile(path: 'danger/assignees')
 danger.import_dangerfile(path: 'danger/changelog')
