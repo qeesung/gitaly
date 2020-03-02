@@ -78,6 +78,7 @@ func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.
 			cancelhandler.Stream, // Should be below LogHandler
 			grpctracing.StreamServerTracingInterceptor(),
 			auth.StreamServerInterceptor(conf.Auth),
+			middleware.MethodTypeStreamInterceptor(r),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.StreamPanicHandler,
@@ -93,6 +94,7 @@ func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.
 			cancelhandler.Unary, // Should be below LogHandler
 			grpctracing.UnaryServerTracingInterceptor(),
 			auth.UnaryServerInterceptor(conf.Auth),
+			middleware.MethodTypeUnaryInterceptor(r),
 			// Panic handler should remain last so that application panics will be
 			// converted to errors and logged
 			panichandler.UnaryPanicHandler,
