@@ -2,23 +2,7 @@
 
 require_relative 'run.rb'
 
-REMOTE_REGEX = %r{gitlab.com.gitlab-org/gitaly.git}
-
-# Sanity check
-%w[
-  git@gitlab.com:gitlab-org/gitaly.git
-  https://gitlab.com/gitlab-org/gitaly.git
-  https://janedoe@gitlab.com/gitlab-org/gitaly.git
-].each do |remote|
-  abort "regex check failed for #{remote.inspect}" unless REMOTE_REGEX.match(remote)
-end
-
 def main(tag)
-  remote = capture!(%w[git remote get-url --push origin])
-  unless REMOTE_REGEX.match(remote)
-    abort "Git remote 'origin' must match #{REMOTE_REGEX}, got #{remote.inspect}"
-  end
-
   version = tag.sub(/^v/, '')
 
   unless version.match?(/\d+\.\d+\.\d+(-rc\d+)?/)
