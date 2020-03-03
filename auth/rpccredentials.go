@@ -2,7 +2,6 @@ package gitalyauth
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -15,7 +14,7 @@ import (
 // with a Gitaly server. The shared secret must match the one used on the
 // Gitaly server.
 func RPCCredentials(sharedSecret string) credentials.PerRPCCredentials {
-	return &rpcCredentials{sharedSecret: base64.StdEncoding.EncodeToString([]byte(sharedSecret))}
+	return &rpcCredentialsV2{sharedSecret: sharedSecret}
 }
 
 type rpcCredentials struct {
