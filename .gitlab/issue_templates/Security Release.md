@@ -15,12 +15,12 @@ GitLab at the correct times.
 
 ## Version Matrix
 
-| GitLab-CE Branch | Gitaly Tag/Branch | Gitaly MR          |
-|------------------|-------------------|--------------------|
-| `master`         | **TBD**           | <MR link>          |
-| `12.X`           | `1-X-stable`      | <backport MR link> |
-| `12.X`           | `1-X-stable`      | <backport MR link> |
-| `12.X`           | `1-X-stable`      | <backport MR link> |
+| GitLab Branch | Gitaly Branch  | Gitaly MR          |
+|---------------|----------------|--------------------|
+| `master`      | **TBD**        | <MR link>          |
+| `12.X`        | `12-X-stable`  | <backport MR link> |
+| `12.Y`        | `12-Y-stable`  | <backport MR link> |
+| `12.Z`        | `12-Z-stable`  | <backport MR link> |
 
 ## Process
 
@@ -42,45 +42,17 @@ As a sanity check, you can verify your repository only points to remotes in
    - [ ] Once finished and approved, **DO NOT MERGE**. Merging into master
      will happen later after the security release is public.
 - **Contributor:** Backport fixes
-   - [ ] Note what version of Gitaly you're backporting by opening
-     [`GITALY_SERVER_VERSION`][gitaly-ce-version] for each supported GitLab-CE fill out
-     the [version matrix](#version-matrix) above.
-- **Contributor**: Determine if Gitaly stable branches exist for all needed
-  fixes.
-   - [ ] If all of them exist, also mark the next section as complete and skip.
-     Otherwise, reassign the maintainer to complete the next section.
-- **Maintainer:** If a Gitaly stable branch `X-Y-stable` in the [table above](#version-matrix)
-  does not exist yet, perform the following steps in a repository cloned
-  from `gitlab.com` (since we will rely on the public Gitaly repo to push
-  these stable branches to `dev.gitlab.org`):
-    - [ ] For each missing stable branch:
-       1. `git branch X-Y-stable vX.Y.0`
-       1. `git push --set-upstream origin X-Y-stable`
-    - Reassign to the contributor.
+   - [ ] Fill out the [version matrix](#version-matrix) above
+     checking if all the versions are affected and require a fix
 - **Contributor:**
    - [ ] Backport fixes:
       1. Manually squash all commits in your MR to Gitaly master and force push it to your feature branch on `dev.gitlab.org`.
       1. Cherry pick that squashed commit into a backport MR for all Gitaly target stable branches on `dev.gitlab.org`.
       1. Link all backport MR's into the [above table](#version-matrix).
       1. Reassign to Maintainer
-- **Maintainer:** After each stable branch merge request is approved and
-  merged, run the release script to release the new version:
-    - [ ] For each backported MR:
-       1. Ensure that `gitlab.com` is not listed in any of the remotes: `git remote -v`
-       1. `git checkout X-Y-stable`
-       1. `git pull`
-       1. `_support/release X.Y.Z` (where `Z` is the new incremented patch version)
-       1. Upon successful vetting of the release, run `git push origin $TAGNAME`
-          for each tag.
-    - Reassign to contributor
-- **Contributor:** Bump Gitaly in GitLab projects:
-   - [ ] For each version of GitLab in the [table above](#version-matrix),
-     create an MR on both
-     [GitLab-CE](https://dev.gitlab.org/gitlab/gitlabhq) and
-     [GitLab-EE](https://dev.gitlab.org/gitlab/gitlab-ee) on `dev.gitlab.org`
-     to bump the version in the `GITALY_SERVER_VERSION` file. Make sure you
-     follow the [usual security process][gitlab-sec-process].
-   - Reassign to maintainer
+- **Maintainer:**
+    - [ ] Review and merge each stable branch merge request
+    - tagging and version bump will be automated by `release-tools`
 
 ### Only after the security release occurs and the details are made public
 
