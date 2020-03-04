@@ -1,13 +1,13 @@
 package proxy_test
 
 import (
+	"context"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

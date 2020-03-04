@@ -1,0 +1,5 @@
+---
+title: Remove dependency on the outdated golang.org/x/net package
+merge_request: 1882
+author:
+type: other

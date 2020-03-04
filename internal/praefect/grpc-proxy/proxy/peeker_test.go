@@ -1,6 +1,7 @@
 package proxy_test
 
 import (
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
-	"golang.org/x/net/context"
 )
 
 // TestStreamPeeking demonstrates that a director function is able to peek
@@ -23,8 +23,6 @@ func TestStreamPeeking(t *testing.T) {
 	backendCC, backendSrvr, cleanupPinger := newBackendPinger(t, ctx)
 	defer cleanupPinger()
 
-	pingReqSent := &testservice.PingRequest{Value: "hi"}
-
 	// director will peek into stream before routing traffic
 	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 		t.Logf("director routing method %s to backend", fullMethodName)
@@ -35,22 +33,18 @@ func TestStreamPeeking(t *testing.T) {
 		peekedRequest := new(testservice.PingRequest)
 		err = proto.Unmarshal(peekedMsg, peekedRequest)
 		require.NoError(t, err)
-		require.Equal(t, pingReqSent, peekedRequest)
+		require.Equal(t, &testservice.PingRequest{Value: "hi"}, peekedRequest)
 
 		return proxy.NewStreamParameters(ctx, backendCC, nil, nil), nil
-	}
-
-	pingResp := &testservice.PingResponse{
-		Counter: 1,
 	}
 
 	// we expect the backend server to receive the peeked message
 	backendSrvr.pingStream = func(stream testservice.TestService_PingStreamServer) error {
 		pingReqReceived, err := stream.Recv()
 		assert.NoError(t, err)
-		assert.Equal(t, pingReqSent, pingReqReceived)
+		assert.Equal(t, &testservice.PingRequest{Value: "hi"}, pingReqReceived)
 
-		return stream.Send(pingResp)
+		return stream.Send(&testservice.PingResponse{Counter: 1})
 	}
 
 	proxyCC, cleanupProxy := newProxy(t, ctx, director, "mwitkow.testproto.TestService", "PingStream")
@@ -63,12 +57,12 @@ func TestStreamPeeking(t *testing.T) {
 	defer proxyClientPingStream.CloseSend()
 
 	require.NoError(t,
-		proxyClientPingStream.Send(pingReqSent),
+		proxyClientPingStream.Send(&testservice.PingRequest{Value: "hi"}),
 	)
 
 	resp, err := proxyClientPingStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, resp, pingResp)
+	require.Equal(t, &testservice.PingResponse{Counter: 1}, resp)
 
 	_, err = proxyClientPingStream.Recv()
 	require.Error(t, io.EOF, err)
@@ -105,17 +99,13 @@ func TestStreamInjecting(t *testing.T) {
 		return proxy.NewStreamParameters(ctx, backendCC, nil, nil), nil
 	}
 
-	pingResp := &testservice.PingResponse{
-		Counter: 1,
-	}
-
 	// we expect the backend server to receive the modified message
 	backendSrvr.pingStream = func(stream testservice.TestService_PingStreamServer) error {
 		pingReqReceived, err := stream.Recv()
 		assert.NoError(t, err)
 		assert.Equal(t, newValue, pingReqReceived.GetValue())
 
-		return stream.Send(pingResp)
+		return stream.Send(&testservice.PingResponse{Counter: 1})
 	}
 
 	proxyCC, cleanupProxy := newProxy(t, ctx, director, "mwitkow.testproto.TestService", "PingStream")
@@ -133,7 +123,7 @@ func TestStreamInjecting(t *testing.T) {
 
 	resp, err := proxyClientPingStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, resp, pingResp)
+	require.Equal(t, &testservice.PingResponse{Counter: 1}, resp)
 
 	_, err = proxyClientPingStream.Recv()
 	require.Error(t, io.EOF, err)
