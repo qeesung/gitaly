@@ -12,17 +12,22 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 	"golang.org/x/net/context"
@@ -65,7 +70,7 @@ func (s *assertingService) Ping(ctx context.Context, ping *pb.PingRequest) (*pb.
 }
 
 func (s *assertingService) PingError(ctx context.Context, ping *pb.PingRequest) (*pb.Empty, error) {
-	return nil, grpc.Errorf(codes.FailedPrecondition, "Userspace error.")
+	return nil, grpc.Errorf(codes.ResourceExhausted, "Userspace error.")
 }
 
 func (s *assertingService) PingList(ping *pb.PingRequest, stream pb.TestService_PingListServer) error {
@@ -144,12 +149,31 @@ func (s *ProxyHappySuite) TestPingCarriesServerHeadersAndTrailers() {
 }
 
 func (s *ProxyHappySuite) TestPingErrorPropagatesAppError() {
-	md := metadata.New(nil)
-	_, err := s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"}, grpc.Trailer(&md))
+	sentryTriggered := 0
+	sentrySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sentryTriggered++
+	}))
+	defer sentrySrv.Close()
+
+	// minimal required sentry client configuration
+	sentryURL, err := url.Parse(sentrySrv.URL)
+	require.NoError(s.T(), err)
+	sentryURL.User = url.UserPassword("stub", "stub")
+	sentryURL.Path = "/stub/1"
+
+	require.NoError(s.T(), sentry.Init(sentry.ClientOptions{
+		Dsn:       sentryURL.String(),
+		Transport: sentry.NewHTTPSyncTransport(),
+	}))
+
+	sentry.CaptureEvent(sentry.NewEvent())
+	require.Equal(s.T(), 1, sentryTriggered, "sentry configured incorrectly")
+
+	_, err = s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"})
 	require.Error(s.T(), err, "PingError should never succeed")
-	assert.Equal(s.T(), codes.FailedPrecondition, grpc.Code(err))
+	assert.Equal(s.T(), codes.ResourceExhausted, grpc.Code(err))
 	assert.Equal(s.T(), "Userspace error.", grpc.ErrorDesc(err))
-	assert.Equal(s.T(), []string{"{}"}, md.Get("sentry.skip"), "proxying errors must be marked to omit sentry event duplication")
+	require.Equal(s.T(), 1, sentryTriggered, "sentry must not be triggered because errors from remote must be just propagated")
 }
 
 func (s *ProxyHappySuite) TestDirectorErrorIsPropagated() {
@@ -225,8 +249,10 @@ func (s *ProxyHappySuite) SetupSuite() {
 		grpc.CustomCodec(proxy.Codec()),
 		grpc.StreamInterceptor(
 			grpc_middleware.ChainStreamServer(
+				// context tags usage is required by sentryhandler.StreamLogHandler
 				grpc_ctxtags.StreamServerInterceptor(grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor)),
-				streamFetchContextTagsStream,
+				// sentry middleware to capture errors
+				sentryhandler.StreamLogHandler,
 			),
 		),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(director)),
@@ -249,24 +275,6 @@ func (s *ProxyHappySuite) SetupSuite() {
 	clientConn, err := grpc.Dial(strings.Replace(s.proxyListener.Addr().String(), "127.0.0.1", "localhost", 1), grpc.WithInsecure(), grpc.WithTimeout(1*time.Second))
 	require.NoError(s.T(), err, "must not error on deferred client Dial")
 	s.testClient = pb.NewTestServiceClient(clientConn)
-}
-
-// streamFetchContextTagsStream in case of error it copies context tags into trailers using same key and "%v" formatting for value.
-func streamFetchContextTagsStream(srv interface{}, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	err := handler(srv, ss)
-	if err == nil {
-		return nil
-	}
-
-	md, ok := metadata.FromIncomingContext(ss.Context())
-	if ok {
-		tags := grpc_ctxtags.Extract(ss.Context())
-		for k, v := range tags.Values() {
-			md.Set(k, fmt.Sprintf("%v", v))
-		}
-	}
-	ss.SetTrailer(md)
-	return err
 }
 
 func (s *ProxyHappySuite) TearDownSuite() {
