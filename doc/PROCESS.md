@@ -121,8 +121,8 @@ For patch releases, we don't merge back to master. But `release-tools` will comm
 Release candidate (RC) can be created with a chatops command.
 This is the only type of release that a developer can build autonomously.
 
-When working on a GitLab feature that requires a newly introduced gitaly feature,
-tagging a RC is a good way to make sure the feature branch has the proper gitaly version.
+When working on a GitLab feature that requires a minimum gitaly version,
+tagging a RC is a good way to make sure the gitlab feature branch has the proper gitaly version.
 
 - Pick the current milestone (i.e. 12.9)
 - Pick a release candidate number, you can check `VERSION` to see if we have one already (12.9.0-rc1)
