@@ -57,9 +57,10 @@ As a sanity check, you can verify your repository only points to remotes in
 ### Only after the security release occurs and the details are made public
 
 - **Maintainer**:
+   - [ ] Check mirroring status with chatops in slack `/chatops run mirror status`
    - [ ] Ensure master branch on dev.gitlab.com is synced with gitlab.com:
       1. `git checkout master`
-      1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
+      1. `git remote add gitlab.com `
       1. `git pull gitlab.com master`
       1. `git push origin`
       1. `git remote remove gitlab.com`
@@ -78,22 +79,9 @@ As a sanity check, you can verify your repository only points to remotes in
       1. `git branch -D gitlab-com-master`
       1. `git remote remove gitlab.com`
       1. Ensure no origins exist that point to gitlab.com: `git remote -v`
-   - [ ] Push all the newly released security tags in
-   `dev.gitlab.org` to the public gitlab.com instance:
-      1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
-      1. `git push gitlab.com vX.Y.Z` (repeat for each tag)
-      1. `git remote remove gitlab.com`
-      1. Ensure no origins exist that point to gitlab.com: `git remote -v`
    - [ ] There is a good chance the newly patched Gitaly master
      on `gitlab.com` will need to be used to patch the latest GitLab CE/EE.
-     This will require running the regular release process on gitlab.com.
-   - [ ] Merge the stable branches for gitlab.com and dev.gitlab.org
-      1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
-      1. `git checkout X-Y-stable`
-      1. `git fetch gitlab.com X-Y-stable`
-      1. `git merge gitlab.com/X-Y-stable`
-      1. `git push gitlab.com X-Y-stable`
-      1. `git remote remove gitlab.com`
+     This will require running the regular release candidate process on gitlab.com.
    - [ ] Gitaly on GitLab.com uses push mirroring to dev.gitlab.com, if branches
    are diverged this stops working. Go to `Settings > Repository > Mirroring repositories`
    to update the mirror. When there's no error after the manual update, it will
