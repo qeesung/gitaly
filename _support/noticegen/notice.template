@@ -53,10 +53,8 @@ infringement, or inducement of patent infringement, then any patent
 rights granted to you under this License for this implementation of Go
 shall terminate as of the date such litigation is filed.
 
-{{ range $index, $t := . -}}
-    {{- if and (ne .Path " go") (or (ne .Path "gitlab.com/gitlab-org/gitaly") (ne .Filename "NOTICE") ) -}}
+{{ range . }}
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 {{ .Filename }} - {{ .Path }}
 {{ .Text }}
-    {{- end -}}
 {{- end }}
