@@ -60,7 +60,7 @@ As a sanity check, you can verify your repository only points to remotes in
    - [ ] Check mirroring status with chatops in slack `/chatops run mirror status`
    - [ ] Ensure master branch on dev.gitlab.com is synced with gitlab.com:
       1. `git checkout master`
-      1. `git remote add gitlab.com `
+      1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
       1. `git pull gitlab.com master`
       1. `git push origin`
       1. `git remote remove gitlab.com`
