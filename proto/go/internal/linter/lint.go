@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	goplugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/proto/go/internal"
 )
@@ -16,7 +16,7 @@ import (
 //  rpc ExampleMethod(ExampleMethodRequest) returns (ExampleMethodResponse) {
 //     option (op_type).op = ACCESSOR;
 //   }
-func ensureMethodOpType(fileDesc *descriptor.FileDescriptorProto, m *descriptor.MethodDescriptorProto, req *goplugin.CodeGeneratorRequest) error {
+func ensureMethodOpType(fileDesc *descriptor.FileDescriptorProto, m *descriptor.MethodDescriptorProto, req *plugin.CodeGeneratorRequest) error {
 	opMsg, err := internal.GetOpExtension(m)
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ func ensureMethodOpType(fileDesc *descriptor.FileDescriptorProto, m *descriptor.
 // LintFile ensures the file described meets Gitaly required processes.
 // Currently, this is limited to validating if request messages contain
 // a mandatory operation code.
-func LintFile(file *descriptor.FileDescriptorProto, req *goplugin.CodeGeneratorRequest) []error {
+func LintFile(file *descriptor.FileDescriptorProto, req *plugin.CodeGeneratorRequest) []error {
 	var errs []error
 
 	for _, serviceDescriptorProto := range file.GetService() {

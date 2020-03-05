@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	goplugin "github.com/golang/protobuf/protoc-gen-go/plugin"
+	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/gitlab-org/gitaly/proto/go/internal"
@@ -48,17 +48,17 @@ func TestLintFile(t *testing.T) {
 			fdToCheck, err := internal.ExtractFile(proto.FileDescriptor(tt.protoPath))
 			require.NoError(t, err)
 
-			req := &goplugin.CodeGeneratorRequest{
+			req := &plugin.CodeGeneratorRequest{
 				ProtoFile: []*descriptor.FileDescriptorProto{fdToCheck},
 			}
 
 			for _, protoPath := range []string{
 				// as we have no input stream we can use to create CodeGeneratorRequest
 				// we must create it by hands with all required dependencies loaded
-				"lint.proto",
-				"shared.proto",
 				"google/protobuf/descriptor.proto",
 				"google/protobuf/timestamp.proto",
+				"lint.proto",
+				"shared.proto",
 			} {
 				fd, err := internal.ExtractFile(proto.FileDescriptor(protoPath))
 				require.NoError(t, err)
