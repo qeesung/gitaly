@@ -3,8 +3,9 @@
 
 require 'google/protobuf'
 
-require 'blob_pb'
+require 'lint_pb'
 require 'shared_pb'
+require 'blob_pb'
 require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.ListNewBlobsRequest" do

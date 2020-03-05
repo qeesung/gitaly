@@ -3,6 +3,7 @@
 
 require 'google/protobuf'
 
+require 'lint_pb'
 require 'shared_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.WalkReposRequest" do

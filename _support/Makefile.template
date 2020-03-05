@@ -262,11 +262,15 @@ docker:
 	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
 
 .PHONY: proto
-proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
-	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
-	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+proto: proto-lint {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
 	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
 	cd {{ .SourceDir }} && _support/generate-proto-ruby
+
+.PHONY: proto-lint
+proto-lint: {{ .ProtoC }} {{ .ProtoCGenGo }}
+	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
+	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+	cd {{ .SourceDir }} && {{ .ProtoC }} --go_out=paths=source_relative:./proto/go/gitalypb -I./proto ./proto/lint.proto
 
 {{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
 	rm -rf {{ .BuildDir }}/protoc

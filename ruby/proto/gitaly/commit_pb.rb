@@ -3,6 +3,7 @@
 
 require 'google/protobuf'
 
+require 'lint_pb'
 require 'shared_pb'
 require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do

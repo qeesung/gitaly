@@ -7,11 +7,11 @@ import "shared.proto";
 message InvalidMethodRequest {}
 
 message InvalidMethodRequestWithRepo {
-  gitaly.Repository destination = 1 [(target_repository)=true];
+  gitaly.Repository destination = 1 [(gitaly.target_repository)=true];
 }
 
 message InvalidTargetType {
-  int32 wrong_type = 1 [(target_repository)=true];
+  int32 wrong_type = 1 [(gitaly.target_repository)=true];
 }
 
 message InvalidMethodResponse{}
@@ -27,7 +27,7 @@ message RequestWithStorage {
 
 message RequestWithStorageAndRepo {
   string storage_name = 1 [(gitaly.storage)=true];
-  gitaly.Repository destination = 2 [(target_repository)=true];
+  gitaly.Repository destination = 2 [(gitaly.target_repository)=true];
 }
 
 message RequestWithNestedStorageAndRepo{
@@ -49,10 +49,10 @@ message RequestWithInnerNestedStorage {
 
 message RequestWithWrongTypeRepository {
   message Header {
-    InvalidMethodResponse repository = 1 [(repository) = true];
+    InvalidMethodResponse repository = 1 [(gitaly.repository) = true];
   }
 
-  Header header = 1 [(target_repository) = true];
+  Header header = 1 [(gitaly.target_repository) = true];
 }
 
 message RequestWithNestedRepoNotFlagged {
@@ -60,7 +60,7 @@ message RequestWithNestedRepoNotFlagged {
     gitaly.Repository repository = 1;
   }
 
-  Header header = 1 [(target_repository) = true];
+  Header header = 1 [(gitaly.target_repository) = true];
 }
 
 service InvalidService {

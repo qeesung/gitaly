@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "lint.proto";
 import "shared.proto";
 
 package gitaly;
