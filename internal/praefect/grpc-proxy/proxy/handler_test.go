@@ -12,14 +12,22 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 	"golang.org/x/net/context"
@@ -62,7 +70,7 @@ func (s *assertingService) Ping(ctx context.Context, ping *pb.PingRequest) (*pb.
 }
 
 func (s *assertingService) PingError(ctx context.Context, ping *pb.PingRequest) (*pb.Empty, error) {
-	return nil, grpc.Errorf(codes.FailedPrecondition, "Userspace error.")
+	return nil, grpc.Errorf(codes.ResourceExhausted, "Userspace error.")
 }
 
 func (s *assertingService) PingList(ping *pb.PingRequest, stream pb.TestService_PingListServer) error {
@@ -141,10 +149,31 @@ func (s *ProxyHappySuite) TestPingCarriesServerHeadersAndTrailers() {
 }
 
 func (s *ProxyHappySuite) TestPingErrorPropagatesAppError() {
-	_, err := s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"})
+	sentryTriggered := 0
+	sentrySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sentryTriggered++
+	}))
+	defer sentrySrv.Close()
+
+	// minimal required sentry client configuration
+	sentryURL, err := url.Parse(sentrySrv.URL)
+	require.NoError(s.T(), err)
+	sentryURL.User = url.UserPassword("stub", "stub")
+	sentryURL.Path = "/stub/1"
+
+	require.NoError(s.T(), sentry.Init(sentry.ClientOptions{
+		Dsn:       sentryURL.String(),
+		Transport: sentry.NewHTTPSyncTransport(),
+	}))
+
+	sentry.CaptureEvent(sentry.NewEvent())
+	require.Equal(s.T(), 1, sentryTriggered, "sentry configured incorrectly")
+
+	_, err = s.testClient.PingError(s.ctx(), &pb.PingRequest{Value: "foo"})
 	require.Error(s.T(), err, "PingError should never succeed")
-	assert.Equal(s.T(), codes.FailedPrecondition, grpc.Code(err))
+	assert.Equal(s.T(), codes.ResourceExhausted, grpc.Code(err))
 	assert.Equal(s.T(), "Userspace error.", grpc.ErrorDesc(err))
+	require.Equal(s.T(), 1, sentryTriggered, "sentry must not be triggered because errors from remote must be just propagated")
 }
 
 func (s *ProxyHappySuite) TestDirectorErrorIsPropagated() {
@@ -215,8 +244,17 @@ func (s *ProxyHappySuite) SetupSuite() {
 		// Explicitly copy the metadata, otherwise the tests will fail.
 		return proxy.NewStreamParameters(ctx, s.serverClientConn, nil, nil), nil
 	}
+
 	s.proxy = grpc.NewServer(
 		grpc.CustomCodec(proxy.Codec()),
+		grpc.StreamInterceptor(
+			grpc_middleware.ChainStreamServer(
+				// context tags usage is required by sentryhandler.StreamLogHandler
+				grpc_ctxtags.StreamServerInterceptor(grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor)),
+				// sentry middleware to capture errors
+				sentryhandler.StreamLogHandler,
+			),
+		),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(director)),
 	)
 	// Ping handler is handled as an explicit registration and not as a TransparentHandler.

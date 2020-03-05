@@ -1,0 +1,5 @@
+---
+title: Praefect should not emit Gitaly errors to Sentry
+merge_request: 1880
+author:
+type: fixed
