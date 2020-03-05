@@ -235,7 +235,7 @@ func getFileTypes(filename string, req *goplugin.CodeGeneratorRequest) ([]*descr
 	}
 
 	if protoFile == nil {
-		return nil, errors.New("proto file could not be find: " + filename)
+		return nil, errors.New("proto file could not be found: " + filename)
 	}
 
 	for _, dep := range protoFile.Dependency {
