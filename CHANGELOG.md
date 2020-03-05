@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 12.8.2
+
+- No changes.
+
 ## 12.8.1
 
 - No changes.
@@ -15,6 +19,10 @@
 
 - Praefect sub-commands: avoid garbage in logs. !1819
 
+
+## 12.7.7
+
+- No changes.
 
 ## v1.87.0
 
