@@ -116,7 +116,7 @@ func createNewServer(rubyServer *rubyserver.Server, secure bool) *grpc.Server {
 	if secure {
 		cert, err := tls.LoadX509KeyPair(config.Config.TLS.CertPath, config.Config.TLS.KeyPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("error reading certificate and key paths: %v", err)
 		}
 		opts = append(opts, grpc.Creds(credentials.NewServerTLSFromCert(&cert)))
 	}
