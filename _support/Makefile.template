@@ -205,8 +205,8 @@ staticcheck-deprecations: {{ .GoLint }}
 lint-warnings: staticcheck-deprecations
 	# Runs verification analysis that is okay to fail (but not ignore completely)
 
-{{ .GoVendor }}: {{ .MakegenDep }}
-	go get github.com/kardianos/govendor@e07957427183a9892f35634ffc9ea48dedc6bbb4
+{{ .GoLicenses }}: {{ .MakegenDep }}
+	go get github.com/google/go-licenses@0fa8c766a59182ce9fd94169ddb52abe568b7f4e
 
 .PHONY: notice-up-to-date
 notice-up-to-date: notice-tmp
@@ -218,10 +218,12 @@ notice: notice-tmp
 	mv {{ .BuildDir }}/NOTICE {{ .SourceDir }}/NOTICE
 
 .PHONY: notice-tmp
-notice-tmp: {{ .GoVendor }} clean-ruby-vendor-go
+notice-tmp: {{ .GoLicenses }} clean-ruby-vendor-go
 	rm -rf {{ .SourceDir }}/vendor
 	cd {{ .SourceDir }} && go mod vendor
-	cd {{ .GopathSourceDir }} && env GOPATH={{ .BuildDir }} GO111MODULE=off govendor license -template _support/notice.template -o {{ .BuildDir }}/NOTICE
+	rm -rf {{ .BuildDir}}/licenses
+	cd {{ .GopathSourceDir }} && go-licenses save ./... --save_path={{ .BuildDir }}/licenses
+	cd {{ .GopathSourceDir }} && go run _support/noticegen/noticegen.go -source {{ .BuildDir }}/licenses -template _support/noticegen/notice.template > {{ .BuildDir }}/NOTICE
 
 .PHONY: clean-ruby-vendor-go
 clean-ruby-vendor-go:
