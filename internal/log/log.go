@@ -30,7 +30,7 @@ func Configure(format string, level string) {
 	switch format {
 	case "json":
 		for _, l := range Loggers {
-			l.Formatter = &logrus.JSONFormatter{}
+			l.Formatter = &logrus.JSONFormatter{TimestampFormat: "2006-01-02T15:04:05.999Z"}
 		}
 	case "":
 		// Just stick with the default
