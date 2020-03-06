@@ -47,6 +47,10 @@ func main() {
 			log.Fatal(err)
 		}
 
+		if p == "gitlab.com/gitlab-org/gitaly" {
+			return filepath.SkipDir
+		}
+
 		t, err := ioutil.ReadFile(path)
 		if err != nil {
 			log.Fatal(err)
