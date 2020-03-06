@@ -1,0 +1,5 @@
+---
+title: Always use V2 tokens in gitaly auth client
+merge_request:
+author:
+type: added
