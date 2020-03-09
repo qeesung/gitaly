@@ -590,3 +590,11 @@ func getGitDirSize(t *testing.T, repoPath string, subdirs ...string) int64 {
 
 	return blocks
 }
+
+func GrpcErrorHasMessage(grpcError error, msg string) bool {
+	status, ok := status.FromError(grpcError)
+	if !ok {
+		return false
+	}
+	return status.Message() == msg
+}

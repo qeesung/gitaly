@@ -24,6 +24,34 @@ var (
 	}
 )
 
+// RegisterStreamHandlers sets up stream handlers for a set of gRPC methods for a given service.
+// streamers is a map of method to grpc.StreamHandler eg:
+//
+// streamHandler := func(srv interface{}, stream ServerStream) error  {
+//                       /** do some stuff **/
+//                       return nil
+//                  }
+// RegisterStreamHandlers(grpcServer, "MyGrpcService", map[string]grpc.StreamHandler{"Method1": streamHandler})
+// note: multiple calls with the same serviceName will result in a fatal
+func RegisterStreamHandlers(server *grpc.Server, serviceName string, streamers map[string]grpc.StreamHandler) {
+	desc := &grpc.ServiceDesc{
+		ServiceName: serviceName,
+		HandlerType: (*interface{})(nil),
+	}
+
+	for methodName, streamer := range streamers {
+		streamDesc := grpc.StreamDesc{
+			StreamName:    methodName,
+			Handler:       streamer,
+			ServerStreams: true,
+			ClientStreams: true,
+		}
+		desc.Streams = append(desc.Streams, streamDesc)
+	}
+
+	server.RegisterService(desc, struct{}{})
+}
+
 // RegisterService sets up a proxy handler for a particular gRPC service and method.
 // The behaviour is the same as if you were registering a handler method, e.g. from a codegenerated pb.go file.
 //

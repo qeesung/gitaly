@@ -9,6 +9,7 @@ package proxy_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -27,10 +28,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	pb "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -47,6 +50,12 @@ const (
 
 	countListResponses = 20
 )
+
+func TestMain(m *testing.M) {
+	grpclog.SetLogger(log.New(os.Stderr, "grpc: ", log.LstdFlags))
+	m.Run()
+	os.Exit(0)
+}
 
 // asserting service is implemented on the server side and serves as a handler for stuff
 type assertingService struct {
@@ -226,8 +235,6 @@ func (s *ProxyHappySuite) SetupSuite() {
 	s.serverListener, err = net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(s.T(), err, "must be able to allocate a port for serverListener")
 
-	grpclog.SetLogger(log.New(os.Stderr, "grpc: ", log.LstdFlags))
-
 	s.server = grpc.NewServer()
 	pb.RegisterTestServiceServer(s.server, &assertingService{t: s.T()})
 
@@ -298,4 +305,80 @@ func (s *ProxyHappySuite) TearDownSuite() {
 
 func TestProxyHappySuite(t *testing.T) {
 	suite.Run(t, &ProxyHappySuite{})
+}
+
+func TestRegisterStreamHandlers(t *testing.T) {
+	directorCalledError := errors.New("director was called")
+
+	server := grpc.NewServer(
+		grpc.CustomCodec(proxy.Codec()),
+		grpc.UnknownServiceHandler(proxy.TransparentHandler(func(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
+			return nil, directorCalledError
+		})),
+	)
+
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", serverSocketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go server.Serve(listener)
+	defer server.Stop()
+
+	var pingStreamHandlerCalled, pingEmptyStreamHandlerCalled bool
+
+	pingValue := "hello"
+
+	pingStreamHandler := func(srv interface{}, stream grpc.ServerStream) error {
+		pingStreamHandlerCalled = true
+		var req pb.PingRequest
+
+		if err := stream.RecvMsg(&req); err != nil {
+			return err
+		}
+
+		require.Equal(t, pingValue, req.Value)
+
+		return nil
+	}
+
+	pingEmptyStreamHandler := func(srv interface{}, stream grpc.ServerStream) error {
+		pingEmptyStreamHandlerCalled = true
+		var req pb.Empty
+
+		if err := stream.RecvMsg(&req); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	streamers := map[string]grpc.StreamHandler{
+		"Ping":      pingStreamHandler,
+		"PingEmpty": pingEmptyStreamHandler,
+	}
+
+	proxy.RegisterStreamHandlers(server, "mwitkow.testproto.TestService", streamers)
+
+	cc, err := client.Dial("unix://"+serverSocketPath, nil)
+	require.NoError(t, err)
+
+	testServiceClient := pb.NewTestServiceClient(cc)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	_, err = testServiceClient.Ping(ctx, &pb.PingRequest{Value: pingValue})
+	require.False(t, testhelper.GrpcErrorHasMessage(err, directorCalledError.Error()))
+	require.True(t, pingStreamHandlerCalled)
+
+	_, err = testServiceClient.PingEmpty(ctx, &pb.Empty{})
+	require.False(t, testhelper.GrpcErrorHasMessage(err, directorCalledError.Error()))
+	require.True(t, pingEmptyStreamHandlerCalled)
+
+	// since PingError was never registered with its own streamer, it should get sent to the UnknownServiceHandler
+	_, err = testServiceClient.PingError(ctx, &pb.PingRequest{})
+	require.True(t, testhelper.GrpcErrorHasMessage(err, directorCalledError.Error()))
 }
