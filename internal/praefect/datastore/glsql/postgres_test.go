@@ -19,6 +19,8 @@ import (
 )
 
 func TestOpenDB(t *testing.T) {
+	getEnvFromGDK(t)
+
 	dbCfg := config.DB{
 		Host: os.Getenv("PGHOST"),
 		Port: func() int {

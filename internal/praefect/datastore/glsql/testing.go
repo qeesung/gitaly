@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,6 +81,8 @@ func GetDB(t testing.TB) DB {
 func initGitalyTestDB(t testing.TB) *sql.DB {
 	t.Helper()
 
+	getEnvFromGDK(t)
+
 	host, hostFound := os.LookupEnv("PGHOST")
 	require.True(t, hostFound, "PGHOST env var expected to be provided to connect to Postgres database")
 
@@ -123,4 +126,27 @@ func Clean() error {
 		return testDB.Close()
 	}
 	return nil
+}
+
+func getEnvFromGDK(t testing.TB) {
+	gdkEnv, err := exec.Command("gdk", "env").Output()
+	if err != nil {
+		// Assume we are not in a GDK setup; this is not an error so just return.
+		return
+	}
+
+	for _, line := range strings.Split(string(gdkEnv), "\n") {
+		const prefix = "export "
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+
+		split := strings.SplitN(strings.TrimPrefix(line, prefix), "=", 2)
+		if len(split) != 2 {
+			continue
+		}
+		key, value := split[0], split[1]
+
+		require.NoError(t, os.Setenv(key, value), "set env var %v", key)
+	}
 }
