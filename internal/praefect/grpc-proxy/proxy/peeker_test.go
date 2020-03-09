@@ -1,6 +1,7 @@
 package proxy_test
 
 import (
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
-	"golang.org/x/net/context"
 )
 
 // TestStreamPeeking demonstrates that a director function is able to peek
@@ -35,7 +35,7 @@ func TestStreamPeeking(t *testing.T) {
 		peekedRequest := new(testservice.PingRequest)
 		err = proto.Unmarshal(peekedMsg, peekedRequest)
 		require.NoError(t, err)
-		require.Equal(t, pingReqSent, peekedRequest)
+		require.True(t, proto.Equal(pingReqSent, peekedRequest), "expected to be the same")
 
 		return proxy.NewStreamParameters(ctx, backendCC, nil, nil), nil
 	}
@@ -48,7 +48,7 @@ func TestStreamPeeking(t *testing.T) {
 	backendSrvr.pingStream = func(stream testservice.TestService_PingStreamServer) error {
 		pingReqReceived, err := stream.Recv()
 		assert.NoError(t, err)
-		assert.Equal(t, pingReqSent, pingReqReceived)
+		assert.True(t, proto.Equal(pingReqSent, pingReqReceived), "expected to be the same")
 
 		return stream.Send(pingResp)
 	}
@@ -68,7 +68,7 @@ func TestStreamPeeking(t *testing.T) {
 
 	resp, err := proxyClientPingStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, resp, pingResp)
+	require.True(t, proto.Equal(resp, pingResp), "expected to be the same")
 
 	_, err = proxyClientPingStream.Recv()
 	require.Error(t, io.EOF, err)
@@ -133,7 +133,7 @@ func TestStreamInjecting(t *testing.T) {
 
 	resp, err := proxyClientPingStream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, resp, pingResp)
+	require.True(t, proto.Equal(resp, pingResp), "expected to be the same")
 
 	_, err = proxyClientPingStream.Recv()
 	require.Error(t, io.EOF, err)

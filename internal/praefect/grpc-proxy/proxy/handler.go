@@ -8,10 +8,10 @@
 package proxy
 
 import (
+	"context"
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

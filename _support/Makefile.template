@@ -267,6 +267,8 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby
 	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
 	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
 	cd {{ .SourceDir }} && _support/generate-proto-ruby
+# this part is related to the generation of sources from testing proto files
+	cd {{ .SourceDir }} && {{ .ProtoC }} --plugin={{ .ProtoCGenGo }} --go_out=plugins=grpc:. internal/praefect/grpc-proxy/testdata/test.proto
 
 {{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
 	rm -rf {{ .BuildDir }}/protoc
