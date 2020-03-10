@@ -91,10 +91,6 @@ func (gm *gitalyMake) GitlabShellDir() string {
 	return filepath.Join(gm.SourceDir(), gm.GitlabShellRelDir())
 }
 
-func (gm *gitalyMake) GopathSourceDir() string {
-	return filepath.Join(gm.BuildDir(), "src", gm.Pkg())
-}
-
 func (gm *gitalyMake) Git2GoVendorDir() string {
 	return filepath.Join(gm.BuildDir(), "../vendor/github.com/libgit2/git2go/vendor")
 }
