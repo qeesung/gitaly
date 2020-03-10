@@ -86,11 +86,11 @@ func main() {
 		log.Fatalf("parsing input proto: %s", err)
 	}
 
-	if err = lintProtos(req); err != nil {
+	if err := lintProtos(req); err != nil {
 		log.Fatal(err)
 	}
 
-	if err = generateProtolistGo(req); err != nil {
+	if err := generateProtolistGo(req); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -115,7 +115,7 @@ func parseArgs(argString string) (gitalyProtoDir string, gitalypbDir string) {
 func lintProtos(req *plugin.CodeGeneratorRequest) error {
 	var errMsgs []string
 	for _, pf := range req.GetProtoFile() {
-		errs := linter.LintFile(pf)
+		errs := linter.LintFile(pf, req)
 		for _, err := range errs {
 			errMsgs = append(errMsgs, err.Error())
 		}

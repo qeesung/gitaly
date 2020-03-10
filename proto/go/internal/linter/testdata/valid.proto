@@ -5,7 +5,7 @@ package test;
 import "shared.proto";
 
 message ValidRequest {
-  gitaly.Repository destination = 1 [(target_repository)=true];
+  gitaly.Repository destination = 1 [(gitaly.target_repository)=true];
 }
 
 message ValidRequestWithoutRepo {
@@ -26,14 +26,14 @@ message ValidStorageNestedRequest{
 }
 
 message ValidNestedSharedRequest {
-  gitaly.ObjectPool nested_target_repo = 1 [(target_repository)=true];
+  gitaly.ObjectPool nested_target_repo = 1 [(gitaly.target_repository)=true];
 }
 
 message ValidInnerNestedRequest {
   message Header {
-    gitaly.Repository destination = 1 [(target_repository)=true];
+    gitaly.Repository destination = 1 [(gitaly.target_repository)=true];
   }
-  
+
   Header header = 1;
 }
 
@@ -51,45 +51,45 @@ service ValidService {
       op: ACCESSOR
     };
   }
-  
+
   rpc TestMethod2(ValidRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
     };
   }
-  
+
   rpc TestMethod3(ValidRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
       scope_level: REPOSITORY // repo can be explicitly included
     };
   }
-  
+
   rpc TestMethod4(ValidRequestWithoutRepo) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
       scope_level: SERVER
     };
   }
-  
+
   rpc TestMethod5(ValidNestedRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
     };
   }
-  
+
   rpc TestMethod6(ValidNestedSharedRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
     };
   }
-  
+
   rpc TestMethod7(ValidInnerNestedRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR
     };
   }
-  
+
   rpc TestMethod8(ValidStorageRequest) returns (ValidResponse) {
     option (gitaly.op_type) = {
       op: MUTATOR

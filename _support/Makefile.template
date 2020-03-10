@@ -262,13 +262,17 @@ docker:
 	docker build -t gitlab/gitaly:{{ .VersionPrefixed }} -t gitlab/gitaly:latest docker/
 
 .PHONY: proto
-proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
-	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
-	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+proto: {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby }}
 	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
 	cd {{ .SourceDir }} && _support/generate-proto-ruby
 # this part is related to the generation of sources from testing proto files
 	cd {{ .SourceDir }} && {{ .ProtoC }} --plugin={{ .ProtoCGenGo }} --go_out=plugins=grpc:. internal/praefect/grpc-proxy/testdata/test.proto
+
+.PHONY: proto-lint
+proto-lint: {{ .ProtoC }} {{ .ProtoCGenGo }}
+	mkdir -p {{ .SourceDir }}/proto/go/gitalypb
+	rm -rf {{ .SourceDir }}/proto/go/gitalypb/*.pb.go
+	cd {{ .SourceDir }} && {{ .ProtoC }} --go_out=paths=source_relative:./proto/go/gitalypb -I./proto ./proto/lint.proto
 
 {{ .ProtoC }}: {{ .BuildDir }}/protoc.zip
 	rm -rf {{ .BuildDir }}/protoc
@@ -285,7 +289,7 @@ proto: {{ .ProtoC }} {{ .ProtoCGenGo }} {{ .ProtoCGenGitaly }} {{ .GrpcToolsRuby
 	go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
 
 .PHONY: {{ .ProtoCGenGitaly }}
-{{ .ProtoCGenGitaly }}:
+{{ .ProtoCGenGitaly }}: proto-lint
 	cd {{ .SourceDir }}/proto/go/internal && go build -o $@ gitlab.com/gitlab-org/gitaly/proto/go/internal/cmd/protoc-gen-gitaly
 
 {{ .GrpcToolsRuby }}: {{ .MakegenDep }}
