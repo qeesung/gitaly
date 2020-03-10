@@ -8,6 +8,10 @@ installation. It acts as a plugin to `git fetch` using the
 The implementation shares code with how gitlab-shell handles Git SSH traffic
 from real users, but it cuts out SSH itself.
 
+> Note for Git experts: in retrospect, we should have used
+[git-remote-ext](https://git-scm.com/docs/git-remote-ext) for this,
+but we didn't know that mechanism existed at the time.
+
 ## How gitlab-shell does it
 
 A normal `git fetch` over SSH goes through these steps. Note that here
