@@ -6,6 +6,9 @@ import (
 	"context"
 	"net"
 
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/repository"
+
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -129,6 +132,13 @@ func (srv *Server) RegisterServices(nm nodes.Manager, conf config.Config) {
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 
 	grpc_prometheus.Register(srv.s)
+}
+
+func (srv *Server) RegisterMutatorMethods(nm nodes.Manager, datastore datastore.ReplJobsDatastore) {
+	repoServer := repository.NewServer(nm, datastore)
+	proxy.RegisterStreamHandlers(srv.s, "gitaly.RepositoryService", map[string]grpc.StreamHandler{
+		"WriteRef": repoServer.WriteRef,
+	})
 }
 
 // Shutdown will attempt a graceful shutdown of the grpc server. If unable
