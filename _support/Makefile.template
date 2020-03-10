@@ -220,7 +220,7 @@ notice: notice-tmp
 .PHONY: notice-tmp
 notice-tmp: {{ .GoLicenses }} clean-ruby-vendor-go
 	rm -rf {{ .BuildDir}}/licenses
-	cd {{ .SourceDir }} && go-licenses save ./... --save_path={{ .BuildDir }}/licenses
+	cd {{ .SourceDir }} && {{ .BuildDir }}/{{ .GoLicenses }} save ./... --save_path={{ .BuildDir }}/licenses
 	go run {{ .SourceDir }}/_support/noticegen/noticegen.go -source {{ .BuildDir }}/licenses -template {{ .SourceDir }}/_support/noticegen/notice.template > {{ .BuildDir }}/NOTICE
 
 .PHONY: clean-ruby-vendor-go
