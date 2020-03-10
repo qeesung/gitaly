@@ -488,7 +488,7 @@ func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 
 	svr := testhelper.NewTestGrpcServer(tb, nil, nil)
 
-	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(&rubyserver.Server{}))
+	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(&rubyserver.Server{}, gitaly_config.GitalyInternalSocketPath()))
 	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer())
 	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(&rubyserver.Server{}))
 	reflection.Register(svr)

@@ -235,21 +235,26 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	internalSocket := testhelper.GetTemporaryGitalySocketFileName()
+	internalListener, err := net.Listen("unix", internalSocket)
+	require.NoError(t, err)
 
 	rubyServer := &rubyserver.Server{}
 	require.NoError(t, rubyServer.Start())
 
 	gitalypb.RegisterServerServiceServer(server, gitalyserver.NewServer())
-	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer))
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer, internalSocket))
 	healthpb.RegisterHealthServer(server, health.NewServer())
 
 	errQ := make(chan error)
 
 	go func() {
 		errQ <- server.Serve(listener)
+	}()
+	go func() {
+		errQ <- server.Serve(internalListener)
 	}()
 
 	cleanup := func() {
