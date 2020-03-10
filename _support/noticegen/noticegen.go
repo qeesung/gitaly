@@ -48,7 +48,7 @@ func main() {
 		}
 
 		if p == "gitlab.com/gitlab-org/gitaly" {
-			return filepath.SkipDir
+			return nil
 		}
 
 		t, err := ioutil.ReadFile(path)
