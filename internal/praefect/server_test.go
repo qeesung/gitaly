@@ -432,7 +432,6 @@ func TestRepoRemoval(t *testing.T) {
 	require.Equal(t, false, resp.GetExists())
 
 	// the removal of the repo on the secondary servers is not deterministic
-
 	// since it relies on eventually consistent replication
 	pollUntilRemoved(t, path1, time.After(10*time.Second))
 	pollUntilRemoved(t, path2, time.After(10*time.Second))

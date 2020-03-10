@@ -13,7 +13,6 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
@@ -226,7 +225,7 @@ func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateR
 
 // newRemoteClient creates a new RemoteClient that talks to the same gitaly server
 func (s *server) newRemoteClient() (gitalypb.RemoteServiceClient, error) {
-	cc, err := s.getOrCreateConnection(fmt.Sprintf("unix:%s", config.GitalyInternalSocketPath()), "")
+	cc, err := s.getOrCreateConnection(fmt.Sprintf("unix:%s", s.internalGitalySocket), "")
 	if err != nil {
 		return nil, err
 	}

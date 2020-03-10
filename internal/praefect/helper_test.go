@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
-
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -162,7 +160,7 @@ func noopBackoffFunc() (backoff, backoffReset) {
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
-func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, nodes.Manager, testhelper.Cleanup) {
+func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	require.Len(t, conf.VirtualStorages, 1)
 	var cleanups []testhelper.Cleanup
 
@@ -207,8 +205,6 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	ctx, cancel := testhelper.Context()
 
 	prf.RegisterServices(nodeMgr, conf)
-	prf.RegisterMutatorMethods(nodeMgr, ds)
-
 	go func() { errQ <- prf.Serve(listener, false) }()
 	go func() { errQ <- replmgr.ProcessBacklog(ctx, noopBackoffFunc) }()
 
@@ -228,7 +224,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		require.Error(t, context.Canceled, <-errQ)
 	}
 
-	return cc, nodeMgr, cleanup
+	return cc, prf, cleanup
 }
 
 func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, func()) {
@@ -239,22 +235,26 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	internalSocket := testhelper.GetTemporaryGitalySocketFileName()
+	internalListener, err := net.Listen("unix", internalSocket)
+	require.NoError(t, err)
 
 	rubyServer := &rubyserver.Server{}
 	require.NoError(t, rubyServer.Start())
 
 	gitalypb.RegisterServerServiceServer(server, gitalyserver.NewServer())
-	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer))
-	gitalypb.RegisterRefServiceServer(server, ref.NewServer())
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer, internalSocket))
 	healthpb.RegisterHealthServer(server, health.NewServer())
 
 	errQ := make(chan error)
 
 	go func() {
 		errQ <- server.Serve(listener)
+	}()
+	go func() {
+		errQ <- server.Serve(internalListener)
 	}()
 
 	cleanup := func() {
