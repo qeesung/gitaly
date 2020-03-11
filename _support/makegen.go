@@ -74,7 +74,7 @@ func (gm *gitalyMake) Pkg() string         { return "gitlab.com/gitlab-org/gital
 func (gm *gitalyMake) GoImports() string   { return "bin/goimports" }
 func (gm *gitalyMake) GitalyFmt() string   { return filepath.Join(gm.BuildDir(), "bin/gitalyfmt") }
 func (gm *gitalyMake) GoLint() string      { return filepath.Join(gm.BuildDir(), "bin/golangci-lint") }
-func (gm *gitalyMake) GoVendor() string    { return "bin/govendor" }
+func (gm *gitalyMake) GoLicenses() string  { return "bin/go-licenses" }
 func (gm *gitalyMake) StaticCheck() string { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
 func (gm *gitalyMake) ProtoC() string      { return filepath.Join(gm.BuildDir(), "protoc/bin/protoc") }
 func (gm *gitalyMake) ProtoCGenGo() string { return filepath.Join(gm.BuildDir(), "bin/protoc-gen-go") }
@@ -89,10 +89,6 @@ func (gm *gitalyMake) GitalyRubyDir() string     { return filepath.Join(gm.Sourc
 func (gm *gitalyMake) GitlabShellRelDir() string { return "ruby/gitlab-shell" }
 func (gm *gitalyMake) GitlabShellDir() string {
 	return filepath.Join(gm.SourceDir(), gm.GitlabShellRelDir())
-}
-
-func (gm *gitalyMake) GopathSourceDir() string {
-	return filepath.Join(gm.BuildDir(), "src", gm.Pkg())
 }
 
 func (gm *gitalyMake) Git2GoVendorDir() string {

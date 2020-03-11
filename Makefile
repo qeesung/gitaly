@@ -127,9 +127,7 @@ smoke-test: prepare-build
 .PHONY: prepare-build
 prepare-build: $(BUILD_DIR)/.ok update-makefile
 $(BUILD_DIR)/.ok:
-	mkdir -p $(BUILD_DIR)/src/$(shell dirname $(PKG))
-	cd $(BUILD_DIR)/src/$(shell dirname $(PKG)) && rm -f $(shell basename $(PKG)) && \
-		ln -sf ../../../.. $(shell basename $(PKG))
+	mkdir -p $(BUILD_DIR)
 	touch $@
 
 .PHONY: update-makefile
