@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -65,6 +66,7 @@ func (s *shard) GetSecondaries() ([]Node, error) {
 
 // Mgr is a concrete type that adheres to the Manager interface
 type Mgr struct {
+	// shards is a map of shards keyed on virtual storage name
 	shards map[string]*shard
 	// staticShards never changes based on node health. It is a static set of shards that comes from the config's
 	// VirtualStorages
@@ -170,35 +172,46 @@ func (n *Mgr) GetShard(virtualStorageName string) (Shard, error) {
 	return shard, nil
 }
 
+func checkShard(virtualStorage string, s *shard) {
+	defer func() {
+		metrics.PrimaryGauge.WithLabelValues(virtualStorage, s.primary.GetStorage()).Set(1)
+		for _, secondary := range s.secondaries {
+			metrics.PrimaryGauge.WithLabelValues(virtualStorage, secondary.GetStorage()).Set(0)
+		}
+	}()
+
+	s.primary.check()
+	for _, secondary := range s.secondaries {
+		secondary.check()
+	}
+
+	if s.primary.isHealthy() {
+		return
+	}
+
+	newPrimaryIndex := -1
+	for i, secondary := range s.secondaries {
+		if secondary.isHealthy() {
+			newPrimaryIndex = i
+			break
+		}
+	}
+
+	if newPrimaryIndex < 0 {
+		// no healthy secondaries exist
+		return
+	}
+	s.m.Lock()
+	newPrimary := s.secondaries[newPrimaryIndex]
+	s.secondaries = append(s.secondaries[:newPrimaryIndex], s.secondaries[newPrimaryIndex+1:]...)
+	s.secondaries = append(s.secondaries, s.primary)
+	s.primary = newPrimary
+	s.m.Unlock()
+}
+
 func (n *Mgr) checkShards() {
-	for _, shard := range n.shards {
-		shard.primary.check()
-		for _, secondary := range shard.secondaries {
-			secondary.check()
-		}
-
-		if shard.primary.isHealthy() {
-			continue
-		}
-
-		newPrimaryIndex := -1
-		for i, secondary := range shard.secondaries {
-			if secondary.isHealthy() {
-				newPrimaryIndex = i
-				break
-			}
-		}
-
-		if newPrimaryIndex < 0 {
-			// no healthy secondaries exist
-			continue
-		}
-		shard.m.Lock()
-		newPrimary := shard.secondaries[newPrimaryIndex]
-		shard.secondaries = append(shard.secondaries[:newPrimaryIndex], shard.secondaries[newPrimaryIndex+1:]...)
-		shard.secondaries = append(shard.secondaries, shard.primary)
-		shard.primary = newPrimary
-		shard.m.Unlock()
+	for virtualStorage, shard := range n.shards {
+		checkShard(virtualStorage, shard)
 	}
 }
 

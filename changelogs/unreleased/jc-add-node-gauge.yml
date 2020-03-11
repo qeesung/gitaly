@@ -1,0 +1,5 @@
+---
+title: Add node gauge that keeps track of node status
+merge_request: 1904
+author:
+type: changed

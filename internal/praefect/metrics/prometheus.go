@@ -46,7 +46,7 @@ var PrimaryGauge = prometheus.NewGaugeVec(
 		Namespace: "gitaly",
 		Subsystem: "praefect",
 		Name:      "primaries",
-	}, []string{"storage"},
+	}, []string{"virtual_storage", "gitaly_storage"},
 )
 
 func init() {
