@@ -1,0 +1,5 @@
+---
+title: 'Praefect: use enum values for job states'
+merge_request: 1906
+author:
+type: changed

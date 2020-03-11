@@ -36,7 +36,7 @@ var operations = []struct {
 	{
 		desc: "query an empty datastore",
 		opFn: func(t *testing.T, ds Datastore) {
-			jobs, err := ds.GetJobs(JobStatePending|JobStateReady, stor1.Storage, 1)
+			jobs, err := ds.GetJobs([]JobState{JobStatePending, JobStateReady}, stor1.Storage, 1)
 			require.NoError(t, err)
 			require.Len(t, jobs, 0)
 		},
@@ -58,7 +58,7 @@ var operations = []struct {
 	{
 		desc: "fetch inserted replication jobs",
 		opFn: func(t *testing.T, ds Datastore) {
-			jobs, err := ds.GetJobs(JobStatePending, stor2.Storage, 10)
+			jobs, err := ds.GetJobs([]JobState{JobStatePending}, stor2.Storage, 10)
 			require.NoError(t, err)
 			require.Len(t, jobs, 2)
 
@@ -88,14 +88,14 @@ var operations = []struct {
 	{
 		desc: "mark Update replication job as done",
 		opFn: func(t *testing.T, ds Datastore) {
-			err := ds.UpdateReplJobState(1, JobStateComplete)
+			err := ds.UpdateReplJobState(1, JobStateCompleted)
 			require.NoError(t, err)
 		},
 	},
 	{
 		desc: "try fetching pending replication jobs",
 		opFn: func(t *testing.T, ds Datastore) {
-			jobs, err := ds.GetJobs(JobStatePending, stor2.Storage, 1)
+			jobs, err := ds.GetJobs([]JobState{JobStatePending}, stor2.Storage, 1)
 			require.NoError(t, err)
 			require.Len(t, jobs, 1)
 

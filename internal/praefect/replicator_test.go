@@ -127,7 +127,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	_, err = ds.CreateReplicaReplJobs(testRepo.GetRelativePath(), primary.Storage, secondaryStorages, datastore.UpdateRepo, nil)
 	require.NoError(t, err)
 
-	jobs, err := ds.GetJobs(datastore.JobStateReady|datastore.JobStatePending, backupStorageName, 1)
+	jobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateReady, datastore.JobStatePending}, backupStorageName, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
@@ -295,7 +295,7 @@ TestJobGetsCancelled:
 	for {
 		select {
 		case <-ticker.C:
-			replJobs, err := ds.GetJobs(datastore.JobStateDead, "backup", 10)
+			replJobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateDead}, "backup", 10)
 			require.NoError(t, err)
 			if len(replJobs) == 1 {
 				//success
@@ -426,7 +426,7 @@ TestJobSucceeds:
 	for {
 		select {
 		case <-ticker.C:
-			replJobs, err := ds.GetJobs(datastore.JobStateFailed|datastore.JobStateInProgress|datastore.JobStateReady|datastore.JobStateDead, "backup", 10)
+			replJobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateFailed, datastore.JobStateInProgress, datastore.JobStateReady, datastore.JobStateDead}, "backup", 10)
 			require.NoError(t, err)
 			if len(replJobs) == 0 {
 				//success

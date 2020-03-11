@@ -22,7 +22,7 @@ func TestPostgresReplicationEventQueue_Enqueue(t *testing.T) {
 
 	eventType := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -38,11 +38,11 @@ func TestPostgresReplicationEventQueue_Enqueue(t *testing.T) {
 
 	expEvent := ReplicationEvent{
 		ID:      1,
-		State:   "ready",
+		State:   JobStateReady,
 		Attempt: 3,
 		LockID:  "gitaly-1|/project/path-1",
 		Job: ReplicationJob{
-			Change:            "update",
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -66,7 +66,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	eventType1 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -76,7 +76,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	eventType2 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            RenameRepo.String(),
+			Change:            RenameRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "",
@@ -86,7 +86,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	eventType3 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-2",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -107,7 +107,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 		Attempt: 3,
 		LockID:  "gitaly-1|/project/path-1",
 		Job: ReplicationJob{
-			Change:            "update",
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -128,7 +128,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 		Attempt: 3,
 		LockID:  "gitaly-1|/project/path-1",
 		Job: ReplicationJob{
-			Change:            "update",
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -144,11 +144,11 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	expEvent3 := ReplicationEvent{
 		ID:      event3.ID,
-		State:   "ready",
+		State:   JobStateReady,
 		Attempt: 3,
 		LockID:  "gitaly-2|/project/path-1",
 		Job: ReplicationJob{
-			Change:            "rename",
+			Change:            RenameRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "",
@@ -164,11 +164,11 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	expEvent4 := ReplicationEvent{
 		ID:      event4.ID,
-		State:   "ready",
+		State:   JobStateReady,
 		Attempt: 3,
 		LockID:  "gitaly-1|/project/path-2",
 		Job: ReplicationJob{
-			Change:            "update",
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-2",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -192,7 +192,7 @@ func TestPostgresReplicationEventQueue_Dequeue(t *testing.T) {
 
 	event := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -208,7 +208,7 @@ func TestPostgresReplicationEventQueue_Dequeue(t *testing.T) {
 	require.Len(t, noEvents, 0, "there must be no events dequeued for not existing storage")
 
 	expectedEvent := event
-	expectedEvent.State = "in_progress"
+	expectedEvent.State = JobStateInProgress
 	expectedEvent.Attempt = 2
 
 	expectedLock := LockRow{ID: event.LockID, Acquired: true} // as we deque events we acquire lock for processing
@@ -239,7 +239,7 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 
 	eventType1 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -249,7 +249,7 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 
 	eventType2 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            DeleteRepo.String(),
+			Change:            DeleteRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "",
@@ -259,7 +259,7 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 
 	eventType3 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            RenameRepo.String(),
+			Change:            RenameRepo,
 			RelativePath:      "/project/path-2",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -281,7 +281,7 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 	expectedJobLocks1 := make([]JobLockRow, limitFirstN)
 	for i := range expectedEvents1 {
 		expectedEvents1[i] = events[i]
-		expectedEvents1[i].State = "in_progress"
+		expectedEvents1[i].State = JobStateInProgress
 		expectedEvents1[i].Attempt = 2
 
 		expectedJobLocks1[i].JobID = expectedEvents1[i].ID
@@ -307,7 +307,7 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 
 	// there must be only last event fetched from the queue
 	expectedEvents2 := []ReplicationEvent{events[len(events)-1]}
-	expectedEvents2[0].State = "in_progress"
+	expectedEvents2[0].State = JobStateInProgress
 	expectedEvents2[0].Attempt = 2
 
 	expectedJobLocks2 := []JobLockRow{{JobID: 5, LockID: "gitaly-1|/project/path-2"}}
@@ -342,7 +342,7 @@ func TestPostgresReplicationEventQueue_Acknowledge(t *testing.T) {
 
 	event := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -360,11 +360,11 @@ func TestPostgresReplicationEventQueue_Acknowledge(t *testing.T) {
 	requireLocks(t, ctx, db, []LockRow{{ID: event.LockID, Acquired: true}})
 	requireJobLocks(t, ctx, db, []JobLockRow{{JobID: event.ID, LockID: event.LockID}})
 
-	acknowledged, err := queue.Acknowledge(ctx, "completed", []uint64{actual[0].ID, 100500})
+	acknowledged, err := queue.Acknowledge(ctx, JobStateCompleted, []uint64{actual[0].ID, 100500})
 	require.NoError(t, err)
 	require.Equal(t, []uint64{actual[0].ID}, acknowledged)
 
-	event.State = "completed"
+	event.State = JobStateCompleted
 	event.Attempt = 2
 	requireEvents(t, ctx, db, []ReplicationEvent{event})
 	// lock must be released as the event was acknowledged and there are no other events left protected under this lock
@@ -383,7 +383,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 
 	eventType1 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -393,7 +393,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 
 	eventType2 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            DeleteRepo.String(),
+			Change:            DeleteRepo,
 			RelativePath:      "/project/path-2",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "",
@@ -403,7 +403,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 
 	eventType3 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-3",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -413,7 +413,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 
 	eventType4 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            UpdateRepo.String(),
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "gitaly-0",
@@ -445,7 +445,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	})
 
 	// release lock for events of second type
-	acknowledge1, err := queue.Acknowledge(ctx, "failed", []uint64{3})
+	acknowledge1, err := queue.Acknowledge(ctx, JobStateFailed, []uint64{3})
 	require.NoError(t, err)
 	require.Equal(t, []uint64{3}, acknowledge1)
 	requireLocks(t, ctx, db, []LockRow{
@@ -475,7 +475,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 		{JobID: 3, LockID: "gitaly-1|/project/path-2"},
 	})
 
-	acknowledge2, err := queue.Acknowledge(ctx, "completed", []uint64{1, 3})
+	acknowledge2, err := queue.Acknowledge(ctx, JobStateCompleted, []uint64{1, 3})
 	require.NoError(t, err)
 	require.Equal(t, []uint64{1, 3}, acknowledge2)
 	requireLocks(t, ctx, db, []LockRow{
@@ -504,7 +504,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 		{JobID: 7, LockID: "gitaly-2|/project/path-1"},
 	})
 
-	acknowledged3, err := queue.Acknowledge(ctx, "completed", []uint64{2, 5, 7})
+	acknowledged3, err := queue.Acknowledge(ctx, JobStateCompleted, []uint64{2, 5, 7})
 	require.NoError(t, err)
 	require.Equal(t, []uint64{2, 5, 7}, acknowledged3)
 	requireLocks(t, ctx, db, []LockRow{
@@ -532,7 +532,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	newEvent, err := queue.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
 
-	acknowledge4, err := queue.Acknowledge(ctx, "completed", []uint64{newEvent.ID})
+	acknowledge4, err := queue.Acknowledge(ctx, JobStateCompleted, []uint64{newEvent.ID})
 	require.NoError(t, err)
 	require.Equal(t, ([]uint64)(nil), acknowledge4) // event that was not dequeued can't be acknowledged
 	var newEventState string

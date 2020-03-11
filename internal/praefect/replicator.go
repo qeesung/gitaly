@@ -305,7 +305,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 		primary, secondaries, err := r.getPrimaryAndSecondaries()
 		if err == nil {
 			for _, secondary := range secondaries {
-				jobs, err := r.datastore.GetJobs(datastore.JobStateReady|datastore.JobStateFailed, secondary.GetStorage(), 10)
+				jobs, err := r.datastore.GetJobs([]datastore.JobState{datastore.JobStateReady, datastore.JobStateFailed}, secondary.GetStorage(), 10)
 				if err != nil {
 					return err
 				}
@@ -429,7 +429,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	case datastore.RenameRepo:
 		err = r.replicator.Rename(injectedCtx, job, targetCC)
 	default:
-		err = fmt.Errorf("unknown replication change type encountered: %d", job.Change)
+		err = fmt.Errorf("unknown replication change type encountered: %q", job.Change)
 	}
 	if err != nil {
 		l.WithError(err).Error("unable to replicate")
@@ -439,7 +439,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	replDuration := time.Since(replStart)
 	r.replLatencyMetric.Observe(float64(replDuration) / float64(time.Second))
 
-	if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateComplete); err != nil {
+	if err := r.datastore.UpdateReplJobState(job.ID, datastore.JobStateCompleted); err != nil {
 		r.log.WithError(err).Error("error when updating replication job status to complete")
 	}
 

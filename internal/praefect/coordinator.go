@@ -24,7 +24,7 @@ func getReplicationDetails(methodName string, m proto.Message) (datastore.Change
 	case "/gitaly.RepositoryService/RenameRepository":
 		req, ok := m.(*gitalypb.RenameRepositoryRequest)
 		if !ok {
-			return 0, nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
+			return "", nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
 		}
 		return datastore.RenameRepo, datastore.Params{"RelativePath": req.RelativePath}, nil
 	default:
@@ -204,7 +204,7 @@ func (c *Coordinator) createReplicaJobs(
 			//  - additional memory consumption
 			//  - stale state of one of the git data stores
 			if err := c.datastore.UpdateReplJobState(jobID, datastore.JobStateReady); err != nil {
-				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %d", datastore.JobStateReady)
+				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %q", datastore.JobStateReady)
 			}
 		}
 	}, nil

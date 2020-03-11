@@ -93,7 +93,7 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "praefect-internal-1", rewrittenRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
-	jobs, err := ds.GetJobs(datastore.JobStatePending, "praefect-internal-2", 10)
+	jobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStatePending}, "praefect-internal-2", 10)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
@@ -116,7 +116,7 @@ func TestStreamDirector(t *testing.T) {
 
 	streamParams.RequestFinalizer()
 
-	jobs, err = coordinator.datastore.GetJobs(datastore.JobStateReady, "praefect-internal-2", 10)
+	jobs, err = coordinator.datastore.GetJobs([]datastore.JobState{datastore.JobStateReady}, "praefect-internal-2", 10)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 

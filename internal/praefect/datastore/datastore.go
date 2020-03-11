@@ -15,57 +15,47 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
 
-var (
-	// ErrPrimaryNotSet indicates the primary has not been set in the datastore
-	ErrPrimaryNotSet = errors.New("primary is not set")
-)
-
 // JobState is an enum that indicates the state of a job
-type JobState uint8
+type JobState string
+
+func (js JobState) String() string {
+	return string(js)
+}
 
 const (
 	// JobStatePending is the initial job state when it is not yet ready to run
-	// and may indicate recovery from a failure prior to the ready-state
-	JobStatePending JobState = 1 << iota
-	// JobStateReady indicates the job is now ready to proceed
-	JobStateReady
-	// JobStateInProgress indicates the job is being processed by a worker
-	JobStateInProgress
-	// JobStateComplete indicates the job is now complete
-	JobStateComplete
+	// and may indicate recovery from a failure prior to the ready-state.
+	JobStatePending = JobState("pending")
+	// JobStateReady indicates the job is now ready to proceed.
+	JobStateReady = JobState("ready")
+	// JobStateInProgress indicates the job is being processed by a worker.
+	JobStateInProgress = JobState("in_progress")
+	// JobStateCompleted indicates the job is now complete.
+	JobStateCompleted = JobState("completed")
 	// JobStateCancelled indicates the job was cancelled. This can occur if the
-	// job is no longer relevant (e.g. a node is moved out of a repository)
-	JobStateCancelled
+	// job is no longer relevant (e.g. a node is moved out of a repository).
+	JobStateCancelled = JobState("cancelled")
 	// JobStateFailed indicates the job did not succeed. The Replicator will retry
 	// failed jobs.
-	JobStateFailed
-	// JobStateDead indicates the job was retried up to the maximum retries
-	JobStateDead
+	JobStateFailed = JobState("failed")
+	// JobStateDead indicates the job was retried up to the maximum retries.
+	JobStateDead = JobState("dead")
 )
 
 // ChangeType indicates what kind of change the replication is propagating
-type ChangeType int
+type ChangeType string
 
 const (
 	// UpdateRepo is when a replication updates a repository in place
-	UpdateRepo ChangeType = iota + 1
+	UpdateRepo = ChangeType("update")
 	// DeleteRepo is when a replication deletes a repo
-	DeleteRepo
+	DeleteRepo = ChangeType("delete")
 	// RenameRepo is when a replication renames repo
-	RenameRepo
+	RenameRepo = ChangeType("rename")
 )
 
 func (ct ChangeType) String() string {
-	switch ct {
-	case UpdateRepo:
-		return "update"
-	case DeleteRepo:
-		return "delete"
-	case RenameRepo:
-		return "rename"
-	default:
-		return "UNDEFINED"
-	}
+	return string(ct)
 }
 
 // Params represent additional information required to process event after fetching it from storage.
@@ -123,7 +113,7 @@ type ReplJobsDatastore interface {
 	// GetJobs fetches a list of chronologically ordered replication
 	// jobs for the given storage replica. The returned list will be at most
 	// count-length.
-	GetJobs(flag JobState, nodeStorage string, count int) ([]ReplJob, error)
+	GetJobs(states []JobState, nodeStorage string, count int) ([]ReplJob, error)
 
 	// CreateReplicaReplJobs will create replication jobs for each secondary
 	// replica of a repository known to the datastore. A set of replication job
@@ -264,12 +254,13 @@ func (md *MemoryDatastore) GetStorageNodes() ([]models.Node, error) {
 	return storageNodes, nil
 }
 
-// ErrReplicasMissing indicates the repository does not have any backup
-// replicas
-var ErrReplicasMissing = errors.New("repository missing secondary replicas")
-
 // GetJobs is a more general method to retrieve jobs of a certain state from the datastore
-func (md *MemoryDatastore) GetJobs(state JobState, targetNodeStorage string, count int) ([]ReplJob, error) {
+func (md *MemoryDatastore) GetJobs(states []JobState, targetNodeStorage string, count int) ([]ReplJob, error) {
+	statesSet := make(map[JobState]bool, len(states))
+	for _, state := range states {
+		statesSet[state] = true
+	}
+
 	md.jobs.RLock()
 	defer md.jobs.RUnlock()
 
@@ -277,7 +268,7 @@ func (md *MemoryDatastore) GetJobs(state JobState, targetNodeStorage string, cou
 
 	for i, record := range md.jobs.records {
 		// state is a bitmap that is a combination of one or more JobStates
-		if record.state&state != 0 && record.targetNodeStorage == targetNodeStorage {
+		if statesSet[record.state] && record.targetNodeStorage == targetNodeStorage {
 			job, err := md.replJobFromRecord(i, record)
 			if err != nil {
 				return nil, err
@@ -318,10 +309,6 @@ func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (Re
 		Params:       record.params,
 	}, nil
 }
-
-// ErrInvalidReplTarget indicates a targetStorage repository cannot be chosen because
-// it fails preconditions for being replicatable
-var ErrInvalidReplTarget = errors.New("targetStorage repository fails preconditions for replication")
 
 // CreateReplicaReplJobs creates a replication job for each secondary that
 // backs the specified repository. Upon success, the job IDs will be returned.
@@ -369,7 +356,7 @@ func (md *MemoryDatastore) UpdateReplJobState(jobID uint64, newState JobState) e
 		return fmt.Errorf("job ID %d does not exist", jobID)
 	}
 
-	if newState == JobStateComplete || newState == JobStateCancelled {
+	if newState == JobStateCompleted || newState == JobStateCancelled {
 		// remove the job to avoid filling up memory with unneeded job records
 		delete(md.jobs.records, jobID)
 		return nil

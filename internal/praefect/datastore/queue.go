@@ -17,15 +17,19 @@ type ReplicationEventQueue interface {
 	Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error)
 	// Dequeue retrieves events from the persistent queue using provided limitations and filters.
 	Dequeue(ctx context.Context, nodeStorage string, count int) ([]ReplicationEvent, error)
+	// Acknowledge updates previously dequeued events with new state releasing resources acquired for it.
+	// It only updates events that are in 'in_progress' state.
+	// It returns list of ids that was actually acknowledged.
+	Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error)
 }
 
 // ReplicationJob is a persistent representation of the replication job.
 type ReplicationJob struct {
-	Change            string `json:"change"`
-	RelativePath      string `json:"relative_path"`
-	TargetNodeStorage string `json:"target_node_storage"`
-	SourceNodeStorage string `json:"source_node_storage"`
-	Params            Params `json:"params"`
+	Change            ChangeType `json:"change"`
+	RelativePath      string     `json:"relative_path"`
+	TargetNodeStorage string     `json:"target_node_storage"`
+	SourceNodeStorage string     `json:"source_node_storage"`
+	Params            Params     `json:"params"`
 }
 
 func (job *ReplicationJob) Scan(value interface{}) error {
@@ -48,7 +52,7 @@ func (job ReplicationJob) Value() (driver.Value, error) {
 // ReplicationEvent is a persistent representation of the replication event.
 type ReplicationEvent struct {
 	ID        uint64
-	State     string
+	State     JobState
 	Attempt   int
 	LockID    string
 	CreatedAt time.Time
@@ -205,7 +209,7 @@ ORDER BY id
 // Acknowledge updates previously dequeued events with new state releasing resources acquired for it.
 // It only updates events that are in 'in_progress' state.
 // It returns list of ids that was actually acknowledged.
-func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state string, ids []uint64) ([]uint64, error) {
+func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
