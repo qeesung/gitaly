@@ -3,6 +3,8 @@ package objectpool
 import (
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,7 +75,8 @@ func TestUnsuccessfulCreate(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
+	validPoolPath := testhelper.NewTestObjectPoolName(t)
+	pool, err := objectpool.NewObjectPool("default", validPoolPath)
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -96,6 +99,45 @@ func TestUnsuccessfulCreate(t *testing.T) {
 			},
 			code: codes.InvalidArgument,
 		},
+		{
+			desc: "outside pools directory",
+			request: &gitalypb.CreateObjectPoolRequest{
+				Origin: testRepo,
+				ObjectPool: &gitalypb.ObjectPool{
+					Repository: &gitalypb.Repository{
+						StorageName:  "default",
+						RelativePath: "outside-pools",
+					},
+				},
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "path must be lowercase",
+			request: &gitalypb.CreateObjectPoolRequest{
+				Origin: testRepo,
+				ObjectPool: &gitalypb.ObjectPool{
+					Repository: &gitalypb.Repository{
+						StorageName:  "default",
+						RelativePath: strings.ToUpper(validPoolPath),
+					},
+				},
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "subdirectories must match first four pool digits",
+			request: &gitalypb.CreateObjectPoolRequest{
+				Origin: testRepo,
+				ObjectPool: &gitalypb.ObjectPool{
+					Repository: &gitalypb.Repository{
+						StorageName:  "default",
+						RelativePath: "@pools/aa/bb/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.git",
+					},
+				},
+			},
+			code: codes.InvalidArgument,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -106,7 +148,7 @@ func TestUnsuccessfulCreate(t *testing.T) {
 	}
 }
 
-func TestRemove(t *testing.T) {
+func TestDelete(t *testing.T) {
 	server, serverSocketPath := runObjectPoolServer(t)
 	defer server.Stop()
 
@@ -119,18 +161,63 @@ func TestRemove(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
+	validPoolPath := testhelper.NewTestObjectPoolName(t)
+	pool, err := objectpool.NewObjectPool("default", validPoolPath)
 	require.NoError(t, err)
 	require.NoError(t, pool.Create(ctx, testRepo))
 
-	req := &gitalypb.DeleteObjectPoolRequest{
-		ObjectPool: pool.ToProto(),
+	for _, tc := range []struct {
+		desc         string
+		relativePath string
+		error        error
+	}{
+		{
+			desc:         "deleting outside pools directory fails",
+			relativePath: ".",
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "deleting pools directory fails",
+			relativePath: "@pools",
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "deleting first level subdirectory fails",
+			relativePath: "@pools/ab",
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "deleting second level subdirectory fails",
+			relativePath: "@pools/ab/cd",
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "deleting pool subdirectory fails",
+			relativePath: filepath.Join(validPoolPath, "objects"),
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "path traversing fails",
+			relativePath: validPoolPath + "/../../../../..",
+			error:        errInvalidPoolDir,
+		},
+		{
+			desc:         "deleting pool succeeds",
+			relativePath: validPoolPath,
+		},
+		{
+			desc:         "deleting non-existent pool succeeds",
+			relativePath: validPoolPath,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := client.DeleteObjectPool(ctx, &gitalypb.DeleteObjectPoolRequest{ObjectPool: &gitalypb.ObjectPool{
+				Repository: &gitalypb.Repository{
+					StorageName:  "default",
+					RelativePath: tc.relativePath,
+				},
+			}})
+			require.Equal(t, tc.error, err)
+		})
 	}
-
-	_, err = client.DeleteObjectPool(ctx, req)
-	require.NoError(t, err)
-
-	// Removing again should be possible
-	_, err = client.DeleteObjectPool(ctx, req)
-	require.NoError(t, err)
 }

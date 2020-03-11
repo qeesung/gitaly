@@ -18,17 +18,11 @@ func (o *ObjectPool) clone(ctx context.Context, repo *gitalypb.Repository) error
 		return err
 	}
 
-	targetDir := o.FullPath()
-	targetName := path.Base(targetDir)
-	if err != nil {
-		return err
-	}
-
 	cmd, err := git.SafeCmdWithoutRepo(ctx,
 		[]git.Option{
 			git.ValueFlag{
 				Name:  "-C",
-				Value: path.Dir(targetDir),
+				Value: o.storagePath,
 			},
 		},
 		git.SubCmd{
@@ -38,7 +32,7 @@ func (o *ObjectPool) clone(ctx context.Context, repo *gitalypb.Repository) error
 				git.Flag{Name: "--bare"},
 				git.Flag{Name: "--local"},
 			},
-			Args: []string{repoPath, targetName},
+			Args: []string{repoPath, o.relativePath},
 		},
 	)
 	if err != nil {

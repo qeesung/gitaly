@@ -276,7 +276,7 @@ func TestUnlink(t *testing.T) {
 				ObjectPool: &gitalypb.ObjectPool{
 					Repository: &gitalypb.Repository{
 						StorageName:  testRepo.GetStorageName(),
-						RelativePath: "pool/does/not/exist",
+						RelativePath: testhelper.NewTestObjectPoolName(t), // does not exist
 					},
 				},
 			},

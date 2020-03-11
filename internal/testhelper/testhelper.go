@@ -3,9 +3,9 @@ package testhelper
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -386,30 +386,14 @@ func Context() (context.Context, func()) {
 	return context.WithCancel(context.Background())
 }
 
-func hashedRepoPath(dirName string) (string, error) {
-	if len(dirName) < 4 {
-		return "", errors.New("dirname is too short")
-	}
-
-	return filepath.Join(dirName[0:2], dirName[2:4], dirName[4:]), nil
-}
-
 // CreateRepo creates a temporary directory for a repo, without initializing it
-func CreateRepo(t testing.TB, storagePath string) (repo *gitalypb.Repository, repoPath, relativePath string) {
-	random, err := text.RandomHex(20)
-	require.NoError(t, err)
-
-	hashedPath, err := hashedRepoPath(random)
-	require.NoError(t, err)
-
-	repoPath = filepath.Join(storagePath, hashedPath)
-	require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), 0755), "making repo parent dir")
-
-	relativePath, err = filepath.Rel(storagePath, repoPath)
-	require.NoError(t, err)
-	repo = &gitalypb.Repository{StorageName: "default", RelativePath: relativePath, GlRepository: "project-1"}
-
-	return repo, repoPath, relativePath
+func CreateRepo(t testing.TB, storagePath, relativePath string) *gitalypb.Repository {
+	require.NoError(t, os.MkdirAll(filepath.Dir(storagePath), 0755), "making repo parent dir")
+	return &gitalypb.Repository{
+		StorageName:  "default",
+		RelativePath: relativePath,
+		GlRepository: "project-1",
+	}
 }
 
 // InitBareRepo creates a new bare repository
@@ -423,7 +407,10 @@ func InitRepoWithWorktree(t *testing.T) (*gitalypb.Repository, string, func()) {
 }
 
 func initRepo(t *testing.T, bare bool) (*gitalypb.Repository, string, func()) {
-	repo, repoPath, _ := CreateRepo(t, GitlabTestStoragePath())
+	storagePath := GitlabTestStoragePath()
+	relativePath := NewRepositoryName(t)
+	repoPath := filepath.Join(storagePath, relativePath)
+
 	args := []string{"init"}
 	if bare {
 		args = append(args, "--bare")
@@ -431,6 +418,7 @@ func initRepo(t *testing.T, bare bool) (*gitalypb.Repository, string, func()) {
 
 	MustRunCommand(t, nil, "git", append(args, repoPath)...)
 
+	repo := CreateRepo(t, storagePath, relativePath)
 	if !bare {
 		repo.RelativePath = path.Join(repo.RelativePath, ".git")
 	}
@@ -451,7 +439,10 @@ func NewTestRepoWithWorktree(t testing.TB) (repo *gitalypb.Repository, repoPath 
 
 func cloneTestRepo(t testing.TB, bare bool) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
 	storagePath := GitlabTestStoragePath()
-	repo, repoPath, relativePath := CreateRepo(t, storagePath)
+	relativePath := NewRepositoryName(t)
+	repoPath = filepath.Join(storagePath, relativePath)
+
+	repo = CreateRepo(t, storagePath, relativePath)
 	testRepo := TestRepository()
 	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
 	args := []string{"clone", "--no-hardlinks", "--dissociate"}
@@ -510,12 +501,27 @@ func AssertPathNotExists(t *testing.T, path string) {
 	assert.True(t, os.IsNotExist(err), "file should not exist: %s", path)
 }
 
-// NewTestObjectPoolName returns a random pool repository name.
-func NewTestObjectPoolName(t *testing.T) string {
-	b, err := text.RandomHex(5)
+// newDiskHash generates a random directory path following the Rails app's
+// approach in the hashed storage module, formatted as '[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}'.
+// https://gitlab.com/gitlab-org/gitlab/-/blob/f5c7d8eb1dd4eee5106123e04dec26d277ff6a83/app/models/storage/hashed.rb#L38-43
+func newDiskHash(t testing.TB) string {
+	// rails app calculates a sha256 and uses its hex representation
+	// as the directory path
+	b, err := text.RandomHex(sha256.Size)
 	require.NoError(t, err)
+	return filepath.Join(b[0:2], b[2:4], fmt.Sprintf("%s.git", b))
+}
 
-	return fmt.Sprintf("pool-%s.git", b)
+// NewRepositoryName returns a random repository hash
+// in format '@hashed/[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}.git'.
+func NewRepositoryName(t testing.TB) string {
+	return filepath.Join("@hashed", newDiskHash(t))
+}
+
+// NewTestObjectPoolName returns a random pool repository name
+// in format '@pools/[0-9a-z]{2}/[0-9a-z]{2}/[0-9a-z]{64}.git'.
+func NewTestObjectPoolName(t testing.TB) string {
+	return filepath.Join("@pools", newDiskHash(t))
 }
 
 // CreateLooseRef creates a ref that points to master

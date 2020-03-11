@@ -8,13 +8,24 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
+
+// poolDirRegexp is used to validate object pool directory structure and name.
+var poolDirRegexp = regexp.MustCompile(`^@pools/([0-9a-f]{2})/([0-9a-f]{2})/([0-9a-f]{64})\.git$`)
+
+type errString string
+
+func (err errString) Error() string { return string(err) }
+
+// ErrInvalidPoolDir is returned when the object pool relative path is malformed.
+const ErrInvalidPoolDir errString = "invalid object pool directory"
 
 // ObjectPool are a way to dedup objects between repositories, where the objects
 // live in a pool in a distinct repository which is used as an alternate object
@@ -27,11 +38,17 @@ type ObjectPool struct {
 }
 
 // NewObjectPool will initialize the object with the required data on the storage
-// shard. If the shard cannot be found, this function returns an error
+// shard. Relative path is validated to match the expected naming and directory
+// structure. If the shard cannot be found, this function returns an error.
 func NewObjectPool(storageName, relativePath string) (pool *ObjectPool, err error) {
 	storagePath, err := helper.GetStorageByName(storageName)
 	if err != nil {
 		return nil, err
+	}
+
+	matches := poolDirRegexp.FindStringSubmatch(relativePath)
+	if matches == nil || !strings.HasPrefix(matches[3], matches[1]+matches[2]) {
+		return nil, ErrInvalidPoolDir
 	}
 
 	return &ObjectPool{storageName, storagePath, relativePath}, nil
@@ -72,10 +89,6 @@ func (o *ObjectPool) IsValid() bool {
 // Create will create a pool for a repository and pull the required data to this
 // pool. `repo` that is passed also joins the repository.
 func (o *ObjectPool) Create(ctx context.Context, repo *gitalypb.Repository) (err error) {
-	if err := os.MkdirAll(path.Dir(o.FullPath()), 0755); err != nil {
-		return err
-	}
-
 	if err := o.clone(ctx, repo); err != nil {
 		return fmt.Errorf("clone: %v", err)
 	}
