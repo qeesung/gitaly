@@ -604,3 +604,33 @@ func GrpcErrorHasMessage(grpcError error, msg string) bool {
 	}
 	return status.Message() == msg
 }
+
+// dump the env vars that the custom hooks receives to a file
+func WriteEnvToCustomHook(t *testing.T, repoPath, hookName string) (string, func()) {
+	hookOutputTemp, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+	require.NoError(t, hookOutputTemp.Close())
+
+	hookContent := fmt.Sprintf("#!/bin/sh\n/usr/bin/env > %s\n", hookOutputTemp.Name())
+
+	cleanupCustomHook, err := WriteCustomHook(repoPath, hookName, []byte(hookContent))
+	require.NoError(t, err)
+
+	return hookOutputTemp.Name(), func() {
+		cleanupCustomHook()
+		os.Remove(hookOutputTemp.Name())
+	}
+}
+
+// write a hook in the repo/path.git/custom_hooks directory
+func WriteCustomHook(repoPath, name string, content []byte) (func(), error) {
+	fullPath := filepath.Join(repoPath, "custom_hooks", name)
+	fullpathDir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(fullpathDir, 0755); err != nil {
+		return func() {}, err
+	}
+
+	return func() {
+		os.RemoveAll(fullpathDir)
+	}, ioutil.WriteFile(fullPath, content, 0755)
+}

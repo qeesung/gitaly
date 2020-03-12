@@ -50,7 +50,7 @@ func TestSuccessfulMerge(t *testing.T) {
 	hookTempfiles := make([]string, len(hooks))
 	for i, h := range hooks {
 		var cleanup func()
-		hookTempfiles[i], cleanup = WriteEnvToCustomHook(t, testRepoPath, h)
+		hookTempfiles[i], cleanup = testhelper.WriteEnvToCustomHook(t, testRepoPath, h)
 		defer cleanup()
 	}
 
@@ -241,7 +241,7 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
-			remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
 
@@ -450,7 +450,7 @@ func TestFailedUserFFBranchDueToHooks(t *testing.T) {
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
-			remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
 
@@ -703,7 +703,7 @@ func TestUserMergeToRefIgnoreHooksRequest(t *testing.T) {
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
-			remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
 

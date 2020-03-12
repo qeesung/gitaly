@@ -361,27 +361,27 @@ func WriteTemporaryGitalyConfigFile(t *testing.T, tempDir string) (string, func(
 	}
 }
 
+type GlHookValues struct {
+	GLID, GLUsername, GLRepo, GLProtocol string
+}
+
 // EnvForHooks generates a set of environment variables for gitaly hooks
-func EnvForHooks(t *testing.T, glRepo, gitlabShellDir, glID string, gitPushOptions ...string) []string {
+func EnvForHooks(t *testing.T, gitlabShellDir string, glHookValues GlHookValues, gitPushOptions ...string) []string {
 	rubyDir, err := filepath.Abs("../../ruby")
 	require.NoError(t, err)
 
-	return append(append(oldEnv(t, glRepo, gitlabShellDir, glID), []string{
+	return append(append([]string{
 		fmt.Sprintf("GITALY_BIN_DIR=%s", config.Config.BinDir),
 		fmt.Sprintf("GITALY_RUBY_DIR=%s", rubyDir),
-	}...), hooks.GitPushOptions(gitPushOptions)...)
-}
-
-func oldEnv(t *testing.T, glRepo, gitlabShellDir, glID string) []string {
-	return append([]string{
-		fmt.Sprintf("GL_ID=%s", glID),
-		fmt.Sprintf("GL_REPOSITORY=%s", glRepo),
-		"GL_PROTOCOL=ssh",
+		fmt.Sprintf("GL_ID=%s", glHookValues.GLID),
+		fmt.Sprintf("GL_REPOSITORY=%s", glHookValues.GLRepo),
+		fmt.Sprintf("GL_PROTOCOL=%s", glHookValues.GLProtocol),
+		fmt.Sprintf("GL_USERNAME=%s", glHookValues.GLUsername),
 		fmt.Sprintf("GITALY_GITLAB_SHELL_DIR=%s", gitlabShellDir),
 		fmt.Sprintf("GITALY_LOG_DIR=%s", gitlabShellDir),
 		"GITALY_LOG_LEVEL=info",
 		"GITALY_LOG_FORMAT=json",
-	}, os.Environ()...)
+	}, os.Environ()...), hooks.GitPushOptions(gitPushOptions)...)
 }
 
 // WriteShellSecretFile writes a .gitlab_shell_secret file in the specified directory

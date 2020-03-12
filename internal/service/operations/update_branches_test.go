@@ -69,7 +69,7 @@ func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
 			cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
 			defer cleanupSrv()
 
-			hookOutputTempPath, cleanup := WriteEnvToCustomHook(t, testRepoPath, hookName)
+			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
 			ctx, cancel := testhelper.Context()
@@ -118,7 +118,7 @@ func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
 	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' -\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
-		remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+		remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 		require.NoError(t, err)
 		defer remove()
 

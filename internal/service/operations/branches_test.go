@@ -102,7 +102,7 @@ func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
 		t.Run(hookName, func(t *testing.T) {
 			defer exec.Command("git", "-C", testRepoPath, "branch", "-D", branchName).Run()
 
-			hookOutputTempPath, cleanup := WriteEnvToCustomHook(t, testRepoPath, hookName)
+			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
 			ctx, cancel := testhelper.Context()
@@ -142,7 +142,7 @@ func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' -\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
-		remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+		remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 		require.NoError(t, err)
 		defer remove()
 
@@ -298,7 +298,7 @@ func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
 		t.Run(hookName, func(t *testing.T) {
 			testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
 
-			hookOutputTempPath, cleanup := WriteEnvToCustomHook(t, testRepoPath, hookName)
+			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
 			ctx, cancel := testhelper.Context()
@@ -405,7 +405,7 @@ func TestFailedUserDeleteBranchDueToHooks(t *testing.T) {
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
-			remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
 

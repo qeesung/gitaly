@@ -86,7 +86,7 @@ func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
 		t.Run(hookName, func(t *testing.T) {
 			testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", tagNameInput)
 
-			hookOutputTempPath, cleanup := WriteEnvToCustomHook(t, testRepoPath, hookName)
+			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
 			ctx, cancel := testhelper.Context()
@@ -219,7 +219,7 @@ func TestSuccessfulGitHooksForUserCreateTagRequest(t *testing.T) {
 		t.Run(hookName, func(t *testing.T) {
 			defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagName).Run()
 
-			hookOutputTempPath, cleanup := WriteEnvToCustomHook(t, testRepoPath, hookName)
+			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
 			ctx, cancel := testhelper.Context()
@@ -327,7 +327,7 @@ func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
-			remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
 
@@ -374,7 +374,7 @@ func TestFailedUserCreateTagDueToHooks(t *testing.T) {
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
-		remove, err := WriteCustomHook(testRepoPath, hookName, hookContent)
+		remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 		require.NoError(t, err)
 		defer remove()
 

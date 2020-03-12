@@ -1,15 +1,12 @@
 package operations
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -97,37 +94,6 @@ func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.Operati
 }
 
 var NewOperationClient = newOperationClient
-
-// The callee is responsible for clean up of the specific hook, testMain removes
-// the hook dir
-func WriteEnvToCustomHook(t *testing.T, repoPath, hookName string) (string, func()) {
-	hookOutputTemp, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	require.NoError(t, hookOutputTemp.Close())
-
-	hookContent := fmt.Sprintf("#!/bin/sh\n/usr/bin/env > %s\n", hookOutputTemp.Name())
-
-	cleanupCustomHook, err := WriteCustomHook(repoPath, hookName, []byte(hookContent))
-	require.NoError(t, err)
-
-	return hookOutputTemp.Name(), func() {
-		cleanupCustomHook()
-		os.Remove(hookOutputTemp.Name())
-	}
-}
-
-// write a hook in the repo/path.git/custom_hooks directory
-func WriteCustomHook(repoPath, name string, content []byte) (func(), error) {
-	fullPath := filepath.Join(repoPath, "custom_hooks", name)
-	fullpathDir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(fullpathDir, 0755); err != nil {
-		return func() {}, err
-	}
-
-	return func() {
-		os.RemoveAll(fullpathDir)
-	}, ioutil.WriteFile(fullPath, content, 0755)
-}
 
 func SetupAndStartGitlabServer(t *testing.T, glID, glRepository string, gitPushOptions ...string) func() {
 	return testhelper.SetupAndStartGitlabServer(t, &testhelper.GitlabTestServerOptions{
