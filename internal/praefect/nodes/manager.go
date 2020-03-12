@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
@@ -14,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -90,8 +92,14 @@ func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption)
 					[]grpc.DialOption{
 						grpc.WithDefaultCallOptions(grpc.CallCustomCodec(proxy.Codec())),
 						grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(node.Token)),
-						grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-						grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+						grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
+							grpc_prometheus.StreamClientInterceptor,
+							grpctracing.StreamClientTracingInterceptor(),
+						)),
+						grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(
+							grpc_prometheus.UnaryClientInterceptor,
+							grpctracing.UnaryClientTracingInterceptor(),
+						)),
 					}, dialOpts...),
 			)
 			if err != nil {
