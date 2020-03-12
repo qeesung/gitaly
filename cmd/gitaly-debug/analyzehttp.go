@@ -22,7 +22,7 @@ func analyzeHTTPClone(cloneURL string) {
 		{"response body time", st.Get.ResponseBody()},
 		{"payload size", st.Get.PayloadSize()},
 		{"Git packets received", st.Get.Packets()},
-		{"refs advertised", st.Get.RefsAdvertised()},
+		{"refs advertised", len(st.Get.Refs())},
 		{"wanted refs", st.RefsWanted()},
 	} {
 		entry.print()

@@ -1,6 +1,7 @@
 package smarthttp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
+	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
@@ -40,6 +42,41 @@ func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
 		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
 		"00416f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9 refs/tags/v1.0.0^{}",
 	})
+}
+
+func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
+	server, serverSocketPath := runSmartHTTPServer(t)
+	defer server.Stop()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testRepo := testhelper.TestRepository()
+
+	request := &gitalypb.InfoRefsRequest{
+		Repository: testRepo,
+	}
+
+	fullResponse, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, request)
+	require.NoError(t, err)
+	fullRefs := stats.Get{}
+	err = fullRefs.Parse(bytes.NewReader(fullResponse))
+	require.NoError(t, err)
+
+	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UploadPackFilter)
+
+	partialResponse, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, request)
+	require.NoError(t, err)
+	partialRefs := stats.Get{}
+	err = partialRefs.Parse(bytes.NewReader(partialResponse))
+	require.NoError(t, err)
+
+	require.Equal(t, fullRefs.Refs(), partialRefs.Refs())
+
+	for _, c := range []string{"allow-tip-sha1-in-want", "allow-reachable-sha1-in-want", "filter"} {
+		require.Contains(t, partialRefs.Caps(), c)
+		require.NotContains(t, fullRefs.Caps(), c)
+	}
 }
 
 func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {

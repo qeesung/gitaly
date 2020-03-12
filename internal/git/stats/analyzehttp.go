@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -47,6 +48,10 @@ func ctxErr(ctx context.Context, err error) error {
 	return err
 }
 
+type Reference struct {
+	Oid, Name string
+}
+
 type Get struct {
 	start          time.Time
 	responseHeader time.Duration
@@ -55,7 +60,8 @@ type Get struct {
 	responseBody   time.Duration
 	payloadSize    int64
 	packets        int
-	refs           int
+	refs           []Reference
+	caps           []string
 }
 
 func (g *Get) ResponseHeader() time.Duration { return g.responseHeader }
@@ -64,7 +70,94 @@ func (g *Get) FirstGitPacket() time.Duration { return g.firstGitPacket }
 func (g *Get) ResponseBody() time.Duration   { return g.responseBody }
 func (g *Get) PayloadSize() int64            { return g.payloadSize }
 func (g *Get) Packets() int                  { return g.packets }
-func (g *Get) RefsAdvertised() int           { return g.refs }
+func (g *Get) Refs() []Reference             { return g.refs }
+func (g *Get) Caps() []string                { return g.caps }
+
+type uploadPackState int
+
+const (
+	uploadPackExpectService uploadPackState = iota
+	uploadPackExpectFlush
+	uploadPackExpectRefWithCaps
+	uploadPackExpectRef
+	uploadPackExpectEnd
+)
+
+// Expected response:
+// - "# service=git-upload-pack\n"
+// - FLUSH
+// - "<OID> <ref>\x00<capabilities>\n"
+// - "<OID> <ref>\n"
+// - ...
+// - FLUSH
+func (g *Get) Parse(body io.Reader) error {
+	state := uploadPackExpectService
+	scanner := pktline.NewScanner(body)
+
+	for ; scanner.Scan(); g.packets++ {
+		pkt := scanner.Bytes()
+		data := pktline.Data(pkt)
+		g.payloadSize += int64(len(data))
+
+		switch state {
+		case uploadPackExpectService:
+			g.firstGitPacket = time.Since(g.start)
+			header := string(data)
+			if header != "# service=git-upload-pack\n" {
+				return fmt.Errorf("unexpected header %q", header)
+			}
+
+			state = uploadPackExpectFlush
+		case uploadPackExpectFlush:
+			if !pktline.IsFlush(pkt) {
+				return errors.New("missing flush after service announcement")
+			}
+
+			state = uploadPackExpectRefWithCaps
+		case uploadPackExpectRefWithCaps:
+			split := bytes.Split(data, []byte{0})
+			if len(split) != 2 {
+				return errors.New("invalid first reference line")
+			}
+			g.caps = strings.Split(string(split[1]), " ")
+
+			ref := strings.SplitN(string(split[0]), " ", 2)
+			if len(ref) != 2 {
+				continue
+			}
+			g.refs = append(g.refs, Reference{Oid: ref[0], Name: ref[1]})
+
+			state = uploadPackExpectRef
+		case uploadPackExpectRef:
+			if pktline.IsFlush(pkt) {
+				state = uploadPackExpectEnd
+				continue
+			}
+
+			split := strings.SplitN(string(data), " ", 2)
+			if len(split) != 2 {
+				continue
+			}
+			g.refs = append(g.refs, Reference{Oid: split[0], Name: split[1]})
+		case uploadPackExpectEnd:
+			return errors.New("received packet after flush")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	if len(g.refs) == 0 {
+		return errors.New("received no references")
+	}
+	if len(g.caps) == 0 {
+		return errors.New("received no capabilities")
+	}
+
+	g.responseBody = time.Since(g.start)
+
+	return nil
+}
 
 func (cl *Clone) doGet(ctx context.Context) error {
 	req, err := http.NewRequest("GET", cl.URL+"/info/refs?service=git-upload-pack", nil)
@@ -110,65 +203,15 @@ func (cl *Clone) doGet(ctx context.Context) error {
 		}
 	}
 
-	// Expected response:
-	// - "# service=git-upload-pack\n"
-	// - FLUSH
-	// - "<OID> <ref> <capabilities>\n"
-	// - "<OID> <ref>\n"
-	// - ...
-	// - FLUSH
-	//
-	seenFlush := false
-	scanner := pktline.NewScanner(body)
-	for ; scanner.Scan(); cl.Get.packets++ {
-		if seenFlush {
-			return errors.New("received packet after flush")
-		}
-
-		data := string(pktline.Data(scanner.Bytes()))
-		cl.Get.payloadSize += int64(len(data))
-		switch cl.Get.packets {
-		case 0:
-			cl.Get.firstGitPacket = time.Since(cl.Get.start)
-
-			if data != "# service=git-upload-pack\n" {
-				return fmt.Errorf("unexpected header %q", data)
-			}
-		case 1:
-			if !pktline.IsFlush(scanner.Bytes()) {
-				return errors.New("missing flush after service announcement")
-			}
-		case 2:
-			if !strings.Contains(data, " side-band-64k") {
-				return fmt.Errorf("missing side-band-64k capability in %q", data)
-			}
-
-			fallthrough
-		default:
-			if pktline.IsFlush(scanner.Bytes()) {
-				seenFlush = true
-				continue
-			}
-
-			split := strings.SplitN(data, " ", 2)
-			if len(split) != 2 {
-				continue
-			}
-			cl.Get.refs++
-
-			if strings.HasPrefix(split[1], "refs/heads/") || strings.HasPrefix(split[1], "refs/tags/") {
-				cl.wants = append(cl.wants, split[0])
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
+	if err := cl.Get.Parse(body); err != nil {
 		return err
 	}
-	if !seenFlush {
-		return errors.New("missing flush in response")
-	}
 
-	cl.Get.responseBody = time.Since(cl.Get.start)
+	for _, ref := range cl.Get.Refs() {
+		if strings.HasPrefix(ref.Name, "refs/heads/") || strings.HasPrefix(ref.Name, "refs/tags/") {
+			cl.wants = append(cl.wants, ref.Oid)
+		}
+	}
 
 	return nil
 }

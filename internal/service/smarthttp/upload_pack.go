@@ -82,10 +82,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 
 	var globalOpts []git.Option
 	if featureflag.IsEnabled(ctx, featureflag.UploadPackFilter) {
-		globalOpts = append(globalOpts,
-			git.ValueFlag{"-c", "uploadpack.allowFilter=true"},
-			git.ValueFlag{"-c", "uploadpack.allowAnySHA1InWant=true"},
-		)
+		globalOpts = append(globalOpts, git.UploadPackFilterConfig()...)
 	}
 
 	for _, o := range req.GitConfigOptions {

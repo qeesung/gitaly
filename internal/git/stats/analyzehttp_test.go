@@ -30,6 +30,7 @@ func TestClone(t *testing.T) {
 	require.Equal(t, 200, clone.Get.HTTPStatus(), "get status")
 	require.Greater(t, clone.Get.Packets(), 0, "number of get packets")
 	require.Greater(t, clone.Get.PayloadSize(), int64(0), "get payload size")
+	require.Greater(t, len(clone.Get.Caps()), 10, "get capabilities")
 
 	previousValue := time.Duration(0)
 	for _, m := range []struct {
