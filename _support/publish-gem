@@ -20,8 +20,8 @@ def main(tag)
   puts 'Testing for staged changes'
   run!(%w[git diff --quiet --cached --exit-code])
 
-  run!(%w[gem build gitaly.gemspec])
   gem = "gitaly-#{version}.gem"
+  run!(['gem', 'build', 'gitaly.gemspec', '--output', gem])
   abort "gem not found: #{gem}" unless File.exist?(gem)
 
   puts "Proceed to publish version #{tag}? Enter 'Yes' to continue; Ctrl-C to abort"
