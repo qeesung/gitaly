@@ -1,5 +1,5 @@
 ---
 title: 'Use Rugged::Repository#bare over #new'
-merge_request:
+merge_request: 1920
 author:
 type: performance
