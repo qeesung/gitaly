@@ -130,7 +130,9 @@ module Gitlab
 
       def rugged
         @rugged ||= begin
-                      Rugged::Repository.new(path, alternates: alternate_object_directories).tap do |repo|
+                      # Open in bare mode, for a slight performance gain
+                      # https://github.com/libgit2/rugged/blob/654ff2fe12041e09707ba0647307abcb6348a7fb/ext/rugged/rugged_repo.c#L276-L278
+                      Rugged::Repository.bare(path, alternates: alternate_object_directories).tap do |repo|
                         Thread.current[RUGGED_KEY] << repo if Thread.current[RUGGED_KEY]
                       end
                     end
