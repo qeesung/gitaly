@@ -5,7 +5,7 @@ Gitaly-ssh is a helper executable that enables Git data traffic
 installation. It acts as a plugin to `git fetch` using the
 `GIT_SSH_COMMAND` environment variable.
 
-We created gitaly-ssh because needed a way to pull Git data from one
+We created gitaly-ssh because we needed a way to pull Git data from one
 Gitaly server to another, without going through one of the "front
 doors" of GitLab: gitlab-shell (Git SSH) or gitlab-workhorse (Git
 HTTP). To avoid building a special RPC for this, we re-used the
