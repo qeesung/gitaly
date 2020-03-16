@@ -80,8 +80,8 @@ func TestSearchFilesByContentSuccessful(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -152,8 +152,8 @@ func TestSearchFilesByContentLargeFile(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -268,8 +268,8 @@ func TestSearchFilesByNameSuccessful(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -315,14 +315,7 @@ func TestSearchFilesByNameSuccessful(t *testing.T) {
 }
 
 func TestSearchFilesByNameFailure(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
-
-	client, conn := newRepositoryClient(t, serverSocketPath)
-	defer conn.Close()
+	server := NewServer(RubyServer, config.GitalyInternalSocketPath())
 
 	testCases := []struct {
 		desc  string
@@ -354,14 +347,12 @@ func TestSearchFilesByNameFailure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			stream, err := client.SearchFilesByName(ctx, &gitalypb.SearchFilesByNameRequest{
+			err := server.SearchFilesByName(&gitalypb.SearchFilesByNameRequest{
 				Repository: tc.repo,
 				Query:      tc.query,
 				Ref:        []byte(tc.ref),
-			})
-			require.NoError(t, err)
+			}, nil)
 
-			_, err = consumeFilenameByName(stream)
 			testhelper.RequireGrpcError(t, err, tc.code)
 			require.Contains(t, err.Error(), tc.msg)
 		})

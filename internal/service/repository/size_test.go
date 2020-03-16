@@ -15,8 +15,8 @@ import (
 const testRepoMinSizeKB = 10000
 
 func TestSuccessfulRepositorySizeRequest(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -37,8 +37,8 @@ func TestSuccessfulRepositorySizeRequest(t *testing.T) {
 }
 
 func TestFailedRepositorySizeRequest(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -67,8 +67,8 @@ func TestFailedRepositorySizeRequest(t *testing.T) {
 }
 
 func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()

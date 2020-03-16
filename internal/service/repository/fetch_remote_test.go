@@ -44,8 +44,8 @@ func TestFetchRemoteSuccess(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, _ := newRepositoryClient(t, serverSocketPath)
 
@@ -130,8 +130,8 @@ func getRefnames(t *testing.T, repoPath string) []string {
 }
 
 func TestFetchRemoteOverHTTP(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -186,8 +186,8 @@ func TestFetchRemoteOverHTTP(t *testing.T) {
 }
 
 func TestFetchRemoteOverHTTPWithRedirect(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
@@ -217,8 +217,8 @@ func TestFetchRemoteOverHTTPWithRedirect(t *testing.T) {
 }
 
 func TestFetchRemoteOverHTTPError(t *testing.T) {
-	server, serverSocketPath := runRepoServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()

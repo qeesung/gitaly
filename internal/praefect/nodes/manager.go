@@ -164,11 +164,14 @@ func (n *Mgr) Start(bootstrapInterval, monitorInterval time.Duration) {
 	}
 }
 
+// ErrVirtualStorageNotExist indicates the node manager is not aware of the virtual storage for which a shard is being requested
+var ErrVirtualStorageNotExist = errors.New("virtual storage does not exist")
+
 // GetShard retrieves a shard for a virtual storage name
 func (n *Mgr) GetShard(virtualStorageName string) (Shard, error) {
 	shard, ok := n.shards[virtualStorageName]
 	if !ok {
-		return nil, errors.New("virtual storage does not exist")
+		return nil, ErrVirtualStorageNotExist
 	}
 
 	if n.failoverEnabled {
