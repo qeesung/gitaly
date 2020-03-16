@@ -1,17 +1,18 @@
 package datastore
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-func TestInMemoryReplicationEventQueue(t *testing.T) {
+func TestMemoryReplicationEventQueue(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	queue := NewInMemoryReplicationEventQueue()
+	queue := NewMemoryReplicationEventQueue()
 
 	noEvents, err := queue.Dequeue(ctx, "storage-1", 100500)
 	require.NoError(t, err)
@@ -153,4 +154,55 @@ func TestInMemoryReplicationEventQueue(t *testing.T) {
 	dequeuedAttempt6, err := queue.Dequeue(ctx, "storage-2", 100500)
 	require.NoError(t, err)
 	require.Empty(t, dequeuedAttempt6, "all jobs marked as completed for this storage")
+}
+
+func TestMemoryReplicationEventQueue_ConcurrentAccess(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	queue := NewMemoryReplicationEventQueue()
+
+	job1 := ReplicationJob{
+		Change:            UpdateRepo,
+		RelativePath:      "/project/path-1",
+		TargetNodeStorage: "storage-1",
+		SourceNodeStorage: "storage-0",
+	}
+
+	job2 := ReplicationJob{
+		Change:            UpdateRepo,
+		RelativePath:      "/project/path-1",
+		TargetNodeStorage: "storage-2",
+		SourceNodeStorage: "storage-0",
+	}
+
+	eventType1 := ReplicationEvent{Job: job1}
+	eventType2 := ReplicationEvent{Job: job2}
+
+	var checkScenario = func(wg *sync.WaitGroup, event ReplicationEvent, state JobState) {
+		defer wg.Done()
+
+		created, err := queue.Enqueue(ctx, event)
+		require.NoError(t, err)
+
+		dequeued, err := queue.Dequeue(ctx, created.Job.TargetNodeStorage, 100500)
+		require.NoError(t, err)
+		require.Len(t, dequeued, 1)
+		require.Equal(t, created.Job, dequeued[0].Job)
+
+		ackIDs, err := queue.Acknowledge(ctx, state, []uint64{created.ID})
+		require.NoError(t, err)
+		require.Len(t, ackIDs, 1)
+		require.Equal(t, created.ID, ackIDs[0])
+
+		nothing, err := queue.Dequeue(ctx, created.Job.TargetNodeStorage, 100500)
+		require.NoError(t, err)
+		require.Len(t, nothing, 0)
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go checkScenario(wg, eventType1, JobStateCompleted)
+	go checkScenario(wg, eventType2, JobStateCancelled)
+	wg.Wait()
 }

@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-// NewInMemoryReplicationEventQueue return in-memory implementation of the ReplicationEventQueue.
-func NewInMemoryReplicationEventQueue() ReplicationEventQueue {
-	return &inMemoryReplicationEventQueue{dequeued: map[uint64]struct{}{}}
+// NewMemoryReplicationEventQueue return in-memory implementation of the ReplicationEventQueue.
+func NewMemoryReplicationEventQueue() ReplicationEventQueue {
+	return &memoryReplicationEventQueue{dequeued: map[uint64]struct{}{}}
 }
 
-// inMemoryReplicationEventQueue implements queue interface with in-memory implementation of storage
-type inMemoryReplicationEventQueue struct {
+// memoryReplicationEventQueue implements queue interface with in-memory implementation of storage
+type memoryReplicationEventQueue struct {
 	sync.RWMutex
 	seq      uint64              // used to generate unique  identifiers for events
 	queued   []ReplicationEvent  // all new events stored as queue
@@ -22,25 +22,25 @@ type inMemoryReplicationEventQueue struct {
 
 // nextID returns a new sequential ID for new events.
 // Needs to be called with lock protection.
-func (s *inMemoryReplicationEventQueue) nextID() uint64 {
+func (s *memoryReplicationEventQueue) nextID() uint64 {
 	s.seq++
 	return s.seq
 }
 
-func (s *inMemoryReplicationEventQueue) Enqueue(_ context.Context, event ReplicationEvent) (ReplicationEvent, error) {
+func (s *memoryReplicationEventQueue) Enqueue(_ context.Context, event ReplicationEvent) (ReplicationEvent, error) {
 	event.Attempt = 3
 	event.State = JobStateReady
 	event.CreatedAt = time.Now().UTC()
-	// event.LockID this doesn't make sense with memory data store as it is intended to synchronise multiple praefect instances
+	// event.LockID is unnecessary with an in memory data store as it is intended to synchronize multiple praefect instances
 
 	s.Lock()
+	defer s.Unlock()
 	event.ID = s.nextID()
 	s.queued = append(s.queued, event)
-	s.Unlock()
 	return event, nil
 }
 
-func (s *inMemoryReplicationEventQueue) Dequeue(_ context.Context, nodeStorage string, count int) ([]ReplicationEvent, error) {
+func (s *memoryReplicationEventQueue) Dequeue(_ context.Context, nodeStorage string, count int) ([]ReplicationEvent, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -66,9 +66,13 @@ func (s *inMemoryReplicationEventQueue) Dequeue(_ context.Context, nodeStorage s
 	return result, nil
 }
 
-func (s *inMemoryReplicationEventQueue) Acknowledge(_ context.Context, state JobState, ids []uint64) ([]uint64, error) {
+func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobState, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
 	switch state {
-	case JobStateFailed, JobStateCompleted:
+	case JobStateCompleted, JobStateFailed, JobStateCancelled:
 		// proceed with acknowledgment
 	default:
 		return nil, fmt.Errorf("event state is not supported: %q", state)
@@ -99,29 +103,29 @@ func (s *inMemoryReplicationEventQueue) Acknowledge(_ context.Context, state Job
 
 			result = append(result, id)
 
-			if state == JobStateCompleted {
+			switch state {
+			case JobStateCompleted:
 				// this event is fully processed and could be removed
 				s.remove(i)
-				break
-			}
-
-			if state == JobStateFailed {
+			case JobStateFailed:
 				if s.queued[i].Attempt == 0 {
 					// out of luck for this replication event, remove from queue as no more attempts available
 					s.remove(i)
 				}
+			case JobStateCancelled:
+				// out of luck for this replication event, remove from queue as no more attempts available
+				s.remove(i)
 			}
+			break
 		}
 	}
 
 	return result, nil
 }
 
-// remove deletes i-th element from slice.
-// It doesn't check 'i' for the out of rage and must be called with lock protection.
-func (s *inMemoryReplicationEventQueue) remove(i int) {
+// remove deletes i-th element from slice and from tracking map.
+// It doesn't check 'i' for the out of range and must be called with lock protection.
+func (s *memoryReplicationEventQueue) remove(i int) {
 	delete(s.dequeued, s.queued[i].ID)
-	copy(s.queued, s.queued[:i])
-	copy(s.queued[i:], s.queued[i+1:])
-	s.queued = s.queued[:len(s.queued)-1]
+	s.queued = append(s.queued[:i], s.queued[i+1:]...)
 }
