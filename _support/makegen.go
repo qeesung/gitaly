@@ -334,6 +334,15 @@ func (gm *gitalyMake) GolangCILint() string {
 	return fmt.Sprintf("golangci-lint-%s-%s-%s", gm.GolangCILintVersion(), runtime.GOOS, runtime.GOARCH)
 }
 
+func (gm *gitalyMake) BundleFlags() string {
+	if _, err := os.Stat(filepath.Join(gm.SourceDir(), "../.gdk-install-root")); err != nil {
+		// We are not in a GDK installation
+		return "--deployment"
+	}
+
+	return "--no-deployment"
+}
+
 var templateText = func() string {
 	contents, err := ioutil.ReadFile("../_support/Makefile.template")
 	if err != nil {
