@@ -335,12 +335,16 @@ func (gm *gitalyMake) GolangCILint() string {
 }
 
 func (gm *gitalyMake) BundleFlags() string {
-	if _, err := os.Stat(filepath.Join(gm.SourceDir(), "../.gdk-install-root")); err != nil {
-		// We are not in a GDK installation
-		return "--deployment"
+	if gm.IsGDK() {
+		return "--no-deployment"
 	}
 
-	return "--no-deployment"
+	return "--deployment"
+}
+
+func (gm *gitalyMake) IsGDK() bool {
+	_, err := os.Stat(filepath.Join(gm.SourceDir(), "../.gdk-install-root"))
+	return err == nil
 }
 
 var templateText = func() string {
