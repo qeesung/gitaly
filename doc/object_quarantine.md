@@ -62,7 +62,7 @@ alternate object directories).
 1. If the `pre-receive` hook rejects the push, `git receive-pack` removes the quarantine directory and its contents. The push is aborted.
 1. If the `pre-receive` hook passes, `git receive-pack` merges the quarantine directory into the main object directory and deletes the (now empty) quarantine directory.
 1. `git receive-pack` moves to the ref update stage, which includes running the `update` hooks
-1. etc.
+1. `git receive-pack` performs the rest of its tasks
 
 Note that by the time the `update` hook runs, the quarantine directory
 no longer exists! The same goes for the `post-receive` hook which runs
