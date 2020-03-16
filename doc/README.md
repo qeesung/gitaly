@@ -33,6 +33,7 @@ For configuration please read [praefects configuration documentation](doc/config
 - [Disk-based Cache](design_diskcache.md)
 - [Tips for reading Git source code](reading_git_source.md)
 - [gitaly-ssh](../cmd/gitaly-ssh/README.md)
+- [Git object quarantine during git push](object_quarantine.md)
 
 #### Proposals
 
