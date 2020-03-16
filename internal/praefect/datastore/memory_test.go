@@ -7,11 +7,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-func TestInMemoryReplicationEventQueue(t *testing.T) {
+func TestMemoryReplicationEventQueue(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	queue := NewInMemoryReplicationEventQueue()
+	queue := NewMemoryReplicationEventQueue()
 
 	noEvents, err := queue.Dequeue(ctx, "storage-1", 100500)
 	require.NoError(t, err)
