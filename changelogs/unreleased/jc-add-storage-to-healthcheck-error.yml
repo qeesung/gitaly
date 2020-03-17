@@ -1,0 +1,5 @@
+---
+title: Add storage name to healthcheck error log
+merge_request: 1934
+author:
+type: added

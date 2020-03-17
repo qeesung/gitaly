@@ -283,7 +283,7 @@ func (n *nodeStatus) check() {
 
 	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
 	if err != nil {
-		n.log.WithError(err).WithField("address", n.Address).Warn("error when pinging healthcheck")
+		n.log.WithError(err).WithField("storage", n.Storage).WithField("address", n.Address).Warn("error when pinging healthcheck")
 		resp = &healthpb.HealthCheckResponse{
 			Status: healthpb.HealthCheckResponse_UNKNOWN,
 		}
