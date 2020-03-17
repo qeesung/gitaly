@@ -18,6 +18,7 @@ linters:
     - goimports # https://godoc.org/golang.org/x/tools/cmd/goimports
     - staticcheck # https://github.com/dominikh/go-tools/tree/master/cmd/staticcheck
     - gosimple # https://github.com/dominikh/go-tools/tree/master/cmd/gosimple
+    - unused
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source

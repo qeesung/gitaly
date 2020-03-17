@@ -17,16 +17,6 @@ func RPCCredentials(sharedSecret string) credentials.PerRPCCredentials {
 	return &rpcCredentialsV2{sharedSecret: sharedSecret}
 }
 
-type rpcCredentials struct {
-	sharedSecret string
-}
-
-func (*rpcCredentials) RequireTransportSecurity() bool { return false }
-
-func (rc *rpcCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
-	return map[string]string{"authorization": "Bearer " + rc.sharedSecret}, nil
-}
-
 // RPCCredentialsV2 can be used with grpc.WithPerRPCCredentials to create
 // a grpc.DialOption that inserts an V2 (HMAC) token with the current
 // timestamp for authentication with a Gitaly server. The shared secret
