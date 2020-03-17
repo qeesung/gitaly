@@ -89,7 +89,14 @@ func TestRun(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotCode, err := run(tt.packer, tt.workingDir, tt.gitalyAddress, "{}")
+			cmd := gitalySSHCommand{
+				packer:     tt.packer,
+				workingDir: tt.workingDir,
+				address:    tt.gitalyAddress,
+				payload:    "{}",
+			}
+
+			gotCode, err := cmd.run()
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

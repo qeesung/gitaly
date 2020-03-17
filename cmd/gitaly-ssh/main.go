@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"gitlab.com/gitlab-org/labkit/tracing"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
@@ -17,10 +19,26 @@ import (
 
 type packFn func(_ context.Context, _ *grpc.ClientConn, _ string) (int32, error)
 
+type gitalySSHCommand struct {
+	// The git packer that shall be executed. One of receivePack,
+	// uploadPack or uploadArchive
+	packer packFn
+	// Working directory to execute the packer in
+	workingDir string
+	// Address of the server we want to post the request to
+	address string
+	// Marshalled gRPC payload to pass to the remote server
+	payload string
+	// Comma separated list of feature flags that shall be enabled on the
+	// remote server
+	featureFlags string
+}
+
 // GITALY_ADDRESS="tcp://1.2.3.4:9999" or "unix:/var/run/gitaly.sock"
 // GITALY_TOKEN="foobar1234"
 // GITALY_PAYLOAD="{repo...}"
 // GITALY_WD="/path/to/working-directory"
+// GITALY_FEATUREFLAGS="upload_pack_filter,hooks_rpc"
 // gitaly-ssh upload-pack <git-garbage-x2>
 func main() {
 	// < 4 since git throws on 2x garbage here
@@ -42,11 +60,15 @@ func main() {
 		log.Fatalf("invalid pack command: %q", command)
 	}
 
-	gitalyWorkingDir := os.Getenv("GITALY_WD")
-	gitalyAddress := os.Getenv("GITALY_ADDRESS")
-	gitalyPayload := os.Getenv("GITALY_PAYLOAD")
+	cmd := gitalySSHCommand{
+		packer:       packer,
+		workingDir:   os.Getenv("GITALY_WD"),
+		address:      os.Getenv("GITALY_ADDRESS"),
+		payload:      os.Getenv("GITALY_PAYLOAD"),
+		featureFlags: os.Getenv("GITALY_FEATUREFLAGS"),
+	}
 
-	code, err := run(packer, gitalyWorkingDir, gitalyAddress, gitalyPayload)
+	code, err := cmd.run()
 	if err != nil {
 		log.Printf("%s: %v", command, err)
 	}
@@ -54,7 +76,7 @@ func main() {
 	os.Exit(code)
 }
 
-func run(packer packFn, gitalyWorkingDir string, gitalyAddress string, gitalyPayload string) (int, error) {
+func (cmd gitalySSHCommand) run() (int, error) {
 	// Configure distributed tracing
 	closer := tracing.Initialize(tracing.WithServiceName("gitaly-ssh"))
 	defer closer.Close()
@@ -62,19 +84,25 @@ func run(packer packFn, gitalyWorkingDir string, gitalyAddress string, gitalyPay
 	ctx, finished := tracing.ExtractFromEnv(context.Background())
 	defer finished()
 
-	if gitalyWorkingDir != "" {
-		if err := os.Chdir(gitalyWorkingDir); err != nil {
-			return 1, fmt.Errorf("unable to chdir to %v", gitalyWorkingDir)
+	if cmd.featureFlags != "" {
+		for _, flag := range strings.Split(cmd.featureFlags, ",") {
+			ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, flag)
 		}
 	}
 
-	conn, err := getConnection(gitalyAddress)
+	if cmd.workingDir != "" {
+		if err := os.Chdir(cmd.workingDir); err != nil {
+			return 1, fmt.Errorf("unable to chdir to %v", cmd.workingDir)
+		}
+	}
+
+	conn, err := getConnection(cmd.address)
 	if err != nil {
 		return 1, err
 	}
 	defer conn.Close()
 
-	code, err := packer(ctx, conn, gitalyPayload)
+	code, err := cmd.packer(ctx, conn, cmd.payload)
 	if err != nil {
 		return 1, err
 	}

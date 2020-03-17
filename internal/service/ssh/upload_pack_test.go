@@ -1,7 +1,6 @@
 package ssh
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,10 +14,71 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
+
+type cloneCommand struct {
+	command      *exec.Cmd
+	repository   *gitalypb.Repository
+	server       string
+	featureFlags []string
+	gitConfig    string
+	gitProtocol  string
+}
+
+func (cmd cloneCommand) execute(t *testing.T) error {
+	req := &gitalypb.SSHUploadPackRequest{
+		Repository:  cmd.repository,
+		GitProtocol: cmd.gitProtocol,
+	}
+	if cmd.gitConfig != "" {
+		req.GitConfigOptions = strings.Split(cmd.gitConfig, " ")
+	}
+	pbMarshaler := &jsonpb.Marshaler{}
+	payload, err := pbMarshaler.MarshalToString(req)
+
+	require.NoError(t, err)
+
+	cmd.command.Env = []string{
+		fmt.Sprintf("GITALY_ADDRESS=%s", cmd.server),
+		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
+		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(cmd.featureFlags, ",")),
+		fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
+		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, gitalySSHPath),
+	}
+
+	out, err := cmd.command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: %q", err, out)
+	}
+	if !cmd.command.ProcessState.Success() {
+		return fmt.Errorf("Failed to run `git clone`: %q", out)
+	}
+
+	return nil
+}
+
+func (cmd cloneCommand) test(t *testing.T, localRepoPath string) (string, string, string, string) {
+	defer os.RemoveAll(localRepoPath)
+
+	err := cmd.execute(t)
+	require.NoError(t, err)
+
+	storagePath := testhelper.GitlabTestStoragePath()
+	testRepoPath := path.Join(storagePath, testRepo.GetRelativePath())
+
+	remoteHead := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "master"))
+	localHead := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "rev-parse", "master"))
+
+	remoteTags := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag"))
+	localTags := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "tag"))
+
+	return localHead, remoteHead, localTags, remoteTags
+}
 
 func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
 	server, serverSocketPath := runSSHServer(t, WithUploadPackRequestTimeout(10*time.Microsecond))
@@ -147,9 +207,64 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			lHead, rHead, _, _, err := testClone(t, serverSocketPath, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", tc.cmd, "")
-			require.NoError(t, err, "clone failed")
+			cmd := cloneCommand{
+				repository: testRepo,
+				command:    tc.cmd,
+				server:     serverSocketPath,
+			}
+			lHead, rHead, _, _ := cmd.test(t, localRepoPath)
 			require.Equal(t, lHead, rHead, "local and remote head not equal")
+		})
+	}
+}
+
+func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
+	server, serverSocketPath := runSSHServer(t)
+	defer server.Stop()
+
+	// Ruby file which is ~1kB in size and not present in HEAD
+	blobLessThanLimit := "6ee41e85cc9bf33c10b690df09ca735b22f3790f"
+	// Image which is ~100kB in size and not present in HEAD
+	blobGreaterThanLimit := "18079e308ff9b3a5e304941020747e5c39b46c88"
+
+	tests := []struct {
+		desc     string
+		flags    []string
+		repoTest func(t *testing.T, repoPath string)
+	}{
+		{
+			desc: "full_clone",
+			repoTest: func(t *testing.T, repoPath string) {
+				testhelper.GitObjectMustExist(t, repoPath, blobGreaterThanLimit)
+			},
+		},
+		{
+			desc:  "partial_clone",
+			flags: []string{featureflag.UploadPackFilter},
+			repoTest: func(t *testing.T, repoPath string) {
+				testhelper.GitObjectMustNotExist(t, repoPath, blobGreaterThanLimit)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			// Run the clone with filtering enabled in both runs. The only
+			// difference is that in the first run, we have the
+			// UploadPackFilter flag disabled.
+			localPath := path.Join(testRepoRoot, fmt.Sprintf("gitlab-test-upload-pack-local-%s", tc.desc))
+			cmd := cloneCommand{
+				repository:   testRepo,
+				command:      exec.Command("git", "clone", "--filter=blob:limit=2048", "git@localhost:test/test.git", localPath),
+				server:       serverSocketPath,
+				featureFlags: tc.flags,
+			}
+			err := cmd.execute(t)
+			defer os.RemoveAll(localPath)
+			require.NoError(t, err, "clone failed")
+
+			testhelper.GitObjectMustExist(t, localPath, blobLessThanLimit)
+			tc.repoTest(t, localPath)
 		})
 	}
 }
@@ -179,8 +294,14 @@ func TestUploadPackCloneSuccessWithGitProtocol(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			lHead, rHead, _, _, err := testClone(t, serverSocketPath, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "", tc.cmd, git.ProtocolV2)
-			require.NoError(t, err, "clone failed")
+			cmd := cloneCommand{
+				repository:  testRepo,
+				command:     tc.cmd,
+				server:      serverSocketPath,
+				gitProtocol: git.ProtocolV2,
+			}
+
+			lHead, rHead, _, _ := cmd.test(t, localRepoPath)
 			require.Equal(t, lHead, rHead, "local and remote head not equal")
 
 			envData, err := testhelper.GetGitEnvData()
@@ -197,13 +318,14 @@ func TestUploadPackCloneHideTags(t *testing.T) {
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-hide-tags")
 
-	cmd := exec.Command("git", "clone", "--mirror", "git@localhost:test/test.git", localRepoPath)
-
-	_, _, lTags, rTags, err := testClone(t, serverSocketPath, testRepo.GetStorageName(), testRepo.GetRelativePath(), localRepoPath, "transfer.hideRefs=refs/tags", cmd, "")
-
-	if err != nil {
-		t.Fatalf("clone failed: %v", err)
+	cmd := cloneCommand{
+		repository: testRepo,
+		command:    exec.Command("git", "clone", "--mirror", "git@localhost:test/test.git", localRepoPath),
+		server:     serverSocketPath,
+		gitConfig:  "transfer.hideRefs=refs/tags",
 	}
+	_, _, lTags, rTags := cmd.test(t, localRepoPath)
+
 	if lTags == rTags {
 		t.Fatalf("local and remote tags are equal. clone failed: %q != %q", lTags, rTags)
 	}
@@ -218,55 +340,16 @@ func TestUploadPackCloneFailure(t *testing.T) {
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-failure")
 
-	cmd := exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath)
-
-	_, _, _, _, err := testClone(t, serverSocketPath, "foobar", testRepo.GetRelativePath(), localRepoPath, "", cmd, "")
-	if err == nil {
-		t.Fatalf("clone didn't fail")
+	cmd := cloneCommand{
+		repository: &gitalypb.Repository{
+			StorageName:  "foobar",
+			RelativePath: testRepo.GetRelativePath(),
+		},
+		command: exec.Command("git", "clone", "git@localhost:test/test.git", localRepoPath),
+		server:  serverSocketPath,
 	}
-}
-
-func testClone(t *testing.T, serverSocketPath, storageName, relativePath, localRepoPath string, gitConfig string, cmd *exec.Cmd, gitProtocol string) (string, string, string, string, error) {
-	defer os.RemoveAll(localRepoPath)
-
-	pbTempRepo := &gitalypb.Repository{StorageName: storageName, RelativePath: relativePath}
-	req := &gitalypb.SSHUploadPackRequest{
-		Repository:  pbTempRepo,
-		GitProtocol: gitProtocol,
-	}
-	if gitConfig != "" {
-		req.GitConfigOptions = strings.Split(gitConfig, " ")
-	}
-	pbMarshaler := &jsonpb.Marshaler{}
-	payload, err := pbMarshaler.MarshalToString(req)
-
-	require.NoError(t, err)
-
-	cmd.Env = []string{
-		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
-		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
-		fmt.Sprintf("PATH=%s", ".:"+os.Getenv("PATH")),
-		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, gitalySSHPath),
-	}
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("%v: %q", err, out)
-	}
-	if !cmd.ProcessState.Success() {
-		return "", "", "", "", fmt.Errorf("Failed to run `git clone`: %q", out)
-	}
-
-	storagePath := testhelper.GitlabTestStoragePath()
-	testRepoPath := path.Join(storagePath, testRepo.GetRelativePath())
-
-	remoteHead := bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "master"))
-	localHead := bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "rev-parse", "master"))
-
-	remoteTags := bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag"))
-	localTags := bytes.TrimSpace(testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "tag"))
-
-	return string(localHead), string(remoteHead), string(localTags), string(remoteTags), nil
+	err := cmd.execute(t)
+	require.Error(t, err, "clone didn't fail")
 }
 
 func testPostUploadPackFailedResponse(t *testing.T, stream gitalypb.SSHService_SSHUploadPackClient) error {
