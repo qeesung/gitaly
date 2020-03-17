@@ -1,0 +1,5 @@
+---
+title: Fix gitaly-ruby not starting on case-sensitive filesystems
+merge_request: 1939
+author:
+type: fixed

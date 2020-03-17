@@ -16,7 +16,11 @@ require_relative 'rails_logger.rb'
 require_relative 'gollum.rb'
 require_relative 'config.rb'
 
-dir = __dir__
+# `Dir.glob` will make a readdir() system call to extract the canonical
+# name of the directory. This will ensure we avoid errors with
+# substitutions below on case-sensitive filesystems such as Apple File
+# System.
+dir = Dir[__dir__].first
 
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative "#{dir}/encoding_helper.rb"
