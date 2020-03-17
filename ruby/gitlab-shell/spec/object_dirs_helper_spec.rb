@@ -9,9 +9,7 @@ describe ObjectDirsHelper do
   describe '.all_attributes' do
     it do
       expect(described_class.all_attributes.keys).to include(*%w[
-                                                        GIT_OBJECT_DIRECTORY
                                                         GIT_OBJECT_DIRECTORY_RELATIVE
-                                                        GIT_ALTERNATE_OBJECT_DIRECTORIES
                                                         GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE
                                                              ])
     end

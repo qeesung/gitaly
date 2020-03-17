@@ -9,14 +9,6 @@ module Gitlab
       include Gitlab::EncodingHelper
       include Gitlab::Utils::StrongMemoize
 
-      ALLOWED_OBJECT_DIRECTORIES_VARIABLES = %w[
-        GIT_OBJECT_DIRECTORY
-        GIT_ALTERNATE_OBJECT_DIRECTORIES
-      ].freeze
-      ALLOWED_OBJECT_RELATIVE_DIRECTORIES_VARIABLES = %w[
-        GIT_OBJECT_DIRECTORY_RELATIVE
-        GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE
-      ].freeze
       # In https://gitlab.com/gitlab-org/gitaly/merge_requests/698
       # We copied these two prefixes into gitaly-go, so don't change these
       # or things will break! (REBASE_WORKTREE_PREFIX and SQUASH_WORKTREE_PREFIX)

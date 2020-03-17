@@ -4,9 +4,7 @@ class ObjectDirsHelper
   class << self
     def all_attributes
       {
-        "GIT_ALTERNATE_OBJECT_DIRECTORIES" => absolute_alt_object_dirs,
         "GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE" => relative_alt_object_dirs,
-        "GIT_OBJECT_DIRECTORY" => absolute_object_dir,
         "GIT_OBJECT_DIRECTORY_RELATIVE" => relative_object_dir
       }
     end
