@@ -70,7 +70,6 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 	if len(ids) == 0 {
 		return nil, nil
 	}
-
 	switch state {
 	case JobStateCompleted, JobStateFailed, JobStateCancelled:
 		// proceed with acknowledgment
