@@ -16,11 +16,7 @@ require_relative 'rails_logger.rb'
 require_relative 'gollum.rb'
 require_relative 'config.rb'
 
-# `Dir.glob` will make a readdir() system call to extract the canonical
-# name of the directory. This will ensure we avoid errors with
-# substitutions below on case-sensitive filesystems such as Apple File
-# System.
-dir = Dir[__dir__].first
+dir = __dir__
 
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative "#{dir}/encoding_helper.rb"
@@ -32,7 +28,7 @@ require_relative "#{dir}/git/repository_mirroring.rb"
 
 # Require all .rb files we can find in the gitlab lib directory
 Dir["#{dir}/**/*.rb"].sort.each do |ruby_file|
-  require_relative ruby_file.sub(dir, '').sub(%r{^/*}, '')
+  require File.expand_path(ruby_file)
 end
 
 class String
