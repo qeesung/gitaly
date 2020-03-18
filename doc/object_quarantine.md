@@ -1,9 +1,6 @@
 # Git object quarantine during git push
 
-While receiving a Git push, `git receive-pack` will temporarily put
-the Git objects sent by the client in a "quarantine directory". These
-objects are moved to the proper object directory during the ref update
-transaction.
+While receiving a Git push, GitLab can reject pushes using the `pre-receive` Git hook. Git has a special "object quarantine" mechanism that allows it to eagerly delete 
 
 This is a Git implementation detail but it matters to GitLab because
 during a push, GitLab performs its own validations and checks on the
