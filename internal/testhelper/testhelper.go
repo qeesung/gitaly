@@ -500,10 +500,10 @@ func AssertPathNotExists(t TB, path string) {
 	assert.True(t, os.IsNotExist(err), "file should not exist: %s", path)
 }
 
-// newDiskHash generates a random directory path following the Rails app's
+// NewDiskHash generates a random directory path following the Rails app's
 // approach in the hashed storage module, formatted as '[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}'.
 // https://gitlab.com/gitlab-org/gitlab/-/blob/f5c7d8eb1dd4eee5106123e04dec26d277ff6a83/app/models/storage/hashed.rb#L38-43
-func newDiskHash(t TB) string {
+func NewDiskHash(t TB) string {
 	// rails app calculates a sha256 and uses its hex representation
 	// as the directory path
 	b, err := text.RandomHex(sha256.Size)
@@ -514,13 +514,7 @@ func newDiskHash(t TB) string {
 // NewRepositoryName returns a random repository hash
 // in format '@hashed/[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}.git'.
 func NewRepositoryName(t TB) string {
-	return filepath.Join("@hashed", newDiskHash(t))
-}
-
-// NewTestObjectPoolName returns a random pool repository name
-// in format '@pools/[0-9a-z]{2}/[0-9a-z]{2}/[0-9a-z]{64}.git'.
-func NewTestObjectPoolName(t TB) string {
-	return filepath.Join("@pools", newDiskHash(t))
+	return filepath.Join("@hashed", NewDiskHash(t))
 }
 
 // CreateLooseRef creates a ref that points to master

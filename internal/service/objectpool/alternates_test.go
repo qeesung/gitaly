@@ -26,7 +26,7 @@ func TestDisconnectGitAlternates(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 

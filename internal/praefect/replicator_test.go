@@ -89,7 +89,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	ds := datastore.NewInMemory(config)
 
 	// create object pool on the source
-	objectPoolPath := testhelper.NewTestObjectPoolName(t)
+	objectPoolPath := objectpool.NewObjectPoolName(t)
 	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectPoolPath)
 	require.NoError(t, err)
 

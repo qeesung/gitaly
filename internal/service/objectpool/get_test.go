@@ -22,7 +22,7 @@ func TestGetObjectPoolSuccess(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	relativePoolPath := testhelper.NewTestObjectPoolName(t)
+	relativePoolPath := objectpool.NewObjectPoolName(t)
 
 	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), relativePoolPath)
 	require.NoError(t, err)
