@@ -19,10 +19,10 @@ and thus form a delta chain. Git can then decide to send the full delta chain.
 
 In practice, these delta chains jump between branches, tags, and other refs. When
 a client initiates a fetch, it's usually not interested in any of the other
-refs. Further more it might create a security issue when objects are shared
-between between repositories. This will invalidate the delta chain on disk, and
-Git will, and during the fetch request, Git will recalculate the diffs for the
-objects later in the chain it does want.
+refs. Furthermore it might create a security issue when objects are shared
+between repositories. This will invalidate the delta chain on disk, and during
+the fetch request, Git will recalculate the diffs for the objects later in the
+chain it does want.
 
 Delta islands try to solve this by creating islands of objects which the delta
 detection algorithm can use to create a delta against. For example, all branches

@@ -111,14 +111,14 @@ graph TD
 
 ## Stages until v1.0
 
-Rome wasn't built in a day, nor will Praefect be build in one. To iterate towards
-a true HA system some properties will not be met until v1.0. Before that
-milestone, an beta stage will worked towards.
+Rome wasn't built in a day, nor will Praefect be built in one. To enable for an
+iterative approach towards a true HA system, some requirements will not be met
+until v1.0. Before that milestone is reached, a beta stage will be worked towards.
 
-The beta stage will consist of only a few required building blocks to iterate
-on towards the envisioned HA system. The first of those building blocks is
-creating and maintaining repository replica's. By maintaining a replica, there's
-no requirement for the replica to be up to date right after each mutation on the
+The beta stage will consist of only a few building blocks required to iterate
+towards the envisioned HA system. The first of those building blocks is creating
+and maintaining repository replica's. By maintaining a replica, there's no
+requirement for the replica to be up to date right after each mutation on the
 repository. Detecting that a repository is mutated, and bringing replicas up to
 date in a consistent matter is the primary goal. Implicit in this goal is a way
 to perform leader election.
@@ -162,7 +162,7 @@ between Gitaly HA and Geo:
   the primary datacenter goes down, any data stored in GitLab will be
   preserved in another location. Some data loss is acceptable, since
   having a significant amount of data--even if it stale--is better than
-  having no data at all. In addition, the Geo-repliaced instance can
+  having no data at all. In addition, the Geo-replicated instance can
   take over for the primary with some manual coordination. However, Geo
   does not handle failure of a single Gitaly node.
 
@@ -175,13 +175,13 @@ between Gitaly HA and Geo:
    containers, etc.).
 
 1. Under the hood, the manner in which Geo and Gitaly HA detect
-repository changes is subtlely different but important. For example,
-when a user pushes to a Geo primary instance, the Git post-receive
-handler generates emits an event (in the form of a database row in
-PostgreSQL) that tells secondaries that the repository has changed. In
-Gitaly HA, Praefect directly handles the RPC that will mutate the
-repository. This architecture makes it possible for Praefect to support
-strong consistency.
+   repository changes is subtly different but important. For example,
+   when a user pushes to a Geo primary instance, the Git post-receive
+   handler emits an event (in the form of a database row in PostgreSQL)
+   that tells secondaries that the repository has changed. In Gitaly HA,
+   Praefect directly handles the RPC that will mutate the repository. This
+   architecture makes it possible for Praefect to support strong
+   consistency.
 
 ### Strong consistency
 
@@ -217,8 +217,8 @@ can be minimized and handled gracefully.
 
 #### Example: Replicating Git pushes
 
-If we assume that all replicas are all in sync with the primary, a push
-to the primary can be replicated in parallel to many nodes. A consistent
+If we assume that all replicas are in sync with the primary, a push to the
+primary can be replicated in parallel to many nodes. A consistent
 replication approach might look like:
 
 ```mermaid
@@ -269,7 +269,7 @@ option](https://github.com/git/git/blob/ff66981f4593aec0f3b3eeace0eacb7dbe44fd8c
 How might we make the push wait for Praefect to confirm? One way may be
 to use the Git pre-receive hook. Normally, Gitaly uses the pre-receive
 hook to make an internal API call to check whether the push should be
-allowed go through. We still need to do that for the primary case, but
+allowed to go through. We still need to do that for the primary case, but
 we can skip this for the secondaries and simply make a separate Gitaly
 RPC to indicate the current transaction is ready to go:
 
