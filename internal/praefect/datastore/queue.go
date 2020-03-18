@@ -23,6 +23,15 @@ type ReplicationEventQueue interface {
 	Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error)
 }
 
+func allowToAck(state JobState) error {
+	switch state {
+	case JobStateCompleted, JobStateFailed, JobStateCancelled:
+		return nil
+	default:
+		return fmt.Errorf("event state is not supported: %q", state)
+	}
+}
+
 // ReplicationJob is a persistent representation of the replication job.
 type ReplicationJob struct {
 	Change            ChangeType `json:"change"`
@@ -212,6 +221,10 @@ ORDER BY id
 func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error) {
 	if len(ids) == 0 {
 		return nil, nil
+	}
+
+	if err := allowToAck(state); err != nil {
+		return nil, err
 	}
 
 	params := glsql.NewParamsAssembler()

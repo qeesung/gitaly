@@ -47,7 +47,12 @@ func (s *memoryReplicationEventQueue) Dequeue(_ context.Context, nodeStorage str
 	var result []ReplicationEvent
 	for i := 0; i < len(s.queued); i++ {
 		event := s.queued[i]
-		if event.Attempt > 0 && event.Job.TargetNodeStorage == nodeStorage && (event.State == JobStateReady || event.State == JobStateFailed) {
+
+		hasMoreAttempts := event.Attempt > 0
+		isForTargetStorage := event.Job.TargetNodeStorage == nodeStorage
+		isReadyOrFailed := event.State == JobStateReady || event.State == JobStateFailed
+
+		if hasMoreAttempts && isForTargetStorage && isReadyOrFailed {
 			updatedAt := time.Now().UTC()
 			event.Attempt--
 			event.State = JobStateInProgress
@@ -70,11 +75,9 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	switch state {
-	case JobStateCompleted, JobStateFailed, JobStateCancelled:
-		// proceed with acknowledgment
-	default:
-		return nil, fmt.Errorf("event state is not supported: %q", state)
+
+	if err := allowToAck(state); err != nil {
+		return nil, err
 	}
 
 	s.Lock()
