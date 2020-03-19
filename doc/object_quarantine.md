@@ -7,23 +7,10 @@ how GitLab is able to see quarantined objects.
 
 ## Git object quarantine
 
-Git object quarantine was introduced in Git 2.11.0 via https://gitlab.com/gitlab-org/git/-/commit/25ab004c53cdcfea485e5bf437aeaa74df47196d.
-
-From the commit message:
-
-> In order for the receiving end of "git push" to inspect the
-> received history and decide to reject the push, the objects sent
-> from the sending end need to be made available to the hook and
-> the mechanism for the connectivity check, and this was done
-> traditionally by storing the objects in the receiving repository
-> and letting "git gc" to expire it.  Instead, store the newly
-> received objects in a temporary area, and make them available by
-> reusing the alternate object store mechanism to them only while we
-> decide if we accept the check, and once we decide, either migrate
-> them to the repository or purge them immediately.
-
-In the above, "receiving end" means GitLab / Gitaly for us. In GitLab,
-inspecting the push is done by the Git `pre-receive` hook.
+Git object quarantine was introduced in Git 2.11.0 via
+https://gitlab.com/gitlab-org/git/-/commit/25ab004c53cdcfea485e5bf437aeaa74df47196d.
+To understand what it does we need to know how Git receives pushes on
+the server.
 
 ### How Git receives a push
 
