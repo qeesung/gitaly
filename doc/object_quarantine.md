@@ -107,23 +107,52 @@ however, because the GitLab hooks are "dumb". All the GitLab hooks do
 is take the inputs of the hook executable (the list of ref update
 commands) and send them to the GitLab Rails internal API via a POST
 request. The application logic that decides whether the push is
-allowed resides in Rails.
+allowed resides in Rails. The hook just waits and reports back result
+of the POST API request to GitLab.
 
-The internal GitLab API then makes Gitaly calls back into the repo to
+During the POST, the internal GitLab API makes Gitaly calls back into the repo to
 examine the objects being pushed. For example, if force pushes are not
 allowed, GitLab will call the IsAncestor RPC. That RPC call then wants
 to look at a commit that is in the process of being pushed. But
 because that commit is in quarantine, the RPC will fail because the
 commit cannot be found.
 
-To overcome this problem, the GitLab `pre-receive` hook [reads the
-object directory configuration from its environment](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/object_dirs_helper.rb#L3), and passes this
-information [along with the HTTP API call](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/gitlab_access.rb#L24). On the Rails side, we then
-[put the object directory information in the "request store"](https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/api/internal/base.rb#L43) (i.e.,
-request-scoped thread-local storage). And then during that Rails
-request, when Rails makes Gitaly requests on this repo, we send back
-the quarantine information [in the Gitaly `Repository` struct](https://gitlab.com/gitlab-org/gitlab/-/blob/f81f30c29a0edce20f6737fdccc3315c8baab9d1/lib/gitlab/gitaly_client/util.rb#L8-17). And
-finally, inside Gitaly, when we spawn a Git process, we [re-create the
-environment variables](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/internal/git/alternates/alternates.go#L21-34) that were present on the `pre-receive` hook, so
-that we can see the quarantined objects. We do the same when we [instantiate a Gitlab::Git::Repository in gitaly-ruby](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/lib/gitlab/git/repository.rb#L44).
+### How GitLab passes the object quarantine information around
 
+To overcome this problem, the GitLab `pre-receive` hook [reads the
+object directory configuration from its
+environment](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/object_dirs_helper.rb#L3),
+and passes this information [along with the HTTP API
+call](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/gitlab_access.rb#L24).
+On the Rails side, we then [put the object directory information in
+the "request
+store"](https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/api/internal/base.rb#L43)
+(i.e., request-scoped thread-local storage). And then during that
+Rails request, when Rails makes Gitaly requests on this repo, we send
+back the quarantine information [in the Gitaly `Repository`
+struct](https://gitlab.com/gitlab-org/gitlab/-/blob/f81f30c29a0edce20f6737fdccc3315c8baab9d1/lib/gitlab/gitaly_client/util.rb#L8-17).
+And finally, inside Gitaly, when we spawn a Git process, we [re-create
+the environment
+variables](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/internal/git/alternates/alternates.go#L21-34)
+that were present on the `pre-receive` hook, so that we can see the
+quarantined objects. We do the same when we [instantiate a
+Gitlab::Git::Repository in
+gitaly-ruby](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/lib/gitlab/git/repository.rb#L44).
+
+### Relative paths
+
+During the Gitaly migration we had to handle a complication with the
+object quarantine information: Git uses absolute paths for this. These
+paths get generated wherever `git receive-pack` runs, i.e., on the
+Gitaly server. During the migration, the repositories were also
+accessible via NFS at the Rails side, but at a different path. That
+meant that the absolute paths supplied by Git would be invalid part of
+the time.
+
+To work around this, the GitLab `pre-receive` hook [converts the
+relative paths from Git into relative
+paths](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/object_dirs_helper.rb#L16),
+relative to the repository directory. These relative paths then get
+passed around inside GitLab. At the time Gitaly recreates the object
+directory variables, it [converts the paths back from relative to
+absolute](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/internal/git/alternates/alternates.go#L23).
