@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/inspect"
@@ -54,9 +55,13 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 	pr, pw := io.Pipe()
 	defer pw.Close()
 	stdin := io.TeeReader(stdinReader, pw)
-	deepenCh := make(chan bool, 1)
+	statsCh := make(chan stats.PackfileNegotiation, 1)
 	go func() {
-		deepenCh <- scanDeepen(pr)
+		defer close(statsCh)
+		stats := stats.PackfileNegotiation{}
+		if err := stats.Parse(pr); err == nil {
+			statsCh <- stats
+		}
 	}()
 
 	var respBytes int64
@@ -100,8 +105,10 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 	}
 
 	if err := cmd.Wait(); err != nil {
-		pw.Close() // ensure scanDeepen returns
-		if _, ok := command.ExitStatus(err); ok && <-deepenCh {
+		pw.Close() // ensure PackfileNegotiation parser returns
+		stats := <-statsCh
+
+		if _, ok := command.ExitStatus(err); ok && stats.Deepen != "" {
 			// We have seen a 'deepen' message in the request. It is expected that
 			// git-upload-pack has a non-zero exit status: don't treat this as an
 			// error.
