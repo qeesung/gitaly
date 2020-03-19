@@ -139,7 +139,7 @@ meant that the absolute paths supplied by Git would be invalid part of
 the time.
 
 To work around this, the GitLab `pre-receive` hook [converts the
-relative paths from Git into relative
+absolute paths from Git into relative
 paths](https://gitlab.com/gitlab-org/gitaly/-/blob/969bac80e2f246867c1a976864bd1f5b34ee43dd/ruby/gitlab-shell/lib/object_dirs_helper.rb#L16),
 relative to the repository directory. These relative paths then get
 passed around inside GitLab. At the time Gitaly recreates the object
