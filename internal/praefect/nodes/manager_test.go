@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -24,14 +25,21 @@ func TestNodeStatus(t *testing.T) {
 
 	require.NoError(t, err)
 
-	cs := newConnectionStatus(models.Node{}, cc, testhelper.DiscardTestEntry(t))
+	mockHistogramVec := promtest.NewMockHistogramVec()
+
+	storageName := "default"
+	cs := newConnectionStatus(models.Node{Storage: storageName}, cc, testhelper.DiscardTestEntry(t), mockHistogramVec)
 
 	require.False(t, cs.isHealthy())
 
+	var expectedLabels [][]string
 	for i := 0; i < healthcheckThreshold; i++ {
 		cs.check()
+		expectedLabels = append(expectedLabels, []string{storageName})
 	}
 	require.True(t, cs.isHealthy())
+	require.Equal(t, expectedLabels, mockHistogramVec.LabelsCalled())
+	require.Len(t, mockHistogramVec.Observer().Observed(), healthcheckThreshold)
 
 	healthSvr.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
@@ -73,10 +81,11 @@ func TestNodeManager(t *testing.T) {
 		FailoverEnabled: false,
 	}
 
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover)
+	mockHistogram := promtest.NewMockHistogramVec()
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover, mockHistogram)
 	require.NoError(t, err)
 
-	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover)
+	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover, mockHistogram)
 	require.NoError(t, err)
 
 	nm.Start(1*time.Millisecond, 5*time.Second)
@@ -114,6 +123,11 @@ func TestNodeManager(t *testing.T) {
 
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
+
+	labelsCalled := mockHistogram.LabelsCalled()
+	for _, node := range virtualStorages[0].Nodes {
+		require.Contains(t, labelsCalled, []string{node.Storage})
+	}
 
 	// since the primary is unhealthy, we expect checkShards to demote primary to secondary, and promote the healthy
 	// secondary to primary

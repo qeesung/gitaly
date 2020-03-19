@@ -136,11 +136,10 @@ func configure(conf config.Config) {
 }
 
 func run(cfgs []starter.Config, conf config.Config) error {
-	nodeManager, err := nodes.NewManager(logger, conf)
+	nodeLatencyHistogram, err := metrics.RegisterNodeLatency(conf.Prometheus)
 	if err != nil {
 		return err
 	}
-	nodeManager.Start(1*time.Second, 3*time.Second)
 
 	latencyMetric, err := metrics.RegisterReplicationLatency(conf.Prometheus)
 	if err != nil {
@@ -151,6 +150,12 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	if err != nil {
 		return err
 	}
+
+	nodeManager, err := nodes.NewManager(logger, conf, nodeLatencyHistogram)
+	if err != nil {
+		return err
+	}
+	nodeManager.Start(1*time.Second, 3*time.Second)
 
 	registry := protoregistry.New()
 	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {

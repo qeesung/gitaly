@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -190,7 +191,7 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	logEntry := testhelper.DiscardTestEntry(t)
 	ds := datastore.NewInMemory(conf)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf)
+	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	registry := protoregistry.New()

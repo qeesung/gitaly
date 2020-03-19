@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
@@ -59,7 +60,7 @@ func TestStreamDirector(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf)
+	nodeMgr, err := nodes.NewManager(entry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))

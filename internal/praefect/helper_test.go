@@ -115,7 +115,7 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
 
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
@@ -176,7 +176,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	ds := datastore.NewInMemory(conf)
 	logEntry := log.Default()
 
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 

@@ -75,6 +75,7 @@ type Mgr struct {
 	// VirtualStorages
 	failoverEnabled bool
 	log             *logrus.Entry
+	nodeLatencyHist metrics.HistogramVec
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
@@ -82,7 +83,7 @@ type Mgr struct {
 var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 
 // NewNodeManager creates a new NodeMgr based on virtual storage configs
-func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption) (*Mgr, error) {
+func NewManager(log *logrus.Entry, c config.Config, latencyHistogram metrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	shards := make(map[string]*shard)
 	for _, virtualStorage := range c.VirtualStorages {
 		var secondaries []*nodeStatus
@@ -108,7 +109,7 @@ func NewManager(log *logrus.Entry, c config.Config, dialOpts ...grpc.DialOption)
 			if err != nil {
 				return nil, err
 			}
-			ns := newConnectionStatus(*node, conn, log)
+			ns := newConnectionStatus(*node, conn, log, latencyHistogram)
 
 			if node.DefaultPrimary {
 				primary = ns
@@ -229,20 +230,22 @@ func (n *Mgr) checkShards() {
 	}
 }
 
-func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry) *nodeStatus {
+func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist metrics.HistogramVec) *nodeStatus {
 	return &nodeStatus{
-		Node:       node,
-		ClientConn: cc,
-		statuses:   make([]healthpb.HealthCheckResponse_ServingStatus, 0),
-		log:        l,
+		Node:        node,
+		ClientConn:  cc,
+		statuses:    make([]healthpb.HealthCheckResponse_ServingStatus, 0),
+		log:         l,
+		latencyHist: latencyHist,
 	}
 }
 
 type nodeStatus struct {
 	models.Node
 	*grpc.ClientConn
-	statuses []healthpb.HealthCheckResponse_ServingStatus
-	log      *logrus.Entry
+	statuses    []healthpb.HealthCheckResponse_ServingStatus
+	log         *logrus.Entry
+	latencyHist metrics.HistogramVec
 }
 
 // GetStorage gets the storage name of a node
@@ -284,7 +287,10 @@ func (n *nodeStatus) check() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
+	start := time.Now()
 	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
+	n.latencyHist.WithLabelValues(n.Storage).Observe(time.Since(start).Seconds())
+
 	if err != nil {
 		n.log.WithError(err).WithField("storage", n.Storage).WithField("address", n.Address).Warn("error when pinging healthcheck")
 		resp = &healthpb.HealthCheckResponse{

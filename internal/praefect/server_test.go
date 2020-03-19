@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -132,7 +133,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	}
 
 	entry := testhelper.DiscardTestEntry(t)
-	nodeMgr, err := nodes.NewManager(entry, conf)
+	nodeMgr, err := nodes.NewManager(entry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	registry := protoregistry.New()
