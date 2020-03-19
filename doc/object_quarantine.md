@@ -1,6 +1,8 @@
 # Git object quarantine during git push
 
-While receiving a Git push, GitLab can reject pushes using the `pre-receive` Git hook. Git has a special "object quarantine" mechanism that allows it to eagerly delete reject Git objects.
+While receiving a Git push, GitLab can reject pushes using the
+`pre-receive` Git hook. Git has a special "object quarantine"
+mechanism that allows it to eagerly delete rejected Git objects.
 
 In this document we will explain how Git object quarantine works, and
 how GitLab is able to see quarantined objects.
