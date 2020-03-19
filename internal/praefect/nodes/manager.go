@@ -75,7 +75,6 @@ type Mgr struct {
 	// VirtualStorages
 	failoverEnabled bool
 	log             *logrus.Entry
-	nodeLatencyHist metrics.HistogramVec
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence

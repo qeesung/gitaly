@@ -173,7 +173,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf)
+	nodeMgr, err := nodes.NewManager(entry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	coordinator := NewCoordinator(entry, ds, nodeMgr, conf, protoregistry.GitalyProtoPreregistered)
