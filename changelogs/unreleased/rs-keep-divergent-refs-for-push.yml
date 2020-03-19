@@ -1,0 +1,5 @@
+---
+title: Don't push divergent remote branches with keep_divergent_refs
+merge_request: 1915
+author:
+type: added

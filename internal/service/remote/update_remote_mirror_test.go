@@ -195,6 +195,10 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) 
 		{"remote", "add", remoteName, mirrorPath},
 		{"fetch", remoteName},
 
+		// Create a divergence by moving `master` to the HEAD of another branch
+		// ba3faa7d only exists on `after-create-delete-modify-move`
+		{"update-ref", "refs/heads/master", "ba3faa7dbecdb555c748b36e8bc0f427e69de5e7"},
+
 		// Delete a branch and a tag to ensure they're kept around in the mirror
 		{"branch", "-D", "not-merged-branch"},
 		{"tag", "-d", "v2.0.0"},
@@ -224,8 +228,30 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) 
 
 	mirrorRefs := string(testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "for-each-ref"))
 
+	// Verify `master` didn't get updated, since its HEAD is no longer an ancestor of remote's version
+	require.Contains(t, mirrorRefs, "1e292f8fedd741b75372e19097c76d327140c312 commit\trefs/heads/master")
+
+	// Verify refs deleted on the source stick around on the mirror
 	require.Contains(t, mirrorRefs, "refs/heads/not-merged-branch")
 	require.Contains(t, mirrorRefs, "refs/tags/v2.0.0")
+
+	// Re-run mirroring without KeepDivergentRefs
+	firstRequest.KeepDivergentRefs = false
+
+	stream, err = client.UpdateRemoteMirror(ctx)
+	require.NoError(t, err)
+	require.NoError(t, stream.Send(firstRequest))
+
+	_, err = stream.CloseAndRecv()
+	require.NoError(t, err)
+
+	mirrorRefs = string(testhelper.MustRunCommand(t, nil, "git", "-C", mirrorPath, "for-each-ref"))
+
+	// Verify `master` gets overwritten with the value from the source
+	require.Contains(t, mirrorRefs, "ba3faa7dbecdb555c748b36e8bc0f427e69de5e7 commit\trefs/heads/master")
+
+	// Verify a branch only on the mirror is now deleted
+	require.NotContains(t, mirrorRefs, "refs/heads/not-merged-branch")
 }
 
 func TestFailedUpdateRemoteMirrorRequestDueToValidation(t *testing.T) {

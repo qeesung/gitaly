@@ -60,7 +60,23 @@ module Gitlab
         local_refs.select do |ref_name, ref|
           remote_ref = remote_refs[ref_name]
 
-          remote_ref.nil? || ref.dereferenced_target != remote_ref.dereferenced_target
+          # Ref doesn't exist on the remote, it should be created
+          next true if remote_ref.nil?
+
+          local_target = ref.dereferenced_target
+          remote_target = remote_ref.dereferenced_target
+
+          if local_target == remote_target
+            # Ref is identical on the remote, no point mirroring
+            false
+          elsif @keep_divergent_refs
+            # Mirror the ref if its remote counterpart hasn't diverged
+            repository.ancestor?(remote_target&.id, local_target&.id)
+          else
+            # Attempt to overwrite whatever's on the remote; push rules and
+            # protected branches may still prevent this
+            true
+          end
         end
       end
 
