@@ -32,6 +32,8 @@ func (s *memoryReplicationEventQueue) Enqueue(_ context.Context, event Replicati
 	event.State = JobStateReady
 	event.CreatedAt = time.Now().UTC()
 	// event.LockID is unnecessary with an in memory data store as it is intended to synchronize multiple praefect instances
+	// but must be filled out to produce same event as it done by SQL implementation
+	event.LockID = event.Job.TargetNodeStorage + "|" + event.Job.RelativePath
 
 	s.Lock()
 	defer s.Unlock()
@@ -130,4 +132,61 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 func (s *memoryReplicationEventQueue) remove(i int) {
 	delete(s.dequeued, s.queued[i].ID)
 	s.queued = append(s.queued[:i], s.queued[i+1:]...)
+}
+
+// ReplicationEventQueueInterceptor allows to register interceptors for `ReplicationEventQueue` interface.
+type ReplicationEventQueueInterceptor interface {
+	// ReplicationEventQueue actual implementation.
+	ReplicationEventQueue
+	// OnEnqueue allows to set action that would be executed each time when `Enqueue` method called.
+	OnEnqueue(func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error))
+	// OnDequeue allows to set action that would be executed each time when `Dequeue` method called.
+	OnDequeue(func(context.Context, string, int, ReplicationEventQueue) ([]ReplicationEvent, error))
+	// OnAcknowledge allows to set action that would be executed each time when `Acknowledge` method called.
+	OnAcknowledge(func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error))
+}
+
+// NewReplicationEventQueueInterceptor returns interception over `ReplicationEventQueue` interface.
+func NewReplicationEventQueueInterceptor(queue ReplicationEventQueue) ReplicationEventQueueInterceptor {
+	return &replicationEventQueueInterceptor{ReplicationEventQueue: queue}
+}
+
+type replicationEventQueueInterceptor struct {
+	ReplicationEventQueue
+	onEnqueue     func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)
+	onDequeue     func(context.Context, string, int, ReplicationEventQueue) ([]ReplicationEvent, error)
+	onAcknowledge func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error)
+}
+
+func (i *replicationEventQueueInterceptor) OnEnqueue(action func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)) {
+	i.onEnqueue = action
+}
+
+func (i *replicationEventQueueInterceptor) OnDequeue(action func(context.Context, string, int, ReplicationEventQueue) ([]ReplicationEvent, error)) {
+	i.onDequeue = action
+}
+
+func (i *replicationEventQueueInterceptor) OnAcknowledge(action func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error)) {
+	i.onAcknowledge = action
+}
+
+func (i *replicationEventQueueInterceptor) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
+	if i.onEnqueue != nil {
+		return i.onEnqueue(ctx, event, i.ReplicationEventQueue)
+	}
+	return i.ReplicationEventQueue.Enqueue(ctx, event)
+}
+
+func (i *replicationEventQueueInterceptor) Dequeue(ctx context.Context, nodeStorage string, count int) ([]ReplicationEvent, error) {
+	if i.onDequeue != nil {
+		return i.onDequeue(ctx, nodeStorage, count, i.ReplicationEventQueue)
+	}
+	return i.ReplicationEventQueue.Dequeue(ctx, nodeStorage, count)
+}
+
+func (i *replicationEventQueueInterceptor) Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error) {
+	if i.onAcknowledge != nil {
+		return i.onAcknowledge(ctx, state, ids, i.ReplicationEventQueue)
+	}
+	return i.ReplicationEventQueue.Acknowledge(ctx, state, ids)
 }

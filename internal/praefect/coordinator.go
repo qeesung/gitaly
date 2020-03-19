@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
@@ -103,9 +104,7 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi prot
 			return nil, err
 		}
 
-		if requestFinalizer, err = c.createReplicaJobs(ctx, targetRepo, primary, secondaries, change, params); err != nil {
-			return nil, err
-		}
+		requestFinalizer = c.createReplicaJobs(ctx, targetRepo, primary, secondaries, change, params)
 	}
 
 	return proxy.NewStreamParameters(ctx, primary.GetConnection(), requestFinalizer, nil), nil
@@ -201,29 +200,35 @@ func (c *Coordinator) createReplicaJobs(
 	secondaries []nodes.Node,
 	change datastore.ChangeType,
 	params datastore.Params,
-) (func(), error) {
-	var secondaryStorages []string
-	for _, secondary := range secondaries {
-		secondaryStorages = append(secondaryStorages, secondary.GetStorage())
-	}
-
-	corrID := c.ensureCorrelationID(ctx, targetRepo)
-
-	jobIDs, err := c.datastore.CreateReplicaReplJobs(corrID, targetRepo.RelativePath, primary.GetStorage(), secondaryStorages, change, params)
-	if err != nil {
-		return nil, err
-	}
-
+) func() {
 	return func() {
-		for _, jobID := range jobIDs {
-			// TODO: in case of error the job remains in queue in 'pending' state and leads to:
-			//  - additional memory consumption
-			//  - stale state of one of the git data stores
-			if err := c.datastore.UpdateReplJobState(jobID, datastore.JobStateReady); err != nil {
-				c.log.WithField("job_id", jobID).WithError(err).Errorf("error when updating replication job to %q", datastore.JobStateReady)
+		correlationID := c.ensureCorrelationID(ctx, targetRepo)
+
+		for _, secondary := range secondaries {
+			event := datastore.ReplicationEvent{
+				Job: datastore.ReplicationJob{
+					Change:            change,
+					RelativePath:      targetRepo.GetRelativePath(),
+					SourceNodeStorage: primary.GetStorage(),
+					TargetNodeStorage: secondary.GetStorage(),
+					Params:            params,
+				},
+				Meta: datastore.Params{metadatahandler.CorrelationIDKey: correlationID},
+			}
+
+			// TODO: it could happen that there won't be enough time to enqueue replication events
+			// do we need to create another ctx with another timeout?
+			_, err := c.datastore.Enqueue(ctx, event)
+			if err != nil {
+				c.log.WithFields(logrus.Fields{
+					logWithReplSource: event.Job.SourceNodeStorage,
+					logWithReplTarget: event.Job.TargetNodeStorage,
+					logWithReplChange: event.Job.Change,
+					logWithReplPath:   event.Job.RelativePath,
+				}).Error("failed to persist replication event")
 			}
 		}
-	}, nil
+	}
 }
 
 func (c *Coordinator) ensureCorrelationID(ctx context.Context, targetRepo *gitalypb.Repository) string {

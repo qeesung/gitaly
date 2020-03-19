@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -46,7 +47,10 @@ func TestStreamDirector(t *testing.T) {
 			},
 		},
 	}
-	ds := datastore.NewInMemory(conf)
+	ds := datastore.QueuedMemoryDatastore{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -95,36 +99,34 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "praefect-internal-1", rewrittenRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
-	jobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStatePending}, "praefect-internal-2", 10)
-	require.NoError(t, err)
-	require.Len(t, jobs, 1)
+	// this call creates new events in the queue and simulates usual flow of the update operation
+	streamParams.RequestFinalizer()
 
 	targetNode, err := ds.GetStorageNode("praefect-internal-2")
 	require.NoError(t, err)
 	sourceNode, err := ds.GetStorageNode("praefect-internal-1")
-
 	require.NoError(t, err)
 
-	expectedJob := datastore.ReplJob{
-		Change:        datastore.UpdateRepo,
-		ID:            1,
-		TargetNode:    targetNode,
-		SourceNode:    sourceNode,
-		State:         datastore.JobStatePending,
-		RelativePath:  targetRepo.RelativePath,
-		CorrelationID: "my-correlation-id",
+	events, err := ds.ReplicationEventQueue.Dequeue(ctx, "praefect-internal-2", 10)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+
+	expectedEvent := datastore.ReplicationEvent{
+		ID:        1,
+		State:     datastore.JobStateInProgress,
+		Attempt:   2,
+		LockID:    "praefect-internal-2|/path/to/hashed/storage",
+		CreatedAt: events[0].CreatedAt,
+		UpdatedAt: events[0].UpdatedAt,
+		Job: datastore.ReplicationJob{
+			Change:            datastore.UpdateRepo,
+			RelativePath:      targetRepo.RelativePath,
+			TargetNodeStorage: targetNode.Storage,
+			SourceNodeStorage: sourceNode.Storage,
+		},
+		Meta: datastore.Params{metadatahandler.CorrelationIDKey: "my-correlation-id"},
 	}
-
-	require.Equal(t, expectedJob, jobs[0], "ensure replication job created by stream director is correct")
-
-	streamParams.RequestFinalizer()
-
-	jobs, err = coordinator.datastore.GetJobs([]datastore.JobState{datastore.JobStateReady}, "praefect-internal-2", 10)
-	require.NoError(t, err)
-	require.Len(t, jobs, 1)
-
-	expectedJob.State = datastore.JobStateReady
-	require.Equal(t, expectedJob, jobs[0], "ensure replication job's status has been updatd to JobStateReady")
+	require.Equal(t, expectedEvent, events[0], "ensure replication job created by stream director is correct")
 }
 
 type mockPeeker struct {
@@ -159,7 +161,10 @@ func TestAbsentCorrelationID(t *testing.T) {
 			},
 		},
 	}
-	ds := datastore.NewInMemory(conf)
+	ds := datastore.QueuedMemoryDatastore{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -190,11 +195,13 @@ func TestAbsentCorrelationID(t *testing.T) {
 	streamParams, err := coordinator.StreamDirector(ctx, fullMethod, peeker)
 	require.NoError(t, err)
 	require.Equal(t, address, streamParams.Conn().Target())
+	// must be run as it adds replication events to the queue
+	streamParams.RequestFinalizer()
 
-	jobs, err := coordinator.datastore.GetJobs([]datastore.JobState{datastore.JobStatePending}, conf.VirtualStorages[0].Nodes[1].Storage, 1)
+	jobs, err := coordinator.datastore.Dequeue(ctx, conf.VirtualStorages[0].Nodes[1].Storage, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
-	require.NotZero(t, jobs[0].CorrelationID,
+	require.NotZero(t, jobs[0].Meta[metadatahandler.CorrelationIDKey],
 		"the coordinator should have generated a random ID")
 }

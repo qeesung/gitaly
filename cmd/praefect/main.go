@@ -164,7 +164,10 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 	var (
 		// top level server dependencies
-		ds          = datastore.NewInMemory(conf)
+		ds = datastore.QueuedMemoryDatastore{
+			MemoryDatastore:       datastore.NewInMemory(conf),
+			ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		}
 		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, registry)
 		repl        = praefect.NewReplMgr(
 			conf.VirtualStorages[0].Name,

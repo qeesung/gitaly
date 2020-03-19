@@ -6,6 +6,8 @@
 package datastore
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -62,6 +64,23 @@ func (ct ChangeType) String() string {
 // It must be JSON encodable/decodable to persist it without problems.
 type Params map[string]interface{}
 
+func (p *Params) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	d, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type received: %T", value)
+	}
+
+	return json.Unmarshal(d, p)
+}
+
+func (p Params) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
 // ReplJob is an instance of a queued replication job. A replication job is
 // meant for updating the repository so that it is synced with the primary
 // copy. Scheduled indicates when a replication job should be performed.
@@ -92,6 +111,7 @@ func (b byJobID) Less(i, j int) bool { return b.replJobs[i].ID < b.replJobs[j].I
 type Datastore interface {
 	ReplJobsDatastore
 	ReplicasDatastore
+	ReplicationEventQueue
 }
 
 // ReplicasDatastore manages accessing and setting which secondary replicas
@@ -136,6 +156,12 @@ type jobRecord struct {
 	attempts          int
 	params            Params
 	correlationID     string // from original request
+}
+
+// QueuedMemoryDatastore is an intermediate struct used for introduction of ReplicationEventQueue into usage.
+type QueuedMemoryDatastore struct {
+	*MemoryDatastore
+	ReplicationEventQueue
 }
 
 // MemoryDatastore is a simple datastore that isn't persisted to disk. It is

@@ -139,7 +139,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
-	_, srv := setupServer(t, conf, nodeMgr, entry, registry)
+	srv := setupServer(t, conf, nodeMgr, entry, registry)
 
 	listener, port := listenAvailPort(t)
 	go func() {

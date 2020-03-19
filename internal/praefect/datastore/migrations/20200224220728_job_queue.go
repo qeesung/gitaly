@@ -23,6 +23,7 @@ CREATE TABLE gitaly_replication_queue
   , attempt INTEGER NOT NULL DEFAULT 3
   , lock_id TEXT
   , job JSONB
+  , meta JSONB
 )`, `
 CREATE TABLE gitaly_replication_queue_job_lock
 (

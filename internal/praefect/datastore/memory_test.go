@@ -39,7 +39,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        1,
 		State:     JobStateReady,
 		Attempt:   3,
-		LockID:    "",
+		LockID:    "storage-1|/project/path-1",
 		CreatedAt: event1.CreatedAt, // it is a hack to have same time for both
 		Job:       job1,
 	}
@@ -65,7 +65,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        2,
 		State:     JobStateReady,
 		Attempt:   3,
-		LockID:    "",
+		LockID:    "storage-2|/project/path-1",
 		CreatedAt: event2.CreatedAt, // it is a hack to have same time for both
 		Job:       job2,
 	}
@@ -79,7 +79,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        1,
 		State:     JobStateInProgress,
 		Attempt:   2,
-		LockID:    "",
+		LockID:    "storage-1|/project/path-1",
 		CreatedAt: event1.CreatedAt,              // it is a hack to have same time for both
 		UpdatedAt: dequeuedAttempt1[0].UpdatedAt, // it is a hack to have same time for both
 		Job:       job1,
@@ -98,7 +98,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        1,
 		State:     JobStateInProgress,
 		Attempt:   1,
-		LockID:    "",
+		LockID:    "storage-1|/project/path-1",
 		CreatedAt: event1.CreatedAt,              // it is a hack to have same time for both
 		UpdatedAt: dequeuedAttempt2[0].UpdatedAt, // it is a hack to have same time for both
 		Job:       job1,
@@ -117,7 +117,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        1,
 		State:     JobStateInProgress,
 		Attempt:   0,
-		LockID:    "",
+		LockID:    "storage-1|/project/path-1",
 		CreatedAt: event1.CreatedAt,              // it is a hack to have same time for both
 		UpdatedAt: dequeuedAttempt3[0].UpdatedAt, // it is a hack to have same time for both
 		Job:       job1,
@@ -140,7 +140,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 		ID:        2,
 		State:     JobStateInProgress,
 		Attempt:   2,
-		LockID:    "",
+		LockID:    "storage-2|/project/path-1",
 		CreatedAt: event2.CreatedAt,              // it is a hack to have same time for both
 		UpdatedAt: dequeuedAttempt5[0].UpdatedAt, // it is a hack to have same time for both
 		Job:       job2,

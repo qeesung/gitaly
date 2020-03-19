@@ -1,0 +1,5 @@
+---
+title: 'Praefect: replication event queue as a primary storage of events'
+merge_request: 1948
+author:
+type: added

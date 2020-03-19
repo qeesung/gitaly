@@ -67,6 +67,7 @@ type ReplicationEvent struct {
 	CreatedAt time.Time
 	UpdatedAt *time.Time
 	Job       ReplicationJob
+	Meta      Params
 }
 
 // Mapping returns list of references to the struct fields that correspond to the SQL columns/column aliases.
@@ -88,6 +89,8 @@ func (event *ReplicationEvent) Mapping(columns []string) ([]interface{}, error) 
 			mapping = append(mapping, &event.LockID)
 		case "job":
 			mapping = append(mapping, &event.Job)
+		case "meta":
+			mapping = append(mapping, &event.Meta)
 		default:
 			return nil, fmt.Errorf("unknown column specified in SELECT statement: %q", column)
 		}
@@ -144,12 +147,12 @@ WITH insert_lock AS (
   ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
   RETURNING id
 )
-INSERT INTO gitaly_replication_queue(lock_id, job)
-SELECT insert_lock.id, $3
+INSERT INTO gitaly_replication_queue(lock_id, job, meta)
+SELECT insert_lock.id, $3, $4
 FROM insert_lock
-RETURNING id, state, created_at, updated_at, lock_id, attempt, job`
+RETURNING id, state, created_at, updated_at, lock_id, attempt, job, meta`
 	// this will always return a single row result (because of lock uniqueness) or an error
-	rows, err := rq.qc.QueryContext(ctx, query, event.Job.TargetNodeStorage, event.Job.RelativePath, event.Job)
+	rows, err := rq.qc.QueryContext(ctx, query, event.Job.TargetNodeStorage, event.Job.RelativePath, event.Job, event.Meta)
 	if err != nil {
 		return ReplicationEvent{}, err
 	}
@@ -191,7 +194,7 @@ WITH to_lock AS (
       ORDER BY created_at
       LIMIT $2
     )
-  RETURNING queue.id, queue.state, queue.created_at, queue.updated_at, queue.lock_id, queue.attempt, queue.job
+  RETURNING queue.id, queue.state, queue.created_at, queue.updated_at, queue.lock_id, queue.attempt, queue.job, queue.meta
 )
 , track_job_lock AS (
   INSERT INTO gitaly_replication_queue_job_lock (job_id, lock_id, triggered_at)
@@ -203,7 +206,7 @@ WITH to_lock AS (
   SET acquired = TRUE
   WHERE id IN (SELECT lock_id FROM track_job_lock)
 )
-SELECT id, state, created_at, updated_at, lock_id, attempt, job
+SELECT id, state, created_at, updated_at, lock_id, attempt, job, meta
 FROM jobs
 ORDER BY id
 `

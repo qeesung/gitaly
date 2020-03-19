@@ -120,13 +120,14 @@ var operations = []struct {
 // TODO: add SQL datastore flavor
 var flavors = map[string]func() Datastore{
 	"in-memory-datastore": func() Datastore {
-		return NewInMemory(config.Config{
-			VirtualStorages: []*config.VirtualStorage{
-				&config.VirtualStorage{
-					Nodes: []*models.Node{&stor1, &stor2},
+		return QueuedMemoryDatastore{
+			MemoryDatastore: NewInMemory(config.Config{
+				VirtualStorages: []*config.VirtualStorage{
+					&config.VirtualStorage{
+						Nodes: []*models.Node{&stor1, &stor2},
+					},
 				},
-			},
-		})
+			})}
 	},
 }
 

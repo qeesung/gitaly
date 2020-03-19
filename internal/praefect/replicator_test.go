@@ -24,6 +24,7 @@ import (
 	objectpoolservice "gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -31,8 +32,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
-
-const correlationID = "my-correlation-id"
 
 func TestProcessReplicationJob(t *testing.T) {
 	srv, srvSocketPath := runFullGitalyServer(t)
@@ -65,7 +64,7 @@ func TestProcessReplicationJob(t *testing.T) {
 		},
 	)
 
-	config := config.Config{
+	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "default",
@@ -86,7 +85,10 @@ func TestProcessReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.NewInMemory(config)
+	ds := datastore.QueuedMemoryDatastore{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
 
 	// create object pool on the source
 	objectPoolPath := testhelper.NewTestObjectPoolName(t)
@@ -117,20 +119,23 @@ func TestProcessReplicationJob(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	primary, err := ds.GetPrimary(config.VirtualStorages[0].Name)
+	primary, err := ds.GetPrimary(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
-	secondaries, err := ds.GetSecondaries(config.VirtualStorages[0].Name)
+	secondaries, err := ds.GetSecondaries(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
 
-	var secondaryStorages []string
+	var jobs []datastore.ReplJob
 	for _, secondary := range secondaries {
-		secondaryStorages = append(secondaryStorages, secondary.Storage)
+		jobs = append(jobs, datastore.ReplJob{
+			Change:        datastore.UpdateRepo,
+			TargetNode:    secondary,
+			SourceNode:    primary,
+			RelativePath:  testRepo.GetRelativePath(),
+			State:         datastore.JobStateReady,
+			Attempts:      3,
+			CorrelationID: "correlation-id",
+		})
 	}
-	_, err = ds.CreateReplicaReplJobs(correlationID, testRepo.GetRelativePath(), primary.Storage, secondaryStorages, datastore.UpdateRepo, nil)
-	require.NoError(t, err)
-
-	jobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateReady, datastore.JobStatePending}, backupStorageName, 1)
-	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 
 	commitID := testhelper.CreateCommit(t, testRepoPath, "master", &testhelper.CreateCommitOpts{
@@ -141,7 +146,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	entry := testhelper.DiscardTestEntry(t)
 	replicator.log = entry
 
-	nodeMgr, err := nodes.NewManager(entry, config, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
@@ -151,7 +156,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	replMgr := NewReplMgr("", testhelper.DiscardTestEntry(t), ds, nodeMgr, WithLatencyMetric(&mockReplicationHistogram), WithQueueMetric(&mockReplicationGauge))
 	replMgr.replicator = replicator
 
-	shard, err := nodeMgr.GetShard(config.VirtualStorages[0].Name)
+	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
 	primaryNode, err := shard.GetPrimary()
 	require.NoError(t, err)
@@ -216,7 +221,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	defer primarySvr.Stop()
 
 	backupSvr, backupSocket := newReplicationService(t)
-	backupSvr.Stop()
+	defer backupSvr.Stop()
 
 	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
 	require.NoError(t, err)
@@ -243,7 +248,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		Address: "unix://" + backupSocket,
 	}
 
-	config := config.Config{
+	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
@@ -256,58 +261,99 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	}
 
 	ctx, cancel := testhelper.Context()
-	defer func(oldStorages []gitaly_config.Storage) {
-		gitaly_config.Config.Storages = oldStorages
-		cancel()
-	}(gitaly_config.Config.Storages)
+	defer cancel()
+
+	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
 
 	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
 		Name: backupStorageName,
 		Path: backupDir,
-	},
-		gitaly_config.Storage{
-			Name: "default",
-			Path: testhelper.GitlabTestStoragePath(),
-		},
-	)
+	})
 
-	ds := datastore.NewInMemory(config)
-	ids, err := ds.CreateReplicaReplJobs(correlationID, testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo, nil)
-	require.NoError(t, err)
-	require.Len(t, ids, 1)
+	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
 
-	entry := testhelper.DiscardTestEntry(t)
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	processed := make(chan struct{})
 
-	require.NoError(t, ds.UpdateReplJobState(ids[0], datastore.JobStateReady))
-
-	nodeMgr, err := nodes.NewManager(entry, config, promtest.NewMockHistogramVec())
-	require.NoError(t, err)
-
-	replMgr := NewReplMgr("default", entry, ds, nodeMgr)
-	replMgr.replJobTimeout = 100 * time.Millisecond
-
-	go replMgr.ProcessBacklog(ctx, noopBackoffFunc)
-
-	timeLimit := time.NewTimer(5 * time.Second)
-	ticker := time.NewTicker(1 * time.Second)
-
-	// the job will fail to process because the client connection for "backup" is not registered. It should fail maxAttempts times
-	// and get cancelled.
-TestJobGetsCancelled:
-	for {
-		select {
-		case <-ticker.C:
-			replJobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateDead}, "backup", 10)
-			require.NoError(t, err)
-			if len(replJobs) == 1 {
-				//success
-				timeLimit.Stop()
-				break TestJobGetsCancelled
-			}
-		case <-timeLimit.C:
-			t.Fatal("time limit expired for job to be deemed dead")
+	dequeues := 0
+	queueInterceptor.OnDequeue(func(ctx context.Context, target string, count int, queue datastore.ReplicationEventQueue) ([]datastore.ReplicationEvent, error) {
+		events, err := queue.Dequeue(ctx, target, count)
+		if len(events) > 0 {
+			dequeues++
 		}
+		return events, err
+	})
+
+	completedAcks := 0
+	failedAcks := 0
+	cancelledAcks := 0
+
+	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
+		switch state {
+		case datastore.JobStateCompleted:
+			require.Equal(t, []uint64{1}, ids)
+			completedAcks++
+		case datastore.JobStateFailed:
+			require.Equal(t, []uint64{2}, ids)
+			failedAcks++
+		case datastore.JobStateCancelled:
+			require.Equal(t, []uint64{2}, ids)
+			cancelledAcks++
+		default:
+			require.FailNow(t, "acknowledge is not expected", state)
+		}
+		ackIDs, err := queue.Acknowledge(ctx, state, ids)
+		if completedAcks+failedAcks+cancelledAcks == 4 {
+			close(processed)
+		}
+		return ackIDs, err
+	})
+
+	ds := datastore.QueuedMemoryDatastore{
+		ReplicationEventQueue: queueInterceptor,
+		MemoryDatastore:       datastore.NewInMemory(conf),
 	}
+
+	// this job exists to verify that replication works
+	okJob := datastore.ReplicationJob{
+		Change:            datastore.UpdateRepo,
+		RelativePath:      testRepo.RelativePath,
+		TargetNodeStorage: secondary.Storage,
+		SourceNodeStorage: primary.Storage,
+	}
+	event1, err := ds.ReplicationEventQueue.Enqueue(ctx, datastore.ReplicationEvent{Job: okJob})
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), event1.ID)
+
+	// this job checks flow for replication event that fails
+	failJob := okJob
+	failJob.RelativePath = "invalid path to fail the job"
+	event2, err := ds.ReplicationEventQueue.Enqueue(ctx, datastore.ReplicationEvent{Job: failJob})
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), event2.ID)
+
+	logEntry := testhelper.NewTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+
+	replMgr := NewReplMgr("default", logEntry, ds, nodeMgr)
+
+	go func() {
+		require.Equal(t, context.Canceled, replMgr.ProcessBacklog(ctx, noopBackoffFunc), "backlog processing failed")
+	}()
+
+	select {
+	case <-processed:
+	case <-time.After(60 * time.Second):
+		// strongly depends on the processing capacity
+		t.Fatal("time limit expired for job to complete")
+	}
+
+	require.Equal(t, 3, dequeues, "expected 1 deque to get [okJob, failJob] and 2 more for [failJob] only")
+	require.Equal(t, 2, failedAcks)
+	require.Equal(t, 1, cancelledAcks)
+	require.Equal(t, 1, completedAcks)
 }
 
 func TestProcessBacklog_Success(t *testing.T) {
@@ -342,7 +388,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 		Address: "unix://" + backupSocket,
 	}
 
-	config := config.Config{
+	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
@@ -355,36 +401,49 @@ func TestProcessBacklog_Success(t *testing.T) {
 	}
 
 	ctx, cancel := testhelper.Context()
-	defer func(oldStorages []gitaly_config.Storage) {
-		gitaly_config.Config.Storages = oldStorages
-		cancel()
-	}(gitaly_config.Config.Storages)
+	defer cancel()
+
+	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
 
 	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
 		Name: backupStorageName,
 		Path: backupDir,
-	},
-		gitaly_config.Storage{
-			Name: "default",
-			Path: testhelper.GitlabTestStoragePath(),
+	})
+	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
+
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+
+	processed := make(chan struct{})
+	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
+		ackIDs, err := queue.Acknowledge(ctx, state, ids)
+		if len(ids) > 0 {
+			require.Equal(t, datastore.JobStateCompleted, state, "no fails expected")
+			require.Equal(t, []uint64{1, 2, 3, 4}, ids, "all jobs must be processed at once")
+			close(processed)
+		}
+		return ackIDs, err
+	})
+
+	ds := datastore.QueuedMemoryDatastore{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: queueInterceptor,
+	}
+
+	// Update replication job
+	eventType1 := datastore.ReplicationEvent{
+		Job: datastore.ReplicationJob{
+			Change:            datastore.UpdateRepo,
+			RelativePath:      testRepo.GetRelativePath(),
+			TargetNodeStorage: secondary.Storage,
+			SourceNodeStorage: primary.Storage,
 		},
-	)
+	}
 
-	ds := datastore.NewInMemory(config)
-
-	var jobIDs []uint64
-
-	// Update replication job
-	idsUpdate1, err := ds.CreateReplicaReplJobs(correlationID, testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo, nil)
+	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
-	require.Len(t, idsUpdate1, 1)
-	jobIDs = append(jobIDs, idsUpdate1...)
 
-	// Update replication job
-	idsUpdate2, err := ds.CreateReplicaReplJobs(correlationID, testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.UpdateRepo, nil)
+	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
-	require.Len(t, idsUpdate2, 1)
-	jobIDs = append(jobIDs, idsUpdate2...)
 
 	renameTo1 := filepath.Join(testRepo.GetRelativePath(), "..", filepath.Base(testRepo.GetRelativePath())+"-mv1")
 	fullNewPath1 := filepath.Join(backupDir, renameTo1)
@@ -393,50 +452,50 @@ func TestProcessBacklog_Success(t *testing.T) {
 	fullNewPath2 := filepath.Join(backupDir, renameTo2)
 
 	// Rename replication job
-	idsRename1, err := ds.CreateReplicaReplJobs(correlationID, testRepo.GetRelativePath(), primary.Storage, []string{secondary.Storage}, datastore.RenameRepo, datastore.Params{"RelativePath": renameTo1})
-	require.NoError(t, err)
-	require.Len(t, idsRename1, 1)
-	jobIDs = append(jobIDs, idsRename1...)
-
-	// Rename replication job
-	idsRename2, err := ds.CreateReplicaReplJobs(correlationID, renameTo1, primary.Storage, []string{secondary.Storage}, datastore.RenameRepo, datastore.Params{"RelativePath": renameTo2})
-	require.NoError(t, err)
-	require.Len(t, idsRename2, 1)
-	jobIDs = append(jobIDs, idsRename2...)
-
-	entry := testhelper.DiscardTestEntry(t)
-
-	for _, id := range jobIDs {
-		require.NoError(t, ds.UpdateReplJobState(id, datastore.JobStateReady))
+	eventType2 := datastore.ReplicationEvent{
+		Job: datastore.ReplicationJob{
+			Change:            datastore.RenameRepo,
+			RelativePath:      testRepo.GetRelativePath(),
+			TargetNodeStorage: secondary.Storage,
+			SourceNodeStorage: primary.Storage,
+			Params:            datastore.Params{"RelativePath": renameTo1},
+		},
 	}
 
-	nodeMgr, err := nodes.NewManager(entry, config, promtest.NewMockHistogramVec())
+	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType2)
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr("default", entry, ds, nodeMgr)
-	replMgr.replJobTimeout = 5 * time.Second
+	// Rename replication job
+	eventType3 := datastore.ReplicationEvent{
+		Job: datastore.ReplicationJob{
+			Change:            datastore.RenameRepo,
+			RelativePath:      renameTo1,
+			TargetNodeStorage: secondary.Storage,
+			SourceNodeStorage: primary.Storage,
+			Params:            datastore.Params{"RelativePath": renameTo2},
+		},
+	}
+	require.NoError(t, err)
+
+	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType3)
+	require.NoError(t, err)
+
+	logEntry := testhelper.NewTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+
+	replMgr := NewReplMgr("default", logEntry, ds, nodeMgr)
 
 	go func() {
 		require.Equal(t, context.Canceled, replMgr.ProcessBacklog(ctx, noopBackoffFunc), "backlog processing failed")
 	}()
 
-	timeLimit := time.NewTimer(5 * time.Second)
-	ticker := time.NewTicker(1 * time.Second)
-
-	// Once the listener is being served, and we try the job again it should succeed
-TestJobSucceeds:
-	for {
-		select {
-		case <-ticker.C:
-			replJobs, err := ds.GetJobs([]datastore.JobState{datastore.JobStateFailed, datastore.JobStateInProgress, datastore.JobStateReady, datastore.JobStateDead}, "backup", 10)
-			require.NoError(t, err)
-			if len(replJobs) == 0 {
-				//success
-				break TestJobSucceeds
-			}
-		case <-timeLimit.C:
-			t.Fatal("time limit expired for job to complete")
-		}
+	select {
+	case <-processed:
+	case <-time.After(60 * time.Second):
+		// strongly depends on the processing capacity
+		t.Fatal("time limit expired for job to complete")
 	}
 
 	_, serr := os.Stat(fullNewPath1)
@@ -483,7 +542,7 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	return server, "unix://" + serverSocketPath
 }
 
-// newReplicationService is a grpc service that has the Repository, Remote and ObjectPool services, which
+// newReplicationService is a grpc service that has the SSH, Repository, Remote and ObjectPool services, which
 // are the only ones needed for replication
 func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 	socketName := testhelper.GetTemporaryGitalySocketFileName()
@@ -493,6 +552,7 @@ func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(&rubyserver.Server{}, gitaly_config.GitalyInternalSocketPath()))
 	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer())
 	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(&rubyserver.Server{}))
+	gitalypb.RegisterSSHServiceServer(svr, ssh.NewServer())
 	reflection.Register(svr)
 
 	listener, err := net.Listen("unix", socketName)
