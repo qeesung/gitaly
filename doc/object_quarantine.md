@@ -18,17 +18,17 @@ the server.
 
 On a Git server, a push goes into `git receive-pack`. This process does the following things:
 
-- receive the Git objects pushed by the client and write them to disk
-- receive the ref update commands from the client and keep them in memory
-- check connectivity (no missing objects)
-- run `pre-receive` and feed it the intended ref update commands
-- if `pre-receive` rejects the push, clean up and stop
-- apply ref update commands one by one. For each command, run the `update` hook which can reject the ref update.
-- after all ref updates have been applied run the `post-receive` hook
-- report success to the client and end the session
+1. receive the Git objects pushed by the client and write them to disk
+1. receive the ref update commands from the client and keep them in memory
+1. check connectivity (no missing objects)
+1. run `pre-receive` and feed it the intended ref update commands
+1. if `pre-receive` rejects the push, clean up and stop
+1. apply ref update commands one by one. For each command, run the `update` hook which can reject the ref update.
+1. after all ref updates have been applied run the `post-receive` hook
+1. report success to the client and end the session
 
 Object quarantine exists for the sake of the cleanup that happens when
-`pre-receive` rejects the push. It changes the _timing_ of the
+`pre-receive` rejects the push (step 5 above). It changes the _timing_ of the
 cleanup. Without object quarantine, objects that were part of a
 rejected push would sit around until `git gc` would judge them as both
 unused and "old". How long that takes depends on how often `git gc`
