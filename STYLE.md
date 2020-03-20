@@ -41,6 +41,43 @@ interpolating strings. The `%q` operator quotes strings and escapes
 spaces and non-printable characters. This can save a lot of debugging
 time.
 
+## Literals and constructors
+
+### Use "address of struct" instead of new
+
+The following are equivalent in Go:
+
+```golang
+# Preferred
+foo := &Foo{}
+
+# Don't use
+foo := new(Foo)
+```
+
+There is no strong reason to prefer one over the other. But mixing
+them is unnecessary. We prefer the first style.
+
+### Use hexadecimal byte literals in strings
+
+Sometimes you want to use a byte literal in a Go string. Use a
+hexadecimal literal in that case. Unless you have a good reason to use
+octal of course.
+
+```golang
+# Preferred
+foo := "bar\x00baz"
+
+# Don't use octal
+foo := "bar\000baz"
+```
+
+Octal has the bad property that to represent high bytes, you need 3
+digits, but then you may not use a `4` as the first digit. 0377 equals
+255 which is a valid byte value. 0400 equals 256 which is not. With
+hexadecimal you cannot make this mistake because the largest two digit
+hex number is 0xff which equals 255.
+
 ## Return statements
 
 ### Don't use "naked return"
