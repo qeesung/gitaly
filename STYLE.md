@@ -48,10 +48,10 @@ time.
 The following are equivalent in Go:
 
 ```golang
-# Preferred
+// Preferred
 foo := &Foo{}
 
-# Don't use
+// Don't use
 foo := new(Foo)
 ```
 
@@ -65,10 +65,10 @@ hexadecimal literal in that case. Unless you have a good reason to use
 octal of course.
 
 ```golang
-# Preferred
+// Preferred
 foo := "bar\x00baz"
 
-# Don't use octal
+// Don't use octal
 foo := "bar\000baz"
 ```
 
