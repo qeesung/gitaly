@@ -83,6 +83,10 @@ func (dr defaultReplicator) Replicate(ctx context.Context, job datastore.ReplJob
 
 	// TODO: Do something meaninful with the result of confirmChecksums if checksums do not match
 	if !checksumsMatch {
+		metrics.ChecksumMismatchCounter.WithLabelValues(
+			targetRepository.GetStorageName(),
+			sourceRepository.GetStorageName(),
+		).Inc()
 		dr.log.WithFields(logrus.Fields{
 			"primary": sourceRepository,
 			"replica": targetRepository,
