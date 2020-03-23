@@ -64,7 +64,7 @@ func doProbe(probe Probe) {
 
 	setGauge(getFirstPacket, clone.Get.FirstGitPacket().Seconds())
 	setGauge(getTotalTime, clone.Get.ResponseBody().Seconds())
-	setGauge(getAdvertisedRefs, float64(len(clone.Get.Refs())))
+	setGauge(getAdvertisedRefs, float64(len(clone.Get.Refs)))
 	setGauge(wantedRefs, float64(clone.RefsWanted()))
 	setGauge(postTotalTime, clone.Post.ResponseBody().Seconds())
 	setGauge(postFirstProgressPacket, clone.Post.BandFirstPacket("progress").Seconds())

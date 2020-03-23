@@ -71,11 +71,11 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 	err = partialRefs.Parse(bytes.NewReader(partialResponse))
 	require.NoError(t, err)
 
-	require.Equal(t, fullRefs.Refs(), partialRefs.Refs())
+	require.Equal(t, fullRefs.Refs, partialRefs.Refs)
 
 	for _, c := range []string{"allow-tip-sha1-in-want", "allow-reachable-sha1-in-want", "filter"} {
-		require.Contains(t, partialRefs.Caps(), c)
-		require.NotContains(t, fullRefs.Caps(), c)
+		require.Contains(t, partialRefs.Caps, c)
+		require.NotContains(t, fullRefs.Caps, c)
 	}
 }
 
