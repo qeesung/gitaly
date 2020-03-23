@@ -3,7 +3,6 @@ package testhelper
 import (
 	"bytes"
 	"fmt"
-	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
@@ -15,7 +14,7 @@ type CreateTagOpts struct {
 }
 
 // CreateTag creates a new tag.
-func CreateTag(t *testing.T, repoPath, tagName, targetID string, opts *CreateTagOpts) string {
+func CreateTag(t TB, repoPath, tagName, targetID string, opts *CreateTagOpts) string {
 	var message string
 	force := false
 

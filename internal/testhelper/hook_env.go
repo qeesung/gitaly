@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -15,7 +14,7 @@ import (
 
 // CaptureHookEnv creates a bogus 'update' Git hook to sniff out what
 // environment variables get set for hooks.
-func CaptureHookEnv(t *testing.T) (hookPath string, cleanup func()) {
+func CaptureHookEnv(t TB) (hookPath string, cleanup func()) {
 	var err error
 	oldOverride := hooks.Override
 	hooks.Override, err = filepath.Abs("testdata/scratch/hooks")

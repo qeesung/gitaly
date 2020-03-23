@@ -65,12 +65,12 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 }
 
 func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
-	defer func(tl func(tb testing.TB) *logrus.Logger) {
+	defer func(tl func(tb testhelper.TB) *logrus.Logger) {
 		testhelper.NewTestLogger = tl
 	}(testhelper.NewTestLogger)
 
 	logBuffer := &bytes.Buffer{}
-	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
 		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
 	}
 
