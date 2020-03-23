@@ -1,4 +1,4 @@
-image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.24
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.24
 
 stages:
   - build
@@ -89,6 +89,10 @@ proto:
   script:
     - make proto no-changes
 
+build:go1.14:
+  <<: *build_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.24
+
 build:go1.13:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
@@ -97,6 +101,10 @@ build:go1.12:
   <<: *build_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
 
+binaries_go1.14:
+  <<: *assemble_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.24
+
 binaries_go1.13:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
@@ -104,6 +112,10 @@ binaries_go1.13:
 binaries_go1.12:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
+
+test:go1.14-git-2.21-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.24
+  <<: *test_definition
 
 test:go1.13-git-2.21-ruby-2.6:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.21
