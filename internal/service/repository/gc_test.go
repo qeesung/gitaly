@@ -129,13 +129,8 @@ func TestGarbageCollectLogStatistics(t *testing.T) {
 	}(testhelper.NewTestLogger)
 
 	logBuffer := &bytes.Buffer{}
-<<<<<<< HEAD
 	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
-		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
-=======
-	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
 		return &logrus.Logger{Out: logBuffer, Formatter: &logrus.JSONFormatter{}, Level: logrus.InfoLevel}
->>>>>>> Replace calls to new with address of literal
 	}
 
 	ctx, cancel := testhelper.Context()
