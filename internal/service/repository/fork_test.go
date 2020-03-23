@@ -190,7 +190,7 @@ func injectCustomCATestCerts(t *testing.T) (*x509.CertPool, testhelper.Cleanup) 
 	require.NoError(t, err)
 	defer certFile.Close()
 
-	caPEMBytes := new(bytes.Buffer)
+	caPEMBytes := &bytes.Buffer{}
 	certPEMWriter := io.MultiWriter(certFile, caPEMBytes)
 
 	// create chained PEM file with CA and entity cert

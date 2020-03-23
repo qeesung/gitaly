@@ -28,7 +28,7 @@ func TestLogObjectInfo(t *testing.T) {
 	defer cancel()
 
 	logBuffer := &bytes.Buffer{}
-	log := &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+	log := &logrus.Logger{Out: logBuffer, Formatter: &logrus.JSONFormatter{}, Level: logrus.InfoLevel}
 	testCtx := ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
 
 	requireLog := func(msg string) map[string]interface{} {

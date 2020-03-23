@@ -56,7 +56,7 @@ func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
 
 	logBuffer := &bytes.Buffer{}
 	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
-		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+		return &logrus.Logger{Out: logBuffer, Formatter: &logrus.JSONFormatter{}, Level: logrus.InfoLevel}
 	}
 
 	ctx, cancel := testhelper.Context()
@@ -205,7 +205,7 @@ func TestRepackFullCollectLogStatistics(t *testing.T) {
 
 	logBuffer := &bytes.Buffer{}
 	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
-		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
+		return &logrus.Logger{Out: logBuffer, Formatter: &logrus.JSONFormatter{}, Level: logrus.InfoLevel}
 	}
 
 	ctx, cancel := testhelper.Context()

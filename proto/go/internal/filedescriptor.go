@@ -25,7 +25,7 @@ func ExtractFile(gz []byte) (*descriptor.FileDescriptorProto, error) {
 		return nil, fmt.Errorf("failed to uncompress descriptor: %v", err)
 	}
 
-	fd := new(descriptor.FileDescriptorProto)
+	fd := &descriptor.FileDescriptorProto{}
 	if err := proto.Unmarshal(b, fd); err != nil {
 		return nil, fmt.Errorf("malformed FileDescriptorProto: %v", err)
 	}
