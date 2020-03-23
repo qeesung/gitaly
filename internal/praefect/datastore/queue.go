@@ -141,16 +141,16 @@ type PostgresReplicationEventQueue struct {
 
 func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
 	query := `
-WITH insert_lock AS (
-  INSERT INTO gitaly_replication_queue_lock(id)
-  VALUES ($1 || '|' || $2)
-  ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
-  RETURNING id
-)
-INSERT INTO gitaly_replication_queue(lock_id, job, meta)
-SELECT insert_lock.id, $3, $4
-FROM insert_lock
-RETURNING id, state, created_at, updated_at, lock_id, attempt, job, meta`
+		WITH insert_lock AS (
+			INSERT INTO replication_queue_lock(id)
+			VALUES ($1 || '|' || $2)
+			ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
+			RETURNING id
+		)
+		INSERT INTO replication_queue(lock_id, job, meta)
+		SELECT insert_lock.id, $3, $4
+		FROM insert_lock
+		RETURNING id, state, created_at, updated_at, lock_id, attempt, job, meta`
 	// this will always return a single row result (because of lock uniqueness) or an error
 	rows, err := rq.qc.QueryContext(ctx, query, event.Job.TargetNodeStorage, event.Job.RelativePath, event.Job, event.Meta)
 	if err != nil {
@@ -167,49 +167,48 @@ RETURNING id, state, created_at, updated_at, lock_id, attempt, job, meta`
 
 func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, nodeStorage string, count int) ([]ReplicationEvent, error) {
 	query := `
-WITH to_lock AS (
-  SELECT id
-  FROM gitaly_replication_queue_lock AS repo_lock
-  WHERE repo_lock.acquired = FALSE AND repo_lock.id IN (
-    SELECT lock_id
-    FROM gitaly_replication_queue
-    WHERE attempt > 0 AND state IN ('ready', 'failed') AND job->>'target_node_storage' = $1
-    ORDER BY created_at
-    LIMIT $2 FOR UPDATE
-  )
-  FOR UPDATE SKIP LOCKED
-)
-, jobs AS (
-  UPDATE gitaly_replication_queue AS queue
-  SET attempt = queue.attempt - 1,
-    state = 'in_progress',
-    updated_at = NOW() AT TIME ZONE 'UTC'
-  FROM to_lock
-  WHERE queue.lock_id IN (SELECT id FROM to_lock)
-    AND state NOT IN ('in_progress', 'cancelled', 'completed')
-    AND queue.id IN (
-      SELECT id
-      FROM gitaly_replication_queue
-      WHERE attempt > 0 AND state IN ('ready', 'failed') AND job->>'target_node_storage' = $1
-      ORDER BY created_at
-      LIMIT $2
-    )
-  RETURNING queue.id, queue.state, queue.created_at, queue.updated_at, queue.lock_id, queue.attempt, queue.job, queue.meta
-)
-, track_job_lock AS (
-  INSERT INTO gitaly_replication_queue_job_lock (job_id, lock_id, triggered_at)
-  SELECT jobs.id, jobs.lock_id, NOW() AT TIME ZONE 'UTC' FROM jobs
-  RETURNING lock_id
-)
-, do_lock AS (
-  UPDATE gitaly_replication_queue_lock
-  SET acquired = TRUE
-  WHERE id IN (SELECT lock_id FROM track_job_lock)
-)
-SELECT id, state, created_at, updated_at, lock_id, attempt, job, meta
-FROM jobs
-ORDER BY id
-`
+		WITH to_lock AS (
+			SELECT id
+			FROM replication_queue_lock AS repo_lock
+			WHERE repo_lock.acquired = FALSE AND repo_lock.id IN (
+				SELECT lock_id
+				FROM replication_queue
+				WHERE attempt > 0 AND state IN ('ready', 'failed') AND job->>'target_node_storage' = $1
+				ORDER BY created_at
+				LIMIT $2 FOR UPDATE
+			)
+			FOR UPDATE SKIP LOCKED
+		)
+		, jobs AS (
+			UPDATE replication_queue AS queue
+			SET attempt = queue.attempt - 1
+				, state = 'in_progress'
+				, updated_at = NOW() AT TIME ZONE 'UTC'
+			FROM to_lock
+			WHERE queue.lock_id IN (SELECT id FROM to_lock)
+				AND state NOT IN ('in_progress', 'cancelled', 'completed')
+				AND queue.id IN (
+					SELECT id
+					FROM replication_queue
+					WHERE attempt > 0 AND state IN ('ready', 'failed') AND job->>'target_node_storage' = $1
+					ORDER BY created_at
+					LIMIT $2
+				)
+			RETURNING queue.id, queue.state, queue.created_at, queue.updated_at, queue.lock_id, queue.attempt, queue.job, queue.meta
+		)
+		, track_job_lock AS (
+			INSERT INTO replication_queue_job_lock (job_id, lock_id, triggered_at)
+			SELECT jobs.id, jobs.lock_id, NOW() AT TIME ZONE 'UTC' FROM jobs
+			RETURNING lock_id
+		)
+		, do_lock AS (
+			UPDATE replication_queue_lock
+			SET acquired = TRUE
+			WHERE id IN (SELECT lock_id FROM track_job_lock)
+		)
+		SELECT id, state, created_at, updated_at, lock_id, attempt, job, meta
+		FROM jobs
+		ORDER BY id`
 	rows, err := rq.qc.QueryContext(ctx, query, nodeStorage, count)
 	if err != nil {
 		return nil, err
@@ -232,45 +231,42 @@ func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state J
 
 	params := glsql.NewParamsAssembler()
 	query := `
-WITH existing AS (
-  SELECT id, lock_id
-  FROM gitaly_replication_queue
-  WHERE id IN (` + params.AddParams(glsql.Uint64sToInterfaces(ids...)) + `)
-  AND state = 'in_progress'
-  FOR UPDATE
-)
-, to_release AS (
-  UPDATE gitaly_replication_queue AS queue
-  SET state = ` + params.AddParam(state) + `
-  FROM existing
-  WHERE existing.id = queue.id
-  RETURNING queue.id, queue.lock_id
-)
-, removed_job_lock AS (
-  DELETE FROM gitaly_replication_queue_job_lock AS job_lock
-  USING to_release AS job_failed
-  WHERE job_lock.job_id = job_failed.id AND job_lock.lock_id = job_failed.lock_id
-  RETURNING job_failed.lock_id
-)
-, release AS (
-  UPDATE gitaly_replication_queue_lock
-  SET acquired = FALSE
-  WHERE id IN (
-    SELECT existing.lock_id
-    FROM (
-      SELECT lock_id, COUNT(*) AS amount FROM removed_job_lock GROUP BY lock_id
-    ) AS removed
-    JOIN (
-      SELECT lock_id, COUNT(*) AS amount
-      FROM gitaly_replication_queue_job_lock
-      WHERE lock_id IN (SELECT lock_id FROM removed_job_lock)
-      GROUP BY lock_id
-    ) AS existing ON removed.lock_id = existing.lock_id AND removed.amount = existing.amount
-  )
-)
-SELECT id
-FROM existing
-`
+		WITH existing AS (
+			SELECT id, lock_id
+			FROM replication_queue
+			WHERE id IN (` + params.AddParams(glsql.Uint64sToInterfaces(ids...)) + `)
+			AND state = 'in_progress'
+			FOR UPDATE
+		)
+		, to_release AS (
+			UPDATE replication_queue AS queue
+			SET state = ` + params.AddParam(state) + `
+			FROM existing
+			WHERE existing.id = queue.id
+			RETURNING queue.id, queue.lock_id
+		)
+		, removed_job_lock AS (
+			DELETE FROM replication_queue_job_lock AS job_lock
+			USING to_release AS job_failed
+			WHERE job_lock.job_id = job_failed.id AND job_lock.lock_id = job_failed.lock_id
+			RETURNING job_failed.lock_id
+		)
+		, release AS (
+			UPDATE replication_queue_lock
+			SET acquired = FALSE
+			WHERE id IN (
+				SELECT existing.lock_id
+				FROM (SELECT lock_id, COUNT(*) AS amount FROM removed_job_lock GROUP BY lock_id) AS removed
+				JOIN (
+					SELECT lock_id, COUNT(*) AS amount
+					FROM replication_queue_job_lock
+					WHERE lock_id IN (SELECT lock_id FROM removed_job_lock)
+					GROUP BY lock_id
+				) AS existing ON removed.lock_id = existing.lock_id AND removed.amount = existing.amount
+			)
+		)
+		SELECT id
+		FROM existing`
 	rows, err := rq.qc.QueryContext(ctx, query, params.Params()...)
 	if err != nil {
 		return nil, err

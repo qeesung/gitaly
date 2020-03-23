@@ -53,7 +53,7 @@ func TestPostgresReplicationEventQueue_Enqueue(t *testing.T) {
 	require.Equal(t, expEvent, actualEvent)
 	requireEvents(t, ctx, db, []ReplicationEvent{expEvent})
 	requireLocks(t, ctx, db, []LockRow{expLock}) // expected a new lock for new event
-	db.RequireRowsInTable(t, "gitaly_replication_queue_job_lock", 0)
+	db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
 }
 
 func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
@@ -117,7 +117,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	requireEvents(t, ctx, db, []ReplicationEvent{expEvent1})
 	requireLocks(t, ctx, db, []LockRow{expLock1}) // expected a new lock for new event
-	db.RequireRowsInTable(t, "gitaly_replication_queue_job_lock", 0)
+	db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
 
 	event2, err := queue.Enqueue(ctx, eventType1) // repeat of the same event
 	require.NoError(t, err)
@@ -179,7 +179,7 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 	requireEvents(t, ctx, db, []ReplicationEvent{expEvent1, expEvent2, expEvent3, expEvent4})
 	requireLocks(t, ctx, db, []LockRow{expLock1, expLock2, expLock3}) // the new lock for same target but for another repo
 
-	db.RequireRowsInTable(t, "gitaly_replication_queue_job_lock", 0) // there is no fetches it must be empty
+	db.RequireRowsInTable(t, "replication_queue_job_lock", 0) // there is no fetches it must be empty
 }
 
 func TestPostgresReplicationEventQueue_Dequeue(t *testing.T) {
@@ -536,7 +536,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ([]uint64)(nil), acknowledge4) // event that was not dequeued can't be acknowledged
 	var newEventState string
-	require.NoError(t, db.QueryRow("SELECT state FROM gitaly_replication_queue WHERE id = $1", newEvent.ID).Scan(&newEventState))
+	require.NoError(t, db.QueryRow("SELECT state FROM replication_queue WHERE id = $1", newEvent.ID).Scan(&newEventState))
 	require.Equal(t, "ready", newEventState, "no way to acknowledge event that is not in in_progress state(was not dequeued)")
 	requireLocks(t, ctx, db, []LockRow{
 		{ID: "gitaly-1|/project/path-1", Acquired: true},
@@ -563,7 +563,7 @@ func requireEvents(t *testing.T, ctx context.Context, db glsql.DB, expected []Re
 		exp[i].UpdatedAt = nil
 	}
 
-	sqlStmt := `SELECT id, state, attempt, lock_id, job FROM gitaly_replication_queue ORDER BY id`
+	sqlStmt := `SELECT id, state, attempt, lock_id, job FROM replication_queue ORDER BY id`
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	require.NoError(t, err)
 
@@ -572,7 +572,7 @@ func requireEvents(t *testing.T, ctx context.Context, db glsql.DB, expected []Re
 	require.Equal(t, exp, actual)
 }
 
-// LockRow exists only for testing purposes and represents entries from gitaly_replication_queue_lock table.
+// LockRow exists only for testing purposes and represents entries from replication_queue_lock table.
 type LockRow struct {
 	ID       string
 	Acquired bool
@@ -581,7 +581,7 @@ type LockRow struct {
 func requireLocks(t *testing.T, ctx context.Context, db glsql.DB, expected []LockRow) {
 	t.Helper()
 
-	sqlStmt := `SELECT id, acquired FROM gitaly_replication_queue_lock`
+	sqlStmt := `SELECT id, acquired FROM replication_queue_lock`
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close(), "completion of result fetching") }()
@@ -596,7 +596,7 @@ func requireLocks(t *testing.T, ctx context.Context, db glsql.DB, expected []Loc
 	require.ElementsMatch(t, expected, actual)
 }
 
-// JobLockRow exists only for testing purposes and represents entries from gitaly_replication_queue_job_lock table.
+// JobLockRow exists only for testing purposes and represents entries from replication_queue_job_lock table.
 type JobLockRow struct {
 	JobID       uint64
 	LockID      string
@@ -606,7 +606,7 @@ type JobLockRow struct {
 func requireJobLocks(t *testing.T, ctx context.Context, db glsql.DB, expected []JobLockRow) {
 	t.Helper()
 
-	sqlStmt := `SELECT job_id, lock_id FROM gitaly_replication_queue_job_lock ORDER BY triggered_at`
+	sqlStmt := `SELECT job_id, lock_id FROM replication_queue_job_lock ORDER BY triggered_at`
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close(), "completion of result fetching") }()

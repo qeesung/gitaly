@@ -51,9 +51,9 @@ func (db DB) RequireRowsInTable(t *testing.T, tname string, n int) {
 
 func (db DB) TruncateAll(t testing.TB) {
 	db.Truncate(t,
-		"gitaly_replication_queue_job_lock",
-		"gitaly_replication_queue",
-		"gitaly_replication_queue_lock",
+		"replication_queue_job_lock",
+		"replication_queue",
+		"replication_queue_lock",
 	)
 }
 
@@ -67,7 +67,7 @@ func (db DB) Close() error {
 
 // GetDB returns a wrapper around the database connection pool.
 // Must be used only for testing.
-// The new database 'gitaly_test' will be re-created for each package that uses this function.
+// The new `database` will be re-created for each package that uses this function.
 // Each call will also truncate all tables with their identities restarted if any.
 // The best place to call it is in individual testing functions.
 // It uses env vars:
@@ -121,7 +121,7 @@ func initGitalyTestDB(t testing.TB, database string) *sql.DB {
 	require.NoError(t, rows.Close())
 
 	_, dErr := postgresDB.Exec("DROP DATABASE IF EXISTS " + database)
-	require.NoError(t, dErr, "failed to drop 'gitaly_test' database")
+	require.NoErrorf(t, dErr, "failed to drop %q database", database)
 
 	_, cErr := postgresDB.Exec("CREATE DATABASE " + database + " WITH ENCODING 'UTF8'")
 	require.NoErrorf(t, cErr, "failed to create %q database", database)
