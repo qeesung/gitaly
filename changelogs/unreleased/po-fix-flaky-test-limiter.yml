@@ -1,0 +1,5 @@
+---
+title: Fix flaky test TestLimiter
+merge_request: 1965
+author:
+type: fixed
