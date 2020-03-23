@@ -37,5 +37,13 @@ func ReceivePackConfig() []Option {
 		// Because Git itself will append the pool repository directory, the
 		// command ends with a "#". The end result is that Git runs `/bin/sh -c 'exit 0 # /path/to/pool.git`.
 		ValueFlag{"-c", "core.alternateRefsCommand=exit 0 #"},
+
+		// In the past, there was a bug in git that caused users to
+		// create commits with invalid timezones. As a result, some
+		// histories contain commits that do not match the spec. As we
+		// fsck received packfiles by default, any push containing such
+		// a commit will be rejected. As this is a mostly harmless
+		// issue, we add the following flag to ignore this check.
+		ValueFlag{"-c", "receive.fsck.badTimezone=ignore"},
 	}
 }
