@@ -332,7 +332,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), event2.ID)
 
-	logEntry := testhelper.NewTestEntry(t)
+	logEntry := testhelper.DiscardTestEntry(t)
 
 	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
@@ -480,7 +480,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType3)
 	require.NoError(t, err)
 
-	logEntry := testhelper.NewTestEntry(t)
+	logEntry := testhelper.DiscardTestEntry(t)
 
 	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
