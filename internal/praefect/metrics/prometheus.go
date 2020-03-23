@@ -64,9 +64,20 @@ var PrimaryGauge = prometheus.NewGaugeVec(
 	}, []string{"virtual_storage", "gitaly_storage"},
 )
 
+var ChecksumMismatchCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "gitaly",
+		Subsystem: "praefect",
+		Name:      "checksum_mismatch_total",
+	}, []string{"target", "source"},
+)
+
 func init() {
-	prometheus.MustRegister(MethodTypeCounter)
-	prometheus.MustRegister(PrimaryGauge)
+	prometheus.MustRegister(
+		MethodTypeCounter,
+		PrimaryGauge,
+		ChecksumMismatchCounter,
+	)
 }
 
 // Gauge is a subset of a prometheus Gauge

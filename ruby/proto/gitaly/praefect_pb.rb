@@ -17,10 +17,23 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :repository, :message, 1, "gitaly.Repository"
     optional :checksum, :string, 2
   end
+  add_message "gitaly.ConsistencyCheckRequest" do
+    optional :virtual_storage, :string, 1
+    optional :target_storage, :string, 2
+    optional :reference_storage, :string, 3
+  end
+  add_message "gitaly.ConsistencyCheckResponse" do
+    optional :repo_relative_path, :string, 1
+    optional :target_checksum, :string, 2
+    optional :reference_checksum, :string, 3
+    optional :repl_job_id, :uint64, 4
+  end
 end
 
 module Gitaly
   RepositoryReplicasRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
   RepositoryReplicasResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse").msgclass
   RepositoryReplicasResponse::RepositoryDetails = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse.RepositoryDetails").msgclass
+  ConsistencyCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckRequest").msgclass
+  ConsistencyCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckResponse").msgclass
 end

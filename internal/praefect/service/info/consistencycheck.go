@@ -1,0 +1,267 @@
+package info
+
+import (
+	"context"
+	"io"
+
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/labkit/correlation"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+func (s *Server) validateConsistencyCheckRequest(req *gitalypb.ConsistencyCheckRequest) error {
+	if req.GetTargetStorage() == "" {
+		return status.Error(codes.InvalidArgument, "missing target storage")
+	}
+	if req.GetVirtualStorage() == "" {
+		return status.Error(codes.InvalidArgument, "missing virtual storage")
+	}
+	if req.GetReferenceStorage() == req.GetTargetStorage() {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"target storage %q cannot match reference storage %q",
+			req.GetTargetStorage(), req.GetReferenceStorage(),
+		)
+	}
+	return nil
+}
+
+func (s *Server) getNodes(req *gitalypb.ConsistencyCheckRequest) (target, reference nodes.Node, _ error) {
+	shard, err := s.nodeMgr.GetShard(req.GetVirtualStorage())
+	if err != nil {
+		return nil, nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	primary, err := shard.GetPrimary()
+	if err != nil {
+		return nil, nil, err
+	}
+	secondaries, err := shard.GetSecondaries()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// search for target node amongst all nodes in shard
+	for _, n := range append(secondaries, primary) {
+		if n.GetStorage() == req.GetTargetStorage() {
+			target = n
+			break
+		}
+	}
+	if target == nil {
+		return nil, nil, status.Errorf(
+			codes.NotFound,
+			"unable to find target storage %q",
+			req.GetTargetStorage(),
+		)
+	}
+
+	// set reference node to default or requested storage
+	switch {
+	case req.GetReferenceStorage() == "" && req.GetTargetStorage() == primary.GetStorage():
+		return nil, nil, status.Errorf(
+			codes.InvalidArgument,
+			"target storage %q is same as current primary, must provide alternate reference",
+			req.GetTargetStorage(),
+		)
+	case req.GetReferenceStorage() == "":
+		reference = primary // default
+	case req.GetReferenceStorage() != "":
+		for _, secondary := range append(secondaries, primary) {
+			if secondary.GetStorage() == req.GetReferenceStorage() {
+				reference = secondary
+				break
+			}
+		}
+		if reference == nil {
+			return nil, nil, status.Errorf(
+				codes.NotFound,
+				"unable to find reference storage %q in nodes for shard %q",
+				req.GetReferenceStorage(),
+				req.GetVirtualStorage(),
+			)
+		}
+	}
+
+	return target, reference, nil
+}
+
+func walkRepos(ctx context.Context, walkerQ chan<- string, reference nodes.Node) error {
+	defer close(walkerQ)
+
+	iClient := gitalypb.NewInternalGitalyClient(reference.GetConnection())
+	req := &gitalypb.WalkReposRequest{
+		StorageName: reference.GetStorage(),
+	}
+
+	walkStream, err := iClient.WalkRepos(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := walkStream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		walkerQ <- resp.GetRelativePath()
+	}
+
+	return nil
+}
+
+func checksumRepo(ctx context.Context, relpath string, node nodes.Node) (string, error) {
+	cli := gitalypb.NewRepositoryServiceClient(node.GetConnection())
+	resp, err := cli.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{
+		Repository: &gitalypb.Repository{
+			RelativePath: relpath,
+			StorageName:  node.GetStorage(),
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return resp.GetChecksum(), nil
+}
+
+type checksumResult struct {
+	relativePath     string
+	target           string
+	reference        string
+	targetStorage    string
+	referenceStorage string
+}
+
+func checksumRepos(ctx context.Context, relpathQ <-chan string, checksumResultQ chan<- checksumResult, target, reference nodes.Node) error {
+	defer close(checksumResultQ)
+
+	for repoRelPath := range relpathQ {
+		cs := checksumResult{
+			relativePath:     repoRelPath,
+			targetStorage:    target.GetStorage(),
+			referenceStorage: reference.GetStorage(),
+		}
+
+		g, ctx := errgroup.WithContext(ctx)
+
+		g.Go(func() (err error) {
+			cs.target, err = checksumRepo(ctx, repoRelPath, target)
+			if status.Code(err) == codes.NotFound {
+				// missing repo on target is okay, we need to
+				// replicate from reference
+				return nil
+			}
+			return err
+		})
+
+		g.Go(func() (err error) {
+			cs.reference, err = checksumRepo(ctx, repoRelPath, reference)
+			return err
+		})
+
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		checksumResultQ <- cs
+	}
+
+	return nil
+}
+
+func scheduleReplication(ctx context.Context, csr checksumResult, ds Datastore, resp *gitalypb.ConsistencyCheckResponse) error {
+	ids, err := ds.CreateReplicaReplJobs(
+		correlation.ExtractFromContext(ctx),
+		csr.relativePath,
+		csr.referenceStorage,
+		[]string{csr.targetStorage},
+		datastore.UpdateRepo,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	if len(ids) != 1 {
+		return status.Errorf(
+			codes.Internal,
+			"datastore unexpectedly returned %d job IDs",
+			len(ids),
+		)
+	}
+	resp.ReplJobId = ids[0]
+
+	if err := ds.UpdateReplJobState(resp.ReplJobId, datastore.JobStateReady); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureConsistency(ctx context.Context, checksumResultQ <-chan checksumResult, ds Datastore, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
+	for csr := range checksumResultQ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			// continue
+		}
+
+		resp := &gitalypb.ConsistencyCheckResponse{
+			RepoRelativePath:  csr.relativePath,
+			ReferenceChecksum: csr.reference,
+			TargetChecksum:    csr.target,
+		}
+
+		if csr.reference != csr.target {
+			if err := scheduleReplication(ctx, csr, ds, resp); err != nil {
+				return err
+			}
+		}
+
+		if err := stream.Send(resp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) ConsistencyCheck(req *gitalypb.ConsistencyCheckRequest, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
+	if err := s.validateConsistencyCheckRequest(req); err != nil {
+		return err
+	}
+
+	// target is the node we are checking, reference is the node we are
+	// checking against (e.g. the primary node)
+	target, reference, err := s.getNodes(req)
+	if err != nil {
+		return err
+	}
+
+	walkerQ := make(chan string)
+	checksumResultQ := make(chan checksumResult)
+
+	g, ctx := errgroup.WithContext(stream.Context())
+
+	// the following goroutines form a pipeline where data flows from top
+	// to bottom
+	g.Go(func() error {
+		return walkRepos(ctx, walkerQ, reference)
+	})
+	g.Go(func() error {
+		return checksumRepos(ctx, walkerQ, checksumResultQ, target, reference)
+	})
+	g.Go(func() error {
+		return ensureConsistency(ctx, checksumResultQ, s.datastore, stream)
+	})
+
+	return g.Wait()
+}

@@ -28,8 +28,8 @@ import (
 )
 
 func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -45,8 +45,8 @@ func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
 }
 
 func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -80,8 +80,8 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 }
 
 func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -102,8 +102,8 @@ func TestSuccessfulInfoRefsUploadPackWithGitProtocol(t *testing.T) {
 	restore := testhelper.EnableGitProtocolV2Support()
 	defer restore()
 
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -153,8 +153,8 @@ func makeInfoRefsUploadPackRequest(ctx context.Context, t *testing.T, serverSock
 }
 
 func TestSuccessfulInfoRefsReceivePack(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
@@ -186,8 +186,8 @@ func TestSuccessfulInfoRefsReceivePack(t *testing.T) {
 }
 
 func TestObjectPoolRefAdvertisementHiding(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
@@ -223,8 +223,8 @@ func TestObjectPoolRefAdvertisementHiding(t *testing.T) {
 }
 
 func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
@@ -245,8 +245,8 @@ func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
 }
 
 func TestFailureRepoNotSetInfoRefsReceivePack(t *testing.T) {
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	client, conn := newSmartHTTPClient(t, serverSocketPath)
 	defer conn.Close()
@@ -287,8 +287,8 @@ func assertGitRefAdvertisement(t *testing.T, rpc, responseBody string, firstLine
 func TestCacheInfoRefsUploadPack(t *testing.T) {
 	clearCache(t)
 
-	server, serverSocketPath := runSmartHTTPServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()

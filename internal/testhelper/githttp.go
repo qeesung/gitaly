@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"net/http/cgi"
 	"path/filepath"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
 
-func GitServer(t testing.TB, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) (int, func() error) {
+func GitServer(t TB, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) (int, func() error) {
 	require.NoError(t, ioutil.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, 0644))
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

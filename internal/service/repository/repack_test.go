@@ -50,12 +50,12 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 }
 
 func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
-	defer func(tl func(tb testing.TB) *logrus.Logger) {
+	defer func(tl func(tb testhelper.TB) *logrus.Logger) {
 		testhelper.NewTestLogger = tl
 	}(testhelper.NewTestLogger)
 
 	logBuffer := &bytes.Buffer{}
-	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
 		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
 	}
 
@@ -199,12 +199,12 @@ func TestRepackFullSuccess(t *testing.T) {
 }
 
 func TestRepackFullCollectLogStatistics(t *testing.T) {
-	defer func(tl func(tb testing.TB) *logrus.Logger) {
+	defer func(tl func(tb testhelper.TB) *logrus.Logger) {
 		testhelper.NewTestLogger = tl
 	}(testhelper.NewTestLogger)
 
 	logBuffer := &bytes.Buffer{}
-	testhelper.NewTestLogger = func(tb testing.TB) *logrus.Logger {
+	testhelper.NewTestLogger = func(tb testhelper.TB) *logrus.Logger {
 		return &logrus.Logger{Out: logBuffer, Formatter: new(logrus.JSONFormatter), Level: logrus.InfoLevel}
 	}
 

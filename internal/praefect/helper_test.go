@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
+	gconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	internalauth "gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
@@ -22,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
+	"gitlab.com/gitlab-org/gitaly/internal/service/internalgitaly"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	gitalyserver "gitlab.com/gitlab-org/gitaly/internal/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -130,7 +132,7 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 
 	errQ := make(chan error)
 
-	prf.RegisterServices(nodeMgr, conf)
+	prf.RegisterServices(nodeMgr, conf, nil)
 	go func() {
 		errQ <- prf.Serve(listener, false)
 	}()
@@ -209,7 +211,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	errQ := make(chan error)
 	ctx, cancel := testhelper.Context()
 
-	prf.RegisterServices(nodeMgr, conf)
+	prf.RegisterServices(nodeMgr, conf, ds)
 	go func() { errQ <- prf.Serve(listener, false) }()
 	go func() { errQ <- replmgr.ProcessBacklog(ctx, noopBackoffFunc) }()
 
@@ -251,6 +253,7 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, 
 
 	gitalypb.RegisterServerServiceServer(server, gitalyserver.NewServer())
 	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer, internalSocket))
+	gitalypb.RegisterInternalGitalyServer(server, internalgitaly.NewServer(gconfig.Config.Storages))
 	healthpb.RegisterHealthServer(server, health.NewServer())
 
 	errQ := make(chan error)

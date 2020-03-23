@@ -1,0 +1,69 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'erb'
+require 'etc'
+
+require_relative 'helper.rb'
+
+TFVARS = 'terraform.tfvars'
+
+def main
+  unless gcloud_appliction_default_logged_in?
+    run!(%w[gcloud auth application-default login])
+  end
+
+  unless terraform_initialized?
+    run!(%w[terraform init])
+  end
+
+  unless File.exist?(TFVARS)
+    render!(TFVARS, 'terraform.tfvars.erb')
+  end
+
+  run!(%w[terraform apply])
+end
+
+def praefect_demo_cluster_name
+  default_name = "#{username}-#{Time.now.utc.strftime('%Y%m%d')}"
+  get_input('Enter a name for your demo cluster', default_name)
+end
+
+def username
+  Etc.getlogin
+end
+
+def ssh_pubkey
+  default_path = File.join(Etc.getpwnam(username).dir, '.ssh/id_rsa.pub')
+  pubkey_path = get_input('Enter the path to your SSH public key', default_path)
+  pubkey = File.read(pubkey_path).chomp
+
+  unless pubkey.start_with?('ssh-')
+    # Protect against accidentally using the private key
+    abort "contents of #{path} do not look like an SSH pubkey"
+  end
+
+  pubkey
+end
+
+def get_input(prompt, default)
+  puts "#{prompt} (default: #{default})."
+  print "> "
+
+  input = gets.chomp
+  input.empty? ? default : input
+end
+
+def render!(file, template_path)
+  IO.write(file, ERB.new(File.read(template_path)).result(binding))
+end
+
+def gcloud_appliction_default_logged_in?
+  system(
+    *%w[gcloud auth application-default print-access-token],
+    out: '/dev/null',
+    err: '/dev/null'
+  )
+end
+
+main

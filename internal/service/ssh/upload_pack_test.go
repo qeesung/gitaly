@@ -81,9 +81,8 @@ func (cmd cloneCommand) test(t *testing.T, localRepoPath string) (string, string
 }
 
 func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t, WithUploadPackRequestTimeout(10*time.Microsecond))
-
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t, WithUploadPackRequestTimeout(10*time.Microsecond))
+	defer stop()
 
 	client, conn := newSSHClient(t, serverSocketPath)
 	defer conn.Close()
@@ -137,8 +136,8 @@ func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
 }
 
 func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	client, conn := newSSHClient(t, serverSocketPath)
 	defer conn.Close()
@@ -186,8 +185,8 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 }
 
 func TestUploadPackCloneSuccess(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
 
@@ -219,8 +218,8 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 }
 
 func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	// Ruby file which is ~1kB in size and not present in HEAD
 	blobLessThanLimit := "6ee41e85cc9bf33c10b690df09ca735b22f3790f"
@@ -273,8 +272,8 @@ func TestUploadPackCloneSuccessWithGitProtocol(t *testing.T) {
 	restore := testhelper.EnableGitProtocolV2Support()
 	defer restore()
 
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local")
 
@@ -313,8 +312,8 @@ func TestUploadPackCloneSuccessWithGitProtocol(t *testing.T) {
 }
 
 func TestUploadPackCloneHideTags(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-hide-tags")
 
@@ -335,8 +334,8 @@ func TestUploadPackCloneHideTags(t *testing.T) {
 }
 
 func TestUploadPackCloneFailure(t *testing.T) {
-	server, serverSocketPath := runSSHServer(t)
-	defer server.Stop()
+	serverSocketPath, stop := runSSHServer(t)
+	defer stop()
 
 	localRepoPath := path.Join(testRepoRoot, "gitlab-test-upload-pack-local-failure")
 

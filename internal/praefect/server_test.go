@@ -143,7 +143,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 
 	listener, port := listenAvailPort(t)
 	go func() {
-		srv.RegisterServices(nodeMgr, conf)
+		srv.RegisterServices(nodeMgr, conf, nil)
 		srv.Serve(listener, false)
 	}()
 

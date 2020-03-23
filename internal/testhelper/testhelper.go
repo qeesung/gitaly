@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -84,7 +83,7 @@ func configure() error {
 }
 
 // MustReadFile returns the content of a file or fails at once.
-func MustReadFile(t *testing.T, filename string) []byte {
+func MustReadFile(t TB, filename string) []byte {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +103,7 @@ func GitlabTestStoragePath() string {
 
 // GitalyServersMetadata returns a metadata pair for gitaly-servers to be used in
 // inter-gitaly operations.
-func GitalyServersMetadata(t *testing.T, serverSocketPath string) metadata.MD {
+func GitalyServersMetadata(t TB, serverSocketPath string) metadata.MD {
 	gitalyServers := storage.GitalyServers{
 		"default": {
 			"address": serverSocketPath,
@@ -148,7 +147,7 @@ func TestRepository() *gitalypb.Repository {
 }
 
 // RequireGrpcError asserts the passed err is of the same code as expectedCode.
-func RequireGrpcError(t *testing.T, err error, expectedCode codes.Code) {
+func RequireGrpcError(t TB, err error, expectedCode codes.Code) {
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
@@ -161,7 +160,7 @@ func RequireGrpcError(t *testing.T, err error, expectedCode codes.Code) {
 }
 
 // MustRunCommand runs a command with an optional standard input and returns the standard output, or fails.
-func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) []byte {
+func MustRunCommand(t TB, stdin io.Reader, name string, args ...string) []byte {
 	cmd := exec.Command(name, args...)
 
 	if name == "git" {
@@ -273,7 +272,7 @@ func GetTemporaryGitalySocketFileName() string {
 
 // GetLocalhostListener listens on the next available TCP port and returns
 // the listener and the localhost address (host:port) string.
-func GetLocalhostListener(t testing.TB) (net.Listener, string) {
+func GetLocalhostListener(t TB) (net.Listener, string) {
 	l, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 
@@ -314,7 +313,7 @@ func GetGitEnvData() (string, error) {
 }
 
 // NewTestGrpcServer creates a GRPC Server for testing purposes
-func NewTestGrpcServer(tb testing.TB, streamInterceptors []grpc.StreamServerInterceptor, unaryInterceptors []grpc.UnaryServerInterceptor) *grpc.Server {
+func NewTestGrpcServer(tb TB, streamInterceptors []grpc.StreamServerInterceptor, unaryInterceptors []grpc.UnaryServerInterceptor) *grpc.Server {
 	logger := NewTestLogger(tb)
 	logrusEntry := log.NewEntry(logger).WithField("test", tb.Name())
 
@@ -387,7 +386,7 @@ func Context() (context.Context, func()) {
 }
 
 // CreateRepo creates a temporary directory for a repo, without initializing it
-func CreateRepo(t testing.TB, storagePath, relativePath string) *gitalypb.Repository {
+func CreateRepo(t TB, storagePath, relativePath string) *gitalypb.Repository {
 	require.NoError(t, os.MkdirAll(filepath.Dir(storagePath), 0755), "making repo parent dir")
 	return &gitalypb.Repository{
 		StorageName:  "default",
@@ -397,16 +396,16 @@ func CreateRepo(t testing.TB, storagePath, relativePath string) *gitalypb.Reposi
 }
 
 // InitBareRepo creates a new bare repository
-func InitBareRepo(t *testing.T) (*gitalypb.Repository, string, func()) {
+func InitBareRepo(t TB) (*gitalypb.Repository, string, func()) {
 	return initRepo(t, true)
 }
 
 // InitRepoWithWorktree creates a new repository with a worktree
-func InitRepoWithWorktree(t *testing.T) (*gitalypb.Repository, string, func()) {
+func InitRepoWithWorktree(t TB) (*gitalypb.Repository, string, func()) {
 	return initRepo(t, false)
 }
 
-func initRepo(t *testing.T, bare bool) (*gitalypb.Repository, string, func()) {
+func initRepo(t TB, bare bool) (*gitalypb.Repository, string, func()) {
 	storagePath := GitlabTestStoragePath()
 	relativePath := NewRepositoryName(t)
 	repoPath := filepath.Join(storagePath, relativePath)
@@ -427,17 +426,17 @@ func initRepo(t *testing.T, bare bool) (*gitalypb.Repository, string, func()) {
 }
 
 // NewTestRepo creates a bare copy of the test repository.
-func NewTestRepo(t testing.TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
+func NewTestRepo(t TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
 	return cloneTestRepo(t, true)
 }
 
 // NewTestRepoWithWorktree creates a copy of the test repository with a
 // worktree. This is allows you to run normal 'non-bare' Git commands.
-func NewTestRepoWithWorktree(t testing.TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
+func NewTestRepoWithWorktree(t TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
 	return cloneTestRepo(t, false)
 }
 
-func cloneTestRepo(t testing.TB, bare bool) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
+func cloneTestRepo(t TB, bare bool) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
 	storagePath := GitlabTestStoragePath()
 	relativePath := NewRepositoryName(t)
 	repoPath = filepath.Join(storagePath, relativePath)
@@ -466,7 +465,7 @@ func AddWorktreeArgs(repoPath, worktreeName string) []string {
 }
 
 // AddWorktree creates a worktree in the repository path for tests
-func AddWorktree(t *testing.T, repoPath string, worktreeName string) {
+func AddWorktree(t TB, repoPath string, worktreeName string) {
 	MustRunCommand(t, nil, "git", AddWorktreeArgs(repoPath, worktreeName)...)
 }
 
@@ -489,14 +488,14 @@ func ConfigureGitalySSH() {
 }
 
 // GetRepositoryRefs gives a list of each repository ref as a string
-func GetRepositoryRefs(t *testing.T, repoPath string) string {
+func GetRepositoryRefs(t TB, repoPath string) string {
 	refs := MustRunCommand(t, nil, "git", "-C", repoPath, "for-each-ref")
 
 	return string(refs)
 }
 
 // AssertPathNotExists asserts true if the path doesn't exist, false otherwise
-func AssertPathNotExists(t *testing.T, path string) {
+func AssertPathNotExists(t TB, path string) {
 	_, err := os.Stat(path)
 	assert.True(t, os.IsNotExist(err), "file should not exist: %s", path)
 }
@@ -504,7 +503,7 @@ func AssertPathNotExists(t *testing.T, path string) {
 // newDiskHash generates a random directory path following the Rails app's
 // approach in the hashed storage module, formatted as '[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}'.
 // https://gitlab.com/gitlab-org/gitlab/-/blob/f5c7d8eb1dd4eee5106123e04dec26d277ff6a83/app/models/storage/hashed.rb#L38-43
-func newDiskHash(t testing.TB) string {
+func newDiskHash(t TB) string {
 	// rails app calculates a sha256 and uses its hex representation
 	// as the directory path
 	b, err := text.RandomHex(sha256.Size)
@@ -514,18 +513,18 @@ func newDiskHash(t testing.TB) string {
 
 // NewRepositoryName returns a random repository hash
 // in format '@hashed/[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}.git'.
-func NewRepositoryName(t testing.TB) string {
+func NewRepositoryName(t TB) string {
 	return filepath.Join("@hashed", newDiskHash(t))
 }
 
 // NewTestObjectPoolName returns a random pool repository name
 // in format '@pools/[0-9a-z]{2}/[0-9a-z]{2}/[0-9a-z]{64}.git'.
-func NewTestObjectPoolName(t testing.TB) string {
+func NewTestObjectPoolName(t TB) string {
 	return filepath.Join("@pools", newDiskHash(t))
 }
 
 // CreateLooseRef creates a ref that points to master
-func CreateLooseRef(t *testing.T, repoPath, refName string) {
+func CreateLooseRef(t TB, repoPath, refName string) {
 	relRefPath := fmt.Sprintf("refs/heads/%s", refName)
 	MustRunCommand(t, nil, "git", "-C", repoPath, "update-ref", relRefPath, "master")
 	require.FileExists(t, filepath.Join(repoPath, relRefPath), "ref must be in loose file")
@@ -535,7 +534,7 @@ func CreateLooseRef(t *testing.T, repoPath, refName string) {
 // The returned temp directory will be created in the directory specified by
 // environment variable TEST_TEMP_DIR_PATH. If that variable is unset, the
 // relative folder "./testdata/tmp" to this source file will be used.
-func TempDir(t *testing.T, prefix string) (string, func() error) {
+func TempDir(t TB, prefix string) (string, func() error) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		log.Fatal("Could not get caller info")
@@ -550,16 +549,16 @@ func TempDir(t *testing.T, prefix string) (string, func() error) {
 }
 
 // GitObjectMustExist is a test assertion that fails unless the git repo in repoPath contains sha
-func GitObjectMustExist(t testing.TB, repoPath, sha string) {
+func GitObjectMustExist(t TB, repoPath, sha string) {
 	gitObjectExists(t, repoPath, sha, true)
 }
 
 // GitObjectMustNotExist is a test assertion that fails unless the git repo in repoPath contains sha
-func GitObjectMustNotExist(t testing.TB, repoPath, sha string) {
+func GitObjectMustNotExist(t TB, repoPath, sha string) {
 	gitObjectExists(t, repoPath, sha, false)
 }
 
-func gitObjectExists(t testing.TB, repoPath, sha string, exists bool) {
+func gitObjectExists(t TB, repoPath, sha string, exists bool) {
 	cmd := exec.Command("git", "-C", repoPath, "cat-file", "-e", sha)
 	if exists {
 		require.NoError(t, cmd.Run(), "checking for object should succeed")
@@ -573,16 +572,16 @@ func gitObjectExists(t testing.TB, repoPath, sha string, exists bool) {
 type Cleanup func()
 
 // GetGitObjectDirSize gets the number of 1k blocks of a git object directory
-func GetGitObjectDirSize(t *testing.T, repoPath string) int64 {
+func GetGitObjectDirSize(t TB, repoPath string) int64 {
 	return getGitDirSize(t, repoPath, "objects")
 }
 
 // GetGitPackfileDirSize gets the number of 1k blocks of a git object directory
-func GetGitPackfileDirSize(t *testing.T, repoPath string) int64 {
+func GetGitPackfileDirSize(t TB, repoPath string) int64 {
 	return getGitDirSize(t, repoPath, "objects", "pack")
 }
 
-func getGitDirSize(t *testing.T, repoPath string, subdirs ...string) int64 {
+func getGitDirSize(t TB, repoPath string, subdirs ...string) int64 {
 	cmd := exec.Command("du", "-s", "-k", filepath.Join(append([]string{repoPath}, subdirs...)...))
 	output, err := cmd.Output()
 	require.NoError(t, err)
@@ -606,7 +605,7 @@ func GrpcErrorHasMessage(grpcError error, msg string) bool {
 }
 
 // dump the env vars that the custom hooks receives to a file
-func WriteEnvToCustomHook(t *testing.T, repoPath, hookName string) (string, func()) {
+func WriteEnvToCustomHook(t TB, repoPath, hookName string) (string, func()) {
 	hookOutputTemp, err := ioutil.TempFile("", "")
 	require.NoError(t, err)
 	require.NoError(t, hookOutputTemp.Close())

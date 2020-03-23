@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
+	"google.golang.org/grpc"
 )
 
 const invocationPrefix = progname + " -config CONFIG_TOML"
@@ -32,6 +36,8 @@ func subCommand(conf config.Config, arg0 string, argRest []string) int {
 		return sqlMigrateDown(conf, argRest)
 	case "dial-nodes":
 		return dialNodes(conf)
+	case "reconcile":
+		return reconcile(conf, argRest)
 	default:
 		printfErr("%s: unknown subcommand: %q\n", progname, arg0)
 		return 1
@@ -93,4 +99,21 @@ func openDB(conf config.DB) (*sql.DB, func(), int) {
 
 func printfErr(format string, a ...interface{}) (int, error) {
 	return fmt.Fprintf(os.Stderr, format, a...)
+}
+
+func subCmdDial(addr, token string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts = append(opts,
+		grpc.WithBlock(),
+		grpc.WithTimeout(30*time.Second),
+	)
+
+	if len(token) > 0 {
+		opts = append(opts,
+			grpc.WithPerRPCCredentials(
+				gitalyauth.RPCCredentialsV2(token),
+			),
+		)
+	}
+
+	return client.Dial(addr, opts)
 }

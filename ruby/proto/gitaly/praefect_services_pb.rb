@@ -15,6 +15,11 @@ module Gitaly
       self.service_name = 'gitaly.PraefectInfoService'
 
       rpc :RepositoryReplicas, RepositoryReplicasRequest, RepositoryReplicasResponse
+      # ConsistencyCheck will perform a consistency check on the requested
+      # virtual storage backend. A stream of repository statuses will be sent
+      # back indicating which repos are consistent with the primary and which ones
+      # need repair.
+      rpc :ConsistencyCheck, ConsistencyCheckRequest, stream(ConsistencyCheckResponse)
     end
 
     Stub = Service.rpc_stub_class
