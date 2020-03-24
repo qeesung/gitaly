@@ -300,8 +300,8 @@ func TestInvalidTimezone(t *testing.T) {
 	_, cleanup := testhelper.CaptureHookEnv(t)
 	defer cleanup()
 
-	server, socket := runSmartHTTPServer(t)
-	defer server.Stop()
+	socket, stop := runSmartHTTPServer(t)
+	defer stop()
 
 	repo, repoPath, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
