@@ -99,7 +99,7 @@ func TestLogPackInfoStatistic(t *testing.T) {
 	dest := &bytes.Buffer{}
 	log := &logrus.Logger{
 		Out:       dest,
-		Formatter: new(logrus.JSONFormatter),
+		Formatter: &logrus.JSONFormatter{},
 		Level:     logrus.InfoLevel,
 	}
 	ctx := ctxlogrus.ToContext(context.Background(), log.WithField("test", "logging"))

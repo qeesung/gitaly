@@ -32,7 +32,7 @@ func TestStreamPeeking(t *testing.T) {
 		peekedMsg, err := peeker.Peek()
 		require.NoError(t, err)
 
-		peekedRequest := new(testservice.PingRequest)
+		peekedRequest := &testservice.PingRequest{}
 		err = proto.Unmarshal(peekedMsg, peekedRequest)
 		require.NoError(t, err)
 		require.True(t, proto.Equal(pingReqSent, peekedRequest), "expected to be the same")
@@ -91,7 +91,7 @@ func TestStreamInjecting(t *testing.T) {
 		peekedMsg, err := peeker.Peek()
 		require.NoError(t, err)
 
-		peekedRequest := new(testservice.PingRequest)
+		peekedRequest := &testservice.PingRequest{}
 		require.NoError(t, proto.Unmarshal(peekedMsg, peekedRequest))
 		require.Equal(t, "hi", peekedRequest.GetValue())
 

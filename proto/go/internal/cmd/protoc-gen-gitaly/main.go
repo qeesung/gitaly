@@ -78,7 +78,7 @@ func main() {
 		log.Fatalf("reading input: %s", err)
 	}
 
-	req := new(plugin.CodeGeneratorRequest)
+	req := &plugin.CodeGeneratorRequest{}
 
 	if err := proto.Unmarshal(data, req); err != nil {
 		log.Fatalf("parsing input proto: %s", err)
@@ -119,7 +119,7 @@ func lintProtos(req *plugin.CodeGeneratorRequest) error {
 		}
 	}
 
-	resp := new(plugin.CodeGeneratorResponse)
+	resp := &plugin.CodeGeneratorResponse{}
 
 	if len(errMsgs) > 0 {
 		errMsg := strings.Join(errMsgs, "\n\t")

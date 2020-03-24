@@ -24,7 +24,7 @@ func requireParses(t *testing.T, reader io.Reader, expected PackfileNegotiation)
 }
 
 func TestPackNegoWithInvalidPktline(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteFlush(buf)
 	// Write string with invalid length
@@ -36,7 +36,7 @@ func TestPackNegoWithInvalidPktline(t *testing.T) {
 }
 
 func TestPackNegoWithSingleWant(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteFlush(buf)
 	pktline.WriteString(buf, "done")
@@ -47,7 +47,7 @@ func TestPackNegoWithSingleWant(t *testing.T) {
 }
 
 func TestPackNegoWithMissingCaps(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1)
 	pktline.WriteFlush(buf)
 	pktline.WriteString(buf, "done")
@@ -58,7 +58,7 @@ func TestPackNegoWithMissingCaps(t *testing.T) {
 }
 
 func TestPackNegoWithMissingWant(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "have "+oid2)
 	pktline.WriteString(buf, "done")
 
@@ -67,7 +67,7 @@ func TestPackNegoWithMissingWant(t *testing.T) {
 }
 
 func TestPackNegoWithHave(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteFlush(buf)
 	pktline.WriteString(buf, "have "+oid2)
@@ -79,7 +79,7 @@ func TestPackNegoWithHave(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleHaveRoundds(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteFlush(buf)
 	pktline.WriteString(buf, "have "+oid2)
@@ -96,7 +96,7 @@ func TestPackNegoWithMultipleHaveRoundds(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleWants(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "want "+oid2)
 	pktline.WriteFlush(buf)
@@ -108,7 +108,7 @@ func TestPackNegoWithMultipleWants(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleCapLines(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap1")
 	pktline.WriteString(buf, "want "+oid2+" cap2")
 	pktline.WriteFlush(buf)
@@ -119,7 +119,7 @@ func TestPackNegoWithMultipleCapLines(t *testing.T) {
 }
 
 func TestPackNegoWithDeepen(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "deepen 1")
 	pktline.WriteFlush(buf)
@@ -133,7 +133,7 @@ func TestPackNegoWithDeepen(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleDeepens(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteFlush(buf)
 	pktline.WriteString(buf, "deepen 1")
@@ -149,7 +149,7 @@ func TestPackNegoWithMultipleDeepens(t *testing.T) {
 }
 
 func TestPackNegoWithShallow(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "shallow "+oid1)
 	pktline.WriteFlush(buf)
@@ -163,7 +163,7 @@ func TestPackNegoWithShallow(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleShallows(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "shallow "+oid1)
 	pktline.WriteString(buf, "shallow "+oid2)
@@ -178,7 +178,7 @@ func TestPackNegoWithMultipleShallows(t *testing.T) {
 }
 
 func TestPackNegoWithFilter(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "filter blob:none")
 	pktline.WriteFlush(buf)
@@ -192,7 +192,7 @@ func TestPackNegoWithFilter(t *testing.T) {
 }
 
 func TestPackNegoWithMultipleFilters(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap")
 	pktline.WriteString(buf, "filter blob:none")
 	pktline.WriteString(buf, "filter blob:limit=1m")
@@ -207,7 +207,7 @@ func TestPackNegoWithMultipleFilters(t *testing.T) {
 }
 
 func TestPackNegoFullBlown(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := &bytes.Buffer{}
 	pktline.WriteString(buf, "want "+oid1+" cap1 cap2")
 	pktline.WriteString(buf, "want "+oid2)
 	pktline.WriteString(buf, "shallow "+oid2)

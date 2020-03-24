@@ -53,7 +53,7 @@ func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateCh
 		h.Write(ref)
 
 		hash := hex.EncodeToString(h.Sum(nil))
-		hashIntBase16, _ := new(big.Int).SetString(hash, 16)
+		hashIntBase16, _ := (&big.Int{}).SetString(hash, 16)
 
 		if checksum == nil {
 			checksum = hashIntBase16

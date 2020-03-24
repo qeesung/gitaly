@@ -3,9 +3,9 @@ package cache
 import "sync"
 
 var (
-	ExportMockRemovalCounter = new(mockCounter)
-	ExportMockCheckCounter   = new(mockCounter)
-	ExportMockLoserBytes     = new(mockCounter)
+	ExportMockRemovalCounter = &mockCounter{}
+	ExportMockCheckCounter   = &mockCounter{}
+	ExportMockLoserBytes     = &mockCounter{}
 
 	ExportDisableMoveAndClear = &disableMoveAndClear
 	ExportDisableWalker       = &disableWalker
