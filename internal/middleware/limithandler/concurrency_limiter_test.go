@@ -141,6 +141,25 @@ func TestLimiter(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(tt.concurrency)
 
+			full := sync.NewCond(&sync.Mutex{})
+
+			// primePump waits for the gauge to reach the minimum
+			// expected max concurrency so that the limiter is
+			// "warmed" up before proceeding with the test
+			primePump := func() {
+				full.L.Lock()
+				defer full.L.Unlock()
+
+				gauge.up()
+
+				if gauge.max >= tt.wantMaxRange[0] {
+					full.Broadcast()
+					return
+				}
+
+				full.Wait() // wait until full is broadcast
+			}
+
 			// We know of an edge case that can lead to the rate limiter
 			// occasionally letting one or two extra goroutines run
 			// concurrently.
@@ -151,11 +170,11 @@ func TestLimiter(t *testing.T) {
 						lockKey := strconv.Itoa((i ^ counter) % tt.buckets)
 
 						limiter.Limit(context.Background(), lockKey, func() (interface{}, error) {
-							gauge.up()
+							primePump()
+
 							current := gauge.currentVal()
 							assert.True(t, current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", current, tt.wantMaxRange[1])
 							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", limiter.countSemaphores(), tt.buckets)
-							time.Sleep(tt.delay)
 
 							gauge.down()
 							return nil, nil
