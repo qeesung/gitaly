@@ -1,10 +1,12 @@
 package commit
 
 import (
+	"bytes"
 	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -17,8 +19,12 @@ func TestSuccessfulGetCommitSignaturesRequest(t *testing.T) {
 	client, conn := newCommitServiceClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	testRepo, repoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
+
+	commitData := testhelper.MustReadFile(t, "testdata/dc00eb001f41dfac08192ead79c2377c588b82ee.commit")
+	commit := text.ChompBytes(testhelper.MustRunCommand(t, bytes.NewReader(commitData), "git", "-C", repoPath, "hash-object", "-w", "-t", "commit", "--stdin", "--literally"))
+	require.Equal(t, "dc00eb001f41dfac08192ead79c2377c588b82ee", commit)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -31,10 +37,11 @@ func TestSuccessfulGetCommitSignaturesRequest(t *testing.T) {
 			"0000000000000000000000000000000000000000", // does not exist
 			"a17a9f66543673edf0a3d1c6b93bdda3fe600f32", // has signature
 			"8cf8e80a5a0546e391823c250f2b26b9cf15ce88", // has signature and commit message > 4MB
+			"dc00eb001f41dfac08192ead79c2377c588b82ee", // has signature and commit message without newline at the end
 		},
 	}
 
-	expectedSignautes := []*gitalypb.GetCommitSignaturesResponse{
+	expectedSignatures := []*gitalypb.GetCommitSignaturesResponse{
 		{
 			CommitId:   "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
 			Signature:  testhelper.MustReadFile(t, "testdata/commit-5937ac0a7beb003549fc5fd26fc247adbce4a52e-signature"),
@@ -50,6 +57,11 @@ func TestSuccessfulGetCommitSignaturesRequest(t *testing.T) {
 			Signature:  testhelper.MustReadFile(t, "testdata/gitaly-test-commit-8cf8e80a5a0546e391823c250f2b26b9cf15ce88-signature"),
 			SignedText: testhelper.MustReadFile(t, "testdata/gitaly-test-commit-8cf8e80a5a0546e391823c250f2b26b9cf15ce88-signed-text"),
 		},
+		{
+			CommitId:   "dc00eb001f41dfac08192ead79c2377c588b82ee",
+			Signature:  testhelper.MustReadFile(t, "testdata/dc00eb001f41dfac08192ead79c2377c588b82ee-signed-no-newline-signature.txt"),
+			SignedText: testhelper.MustReadFile(t, "testdata/dc00eb001f41dfac08192ead79c2377c588b82ee-signed-no-newline-signed-text.txt"),
+		},
 	}
 
 	c, err := client.GetCommitSignatures(ctx, request)
@@ -57,7 +69,7 @@ func TestSuccessfulGetCommitSignaturesRequest(t *testing.T) {
 
 	fetchedSignatures := readAllSignaturesFromClient(t, c)
 
-	require.Equal(t, expectedSignautes, fetchedSignatures)
+	require.Equal(t, expectedSignatures, fetchedSignatures)
 }
 
 func TestFailedGetCommitSignaturesRequest(t *testing.T) {

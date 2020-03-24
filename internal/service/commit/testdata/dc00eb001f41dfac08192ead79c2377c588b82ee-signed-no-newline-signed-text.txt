@@ -1,0 +1,6 @@
+tree 7dc7f517af9a53aa9817a6b8c33dc94371a7cdad
+parent 6041ff4cb12c282b70be566ff3af88a29b01c65a
+author Bug Fixer <bugfixer@email.com> 1584564725 +0100
+committer Bug Fixer <bugfixer@email.com> 1584564725 +0100
+
+message with no newline byte at the end

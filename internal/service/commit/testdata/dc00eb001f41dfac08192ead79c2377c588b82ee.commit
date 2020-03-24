@@ -1,0 +1,24 @@
+tree 7dc7f517af9a53aa9817a6b8c33dc94371a7cdad
+parent 6041ff4cb12c282b70be566ff3af88a29b01c65a
+author Bug Fixer <bugfixer@email.com> 1584564725 +0100
+committer Bug Fixer <bugfixer@email.com> 1584564725 +0100
+gpgsig -----BEGIN PGP SIGNATURE-----
+ Version: ObjectivePGP
+ Comment: https://www.objectivepgp.com
+ Charset: UTF-8
+ 
+ wsFcBAABCgAGBQJecon1AAoJEDYMjTn1G2THmSsP/At/jskLdF0i7p0nKf4JLjeeqRJ4k2IUg87U
+ ZwV6mbLo5XFm8Sq7CJBAGAhlOZE4BAwKALuawmgs5XMEZwK2z6AIgosGTVpmxDTTI11bXt4XIOdz
+ qF7c/gUrJOZzjFXOqDsd5UuPRupwznC5eKlLbfImR+NYxKryo8JGdF5t52ph4kChcQsKlSkXuYNI
+ +9UgbaMclEjb0OLm+mcP9QxW+Cs9JS2Jb4Jh6XONWW1nDN3ZTDDskguIqqF47UxIgSImrmpMcEj9
+ YSNU0oMoHM4+1DoXp1t99EGPoAMvO+a5g8gd1jouCIrI6KOX+GeG/TFFM0mQwg/d/N9LR049m8ed
+ vgqg/lMiWUxQGL2IPpYPcgiUEqfn7ete+NMzQV5zstxF/q7Yj2BhM2L7FPHxKaoy/w5Q/DcAO4wN
+ 5gxVmIvbCDk5JOx8I+boIS8ZxSvIlJ5IWaPrcjg5Mc40it+WHvMqxVnCzH0c6KcXaJ2SibVb59HR
+ pdRhEXXw/hRN65l/xwyM8sklQalAGu755gNJZ4k9ApBVUssZyiu+te2+bDirAcmK8/x1jvMQY6bn
+ DFxBE7bMHDp24IFPaVID84Ryt3vSSBEkrUGm7OkyDESTpHCr4sfD5o3LCUCIibTqv/CAhe59mhbB
+ 2AXL7X+EzylKy6C1N5KUUiMTW94AuF6f8FqBoxnf
+ =U6zM
+ -----END PGP SIGNATURE-----
+ 
+
+message with no newline byte at the end

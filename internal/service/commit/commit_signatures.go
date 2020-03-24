@@ -69,6 +69,7 @@ func extractSignature(reader io.Reader) ([]byte, []byte, error) {
 		line, err := bufferedReader.ReadBytes('\n')
 
 		if err == io.EOF {
+			commitText = append(commitText, line...)
 			break
 		}
 		if err != nil {

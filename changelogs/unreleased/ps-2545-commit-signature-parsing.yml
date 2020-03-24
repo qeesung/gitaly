@@ -1,0 +1,5 @@
+---
+title: Commit signature parsing must consume all data
+merge_request: 1953
+author:
+type: fixed
