@@ -1,7 +1,9 @@
 package praefect
 
 import (
+	"context"
 	"io/ioutil"
+	"sync"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -47,9 +49,18 @@ func TestStreamDirector(t *testing.T) {
 			},
 		},
 	}
+
+	var replEventWait sync.WaitGroup
+
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+		defer replEventWait.Done()
+		return queue.Enqueue(ctx, event)
+	})
+
 	ds := datastore.QueuedMemoryDatastore{
 		MemoryDatastore:       datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: queueInterceptor,
 	}
 
 	targetRepo := gitalypb.Repository{
@@ -99,6 +110,7 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "praefect-internal-1", rewrittenRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
+	replEventWait.Add(1) // expected only one event to be created
 	// this call creates new events in the queue and simulates usual flow of the update operation
 	streamParams.RequestFinalizer()
 
@@ -107,6 +119,7 @@ func TestStreamDirector(t *testing.T) {
 	sourceNode, err := ds.GetStorageNode("praefect-internal-1")
 	require.NoError(t, err)
 
+	replEventWait.Wait() // wait until event persisted (async operation)
 	events, err := ds.ReplicationEventQueue.Dequeue(ctx, "praefect-internal-2", 10)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
@@ -161,9 +174,18 @@ func TestAbsentCorrelationID(t *testing.T) {
 			},
 		},
 	}
+
+	var replEventWait sync.WaitGroup
+
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+		defer replEventWait.Done()
+		return queue.Enqueue(ctx, event)
+	})
+
 	ds := datastore.QueuedMemoryDatastore{
 		MemoryDatastore:       datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: queueInterceptor,
 	}
 
 	targetRepo := gitalypb.Repository{
@@ -195,9 +217,12 @@ func TestAbsentCorrelationID(t *testing.T) {
 	streamParams, err := coordinator.StreamDirector(ctx, fullMethod, peeker)
 	require.NoError(t, err)
 	require.Equal(t, address, streamParams.Conn().Target())
+
+	replEventWait.Add(1) // expected only one event to be created
 	// must be run as it adds replication events to the queue
 	streamParams.RequestFinalizer()
 
+	replEventWait.Wait() // wait until event persisted (async operation)
 	jobs, err := coordinator.datastore.Dequeue(ctx, conf.VirtualStorages[0].Nodes[1].Storage, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)

@@ -64,6 +64,7 @@ func (ct ChangeType) String() string {
 // It must be JSON encodable/decodable to persist it without problems.
 type Params map[string]interface{}
 
+// Scan assigns a value from a database driver.
 func (p *Params) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -77,6 +78,7 @@ func (p *Params) Scan(value interface{}) error {
 	return json.Unmarshal(d, p)
 }
 
+// Value returns a driver Value.
 func (p Params) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }

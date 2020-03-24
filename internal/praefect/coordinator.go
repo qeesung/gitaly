@@ -211,15 +211,17 @@ func (c *Coordinator) createReplicaJobs(
 
 			// TODO: it could happen that there won't be enough time to enqueue replication events
 			// do we need to create another ctx with another timeout?
-			_, err := c.datastore.Enqueue(ctx, event)
-			if err != nil {
-				c.log.WithFields(logrus.Fields{
-					logWithReplSource: event.Job.SourceNodeStorage,
-					logWithReplTarget: event.Job.TargetNodeStorage,
-					logWithReplChange: event.Job.Change,
-					logWithReplPath:   event.Job.RelativePath,
-				}).Error("failed to persist replication event")
-			}
+			go func() {
+				_, err := c.datastore.Enqueue(ctx, event)
+				if err != nil {
+					c.log.WithFields(logrus.Fields{
+						logWithReplSource: event.Job.SourceNodeStorage,
+						logWithReplTarget: event.Job.TargetNodeStorage,
+						logWithReplChange: event.Job.Change,
+						logWithReplPath:   event.Job.RelativePath,
+					}).Error("failed to persist replication event")
+				}
+			}()
 		}
 	}
 }
