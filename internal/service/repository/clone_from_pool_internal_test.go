@@ -18,7 +18,7 @@ import (
 
 func NewTestObjectPool(t *testing.T) (*objectpool.ObjectPool, *gitalypb.Repository) {
 	storagePath := testhelper.GitlabTestStoragePath()
-	relativePath := testhelper.NewTestObjectPoolName(t)
+	relativePath := objectpool.NewObjectPoolName(t)
 	repo := testhelper.CreateRepo(t, storagePath, relativePath)
 
 	pool, err := objectpool.NewObjectPool(repo.GetStorageName(), relativePath)

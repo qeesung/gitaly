@@ -29,7 +29,7 @@ func TestCreate(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool("default", testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool("default", objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 
 	poolReq := &gitalypb.CreateObjectPoolRequest{
@@ -75,7 +75,7 @@ func TestUnsuccessfulCreate(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	validPoolPath := testhelper.NewTestObjectPoolName(t)
+	validPoolPath := objectpool.NewObjectPoolName(t)
 	pool, err := objectpool.NewObjectPool("default", validPoolPath)
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
@@ -161,7 +161,7 @@ func TestDelete(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	validPoolPath := testhelper.NewTestObjectPoolName(t)
+	validPoolPath := objectpool.NewObjectPoolName(t)
 	pool, err := objectpool.NewObjectPool("default", validPoolPath)
 	require.NoError(t, err)
 	require.NoError(t, pool.Create(ctx, testRepo))

@@ -28,7 +28,7 @@ func TestLink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist at start of test")
@@ -101,7 +101,7 @@ func TestLinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))
@@ -131,7 +131,7 @@ func TestLinkNoClobber(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -170,7 +170,7 @@ func TestLinkNoPool(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	// intentionally do not call pool.Create
 	defer pool.Remove(ctx)
@@ -205,7 +205,7 @@ func TestUnlink(t *testing.T) {
 	deletedRepo, deletedRepoPath, removeDeletedRepo := testhelper.NewTestRepo(t)
 	defer removeDeletedRepo()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -216,7 +216,7 @@ func TestUnlink(t *testing.T) {
 	removeDeletedRepo()
 	testhelper.AssertPathNotExists(t, deletedRepoPath)
 
-	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	require.NoError(t, pool2.Create(ctx, testRepo), "create pool 2")
 	defer pool2.Remove(ctx)
@@ -276,7 +276,7 @@ func TestUnlink(t *testing.T) {
 				ObjectPool: &gitalypb.ObjectPool{
 					Repository: &gitalypb.Repository{
 						StorageName:  testRepo.GetStorageName(),
-						RelativePath: testhelper.NewTestObjectPoolName(t), // does not exist
+						RelativePath: objectpool.NewObjectPoolName(t), // does not exist
 					},
 				},
 			},
@@ -314,7 +314,7 @@ func TestUnlinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectpool.NewObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))
