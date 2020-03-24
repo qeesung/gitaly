@@ -16,7 +16,7 @@ func TestParser(t *testing.T) {
 	}{
 		{
 			desc: "one path",
-			in:   ":000000 100644 0000000 c74175a A\000CHANGELOG\000",
+			in:   ":000000 100644 0000000 c74175a A\x00CHANGELOG\x00",
 			out: &Diff{
 				SrcMode: "000000",
 				DstMode: "100644",
@@ -28,7 +28,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			desc: "two paths (C)",
-			in:   ":000000 100644 0000000 c74175a C\000CHANGELOG\000foobar\000",
+			in:   ":000000 100644 0000000 c74175a C\x00CHANGELOG\x00foobar\x00",
 			out: &Diff{
 				SrcMode: "000000",
 				DstMode: "100644",
@@ -41,7 +41,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			desc: "two paths (R)",
-			in:   ":000000 100644 0000000 c74175a R\000CHANGELOG\000foobar\000",
+			in:   ":000000 100644 0000000 c74175a R\x00CHANGELOG\x00foobar\x00",
 			out: &Diff{
 				SrcMode: "000000",
 				DstMode: "100644",
@@ -54,7 +54,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			desc: "special characters",
-			in:   ":000000 100644 0000000 c74175a A\000encoding/テスト.txt\000",
+			in:   ":000000 100644 0000000 c74175a A\x00encoding/テスト.txt\x00",
 			out: &Diff{
 				SrcMode: "000000",
 				DstMode: "100644",
@@ -66,7 +66,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			desc: "status with score",
-			in:   ":000000 100644 0000000 c74175a T100\000CHANGELOG\000",
+			in:   ":000000 100644 0000000 c74175a T100\x00CHANGELOG\x00",
 			out: &Diff{
 				SrcMode: "000000",
 				DstMode: "100644",

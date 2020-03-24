@@ -89,7 +89,7 @@ func (d *ReferenceDiscovery) Parse(body io.Reader) error {
 
 			state = referenceDiscoveryExpectRefWithCaps
 		case referenceDiscoveryExpectRefWithCaps:
-			split := strings.SplitN(data, "\000", 2)
+			split := strings.SplitN(data, "\x00", 2)
 			if len(split) != 2 {
 				return errors.New("invalid first reference line")
 			}
