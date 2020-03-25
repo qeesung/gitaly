@@ -100,6 +100,7 @@ type TestServer struct {
 	process    *os.Process
 	token      string
 	storages   []string
+	waitCh     chan struct{}
 }
 
 // GrpcServer returns the underlying grpc.Server
@@ -112,6 +113,7 @@ func (p *TestServer) Stop() {
 	p.grpcServer.Stop()
 	if p.process != nil {
 		p.process.Kill()
+		<-p.waitCh
 	}
 }
 
@@ -190,7 +192,12 @@ func (p *TestServer) Start() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	go cmd.Wait()
+
+	p.waitCh = make(chan struct{})
+	go func() {
+		cmd.Wait()
+		close(p.waitCh)
+	}()
 
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	if p.token != "" {
