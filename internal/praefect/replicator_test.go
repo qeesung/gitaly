@@ -286,7 +286,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	completedAcks := 0
 	failedAcks := 0
-	cancelledAcks := 0
+	deadAcks := 0
 
 	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
 		switch state {
@@ -296,14 +296,14 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		case datastore.JobStateFailed:
 			require.Equal(t, []uint64{2}, ids)
 			failedAcks++
-		case datastore.JobStateCancelled:
+		case datastore.JobStateDead:
 			require.Equal(t, []uint64{2}, ids)
-			cancelledAcks++
+			deadAcks++
 		default:
 			require.FailNow(t, "acknowledge is not expected", state)
 		}
 		ackIDs, err := queue.Acknowledge(ctx, state, ids)
-		if completedAcks+failedAcks+cancelledAcks == 4 {
+		if completedAcks+failedAcks+deadAcks == 4 {
 			close(processed)
 		}
 		return ackIDs, err
@@ -352,7 +352,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	require.Equal(t, 3, dequeues, "expected 1 deque to get [okJob, failJob] and 2 more for [failJob] only")
 	require.Equal(t, 2, failedAcks)
-	require.Equal(t, 1, cancelledAcks)
+	require.Equal(t, 1, deadAcks)
 	require.Equal(t, 1, completedAcks)
 }
 

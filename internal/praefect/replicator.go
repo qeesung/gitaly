@@ -368,7 +368,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 							logWithCorrID:     job.CorrelationID,
 						}).WithError(err).Error("replication job failed")
 						if job.Attempts == 0 {
-							eventIDsByState[datastore.JobStateCancelled] = append(eventIDsByState[datastore.JobStateCancelled], event.ID)
+							eventIDsByState[datastore.JobStateDead] = append(eventIDsByState[datastore.JobStateDead], event.ID)
 						} else {
 							eventIDsByState[datastore.JobStateFailed] = append(eventIDsByState[datastore.JobStateFailed], event.ID)
 						}

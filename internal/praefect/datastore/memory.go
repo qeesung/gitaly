@@ -108,7 +108,7 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 			result = append(result, id)
 
 			switch state {
-			case JobStateCompleted:
+			case JobStateCompleted, JobStateCancelled, JobStateDead:
 				// this event is fully processed and could be removed
 				s.remove(i)
 			case JobStateFailed:
@@ -116,9 +116,6 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 					// out of luck for this replication event, remove from queue as no more attempts available
 					s.remove(i)
 				}
-			case JobStateCancelled:
-				// out of luck for this replication event, remove from queue as no more attempts available
-				s.remove(i)
 			}
 			break
 		}

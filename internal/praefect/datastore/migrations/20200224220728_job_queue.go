@@ -6,7 +6,7 @@ func init() {
 	m := &migrate.Migration{
 		Id: "20200224220728_job_queue",
 		Up: []string{
-			`CREATE TYPE REPLICATION_JOB_STATE AS ENUM('ready', 'in_progress', 'completed', 'cancelled', 'failed')`,
+			`CREATE TYPE REPLICATION_JOB_STATE AS ENUM('ready', 'in_progress', 'completed', 'cancelled', 'failed', 'dead')`,
 			`CREATE TABLE replication_queue_lock (
 				id TEXT PRIMARY KEY
 				, acquired BOOLEAN NOT NULL DEFAULT FALSE
