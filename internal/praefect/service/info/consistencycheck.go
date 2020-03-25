@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -113,8 +114,6 @@ func walkRepos(ctx context.Context, walkerQ chan<- string, reference nodes.Node)
 		}
 		walkerQ <- resp.GetRelativePath()
 	}
-
-	return nil
 }
 
 func checksumRepo(ctx context.Context, relpath string, node nodes.Node) (string, error) {
@@ -177,36 +176,27 @@ func checksumRepos(ctx context.Context, relpathQ <-chan string, checksumResultQ 
 	return nil
 }
 
-func scheduleReplication(ctx context.Context, csr checksumResult, ds Datastore, resp *gitalypb.ConsistencyCheckResponse) error {
-	ids, err := ds.CreateReplicaReplJobs(
-		correlation.ExtractFromContext(ctx),
-		csr.relativePath,
-		csr.referenceStorage,
-		[]string{csr.targetStorage},
-		datastore.UpdateRepo,
-		nil,
-	)
+func scheduleReplication(ctx context.Context, csr checksumResult, q Queue, resp *gitalypb.ConsistencyCheckResponse) error {
+	event, err := q.Enqueue(ctx, datastore.ReplicationEvent{
+		Job: datastore.ReplicationJob{
+			Change:            datastore.UpdateRepo,
+			RelativePath:      csr.relativePath,
+			TargetNodeStorage: csr.targetStorage,
+			SourceNodeStorage: csr.referenceStorage,
+		},
+		Meta: datastore.Params{metadatahandler.CorrelationIDKey: correlation.ExtractFromContext(ctx)},
+	})
+
 	if err != nil {
 		return err
 	}
 
-	if len(ids) != 1 {
-		return status.Errorf(
-			codes.Internal,
-			"datastore unexpectedly returned %d job IDs",
-			len(ids),
-		)
-	}
-	resp.ReplJobId = ids[0]
-
-	if err := ds.UpdateReplJobState(resp.ReplJobId, datastore.JobStateReady); err != nil {
-		return err
-	}
+	resp.ReplJobId = event.ID
 
 	return nil
 }
 
-func ensureConsistency(ctx context.Context, checksumResultQ <-chan checksumResult, ds Datastore, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
+func ensureConsistency(ctx context.Context, checksumResultQ <-chan checksumResult, q Queue, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
 	for csr := range checksumResultQ {
 		select {
 		case <-ctx.Done():
@@ -222,7 +212,7 @@ func ensureConsistency(ctx context.Context, checksumResultQ <-chan checksumResul
 		}
 
 		if csr.reference != csr.target {
-			if err := scheduleReplication(ctx, csr, ds, resp); err != nil {
+			if err := scheduleReplication(ctx, csr, q, resp); err != nil {
 				return err
 			}
 		}
@@ -260,7 +250,7 @@ func (s *Server) ConsistencyCheck(req *gitalypb.ConsistencyCheckRequest, stream 
 		return checksumRepos(ctx, walkerQ, checksumResultQ, target, reference)
 	})
 	g.Go(func() error {
-		return ensureConsistency(ctx, checksumResultQ, s.datastore, stream)
+		return ensureConsistency(ctx, checksumResultQ, s.queue, stream)
 	})
 
 	return g.Wait()
