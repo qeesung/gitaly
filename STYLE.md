@@ -89,6 +89,12 @@ variables.
 In Gitaly we don't use this feature. If the function returns one or
 more values, then always pass them to `return`.
 
+## Ordering
+
+### Declare types before their first use
+
+A type should be declared before its first use.
+
 ## Tests
 
 ### Table-driven tests
