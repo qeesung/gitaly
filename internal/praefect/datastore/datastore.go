@@ -93,17 +93,6 @@ type ReplJob struct {
 	CorrelationID          string // from original request
 }
 
-// replJobs provides sort manipulation behavior
-type replJobs []ReplJob
-
-func (rjs replJobs) Len() int      { return len(rjs) }
-func (rjs replJobs) Swap(i, j int) { rjs[i], rjs[j] = rjs[j], rjs[i] }
-
-// byJobID provides a comparator for sorting jobs
-type byJobID struct{ replJobs }
-
-func (b byJobID) Less(i, j int) bool { return b.replJobs[i].ID < b.replJobs[j].ID }
-
 // Datastore is a data persistence abstraction for all of Praefect's
 // persistence needs
 type Datastore interface {
