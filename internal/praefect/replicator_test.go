@@ -85,7 +85,7 @@ func TestProcessReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
@@ -309,7 +309,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		ReplicationEventQueue: queueInterceptor,
 		MemoryDatastore:       datastore.NewInMemory(conf),
 	}
@@ -424,7 +424,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
 	}
@@ -601,4 +601,25 @@ func testMain(m *testing.M) int {
 	defer RubyServer.Stop()
 
 	return m.Run()
+}
+
+func TestSubtractUint64(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		left  []uint64
+		right []uint64
+		exp   []uint64
+	}{
+		{desc: "empty left", left: nil, right: []uint64{1, 2}, exp: nil},
+		{desc: "empty right", left: []uint64{1, 2}, right: []uint64{}, exp: []uint64{1, 2}},
+		{desc: "some exists", left: []uint64{1, 2, 3, 4, 5}, right: []uint64{2, 4, 5}, exp: []uint64{1, 3}},
+		{desc: "nothing exists", left: []uint64{10, 20}, right: []uint64{100, 200}, exp: []uint64{10, 20}},
+		{desc: "duplicates exists", left: []uint64{1, 1, 2, 3, 3, 4, 4, 5}, right: []uint64{3, 4, 4, 5}, exp: []uint64{1, 1, 2}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			require.Equal(t, testCase.exp, subtractUint64(testCase.left, testCase.right))
+		})
+	}
 }

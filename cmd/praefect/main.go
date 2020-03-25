@@ -183,7 +183,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 	var (
 		// top level server dependencies
-		ds = datastore.QueuedMemoryDatastore{
+		ds = datastore.MemoryQueue{
 			MemoryDatastore:       datastore.NewInMemory(conf),
 			ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 		}

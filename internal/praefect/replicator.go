@@ -9,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/slice"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
@@ -315,7 +314,7 @@ func (r ReplMgr) createReplJob(event datastore.ReplicationEvent) (datastore.Repl
 		return datastore.ReplJob{}, err
 	}
 
-	correlationID := ""
+	var correlationID string
 	if val, found := event.Meta[metadatahandler.CorrelationIDKey]; found {
 		correlationID, _ = val.(string)
 	}
@@ -384,7 +383,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 						continue
 					}
 
-					notAckIDs := slice.Uint64(ackIDs).Minus(eventIDs)
+					notAckIDs := subtractUint64(ackIDs, eventIDs)
 					if len(notAckIDs) > 0 {
 						r.log.WithField("state", state).WithField("event_ids", notAckIDs).WithError(err).Error("replication events were not acknowledged")
 					}
@@ -465,4 +464,31 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	r.replLatencyMetric.Observe(float64(replDuration) / float64(time.Second))
 
 	return nil
+}
+
+// subtractUint64 returns new slice that has all elements from left that does not exist at right.
+func subtractUint64(l, r []uint64) []uint64 {
+	if len(l) == 0 {
+		return nil
+	}
+
+	if len(r) == 0 {
+		result := make([]uint64, len(l))
+		copy(result, l)
+		return result
+	}
+
+	excludeSet := make(map[uint64]struct{}, len(l))
+	for _, v := range r {
+		excludeSet[v] = struct{}{}
+	}
+
+	var result []uint64
+	for _, v := range l {
+		if _, found := excludeSet[v]; !found {
+			result = append(result, v)
+		}
+	}
+
+	return result
 }

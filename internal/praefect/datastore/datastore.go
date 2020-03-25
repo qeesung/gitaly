@@ -160,8 +160,8 @@ type jobRecord struct {
 	correlationID     string // from original request
 }
 
-// QueuedMemoryDatastore is an intermediate struct used for introduction of ReplicationEventQueue into usage.
-type QueuedMemoryDatastore struct {
+// MemoryQueue is an intermediate struct used for introduction of ReplicationEventQueue into usage.
+type MemoryQueue struct {
 	*MemoryDatastore
 	ReplicationEventQueue
 }

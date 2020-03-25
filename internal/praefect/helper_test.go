@@ -76,7 +76,7 @@ func testConfig(backends int) config.Config {
 // setupServer wires all praefect dependencies together via dependency
 // injection
 func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) *Server {
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
@@ -176,7 +176,7 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}

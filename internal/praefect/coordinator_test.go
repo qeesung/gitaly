@@ -58,7 +58,7 @@ func TestStreamDirector(t *testing.T) {
 		return queue.Enqueue(ctx, event)
 	})
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
 	}
@@ -183,7 +183,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 		return queue.Enqueue(ctx, event)
 	})
 
-	ds := datastore.QueuedMemoryDatastore{
+	ds := datastore.MemoryQueue{
 		MemoryDatastore:       datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
 	}

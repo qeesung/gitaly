@@ -211,6 +211,7 @@ func (c *Coordinator) createReplicaJobs(
 
 			// TODO: it could happen that there won't be enough time to enqueue replication events
 			// do we need to create another ctx with another timeout?
+			// https://gitlab.com/gitlab-org/gitaly/-/issues/2586
 			go func() {
 				_, err := c.datastore.Enqueue(ctx, event)
 				if err != nil {
