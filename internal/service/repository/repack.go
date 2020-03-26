@@ -27,7 +27,7 @@ func init() {
 	prometheus.Register(repackCounter)
 }
 
-func (server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
+func (*server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
 	options := []git.Option{
 		git.Flag{"-A"},
 		git.Flag{"--pack-kept-objects"},
@@ -39,7 +39,7 @@ func (server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*
 	return &gitalypb.RepackFullResponse{}, nil
 }
 
-func (server) RepackIncremental(ctx context.Context, in *gitalypb.RepackIncrementalRequest) (*gitalypb.RepackIncrementalResponse, error) {
+func (*server) RepackIncremental(ctx context.Context, in *gitalypb.RepackIncrementalRequest) (*gitalypb.RepackIncrementalResponse, error) {
 	if err := repackCommand(ctx, in.GetRepository(), false); err != nil {
 		return nil, err
 	}

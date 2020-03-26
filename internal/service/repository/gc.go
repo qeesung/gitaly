@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectRequest) (*gitalypb.GarbageCollectResponse, error) {
+func (*server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectRequest) (*gitalypb.GarbageCollectResponse, error) {
 	ctxlogger := grpc_logrus.Extract(ctx)
 	ctxlogger.WithFields(log.Fields{
 		"WriteBitmaps": in.GetCreateBitmap(),

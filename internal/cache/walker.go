@@ -98,13 +98,10 @@ func walkLoop(walkPath string) {
 
 	walkTick := time.NewTicker(cleanWalkFrequency)
 	dontpanic.GoForever(time.Minute, func() {
-		for {
-			if err := cleanWalk(walkPath); err != nil {
-				logger.Error(err)
-			}
-
-			<-walkTick.C
+		if err := cleanWalk(walkPath); err != nil {
+			logger.Error(err)
 		}
+		<-walkTick.C
 	})
 }
 

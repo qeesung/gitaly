@@ -219,7 +219,8 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 			cu()
 		}
 
-		ctx, _ := context.WithTimeout(ctx, time.Second)
+		ctx, timed := context.WithTimeout(ctx, time.Second)
+		defer timed()
 		require.NoError(t, prf.Shutdown(ctx))
 		require.NoError(t, <-errQ)
 

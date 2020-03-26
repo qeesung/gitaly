@@ -140,7 +140,7 @@ type ProxyHappySuite struct {
 
 func (s *ProxyHappySuite) ctx() context.Context {
 	// Make all RPC calls last at most 1 sec, meaning all async issues or deadlock will not kill tests.
-	ctx, _ := context.WithTimeout(context.TODO(), 120*time.Second)
+	ctx, _ := context.WithTimeout(context.TODO(), 120*time.Second) // nolint: govet
 	return ctx
 }
 

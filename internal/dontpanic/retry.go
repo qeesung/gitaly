@@ -16,23 +16,29 @@ import (
 
 // Try will wrap the provided function with a panic recovery. If a panic occurs,
 // the recovered panic will be sent to Sentry and logged as an error.
-func Try(fn func()) { catchAndLog(fn) }
+// Returns `true` if no panic and `false` otherwise.
+func Try(fn func()) bool { return catchAndLog(fn) }
 
 // Go will run the provided function in a goroutine and recover from any
 // panics.  If a panic occurs, the recovered panic will be sent to Sentry
 // and logged as an error. Go is best used in fire-and-forget goroutines where
 // observability is lost.
-func Go(fn func()) { go func() { Try(fn) }() }
+func Go(fn func()) { go Try(fn) }
 
 var logger = log.Default()
 
-func catchAndLog(fn func()) {
+func catchAndLog(fn func()) bool {
 	var id *sentry.EventID
 	var recovered interface{}
+	var normal = true
 
 	func() {
 		defer func() {
 			recovered = recover()
+			if recovered != nil {
+				normal = false
+			}
+
 			if err, ok := recovered.(error); ok {
 				id = sentry.CaptureException(err)
 			}
@@ -41,12 +47,13 @@ func catchAndLog(fn func()) {
 	}()
 
 	if id == nil || *id == "" {
-		return
+		return normal
 	}
 
 	logger.WithField("sentry_id", id).Errorf(
 		"dontpanic: recovered value sent to Sentry: %+v", recovered,
 	)
+	return normal
 }
 
 // GoForever will keep retrying a function fn in a goroutine forever in the
@@ -57,9 +64,14 @@ func catchAndLog(fn func()) {
 func GoForever(backoff time.Duration, fn func()) {
 	go func() {
 		for {
-			Try(fn)
-		}
-		if backoff > 0 {
+			if Try(fn) {
+				continue
+			}
+
+			if backoff <= 0 {
+				continue
+			}
+
 			logger.Infof("dontpanic: backing off %s before retrying", backoff)
 			time.Sleep(backoff)
 		}

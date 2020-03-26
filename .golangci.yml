@@ -19,6 +19,7 @@ linters:
     - staticcheck # https://github.com/dominikh/go-tools/tree/master/cmd/staticcheck
     - gosimple # https://github.com/dominikh/go-tools/tree/master/cmd/gosimple
     - unused
+    - govet
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
@@ -27,6 +28,10 @@ issues:
     - linters:
         - staticcheck
       text: "SA1019:"
+    # govet checks all struct initializations must be keyed by field names
+    - linters:
+        - govet
+      text: "composite literal uses unkeyed fields"
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
   # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.

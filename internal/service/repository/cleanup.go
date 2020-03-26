@@ -17,7 +17,7 @@ import (
 
 var lockFiles = []string{"config.lock", "HEAD.lock"}
 
-func (server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
+func (*server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
 	if err := cleanupRepo(ctx, in.GetRepository()); err != nil {
 		return nil, err
 	}

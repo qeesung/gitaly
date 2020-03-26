@@ -160,6 +160,7 @@ func New(ctx context.Context, repo repository.GitRepo) (*Batch, error) {
 	cacheCtx, cacheCancel := context.WithCancel(context.Background())
 	c, err := newBatch(cacheCtx, repo)
 	if err != nil {
+		cacheCancel()
 		return nil, err
 	}
 

@@ -113,8 +113,6 @@ func walkRepos(ctx context.Context, walkerQ chan<- string, reference nodes.Node)
 		}
 		walkerQ <- resp.GetRelativePath()
 	}
-
-	return nil
 }
 
 func checksumRepo(ctx context.Context, relpath string, node nodes.Node) (string, error) {

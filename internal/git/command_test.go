@@ -24,7 +24,8 @@ func TestGitCommandProxy(t *testing.T) {
 
 	os.Setenv("http_proxy", ts.URL)
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	dir, err := ioutil.TempDir("", "test-clone")
 	require.NoError(t, err)
