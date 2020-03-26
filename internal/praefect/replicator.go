@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
+	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	"golang.org/x/sync/errgroup"
@@ -185,8 +186,8 @@ type ReplMgr struct {
 	nodeManager       nodes.Manager
 	virtualStorage    string     // which replica is this replicator responsible for?
 	replicator        Replicator // does the actual replication logic
-	replQueueMetric   metrics.Gauge
-	replLatencyMetric metrics.Histogram
+	replQueueMetric   prommetrics.Gauge
+	replLatencyMetric prommetrics.Histogram
 	replJobTimeout    time.Duration
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
@@ -196,14 +197,14 @@ type ReplMgr struct {
 type ReplMgrOpt func(*ReplMgr)
 
 // WithQueueMetric is an option to set the queue size prometheus metric
-func WithQueueMetric(g metrics.Gauge) func(*ReplMgr) {
+func WithQueueMetric(g prommetrics.Gauge) func(*ReplMgr) {
 	return func(m *ReplMgr) {
 		m.replQueueMetric = g
 	}
 }
 
 // WithLatencyMetric is an option to set the queue size prometheus metric
-func WithLatencyMetric(h metrics.Histogram) func(*ReplMgr) {
+func WithLatencyMetric(h prommetrics.Histogram) func(*ReplMgr) {
 	return func(m *ReplMgr) {
 		m.replLatencyMetric = h
 	}

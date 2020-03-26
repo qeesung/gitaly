@@ -3,11 +3,12 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	promconfig "gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 )
 
 // RegisterReplicationLatency creates and registers a prometheus histogram
 // to observe replication latency times
-func RegisterReplicationLatency(conf promconfig.Config) (Histogram, error) {
+func RegisterReplicationLatency(conf promconfig.Config) (metrics.Histogram, error) {
 	replicationLatency := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
@@ -22,7 +23,7 @@ func RegisterReplicationLatency(conf promconfig.Config) (Histogram, error) {
 
 // RegisterNodeLatency creates and registers a prometheus histogram to
 // observe internal node latency
-func RegisterNodeLatency(conf promconfig.Config) (HistogramVec, error) {
+func RegisterNodeLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
 	nodeLatency := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
@@ -37,7 +38,7 @@ func RegisterNodeLatency(conf promconfig.Config) (HistogramVec, error) {
 
 // RegisterReplicationJobsInFlight creates and registers a gauge
 // to track the size of the replication queue
-func RegisterReplicationJobsInFlight() (Gauge, error) {
+func RegisterReplicationJobsInFlight() (metrics.Gauge, error) {
 	replicationJobsInFlight := prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "gitaly",
@@ -78,19 +79,4 @@ func init() {
 		PrimaryGauge,
 		ChecksumMismatchCounter,
 	)
-}
-
-// Gauge is a subset of a prometheus Gauge
-type Gauge interface {
-	Inc()
-	Dec()
-}
-
-// Histogram is a subset of a prometheus Histogram
-type Histogram interface {
-	Observe(float64)
-}
-
-type HistogramVec interface {
-	WithLabelValues(lvs ...string) prometheus.Observer
 }

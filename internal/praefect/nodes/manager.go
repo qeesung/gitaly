@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
+	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 	correlation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
@@ -82,7 +83,7 @@ type Mgr struct {
 var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 
 // NewNodeManager creates a new NodeMgr based on virtual storage configs
-func NewManager(log *logrus.Entry, c config.Config, latencyHistogram metrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
+func NewManager(log *logrus.Entry, c config.Config, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	shards := make(map[string]*shard)
 	for _, virtualStorage := range c.VirtualStorages {
 		var secondaries []*nodeStatus
@@ -229,7 +230,7 @@ func (n *Mgr) checkShards() {
 	}
 }
 
-func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist metrics.HistogramVec) *nodeStatus {
+func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {
 	return &nodeStatus{
 		Node:        node,
 		ClientConn:  cc,
@@ -244,7 +245,7 @@ type nodeStatus struct {
 	*grpc.ClientConn
 	statuses    []healthpb.HealthCheckResponse_ServingStatus
 	log         *logrus.Entry
-	latencyHist metrics.HistogramVec
+	latencyHist prommetrics.HistogramVec
 }
 
 // GetStorage gets the storage name of a node
