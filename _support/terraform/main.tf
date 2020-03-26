@@ -1,7 +1,7 @@
 variable "demo_region" { default = "us-east4" }
 variable "demo_zone" { default = "us-east4-c" }
 variable "praefect_demo_cluster_name" { }
-variable "ssh_user" {}
+variable "ssh_user" { }
 variable "ssh_pubkey" { }
 variable "os_image" { default = "ubuntu-os-cloud/ubuntu-1804-lts" }
 variable "startup_script" {
@@ -14,7 +14,8 @@ variable "startup_script" {
   EOF
 }
 variable "gitaly_machine_type" { default = "n1-standard-2" }
-#variable "praefect_sql_password" {}
+variable "gitaly_disk_size" { default = "100" }
+#variable "praefect_sql_password" { }
 
 provider "google" {
   version = "~> 3.12"
@@ -53,6 +54,7 @@ resource "google_compute_instance" "gitlab" {
   boot_disk {
     initialize_params {
       image = var.os_image
+      size = var.gitaly_disk_size
     }
   }
 
@@ -111,6 +113,7 @@ resource "google_compute_instance" "gitaly_1" {
   boot_disk {
     initialize_params {
       image = var.os_image
+      size = var.gitaly_disk_size
     }
   }
 
@@ -139,6 +142,7 @@ resource "google_compute_instance" "gitaly_2" {
   boot_disk {
     initialize_params {
       image = var.os_image
+      size = var.gitaly_disk_size
     }
   }
 
@@ -167,6 +171,7 @@ resource "google_compute_instance" "gitaly_3" {
   boot_disk {
     initialize_params {
       image = var.os_image
+      size = var.gitaly_disk_size
     }
   }
 
