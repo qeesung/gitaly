@@ -7,8 +7,8 @@ GitLab at the correct times.
 
 ## Owners
 
-- Team: Gitaly
-- Most appropriate slack channel to reach out to: `#g_gitaly`
+- Team: `@gl-gitaly`
+- Most appropriate slack channel to reach out to: `#g_create_gitaly`
 - Best individuals to reach out to (note: may be the same person for both roles):
   - **Contributor** (developing fixes): `{replace with gitlab @ handle}`
   - **Maintainer** (releasing fixes): `{replace with gitlab @ handle}`
@@ -23,7 +23,6 @@ GitLab at the correct times.
 | `12.Z`        | `12-Z-stable`  | <backport MR link> |
 
 ## Process
-
 
 ### DO NOT PUSH TO GITLAB.COM!
 
