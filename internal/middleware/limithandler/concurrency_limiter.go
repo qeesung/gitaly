@@ -2,6 +2,7 @@ package limithandler
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -21,50 +22,56 @@ type ConcurrencyMonitor interface {
 
 // ConcurrencyLimiter contains rate limiter state
 type ConcurrencyLimiter struct {
-	// A weighted semaphore is like a mutex, but with a number of 'slots'.
-	// When locking the locker requests 1 or more slots to be locked.
-	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
-	// https://godoc.org/golang.org/x/sync/semaphore
-	semaphores map[string]*semaphore.Weighted
+	semaphores map[string]*semaphoreReference
 	max        int64
 	mux        *sync.Mutex
 	monitor    ConcurrencyMonitor
 }
 
-// Lazy create a semaphore for the given key
-func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphore.Weighted {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	ws := c.semaphores[lockKey]
-	if ws != nil {
-		return ws
-	}
-
-	w := semaphore.NewWeighted(c.max)
-	c.semaphores[lockKey] = w
-	return w
+type semaphoreReference struct {
+	// A weighted semaphore is like a mutex, but with a number of 'slots'.
+	// When locking the locker requests 1 or more slots to be locked.
+	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
+	// https://godoc.org/golang.org/x/sync/semaphore
+	*semaphore.Weighted
+	count int
 }
 
-func (c *ConcurrencyLimiter) attemptCollection(lockKey string) {
+// Lazy create a semaphore for the given key
+func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphoreReference {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	ws := c.semaphores[lockKey]
-	if ws == nil {
-		return
+	if ref := c.semaphores[lockKey]; ref != nil {
+		ref.count++
+		return ref
 	}
 
-	if !ws.TryAcquire(c.max) {
-		return
+	ref := &semaphoreReference{
+		Weighted: semaphore.NewWeighted(c.max),
+		count:    1, // The caller gets this reference so the initial value is 1
+	}
+	c.semaphores[lockKey] = ref
+	return ref
+}
+
+func (c *ConcurrencyLimiter) putSemaphore(lockKey string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	ref := c.semaphores[lockKey]
+	if ref == nil {
+		panic("semaphore should be in the map")
 	}
 
-	// By releasing, we prevent a lockup of goroutines that have already
-	// acquired the semaphore, but have yet to acquire on it
-	ws.Release(c.max)
+	if ref.count <= 0 {
+		panic(fmt.Sprintf("bad semaphore ref count %d", ref.count))
+	}
 
-	// If we managed to acquire all the locks, we can remove the semaphore for this key
-	delete(c.semaphores, lockKey)
+	ref.count--
+	if ref.count == 0 {
+		delete(c.semaphores, lockKey)
+	}
 }
 
 func (c *ConcurrencyLimiter) countSemaphores() int {
@@ -83,26 +90,20 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	start := time.Now()
 	c.monitor.Queued(ctx)
 
-	w := c.getSemaphore(lockKey)
+	sem := c.getSemaphore(lockKey)
+	defer c.putSemaphore(lockKey)
 
-	// Attempt to cleanup the semaphore it's no longer being used
-	defer c.attemptCollection(lockKey)
-
-	err := w.Acquire(ctx, 1)
+	err := sem.Acquire(ctx, 1)
 	c.monitor.Dequeued(ctx)
-
 	if err != nil {
 		return nil, err
 	}
+	defer sem.Release(1)
 
 	c.monitor.Enter(ctx, time.Since(start))
 	defer c.monitor.Exit(ctx)
 
-	defer w.Release(1)
-
-	resp, err := f()
-
-	return resp, err
+	return f()
 }
 
 // NewLimiter creates a new rate limiter
@@ -112,7 +113,7 @@ func NewLimiter(max int, monitor ConcurrencyMonitor) *ConcurrencyLimiter {
 	}
 
 	return &ConcurrencyLimiter{
-		semaphores: make(map[string]*semaphore.Weighted),
+		semaphores: make(map[string]*semaphoreReference),
 		max:        int64(max),
 		mux:        &sync.Mutex{},
 		monitor:    monitor,

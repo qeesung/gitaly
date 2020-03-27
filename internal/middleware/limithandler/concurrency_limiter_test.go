@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type counter struct {
@@ -73,9 +74,7 @@ func TestLimiter(t *testing.T) {
 		concurrency      int
 		maxConcurrency   int
 		iterations       int
-		delay            time.Duration
 		buckets          int
-		wantMaxRange     []int
 		wantMonitorCalls bool
 	}{
 		{
@@ -83,9 +82,7 @@ func TestLimiter(t *testing.T) {
 			concurrency:      1,
 			maxConcurrency:   1,
 			iterations:       1,
-			delay:            1 * time.Millisecond,
 			buckets:          1,
-			wantMaxRange:     []int{1, 1},
 			wantMonitorCalls: true,
 		},
 		{
@@ -93,19 +90,15 @@ func TestLimiter(t *testing.T) {
 			concurrency:      100,
 			maxConcurrency:   2,
 			iterations:       10,
-			delay:            1 * time.Millisecond,
 			buckets:          1,
-			wantMaxRange:     []int{2, 3},
 			wantMonitorCalls: true,
 		},
 		{
 			name:             "two-by-two",
 			concurrency:      100,
 			maxConcurrency:   2,
-			delay:            1000 * time.Nanosecond,
 			iterations:       4,
 			buckets:          2,
-			wantMaxRange:     []int{4, 5},
 			wantMonitorCalls: true,
 		},
 		{
@@ -113,9 +106,7 @@ func TestLimiter(t *testing.T) {
 			concurrency:      10,
 			maxConcurrency:   0,
 			iterations:       200,
-			delay:            1000 * time.Nanosecond,
 			buckets:          1,
-			wantMaxRange:     []int{8, 10},
 			wantMonitorCalls: false,
 		},
 		{
@@ -125,17 +116,19 @@ func TestLimiter(t *testing.T) {
 			// We use a long delay here to prevent flakiness in CI. If the delay is
 			// too short, the first goroutines to enter the critical section will be
 			// gone before we hit the intended maximum concurrency.
-			delay:            5 * time.Millisecond,
 			iterations:       40,
 			buckets:          50,
-			wantMaxRange:     []int{95, 105},
 			wantMonitorCalls: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			expectedGaugeMax := tt.maxConcurrency * tt.buckets
+			if tt.maxConcurrency <= 0 {
+				expectedGaugeMax = tt.concurrency
+			}
+
 			gauge := &counter{}
-			start := make(chan struct{})
 
 			limiter := NewLimiter(tt.maxConcurrency, gauge)
 			wg := sync.WaitGroup{}
@@ -152,7 +145,7 @@ func TestLimiter(t *testing.T) {
 
 				gauge.up()
 
-				if gauge.max >= tt.wantMaxRange[0] {
+				if gauge.max >= expectedGaugeMax {
 					full.Broadcast()
 					return
 				}
@@ -165,7 +158,6 @@ func TestLimiter(t *testing.T) {
 			// concurrently.
 			for c := 0; c < tt.concurrency; c++ {
 				go func(counter int) {
-					<-start
 					for i := 0; i < tt.iterations; i++ {
 						lockKey := strconv.Itoa((i ^ counter) % tt.buckets)
 
@@ -173,24 +165,22 @@ func TestLimiter(t *testing.T) {
 							primePump()
 
 							current := gauge.currentVal()
-							assert.True(t, current <= tt.wantMaxRange[1], "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", current, tt.wantMaxRange[1])
-							assert.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", limiter.countSemaphores(), tt.buckets)
+							require.True(t, current <= expectedGaugeMax, "Expected the number of concurrent operations (%v) to not exceed the maximum concurrency (%v)", current, expectedGaugeMax)
+
+							require.True(t, limiter.countSemaphores() <= tt.buckets, "Expected the number of semaphores (%v) to be lte number of buckets (%v)", limiter.countSemaphores(), tt.buckets)
 
 							gauge.down()
 							return nil, nil
 						})
-
-						time.Sleep(tt.delay)
 					}
 
 					wg.Done()
 				}(c)
 			}
 
-			close(start)
 			wg.Wait()
 
-			assert.True(t, tt.wantMaxRange[0] <= gauge.max && gauge.max <= tt.wantMaxRange[1], "Expected maximum concurrency to be in the range [%v,%v] but got %v", tt.wantMaxRange[0], tt.wantMaxRange[1], gauge.max)
+			assert.Equal(t, expectedGaugeMax, gauge.max, "Expected maximum concurrency")
 			assert.Equal(t, 0, gauge.current)
 			assert.Equal(t, 0, limiter.countSemaphores())
 
