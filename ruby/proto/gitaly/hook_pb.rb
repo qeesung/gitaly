@@ -8,8 +8,7 @@ require 'shared_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.PreReceiveHookRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
-    optional :key_id, :string, 2
-    optional :protocol, :string, 3
+    repeated :environment_variables, :string, 2
     optional :stdin, :bytes, 4
   end
   add_message "gitaly.PreReceiveHookResponse" do
@@ -19,7 +18,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.PostReceiveHookRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
-    optional :key_id, :string, 2
+    repeated :environment_variables, :string, 2
     optional :stdin, :bytes, 3
     repeated :git_push_options, :string, 4
   end
@@ -30,7 +29,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.UpdateHookRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
-    optional :key_id, :string, 2
+    repeated :environment_variables, :string, 2
     optional :ref, :bytes, 3
     optional :old_value, :string, 4
     optional :new_value, :string, 5

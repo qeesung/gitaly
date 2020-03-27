@@ -3,8 +3,8 @@
 # Tests inputs to post-receive
 
 abort("FAIL") if $stdin.read.empty?
-abort("FAIL") if %w[GL_ID GL_REPOSITORY].any? { |k| ENV[k].empty? }
+abort("FAIL") if %w[GL_ID GL_REPOSITORY GL_PROTOCOL GL_USERNAME].any? { |k| ENV[k].nil? || ENV[k].empty? }
 # git push options are not required. This is only for the sake of testing the values get through
-abort("FAIL") if %w[GIT_PUSH_OPTION_COUNT GIT_PUSH_OPTION_0].any? { |k| ENV[k].empty? }
+abort("FAIL") if %w[GIT_PUSH_OPTION_COUNT GIT_PUSH_OPTION_0].any? { |k| ENV[k].nil? || ENV[k].empty? }
 
 puts "OK"

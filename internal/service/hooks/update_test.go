@@ -64,11 +64,11 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "valid inputs",
 			req: gitalypb.UpdateHookRequest{
-				Repository: testRepo,
-				Ref:        []byte("master"),
-				OldValue:   "a",
-				NewValue:   "b",
-				KeyId:      "key",
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
 			},
 			status: 0,
 			stdout: "OK",
@@ -77,11 +77,11 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "missing ref",
 			req: gitalypb.UpdateHookRequest{
-				Repository: testRepo,
-				Ref:        nil,
-				OldValue:   "a",
-				NewValue:   "b",
-				KeyId:      "key",
+				Repository:           testRepo,
+				Ref:                  nil,
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
 			},
 			status: 1,
 			stdout: "",
@@ -90,11 +90,11 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "missing old value",
 			req: gitalypb.UpdateHookRequest{
-				Repository: testRepo,
-				Ref:        []byte("master"),
-				OldValue:   "",
-				NewValue:   "b",
-				KeyId:      "key",
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
 			},
 			status: 1,
 			stdout: "",
@@ -103,24 +103,67 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "missing new value",
 			req: gitalypb.UpdateHookRequest{
-				Repository: testRepo,
-				Ref:        []byte("master"),
-				OldValue:   "a",
-				NewValue:   "",
-				KeyId:      "key",
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
 			},
 			status: 1,
 			stdout: "",
 			stderr: "FAIL",
 		},
 		{
-			desc: "missing key_id value",
+			desc: "missing gl_id value",
 			req: gitalypb.UpdateHookRequest{
-				Repository: testRepo,
-				Ref:        []byte("master"),
-				OldValue:   "a",
-				NewValue:   "b",
-				KeyId:      "",
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc: "missing gl_username value",
+			req: gitalypb.UpdateHookRequest{
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=", "GL_PROTOCOL=protocol"},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc: "missing gl_protocol value",
+			req: gitalypb.UpdateHookRequest{
+				Repository:           testRepo,
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL="},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc: "missing gl_repository value",
+			req: gitalypb.UpdateHookRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  testRepo.GetStorageName(),
+					RelativePath: testRepo.GetRelativePath(),
+					GlRepository: "",
+				},
+				Ref:                  []byte("master"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol"},
 			},
 			status: 1,
 			stdout: "",
@@ -152,7 +195,7 @@ func TestUpdate(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.status, status)
+			assert.Equal(t, tc.status, status)
 			assert.Equal(t, tc.stderr, text.ChompBytes(stderr.Bytes()), "hook stderr")
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})

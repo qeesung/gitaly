@@ -65,33 +65,95 @@ func TestPreReceive(t *testing.T) {
 		stdout, stderr string
 	}{
 		{
-			desc:   "valid stdin",
-			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
+			desc:  "everything OK",
+			stdin: bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key-123",
+					"GL_PROTOCOL=protocol",
+					"GL_USERNAME=username",
+				},
+			},
 			status: 0,
 			stdout: "OK",
 			stderr: "",
 		},
 		{
-			desc:   "missing stdin",
-			stdin:  bytes.NewBuffer(nil),
-			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id", Protocol: "protocol"},
+			desc:  "missing stdin",
+			stdin: bytes.NewBuffer(nil),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key-123",
+					"GL_PROTOCOL=protocol",
+					"GL_USERNAME=username",
+				},
+			},
 			status: 1,
 			stdout: "",
 			stderr: "FAIL",
 		},
 		{
-			desc:   "missing protocol",
-			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, KeyId: "key_id"},
+			desc:  "missing gl_protocol",
+			stdin: bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key-123",
+					"GL_USERNAME=username",
+					"GL_PROTOCOL=",
+				},
+			},
 			status: 1,
 			stdout: "",
 			stderr: "FAIL",
 		},
 		{
-			desc:   "missing key_id",
-			stdin:  bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
-			req:    gitalypb.PreReceiveHookRequest{Repository: testRepo, Protocol: "protocol"},
+			desc:  "missing gl_id",
+			stdin: bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=",
+					"GL_PROTOCOL=protocol",
+					"GL_USERNAME=username",
+				},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc:  "missing gl_username",
+			stdin: bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key-123",
+					"GL_PROTOCOL=protocol",
+					"GL_USERNAME=",
+				},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc:  "missing gl_repository",
+			stdin: bytes.NewBufferString("a\nb\nc\nd\ne\nf\ng"),
+			req: gitalypb.PreReceiveHookRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  testRepo.GetStorageName(),
+					RelativePath: testRepo.GetRelativePath(),
+					GlRepository: "",
+				},
+				EnvironmentVariables: []string{
+					"GL_ID=key-123",
+					"GL_PROTOCOL=",
+					"GL_USERNAME=username",
+				},
+			},
 			status: 1,
 			stdout: "",
 			stderr: "FAIL",
@@ -133,7 +195,7 @@ func TestPreReceive(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.status, status)
+			assert.Equal(t, tc.status, status)
 			assert.Equal(t, tc.stderr, text.ChompBytes(stderr.Bytes()), "hook stderr")
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})

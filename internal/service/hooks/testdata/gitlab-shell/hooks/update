@@ -4,6 +4,6 @@
 
 abort("FAIL") unless ARGV.size == 3
 abort("FAIL") if ARGV.any? { |arg| arg.empty? }
-abort("FAIL") if ENV['GL_ID'].empty?
+abort("FAIL") if %w[GL_ID GL_REPOSITORY GL_PROTOCOL GL_USERNAME].any? { |k| ENV[k].nil? || ENV[k].empty? }
 
 puts "OK"

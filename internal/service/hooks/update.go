@@ -14,11 +14,6 @@ func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.Hook
 		return helper.ErrInvalidArgument(err)
 	}
 
-	hookEnv, err := hookRequestEnv(in)
-	if err != nil {
-		return helper.ErrInternal(err)
-	}
-
 	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.UpdateHookResponse{Stdout: p}) })
 	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.UpdateHookResponse{Stderr: p}) })
 
@@ -35,7 +30,7 @@ func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.Hook
 		nil,
 		stdout, stderr,
 		c,
-		hookEnv,
+		hookRequestEnv(in),
 	)
 
 	if err != nil {

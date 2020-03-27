@@ -27,8 +27,7 @@ service HookService {
 
 message PreReceiveHookRequest {
   Repository repository = 1 [(target_repository)=true];
-  string key_id = 2;
-  string protocol = 3;
+  repeated string environment_variables = 2;
   bytes stdin = 4;
 }
 
@@ -40,7 +39,7 @@ message PreReceiveHookResponse{
 
 message PostReceiveHookRequest {
   Repository repository = 1 [(target_repository)=true];
-  string key_id = 2;
+  repeated string environment_variables = 2;
   bytes stdin = 3;
   repeated string git_push_options = 4;
 }
@@ -53,7 +52,7 @@ message PostReceiveHookResponse{
 
 message UpdateHookRequest {
   Repository repository = 1 [(target_repository)=true];
-  string key_id = 2;
+  repeated string environment_variables = 2;
   bytes ref = 3;
   string old_value = 4;
   string new_value = 5;

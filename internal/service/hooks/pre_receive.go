@@ -14,14 +14,13 @@ import (
 )
 
 type hookRequest interface {
-	GetKeyId() string
+	GetEnvironmentVariables() []string
 	GetRepository() *gitalypb.Repository
 }
 
-func hookRequestEnv(req hookRequest) ([]string, error) {
+func hookRequestEnv(req hookRequest) []string {
 	return append(gitlabshell.Env(),
-		fmt.Sprintf("GL_ID=%s", req.GetKeyId()),
-		fmt.Sprintf("GL_REPOSITORY=%s", req.GetRepository().GetGlRepository())), nil
+		append(req.GetEnvironmentVariables(), fmt.Sprintf("GL_REPOSITORY=%s", req.GetRepository().GetGlRepository()))...)
 }
 
 func gitlabShellHook(hookName string) string {
@@ -37,13 +36,6 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 	if err := validatePreReceiveHookRequest(firstRequest); err != nil {
 		return helper.ErrInvalidArgument(err)
 	}
-
-	hookEnv, err := hookRequestEnv(firstRequest)
-	if err != nil {
-		return helper.ErrInternal(err)
-	}
-
-	hookEnv = append(hookEnv, fmt.Sprintf("GL_PROTOCOL=%s", firstRequest.GetProtocol()))
 
 	stdin := streamio.NewReader(func() ([]byte, error) {
 		req, err := stream.Recv()
@@ -65,7 +57,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 		stdin,
 		stdout, stderr,
 		c,
-		hookEnv,
+		hookRequestEnv(firstRequest),
 	)
 
 	if err != nil {
