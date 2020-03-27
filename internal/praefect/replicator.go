@@ -28,6 +28,12 @@ type Replicator interface {
 	Destroy(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
 	// Rename will rename(move) the target repo on the specified target connection
 	Rename(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
+	// GarbageCollect will run gc on the target repository
+	GarbageCollect(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
+	// RepackFull will do a full repack on the target repository
+	RepackFull(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
+	// RepackIncremental will do an incremental repack on the target repository
+	RepackIncremental(ctx context.Context, job datastore.ReplJob, target *grpc.ClientConn) error
 }
 
 type defaultReplicator struct {
@@ -140,6 +146,71 @@ func (dr defaultReplicator) Rename(ctx context.Context, job datastore.ReplJob, t
 	_, err := repoSvcClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
 		Repository:   targetRepo,
 		RelativePath: relativePath,
+	})
+
+	return err
+}
+
+func (dr defaultReplicator) GarbageCollect(ctx context.Context, job datastore.ReplJob, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  job.TargetNode.Storage,
+		RelativePath: job.RelativePath,
+	}
+
+	val, found := job.Params["CreateBitmap"]
+	if !found {
+		return errors.New("no 'CreateBitmap' parameter for garbage collect")
+	}
+	createBitmap, ok := val.(bool)
+	if !ok {
+		return fmt.Errorf("parameter 'CreateBitmap' has unexpected type: %T", createBitmap)
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	_, err := repoSvcClient.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{
+		Repository:   targetRepo,
+		CreateBitmap: createBitmap,
+	})
+
+	return err
+}
+
+func (dr defaultReplicator) RepackIncremental(ctx context.Context, job datastore.ReplJob, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  job.TargetNode.Storage,
+		RelativePath: job.RelativePath,
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	_, err := repoSvcClient.RepackIncremental(ctx, &gitalypb.RepackIncrementalRequest{
+		Repository: targetRepo,
+	})
+
+	return err
+}
+
+func (dr defaultReplicator) RepackFull(ctx context.Context, job datastore.ReplJob, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  job.TargetNode.Storage,
+		RelativePath: job.RelativePath,
+	}
+
+	val, found := job.Params["CreateBitmap"]
+	if !found {
+		return errors.New("no 'CreateBitmap' parameter for repack full")
+	}
+	createBitmap, ok := val.(bool)
+	if !ok {
+		return fmt.Errorf("parameter 'CreateBitmap' has unexpected type: %T", createBitmap)
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	_, err := repoSvcClient.RepackFull(ctx, &gitalypb.RepackFullRequest{
+		Repository:   targetRepo,
+		CreateBitmap: createBitmap,
 	})
 
 	return err
@@ -448,6 +519,12 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 		err = r.replicator.Destroy(injectedCtx, job, targetCC)
 	case datastore.RenameRepo:
 		err = r.replicator.Rename(injectedCtx, job, targetCC)
+	case datastore.GarbageCollect:
+		err = r.replicator.GarbageCollect(injectedCtx, job, targetCC)
+	case datastore.RepackFull:
+		err = r.replicator.RepackFull(injectedCtx, job, targetCC)
+	case datastore.RepackIncremental:
+		err = r.replicator.RepackIncremental(injectedCtx, job, targetCC)
 	default:
 		err = fmt.Errorf("unknown replication change type encountered: %q", job.Change)
 	}

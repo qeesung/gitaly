@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
@@ -19,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	objectpoolservice "gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
@@ -177,6 +179,192 @@ func TestProcessReplicationJob(t *testing.T) {
 	require.Equal(t, 1, mockReplicationGauge.IncsCalled())
 	require.Equal(t, 1, mockReplicationGauge.DecsCalled())
 	require.Len(t, mockReplicationHistogram.Values, 1)
+}
+
+func TestPropagateReplicationJob(t *testing.T) {
+	primaryServer, primarySocketPath, cleanup := runMockRepositoryServer(t)
+	defer cleanup()
+
+	secondaryServer, secondarySocketPath, cleanup := runMockRepositoryServer(t)
+	defer cleanup()
+
+	primaryStorage, secondaryStorage := "internal-gitaly-0", "internal-gitaly-1"
+	conf := config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Name: "default",
+				Nodes: []*models.Node{
+					{
+						Storage:        primaryStorage,
+						Address:        primarySocketPath,
+						DefaultPrimary: true,
+					},
+					{
+						Storage: secondaryStorage,
+						Address: secondarySocketPath,
+					},
+				},
+			},
+		},
+	}
+
+	ds := datastore.MemoryQueue{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue()),
+	}
+	logEntry := testhelper.DiscardTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
+
+	registry := protoregistry.New()
+	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
+
+	replmgr := NewReplMgr(
+		conf.VirtualStorages[0].Name,
+		logEntry,
+		ds,
+		nodeMgr,
+	)
+
+	prf := NewServer(
+		coordinator.StreamDirector,
+		logEntry,
+		registry,
+		conf,
+	)
+	listener, port := listenAvailPort(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	prf.RegisterServices(nodeMgr, conf, ds)
+	go prf.Serve(listener, false)
+	defer prf.Stop()
+
+	cc := dialLocalPort(t, port, false)
+	repositoryClient := gitalypb.NewRepositoryServiceClient(cc)
+	defer listener.Close()
+	defer cc.Close()
+
+	repositoryRelativePath := "/path/to/repo"
+
+	repository := &gitalypb.Repository{
+		StorageName:  conf.VirtualStorages[0].Name,
+		RelativePath: repositoryRelativePath,
+	}
+
+	_, err = repositoryClient.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: repository, CreateBitmap: true})
+	require.NoError(t, err)
+
+	_, err = repositoryClient.RepackFull(ctx, &gitalypb.RepackFullRequest{Repository: repository, CreateBitmap: false})
+	require.NoError(t, err)
+
+	_, err = repositoryClient.RepackIncremental(ctx, &gitalypb.RepackIncrementalRequest{Repository: repository})
+	require.NoError(t, err)
+
+	primaryRepository := &gitalypb.Repository{StorageName: primaryStorage, RelativePath: repositoryRelativePath}
+	expectedPrimaryGcReq := gitalypb.GarbageCollectRequest{
+		Repository:   primaryRepository,
+		CreateBitmap: true,
+	}
+	expectedPrimaryRepackFullReq := gitalypb.RepackFullRequest{
+		Repository:   primaryRepository,
+		CreateBitmap: false,
+	}
+	expectedPrimaryRepackIncrementalReq := gitalypb.RepackIncrementalRequest{
+		Repository: primaryRepository,
+	}
+
+	replCtx, cancel := testhelper.Context()
+	defer cancel()
+	go replmgr.ProcessBacklog(replCtx, noopBackoffFunc)
+
+	// ensure primary gitaly server received the expected requests
+	waitForRequest(t, primaryServer.gcChan, expectedPrimaryGcReq, 5*time.Second)
+	waitForRequest(t, primaryServer.repackIncrChan, expectedPrimaryRepackIncrementalReq, 5*time.Second)
+	waitForRequest(t, primaryServer.repackFullChan, expectedPrimaryRepackFullReq, 5*time.Second)
+
+	secondaryRepository := &gitalypb.Repository{StorageName: secondaryStorage, RelativePath: repositoryRelativePath}
+
+	expectedSecondaryGcReq := expectedPrimaryGcReq
+	expectedSecondaryGcReq.Repository = secondaryRepository
+
+	expectedSecondaryRepackFullReq := expectedPrimaryRepackFullReq
+	expectedSecondaryRepackFullReq.Repository = secondaryRepository
+
+	expectedSecondaryRepackIncrementalReq := expectedPrimaryRepackIncrementalReq
+	expectedSecondaryRepackIncrementalReq.Repository = secondaryRepository
+
+	// ensure secondary gitaly server received the expected requests
+	waitForRequest(t, secondaryServer.gcChan, expectedSecondaryGcReq, 5*time.Second)
+	waitForRequest(t, secondaryServer.repackIncrChan, expectedSecondaryRepackIncrementalReq, 5*time.Second)
+	waitForRequest(t, secondaryServer.repackFullChan, expectedSecondaryRepackFullReq, 5*time.Second)
+}
+
+type mockRepositoryServer struct {
+	gcChan, repackFullChan, repackIncrChan chan interface{}
+
+	gitalypb.UnimplementedRepositoryServiceServer
+}
+
+func newMockRepositoryServer() *mockRepositoryServer {
+	return &mockRepositoryServer{
+		gcChan:         make(chan interface{}),
+		repackFullChan: make(chan interface{}),
+		repackIncrChan: make(chan interface{}),
+	}
+}
+
+func (m *mockRepositoryServer) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollectRequest) (*gitalypb.GarbageCollectResponse, error) {
+	go func() {
+		m.gcChan <- *in
+	}()
+	return &gitalypb.GarbageCollectResponse{}, nil
+}
+
+func (m *mockRepositoryServer) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
+	go func() {
+		m.repackFullChan <- *in
+	}()
+	return &gitalypb.RepackFullResponse{}, nil
+}
+
+func (m *mockRepositoryServer) RepackIncremental(ctx context.Context, in *gitalypb.RepackIncrementalRequest) (*gitalypb.RepackIncrementalResponse, error) {
+	go func() {
+		m.repackIncrChan <- *in
+	}()
+	return &gitalypb.RepackIncrementalResponse{}, nil
+}
+
+func runMockRepositoryServer(t *testing.T) (*mockRepositoryServer, string, func()) {
+	server := testhelper.NewTestGrpcServer(t, nil, nil)
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", serverSocketPath)
+	require.NoError(t, err)
+
+	mockServer := newMockRepositoryServer()
+
+	gitalypb.RegisterRepositoryServiceServer(server, mockServer)
+	reflection.Register(server)
+
+	go server.Serve(listener)
+
+	return mockServer, "unix://" + serverSocketPath, server.Stop
+}
+
+func waitForRequest(t *testing.T, ch chan interface{}, expected interface{}, timeout time.Duration) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case req := <-ch:
+		assert.Equal(t, expected, req)
+		close(ch)
+	case <-timer.C:
+		t.Fatal("timed out")
+	}
 }
 
 func TestConfirmReplication(t *testing.T) {

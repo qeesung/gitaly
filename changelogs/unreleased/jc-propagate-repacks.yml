@@ -1,0 +1,5 @@
+---
+title: Propagate GarbageCollect, RepackFull, RepackIncremental to secondary nodes
+merge_request: 1970
+author:
+type: added

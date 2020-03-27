@@ -30,6 +30,25 @@ func getReplicationDetails(methodName string, m proto.Message) (datastore.Change
 			return "", nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
 		}
 		return datastore.RenameRepo, datastore.Params{"RelativePath": req.RelativePath}, nil
+	case "/gitaly.RepositoryService/GarbageCollect":
+		req, ok := m.(*gitalypb.GarbageCollectRequest)
+		if !ok {
+			return "", nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
+		}
+		return datastore.GarbageCollect, datastore.Params{"CreateBitmap": req.GetCreateBitmap()}, nil
+	case "/gitaly.RepositoryService/RepackFull":
+		req, ok := m.(*gitalypb.RepackFullRequest)
+		if !ok {
+			return "", nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
+		}
+		return datastore.RepackFull, datastore.Params{"CreateBitmap": req.GetCreateBitmap()}, nil
+	case "/gitaly.RepositoryService/RepackIncremental":
+		req, ok := m.(*gitalypb.RepackIncrementalRequest)
+		if !ok {
+			return "", nil, fmt.Errorf("protocol changed: for method %q expected  message type '%T', got '%T'", methodName, req, m)
+		}
+		return datastore.RepackIncremental, nil, nil
+
 	default:
 		return datastore.UpdateRepo, nil, nil
 	}

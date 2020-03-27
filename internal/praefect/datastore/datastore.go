@@ -50,6 +50,12 @@ const (
 	DeleteRepo = ChangeType("delete")
 	// RenameRepo is when a replication renames repo
 	RenameRepo = ChangeType("rename")
+	// GarbageCollect is when replication runs gc
+	GarbageCollect = ChangeType("gc")
+	// RepackFull is when replication runs a full repack
+	RepackFull = ChangeType("repack_full")
+	// RepackIncremental is when replication runs an incremental repack
+	RepackIncremental = ChangeType("repack_incremental")
 )
 
 func (ct ChangeType) String() string {
