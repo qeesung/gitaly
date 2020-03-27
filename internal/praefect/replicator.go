@@ -407,11 +407,6 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 	}
 }
 
-// TODO: errors that occur during replication should be handled better. Logging
-// is a crutch in this situation. Ideally, we need to update state somewhere
-// with information regarding the replication failure. See follow up issue:
-// https://gitlab.com/gitlab-org/gitaly/issues/2138
-
 func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sourceCC, targetCC *grpc.ClientConn) error {
 	l := r.log.
 		WithField(logWithReplJobID, job.ID).
