@@ -12,6 +12,7 @@ import (
 var gitalySSHPath string
 
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

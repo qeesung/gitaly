@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func runCleanupServiceServer(t *testing.T) (string, func()) {
 	srv := testhelper.NewServer(t, nil, nil)

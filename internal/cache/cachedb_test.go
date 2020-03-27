@@ -18,6 +18,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
+
 func TestStreamDBNaiveKeyer(t *testing.T) {
 	keyer := cache.LeaseKeyer{}
 

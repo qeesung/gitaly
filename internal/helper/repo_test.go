@@ -12,6 +12,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
+
 func TestGetRepoPath(t *testing.T) {
 	defer func(oldStorages []config.Storage) {
 		config.Config.Storages = oldStorages

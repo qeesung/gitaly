@@ -12,9 +12,8 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var ()
-
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

@@ -16,6 +16,7 @@ import (
 var rubyServer = &rubyserver.Server{}
 
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

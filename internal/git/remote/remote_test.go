@@ -1,12 +1,18 @@
 package remote
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func TestRemoveRemote(t *testing.T) {
 	ctx, cancel := testhelper.Context()

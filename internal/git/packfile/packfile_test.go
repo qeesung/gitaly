@@ -9,6 +9,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
+
 func TestList(t *testing.T) {
 	repoPath0 := "testdata/empty.git"
 	require.NoError(t, os.RemoveAll(repoPath0))

@@ -1,10 +1,17 @@
 package git
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func TestValidateRevision(t *testing.T) {
 	testCases := []struct {

@@ -1,13 +1,19 @@
 package linguist
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	_ "gitlab.com/gitlab-org/gitaly/internal/testhelper" // Side effect: set up config.Config
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func TestLoadLanguages(t *testing.T) {
 	colorMap = make(map[string]Language)

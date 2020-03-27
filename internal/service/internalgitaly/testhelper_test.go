@@ -2,6 +2,7 @@ package internalgitaly
 
 import (
 	"net"
+	"os"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -10,6 +11,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func runInternalGitalyServer(t *testing.T) (*grpc.Server, string) {
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()

@@ -579,6 +579,7 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.Reposi
 var RubyServer = &rubyserver.Server{}
 
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

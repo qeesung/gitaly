@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -47,39 +48,37 @@ const (
 	testGitEnv          = "testdata/git-env"
 )
 
-func init() {
-	if err := configure(); err != nil {
-		log.Fatal(err)
-	}
-}
+var configureOnce sync.Once
 
-func configure() error {
-	config.Config.Storages = []config.Storage{
-		{Name: "default", Path: GitlabTestStoragePath()},
-	}
-
-	config.Config.SocketPath = "/bogus"
-	config.Config.GitlabShell.Dir = "/"
-
-	dir, err := ioutil.TempDir("", "internal_socket")
-	if err != nil {
-		return err
-	}
-
-	config.Config.InternalSocketDir = dir
-
-	for _, f := range []func() error{
-		ConfigureRuby,
-		config.Validate,
-	} {
-		if err := f(); err != nil {
-			return err
+// Configure sets up the global test configuration. On failure,
+// terminates the program.
+func Configure() {
+	configureOnce.Do(func() {
+		config.Config.Storages = []config.Storage{
+			{Name: "default", Path: GitlabTestStoragePath()},
 		}
-	}
 
-	gitalylog.Configure("", "info")
+		config.Config.SocketPath = "/bogus"
+		config.Config.GitlabShell.Dir = "/"
 
-	return nil
+		dir, err := ioutil.TempDir("", "internal_socket")
+		if err != nil {
+			log.Fatalf("error configuring tests: %v", err)
+		}
+
+		config.Config.InternalSocketDir = dir
+
+		for _, f := range []func() error{
+			ConfigureRuby,
+			config.Validate,
+		} {
+			if err := f(); err != nil {
+				log.Fatalf("error configuring tests: %v", err)
+			}
+		}
+
+		gitalylog.Configure("", "info")
+	})
 }
 
 // MustReadFile returns the content of a file or fails at once.

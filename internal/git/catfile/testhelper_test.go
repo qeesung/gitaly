@@ -8,6 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

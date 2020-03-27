@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -11,6 +12,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func TestParseRawCommit(t *testing.T) {
 	info := &catfile.ObjectInfo{

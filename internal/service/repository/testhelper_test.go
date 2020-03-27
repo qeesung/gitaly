@@ -121,6 +121,7 @@ func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool
 }
 
 func TestMain(m *testing.M) {
+	testhelper.Configure()
 	os.Exit(testMain(m))
 }
 

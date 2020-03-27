@@ -3,6 +3,7 @@ package updateref
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,6 +12,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
 
 func setup(t *testing.T) (context.Context, *gitalypb.Repository, string, func()) {
 	ctx, cancel := testhelper.Context()

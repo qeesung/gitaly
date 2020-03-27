@@ -17,6 +17,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(m.Run())
+}
+
 func TestLogObjectInfo(t *testing.T) {
 	repo1, repoPath1, cleanup1 := testhelper.NewTestRepo(t)
 	defer cleanup1()
