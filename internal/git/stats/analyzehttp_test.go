@@ -3,7 +3,6 @@ package stats
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -11,11 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
-
-func TestMain(m *testing.M) {
-	testhelper.Configure()
-	os.Exit(m.Run())
-}
 
 func TestClone(t *testing.T) {
 	ctx, cancel := testhelper.Context()
