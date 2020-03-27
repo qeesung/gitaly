@@ -75,11 +75,12 @@ func testConfig(backends int) config.Config {
 
 // setupServer wires all praefect dependencies together via dependency
 // injection
-func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) (*datastore.MemoryDatastore, *Server) {
-	var (
-		ds          = datastore.NewInMemory(conf)
-		coordinator = NewCoordinator(l, ds, nodeMgr, conf, r)
-	)
+func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) *Server {
+	ds := datastore.MemoryQueue{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
+	coordinator := NewCoordinator(l, ds, nodeMgr, conf, r)
 
 	var defaultNode *models.Node
 	for _, n := range conf.VirtualStorages[0].Nodes {
@@ -91,7 +92,7 @@ func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *log
 
 	server := NewServer(coordinator.StreamDirector, l, r, conf)
 
-	return ds, server
+	return server
 }
 
 // runPraefectServer runs a praefect server with the provided mock servers.
@@ -124,7 +125,7 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(mustLoadProtoReg(t)))
 
-	_, prf := setupServer(t, conf, nodeMgr, log.Default(), r)
+	prf := setupServer(t, conf, nodeMgr, log.Default(), r)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
@@ -175,7 +176,10 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
 
-	ds := datastore.NewInMemory(conf)
+	ds := datastore.MemoryQueue{
+		MemoryDatastore:       datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
 	logEntry := log.Default()
 
 	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, promtest.NewMockHistogramVec())

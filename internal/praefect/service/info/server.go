@@ -1,36 +1,37 @@
 package info
 
 import (
+	"context"
+
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-// Datastore is a subset of the datastore functionality needed by this service
-type Datastore interface {
-	CreateReplicaReplJobs(correlationID, relativePath, primaryStorage string, secondaryStorages []string, change datastore.ChangeType, params datastore.Params) ([]uint64, error)
-	UpdateReplJobState(jobID uint64, newState datastore.JobState) error
+// Queue is a subset of the datastore.ReplicationEventQueue functionality needed by this service
+type Queue interface {
+	Enqueue(ctx context.Context, event datastore.ReplicationEvent) (datastore.ReplicationEvent, error)
 }
 
-// compile time assertion that Datastore is satisfied by
-// datastore.ReplJobsDatastore
-var _ Datastore = (datastore.ReplJobsDatastore)(nil)
+// compile time assertion that Queue is satisfied by
+// datastore.ReplicationEventQueue
+var _ Queue = (datastore.ReplicationEventQueue)(nil)
 
 // Server is a InfoService server
 type Server struct {
 	gitalypb.UnimplementedPraefectInfoServiceServer
-	nodeMgr   nodes.Manager
-	conf      config.Config
-	datastore Datastore
+	nodeMgr nodes.Manager
+	conf    config.Config
+	queue   Queue
 }
 
 // NewServer creates a new instance of a grpc InfoServiceServer
-func NewServer(nodeMgr nodes.Manager, conf config.Config, datastore Datastore) gitalypb.PraefectInfoServiceServer {
+func NewServer(nodeMgr nodes.Manager, conf config.Config, queue Queue) gitalypb.PraefectInfoServiceServer {
 	s := &Server{
-		nodeMgr:   nodeMgr,
-		conf:      conf,
-		datastore: datastore,
+		nodeMgr: nodeMgr,
+		conf:    conf,
+		queue:   queue,
 	}
 
 	return s

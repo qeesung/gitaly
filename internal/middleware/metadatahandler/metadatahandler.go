@@ -48,7 +48,8 @@ const AuthVersionKey = "grpc.meta.auth_version"
 // DeadlineTypeKey is the key used in ctx_tags to store the deadline type
 const DeadlineTypeKey = "grpc.meta.deadline_type"
 
-const correlationIDKey = "correlation_id"
+// CorrelationIDKey is the key used in ctx_tags to store the correlation ID
+const CorrelationIDKey = "correlation_id"
 
 // Unknown client and feature. Matches the prometheus grpc unknown value
 const unknownValue = "unknown"
@@ -112,7 +113,7 @@ func addMetadataTags(ctx context.Context) metadataTags {
 	// This is a stop-gap approach to logging correlation_ids
 	correlationID := correlation.ExtractFromContext(ctx)
 	if correlationID != "" {
-		tags.Set(correlationIDKey, correlationID)
+		tags.Set(CorrelationIDKey, correlationID)
 	}
 
 	return metaTags

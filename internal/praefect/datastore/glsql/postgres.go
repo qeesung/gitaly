@@ -216,7 +216,7 @@ func (p *Uint64Provider) Values() []uint64 {
 
 // To returns a list of pointers that will be used as a destination for scan operation.
 func (p *Uint64Provider) To() []interface{} {
-	var d = new(uint64)
-	*p = append(*p, d)
-	return []interface{}{d}
+	var d uint64
+	*p = append(*p, &d)
+	return []interface{}{&d}
 }

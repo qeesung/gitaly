@@ -6,9 +6,10 @@
 package datastore
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"sync"
 
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
@@ -23,9 +24,6 @@ func (js JobState) String() string {
 }
 
 const (
-	// JobStatePending is the initial job state when it is not yet ready to run
-	// and may indicate recovery from a failure prior to the ready-state.
-	JobStatePending = JobState("pending")
 	// JobStateReady indicates the job is now ready to proceed.
 	JobStateReady = JobState("ready")
 	// JobStateInProgress indicates the job is being processed by a worker.
@@ -62,6 +60,25 @@ func (ct ChangeType) String() string {
 // It must be JSON encodable/decodable to persist it without problems.
 type Params map[string]interface{}
 
+// Scan assigns a value from a database driver.
+func (p *Params) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	d, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type received: %T", value)
+	}
+
+	return json.Unmarshal(d, p)
+}
+
+// Value returns a driver Value.
+func (p Params) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
 // ReplJob is an instance of a queued replication job. A replication job is
 // meant for updating the repository so that it is synced with the primary
 // copy. Scheduled indicates when a replication job should be performed.
@@ -76,22 +93,11 @@ type ReplJob struct {
 	CorrelationID          string // from original request
 }
 
-// replJobs provides sort manipulation behavior
-type replJobs []ReplJob
-
-func (rjs replJobs) Len() int      { return len(rjs) }
-func (rjs replJobs) Swap(i, j int) { rjs[i], rjs[j] = rjs[j], rjs[i] }
-
-// byJobID provides a comparator for sorting jobs
-type byJobID struct{ replJobs }
-
-func (b byJobID) Less(i, j int) bool { return b.replJobs[i].ID < b.replJobs[j].ID }
-
 // Datastore is a data persistence abstraction for all of Praefect's
 // persistence needs
 type Datastore interface {
-	ReplJobsDatastore
 	ReplicasDatastore
+	ReplicationEventQueue
 }
 
 // ReplicasDatastore manages accessing and setting which secondary replicas
@@ -108,45 +114,16 @@ type ReplicasDatastore interface {
 	GetStorageNodes() ([]models.Node, error)
 }
 
-// ReplJobsDatastore represents the behavior needed for fetching and updating
-// replication jobs from the datastore
-type ReplJobsDatastore interface {
-	// GetJobs fetches a list of chronologically ordered replication
-	// jobs for the given storage replica. The returned list will be at most
-	// count-length.
-	GetJobs(states []JobState, nodeStorage string, count int) ([]ReplJob, error)
-
-	// CreateReplicaReplJobs will create replication jobs for each secondary
-	// replica of a repository known to the datastore. A set of replication job
-	// ID's for the created jobs will be returned upon success.
-	CreateReplicaReplJobs(correlationID, relativePath, primaryStorage string, secondaryStorages []string, change ChangeType, params Params) ([]uint64, error)
-
-	// UpdateReplJobState updates the state of an existing replication job
-	UpdateReplJobState(jobID uint64, newState JobState) error
-
-	IncrReplJobAttempts(jobID uint64) error
-}
-
-type jobRecord struct {
-	change            ChangeType
-	relativePath      string // project's relative path
-	targetNodeStorage string
-	sourceNodeStorage string
-	state             JobState
-	attempts          int
-	params            Params
-	correlationID     string // from original request
+// MemoryQueue is an intermediate struct used for introduction of ReplicationEventQueue into usage.
+type MemoryQueue struct {
+	*MemoryDatastore
+	ReplicationEventQueue
 }
 
 // MemoryDatastore is a simple datastore that isn't persisted to disk. It is
 // only intended for early beta requirements and as a reference implementation
 // for the eventual SQL implementation
 type MemoryDatastore struct {
-	jobs *struct {
-		sync.RWMutex
-		records map[uint64]jobRecord // all jobs indexed by ID
-	}
-
 	// storageNodes is read-only after initialization
 	// if modification needed there must be synchronization for concurrent access to it
 	storageNodes map[string]models.Node
@@ -165,12 +142,6 @@ type MemoryDatastore struct {
 func NewInMemory(cfg config.Config) *MemoryDatastore {
 	m := &MemoryDatastore{
 		storageNodes: map[string]models.Node{},
-		jobs: &struct {
-			sync.RWMutex
-			records map[uint64]jobRecord // all jobs indexed by ID
-		}{
-			records: map[uint64]jobRecord{},
-		},
 		repositories: &struct {
 			sync.RWMutex
 			m map[string]models.Repository
@@ -254,135 +225,4 @@ func (md *MemoryDatastore) GetStorageNodes() ([]models.Node, error) {
 	}
 
 	return storageNodes, nil
-}
-
-// GetJobs is a more general method to retrieve jobs of a certain state from the datastore
-func (md *MemoryDatastore) GetJobs(states []JobState, targetNodeStorage string, count int) ([]ReplJob, error) {
-	statesSet := make(map[JobState]bool, len(states))
-	for _, state := range states {
-		statesSet[state] = true
-	}
-
-	md.jobs.RLock()
-	defer md.jobs.RUnlock()
-
-	var results []ReplJob
-
-	for i, record := range md.jobs.records {
-		// state is a bitmap that is a combination of one or more JobStates
-		if statesSet[record.state] && record.targetNodeStorage == targetNodeStorage {
-			job, err := md.replJobFromRecord(i, record)
-			if err != nil {
-				return nil, err
-			}
-
-			results = append(results, job)
-			if len(results) >= count {
-				break
-			}
-		}
-	}
-
-	sort.Sort(byJobID{results})
-
-	return results, nil
-}
-
-// replJobFromRecord constructs a replication job from a record and by cross
-// referencing the current repository for the project being replicated
-func (md *MemoryDatastore) replJobFromRecord(jobID uint64, record jobRecord) (ReplJob, error) {
-	sourceNode, err := md.GetStorageNode(record.sourceNodeStorage)
-	if err != nil {
-		return ReplJob{}, err
-	}
-	targetNode, err := md.GetStorageNode(record.targetNodeStorage)
-	if err != nil {
-		return ReplJob{}, err
-	}
-
-	return ReplJob{
-		Change:        record.change,
-		ID:            jobID,
-		RelativePath:  record.relativePath,
-		SourceNode:    sourceNode,
-		State:         record.state,
-		TargetNode:    targetNode,
-		Attempts:      record.attempts,
-		Params:        record.params,
-		CorrelationID: record.correlationID,
-	}, nil
-}
-
-// CreateReplicaReplJobs creates a replication job for each secondary that
-// backs the specified repository. Upon success, the job IDs will be returned.
-func (md *MemoryDatastore) CreateReplicaReplJobs(
-	correlationID string,
-	relativePath,
-	primaryStorage string,
-	secondaryStorages []string,
-	change ChangeType,
-	params Params,
-) ([]uint64, error) {
-	md.jobs.Lock()
-	defer md.jobs.Unlock()
-
-	if relativePath == "" {
-		return nil, errors.New("invalid source repository")
-	}
-
-	var jobIDs []uint64
-
-	for _, secondaryStorage := range secondaryStorages {
-		nextID := uint64(len(md.jobs.records) + 1)
-
-		md.jobs.records[nextID] = jobRecord{
-			change:            change,
-			targetNodeStorage: secondaryStorage,
-			state:             JobStatePending,
-			relativePath:      relativePath,
-			sourceNodeStorage: primaryStorage,
-			params:            params,
-			correlationID:     correlationID,
-		}
-
-		jobIDs = append(jobIDs, nextID)
-	}
-
-	return jobIDs, nil
-}
-
-// UpdateReplJobState updates an existing replication job's state
-func (md *MemoryDatastore) UpdateReplJobState(jobID uint64, newState JobState) error {
-	md.jobs.Lock()
-	defer md.jobs.Unlock()
-
-	job, ok := md.jobs.records[jobID]
-	if !ok {
-		return fmt.Errorf("job ID %d does not exist", jobID)
-	}
-
-	if newState == JobStateCompleted || newState == JobStateCancelled {
-		// remove the job to avoid filling up memory with unneeded job records
-		delete(md.jobs.records, jobID)
-		return nil
-	}
-
-	job.state = newState
-	md.jobs.records[jobID] = job
-	return nil
-}
-
-// IncrReplJobAttempts updates an existing replication job's state
-func (md *MemoryDatastore) IncrReplJobAttempts(jobID uint64) error {
-	md.jobs.Lock()
-	defer md.jobs.Unlock()
-
-	job, ok := md.jobs.records[jobID]
-	if !ok {
-		return fmt.Errorf("job ID %d does not exist", jobID)
-	}
-
-	job.attempts++
-	md.jobs.records[jobID] = job
-	return nil
 }
