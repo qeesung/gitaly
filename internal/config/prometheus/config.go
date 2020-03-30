@@ -23,6 +23,9 @@ func (c *Config) Configure() {
 	grpc_prometheus.EnableHandlingTimeHistogram(func(histogramOpts *prometheus.HistogramOpts) {
 		histogramOpts.Buckets = c.GRPCLatencyBuckets
 	})
+	grpc_prometheus.EnableClientHandlingTimeHistogram(func(histogramOpts *prometheus.HistogramOpts) {
+		histogramOpts.Buckets = c.GRPCLatencyBuckets
+	})
 
 	limithandler.EnableAcquireTimeHistogram(c.GRPCLatencyBuckets)
 }

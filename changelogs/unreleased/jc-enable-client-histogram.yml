@@ -1,0 +1,5 @@
+---
+title: Enable client prometheus histogram
+merge_request: 1987
+author:
+type: added
