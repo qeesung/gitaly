@@ -264,15 +264,3 @@ lint:
       codequality: gl-code-quality-report.json
     paths:
       - gl-code-quality-report.json
-
-lint-warnings:
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:golangci-lint-alpine
-  stage: test
-  before_script:
-    # this removes dependency to the github.com/libgit2/git2go: https://gitlab.com/gitlab-org/gitaly/issues/1706
-    - git rm -r --quiet cmd/gitaly-remote
-  script:
-    - golangci-lint run --config _support/golangci.warnings.yml --out-format tab
-  after_script:
-    - git checkout --quiet --no-progress HEAD cmd/gitaly-remote # restore removed code
-  allow_failure: true

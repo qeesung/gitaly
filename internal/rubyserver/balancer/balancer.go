@@ -121,6 +121,7 @@ func (*builder) Scheme() string { return Scheme }
 // care what "address" the caller wants to resolve. We always resolve to
 // the current list of address for local gitaly-ruby processes.
 func (b *builder) Build(_ resolver.Target, cc resolver.ClientConn, _ resolver.BuildOption) (resolver.Resolver, error) {
+	//nolint:golint // There is no obvious way to use UpdateState() without completely replacing the current configuration
 	cc.NewServiceConfig(`{"LoadBalancingPolicy":"round_robin"}`)
 	return newGitalyResolver(cc, b.addressUpdates), nil
 }
@@ -243,6 +244,7 @@ func (r *gitalyResolver) monitor() {
 
 func (r *gitalyResolver) sendUpdate() chan struct{} {
 	au := <-r.addressUpdates
+	//nolint:golint // There is no obvious way to use UpdateState() without completely replacing the current configuration
 	r.clientConn.NewAddress(au.addrs)
 	return au.next
 }
