@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"gitlab.com/gitlab-org/gitaly/internal/stream"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc"
@@ -15,24 +16,24 @@ func ReceivePack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, st
 	defer cancel()
 
 	ssh := gitalypb.NewSSHServiceClient(conn)
-	stream, err := ssh.SSHReceivePack(ctx2)
+	receivePackStream, err := ssh.SSHReceivePack(ctx2)
 	if err != nil {
 		return 0, err
 	}
 
-	if err = stream.Send(req); err != nil {
+	if err = receivePackStream.Send(req); err != nil {
 		return 0, err
 	}
 
 	inWriter := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&gitalypb.SSHReceivePackRequest{Stdin: p})
+		return receivePackStream.Send(&gitalypb.SSHReceivePackRequest{Stdin: p})
 	})
 
-	return streamHandler(func() (stdoutStderrResponse, error) {
-		return stream.Recv()
+	return stream.Handler(func() (stream.StdoutStderrResponse, error) {
+		return receivePackStream.Recv()
 	}, func(errC chan error) {
 		_, errRecv := io.Copy(inWriter, stdin)
-		stream.CloseSend()
+		receivePackStream.CloseSend()
 		errC <- errRecv
 	}, stdout, stderr)
 }

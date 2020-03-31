@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"gitlab.com/gitlab-org/gitaly/internal/stream"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc"
@@ -15,24 +16,24 @@ func UploadPack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, std
 	defer cancel()
 
 	ssh := gitalypb.NewSSHServiceClient(conn)
-	stream, err := ssh.SSHUploadPack(ctx2)
+	uploadPackStream, err := ssh.SSHUploadPack(ctx2)
 	if err != nil {
 		return 0, err
 	}
 
-	if err = stream.Send(req); err != nil {
+	if err = uploadPackStream.Send(req); err != nil {
 		return 0, err
 	}
 
 	inWriter := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&gitalypb.SSHUploadPackRequest{Stdin: p})
+		return uploadPackStream.Send(&gitalypb.SSHUploadPackRequest{Stdin: p})
 	})
 
-	return streamHandler(func() (stdoutStderrResponse, error) {
-		return stream.Recv()
+	return stream.Handler(func() (stream.StdoutStderrResponse, error) {
+		return uploadPackStream.Recv()
 	}, func(errC chan error) {
 		_, errRecv := io.Copy(inWriter, stdin)
-		stream.CloseSend()
+		uploadPackStream.CloseSend()
 		errC <- errRecv
 	}, stdout, stderr)
 }

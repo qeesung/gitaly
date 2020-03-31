@@ -1,4 +1,4 @@
-package client
+package stream
 
 import (
 	"fmt"
@@ -7,17 +7,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-type stdoutStderrResponse interface {
+type StdoutStderrResponse interface {
 	GetExitStatus() *gitalypb.ExitStatus
 	GetStderr() []byte
 	GetStdout() []byte
 }
 
-func streamHandler(recv func() (stdoutStderrResponse, error), send func(chan error), stdout, stderr io.Writer) (int32, error) {
+func Handler(recv func() (StdoutStderrResponse, error), send func(chan error), stdout, stderr io.Writer) (int32, error) {
 	var (
 		exitStatus int32
 		err        error
-		resp       stdoutStderrResponse
+		resp       StdoutStderrResponse
 	)
 
 	errC := make(chan error, 1)
