@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,6 +26,15 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 	repo := firstRequest.GetRepository()
 	if repo == nil {
 		return status.Errorf(codes.InvalidArgument, "CreateRepositoryFromBundle: empty Repository")
+	}
+
+	repoPath, err := helper.GetPath(repo)
+	if err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	if !isDirEmpty(repoPath) {
+		return helper.ErrPreconditionFailed(errors.New("CreateRepositoryFromBundle: target directory is non-empty"))
 	}
 
 	firstRead := false
@@ -57,11 +67,6 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 	if err != nil {
 		cleanError := sanitizedError(tmpDir, "CreateRepositoryFromBundle: new bundle file failed: %v", err)
 		return status.Error(codes.Internal, cleanError)
-	}
-
-	repoPath, err := helper.GetPath(repo)
-	if err != nil {
-		return err
 	}
 
 	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
@@ -106,6 +111,17 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 	}
 
 	return stream.SendAndClose(&gitalypb.CreateRepositoryFromBundleResponse{})
+}
+
+func isDirEmpty(path string) bool {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return true
+	}
+
+	_, err = f.Readdir(1)
+
+	return err == io.EOF
 }
 
 func sanitizedError(path, format string, a ...interface{}) string {

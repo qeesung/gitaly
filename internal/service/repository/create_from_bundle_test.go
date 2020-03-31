@@ -103,6 +103,31 @@ func TestFailedCreateRepositoryFromBundleRequestDueToValidations(t *testing.T) {
 	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 }
 
+func TestFailedCreateRepositoryFromBundle_ExistingDirectory(t *testing.T) {
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
+
+	testRepo, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	stream, err := client.CreateRepositoryFromBundle(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, stream.Send(&gitalypb.CreateRepositoryFromBundleRequest{
+		Repository: testRepo,
+	}))
+
+	_, err = stream.CloseAndRecv()
+	testhelper.RequireGrpcError(t, err, codes.FailedPrecondition)
+	testhelper.GrpcErrorHasMessage(err, "CreateRepositoryFromBundle: target directory is non-empty")
+}
+
 func TestSanitizedError(t *testing.T) {
 	testCases := []struct {
 		path     string
