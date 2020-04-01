@@ -267,9 +267,9 @@ func TestGetArchivePathInjection(t *testing.T) {
 	f, err := os.Create(filepath.Join(repoExploitPath, "id_12345.pub"))
 	require.NoError(t, err)
 
-	evilPubKeyFile := fmt.Sprintf(`#
+	evilPubKeyFile := `#
 		ssh-ed25519 my_super_evil_ssh_pubkey
-		#`)
+		#`
 
 	_, err = fmt.Fprint(f, evilPubKeyFile)
 	require.NoError(t, err)
