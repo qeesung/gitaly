@@ -256,3 +256,8 @@ lint:
   script:
     - go version
     - make lint
+  # Temporary allowed to fail because https://github.com/golangci/golangci-lint/issues/896
+  # The job fails frequently https://gitlab.com/gitlab-org/gitaly/-/jobs/494211383
+  # and it stops further development process, so it is temporary measure.
+  # Must be fixed under: https://gitlab.com/gitlab-org/gitaly/-/issues/2605
+  allow_failure: true
