@@ -251,19 +251,8 @@ praefect_sql_test:
     - make test-postgres
 
 lint:
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:golangci-lint-alpine
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.24
   stage: test
-  before_script:
-    # this removes dependency to the github.com/libgit2/git2go: https://gitlab.com/gitlab-org/gitaly/issues/1706
-    - git rm -r --quiet cmd/gitaly-remote
   script:
-    # Write the code coverage report to gl-code-quality-report.json
-    # and print linting issues to stdout in the format: path/to/file:line description
-    - golangci-lint run --config .golangci.yml --out-format code-climate | tee gl-code-quality-report.json | jq -r '.[] | "\(.location.path):\(.location.lines.begin) \(.description)"'
-  after_script:
-    - git checkout --quiet --no-progress HEAD cmd/gitaly-remote # restore removed code
-  artifacts:
-    reports:
-      codequality: gl-code-quality-report.json
-    paths:
-      - gl-code-quality-report.json
+    - go version
+    - make lint
