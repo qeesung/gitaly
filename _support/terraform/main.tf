@@ -132,13 +132,13 @@ resource "google_compute_instance" "gitaly" {
 output "gitaly_internal_ip" {
   value = {
     for instance in google_compute_instance.gitaly:
-    instance.name=> instance.network_interface[0].network_ip
+    instance.name => instance.network_interface[0].network_ip
   }
 }
 
 output "gitaly_ssh_ip" {
   value = {
     for instance in google_compute_instance.gitaly:
-    instance.name=> instance.network_interface[0].access_config[0].nat_ip
+    instance.name => instance.network_interface[0].access_config[0].nat_ip
   }
 }
