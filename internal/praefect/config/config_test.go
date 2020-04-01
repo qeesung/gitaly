@@ -233,7 +233,7 @@ func TestToPQString(t *testing.T) {
 		in   DB
 		out  string
 	}{
-		{desc: "empty", in: DB{}, out: ""},
+		{desc: "empty", in: DB{}, out: "binary_parameters=yes"},
 		{
 			desc: "basic example",
 			in: DB{
@@ -247,14 +247,14 @@ func TestToPQString(t *testing.T) {
 				SSLKey:      "/path/to/key",
 				SSLRootCert: "/path/to/root-cert",
 			},
-			out: `port=2345 host=1.2.3.4 user=praefect-user password=secret dbname=praefect_production sslmode=require sslcert=/path/to/cert sslkey=/path/to/key sslrootcert=/path/to/root-cert`,
+			out: `port=2345 host=1.2.3.4 user=praefect-user password=secret dbname=praefect_production sslmode=require sslcert=/path/to/cert sslkey=/path/to/key sslrootcert=/path/to/root-cert binary_parameters=yes`,
 		},
 		{
 			desc: "with spaces and quotes",
 			in: DB{
 				Password: "secret foo'bar",
 			},
-			out: `password=secret\ foo\'bar`,
+			out: `password=secret\ foo\'bar binary_parameters=yes`,
 		},
 	}
 

@@ -55,7 +55,11 @@ func (job *ReplicationJob) Scan(value interface{}) error {
 }
 
 func (job ReplicationJob) Value() (driver.Value, error) {
-	return json.Marshal(job)
+	data, err := json.Marshal(job)
+	if err != nil {
+		return nil, err
+	}
+	return string(data), nil
 }
 
 // ReplicationEvent is a persistent representation of the replication event.

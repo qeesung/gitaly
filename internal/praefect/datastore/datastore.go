@@ -82,7 +82,11 @@ func (p *Params) Scan(value interface{}) error {
 
 // Value returns a driver Value.
 func (p Params) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return string(data), nil
 }
 
 // ReplJob is an instance of a queued replication job. A replication job is

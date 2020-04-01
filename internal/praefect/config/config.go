@@ -172,6 +172,7 @@ func (db DB) ToPQString() string {
 		{"sslcert", db.SSLCert},
 		{"sslkey", db.SSLKey},
 		{"sslrootcert", db.SSLRootCert},
+		{"binary_parameters", "yes"},
 	} {
 		if len(kv.value) == 0 {
 			continue
