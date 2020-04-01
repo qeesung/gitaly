@@ -81,7 +81,7 @@ danger-review:
     - echo 'make test-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
   artifacts:
     reports:
-      junit: report.xml
+      junit: report-*.xml
 
 verify:
   <<: *ruby_definition
