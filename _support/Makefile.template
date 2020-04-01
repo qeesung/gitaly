@@ -137,8 +137,8 @@ test-with-praefect: build prepare-tests
 	GITALY_TEST_PRAEFECT_BIN={{ .BuildDir }}/bin/praefect  go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
 
 .PHONY: race-go
-race-go: prepare-tests
-	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }}
+race-go: prepare-tests {{ .GoJunitReport }}
+	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }} 2>&1 | {{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml
 
 .PHONY: rspec
 rspec: assemble-go prepare-tests
