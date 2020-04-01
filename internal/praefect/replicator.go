@@ -400,6 +400,7 @@ func (r ReplMgr) createReplJob(event datastore.ReplicationEvent) (datastore.Repl
 		RelativePath:  event.Job.RelativePath,
 		Params:        event.Job.Params,
 		CorrelationID: correlationID,
+		CreatedAt:     event.CreatedAt,
 	}
 
 	return replJob, nil
