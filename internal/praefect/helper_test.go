@@ -195,7 +195,6 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		ds,
 		nodeMgr,
 		WithQueueMetric(&promtest.MockGauge{}),
-		WithLatencyMetric(&promtest.MockHistogram{}),
 	)
 	prf := NewServer(
 		coordinator.StreamDirector,

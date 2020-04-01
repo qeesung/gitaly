@@ -8,14 +8,15 @@ import (
 
 // RegisterReplicationLatency creates and registers a prometheus histogram
 // to observe replication latency times
-func RegisterReplicationLatency(conf promconfig.Config) (metrics.Histogram, error) {
-	replicationLatency := prometheus.NewHistogram(
+func RegisterReplicationLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
+	replicationLatency := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
 			Subsystem: "praefect",
 			Name:      "replication_latency",
 			Buckets:   conf.GRPCLatencyBuckets,
 		},
+		[]string{"type"},
 	)
 
 	return replicationLatency, prometheus.Register(replicationLatency)
