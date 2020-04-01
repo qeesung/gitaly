@@ -371,13 +371,13 @@ func TestGetRawChangesInvalidUTF8Paths(t *testing.T) {
 		for _, rawChange := range msg.GetRawChanges() {
 			if string(rawChange.GetOldPathBytes()) == nonUTF8Filename {
 				oldPathFound = true
-				//nolint:golint // gitlab.com/gitlab-org/gitaly/issues/1746
+				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/issues/1746
 				require.Equal(t, rawChange.GetOldPath(), InvalidUTF8PathPlaceholder)
 			}
 
 			if string(rawChange.GetNewPathBytes()) == nonUTF8Filename {
 				newPathFound = true
-				//nolint:golint // gitlab.com/gitlab-org/gitaly/issues/1746
+				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/issues/1746
 				require.Equal(t, rawChange.GetNewPath(), InvalidUTF8PathPlaceholder)
 			}
 		}

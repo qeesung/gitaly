@@ -519,7 +519,8 @@ func TestRepoRename(t *testing.T) {
 	defer cancel()
 
 	// virtualRepo is a virtual repository all requests to it would be applied to the underline Gitaly nodes behind it
-	virtualRepo := &(*repo0)
+	cpRepo0 := *repo0
+	virtualRepo := &cpRepo0
 	virtualRepo.StorageName = virtualStorage.Name
 
 	repoServiceClient := gitalypb.NewRepositoryServiceClient(cc)
@@ -548,7 +549,8 @@ func TestRepoRename(t *testing.T) {
 	require.False(t, resp.GetExists(), "repo with old name must gone")
 
 	// as we renamed the repo we need to update RelativePath before we could check if it exists
-	renamedVirtualRepo := &(*virtualRepo)
+	cpVirtualRepo := *virtualRepo
+	renamedVirtualRepo := &cpVirtualRepo
 	renamedVirtualRepo.RelativePath = newName
 	resp, err = repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
 		Repository: renamedVirtualRepo,

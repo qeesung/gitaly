@@ -318,16 +318,16 @@ func (gm *gitalyMake) GolangCILintURL() string {
 func (gm *gitalyMake) GolangCILintSHA256() string {
 	switch runtime.GOOS + "/" + runtime.GOARCH {
 	case "darwin/amd64":
-		return "fcf80824c21567eb0871055711bf9bdca91cf9a081122e2a45f1d11fed754600"
+		return "f05af56f15ebbcf77663a8955d1e39009b584ce8ea4c5583669369d80353a113"
 	case "linux/amd64":
-		return "109d38cdc89f271392f5a138d6782657157f9f496fd4801956efa2d0428e0cbe"
+		return "241ca454102e909de04957ff8a5754c757cefa255758b3e1fba8a4533d19d179"
 	default:
 		return "unknown"
 	}
 }
 
 func (gm *gitalyMake) GolangCILintVersion() string {
-	return "1.22.2"
+	return "1.24.0"
 }
 
 func (gm *gitalyMake) GolangCILint() string {
