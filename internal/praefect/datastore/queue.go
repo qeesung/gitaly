@@ -138,6 +138,11 @@ func ScanReplicationEvents(rows *sql.Rows) (events []ReplicationEvent, err error
 // interface implementation protection
 var _ ReplicationEventQueue = PostgresReplicationEventQueue{}
 
+// NewPostgresReplicationEventQueue returns new instance with provided Querier as a reference to storage.
+func NewPostgresReplicationEventQueue(qc glsql.Querier) PostgresReplicationEventQueue {
+	return PostgresReplicationEventQueue{qc: qc}
+}
+
 // PostgresReplicationEventQueue is a Postgres implementation of persistent queue.
 type PostgresReplicationEventQueue struct {
 	qc glsql.Querier

@@ -1,6 +1,7 @@
 listen_addr = ""
 socket_path = ""
 prometheus_listen_addr = ""
+postgres_queue_enabled = true
 
 [logging]
   format = "json"

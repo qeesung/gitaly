@@ -189,8 +189,8 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	}
 
 	logEntry := testhelper.DiscardTestEntry(t)
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
 

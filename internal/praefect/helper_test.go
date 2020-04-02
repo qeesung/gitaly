@@ -75,8 +75,8 @@ func testConfig(backends int) config.Config {
 // setupServer wires all praefect dependencies together via dependency
 // injection
 func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) *Server {
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
 	coordinator := NewCoordinator(l, ds, nodeMgr, conf, r)
@@ -131,7 +131,7 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 
 	errQ := make(chan error)
 
-	prf.RegisterServices(nodeMgr, conf, nil)
+	prf.RegisterServices(nodeMgr, conf, datastore.Datastore{})
 	go func() {
 		errQ <- prf.Serve(listener, false)
 	}()
@@ -175,8 +175,8 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
 
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
 	logEntry := log.Default()

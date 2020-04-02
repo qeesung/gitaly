@@ -179,6 +179,7 @@ func TestConfigParsing(t *testing.T) {
 					SSLKey:      "/path/to/key",
 					SSLRootCert: "/path/to/root-cert",
 				},
+				PostgresQueueEnabled: true,
 			},
 		},
 		//TODO: Remove this test, as well as the fixture in testdata/single-virtual-storage.config.toml

@@ -19,6 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
@@ -143,7 +144,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 
 	listener, port := listenAvailPort(t)
 	go func() {
-		srv.RegisterServices(nodeMgr, conf, nil)
+		srv.RegisterServices(nodeMgr, conf, datastore.Datastore{})
 		srv.Serve(listener, false)
 	}()
 

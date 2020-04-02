@@ -30,6 +30,7 @@ type Config struct {
 	Auth                 auth.Config       `toml:"auth"`
 	DB                   `toml:"database"`
 	FailoverEnabled      bool `toml:"failover_enabled"`
+	PostgresQueueEnabled bool `toml:"postgres_queue_enabled"`
 }
 
 // VirtualStorage represents a set of nodes for a storage

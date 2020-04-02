@@ -47,6 +47,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -181,12 +182,23 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return err
 	}
 
+	ds := datastore.Datastore{
+		ReplicasDatastore: datastore.NewInMemory(conf),
+	}
+
+	if conf.PostgresQueueEnabled {
+		db, closedb, err := initDatabase(logger, conf)
+		if err != nil {
+			return err
+		}
+		defer closedb()
+		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
+	} else {
+		ds.ReplicationEventQueue = datastore.NewMemoryReplicationEventQueue()
+	}
+
 	var (
 		// top level server dependencies
-		ds = datastore.MemoryQueue{
-			MemoryDatastore:       datastore.NewInMemory(conf),
-			ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
-		}
 		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, registry)
 		repl        = praefect.NewReplMgr(
 			conf.VirtualStorages[0].Name,
@@ -199,8 +211,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 		serverErrors = make(chan error, 1)
 	)
-
-	testSQLConnection(logger, conf)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -254,24 +264,23 @@ func getStarterConfigs(socketPath, listenAddr string) ([]starter.Config, error) 
 	return cfgs, nil
 }
 
-// Test Postgres connection, for diagnostic purposes only while we roll
-// out Postgres support. https://gitlab.com/gitlab-org/gitaly/issues/1755
-func testSQLConnection(logger *logrus.Entry, conf config.Config) {
+func initDatabase(logger *logrus.Entry, conf config.Config) (*sql.DB, func(), error) {
 	db, err := glsql.OpenDB(conf.DB)
 	if err != nil {
 		logger.WithError(err).Error("SQL connection open failed")
-		return
+		return nil, nil, err
 	}
 
-	defer func() {
+	closedb := func() {
 		if err := db.Close(); err != nil {
 			logger.WithError(err).Error("SQL connection close failed")
 		}
-	}()
+	}
 
 	if err := datastore.CheckPostgresVersion(db); err != nil {
-		logger.WithError(err).Error("SQL connection check failed")
-	} else {
-		logger.Info("SQL connection check successful")
+		closedb()
+		return nil, nil, err
 	}
+
+	return db, closedb, nil
 }

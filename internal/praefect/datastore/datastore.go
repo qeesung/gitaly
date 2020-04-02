@@ -105,7 +105,7 @@ type ReplJob struct {
 
 // Datastore is a data persistence abstraction for all of Praefect's
 // persistence needs
-type Datastore interface {
+type Datastore struct {
 	ReplicasDatastore
 	ReplicationEventQueue
 }
@@ -122,12 +122,6 @@ type ReplicasDatastore interface {
 	GetStorageNode(nodeStorage string) (models.Node, error)
 
 	GetStorageNodes() ([]models.Node, error)
-}
-
-// MemoryQueue is an intermediate struct used for introduction of ReplicationEventQueue into usage.
-type MemoryQueue struct {
-	*MemoryDatastore
-	ReplicationEventQueue
 }
 
 // MemoryDatastore is a simple datastore that isn't persisted to disk. It is

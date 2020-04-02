@@ -87,8 +87,8 @@ func TestProcessReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
 
@@ -208,9 +208,9 @@ func TestPropagateReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue()),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
 	}
 	logEntry := testhelper.DiscardTestEntry(t)
 
@@ -490,9 +490,9 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.MemoryQueue{
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
-		MemoryDatastore:       datastore.NewInMemory(conf),
 	}
 
 	// this job exists to verify that replication works
@@ -595,8 +595,8 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.MemoryQueue{
-		MemoryDatastore:       datastore.NewInMemory(conf),
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
 	}
 
