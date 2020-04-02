@@ -106,8 +106,9 @@ output "praefect_ssh_ip" {
   value = google_compute_instance.praefect.network_interface[0].access_config[0].nat_ip
 }
 
-resource "google_compute_instance" "gitaly_1" {
-  name         = format("%s-gitaly-1", var.praefect_demo_cluster_name)
+resource "google_compute_instance" "gitaly" {
+  count = 3
+  name         =  "${var.praefect_demo_cluster_name}-gitaly-${count.index + 1}"
   machine_type = var.gitaly_machine_type
 
   boot_disk {
@@ -128,67 +129,16 @@ resource "google_compute_instance" "gitaly_1" {
   }
 }
 
-output "gitaly_1_internal_ip" {
-  value = google_compute_instance.gitaly_1.network_interface[0].network_ip
-}
-output "gitaly_1_ssh_ip" {
-  value = google_compute_instance.gitaly_1.network_interface[0].access_config[0].nat_ip
-}
-
-resource "google_compute_instance" "gitaly_2" {
-  name         = format("%s-gitaly-2", var.praefect_demo_cluster_name)
-  machine_type = var.gitaly_machine_type
-
-  boot_disk {
-    initialize_params {
-      image = var.os_image
-      size = var.gitaly_disk_size
-    }
-  }
-
-  network_interface {
-    subnetwork = "default"
-    access_config {}
-  }
-
-  metadata = {
-    ssh-keys = format("%s:%s", var.ssh_user, var.ssh_pubkey)
-    startup-script = var.startup_script
+output "gitaly_internal_ip" {
+  value = {
+    for instance in google_compute_instance.gitaly:
+    instance.name => instance.network_interface[0].network_ip
   }
 }
 
-output "gitaly_2_internal_ip" {
-  value = google_compute_instance.gitaly_2.network_interface[0].network_ip
-}
-output "gitaly_2_ssh_ip" {
-  value = google_compute_instance.gitaly_2.network_interface[0].access_config[0].nat_ip
-}
-
-resource "google_compute_instance" "gitaly_3" {
-  name         = format("%s-gitaly-3", var.praefect_demo_cluster_name)
-  machine_type = var.gitaly_machine_type
-
-  boot_disk {
-    initialize_params {
-      image = var.os_image
-      size = var.gitaly_disk_size
-    }
+output "gitaly_ssh_ip" {
+  value = {
+    for instance in google_compute_instance.gitaly:
+    instance.name => instance.network_interface[0].access_config[0].nat_ip
   }
-
-  network_interface {
-    subnetwork = "default"
-    access_config {}
-  }
-
-  metadata = {
-    ssh-keys = format("%s:%s", var.ssh_user, var.ssh_pubkey)
-    startup-script = var.startup_script
-  }
-}
-
-output "gitaly_3_internal_ip" {
-  value = google_compute_instance.gitaly_3.network_interface[0].network_ip
-}
-output "gitaly_3_ssh_ip" {
-  value = google_compute_instance.gitaly_3.network_interface[0].access_config[0].nat_ip
 }
