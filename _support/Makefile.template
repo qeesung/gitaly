@@ -122,8 +122,8 @@ prepare-tests: {{ .GitlabShellDir }}/config.yml {{ .TestRepo }} {{ .GitTestRepo 
 test: test-go rspec rspec-gitlab-shell
 
 .PHONY: test-go
-test-go: prepare-tests
-	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
+test-go: prepare-tests {{ .GoJunitReport }}
+	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} 2>&1 | {{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml
 
 .PHONY: test-with-proxies
 test-with-proxies: prepare-tests
@@ -137,8 +137,8 @@ test-with-praefect: build prepare-tests
 	GITALY_TEST_PRAEFECT_BIN={{ .BuildDir }}/bin/praefect  go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
 
 .PHONY: race-go
-race-go: prepare-tests
-	@cd {{ .SourceDir }} && go test -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }}
+race-go: prepare-tests {{ .GoJunitReport }}
+	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }} 2>&1 | {{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml
 
 .PHONY: rspec
 rspec: assemble-go prepare-tests
@@ -177,6 +177,9 @@ check-formatting: {{ .GitalyFmt }}
 
 {{ .GoImports }}: {{ .MakegenDep }}
 	go get golang.org/x/tools/cmd/goimports@2538eef75904eff384a2551359968e40c207d9d2
+
+{{ .GoJunitReport }}: {{ .MakegenDep }}
+	go get github.com/jstemmer/go-junit-report@984a47ca6b0a7d704c4b589852051b4d7865aa17
 
 .PHONY: {{ .GitalyFmt }}
 {{ .GitalyFmt }}:

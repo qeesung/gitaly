@@ -28,3 +28,4 @@ gitaly.pid
 /vendor
 /gitaly-*.gem
 /gitaly-blackbox
+report-*.xml

@@ -78,6 +78,9 @@ func (gm *gitalyMake) GoLicenses() string  { return "bin/go-licenses" }
 func (gm *gitalyMake) StaticCheck() string { return filepath.Join(gm.BuildDir(), "bin/staticcheck") }
 func (gm *gitalyMake) ProtoC() string      { return filepath.Join(gm.BuildDir(), "protoc/bin/protoc") }
 func (gm *gitalyMake) ProtoCGenGo() string { return filepath.Join(gm.BuildDir(), "bin/protoc-gen-go") }
+func (gm *gitalyMake) GoJunitReport() string {
+	return filepath.Join(gm.BuildDir(), "bin/go-junit-report")
+}
 func (gm *gitalyMake) ProtoCGenGitaly() string {
 	return filepath.Join(gm.BuildDir(), "bin/protoc-gen-gitaly")
 }
