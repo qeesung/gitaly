@@ -243,7 +243,6 @@ praefect_sql_test:
     - make test-postgres
 
 lint:
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.24
   stage: test
   script:
     - go version
