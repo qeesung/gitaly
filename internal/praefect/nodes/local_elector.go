@@ -105,6 +105,8 @@ func (s *localElector) monitor(d time.Duration) {
 	defer ticker.Stop()
 
 	for {
+		<-ticker.C
+
 		ctx := context.Background()
 		s.checkNodes(ctx)
 	}
