@@ -23,30 +23,6 @@ export PATH := {{ .BuildDir }}/bin:$(PATH)
 .PHONY: all
 all: build
 
-{{ .Git2GoVendorDir }}/.ok:
-	rm -rf {{ .Git2GoVendorDir }}
-	mkdir -p {{ .Git2GoVendorDir }}
-
-	cd {{ .Git2GoVendorDir }} && curl -L -o libgit2.tar.gz https://github.com/libgit2/libgit2/archive/v{{ .LibGit2Version }}.tar.gz
-	cd {{ .Git2GoVendorDir }} && echo '{{ .LibGit2SHA }}  libgit2.tar.gz' | shasum -a256 -c -
-	cd {{ .Git2GoVendorDir }} && tar -xvf libgit2.tar.gz
-	cd {{ .Git2GoVendorDir }} && mv libgit2-{{ .LibGit2Version }} libgit2
-
-	mkdir -p {{ .Git2GoVendorDir }}/libgit2/build
-	mkdir -p {{ .Git2GoVendorDir }}/libgit2/install/lib
-	cd {{ .Git2GoVendorDir }}/libgit2/build && cmake -DTHREADSAFE=ON -DBUILD_CLAR=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DCMAKE_INSTALL_PREFIX=../install ..
-	cd {{ .Git2GoVendorDir }}/libgit2/build && cmake --build .
-
-	touch $@
-
-.PHONY: build-gitaly-remote
-build-gitaly-remote: {{ .Git2GoVendorDir }}/.ok
-	cd {{ .SourceDir }} && go install {{ .GoLdFlags }} -tags "$(BUILD_TAGS) static" {{ .GitalyRemotePackage }}
-
-.PHONY: test-gitaly-remote
-test-gitaly-remote: prepare-tests {{ .Git2GoVendorDir }}/.ok
-	@go test -tags "$(BUILD_TAGS) static" -count=1 {{ .GitalyRemotePackage }}
-
 .PHONY: build
 build: ../.ruby-bundle
 	# go install
@@ -164,10 +140,8 @@ check-mod-tidy:
 .PHONY: lint
 lint: {{ .GoLint }}
 	@cd {{ .SourceDir }} && \
-	git rm -r --quiet cmd/gitaly-remote; \
 	{{ .GoLint }} run --out-format tab --config .golangci.yml; \
 	EXIT_CODE=$$?;\
-	git checkout --quiet --no-progress HEAD cmd/gitaly-remote; \
 	exit $$EXIT_CODE
 
 .PHONY: check-formatting
@@ -198,10 +172,8 @@ format: {{ .GoImports }} {{ .GitalyFmt }}
 staticcheck-deprecations: {{ .GoLint }}
 	# Only returns deprecated code usage
 	@cd {{ .SourceDir }} && \
-	git rm -r --quiet cmd/gitaly-remote; \
 	{{ .GoLint }} run --out-format tab --config _support/golangci.warnings.yml; \
 	EXIT_CODE=$$?;\
-	git checkout --quiet --no-progress HEAD cmd/gitaly-remote; \
 	exit $$EXIT_CODE
 
 .PHONY: lint-warnings

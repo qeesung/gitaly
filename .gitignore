@@ -5,8 +5,6 @@ cmd/gitaly-ssh/gitaly-ssh
 /gitaly-ssh
 cmd/gitaly-wrapper/gitaly-wrapper
 /gitaly-wrapper
-cmd/gitaly-remote/gitaly-remote
-/gitaly-remote
 **/testdata/gitaly-libexec/
 /*.deb
 /_support/package/bin
@@ -24,7 +22,6 @@ git-env
 /gitaly-debug
 /praefect
 gitaly.pid
-/vendor/github.com/libgit2/git2go/vendor
 /vendor
 /gitaly-*.gem
 /gitaly-blackbox

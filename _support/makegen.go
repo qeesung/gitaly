@@ -94,18 +94,6 @@ func (gm *gitalyMake) GitlabShellDir() string {
 	return filepath.Join(gm.SourceDir(), gm.GitlabShellRelDir())
 }
 
-func (gm *gitalyMake) Git2GoVendorDir() string {
-	return filepath.Join(gm.BuildDir(), "../vendor/github.com/libgit2/git2go/vendor")
-}
-
-func (gm *gitalyMake) LibGit2Version() string {
-	return filepath.Join("0.27.8")
-}
-
-func (gm *gitalyMake) LibGit2SHA() string {
-	return filepath.Join("8313873d49dc01e8b880ec334d7430ae67496a89aaa8c6e7bbd3affb47a00c76")
-}
-
 func (gm *gitalyMake) SourceDir() string {
 	return os.Getenv("SOURCE_DIR")
 }
@@ -120,10 +108,6 @@ func (gm *gitalyMake) TestRepo() string {
 
 func (gm *gitalyMake) GitTestRepo() string {
 	return filepath.Join(gm.TestRepoStoragePath(), "gitlab-git-test.git")
-}
-
-func (gm *gitalyMake) GitalyRemotePackage() string {
-	return filepath.Join(gm.Pkg(), "cmd", "gitaly-remote")
 }
 
 func (gm *gitalyMake) MakegenDep() string {
@@ -144,10 +128,6 @@ func (gm *gitalyMake) CommandPackages() []string {
 	}
 
 	for _, dir := range entries {
-		//Do not build gitaly-remote by default
-		if dir.Name() == "gitaly-remote" {
-			continue
-		}
 		if !dir.IsDir() {
 			continue
 		}
@@ -274,10 +254,6 @@ func (gm *gitalyMake) AllPackages() []string {
 
 	var pkgs []string
 	for k := range pkgMap {
-		//Do not build gitaly-remote by default
-		if k == "gitlab.com/gitlab-org/gitaly/cmd/gitaly-remote" {
-			continue
-		}
 		pkgs = append(pkgs, k)
 	}
 

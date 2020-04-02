@@ -1,0 +1,5 @@
+---
+title: Remove gitaly-remote command
+merge_request: 1992
+author:
+type: removed

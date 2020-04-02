@@ -38,7 +38,6 @@ danger-review:
   script:
     - go version
     - make
-    - echo 'make build-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
     - _support/test-boot .
 
 .assemble_template: &assemble_definition
@@ -78,7 +77,6 @@ danger-review:
     - go version
     - git version
     - make test
-    - echo 'make test-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
   artifacts:
     paths:
       - report-${CI_JOB_NAME}.xml
