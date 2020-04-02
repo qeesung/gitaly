@@ -21,7 +21,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/service/internalgitaly"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
@@ -168,10 +167,10 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 	require.Len(t, conf.VirtualStorages, 1)
 	var cleanups []testhelper.Cleanup
 
-	for i, node := range conf.VirtualStorages[0].Nodes {
-		_, backendAddr, cleanup := runInternalGitalyServer(t, node.Token)
-		cleanups = append(cleanups, cleanup)
+	_, backendAddr, cleanupGitaly := runInternalGitalyServer(t, conf.VirtualStorages[0].Nodes[0].Token)
+	cleanups = append(cleanups, cleanupGitaly)
 
+	for i, node := range conf.VirtualStorages[0].Nodes {
 		node.Address = backendAddr
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
@@ -245,15 +244,12 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, 
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
 
-	internalSocket := testhelper.GetTemporaryGitalySocketFileName()
+	internalSocket := gconfig.GitalyInternalSocketPath()
 	internalListener, err := net.Listen("unix", internalSocket)
 	require.NoError(t, err)
 
-	rubyServer := &rubyserver.Server{}
-	require.NoError(t, rubyServer.Start())
-
 	gitalypb.RegisterServerServiceServer(server, gitalyserver.NewServer())
-	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(rubyServer, internalSocket))
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(RubyServer, internalSocket))
 	gitalypb.RegisterInternalGitalyServer(server, internalgitaly.NewServer(gconfig.Config.Storages))
 	healthpb.RegisterHealthServer(server, health.NewServer())
 
@@ -267,7 +263,6 @@ func runInternalGitalyServer(t *testing.T, token string) (*grpc.Server, string, 
 	}()
 
 	cleanup := func() {
-		rubyServer.Stop()
 		server.Stop()
 		require.NoError(t, <-errQ)
 	}

@@ -331,16 +331,6 @@ func TestRegisterStreamHandlers(t *testing.T) {
 		})),
 	)
 
-	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
-
-	listener, err := net.Listen("unix", serverSocketPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	go server.Serve(listener)
-	defer server.Stop()
-
 	var pingStreamHandlerCalled, pingEmptyStreamHandlerCalled bool
 
 	pingValue := "hello"
@@ -375,6 +365,16 @@ func TestRegisterStreamHandlers(t *testing.T) {
 	}
 
 	proxy.RegisterStreamHandlers(server, "mwitkow.testproto.TestService", streamers)
+
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", serverSocketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go server.Serve(listener)
+	defer server.Stop()
 
 	cc, err := client.Dial("unix://"+serverSocketPath, nil)
 	require.NoError(t, err)

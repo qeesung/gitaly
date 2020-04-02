@@ -408,13 +408,6 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	primarySvr, primarySocket := newReplicationService(t)
 	defer primarySvr.Stop()
 
-	backupSvr, backupSocket := newReplicationService(t)
-	defer backupSvr.Stop()
-
-	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
-	require.NoError(t, err)
-	go backupSvr.Serve(internalListener)
-
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -433,7 +426,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	secondary := models.Node{
 		Storage: backupStorageName,
-		Address: "unix://" + backupSocket,
+		Address: "unix://" + primarySocket,
 	}
 
 	conf := config.Config{
@@ -548,22 +541,8 @@ func TestProcessBacklog_Success(t *testing.T) {
 	primarySvr, primarySocket := newReplicationService(t)
 	defer primarySvr.Stop()
 
-	backupSvr, backupSocket := newReplicationService(t)
-	defer backupSvr.Stop()
-
-	internalListener, err := net.Listen("unix", gitaly_config.GitalyInternalSocketPath())
-	require.NoError(t, err)
-	go backupSvr.Serve(internalListener)
-
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	backupStorageName := "backup"
-
-	backupDir, err := ioutil.TempDir(testhelper.GitlabTestStoragePath(), backupStorageName)
-	require.NoError(t, err)
-
-	defer os.RemoveAll(backupDir)
 
 	primary := models.Node{
 		Storage:        "default",
@@ -572,8 +551,8 @@ func TestProcessBacklog_Success(t *testing.T) {
 	}
 
 	secondary := models.Node{
-		Storage: backupStorageName,
-		Address: "unix://" + backupSocket,
+		Storage: "backup",
+		Address: "unix://" + primarySocket,
 	}
 
 	conf := config.Config{
@@ -593,8 +572,12 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
 
+	backupDir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer os.RemoveAll(backupDir)
+
 	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
-		Name: backupStorageName,
+		Name: "backup",
 		Path: backupDir,
 	})
 	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
@@ -673,7 +656,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	nodeMgr, err := nodes.NewManager(logEntry, conf, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr("default", logEntry, ds, nodeMgr)
+	replMgr := NewReplMgr(conf.VirtualStorages[0].Name, logEntry, ds, nodeMgr)
 
 	go func() {
 		require.Equal(t, context.Canceled, replMgr.ProcessBacklog(ctx, noopBackoffFunc), "backlog processing failed")
@@ -681,7 +664,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	select {
 	case <-processed:
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		// strongly depends on the processing capacity
 		t.Fatal("time limit expired for job to complete")
 	}
@@ -734,19 +717,25 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 // are the only ones needed for replication
 func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 	socketName := testhelper.GetTemporaryGitalySocketFileName()
+	internalSocketName := gitaly_config.GitalyInternalSocketPath()
+	require.NoError(tb, os.RemoveAll(internalSocketName))
 
 	svr := testhelper.NewTestGrpcServer(tb, nil, nil)
 
-	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(&rubyserver.Server{}, gitaly_config.GitalyInternalSocketPath()))
+	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(RubyServer, internalSocketName))
 	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer())
-	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(&rubyserver.Server{}))
+	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(RubyServer))
 	gitalypb.RegisterSSHServiceServer(svr, ssh.NewServer())
 	reflection.Register(svr)
 
 	listener, err := net.Listen("unix", socketName)
 	require.NoError(tb, err)
 
-	go svr.Serve(listener)
+	internalListener, err := net.Listen("unix", internalSocketName)
+	require.NoError(tb, err)
+
+	go svr.Serve(listener)         // listens for incoming requests
+	go svr.Serve(internalListener) // listens for internal requests (service need to access another service on same server)
 
 	return svr, socketName
 }
@@ -767,6 +756,7 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.Reposi
 var RubyServer = &rubyserver.Server{}
 
 func TestMain(m *testing.M) {
+	testhelper.ConfigureGitalySSH()
 	testhelper.Configure()
 	os.Exit(testMain(m))
 }
@@ -781,8 +771,6 @@ func testMain(m *testing.M) int {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	testhelper.ConfigureGitalySSH()
 
 	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)

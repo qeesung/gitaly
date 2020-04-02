@@ -87,7 +87,7 @@ func TestGitalyServerInfo(t *testing.T) {
 					},
 					&models.Node{
 						Storage: "praefect-internal-2",
-						Token:   "xyz",
+						Token:   "abc",
 					},
 				},
 			},
@@ -170,7 +170,7 @@ func TestGitalyDiskStatistics(t *testing.T) {
 					},
 					{
 						Storage: "praefect-internal-2",
-						Token:   "xyz",
+						Token:   "abc",
 					}},
 			},
 		},

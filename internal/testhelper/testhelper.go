@@ -77,7 +77,7 @@ func Configure() {
 			}
 		}
 
-		gitalylog.Configure("", "info")
+		gitalylog.Configure("json", "info")
 	})
 }
 

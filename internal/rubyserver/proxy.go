@@ -69,6 +69,8 @@ func setHeaders(ctx context.Context, repo *gitalypb.Repository, mustExist bool) 
 		// Automatically whitelist any Ruby-specific feature flag
 		for header := range inMD {
 			if strings.HasPrefix(header, rubyFeaturePrefix) {
+				// TODO: this changes state of the global variable without any synchronization
+				// https://gitlab.com/gitlab-org/gitaly/-/issues/2614
 				ProxyHeaderWhitelist = append(ProxyHeaderWhitelist, header)
 			}
 		}

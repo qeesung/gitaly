@@ -165,6 +165,8 @@ func NewInMemory(cfg config.Config) *MemoryDatastore {
 		m.virtualStorages[virtualStorage.Name] = virtualStorage.Nodes
 
 		for _, node := range virtualStorage.Nodes {
+			// TODO: if there is two nodes with same storage name defined for different virtual storages
+			// only one definition will be used: https://gitlab.com/gitlab-org/gitaly/-/issues/2613
 			if _, ok := m.storageNodes[node.Storage]; ok {
 				continue
 			}
