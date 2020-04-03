@@ -288,6 +288,26 @@ func TestFailedListLastCommitsForTreeRequest(t *testing.T) {
 			},
 			code: codes.InvalidArgument,
 		},
+		{
+			desc: "Negative offset",
+			request: &gitalypb.ListLastCommitsForTreeRequest{
+				Repository: testRepo,
+				Revision:   "--output=/meow",
+				Offset:     -1,
+				Limit:      25,
+			},
+			code: codes.InvalidArgument,
+		},
+		{
+			desc: "Negative limit",
+			request: &gitalypb.ListLastCommitsForTreeRequest{
+				Repository: testRepo,
+				Revision:   "--output=/meow",
+				Offset:     0,
+				Limit:      -1,
+			},
+			code: codes.InvalidArgument,
+		},
 	}
 
 	for _, testCase := range testCases {

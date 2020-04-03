@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"fmt"
 	"io"
 	"sort"
 
@@ -146,5 +147,14 @@ func sendCommitsForTree(batch []*gitalypb.ListLastCommitsForTreeResponse_CommitF
 }
 
 func validateListLastCommitsForTreeRequest(in *gitalypb.ListLastCommitsForTreeRequest) error {
-	return git.ValidateRevision([]byte(in.Revision))
+	if err := git.ValidateRevision([]byte(in.Revision)); err != nil {
+		return err
+	}
+	if in.GetOffset() < 0 {
+		return fmt.Errorf("offset negative")
+	}
+	if in.GetLimit() < 0 {
+		return fmt.Errorf("limit negative")
+	}
+	return nil
 }

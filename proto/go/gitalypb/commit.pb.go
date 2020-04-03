@@ -1999,15 +1999,14 @@ func (m *LastCommitForPathResponse) GetCommit() *GitCommit {
 }
 
 type ListLastCommitsForTreeRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	Revision   string      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	Path       []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	// limit == -1 will get the last commit for all paths
-	Limit                int32    `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset               int32    `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Repository           *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	Revision             string      `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Path                 []byte      `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Limit                int32       `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset               int32       `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *ListLastCommitsForTreeRequest) Reset()         { *m = ListLastCommitsForTreeRequest{} }

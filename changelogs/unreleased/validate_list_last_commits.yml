@@ -1,0 +1,5 @@
+---
+title: Validate offset/limit for ListLastCommitsForTree
+merge_request: 1996
+author:
+type: fixed
