@@ -10,7 +10,6 @@ import (
 
 type nodeCandidate struct {
 	node     Node
-	up       bool
 	primary  bool
 	statuses []bool
 }
@@ -59,13 +58,6 @@ func (s *localElector) addNode(node Node, primary bool) {
 		node:     node,
 		primary:  primary,
 		statuses: make([]bool, 0),
-		up:       false,
-	}
-
-	// If failover hasn't been activated, we assume all nodes are up
-	// since health checks aren't run.
-	if !s.failoverEnabled {
-		localNode.up = true
 	}
 
 	s.m.Lock()
@@ -115,7 +107,9 @@ func (s *localElector) monitor(d time.Duration) {
 // checkNodes issues a gRPC health check for each node managed by the
 // shard.
 func (s *localElector) checkNodes(ctx context.Context) {
+	s.m.Lock()
 	defer s.updateMetrics()
+	defer s.m.Unlock()
 
 	for _, n := range s.nodes {
 		status, _ := n.node.check(ctx)
@@ -124,9 +118,6 @@ func (s *localElector) checkNodes(ctx context.Context) {
 		if len(n.statuses) > healthcheckThreshold {
 			n.statuses = n.statuses[1:]
 		}
-
-		up := n.isHealthy()
-		n.up = up
 	}
 
 	if s.primaryNode != nil && s.primaryNode.isHealthy() {
@@ -146,9 +137,6 @@ func (s *localElector) checkNodes(ctx context.Context) {
 		return
 	}
 
-	s.m.Lock()
-	defer s.m.Unlock()
-
 	s.primaryNode.primary = false
 	s.primaryNode = newPrimary
 	newPrimary.primary = true
@@ -165,7 +153,7 @@ func (s *localElector) GetPrimary() (Node, error) {
 		return nil, ErrPrimaryNotHealthy
 	}
 
-	if !s.primaryNode.up {
+	if s.failoverEnabled && !s.primaryNode.isHealthy() {
 		return s.primaryNode.node, ErrPrimaryNotHealthy
 	}
 
