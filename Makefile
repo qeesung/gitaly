@@ -134,4 +134,4 @@ _build/makegen: _support/makegen.go $(BUILD_DIR)/go.mod
 	cd $(BUILD_DIR) && go build -o $(CURDIR)/$@ $(SOURCE_DIR)/_support/makegen.go
 
 clean:
-	git clean -fdX
+	rm -rf $(BUILD_DIR) internal/testhelper/testdata/data/ ruby/.bundle/ ruby/gitlab-shell/config.yml ruby/vendor/bundle/
