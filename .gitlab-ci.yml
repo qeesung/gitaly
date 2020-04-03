@@ -174,7 +174,8 @@ cover:
 .build_image: &build_image
   stage: publish
   image: docker:latest
-  tags: [docker]
+  tags:
+  - gitlab-org-docker
   services:
   - docker:dind
 
