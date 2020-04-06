@@ -6,6 +6,7 @@ option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 import "lint.proto";
 import "shared.proto";
+import "google/protobuf/timestamp.proto";
 
 service PraefectInfoService {
   rpc RepositoryReplicas(RepositoryReplicasRequest) returns (RepositoryReplicasResponse) {
@@ -24,6 +25,33 @@ service PraefectInfoService {
       scope_level: STORAGE
     };
   }
+
+  // DatalossCheck returns the count of dead replica jobs created within a given
+  // timeframe. Dead replica jobs can indicate data loss and can be helpful in debugging
+  // impact of a primary node failure.
+  rpc DatalossCheck(DatalossCheckRequest) returns (DatalossCheckResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+      scope_level: SERVER
+    };
+  }
+}
+
+// DatalossCheckRequest fetches dead replica jobs from praefect.
+message DatalossCheckRequest {
+  // from is an inclusive beginning of the timeframe the dead replica jobs are to be
+  // counted in.
+  google.protobuf.Timestamp from = 1;
+  // to is an exclusive ending of the timeframe the dead replica jobs are to be
+  // counted in.
+  google.protobuf.Timestamp to = 2;
+}
+
+// DatalossCheckResponse contains dead replica jobs by repository.
+message DatalossCheckResponse {
+  // by_relative_path contains the count of dead replica job by repository relative
+  // path within the requested timeframe.
+  map<string,int64> by_relative_path = 1;
 }
 
 message RepositoryReplicasRequest{
@@ -48,7 +76,7 @@ message ConsistencyCheckRequest {
   // Optionally provide a reference storage to compare the target storage
   // against. If a reference storage is omitted, the current primary will be
   // used.
-  string reference_storage = 3; 
+  string reference_storage = 3;
 }
 
 message ConsistencyCheckResponse {

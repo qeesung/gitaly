@@ -5,7 +5,15 @@ require 'google/protobuf'
 
 require 'lint_pb'
 require 'shared_pb'
+require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
+  add_message "gitaly.DatalossCheckRequest" do
+    optional :from, :message, 1, "google.protobuf.Timestamp"
+    optional :to, :message, 2, "google.protobuf.Timestamp"
+  end
+  add_message "gitaly.DatalossCheckResponse" do
+    map :by_relative_path, :string, :int64, 1
+  end
   add_message "gitaly.RepositoryReplicasRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
   end
@@ -31,6 +39,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 
 module Gitaly
+  DatalossCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckRequest").msgclass
+  DatalossCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse").msgclass
   RepositoryReplicasRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
   RepositoryReplicasResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse").msgclass
   RepositoryReplicasResponse::RepositoryDetails = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse.RepositoryDetails").msgclass

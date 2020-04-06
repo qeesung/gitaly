@@ -20,6 +20,10 @@ module Gitaly
       # back indicating which repos are consistent with the primary and which ones
       # need repair.
       rpc :ConsistencyCheck, ConsistencyCheckRequest, stream(ConsistencyCheckResponse)
+      # DatalossCheck returns the count of dead replica jobs created within a given
+      # timeframe. Dead replica jobs can indicate data loss and can be helpful in debugging
+      # impact of a primary node failure.
+      rpc :DatalossCheck, DatalossCheckRequest, DatalossCheckResponse
     end
 
     Stub = Service.rpc_stub_class
