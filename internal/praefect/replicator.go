@@ -548,7 +548,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	}
 
 	replDuration := time.Since(replStart)
-	r.replLatencyMetric.WithLabelValues(job.Change.String()).Observe(float64(replDuration) / float64(time.Second))
+	r.replLatencyMetric.WithLabelValues(job.Change.String()).Observe(replDuration.Seconds())
 
 	return nil
 }
