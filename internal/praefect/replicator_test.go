@@ -153,9 +153,19 @@ func TestProcessReplicationJob(t *testing.T) {
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
 	var mockReplicationGauge promtest.MockGauge
-	var mockReplicationHistogramVec promtest.MockHistogramVec
+	var mockReplicationLatencyHistogramVec promtest.MockHistogramVec
+	var mockReplicationDelayHistogramVec promtest.MockHistogramVec
 
-	replMgr := NewReplMgr("", testhelper.DiscardTestEntry(t), ds, nodeMgr, WithLatencyMetric(&mockReplicationHistogramVec), WithQueueMetric(&mockReplicationGauge))
+	replMgr := NewReplMgr(
+		"",
+		testhelper.DiscardTestEntry(t),
+		ds,
+		nodeMgr,
+		WithLatencyMetric(&mockReplicationLatencyHistogramVec),
+		WithDelayMetric(&mockReplicationDelayHistogramVec),
+		WithQueueMetric(&mockReplicationGauge),
+	)
+
 	replMgr.replicator = replicator
 
 	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
@@ -178,7 +188,8 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	require.Equal(t, 1, mockReplicationGauge.IncsCalled())
 	require.Equal(t, 1, mockReplicationGauge.DecsCalled())
-	require.Equal(t, mockReplicationHistogramVec.LabelsCalled(), [][]string{{"update"}})
+	require.Equal(t, mockReplicationLatencyHistogramVec.LabelsCalled(), [][]string{{"update"}})
+	require.Equal(t, mockReplicationDelayHistogramVec.LabelsCalled(), [][]string{{"update"}})
 }
 
 func TestPropagateReplicationJob(t *testing.T) {

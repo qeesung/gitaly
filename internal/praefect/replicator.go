@@ -260,6 +260,7 @@ type ReplMgr struct {
 	replicator        Replicator // does the actual replication logic
 	replQueueMetric   prommetrics.Gauge
 	replLatencyMetric prommetrics.HistogramVec
+	replDelayMetric   prommetrics.HistogramVec
 	replJobTimeout    time.Duration
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
@@ -282,6 +283,13 @@ func WithLatencyMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
 	}
 }
 
+// WithDelayMetric is an option to set the delay prometheus metric
+func WithDelayMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
+	return func(m *ReplMgr) {
+		m.replDelayMetric = h
+	}
+}
+
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
 func NewReplMgr(virtualStorage string, log *logrus.Entry, datastore datastore.Datastore, nodeMgr nodes.Manager, opts ...ReplMgrOpt) ReplMgr {
@@ -293,6 +301,7 @@ func NewReplMgr(virtualStorage string, log *logrus.Entry, datastore datastore.Da
 		virtualStorage:    virtualStorage,
 		nodeManager:       nodeMgr,
 		replLatencyMetric: prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
+		replDelayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
 		replQueueMetric:   prometheus.NewGauge(prometheus.GaugeOpts{}),
 	}
 
@@ -510,6 +519,10 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	injectedCtx = grpccorrelation.InjectToOutgoingContext(injectedCtx, job.CorrelationID)
 
 	replStart := time.Now()
+
+	replDelay := replStart.Sub(job.CreatedAt)
+	r.replDelayMetric.WithLabelValues(job.Change.String()).Observe(replDelay.Seconds())
+
 	r.replQueueMetric.Inc()
 	defer r.replQueueMetric.Dec()
 
