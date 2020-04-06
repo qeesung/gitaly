@@ -19,12 +19,12 @@ type PackfileNegotiation struct {
 	Packets int
 	// Capabilities announced by the client
 	Caps []string
-	// Object IDs wanted by the client
-	Wants []string
-	// Object IDs the client has available
-	Haves []string
-	// Objects which the client has as shallow boundaries
-	Shallows []string
+	// Wants is the number of objects the client announced it wants
+	Wants int
+	// Haves is the number of objects the client announced it has
+	Haves int
+	// Shallows is the number of shallow boundaries announced by the client
+	Shallows int
 	// Deepen-filter. One of "deepen <depth>", "deepen-since <timestamp>", "deepen-not <ref>".
 	Deepen string
 	// Filter-spec specified by the client.
@@ -65,7 +65,7 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 				return fmt.Errorf("capabilities announced multiple times in packet %d: %v", n.Packets, data)
 			}
 
-			n.Wants = append(n.Wants, split[1])
+			n.Wants++
 			if len(split) > 2 {
 				n.Caps = split[2:]
 			}
@@ -73,7 +73,7 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 			if len(split) != 2 {
 				return fmt.Errorf("invalid 'shallow' for packet %d: %v", n.Packets, data)
 			}
-			n.Shallows = append(n.Shallows, split[1])
+			n.Shallows++
 		case "deepen", "deepen-since", "deepen-not":
 			if len(split) != 2 {
 				return fmt.Errorf("invalid 'deepen' for packet %d: %v", n.Packets, data)
@@ -88,7 +88,7 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 			if len(split) != 2 {
 				return fmt.Errorf("invalid 'have' for packet %d: %v", n.Packets, data)
 			}
-			n.Haves = append(n.Haves, split[1])
+			n.Haves++
 		case "done":
 			break
 		}
@@ -97,7 +97,7 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 	if scanner.Err() != nil {
 		return scanner.Err()
 	}
-	if len(n.Wants) == 0 {
+	if n.Wants == 0 {
 		return errors.New("no 'want' sent by client")
 	}
 
@@ -107,14 +107,14 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 // UpdateMetrics updates Prometheus counters with features that have been used
 // during a packfile negotiation.
 func (n *PackfileNegotiation) UpdateMetrics(metrics *prometheus.CounterVec) {
-		if n.Deepen != "" {
-			metrics.WithLabelValues("deepen").Inc()
-		}
-		if n.Filter != "" {
-			metrics.WithLabelValues("filter").Inc()
-		}
-		if len(n.Haves) > 0 {
-			metrics.WithLabelValues("have").Inc()
-		}
-		metrics.WithLabelValues("total").Inc()
+	if n.Deepen != "" {
+		metrics.WithLabelValues("deepen").Inc()
+	}
+	if n.Filter != "" {
+		metrics.WithLabelValues("filter").Inc()
+	}
+	if n.Haves > 0 {
+		metrics.WithLabelValues("have").Inc()
+	}
+	metrics.WithLabelValues("total").Inc()
 }

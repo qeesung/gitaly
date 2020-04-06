@@ -42,7 +42,7 @@ func TestPackNegoWithSingleWant(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants: []string{oid1}, Caps: []string{"cap"},
+		Wants: 1, Caps: []string{"cap"},
 	})
 }
 
@@ -53,7 +53,7 @@ func TestPackNegoWithMissingCaps(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants: []string{oid1},
+		Wants: 1,
 	})
 }
 
@@ -74,7 +74,7 @@ func TestPackNegoWithHave(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants: []string{oid1}, Haves: []string{oid2}, Caps: []string{"cap"},
+		Wants: 1, Haves: 1, Caps: []string{"cap"},
 	})
 }
 
@@ -89,8 +89,8 @@ func TestPackNegoWithMultipleHaveRoundds(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants: []string{oid1},
-		Haves: []string{oid2, oid1},
+		Wants: 1,
+		Haves: 2,
 		Caps:  []string{"cap"},
 	})
 }
@@ -103,7 +103,7 @@ func TestPackNegoWithMultipleWants(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants: []string{oid1, oid2}, Caps: []string{"cap"},
+		Wants: 2, Caps: []string{"cap"},
 	})
 }
 
@@ -126,7 +126,7 @@ func TestPackNegoWithDeepen(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:  []string{oid1},
+		Wants:  1,
 		Caps:   []string{"cap"},
 		Deepen: "deepen 1",
 	})
@@ -142,7 +142,7 @@ func TestPackNegoWithMultipleDeepens(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:  []string{oid1},
+		Wants:  1,
 		Caps:   []string{"cap"},
 		Deepen: "deepen-not " + oid2,
 	})
@@ -156,9 +156,9 @@ func TestPackNegoWithShallow(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:    []string{oid1},
+		Wants:    1,
 		Caps:     []string{"cap"},
-		Shallows: []string{oid1},
+		Shallows: 1,
 	})
 }
 
@@ -171,9 +171,9 @@ func TestPackNegoWithMultipleShallows(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:    []string{oid1},
+		Wants:    1,
 		Caps:     []string{"cap"},
-		Shallows: []string{oid1, oid2},
+		Shallows: 2,
 	})
 }
 
@@ -185,7 +185,7 @@ func TestPackNegoWithFilter(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:  []string{oid1},
+		Wants:  1,
 		Caps:   []string{"cap"},
 		Filter: "blob:none",
 	})
@@ -200,7 +200,7 @@ func TestPackNegoWithMultipleFilters(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:  []string{oid1},
+		Wants:  1,
 		Caps:   []string{"cap"},
 		Filter: "blob:limit=1m",
 	})
@@ -222,10 +222,10 @@ func TestPackNegoFullBlown(t *testing.T) {
 	pktline.WriteString(buf, "done")
 
 	requireParses(t, buf, PackfileNegotiation{
-		Wants:    []string{oid1, oid2},
-		Haves:    []string{oid2, oid1},
+		Wants:    2,
+		Haves:    2,
 		Caps:     []string{"cap1", "cap2"},
-		Shallows: []string{oid2, oid1},
+		Shallows: 2,
 		Deepen:   "deepen 1",
 		Filter:   "blob:none",
 	})
