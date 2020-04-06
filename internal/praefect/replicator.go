@@ -259,7 +259,8 @@ type ReplMgr struct {
 	virtualStorage    string     // which replica is this replicator responsible for?
 	replicator        Replicator // does the actual replication logic
 	replQueueMetric   prommetrics.Gauge
-	replLatencyMetric prommetrics.Histogram
+	replLatencyMetric prommetrics.HistogramVec
+	replDelayMetric   prommetrics.HistogramVec
 	replJobTimeout    time.Duration
 	// whitelist contains the project names of the repos we wish to replicate
 	whitelist map[string]struct{}
@@ -275,10 +276,17 @@ func WithQueueMetric(g prommetrics.Gauge) func(*ReplMgr) {
 	}
 }
 
-// WithLatencyMetric is an option to set the queue size prometheus metric
-func WithLatencyMetric(h prommetrics.Histogram) func(*ReplMgr) {
+// WithLatencyMetric is an option to set the latency prometheus metric
+func WithLatencyMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
 	return func(m *ReplMgr) {
 		m.replLatencyMetric = h
+	}
+}
+
+// WithDelayMetric is an option to set the delay prometheus metric
+func WithDelayMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
+	return func(m *ReplMgr) {
+		m.replDelayMetric = h
 	}
 }
 
@@ -292,7 +300,8 @@ func NewReplMgr(virtualStorage string, log *logrus.Entry, datastore datastore.Da
 		replicator:        defaultReplicator{log},
 		virtualStorage:    virtualStorage,
 		nodeManager:       nodeMgr,
-		replLatencyMetric: prometheus.NewHistogram(prometheus.HistogramOpts{}),
+		replLatencyMetric: prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
+		replDelayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
 		replQueueMetric:   prometheus.NewGauge(prometheus.GaugeOpts{}),
 	}
 
@@ -400,6 +409,7 @@ func (r ReplMgr) createReplJob(event datastore.ReplicationEvent) (datastore.Repl
 		RelativePath:  event.Job.RelativePath,
 		Params:        event.Job.Params,
 		CorrelationID: correlationID,
+		CreatedAt:     event.CreatedAt,
 	}
 
 	return replJob, nil
@@ -509,6 +519,10 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	injectedCtx = grpccorrelation.InjectToOutgoingContext(injectedCtx, job.CorrelationID)
 
 	replStart := time.Now()
+
+	replDelay := replStart.Sub(job.CreatedAt)
+	r.replDelayMetric.WithLabelValues(job.Change.String()).Observe(replDelay.Seconds())
+
 	r.replQueueMetric.Inc()
 	defer r.replQueueMetric.Dec()
 
@@ -534,7 +548,7 @@ func (r ReplMgr) processReplJob(ctx context.Context, job datastore.ReplJob, sour
 	}
 
 	replDuration := time.Since(replStart)
-	r.replLatencyMetric.Observe(float64(replDuration) / float64(time.Second))
+	r.replLatencyMetric.WithLabelValues(job.Change.String()).Observe(replDuration.Seconds())
 
 	return nil
 }

@@ -161,6 +161,11 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return err
 	}
 
+	delayMetric, err := metrics.RegisterReplicationDelay(conf.Prometheus)
+	if err != nil {
+		return err
+	}
+
 	latencyMetric, err := metrics.RegisterReplicationLatency(conf.Prometheus)
 	if err != nil {
 		return err
@@ -205,6 +210,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			logger,
 			ds,
 			nodeManager,
+			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),
 			praefect.WithQueueMetric(queueMetric))
 		srv = praefect.NewServer(coordinator.StreamDirector, logger, registry, conf)

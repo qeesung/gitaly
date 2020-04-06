@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -101,6 +102,7 @@ type ReplJob struct {
 	Attempts               int
 	Params                 Params // additional information required to run the job
 	CorrelationID          string // from original request
+	CreatedAt              time.Time // when has the job been created?
 }
 
 // Datastore is a data persistence abstraction for all of Praefect's
