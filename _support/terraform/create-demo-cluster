@@ -3,6 +3,7 @@
 
 require 'erb'
 require 'etc'
+require 'io/console'
 
 require_relative 'helper.rb'
 
@@ -29,6 +30,14 @@ def praefect_demo_cluster_name
   get_input('Enter a name for your demo cluster', default_name)
 end
 
+def praefect_sql_password
+  get_input(
+    'Enter a password for the praefect PostgreSQL user',
+    'PRAEFECT_SQL_PASSWORD',
+    echo: false
+  )
+end
+
 def username
   Etc.getlogin
 end
@@ -46,11 +55,12 @@ def ssh_pubkey
   pubkey
 end
 
-def get_input(prompt, default)
+def get_input(prompt, default, echo: true)
   puts "#{prompt} (default: #{default})."
   print "> "
 
-  input = gets.chomp
+  input = echo ? gets.chomp : STDIN.noecho(&:gets).chomp
+
   input.empty? ? default : input
 end
 

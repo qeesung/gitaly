@@ -9,13 +9,13 @@ variable "startup_script" {
     set -e
     if [ -d /opt/gitlab ] ; then exit; fi
 
-    curl -s https://packages.gitlab.com/install/repositories/gitlab/nightly-builds/script.deb.sh | sudo bash 
+    curl -s https://packages.gitlab.com/install/repositories/gitlab/nightly-builds/script.deb.sh | sudo bash
     sudo apt-get install -y gitlab-ee
   EOF
 }
 variable "gitaly_machine_type" { default = "n1-standard-2" }
 variable "gitaly_disk_size" { default = "100" }
-#variable "praefect_sql_password" { }
+variable "praefect_sql_password" { }
 
 provider "google" {
   version = "~> 3.12"
@@ -25,27 +25,45 @@ provider "google" {
   zone    = var.demo_zone
 }
 
-# resource "google_sql_database_instance" "praefect_sql" {
-#   name             = format("%s-praefect-postgresql", var.praefect_demo_cluster_name)
-#   database_version = "POSTGRES_9_6"
-#   region           = var.demo_region
-# 
-#   settings {
-#     # Second-generation instance tiers are based on the machine
-#     # type. See argument reference below.
-#     tier = "db-f1-micro"
-#   }
-# }
-# 
-# output "praefect_postgresql_ip" {
-#   value = google_sql_database_instance.praefect_sql.public_ip_address
-# }
+resource "random_id" "db_name_suffix" {
+  byte_length = 4
+}
 
-# resource "google_sql_user" "users" {
-#   name     = "praefect"
-#   instance = google_sql_database_instance.praefect_sql.name
-#   password = var.praefect_sql_password
-# }
+resource "google_sql_database_instance" "praefect_sql" {
+  # It appears CloudSQL does not like Terraform re-using database names.
+  # Adding a random ID prevents name reuse.
+  name = "${var.praefect_demo_cluster_name}-praefect-postgresql-${random_id.db_name_suffix.hex}"
+  database_version = "POSTGRES_9_6"
+  region = var.demo_region
+
+  settings {
+    tier = "db-f1-micro"
+
+    ip_configuration{
+      ipv4_enabled = true
+
+      authorized_networks {
+        name = "praefect"
+        value = google_compute_instance.praefect.network_interface[0].access_config[0].nat_ip
+      }
+    }
+  }
+}
+
+output "praefect_postgresql_ip" {
+  value = google_sql_database_instance.praefect_sql.public_ip_address
+}
+
+resource "google_sql_user" "users" {
+  name     = "praefect"
+  instance = google_sql_database_instance.praefect_sql.name
+  password = var.praefect_sql_password
+}
+
+resource "google_sql_database" "praefect-database" {
+  name     = "praefect_production"
+  instance = google_sql_database_instance.praefect_sql.name
+}
 
 resource "google_compute_instance" "gitlab" {
   name         = format("%s-gitlab", var.praefect_demo_cluster_name)
