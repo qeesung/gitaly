@@ -103,15 +103,7 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 			grpc_logrus.Extract(stream.Context()).WithError(err).Debug("failed parsing packfile negotiation")
 			return
 		}
-		if stats.Deepen != "" {
-			s.deepensMetric.Inc()
-		}
-		if stats.Filter != "" {
-			s.filtersMetric.Inc()
-		}
-		if len(stats.Haves) > 0 {
-			s.havesMetric.Inc()
-		}
+		stats.UpdateMetrics(s.packfileNegotiationMetrics)
 	}()
 
 	cmd, monitor, err := monitorStdinCommand(ctx, stdin, stdout, stderr, env, globalOpts, git.SubCmd{

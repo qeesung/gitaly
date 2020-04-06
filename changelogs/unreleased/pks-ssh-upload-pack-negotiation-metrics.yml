@@ -1,0 +1,5 @@
+---
+title: Add a metric counting the number of negotiated packfiles
+merge_request: 2011
+author:
+type: added

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 )
@@ -101,4 +102,19 @@ func (n *PackfileNegotiation) Parse(body io.Reader) error {
 	}
 
 	return nil
+}
+
+// UpdateMetrics updates Prometheus counters with features that have been used
+// during a packfile negotiation.
+func (n *PackfileNegotiation) UpdateMetrics(metrics *prometheus.CounterVec) {
+		if n.Deepen != "" {
+			metrics.WithLabelValues("deepen").Inc()
+		}
+		if n.Filter != "" {
+			metrics.WithLabelValues("filter").Inc()
+		}
+		if len(n.Haves) > 0 {
+			metrics.WithLabelValues("have").Inc()
+		}
+		metrics.WithLabelValues("total").Inc()
 }

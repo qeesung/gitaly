@@ -2,23 +2,21 @@ package smarthttp
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 type server struct {
-	deepensMetric metrics.Counter
-	filtersMetric metrics.Counter
-	havesMetric   metrics.Counter
+	packfileNegotiationMetrics *prometheus.CounterVec
 	gitalypb.UnimplementedSmartHTTPServiceServer
 }
 
 // NewServer creates a new instance of a grpc SmartHTTPServer
 func NewServer(serverOpts ...ServerOpt) gitalypb.SmartHTTPServiceServer {
 	s := &server{
-		deepensMetric: prometheus.NewCounter(prometheus.CounterOpts{}),
-		filtersMetric: prometheus.NewCounter(prometheus.CounterOpts{}),
-		havesMetric:   prometheus.NewCounter(prometheus.CounterOpts{}),
+		packfileNegotiationMetrics: prometheus.NewCounterVec(
+			prometheus.CounterOpts{},
+			[]string{"git_negotiation_feature"},
+		),
 	}
 
 	for _, serverOpt := range serverOpts {
@@ -31,20 +29,8 @@ func NewServer(serverOpts ...ServerOpt) gitalypb.SmartHTTPServiceServer {
 // ServerOpt is a self referential option for server
 type ServerOpt func(s *server)
 
-func WithDeepensMetric(c metrics.Counter) ServerOpt {
+func WithPackfileNegotiationMetrics(c *prometheus.CounterVec) ServerOpt {
 	return func(s *server) {
-		s.deepensMetric = c
-	}
-}
-
-func WithFiltersMetric(c metrics.Counter) ServerOpt {
-	return func(s *server) {
-		s.filtersMetric = c
-	}
-}
-
-func WithHavesMetric(c metrics.Counter) ServerOpt {
-	return func(s *server) {
-		s.havesMetric = c
+		s.packfileNegotiationMetrics = c
 	}
 }

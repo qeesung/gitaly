@@ -50,16 +50,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 			grpc_logrus.Extract(stream.Context()).WithError(err).Debug("failed parsing packfile negotiation")
 			return
 		}
-
-		if stats.Deepen != "" {
-			s.deepensMetric.Inc()
-		}
-		if stats.Filter != "" {
-			s.filtersMetric.Inc()
-		}
-		if len(stats.Haves) > 0 {
-			s.havesMetric.Inc()
-		}
+		stats.UpdateMetrics(s.packfileNegotiationMetrics)
 
 		statsCh <- stats
 	}()

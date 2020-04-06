@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/prometheus/client_golang/prometheus"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
@@ -186,12 +187,10 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 }
 
 func TestUploadPackCloneSuccess(t *testing.T) {
-	deepen := &promtest.MockCounter{}
-	filter := &promtest.MockCounter{}
-	haves := &promtest.MockCounter{}
+	negotiationMetrics := prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"feature"})
 
 	serverSocketPath, stop := runSSHServer(
-		t, WithDeepensMetric(deepen), WithFiltersMetric(filter), WithHavesMetric(haves),
+		t, WithPackfileNegotiationMetrics(negotiationMetrics),
 	)
 	defer stop()
 
@@ -224,9 +223,9 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 			lHead, rHead, _, _ := cmd.test(t, localRepoPath)
 			require.Equal(t, lHead, rHead, "local and remote head not equal")
 
-			require.Equal(t, deepen.Value(), tc.deepen)
-			require.Equal(t, filter.Value(), 0.0)
-			require.Equal(t, haves.Value(), 0.0)
+			metric, err := negotiationMetrics.GetMetricWithLabelValues("deepen")
+			require.NoError(t, err)
+			require.Equal(t, tc.deepen, promtest.ToFloat64(metric))
 		})
 	}
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service/blob"
@@ -28,71 +29,26 @@ import (
 )
 
 var (
-	smarthttpDeepensMetric = prometheus.NewCounter(
+	smarthttpPackfileNegotiationMetrics = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "gitaly",
 			Subsystem: "smarthttp",
-			Name:      "deepen_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'deepen' message",
+			Name:      "packfile_negotiation_requests_total",
+			Help:      "Total number of features used for packfile negotiations",
 		},
+		[]string{"git_negotiation_feature"},
 	)
 
-	smarthttpFiltersMetric = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "smarthttp",
-			Name:      "filter_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'filter' message",
-		},
-	)
-
-	smarthttpHavesMetric = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "smarthttp",
-			Name:      "haves_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'have' message",
-		},
-	)
-
-	sshDeepensMetric = prometheus.NewCounter(
+	sshPackfileNegotiationMetrics = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "gitaly",
 			Subsystem: "ssh",
-			Name:      "deepen_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'deepen' message",
+			Name:      "packfile_negotiation_requests_total",
+			Help:      "Total number of features used for packfile negotiations",
 		},
-	)
-
-	sshFiltersMetric = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "ssh",
-			Name:      "filter_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'filter' message",
-		},
-	)
-
-	sshHavesMetric = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "ssh",
-			Name:      "haves_requests_total",
-			Help:      "Number of git-upload-pack requests processed that contained a 'have' message",
-		},
+		[]string{"git_negotiation_feature"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(
-		smarthttpDeepensMetric,
-		smarthttpFiltersMetric,
-		smarthttpHavesMetric,
-		sshDeepensMetric,
-		sshFiltersMetric,
-		sshHavesMetric,
-	)
-}
 
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
@@ -106,14 +62,10 @@ func RegisterAll(grpcServer *grpc.Server, rubyServer *rubyserver.Server) {
 	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer())
 	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(rubyServer, config.GitalyInternalSocketPath()))
 	gitalypb.RegisterSSHServiceServer(grpcServer, ssh.NewServer(
-		ssh.WithDeepensMetric(sshDeepensMetric),
-		ssh.WithHavesMetric(sshHavesMetric),
-		ssh.WithFiltersMetric(sshFiltersMetric),
+		ssh.WithPackfileNegotiationMetrics(sshPackfileNegotiationMetrics),
 	))
 	gitalypb.RegisterSmartHTTPServiceServer(grpcServer, smarthttp.NewServer(
-		smarthttp.WithDeepensMetric(smarthttpDeepensMetric),
-		smarthttp.WithFiltersMetric(smarthttpFiltersMetric),
-		smarthttp.WithHavesMetric(smarthttpHavesMetric),
+		smarthttp.WithPackfileNegotiationMetrics(smarthttpPackfileNegotiationMetrics),
 	))
 	gitalypb.RegisterWikiServiceServer(grpcServer, wiki.NewServer(rubyServer))
 	gitalypb.RegisterConflictsServiceServer(grpcServer, conflicts.NewServer(rubyServer))

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -19,7 +21,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -30,10 +31,10 @@ const (
 )
 
 func TestSuccessfulUploadPackRequest(t *testing.T) {
-	haves := &promtest.MockCounter{}
+	negotiationMetrics := prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"feature"})
 
 	serverSocketPath, stop := runSmartHTTPServer(
-		t, WithHavesMetric(haves),
+		t, WithPackfileNegotiationMetrics(negotiationMetrics),
 	)
 	defer stop()
 
@@ -98,7 +99,9 @@ func TestSuccessfulUploadPackRequest(t *testing.T) {
 	// The fact that this command succeeds means that we got the commit correctly, no further checks should be needed.
 	testhelper.MustRunCommand(t, nil, "git", "-C", localRepoPath, "show", string(newHead))
 
-	require.Equal(t, 1.0, haves.Value())
+	metric, err := negotiationMetrics.GetMetricWithLabelValues("have")
+	require.NoError(t, err)
+	require.Equal(t, 1.0, promtest.ToFloat64(metric))
 }
 
 func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
@@ -331,10 +334,10 @@ func extractPackDataFromResponse(t *testing.T, buf *bytes.Buffer) ([]byte, int, 
 }
 
 func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
-	filter := &promtest.MockCounter{}
+	negotiationMetrics := prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"feature"})
 
 	serverSocketPath, stop := runSmartHTTPServer(
-		t, WithFiltersMetric(filter),
+		t, WithPackfileNegotiationMetrics(negotiationMetrics),
 	)
 	defer stop()
 
@@ -430,5 +433,7 @@ func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
 	_, err = makePostUploadPackRequest(ctx, t, serverSocketPath, req, &requestBuffer)
 	require.NoError(t, err)
 
-	require.Equal(t, 2.0, filter.Value())
+	metric, err := negotiationMetrics.GetMetricWithLabelValues("filter")
+	require.NoError(t, err)
+	require.Equal(t, 2.0, promtest.ToFloat64(metric))
 }
