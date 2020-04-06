@@ -698,17 +698,10 @@ module Gitlab
       end
 
       def fetch_repository_as_mirror(repository)
-        remote_name = "tmp-#{SecureRandom.hex}"
-        repository = RemoteRepository.new(repository) unless repository.is_a?(RemoteRepository)
+        cmd = ['fetch', '--prune', GITALY_INTERNAL_URL, RepositoryMirroring::REFMAPS[:all_refs]]
+        _, status = run_git(cmd, env: repository.fetch_env)
 
-        add_remote(remote_name, GITALY_INTERNAL_URL, mirror_refmap: :all_refs)
-        fetch_remote(remote_name, env: repository.fetch_env)
-      ensure
-        remove_remote(remote_name)
-      end
-
-      def fetch_remote(remote_name = 'origin', env: nil)
-        run_git(['fetch', remote_name], env: env).last.zero?
+        status.zero?
       end
 
       def rev_list(including: [], excluding: [], options: [], objects: false, &block)

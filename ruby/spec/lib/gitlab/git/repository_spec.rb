@@ -143,13 +143,24 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
 
     subject { new_repository.fetch_repository_as_mirror(remote_repository) }
 
-    it 'fetches a repository as a mirror remote' do
-      expect(new_repository).to receive(:add_remote).with(anything, Gitlab::Git::Repository::GITALY_INTERNAL_URL, mirror_refmap: :all_refs)
+    before do
       expect(remote_repository).to receive(:fetch_env).and_return(fake_env)
-      expect(new_repository).to receive(:fetch_remote).with(anything, env: fake_env)
-      expect(new_repository).to receive(:remove_remote).with(anything)
+      expect(new_repository).to receive(:run_git).with(
+        ['fetch', '--prune', Gitlab::Git::Repository::GITALY_INTERNAL_URL, Gitlab::Git::RepositoryMirroring::REFMAPS[:all_refs]],
+        env: fake_env
+      ).and_return(git_fetch_return)
+    end
 
-      subject
+    context 'successfully fetches a repository as a mirror remote' do
+      let(:git_fetch_return) { ['success', 0] }
+
+      it { is_expected.to be_truthy }
+    end
+
+    context 'fails to fetch a repository as a mirror remote' do
+      let(:git_fetch_return) { ['error', 128] }
+
+      it { is_expected.to be_falsy }
     end
   end
 
