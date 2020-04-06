@@ -100,8 +100,8 @@ type ReplJob struct {
 	RelativePath           string      // source for replication
 	State                  JobState
 	Attempts               int
-	Params                 Params // additional information required to run the job
-	CorrelationID          string // from original request
+	Params                 Params    // additional information required to run the job
+	CorrelationID          string    // from original request
 	CreatedAt              time.Time // when has the job been created?
 }
 

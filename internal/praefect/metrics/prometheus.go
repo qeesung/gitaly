@@ -22,7 +22,6 @@ func RegisterReplicationDelay(conf promconfig.Config) (metrics.HistogramVec, err
 	return replicationDelay, prometheus.Register(replicationDelay)
 }
 
-
 // RegisterReplicationLatency creates and registers a prometheus histogram
 // to observe replication latency times
 func RegisterReplicationLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
