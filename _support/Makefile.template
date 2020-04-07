@@ -11,7 +11,7 @@ INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 BUNDLE_FLAGS ?= {{ .BundleFlags }}
 ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
 BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
-SHELL = /usr/bin/env bash -eo pipefail
+SHELL = /usr/bin/env bash -e
 
 unexport GOROOT
 export GOBIN = {{ .BuildDir }}/bin
@@ -100,7 +100,7 @@ test: test-go rspec rspec-gitlab-shell
 
 .PHONY: test-go
 test-go: prepare-tests {{ .GoJunitReport }}
-	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml)
+	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml) && exit $${PIPESTATUS[0]}
 
 .PHONY: test-with-proxies
 test-with-proxies: prepare-tests
@@ -115,7 +115,7 @@ test-with-praefect: build prepare-tests
 
 .PHONY: race-go
 race-go: prepare-tests {{ .GoJunitReport }}
-	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml)
+	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml) && exit $${PIPESTATUS[0]}
 
 .PHONY: rspec
 rspec: assemble-go prepare-tests
