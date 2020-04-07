@@ -31,7 +31,6 @@ func TestSetHeadersPreservesWhitelistedMetadata(t *testing.T) {
 	defer cancel()
 
 	key := "gitaly-servers"
-	require.Contains(t, ProxyHeaderWhitelist, key, "sanity check")
 	value := "test-value"
 	inCtx := metadata.NewIncomingContext(ctx, metadata.Pairs(key, value))
 

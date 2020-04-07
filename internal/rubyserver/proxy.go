@@ -11,10 +11,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// ProxyHeaderWhitelist is the list of http/2 headers that will be
-// forwarded as-is to gitaly-ruby.
-var ProxyHeaderWhitelist = []string{"gitaly-servers"}
-
 // Headers prefixed with this string get whitelisted automatically
 const rubyFeaturePrefix = "gitaly-feature-ruby-"
 
@@ -65,17 +61,18 @@ func setHeaders(ctx context.Context, repo *gitalypb.Repository, mustExist bool) 
 		repoAltDirsHeader, repoAltDirsCombined,
 	)
 
+	// list of http/2 headers that will be forwarded as-is to gitaly-ruby
+	proxyHeaderWhitelist := []string{"gitaly-servers"}
+
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
 		// Automatically whitelist any Ruby-specific feature flag
 		for header := range inMD {
 			if strings.HasPrefix(header, rubyFeaturePrefix) {
-				// TODO: this changes state of the global variable without any synchronization
-				// https://gitlab.com/gitlab-org/gitaly/-/issues/2614
-				ProxyHeaderWhitelist = append(ProxyHeaderWhitelist, header)
+				proxyHeaderWhitelist = append(proxyHeaderWhitelist, header)
 			}
 		}
 
-		for _, header := range ProxyHeaderWhitelist {
+		for _, header := range proxyHeaderWhitelist {
 			for _, v := range inMD[header] {
 				md = metadata.Join(md, metadata.Pairs(header, v))
 			}
