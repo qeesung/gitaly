@@ -2,22 +2,37 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
 
+var (
+	errDeadAckedAsFailed = errors.New("job acknowledged as failed with no attempts left, should be 'dead'")
+)
+
 // NewMemoryReplicationEventQueue return in-memory implementation of the ReplicationEventQueue.
 func NewMemoryReplicationEventQueue() ReplicationEventQueue {
-	return &memoryReplicationEventQueue{dequeued: map[uint64]struct{}{}}
+	return &memoryReplicationEventQueue{
+		dequeued:    map[uint64]struct{}{},
+		maxDeadJobs: 1000,
+	}
+}
+
+type deadJob struct {
+	createdAt    time.Time
+	relativePath string
 }
 
 // memoryReplicationEventQueue implements queue interface with in-memory implementation of storage
 type memoryReplicationEventQueue struct {
 	sync.RWMutex
-	seq      uint64              // used to generate unique  identifiers for events
-	queued   []ReplicationEvent  // all new events stored as queue
-	dequeued map[uint64]struct{} // all events dequeued, but not yet acknowledged
+	seq         uint64              // used to generate unique  identifiers for events
+	queued      []ReplicationEvent  // all new events stored as queue
+	dequeued    map[uint64]struct{} // all events dequeued, but not yet acknowledged
+	maxDeadJobs int                 // maximum amount of dead jobs to hold in memory
+	deadJobs    []deadJob           // dead jobs stored for reporting purposes
 }
 
 // nextID returns a new sequential ID for new events.
@@ -50,11 +65,10 @@ func (s *memoryReplicationEventQueue) Dequeue(_ context.Context, nodeStorage str
 	for i := 0; i < len(s.queued); i++ {
 		event := s.queued[i]
 
-		hasMoreAttempts := event.Attempt > 0
 		isForTargetStorage := event.Job.TargetNodeStorage == nodeStorage
 		isReadyOrFailed := event.State == JobStateReady || event.State == JobStateFailed
 
-		if hasMoreAttempts && isForTargetStorage && isReadyOrFailed {
+		if isForTargetStorage && isReadyOrFailed {
 			updatedAt := time.Now().UTC()
 			event.Attempt--
 			event.State = JobStateInProgress
@@ -101,6 +115,10 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 				return nil, fmt.Errorf("event not in progress, can't be acknowledged: %d [%s]", s.queued[i].ID, s.queued[i].State)
 			}
 
+			if s.queued[i].Attempt == 0 && state == JobStateFailed {
+				return nil, errDeadAckedAsFailed
+			}
+
 			updatedAt := time.Now().UTC()
 			s.queued[i].State = state
 			s.queued[i].UpdatedAt = &updatedAt
@@ -110,12 +128,7 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 			switch state {
 			case JobStateCompleted, JobStateCancelled, JobStateDead:
 				// this event is fully processed and could be removed
-				s.remove(i)
-			case JobStateFailed:
-				if s.queued[i].Attempt == 0 {
-					// out of luck for this replication event, remove from queue as no more attempts available
-					s.remove(i)
-				}
+				s.remove(i, state)
 			}
 			break
 		}
@@ -124,9 +137,39 @@ func (s *memoryReplicationEventQueue) Acknowledge(_ context.Context, state JobSt
 	return result, nil
 }
 
-// remove deletes i-th element from slice and from tracking map.
+// CountDeadReplicationJobs returns the dead replication job counts by relative path within the given timerange.
+// The timerange beginning is inclusive and ending is exclusive. The in-memory queue stores only the most recent
+// 1000 dead jobs.
+func (s *memoryReplicationEventQueue) CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	from = from.Add(-time.Nanosecond)
+	dead := map[string]int64{}
+	for _, job := range s.deadJobs {
+		if job.createdAt.After(from) && job.createdAt.Before(to) {
+			dead[job.relativePath]++
+		}
+	}
+
+	return dead, nil
+}
+
+// remove deletes i-th element from the queue and from the in-flight tracking map.
 // It doesn't check 'i' for the out of range and must be called with lock protection.
-func (s *memoryReplicationEventQueue) remove(i int) {
+// If state is JobStateDead, the event will be added to the dead job tracker.
+func (s *memoryReplicationEventQueue) remove(i int, state JobState) {
+	if state == JobStateDead {
+		if len(s.deadJobs) >= s.maxDeadJobs {
+			s.deadJobs = s.deadJobs[1:]
+		}
+
+		s.deadJobs = append(s.deadJobs, deadJob{
+			createdAt:    s.queued[i].CreatedAt,
+			relativePath: s.queued[i].Job.RelativePath,
+		})
+	}
+
 	delete(s.dequeued, s.queued[i].ID)
 	s.queued = append(s.queued[:i], s.queued[i+1:]...)
 }

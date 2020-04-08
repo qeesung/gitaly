@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
 
@@ -21,6 +22,9 @@ type ReplicationEventQueue interface {
 	// It only updates events that are in 'in_progress' state.
 	// It returns list of ids that was actually acknowledged.
 	Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error)
+	// CountDeadReplicationJobs returns the dead replication job counts by relative path within the
+	// given timerange. The timerange beginning is inclusive and ending is exclusive.
+	CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error)
 }
 
 func allowToAck(state JobState) error {
@@ -146,6 +150,10 @@ func NewPostgresReplicationEventQueue(qc glsql.Querier) PostgresReplicationEvent
 // PostgresReplicationEventQueue is a Postgres implementation of persistent queue.
 type PostgresReplicationEventQueue struct {
 	qc glsql.Querier
+}
+
+func (rq PostgresReplicationEventQueue) CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error) {
+	return nil, helper.Unimplemented
 }
 
 func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
