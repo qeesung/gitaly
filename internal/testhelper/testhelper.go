@@ -70,6 +70,7 @@ func Configure() {
 
 		for _, f := range []func() error{
 			ConfigureRuby,
+			ConfigureGit,
 			config.Validate,
 		} {
 			if err := f(); err != nil {
@@ -278,6 +279,32 @@ func GetLocalhostListener(t TB) (net.Listener, string) {
 	addr := fmt.Sprintf("localhost:%d", l.Addr().(*net.TCPAddr).Port)
 
 	return l, addr
+}
+
+// ConfigureGit configures git for test purpose
+func ConfigureGit() error {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("could not get caller info")
+	}
+
+	goenvCmd := exec.Command("go", "env", "GOCACHE")
+	goCacheBytes, err := goenvCmd.Output()
+	goCache := strings.TrimSpace(string(goCacheBytes))
+	if err != nil {
+		return err
+	}
+
+	// set GOCACHE env to current go cache location, otherwise if it's default it would be overwritten by setting HOME
+	err = os.Setenv("GOCACHE", goCache)
+	if err != nil {
+		return err
+	}
+
+	testHome := filepath.Join(filepath.Dir(currentFile), "testdata/home")
+
+	// overwrite HOME env variable so user global .gitconfig doesn't influence tests
+	return os.Setenv("HOME", testHome)
 }
 
 // ConfigureRuby configures Ruby settings for test purposes at run time.
@@ -564,6 +591,10 @@ func GitObjectMustNotExist(t TB, repoPath, sha string) {
 
 func gitObjectExists(t TB, repoPath, sha string, exists bool) {
 	cmd := exec.Command("git", "-C", repoPath, "cat-file", "-e", sha)
+	cmd.Env = []string{
+		"GIT_ALLOW_PROTOCOL=", // To prevent partial clone reaching remote repo over SSH
+	}
+
 	if exists {
 		require.NoError(t, cmd.Run(), "checking for object should succeed")
 		return
