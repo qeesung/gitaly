@@ -1,12 +1,14 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -195,10 +197,16 @@ func TestCommandStdErr(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+
+	expectedMessage := `hello world\\nhello world\\nhello world\\nhello world\\nhello world\\n`
+
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 
 	logger := logrus.New()
-	logger.SetOutput(&stderr)
+	logger.SetOutput(w)
 
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
@@ -208,18 +216,23 @@ func TestCommandStdErr(t *testing.T) {
 	require.Error(t, cmd.Wait())
 	assert.Empty(t, stdout.Bytes())
 
-	logger.Exit(0)
-	assert.Equal(t, `hello world\nhello world\nhello world\nhello world\nhello world\n`, stderr.String())
+	b := bufio.NewReader(r)
+	line, err := b.ReadString('\n')
+	require.NoError(t, err)
+	require.Equal(t, expectedMessage, extractMessage(line))
 }
 
 func TestCommandStdErrLargeOutput(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 
 	logger := logrus.New()
-	logger.SetOutput(&stderr)
+	logger.SetOutput(w)
 
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
@@ -229,18 +242,29 @@ func TestCommandStdErrLargeOutput(t *testing.T) {
 	require.Error(t, cmd.Wait())
 	assert.Empty(t, stdout.Bytes())
 
-	logger.Exit(0)
-	assert.True(t, stderr.Len() <= MaxStderrBytes)
+	b := bufio.NewReader(r)
+	line, err := b.ReadString('\n')
+	require.NoError(t, err)
+
+	// the logrus printer prints with %q, so with an escaped newline it will add an extra \ escape to the
+	// output. So for the test we can take out the extra \ since it was logrus that added it, not the command
+	// https://github.com/sirupsen/logrus/blob/master/text_formatter.go#L324
+	msg := strings.Replace(extractMessage(line), `\\n`, `\n`, -1)
+	require.LessOrEqual(t, len(msg), MaxStderrBytes)
 }
 
 func TestCommandStdErrBinaryNullBytes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 
 	logger := logrus.New()
-	logger.SetOutput(&stderr)
+	logger.SetOutput(w)
 
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
@@ -250,18 +274,23 @@ func TestCommandStdErrBinaryNullBytes(t *testing.T) {
 	require.Error(t, cmd.Wait())
 	assert.Empty(t, stdout.Bytes())
 
-	logger.Exit(0)
-	assert.NotEmpty(t, stderr.Bytes())
+	b := bufio.NewReader(r)
+	line, err := b.ReadString('\n')
+	require.NoError(t, err)
+	require.NotEmpty(t, extractMessage(line))
 }
 
 func TestCommandStdErrLongLine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 
 	logger := logrus.New()
-	logger.SetOutput(&stderr)
+	logger.SetOutput(w)
 
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
@@ -271,19 +300,23 @@ func TestCommandStdErrLongLine(t *testing.T) {
 	require.Error(t, cmd.Wait())
 	assert.Empty(t, stdout.Bytes())
 
-	logger.Exit(0)
-	assert.NotEmpty(t, stderr.Bytes())
-	assert.Equal(t, fmt.Sprintf("%s\\n%s", strings.Repeat("a", StderrBufferSize), strings.Repeat("b", StderrBufferSize)), stderr.String())
+	b := bufio.NewReader(r)
+	line, err := b.ReadString('\n')
+	require.NoError(t, err)
+	require.Contains(t, line, fmt.Sprintf(`%s\\n%s`, strings.Repeat("a", StderrBufferSize), strings.Repeat("b", StderrBufferSize)))
 }
 
 func TestCommandStdErrMaxBytes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 
 	logger := logrus.New()
-	logger.SetOutput(&stderr)
+	logger.SetOutput(w)
 
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
@@ -293,6 +326,19 @@ func TestCommandStdErrMaxBytes(t *testing.T) {
 	require.Error(t, cmd.Wait())
 	assert.Empty(t, stdout.Bytes())
 
-	logger.Exit(0)
-	assert.NotEmpty(t, stderr.Bytes())
+	b := bufio.NewReader(r)
+	line, err := b.ReadString('\n')
+	require.NoError(t, err)
+	require.NotEmpty(t, extractMessage(line))
+}
+
+var logMsgRegex = regexp.MustCompile(`msg="(.+)"`)
+
+func extractMessage(logMessage string) string {
+	subMatches := logMsgRegex.FindStringSubmatch(logMessage)
+	if len(subMatches) != 2 {
+		return ""
+	}
+
+	return subMatches[1]
 }
