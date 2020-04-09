@@ -9,7 +9,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -38,8 +37,7 @@ func shouldIgnore(fullMethod string) bool {
 // repository in a gRPC stream based RPC
 func StreamInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if !featureflag.IsEnabled(ss.Context(), featureflag.CacheInvalidator) ||
-			shouldIgnore(info.FullMethod) {
+		if shouldIgnore(info.FullMethod) {
 			return handler(srv, ss)
 		}
 
@@ -66,8 +64,7 @@ func StreamInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.StreamS
 // repository in a gRPC unary RPC
 func UnaryInvalidator(ci Invalidator, reg *protoregistry.Registry) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		if !featureflag.IsEnabled(ctx, featureflag.CacheInvalidator) ||
-			shouldIgnore(info.FullMethod) {
+		if shouldIgnore(info.FullMethod) {
 			return handler(ctx, req)
 		}
 

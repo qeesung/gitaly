@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 )
 
 func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
@@ -52,6 +52,7 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 	defer cancel()
 
 	testRepo := testhelper.TestRepository()
+	log.Print(testRepo)
 
 	request := &gitalypb.InfoRefsRequest{
 		Repository: testRepo,
@@ -310,12 +311,6 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 		)
 	}
 
-	// if feature-flag is disabled, we should not find a cached response
-	assertNormalResponse()
-	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, ctx, rpcRequest))
-
-	// enable feature flag, and we expect to find the cached response
-	ctx = enableCacheFeatureFlag(ctx)
 	assertNormalResponse()
 	require.FileExists(t, pathToCachedResponse(t, ctx, rpcRequest))
 
@@ -334,17 +329,12 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 		replacedContents[0], replacedContents[3], replacedContents[1:3],
 	)
 
-	// disable feature-flag to show replaced response no longer used
-	ctx = context.Background()
-	assertNormalResponse()
-
 	// invalidate cache for repository
 	ender, err := cache.LeaseKeyer{}.StartLease(rpcRequest.Repository)
 	require.NoError(t, err)
 	require.NoError(t, ender.EndLease(setInfoRefsUploadPackMethod(context.Background())))
 
 	// replaced cache response is no longer valid
-	ctx = enableCacheFeatureFlag(ctx)
 	assertNormalResponse()
 
 	// failed requests should not cache response
@@ -374,18 +364,6 @@ func createInvalidRepo(t testing.TB, repo *gitalypb.Repository) func() {
 func replaceCachedResponse(t testing.TB, ctx context.Context, req *gitalypb.InfoRefsRequest, newContents string) {
 	path := pathToCachedResponse(t, ctx, req)
 	require.NoError(t, ioutil.WriteFile(path, []byte(newContents), 0644))
-}
-
-func enableCacheFeatureFlag(ctx context.Context) context.Context {
-	// TODO: this incoming context hack will be removed in
-	// https://gitlab.com/gitlab-org/gitaly/-/merge_requests/2038
-	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, UploadPackCacheFeatureFlagKey)
-	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
-
-	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
-		featureflag.HeaderKey(UploadPackCacheFeatureFlagKey): "true",
-		featureflag.HeaderKey(featureflag.CacheInvalidator):  "true",
-	}))
 }
 
 func clearCache(t testing.TB) {

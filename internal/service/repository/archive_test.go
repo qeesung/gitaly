@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -214,9 +213,6 @@ func TestGetArchiveFailure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
-			// enable cache invalidator to test against bad inputs
-			// See https://gitlab.com/gitlab-org/gitaly/issues/2262
-			ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 			defer cancel()
 
 			req := &gitalypb.GetArchiveRequest{

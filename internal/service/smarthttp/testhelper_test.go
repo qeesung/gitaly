@@ -8,8 +8,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -41,7 +44,16 @@ func testMain(m *testing.M) int {
 }
 
 func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) {
-	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
+	keyer := diskcache.LeaseKeyer{}
+
+	srv := testhelper.NewServer(t,
+		[]grpc.StreamServerInterceptor{
+			cache.StreamInvalidator(keyer, protoregistry.GitalyProtoPreregistered),
+		},
+		[]grpc.UnaryServerInterceptor{
+			cache.UnaryInvalidator(keyer, protoregistry.GitalyProtoPreregistered),
+		},
+	)
 
 	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(serverOpts...))
 	reflection.Register(srv.GrpcServer())
