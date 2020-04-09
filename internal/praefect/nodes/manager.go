@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 	correlation "gitlab.com/gitlab-org/labkit/correlation/grpc"
@@ -212,6 +213,12 @@ func (n *nodeStatus) check(ctx context.Context) (bool, error) {
 			"address": n.Address,
 		}).Warn("error when pinging healthcheck")
 	}
+
+	var gaugeValue float64
+	if status {
+		gaugeValue = 1
+	}
+	metrics.NodeLastHealthcheckGauge.WithLabelValues(n.GetStorage()).Set(gaugeValue)
 
 	return status, err
 }
