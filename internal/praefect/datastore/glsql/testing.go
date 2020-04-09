@@ -82,7 +82,7 @@ func GetDB(t testing.TB, database string) DB {
 	testDBInitOnce.Do(func() {
 		sqlDB := initGitalyTestDB(t, database)
 
-		_, mErr := Migrate(sqlDB)
+		_, mErr := Migrate(sqlDB, false)
 		require.NoError(t, mErr, "failed to run database migration")
 		testDB = DB{DB: sqlDB}
 	})

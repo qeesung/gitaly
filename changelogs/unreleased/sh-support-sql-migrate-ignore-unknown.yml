@@ -1,0 +1,5 @@
+---
+title: Support ignoring unknown Praefect migrations
+merge_request: 2039
+author:
+type: changed

@@ -86,10 +86,14 @@ func (s *sqlPingSubcommand) Exec(flags *flag.FlagSet, conf config.Config) error 
 	return nil
 }
 
-type sqlMigrateSubcommand struct{}
+type sqlMigrateSubcommand struct {
+	ignoreUnknown bool
+}
 
 func (s *sqlMigrateSubcommand) FlagSet() *flag.FlagSet {
-	return flag.NewFlagSet("sql-migrate", flag.ExitOnError)
+	flags := flag.NewFlagSet("sql-migrate", flag.ExitOnError)
+	flags.BoolVar(&s.ignoreUnknown, "ignore-unknown", false, "ignore unknown migrations (default is false)")
+	return flags
 }
 
 func (s *sqlMigrateSubcommand) Exec(flags *flag.FlagSet, conf config.Config) error {
@@ -101,7 +105,7 @@ func (s *sqlMigrateSubcommand) Exec(flags *flag.FlagSet, conf config.Config) err
 	}
 	defer clean()
 
-	n, err := glsql.Migrate(db)
+	n, err := glsql.Migrate(db, s.ignoreUnknown)
 	if err != nil {
 		return fmt.Errorf("%s: fail: %v", subCmd, err)
 	}
