@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +51,6 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 	defer cancel()
 
 	testRepo := testhelper.TestRepository()
-	log.Print(testRepo)
 
 	request := &gitalypb.InfoRefsRequest{
 		Repository: testRepo,
