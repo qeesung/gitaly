@@ -1,0 +1,5 @@
+---
+title: Fix localElector locking issues
+merge_request: 2030
+author:
+type: fixed

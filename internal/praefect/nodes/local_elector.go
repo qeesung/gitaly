@@ -10,8 +10,8 @@ import (
 )
 
 type nodeCandidate struct {
+	m        sync.RWMutex
 	node     Node
-	primary  bool
 	statuses []bool
 }
 
@@ -32,7 +32,23 @@ type localElector struct {
 // for deeming a node "healthy"
 const healthcheckThreshold = 3
 
+func (n *nodeCandidate) checkNode(ctx context.Context) {
+	status, _ := n.node.check(ctx)
+
+	n.m.Lock()
+	defer n.m.Unlock()
+
+	n.statuses = append(n.statuses, status)
+
+	if len(n.statuses) > healthcheckThreshold {
+		n.statuses = n.statuses[1:]
+	}
+}
+
 func (n *nodeCandidate) isHealthy() bool {
+	n.m.RLock()
+	defer n.m.RUnlock()
+
 	if len(n.statuses) < healthcheckThreshold {
 		return false
 	}
@@ -50,8 +66,7 @@ func newLocalElector(name string, failoverEnabled bool, log logrus.FieldLogger, 
 	nodes := make([]*nodeCandidate, len(ns))
 	for i, n := range ns {
 		nodes[i] = &nodeCandidate{
-			node:    n,
-			primary: i == 0,
+			node: n,
 		}
 	}
 
@@ -104,18 +119,14 @@ func (s *localElector) monitor(d time.Duration) {
 // checkNodes issues a gRPC health check for each node managed by the
 // shard.
 func (s *localElector) checkNodes(ctx context.Context) error {
-	s.m.Lock()
 	defer s.updateMetrics()
-	defer s.m.Unlock()
 
 	for _, n := range s.nodes {
-		status, _ := n.node.check(ctx)
-		n.statuses = append(n.statuses, status)
-
-		if len(n.statuses) > healthcheckThreshold {
-			n.statuses = n.statuses[1:]
-		}
+		n.checkNode(ctx)
 	}
+
+	s.m.Lock()
+	defer s.m.Unlock()
 
 	if s.primaryNode != nil && s.primaryNode.isHealthy() {
 		return nil
@@ -124,7 +135,7 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 	var newPrimary *nodeCandidate
 
 	for _, node := range s.nodes {
-		if !node.primary && node.isHealthy() {
+		if node != s.primaryNode && node.isHealthy() {
 			newPrimary = node
 			break
 		}
@@ -134,9 +145,7 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 		return ErrPrimaryNotHealthy
 	}
 
-	s.primaryNode.primary = false
 	s.primaryNode = newPrimary
-	newPrimary.primary = true
 
 	return nil
 }
@@ -146,27 +155,29 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 // ErrPrimaryNotHealthy.
 func (s *localElector) GetPrimary() (Node, error) {
 	s.m.RLock()
-	defer s.m.RUnlock()
+	primary := s.primaryNode
+	s.m.RUnlock()
 
-	if s.primaryNode == nil {
+	if primary == nil {
 		return nil, ErrPrimaryNotHealthy
 	}
 
-	if s.failoverEnabled && !s.primaryNode.isHealthy() {
-		return s.primaryNode.node, ErrPrimaryNotHealthy
+	if s.failoverEnabled && !primary.isHealthy() {
+		return primary.node, ErrPrimaryNotHealthy
 	}
 
-	return s.primaryNode.node, nil
+	return primary.node, nil
 }
 
 // GetSecondaries gets the secondaries of a shard
 func (s *localElector) GetSecondaries() ([]Node, error) {
 	s.m.RLock()
-	defer s.m.RUnlock()
+	primary := s.primaryNode
+	s.m.RUnlock()
 
 	var secondaries []Node
 	for _, n := range s.nodes {
-		if !n.primary {
+		if n != primary {
 			secondaries = append(secondaries, n.node)
 		}
 	}
@@ -176,15 +187,16 @@ func (s *localElector) GetSecondaries() ([]Node, error) {
 
 func (s *localElector) updateMetrics() {
 	s.m.RLock()
-	defer s.m.RUnlock()
+	primary := s.primaryNode
+	s.m.RUnlock()
 
-	for _, node := range s.nodes {
+	for _, n := range s.nodes {
 		var val float64
 
-		if node.primary {
+		if n == primary {
 			val = 1
 		}
 
-		metrics.PrimaryGauge.WithLabelValues(s.shardName, node.node.GetStorage()).Set(val)
+		metrics.PrimaryGauge.WithLabelValues(s.shardName, n.node.GetStorage()).Set(val)
 	}
 }
