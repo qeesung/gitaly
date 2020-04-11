@@ -104,47 +104,12 @@ func setupDiskCacheWalker(t testing.TB) func() {
 		},
 	}
 
-	satisfyConfigValidation(tmpPath)
-
 	cleanup := func() {
 		config.Config.Storages = oldStorages
 		require.NoError(t, os.RemoveAll(tmpPath))
 	}
 
 	return cleanup
-}
-
-// satisfyConfigValidation puts garbage values in the config file to satisfy
-// validation
-func satisfyConfigValidation(tmpPath string) error {
-	config.Config.ListenAddr = "meow"
-
-	if err := os.MkdirAll(filepath.Join(tmpPath, "hooks"), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(tmpPath, "git-hooks"), 0700); err != nil {
-		return err
-	}
-
-	for _, filePath := range []string{
-		filepath.Join("ruby", "git-hooks", "pre-receive"),
-		filepath.Join("ruby", "git-hooks", "post-receive"),
-		filepath.Join("ruby", "git-hooks", "update"),
-	} {
-		if err := ioutil.WriteFile(filepath.Join(tmpPath, filePath), nil, 0755); err != nil {
-			return err
-		}
-	}
-	config.Config.GitlabShell = config.GitlabShell{
-		Dir: filepath.Join(tmpPath, "gitlab-shell"),
-	}
-	config.Config.Ruby = config.Ruby{
-		Dir: filepath.Join(tmpPath, "ruby"),
-	}
-
-	config.Config.BinDir = filepath.Join(tmpPath, "bin")
-
-	return nil
 }
 
 func pollCountersUntil(t testing.TB, expectRemovals int) {

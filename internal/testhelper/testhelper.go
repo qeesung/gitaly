@@ -68,6 +68,14 @@ func Configure() {
 
 		config.Config.InternalSocketDir = dir
 
+		if err := os.MkdirAll("testdata/gitaly-libexec", 0755); err != nil {
+			log.Fatal(err)
+		}
+		config.Config.BinDir, err = filepath.Abs("testdata/gitaly-libexec")
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		for _, f := range []func() error{
 			ConfigureRuby,
 			ConfigureGit,
@@ -448,7 +456,7 @@ func initRepo(t TB, bare bool) (*gitalypb.Repository, string, func()) {
 		repo.RelativePath = path.Join(repo.RelativePath, ".git")
 	}
 
-	return repo, repoPath, func() { os.RemoveAll(repoPath) }
+	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }
 
 // NewTestRepo creates a bare copy of the test repository.
@@ -481,7 +489,7 @@ func cloneTestRepo(t TB, bare bool) (repo *gitalypb.Repository, repoPath string,
 
 	MustRunCommand(t, nil, "git", append(args, testRepoPath, repoPath)...)
 
-	return repo, repoPath, func() { os.RemoveAll(repoPath) }
+	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }
 
 // AddWorktreeArgs returns git command arguments for adding a worktree at the
@@ -497,13 +505,6 @@ func AddWorktree(t TB, repoPath string, worktreeName string) {
 
 // ConfigureGitalySSH configures the gitaly-ssh command for tests
 func ConfigureGitalySSH() {
-	var err error
-
-	config.Config.BinDir, err = filepath.Abs("testdata/gitaly-libexec")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	goBuildArgs := []string{
 		"build",
 		"-o",
@@ -562,21 +563,16 @@ func CreateLooseRef(t TB, repoPath, refName string) {
 }
 
 // TempDir is a wrapper around ioutil.TempDir that provides a cleanup function.
-// The returned temp directory will be created in the directory specified by
-// environment variable TEST_TEMP_DIR_PATH. If that variable is unset, the
-// relative folder "./testdata/tmp" to this source file will be used.
-func TempDir(t TB, prefix string) (string, func() error) {
+func TempDir(t TB) (string, func()) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		log.Fatal("Could not get caller info")
 	}
 
 	rootTmpDir := path.Join(path.Dir(currentFile), "testdata/tmp")
-	dirPath, err := ioutil.TempDir(rootTmpDir, prefix)
+	tmpDir, err := ioutil.TempDir(rootTmpDir, "")
 	require.NoError(t, err)
-	return dirPath, func() error {
-		return os.RemoveAll(dirPath)
-	}
+	return tmpDir, func() { require.NoError(t, os.RemoveAll(tmpDir)) }
 }
 
 // GitObjectMustExist is a test assertion that fails unless the git repo in repoPath contains sha

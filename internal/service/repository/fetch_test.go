@@ -32,8 +32,11 @@ func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-	targetRepo, _ := newTestRepo(t, "fetch-source-target.git")
+	targetRepo, targetPath := newTestRepo(t, "fetch-source-target.git")
+	defer func() { require.NoError(t, os.RemoveAll(targetPath)) }()
+
 	sourceRepo, sourcePath := newTestRepo(t, "fetch-source-source.git")
+	defer func() { require.NoError(t, os.RemoveAll(sourcePath)) }()
 
 	sourceBranch := "fetch-source-branch-test-branch"
 	newCommitID := testhelper.CreateCommit(t, sourcePath, sourceBranch, nil)
@@ -69,6 +72,7 @@ func TestFetchSourceBranchSameRepositorySuccess(t *testing.T) {
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 	repo, repoPath := newTestRepo(t, "fetch-source-source.git")
+	defer func() { require.NoError(t, os.RemoveAll(repoPath)) }()
 
 	sourceBranch := "fetch-source-branch-test-branch"
 	newCommitID := testhelper.CreateCommit(t, repoPath, sourceBranch, nil)
@@ -103,8 +107,11 @@ func TestFetchSourceBranchBranchNotFound(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-	targetRepo, _ := newTestRepo(t, "fetch-source-target.git")
-	sourceRepo, _ := newTestRepo(t, "fetch-source-source.git")
+	targetRepo, targetPath := newTestRepo(t, "fetch-source-target.git")
+	defer func() { require.NoError(t, os.RemoveAll(targetPath)) }()
+
+	sourceRepo, sourcePath := newTestRepo(t, "fetch-source-source.git")
+	defer func() { require.NoError(t, os.RemoveAll(sourcePath)) }()
 
 	sourceBranch := "does-not-exist"
 	targetRef := "refs/tmp/fetch-source-branch-test"

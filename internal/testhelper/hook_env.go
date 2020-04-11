@@ -6,7 +6,6 @@ import (
 	"path"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
@@ -37,13 +36,6 @@ env | grep -e ^GIT -e ^GL_ > `+hookOutputFile+"\n"), 0755))
 
 // ConfigureGitalyHooksBinary builds gitaly-hooks command for tests
 func ConfigureGitalyHooksBinary() {
-	var err error
-
-	config.Config.BinDir, err = filepath.Abs("testdata/gitaly-libexec")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	goBuildArgs := []string{
 		"build",
 		"-o",

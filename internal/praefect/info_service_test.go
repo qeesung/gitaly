@@ -44,7 +44,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 		gconfig.Config.Storages = storages
 	}(gconfig.Config.Storages)
 
-	tempDir, cleanupTempDir := testhelper.TempDir(t, "praefect-test")
+	tempDir, cleanupTempDir := testhelper.TempDir(t)
 	defer cleanupTempDir()
 
 	for _, node := range conf.VirtualStorages[0].Nodes {

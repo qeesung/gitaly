@@ -86,6 +86,7 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 
 			_, err = client.CreateFork(ctx, req)
 			require.NoError(t, err)
+			defer func() { require.NoError(t, os.RemoveAll(forkedRepoPath)) }()
 
 			testhelper.MustRunCommand(t, nil, "git", "-C", forkedRepoPath, "fsck")
 

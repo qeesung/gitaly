@@ -23,7 +23,6 @@ const (
 var (
 	testRepo      *gitalypb.Repository
 	gitalySSHPath string
-	cwd           string
 )
 
 func TestMain(m *testing.M) {
@@ -35,7 +34,6 @@ func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
 	hooks.Override = "/"
-	cwd = mustGetCwd()
 
 	err := os.RemoveAll(testPath)
 	if err != nil {
@@ -49,14 +47,6 @@ func testMain(m *testing.M) int {
 	gitalySSHPath = path.Join(config.Config.BinDir, "gitaly-ssh")
 
 	return m.Run()
-}
-
-func mustGetCwd() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Panic(err)
-	}
-	return wd
 }
 
 func runSSHServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) {

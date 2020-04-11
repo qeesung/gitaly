@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -21,10 +22,7 @@ func TestRenameRepositorySuccess(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	tempDir, cleanupTempDir := testhelper.TempDir(t, t.Name())
-	defer cleanupTempDir()
-
-	destinationPath := filepath.Join(tempDir, "a", "new", "location")
+	destinationPath := filepath.Join("a-new-location")
 
 	req := &gitalypb.RenameRepositoryRequest{Repository: testRepo, RelativePath: destinationPath}
 
@@ -37,6 +35,7 @@ func TestRenameRepositorySuccess(t *testing.T) {
 	newDirectory, err := helper.GetPath(&gitalypb.Repository{StorageName: "default", RelativePath: destinationPath})
 	require.NoError(t, err)
 	require.DirExists(t, newDirectory)
+	defer func() { require.NoError(t, os.RemoveAll(newDirectory)) }()
 
 	require.True(t, helper.IsGitDirectory(newDirectory), "moved Git repository has been corrupted")
 

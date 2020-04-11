@@ -560,13 +560,17 @@ func TestRepoRename(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.GetExists(), "repo with new name must exist")
 	require.DirExists(t, expNewPath0, "must be renamed on secondary from %q to %q", path0, expNewPath0)
+	defer func() { require.NoError(t, os.RemoveAll(expNewPath0)) }()
 
 	// the renaming of the repo on the secondary servers is not deterministic
 	// since it relies on eventually consistent replication
 	pollUntilRemoved(t, path1, time.After(10*time.Second))
 	require.DirExists(t, expNewPath1, "must be renamed on secondary from %q to %q", path1, expNewPath1)
+	defer func() { require.NoError(t, os.RemoveAll(expNewPath1)) }()
+
 	pollUntilRemoved(t, path2, time.After(10*time.Second))
 	require.DirExists(t, expNewPath2, "must be renamed on secondary from %q to %q", path2, expNewPath2)
+	defer func() { require.NoError(t, os.RemoveAll(expNewPath2)) }()
 }
 
 func tempStoragePath(t testing.TB) string {
