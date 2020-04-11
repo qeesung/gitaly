@@ -92,9 +92,9 @@ func GetDB(t testing.TB, database string) DB {
 	return testDB
 }
 
-func initGitalyTestDB(t testing.TB, database string) *sql.DB {
-	t.Helper()
-
+// GetDBConfig returns the database configuration determined by
+// environment variables.  See GetDB() for the list of variables.
+func GetDBConfig(t testing.TB, database string) config.DB {
 	getEnvFromGDK(t)
 
 	host, hostFound := os.LookupEnv("PGHOST")
@@ -106,13 +106,19 @@ func initGitalyTestDB(t testing.TB, database string) *sql.DB {
 	require.NoError(t, pErr, "PGPORT must be a port number of the Postgres database listens for incoming connections")
 
 	// connect to 'postgres' database first to re-create testing database from scratch
-	dbCfg := config.DB{
+	return config.DB{
 		Host:    host,
 		Port:    portNumber,
-		DBName:  "postgres",
+		DBName:  database,
 		SSLMode: "disable",
 		User:    os.Getenv("PGUSER"),
 	}
+}
+
+func initGitalyTestDB(t testing.TB, database string) *sql.DB {
+	t.Helper()
+
+	dbCfg := GetDBConfig(t, "postgres")
 
 	postgresDB, oErr := OpenDB(dbCfg)
 	require.NoError(t, oErr, "failed to connect to 'postgres' database")

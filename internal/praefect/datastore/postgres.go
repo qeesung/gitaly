@@ -12,6 +12,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/migrations"
 )
 
+// MigrationStatusRow represents an entry in the schema migrations table.
+// If the migration is in the database but is not listed, Unknown will be true.
+type MigrationStatusRow struct {
+	Migrated  bool
+	Unknown   bool
+	AppliedAt time.Time
+}
+
 // CheckPostgresVersion checks the server version of the Postgres DB
 // specified in conf. This is a diagnostic for the Praefect Postgres
 // rollout. https://gitlab.com/gitlab-org/gitaly/issues/1755
@@ -64,6 +72,47 @@ func MigrateDown(conf config.Config, max int) (int, error) {
 	defer db.Close()
 
 	return migrate.ExecMax(db, sqlMigrateDialect, migrationSource(), migrate.Down, max)
+}
+
+// MigrateStatus returns the status of database migrations. The key of the map
+// indexes the migration ID.
+func MigrateStatus(conf config.Config) (map[string]*MigrationStatusRow, error) {
+	db, err := glsql.OpenDB(conf.DB)
+	if err != nil {
+		return nil, fmt.Errorf("sql open: %v", err)
+	}
+	defer db.Close()
+
+	migrations, err := migrationSource().FindMigrations()
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := migrate.GetMigrationRecords(db, sqlMigrateDialect)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make(map[string]*MigrationStatusRow)
+
+	for _, m := range migrations {
+		rows[m.Id] = &MigrationStatusRow{
+			Migrated: false,
+		}
+	}
+
+	for _, r := range records {
+		if rows[r.Id] == nil {
+			rows[r.Id] = &MigrationStatusRow{
+				Unknown: true,
+			}
+		}
+
+		rows[r.Id].Migrated = true
+		rows[r.Id].AppliedAt = r.AppliedAt
+	}
+
+	return rows, nil
 }
 
 func migrationSource() *migrate.MemoryMigrationSource {

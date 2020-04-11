@@ -24,11 +24,12 @@ type subcmd interface {
 
 var (
 	subcommands = map[string]subcmd{
-		"sql-ping":         &sqlPingSubcommand{},
-		"sql-migrate":      &sqlMigrateSubcommand{},
-		"dial-nodes":       &dialNodesSubcommand{},
-		"reconcile":        &reconcileSubcommand{},
-		"sql-migrate-down": &sqlMigrateDownSubcommand{},
+		"sql-ping":           &sqlPingSubcommand{},
+		"sql-migrate":        &sqlMigrateSubcommand{},
+		"dial-nodes":         &dialNodesSubcommand{},
+		"reconcile":          &reconcileSubcommand{},
+		"sql-migrate-down":   &sqlMigrateDownSubcommand{},
+		"sql-migrate-status": &sqlMigrateStatusSubcommand{},
 	}
 )
 
