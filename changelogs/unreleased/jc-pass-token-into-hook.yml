@@ -1,0 +1,5 @@
+---
+title: Pass gitaly token into gitaly-hooks
+merge_request: 2035
+author:
+type: fixed

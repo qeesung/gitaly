@@ -65,7 +65,12 @@ func main() {
 		logger.Fatal(errors.New("GITALY_SOCKET not set"))
 	}
 
-	conn, err := client.Dial("unix://"+gitalySocket, dialOpts(os.Getenv("GITALY_TOKEN")))
+	gitalyToken, ok := os.LookupEnv("GITALY_TOKEN")
+	if !ok {
+		logger.Fatal(errors.New("GITALY_TOKEN not set"))
+	}
+
+	conn, err := client.Dial("unix://"+gitalySocket, dialOpts(gitalyToken))
 	if err != nil {
 		logger.Fatalf("error when dialing: %v", err)
 	}

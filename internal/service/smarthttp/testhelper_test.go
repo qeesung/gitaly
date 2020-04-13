@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -40,7 +41,7 @@ func testMain(m *testing.M) int {
 }
 
 func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) {
-	srv := testhelper.NewServer(t, nil, nil)
+	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
 
 	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(serverOpts...))
 	reflection.Register(srv.GrpcServer())
@@ -53,6 +54,7 @@ func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) 
 func newSmartHTTPClient(t *testing.T, serverSocketPath string) (gitalypb.SmartHTTPServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(config.Config.Auth.Token)),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {

@@ -353,6 +353,11 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 	glRepository := "some_repo"
 	glID := "key-123"
 
+	defer func(token string) {
+		config.Config.Auth.Token = token
+	}(config.Config.Auth.Token)
+	config.Config.Auth.Token = "abc123"
+
 	server, socket := runSmartHTTPHookServiceServer(t)
 	defer server.Stop()
 

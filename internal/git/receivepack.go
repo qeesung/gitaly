@@ -35,6 +35,7 @@ func HookEnv(req ReceivePackRequest) ([]string, error) {
 		fmt.Sprintf("GL_REPOSITORY=%s", req.GetGlRepository()),
 		fmt.Sprintf("GITALY_SOCKET=" + config.GitalyInternalSocketPath()),
 		fmt.Sprintf("GITALY_REPO=%s", repo),
+		fmt.Sprintf("GITALY_TOKEN=%s", config.Config.Auth.Token),
 	}, gitlabshell.Env()...), nil
 }
 
