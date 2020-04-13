@@ -2,7 +2,6 @@ package featureflag
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -55,7 +54,31 @@ func IsDisabled(ctx context.Context, flag string) bool {
 	return !IsEnabled(ctx, flag)
 }
 
+const ffPrefix = "gitaly-feature-"
+
 // HeaderKey returns the feature flag key to be used in the metadata map
 func HeaderKey(flag string) string {
-	return fmt.Sprintf("gitaly-feature-%s", strings.ReplaceAll(flag, "_", "-"))
+	return ffPrefix + strings.ReplaceAll(flag, "_", "-")
+}
+
+// AllEnabledFlags returns all feature flags that use the Gitaly metadata
+// prefix and are enabled. Note: results will not be sorted.
+func AllEnabledFlags(ctx context.Context) []string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil
+	}
+
+	ffs := make([]string, 0, len(md))
+
+	for k, v := range md {
+		if !strings.HasPrefix(k, ffPrefix) {
+			continue
+		}
+		if len(v) > 0 && v[0] == "true" {
+			ffs = append(ffs, strings.TrimPrefix(k, ffPrefix))
+		}
+	}
+
+	return ffs
 }

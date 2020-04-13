@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -89,6 +90,13 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 	// store new value for same cache value but at new generation
 	expectStream2 := "not what you were looking for"
 	require.NoError(t, db.PutStream(ctx, req1.Repository, req1, strings.NewReader(expectStream2)))
+	expectGetHit(expectStream2, req1)
+
+	// enabled feature flags affect caching
+	oldCtx := ctx
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, "meow")
+	expectGetMiss(req1)
+	ctx = oldCtx
 	expectGetHit(expectStream2, req1)
 
 	// start critical section without closing

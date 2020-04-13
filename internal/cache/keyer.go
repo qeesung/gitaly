@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -16,6 +18,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
@@ -311,11 +314,15 @@ func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (
 
 	h := sha256.New()
 
+	ffs := featureflag.AllEnabledFlags(ctx)
+	sort.StringSlice(ffs).Sort()
+
 	for _, i := range []string{
 		version.GetVersion(),
 		method,
 		genID,
 		string(reqSum),
+		strings.Join(ffs, " "),
 	} {
 		_, err := h.Write(prefixLen(i))
 		if err != nil {

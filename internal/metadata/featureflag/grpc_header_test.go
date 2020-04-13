@@ -33,3 +33,18 @@ func TestGRPCMetadataFeatureFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestAllEnabledFlags(t *testing.T) {
+	ctx := metadata.NewIncomingContext(
+		context.Background(),
+		metadata.New(
+			map[string]string{
+				ffPrefix + "meow": "true",
+				ffPrefix + "foo":  "true",
+				ffPrefix + "woof": "false", // not enabled
+				ffPrefix + "bar":  "TRUE",  // not enabled
+			},
+		),
+	)
+	assert.ElementsMatch(t, AllEnabledFlags(ctx), []string{"meow", "foo"})
+}
