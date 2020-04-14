@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -36,6 +37,10 @@ env | grep -e ^GIT -e ^GL_ > `+hookOutputFile+"\n"), 0755))
 
 // ConfigureGitalyHooksBinary builds gitaly-hooks command for tests
 func ConfigureGitalyHooksBinary() {
+	if config.Config.BinDir == "" {
+		log.Fatal("config.Config.BinDir must be set")
+	}
+
 	goBuildArgs := []string{
 		"build",
 		"-o",

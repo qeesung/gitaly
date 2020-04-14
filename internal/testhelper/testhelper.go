@@ -505,6 +505,10 @@ func AddWorktree(t TB, repoPath string, worktreeName string) {
 
 // ConfigureGitalySSH configures the gitaly-ssh command for tests
 func ConfigureGitalySSH() {
+	if config.Config.BinDir == "" {
+		log.Fatal("config.Config.BinDir must be set")
+	}
+
 	goBuildArgs := []string{
 		"build",
 		"-o",
