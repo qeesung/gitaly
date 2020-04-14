@@ -256,7 +256,13 @@ func check(configPath string) (int, error) {
 	cmd := exec.Command(filepath.Join(c.GitlabShell.Dir, "bin", "check"))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), gitlabshell.EnvFromConfig(c)...)
+	gitlabshellEnv, err := gitlabshell.EnvFromConfig(c)
+	if err != nil {
+		fmt.Println(err)
+		return 1, err
+	}
+
+	cmd.Env = append(os.Environ(), gitlabshellEnv...)
 
 	if err = cmd.Run(); err != nil {
 		if status, ok := command.ExitStatus(err); ok {
