@@ -1,6 +1,6 @@
 package git
 
-// UploadPackFilterConfig confins config options that are required to allow
+// UploadPackFilterConfig confines config options that are required to allow
 // partial-clone filters.
 func UploadPackFilterConfig() []Option {
 	return []Option{

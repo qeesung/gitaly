@@ -15,6 +15,7 @@ linters:
     - ineffassign
     - megacheck
     - varcheck
+    - misspell
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
