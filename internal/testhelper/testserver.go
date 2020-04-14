@@ -27,6 +27,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	praefectconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -446,12 +447,16 @@ func WriteTemporaryGitlabShellConfigFile(t TB, dir string, config GitlabShellCon
 
 // WriteTemporaryGitalyConfigFile writes a gitaly toml file into a temporary directory. It returns the path to
 // the file as well as a cleanup function
-func WriteTemporaryGitalyConfigFile(t TB, tempDir string) (string, func()) {
+func WriteTemporaryGitalyConfigFile(t TB, tempDir, gitlabURL, user, password string) (string, func()) {
 	path := filepath.Join(tempDir, "config.toml")
 	contents := fmt.Sprintf(`
 [gitlab-shell]
   dir = "%s/gitlab-shell"
-`, tempDir)
+  gitlab_url = "%s"
+  [gitlab-shell.http-settings]
+    user = "%s"
+    password = "%s"
+`, tempDir, gitlabURL, user, password)
 	require.NoError(t, ioutil.WriteFile(path, []byte(contents), 0644))
 
 	return path, func() {
@@ -474,8 +479,10 @@ func EnvForHooks(t TB, gitlabShellDir, gitalySocket string, repo *gitalypb.Repos
 	repoString, err := jsonpbMarshaller.MarshalToString(repo)
 	require.NoError(t, err)
 
-	env := append(append([]string{
-		fmt.Sprintf("GITALY_BIN_DIR=%s", config.Config.BinDir),
+	env, err := gitlabshell.EnvFromConfig(config.Config)
+	require.NoError(t, err)
+
+	env = append(env, append(append([]string{
 		fmt.Sprintf("GITALY_RUBY_DIR=%s", rubyDir),
 		fmt.Sprintf("GL_ID=%s", glHookValues.GLID),
 		fmt.Sprintf("GL_REPOSITORY=%s", glHookValues.GLRepo),
@@ -487,7 +494,7 @@ func EnvForHooks(t TB, gitlabShellDir, gitalySocket string, repo *gitalypb.Repos
 		fmt.Sprintf("GITALY_LOG_DIR=%s", gitlabShellDir),
 		"GITALY_LOG_LEVEL=info",
 		"GITALY_LOG_FORMAT=json",
-	}, os.Environ()...), hooks.GitPushOptions(gitPushOptions)...)
+	}, os.Environ()...), hooks.GitPushOptions(gitPushOptions)...)...)
 
 	if glHookValues.GitObjectDir != "" {
 		env = append(env, fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", glHookValues.GitObjectDir))
