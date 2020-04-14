@@ -767,7 +767,6 @@ func newRepositoryClient(t *testing.T, serverSocketPath string) (gitalypb.Reposi
 var RubyServer = &rubyserver.Server{}
 
 func TestMain(m *testing.M) {
-	testhelper.ConfigureGitalySSH()
 	testhelper.Configure()
 	os.Exit(testMain(m))
 }
@@ -782,6 +781,8 @@ func testMain(m *testing.M) int {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	testhelper.ConfigureGitalySSH()
 
 	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)

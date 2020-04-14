@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"path/filepath"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,12 +21,7 @@ func TestRenameRepositorySuccess(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	tempDir, cleanupTempDir := testhelper.TempDir(t, t.Name())
-	defer cleanupTempDir()
-
-	destinationPath := filepath.Join(tempDir, "a", "new", "location")
-
-	req := &gitalypb.RenameRepositoryRequest{Repository: testRepo, RelativePath: destinationPath}
+	req := &gitalypb.RenameRepositoryRequest{Repository: testRepo, RelativePath: "a-new-location"}
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -34,9 +29,10 @@ func TestRenameRepositorySuccess(t *testing.T) {
 	_, err := client.RenameRepository(ctx, req)
 	require.NoError(t, err)
 
-	newDirectory, err := helper.GetPath(&gitalypb.Repository{StorageName: "default", RelativePath: destinationPath})
+	newDirectory, err := helper.GetPath(&gitalypb.Repository{StorageName: "default", RelativePath: req.RelativePath})
 	require.NoError(t, err)
 	require.DirExists(t, newDirectory)
+	defer func() { require.NoError(t, os.RemoveAll(newDirectory)) }()
 
 	require.True(t, helper.IsGitDirectory(newDirectory), "moved Git repository has been corrupted")
 

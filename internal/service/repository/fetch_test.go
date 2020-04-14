@@ -32,8 +32,11 @@ func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-	targetRepo, _ := newTestRepo(t, "fetch-source-target.git")
-	sourceRepo, sourcePath := newTestRepo(t, "fetch-source-source.git")
+	targetRepo, _, cleanup := newTestRepo(t, "fetch-source-target.git")
+	defer cleanup()
+
+	sourceRepo, sourcePath, cleanup := newTestRepo(t, "fetch-source-source.git")
+	defer cleanup()
 
 	sourceBranch := "fetch-source-branch-test-branch"
 	newCommitID := testhelper.CreateCommit(t, sourcePath, sourceBranch, nil)
@@ -68,7 +71,8 @@ func TestFetchSourceBranchSameRepositorySuccess(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-	repo, repoPath := newTestRepo(t, "fetch-source-source.git")
+	repo, repoPath, cleanup := newTestRepo(t, "fetch-source-source.git")
+	defer cleanup()
 
 	sourceBranch := "fetch-source-branch-test-branch"
 	newCommitID := testhelper.CreateCommit(t, repoPath, sourceBranch, nil)
@@ -103,8 +107,11 @@ func TestFetchSourceBranchBranchNotFound(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-	targetRepo, _ := newTestRepo(t, "fetch-source-target.git")
-	sourceRepo, _ := newTestRepo(t, "fetch-source-source.git")
+	targetRepo, _, cleanup := newTestRepo(t, "fetch-source-target.git")
+	defer cleanup()
+
+	sourceRepo, _, cleanup := newTestRepo(t, "fetch-source-source.git")
+	defer cleanup()
 
 	sourceBranch := "does-not-exist"
 	targetRef := "refs/tmp/fetch-source-branch-test"
@@ -168,7 +175,7 @@ func TestFetchFullServerRequiresAuthentication(t *testing.T) {
 	testhelper.RequireGrpcError(t, err, codes.Unauthenticated)
 }
 
-func newTestRepo(t *testing.T, relativePath string) (*gitalypb.Repository, string) {
+func newTestRepo(t *testing.T, relativePath string) (*gitalypb.Repository, string, func()) {
 	_, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -180,7 +187,7 @@ func newTestRepo(t *testing.T, relativePath string) (*gitalypb.Repository, strin
 	require.NoError(t, os.RemoveAll(repoPath))
 	testhelper.MustRunCommand(t, nil, "git", "clone", "--bare", testRepoPath, repoPath)
 
-	return repo, repoPath
+	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }
 
 func runFullServer(t *testing.T) (*grpc.Server, string) {

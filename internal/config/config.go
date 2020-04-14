@@ -319,8 +319,7 @@ func (c Cfg) Storage(storageName string) (Storage, bool) {
 func validateBinDir() error {
 	if err := validateIsDirectory(Config.BinDir, "bin_dir"); err != nil {
 		log.WithError(err).Warn("Gitaly bin directory is not configured")
-		// TODO this must become a fatal error
-		return nil
+		return err
 	}
 
 	var err error

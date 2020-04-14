@@ -15,7 +15,7 @@ import (
 )
 
 func TestFile(t *testing.T) {
-	dir, cleanup := testhelper.TempDir(t, t.Name())
+	dir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
 
 	filePath := filepath.Join(dir, "test_file_contents")
@@ -41,7 +41,7 @@ func TestFile(t *testing.T) {
 }
 
 func TestFileRace(t *testing.T) {
-	dir, cleanup := testhelper.TempDir(t, t.Name())
+	dir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
 
 	filePath := filepath.Join(dir, "test_file_contents")
@@ -68,7 +68,7 @@ func TestFileRace(t *testing.T) {
 }
 
 func TestFileCloseBeforeCommit(t *testing.T) {
-	dir, cleanup := testhelper.TempDir(t, t.Name())
+	dir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
 
 	dstPath := filepath.Join(dir, "safety_meow")
@@ -87,7 +87,7 @@ func TestFileCloseBeforeCommit(t *testing.T) {
 }
 
 func TestFileCommitBeforeClose(t *testing.T) {
-	dir, cleanup := testhelper.TempDir(t, t.Name())
+	dir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
 
 	dstPath := filepath.Join(dir, "safety_meow")

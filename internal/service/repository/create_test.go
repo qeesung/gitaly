@@ -35,6 +35,7 @@ func TestCreateRepositorySuccess(t *testing.T) {
 	req := &gitalypb.CreateRepositoryRequest{Repository: repo}
 	_, err = client.CreateRepository(ctx, req)
 	require.NoError(t, err)
+	defer func() { require.NoError(t, os.RemoveAll(repoDir)) }()
 
 	fi, err := os.Stat(repoDir)
 	require.NoError(t, err)
