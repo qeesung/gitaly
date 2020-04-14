@@ -41,8 +41,7 @@ module Gitlab
             GitalyServer.repo_path(call),
             GitalyServer.gl_repository(call),
             Gitlab::Git::GitlabProjects.from_gitaly(gitaly_repository, call),
-            GitalyServer.repo_alt_dirs(call),
-            GitalyServer.feature_flags(call)
+            GitalyServer.repo_alt_dirs(call)
           )
         end
 
@@ -64,7 +63,7 @@ module Gitlab
 
       attr_reader :gitlab_projects, :storage, :gl_repository, :relative_path
 
-      def initialize(gitaly_repository, path, gl_repository, gitlab_projects, combined_alt_dirs = "", feature_flags = GitalyServer::FeatureFlags.new({}))
+      def initialize(gitaly_repository, path, gl_repository, gitlab_projects, combined_alt_dirs = "")
         @gitaly_repository = gitaly_repository
 
         @alternate_object_directories = combined_alt_dirs
@@ -76,15 +75,10 @@ module Gitlab
         @path = path
         @gl_repository = gl_repository
         @gitlab_projects = gitlab_projects
-        @feature_flags = feature_flags
       end
 
       def ==(other)
         [storage, relative_path] == [other.storage, other.relative_path]
-      end
-
-      def feature_enabled?(flag)
-        @feature_flags.enabled?(flag)
       end
 
       def add_branch(branch_name, user:, target:)

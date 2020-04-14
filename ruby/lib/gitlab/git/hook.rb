@@ -115,10 +115,7 @@ module Gitlab
           'GL_REPOSITORY' => repository.gl_repository,
           'GL_PROTOCOL' => GL_PROTOCOL,
           'PWD' => repo_path,
-          'GIT_DIR' => repo_path,
-          'GITALY_REPO' => repository.gitaly_repository.to_json,
-          'GITALY_SOCKET' => Gitlab.config.gitaly.internal_socket,
-          'GITALY_HOOK_RPCS_ENABLED' => repository.feature_enabled?('call-hook-rpc').to_s
+          'GIT_DIR' => repo_path
         }
       end
     end
