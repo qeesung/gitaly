@@ -114,7 +114,7 @@ func TestRepackLocal(t *testing.T) {
 
 	packContents := testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "verify-pack", "-v", packFiles[0])
 	require.NotContains(t, string(packContents), string(altDirsCommit))
-	require.Contains(t, string(packContents), string(repoCommit))
+	require.Contains(t, string(packContents), repoCommit)
 }
 
 func TestRepackIncrementalFailure(t *testing.T) {

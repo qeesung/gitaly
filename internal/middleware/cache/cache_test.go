@@ -32,14 +32,10 @@ func TestInvalidators(t *testing.T) {
 
 	srvr := grpc.NewServer(
 		grpc.StreamInterceptor(
-			grpc.StreamServerInterceptor(
-				cache.StreamInvalidator(mCache, reg),
-			),
+			cache.StreamInvalidator(mCache, reg),
 		),
 		grpc.UnaryInterceptor(
-			grpc.UnaryServerInterceptor(
-				cache.UnaryInvalidator(mCache, reg),
-			),
+			cache.UnaryInvalidator(mCache, reg),
 		),
 	)
 

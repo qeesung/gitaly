@@ -77,7 +77,7 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 			request := &gitalypb.LastCommitForPathRequest{
 				Repository: testRepo,
 				Revision:   []byte(testCase.revision),
-				Path:       []byte(testCase.path),
+				Path:       testCase.path,
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())

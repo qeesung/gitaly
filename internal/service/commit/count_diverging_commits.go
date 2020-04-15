@@ -79,12 +79,12 @@ func findLeftRightCount(ctx context.Context, repo *gitalypb.Repository, from, to
 		return 0, 0, fmt.Errorf("invalid output from git rev-list --left-right: %v", string(countStr))
 	}
 
-	leftCount, err = strconv.ParseInt(string(counts[0]), 10, 32)
+	leftCount, err = strconv.ParseInt(counts[0], 10, 32)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid left count value: %v", counts[0])
 	}
 
-	rightCount, err = strconv.ParseInt(string(counts[1]), 10, 32)
+	rightCount, err = strconv.ParseInt(counts[1], 10, 32)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid right count value: %v", counts[1])
 	}

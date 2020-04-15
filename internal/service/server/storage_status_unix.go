@@ -16,8 +16,8 @@ func getStorageStatus(shard config.Storage) (*gitalypb.DiskStatisticsResponse_St
 	}
 
 	// Redundant conversions to handle differences between unix families
-	available := int64(stats.Bavail) * int64(stats.Bsize)
-	used := (int64(stats.Blocks) - int64(stats.Bfree)) * int64(stats.Bsize)
+	available := int64(stats.Bavail) * int64(stats.Bsize)                   //nolint:unconvert
+	used := (int64(stats.Blocks) - int64(stats.Bfree)) * int64(stats.Bsize) //nolint:unconvert
 
 	return &gitalypb.DiskStatisticsResponse_StorageStatus{
 		StorageName: shard.Name,

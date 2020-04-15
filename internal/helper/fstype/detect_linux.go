@@ -10,7 +10,7 @@ func detectFileSystem(path string) string {
 
 	// This explicit cast to int64 is required for systems where the syscall
 	// returns an int32 instead.
-	fsType, found := magicMap[int64(stat.Type)]
+	fsType, found := magicMap[int64(stat.Type)] //nolint:unconvert
 	if !found {
 		return unknownFS
 	}

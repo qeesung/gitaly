@@ -72,7 +72,7 @@ func refsToRemove(ctx context.Context, req *gitalypb.DeleteRefsRequest) ([]strin
 			continue
 		}
 
-		refs = append(refs, string(refName))
+		refs = append(refs, refName)
 	}
 
 	if err != nil {

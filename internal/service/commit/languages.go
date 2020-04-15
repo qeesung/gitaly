@@ -82,7 +82,7 @@ func (*server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLanguage
 			Share:     float32(100*count) / float32(total),
 			Color:     linguist.Color(lang),
 			FileCount: uint32(fileCountStats[lang]),
-			Bytes:     uint64(stats[lang]),
+			Bytes:     stats[lang],
 		}
 		resp.Languages = append(resp.Languages, l)
 	}

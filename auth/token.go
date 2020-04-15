@@ -89,7 +89,7 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 		return nil, err
 	}
 
-	split := strings.SplitN(string(token), ".", 3)
+	split := strings.SplitN(token, ".", 3)
 
 	// v1 is base64-encoded using base64.StdEncoding, which cannot contain a ".".
 	// A v1 token cannot slip through here.

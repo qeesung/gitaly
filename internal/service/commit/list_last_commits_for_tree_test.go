@@ -353,7 +353,7 @@ func TestNonUtf8ListLastCommitsForTreeRequest(t *testing.T) {
 
 	request := &gitalypb.ListLastCommitsForTreeRequest{
 		Repository: testRepo,
-		Revision:   string(commitID),
+		Revision:   commitID,
 		Limit:      100,
 		Offset:     0,
 	}

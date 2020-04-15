@@ -94,12 +94,12 @@ func (d *ReferenceDiscovery) Parse(body io.Reader) error {
 				return errors.New("invalid first reference line")
 			}
 
-			ref := strings.SplitN(string(split[0]), " ", 2)
+			ref := strings.SplitN(split[0], " ", 2)
 			if len(ref) != 2 {
 				return errors.New("invalid reference line")
 			}
 			d.Refs = append(d.Refs, Reference{Oid: ref[0], Name: ref[1]})
-			d.Caps = strings.Split(string(split[1]), " ")
+			d.Caps = strings.Split(split[1], " ")
 
 			state = referenceDiscoveryExpectRef
 		case referenceDiscoveryExpectRef:

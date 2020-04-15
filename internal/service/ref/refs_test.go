@@ -515,7 +515,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 	expectedTags := []*gitalypb.Tag{
 		{
 			Name:         []byte(commitID),
-			Id:           string(commitTagID),
+			Id:           commitTagID,
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
@@ -528,7 +528,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		},
 		{
 			Name:         []byte("tag-of-tag"),
-			Id:           string(tagOfTagID),
+			Id:           tagOfTagID,
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
@@ -619,7 +619,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		},
 		{
 			Name:        []byte("v1.2.0"),
-			Id:          string(annotatedTagID),
+			Id:          annotatedTagID,
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
 			Tagger: &gitalypb.CommitAuthor{
@@ -631,26 +631,26 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 		},
 		{
 			Name:         []byte("v1.3.0"),
-			Id:           string(commitID),
+			Id:           commitID,
 			TargetCommit: gitCommit,
 		},
 		{
 			Name: []byte("v1.4.0"),
-			Id:   string(blobID),
+			Id:   blobID,
 		},
 		{
 			Name:         []byte("v1.5.0"),
-			Id:           string(commitID),
+			Id:           commitID,
 			TargetCommit: gitCommit,
 		},
 		{
 			Name:         []byte("v1.6.0"),
-			Id:           string(bigCommitID),
+			Id:           bigCommitID,
 			TargetCommit: bigCommit,
 		},
 		{
 			Name:         []byte("v1.7.0"),
-			Id:           string(bigMessageTag1ID),
+			Id:           bigMessageTag1ID,
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
@@ -727,11 +727,11 @@ func TestFindAllTagNestedTags(t *testing.T) {
 			for depth := 0; depth < tc.depth; depth++ {
 				tagName := fmt.Sprintf("tag-depth-%d", depth)
 				tagMessage := fmt.Sprintf("a commit %d deep", depth)
-				tagID = string(testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage}))
+				tagID = testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage})
 
 				expectedTag := &gitalypb.Tag{
 					Name:        []byte(tagName),
-					Id:          string(tagID),
+					Id:          tagID,
 					Message:     []byte(tagMessage),
 					MessageSize: int64(len([]byte(tagMessage))),
 					Tagger: &gitalypb.CommitAuthor{
@@ -1431,7 +1431,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 	expectedTags := []*gitalypb.Tag{
 		{
 			Name:         []byte(commitID),
-			Id:           string(commitTagID),
+			Id:           commitTagID,
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
@@ -1444,7 +1444,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 		},
 		{
 			Name:         []byte("tag-of-tag"),
-			Id:           string(tagOfTagID),
+			Id:           tagOfTagID,
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
@@ -1536,7 +1536,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 		},
 		{
 			Name:        []byte("v1.2.0"),
-			Id:          string(annotatedTagID),
+			Id:          annotatedTagID,
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
 			Tagger: &gitalypb.CommitAuthor{
@@ -1548,26 +1548,26 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 		},
 		{
 			Name:         []byte("v1.3.0"),
-			Id:           string(commitID),
+			Id:           commitID,
 			TargetCommit: gitCommit,
 		},
 		{
 			Name: []byte("v1.4.0"),
-			Id:   string(blobID),
+			Id:   blobID,
 		},
 		{
 			Name:         []byte("v1.5.0"),
-			Id:           string(commitID),
+			Id:           commitID,
 			TargetCommit: gitCommit,
 		},
 		{
 			Name:         []byte("v1.6.0"),
-			Id:           string(bigCommitID),
+			Id:           bigCommitID,
 			TargetCommit: bigCommit,
 		},
 		{
 			Name:         []byte("v1.7.0"),
-			Id:           string(bigMessageTag1ID),
+			Id:           bigMessageTag1ID,
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
@@ -1650,11 +1650,11 @@ func TestFindTagNestedTag(t *testing.T) {
 			for depth := 0; depth < tc.depth; depth++ {
 				tagName = fmt.Sprintf("tag-depth-%d", depth)
 				tagMessage = fmt.Sprintf("a commit %d deep", depth)
-				tagID = string(testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage}))
+				tagID = testhelper.CreateTag(t, testRepoCopyPath, tagName, tagID, &testhelper.CreateTagOpts{Message: tagMessage})
 			}
 			expectedTag := &gitalypb.Tag{
 				Name:        []byte(tagName),
-				Id:          string(tagID),
+				Id:          tagID,
 				Message:     []byte(tagMessage),
 				MessageSize: int64(len([]byte(tagMessage))),
 				Tagger: &gitalypb.CommitAuthor{

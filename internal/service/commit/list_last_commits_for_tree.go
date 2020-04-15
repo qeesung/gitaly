@@ -68,7 +68,7 @@ func listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream g
 	}
 
 	for _, entry := range entries[offset:limit] {
-		commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), entry.Path)
+		commit, err := log.LastCommitForPath(ctx, c, repo, in.GetRevision(), entry.Path)
 		if err != nil {
 			return err
 		}
