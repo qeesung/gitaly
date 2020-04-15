@@ -1,17 +1,24 @@
 package operations
 
 import (
+	"context"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -57,6 +64,11 @@ func testMain(m *testing.M) int {
 	testhelper.ConfigureGitalySSH()
 	testhelper.ConfigureGitalyHooksBinary()
 
+	defer func(token string) {
+		config.Config.Auth.Token = token
+	}(config.Config.Auth.Token)
+	config.Config.Auth.Token = testhelper.RepositoryAuthToken
+
 	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -66,12 +78,21 @@ func testMain(m *testing.M) int {
 }
 
 func runOperationServiceServer(t *testing.T) (string, func()) {
-	srv := testhelper.NewServer(t, nil, nil)
+	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
 
 	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: RubyServer})
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer())
 	reflection.Register(srv.GrpcServer())
 
 	require.NoError(t, srv.Start())
+
+	internalSocket := config.GitalyInternalSocketPath()
+	internalListener, err := net.Listen("unix", internalSocket)
+	require.NoError(t, err)
+
+	go func() {
+		srv.GrpcServer().Serve(internalListener)
+	}()
 
 	return "unix://" + srv.Socket(), srv.Stop
 }
@@ -79,6 +100,7 @@ func runOperationServiceServer(t *testing.T) (string, func()) {
 func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.OperationServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(config.Config.Auth.Token)),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {
@@ -99,4 +121,17 @@ func SetupAndStartGitlabServer(t *testing.T, glID, glRepository string, gitPushO
 		Protocol:                    "web",
 		GitPushOptions:              gitPushOptions,
 	})
+}
+
+func outgoingCtxWithRubyFeatureFlag(ctx context.Context, flag string) context.Context {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.New(map[string]string{})
+	}
+	md.Set(rubyHeaderKey(flag), "true")
+	return metadata.NewOutgoingContext(ctx, md)
+}
+
+func rubyHeaderKey(flag string) string {
+	return fmt.Sprintf("gitaly-feature-ruby-%s", strings.ReplaceAll(flag, "_", "-"))
 }
