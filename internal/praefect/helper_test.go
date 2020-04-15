@@ -74,11 +74,7 @@ func testConfig(backends int) config.Config {
 
 // setupServer wires all praefect dependencies together via dependency
 // injection
-func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *logrus.Entry, r *protoregistry.Registry) *Server {
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
-	}
+func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, ds datastore.Datastore, l *logrus.Entry, r *protoregistry.Registry) *Server {
 	coordinator := NewCoordinator(l, ds, nodeMgr, conf, r)
 
 	var defaultNode *models.Node
@@ -99,7 +95,7 @@ func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, l *log
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 // requires there to be only 1 virtual storage
-func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[string]mock.SimpleServiceServer) (mock.SimpleServiceClient, *Server, testhelper.Cleanup) {
+func runPraefectServerWithMock(t *testing.T, conf config.Config, ds datastore.Datastore, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	require.Len(t, conf.VirtualStorages, 1)
 	require.Equal(t, len(backends), len(conf.VirtualStorages[0].Nodes),
 		"mock server count doesn't match config nodes")
@@ -124,14 +120,14 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(mustLoadProtoReg(t)))
 
-	prf := setupServer(t, conf, nodeMgr, log.Default(), r)
+	prf := setupServer(t, conf, nodeMgr, ds, log.Default(), r)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
 
 	errQ := make(chan error)
 
-	prf.RegisterServices(nodeMgr, conf, datastore.Datastore{})
+	prf.RegisterServices(nodeMgr, conf, ds)
 	go func() {
 		errQ <- prf.Serve(listener, false)
 	}()
@@ -152,7 +148,7 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, backends map[st
 		require.NoError(t, prf.Shutdown(ctx))
 	}
 
-	return mock.NewSimpleServiceClient(cc), prf, cleanup
+	return cc, prf, cleanup
 }
 
 func noopBackoffFunc() (backoff, backoffReset) {

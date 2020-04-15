@@ -51,8 +51,10 @@ func TestServerRouteServerAccessor(t *testing.T) {
 		}
 	)
 
-	cli, _, cleanup := runPraefectServerWithMock(t, conf, backends)
+	cc, _, cleanup := runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
 	defer cleanup()
+
+	cli := mock.NewSimpleServiceClient(cc)
 
 	expectReq := &mock.SimpleRequest{Value: 1}
 
@@ -141,7 +143,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
-	srv := setupServer(t, conf, nodeMgr, entry, registry)
+	srv := setupServer(t, conf, nodeMgr, datastore.Datastore{}, entry, registry)
 
 	listener, port := listenAvailPort(t)
 	go func() {
@@ -276,7 +278,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook := test.NewNullLogger()
 
-	setupServer(t, conf, nil, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
 		require.NotContains(t, entry.Message, "more than one backend node")
@@ -303,7 +305,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook = test.NewNullLogger()
 
-	setupServer(t, conf, nil, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	var found bool
 	for _, entry := range hook.Entries {
@@ -349,7 +351,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook = test.NewNullLogger()
 
-	setupServer(t, conf, nil, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
 		require.NotContains(t, entry.Message, "more than one backend node")

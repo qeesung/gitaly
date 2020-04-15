@@ -53,6 +53,20 @@
 // reference storage is omitted, Praefect will perform the check against the
 // current primary. If the primary is the same as the target, an error will
 // occur.
+//
+// Dataloss
+//
+// The subcommand "dataloss" helps identify dataloss cases during a given
+// timeframe by checking for dead replication jobs. This can be useful to
+// quantify the impact of a primary node failure.
+//
+//     praefect -config PATH_TO_CONFIG dataloss -from RFC3339_TIME -to RFC3339_TIME
+//
+// "-from" specifies the inclusive beginning of a timerange to check.
+//
+// "-to" specifies the exclusive ending of a timerange to check.
+//
+// If a timerange is not specified, dead jobs from last six hours are fetched by default.
 package main
 
 import (

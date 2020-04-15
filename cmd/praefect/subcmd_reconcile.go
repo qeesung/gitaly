@@ -48,19 +48,25 @@ func (s *reconcileSubcommand) Exec(flags *flag.FlagSet, conf config.Config) erro
 	return nil
 }
 
+func getNodeAddress(cfg config.Config) (string, error) {
+	switch {
+	case cfg.SocketPath != "":
+		return "unix://" + cfg.SocketPath, nil
+	case cfg.ListenAddr != "":
+		return "tcp://" + cfg.ListenAddr, nil
+	default:
+		return "", errors.New("no Praefect address configured")
+	}
+}
+
 func (nr nodeReconciler) reconcile() error {
 	if err := nr.validateArgs(); err != nil {
 		return err
 	}
 
-	var nodeAddr string
-	switch {
-	case nr.conf.SocketPath != "":
-		nodeAddr = "unix://" + nr.conf.SocketPath
-	case nr.conf.ListenAddr != "":
-		nodeAddr = "tcp://" + nr.conf.ListenAddr
-	default:
-		return errors.New("no Praefect address configured")
+	nodeAddr, err := getNodeAddress(nr.conf)
+	if err != nil {
+		return err
 	}
 
 	cc, err := subCmdDial(nodeAddr, nr.conf.Auth.Token)

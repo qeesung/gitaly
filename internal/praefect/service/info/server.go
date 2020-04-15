@@ -2,6 +2,7 @@ package info
 
 import (
 	"context"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -12,6 +13,7 @@ import (
 // Queue is a subset of the datastore.ReplicationEventQueue functionality needed by this service
 type Queue interface {
 	Enqueue(ctx context.Context, event datastore.ReplicationEvent) (datastore.ReplicationEvent, error)
+	CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error)
 }
 
 // compile time assertion that Queue is satisfied by

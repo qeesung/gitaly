@@ -30,6 +30,7 @@ var (
 		"reconcile":          &reconcileSubcommand{},
 		"sql-migrate-down":   &sqlMigrateDownSubcommand{},
 		"sql-migrate-status": &sqlMigrateStatusSubcommand{},
+		"dataloss":           newDatalossSubcommand(),
 	}
 )
 
