@@ -234,7 +234,7 @@ func (c *Coordinator) createReplicaJobs(
 			go func() {
 				_, err := c.datastore.Enqueue(ctx, event)
 				if err != nil {
-					c.log.WithFields(logrus.Fields{
+					c.log.WithError(err).WithFields(logrus.Fields{
 						logWithReplSource: event.Job.SourceNodeStorage,
 						logWithReplTarget: event.Job.TargetNodeStorage,
 						logWithReplChange: event.Job.Change,
