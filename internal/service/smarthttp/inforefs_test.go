@@ -312,12 +312,12 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 
 	// if feature-flag is disabled, we should not find a cached response
 	assertNormalResponse()
-	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, rpcRequest))
+	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, ctx, rpcRequest))
 
 	// enable feature flag, and we expect to find the cached response
 	ctx = enableCacheFeatureFlag(ctx)
 	assertNormalResponse()
-	require.FileExists(t, pathToCachedResponse(t, rpcRequest))
+	require.FileExists(t, pathToCachedResponse(t, ctx, rpcRequest))
 
 	replacedContents := []string{
 		"first line",
@@ -327,7 +327,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 	}
 
 	// replace cached response file to prove the info-ref uses the cache
-	replaceCachedResponse(t, rpcRequest, strings.Join(replacedContents, "\n"))
+	replaceCachedResponse(t, ctx, rpcRequest, strings.Join(replacedContents, "\n"))
 	response, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, rpcRequest)
 	require.NoError(t, err)
 	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response),
@@ -359,7 +359,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 
 	_, err = makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, invalidReq)
 	testhelper.RequireGrpcError(t, err, codes.Internal)
-	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, invalidReq))
+	testhelper.AssertPathNotExists(t, pathToCachedResponse(t, ctx, invalidReq))
 }
 
 func createInvalidRepo(t testing.TB, repo *gitalypb.Repository) func() {
@@ -371,12 +371,17 @@ func createInvalidRepo(t testing.TB, repo *gitalypb.Repository) func() {
 	return func() { require.NoError(t, os.RemoveAll(repoDir)) }
 }
 
-func replaceCachedResponse(t testing.TB, req *gitalypb.InfoRefsRequest, newContents string) {
-	path := pathToCachedResponse(t, req)
+func replaceCachedResponse(t testing.TB, ctx context.Context, req *gitalypb.InfoRefsRequest, newContents string) {
+	path := pathToCachedResponse(t, ctx, req)
 	require.NoError(t, ioutil.WriteFile(path, []byte(newContents), 0644))
 }
 
 func enableCacheFeatureFlag(ctx context.Context) context.Context {
+	// TODO: this incoming context hack will be removed in
+	// https://gitlab.com/gitlab-org/gitaly/-/merge_requests/2038
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, UploadPackCacheFeatureFlagKey)
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
+
 	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
 		featureflag.HeaderKey(UploadPackCacheFeatureFlagKey): "true",
 		featureflag.HeaderKey(featureflag.CacheInvalidator):  "true",
@@ -393,8 +398,8 @@ func setInfoRefsUploadPackMethod(ctx context.Context) context.Context {
 	return testhelper.SetCtxGrpcMethod(ctx, "/gitaly.SmartHTTPService/InfoRefsUploadPack")
 }
 
-func pathToCachedResponse(t testing.TB, req *gitalypb.InfoRefsRequest) string {
-	ctx := setInfoRefsUploadPackMethod(context.Background())
+func pathToCachedResponse(t testing.TB, ctx context.Context, req *gitalypb.InfoRefsRequest) string {
+	ctx = setInfoRefsUploadPackMethod(ctx)
 	path, err := cache.LeaseKeyer{}.KeyPath(ctx, req.GetRepository(), req)
 	require.NoError(t, err)
 	return path

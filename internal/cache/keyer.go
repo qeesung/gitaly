@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -16,6 +18,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
@@ -297,7 +300,8 @@ func latestPath(repoStateDir string) string { return filepath.Join(repoStateDir,
 
 // compositeKeyHashHex returns a hex encoded string that is a SHA256 hash sum of
 // the composite key made up of the following properties: Gitaly version, gRPC
-// method, repo cache current generation ID, protobuf request
+// method, repo cache current generation ID, protobuf request, and enabled
+// feature flags.
 func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (string, error) {
 	method, ok := grpc.Method(ctx)
 	if !ok {
@@ -311,11 +315,15 @@ func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (
 
 	h := sha256.New()
 
+	ffs := featureflag.AllEnabledFlags(ctx)
+	sort.Strings(ffs)
+
 	for _, i := range []string{
 		version.GetVersion(),
 		method,
 		genID,
 		string(reqSum),
+		strings.Join(ffs, " "),
 	} {
 		_, err := h.Write(prefixLen(i))
 		if err != nil {

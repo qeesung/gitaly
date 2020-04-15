@@ -46,6 +46,7 @@ specific repository state:
       RPC request    (digest)       │     ┌──────┐
       Gitaly version (string)       ├─────│SHA256│─────▶ Cache key
       RPC Method     (string)       │     └──────┘
+      Feature flags  (string)       │
                                     │
                                ─────┘
 ```
