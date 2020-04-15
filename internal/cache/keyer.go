@@ -315,7 +315,7 @@ func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (
 	h := sha256.New()
 
 	ffs := featureflag.AllEnabledFlags(ctx)
-	sort.StringSlice(ffs).Sort()
+	sort.Strings(ffs)
 
 	for _, i := range []string{
 		version.GetVersion(),
