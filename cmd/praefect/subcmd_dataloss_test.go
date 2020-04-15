@@ -60,7 +60,7 @@ func (m mockPraefectInfoService) DatalossCheck(ctx context.Context, r *gitalypb.
 }
 
 func TestDatalossSubcommand(t *testing.T) {
-	tmp, clean := testhelper.TempDir(t, "")
+	tmp, clean := testhelper.TempDir(t)
 	defer clean()
 
 	ctx, cancel := testhelper.Context()
