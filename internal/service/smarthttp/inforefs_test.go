@@ -377,7 +377,8 @@ func replaceCachedResponse(t testing.TB, ctx context.Context, req *gitalypb.Info
 }
 
 func enableCacheFeatureFlag(ctx context.Context) context.Context {
-	// TODO: this incoming context hack will be removed in !2038
+	// TODO: this incoming context hack will be removed in
+	// https://gitlab.com/gitlab-org/gitaly/-/merge_requests/2038
 	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, UploadPackCacheFeatureFlagKey)
 	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.CacheInvalidator)
 

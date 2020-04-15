@@ -300,7 +300,8 @@ func latestPath(repoStateDir string) string { return filepath.Join(repoStateDir,
 
 // compositeKeyHashHex returns a hex encoded string that is a SHA256 hash sum of
 // the composite key made up of the following properties: Gitaly version, gRPC
-// method, repo cache current generation ID, protobuf request
+// method, repo cache current generation ID, protobuf request, and enabled
+// feature flags.
 func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (string, error) {
 	method, ok := grpc.Method(ctx)
 	if !ok {
