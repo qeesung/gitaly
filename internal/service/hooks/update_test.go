@@ -75,6 +75,19 @@ func TestUpdate(t *testing.T) {
 			stderr: "",
 		},
 		{
+			desc: "valid inputs with a tag",
+			req: gitalypb.UpdateHookRequest{
+				Repository:           testRepo,
+				Ref:                  []byte("refs/tags/v1.0.0"),
+				OldValue:             "a",
+				NewValue:             "b",
+				EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol", "GL_REPOSITORY=repository"},
+			},
+			status: 0,
+			stdout: "OK",
+			stderr: "",
+		},
+		{
 			desc: "missing ref",
 			req: gitalypb.UpdateHookRequest{
 				Repository:           testRepo,

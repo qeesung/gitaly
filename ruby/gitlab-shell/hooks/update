@@ -11,6 +11,20 @@ gl_id    = ENV.delete('GL_ID')
 
 require_relative '../lib/gitlab_custom_hook'
 
+# This is a workaround for NFS-mounted directories. Before we update the
+# ref, be sure we open and close the directory that contains the loose
+# ref to flush the attribute cache. This ensures we see a loose ref if
+# it were created recently.
+if ref_name&.start_with?("refs/")
+  begin
+    ref_path = File.dirname(ref_name)
+    dir = Dir.open(File.join(repo_path, ref_path))
+    dir.close if dir
+  rescue
+    # Do nothing if the directory doesn't exist or some other error happens
+  end
+end
+
 if GitlabCustomHook.new(repo_path, gl_id).update(ref_name, old_value, new_value)
   exit 0
 else

@@ -1,0 +1,5 @@
+---
+title: Fix potential data races on NFS with ref updates
+merge_request: 2049
+author:
+type: fixed

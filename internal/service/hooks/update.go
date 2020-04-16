@@ -3,6 +3,9 @@ package hook
 import (
 	"errors"
 	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -16,13 +19,21 @@ func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.Hook
 
 	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.UpdateHookResponse{Stdout: p}) })
 	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.UpdateHookResponse{Stderr: p}) })
+	ref := string(in.GetRef())
 
 	repoPath, err := helper.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
 
-	c := exec.Command(gitlabShellHook("update"), string(in.GetRef()), in.GetOldValue(), in.GetNewValue())
+	// This is workaround for NFS-mounted directories. Force a refresh of the
+	// attribute cache for the directory containing this loose reference.
+	if strings.HasPrefix(ref, "refs/") {
+		refDir := path.Dir(ref)
+		helper.OpenAndClosePath(filepath.Join(repoPath, refDir))
+	}
+
+	c := exec.Command(gitlabShellHook("update"), ref, in.GetOldValue(), in.GetNewValue())
 	c.Dir = repoPath
 
 	status, err := streamCommandResponse(

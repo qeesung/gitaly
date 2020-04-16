@@ -31,6 +31,15 @@ func validatePackRefsRequest(in *gitalypb.PackRefsRequest) error {
 }
 
 func packRefs(ctx context.Context, repository repository.GitRepo, all bool) error {
+	repoPath, err := helper.GetRepoPath(repository)
+	if err != nil {
+		return helper.ErrInternal(err)
+	}
+
+	// This is workaround for NFS-mounted directories. Force a refresh of the
+	// attribute cache for the loose ref directories.
+	helper.RefreshAllRefPaths(repoPath)
+
 	cmd, err := git.SafeCmd(ctx, repository, nil, git.SubCmd{
 		Name:  "pack-refs",
 		Flags: []git.Option{git.Flag{"--all"}},

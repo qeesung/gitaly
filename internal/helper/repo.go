@@ -3,6 +3,7 @@ package helper
 import (
 	"os"
 	"path"
+	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
@@ -119,4 +120,40 @@ func GetObjectDirectoryPath(repo repository.GitRepo) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+// RefreshAllRefPaths attempts to open and close all the directories in
+// the loose ref directories. This is a workaround for NFS-mounted
+// directories to flush the attribute/directory entry cache to ensure
+// the latest loose refs are seen. This takes advantage of close-to-open
+// cache consistency (https://linux.die.net/man/5/nfs).
+func RefreshAllRefPaths(repoPath string) {
+	refPath := filepath.Join(repoPath, "refs")
+
+	file, err := os.Open(refPath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	// We should only expect 5 paths:
+	// heads, tags, keep-around, environments, merge-requests
+	names, err := file.Readdirnames(10)
+	if err != nil {
+		return
+	}
+
+	for _, n := range names {
+		p := filepath.Join(refPath, n)
+		OpenAndClosePath(p)
+	}
+}
+
+// OpenAndClosePath opens and closes a given path. This is a workaround
+// for NFS-mounted directories.
+func OpenAndClosePath(path string) {
+	f, err := os.Open(path)
+	if err == nil {
+		f.Close()
+	}
 }
