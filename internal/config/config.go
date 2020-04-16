@@ -199,7 +199,7 @@ func (h *hookErrs) Add(err error) {
 }
 
 func validateHooks() error {
-	if os.Getenv("GITALY_TESTING_NO_GIT_HOOKS") == "1" {
+	if SkipHooks() {
 		return nil
 	}
 
@@ -276,6 +276,10 @@ func validateStorages() error {
 	}
 
 	return nil
+}
+
+func SkipHooks() bool {
+	return os.Getenv("GITALY_TESTING_NO_GIT_HOOKS") == "1"
 }
 
 // SetGitPath populates the variable GitPath with the path to the `git`

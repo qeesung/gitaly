@@ -2,7 +2,6 @@ package hooks
 
 import (
 	"fmt"
-	"os"
 	"path"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -20,7 +19,7 @@ func Path() string {
 		return Override
 	}
 
-	if os.Getenv("GITALY_TESTING_NO_GIT_HOOKS") == "1" {
+	if config.SkipHooks() {
 		return "/var/empty"
 	}
 
