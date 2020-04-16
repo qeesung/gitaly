@@ -142,7 +142,7 @@ describe GitlabLogger do
       test_logger_status = system('bin/test-logger', msg)
       expect(test_logger_status).to eq(true)
 
-      grep_status = system('grep', '-q', '-e', msg, GitlabConfig.new.log_file)
+      grep_status = system('grep', '-q', '-e', msg, GitlabConfig.new.log_file.to_s)
       expect(grep_status).to eq(true)
     end
   end

@@ -99,7 +99,7 @@ describe GitlabCustomHook do
     FileUtils.symlink(File.join(tmp_root_path, 'hooks'), File.join(tmp_repo_path, 'hooks'))
     FileUtils.symlink(File.join(ROOT_PATH, 'config.yml.example'), File.join(tmp_root_path, 'config.yml'))
 
-    stub_const('ROOT_PATH', tmp_root_path)
+    stub_const('ROOT_PATH', Pathname.new(tmp_root_path))
   end
 
   after do
