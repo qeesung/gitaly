@@ -8,10 +8,6 @@ const (
 	LinguistFileCountStats = "linguist_file_count_stats"
 	// HooksRPC will invoke update, pre receive, and post receive hooks by using RPCs
 	HooksRPC = "hooks_rpc"
-	// CacheInvalidator controls the tracking of repo state via gRPC
-	// annotations (i.e. accessor and mutator RPC's). This enables cache
-	// invalidation by changing state when the repo is modified.
-	CacheInvalidator = "cache_invalidator"
 )
 
 const (
