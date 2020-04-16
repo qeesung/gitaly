@@ -54,7 +54,7 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stderr: p})
 	})
 
-	hookEnv, err := git.HookEnv(req)
+	hookEnv, err := git.ReceivePackHookEnv(req)
 	if err != nil {
 		return err
 	}

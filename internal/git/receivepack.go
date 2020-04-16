@@ -21,9 +21,9 @@ type ReceivePackRequest interface {
 
 var jsonpbMarshaller = &jsonpb.Marshaler{}
 
-// HookEnv is information we pass down to the Git hooks during
+// ReceivePackHookEnv is information we pass down to the Git hooks during
 // git-receive-pack.
-func HookEnv(req ReceivePackRequest) ([]string, error) {
+func ReceivePackHookEnv(req ReceivePackRequest) ([]string, error) {
 	repo, err := jsonpbMarshaller.MarshalToString(req.GetRepository())
 	if err != nil {
 		return nil, err

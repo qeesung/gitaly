@@ -60,19 +60,9 @@ func main() {
 		logger.Fatalf("error when getting repository: %v", err)
 	}
 
-	gitalySocket, ok := os.LookupEnv("GITALY_SOCKET")
-	if !ok {
-		logger.Fatal(errors.New("GITALY_SOCKET not set"))
-	}
-
-	gitalyToken, ok := os.LookupEnv("GITALY_TOKEN")
-	if !ok {
-		logger.Fatal(errors.New("GITALY_TOKEN not set"))
-	}
-
-	conn, err := client.Dial("unix://"+gitalySocket, dialOpts(gitalyToken))
+	conn, err := gitalyFromEnv()
 	if err != nil {
-		logger.Fatalf("error when dialing: %v", err)
+		logger.Fatalf("error when connecting to gitaly: %v", err)
 	}
 
 	hookClient := gitalypb.NewHookServiceClient(conn)
@@ -200,6 +190,30 @@ func repositoryFromEnv() (*gitalypb.Repository, error) {
 	return &repo, nil
 }
 
+func gitalyFromEnv() (*grpc.ClientConn, error) {
+	gitalySocket := os.Getenv("GITALY_SOCKET")
+	if gitalySocket == "" {
+		return nil, errors.New("GITALY_SOCKET not set")
+	}
+
+	gitalyToken, ok := os.LookupEnv("GITALY_TOKEN")
+	if !ok {
+		return nil, errors.New("GITALY_TOKEN not set")
+	}
+
+	dialOpts := client.DefaultDialOpts
+	if gitalyToken != "" {
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(gitalyToken)))
+	}
+
+	conn, err := client.Dial("unix://"+gitalySocket, dialOpts)
+	if err != nil {
+		return nil, fmt.Errorf("error when dialing: %v", err)
+	}
+
+	return conn, nil
+}
+
 func glValues() []string {
 	var glEnvVars []string
 	for _, kv := range os.Environ() {
@@ -224,16 +238,6 @@ func gitPushOptions() []string {
 	}
 
 	return gitPushOptions
-}
-
-func dialOpts(token string) []grpc.DialOption {
-	dialOpts := client.DefaultDialOpts
-
-	if token != "" {
-		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentials(token)))
-	}
-
-	return dialOpts
 }
 
 func sendFunc(reqWriter io.Writer, stream grpc.ClientStream, stdin io.Reader) func(errC chan error) {
