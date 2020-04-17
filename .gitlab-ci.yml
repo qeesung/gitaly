@@ -12,7 +12,9 @@ variables:
   DOCKER_DRIVER: overlay2
   CUSTOM_IMAGE_VERSION: ruby-2.6-golang-1.13-git-2.26
   SAST_DISABLE_DIND: "true"
-  SAST_DEFAULT_ANALYZERS: "gosec"
+  SAST_DEFAULT_ANALYZERS: "gosec, secrets"
+  SAST_EXCLUDED_PATHS: "./config.toml.example"
+
 
 danger-review:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
