@@ -1,0 +1,5 @@
+---
+title: Make Praefect sql-migrate ignore unknown migrations by default
+merge_request: 2058
+author:
+type: changed

@@ -94,7 +94,7 @@ type sqlMigrateSubcommand struct {
 
 func (s *sqlMigrateSubcommand) FlagSet() *flag.FlagSet {
 	flags := flag.NewFlagSet("sql-migrate", flag.ExitOnError)
-	flags.BoolVar(&s.ignoreUnknown, "ignore-unknown", false, "ignore unknown migrations (default is false)")
+	flags.BoolVar(&s.ignoreUnknown, "ignore-unknown", true, "ignore unknown migrations (default is true)")
 	return flags
 }
 

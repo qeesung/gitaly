@@ -12,13 +12,13 @@ Praefect SQL migrations should be applied automatically when you deploy Praefect
 praefect -config /path/to/config.toml sql-migrate
 ```
 
-The migration will not start if there are any migrations in the database
-that are not known by the Praefect binary.
+By default, the migration will ignore any unknown migrations that are
+not known by the Praefect binary.
 
-Adding the `-ignore-unknown` will skip this check:
+The `-ignore-unknown=false` will disable this behavior:
 
 ```shell
-praefect -config /path/to/config.toml sql-migrate -ignore-unknown
+praefect -config /path/to/config.toml sql-migrate -ignore-unknown=false
 ```
 
 ## Showing the status of migrations
