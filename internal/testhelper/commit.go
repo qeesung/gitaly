@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
@@ -24,7 +25,7 @@ const (
 )
 
 // CreateCommit makes a new empty commit and updates the named branch to point to it.
-func CreateCommit(t TB, repoPath, branchName string, opts *CreateCommitOpts) string {
+func CreateCommit(t testing.TB, repoPath, branchName string, opts *CreateCommitOpts) string {
 	message := "message"
 	// The ID of an arbitrary commit known to exist in the test repository.
 	parentID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
@@ -61,7 +62,7 @@ func CreateCommit(t TB, repoPath, branchName string, opts *CreateCommitOpts) str
 // CreateCommitInAlternateObjectDirectory runs a command such that its created
 // objects will live in an alternate objects directory. It returns the current
 // head after the command is run and the alternate objects directory path
-func CreateCommitInAlternateObjectDirectory(t TB, repoPath, altObjectsDir string, cmd *exec.Cmd) (currentHead []byte) {
+func CreateCommitInAlternateObjectDirectory(t testing.TB, repoPath, altObjectsDir string, cmd *exec.Cmd) (currentHead []byte) {
 	gitPath := path.Join(repoPath, ".git")
 
 	altObjectsPath := path.Join(gitPath, altObjectsDir)
@@ -91,7 +92,7 @@ func CreateCommitInAlternateObjectDirectory(t TB, repoPath, altObjectsDir string
 // specified name. This enables testing situations where the filepath is not
 // possible due to filesystem constraints (e.g. non-UTF characters). The commit
 // ID is returned.
-func CommitBlobWithName(t TB, testRepoPath, blobID, fileName, commitMessage string) string {
+func CommitBlobWithName(t testing.TB, testRepoPath, blobID, fileName, commitMessage string) string {
 	mktreeIn := strings.NewReader(fmt.Sprintf("100644 blob %s\t%s", blobID, fileName))
 	treeID := text.ChompBytes(MustRunCommand(t, mktreeIn, "git", "-C", testRepoPath, "mktree"))
 
@@ -104,7 +105,7 @@ func CommitBlobWithName(t TB, testRepoPath, blobID, fileName, commitMessage stri
 }
 
 // CreateCommitOnNewBranch creates a branch and a commit, returning the commit sha and the branch name respectivelyi
-func CreateCommitOnNewBranch(t TB, repoPath string) (string, string) {
+func CreateCommitOnNewBranch(t testing.TB, repoPath string) (string, string) {
 	nonce, err := text.RandomHex(4)
 	require.NoError(t, err)
 	newBranch := "branch-" + nonce

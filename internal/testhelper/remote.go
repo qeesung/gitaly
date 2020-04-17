@@ -2,10 +2,11 @@ package testhelper
 
 import (
 	"strings"
+	"testing"
 )
 
 // RemoteExists tests if the repository at repoPath has a Git remote named remoteName.
-func RemoteExists(t TB, repoPath string, remoteName string) bool {
+func RemoteExists(t testing.TB, repoPath string, remoteName string) bool {
 	if remoteName == "" {
 		t.Fatal("empty remote name")
 	}

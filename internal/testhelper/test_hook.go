@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"io/ioutil"
+	"testing"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -10,7 +11,7 @@ import (
 var NewTestLogger = DiscardTestLogger
 
 // DiscardTestLogger created a logrus hook that discards everything.
-func DiscardTestLogger(tb TB) *log.Logger {
+func DiscardTestLogger(tb testing.TB) *log.Logger {
 	logger := log.New()
 	logger.Out = ioutil.Discard
 
@@ -18,6 +19,6 @@ func DiscardTestLogger(tb TB) *log.Logger {
 }
 
 // DiscardTestLogger created a logrus entry that discards everything.
-func DiscardTestEntry(tb TB) *log.Entry {
+func DiscardTestEntry(tb testing.TB) *log.Entry {
 	return log.NewEntry(DiscardTestLogger(tb))
 }
