@@ -1,12 +1,16 @@
 package git
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/golang/protobuf/jsonpb"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -23,20 +27,34 @@ var jsonpbMarshaller = &jsonpb.Marshaler{}
 
 // ReceivePackHookEnv is information we pass down to the Git hooks during
 // git-receive-pack.
-func ReceivePackHookEnv(req ReceivePackRequest) ([]string, error) {
+func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, error) {
 	repo, err := jsonpbMarshaller.MarshalToString(req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
 
-	return append([]string{
+	env := append([]string{
 		fmt.Sprintf("GL_ID=%s", req.GetGlId()),
 		fmt.Sprintf("GL_USERNAME=%s", req.GetGlUsername()),
 		fmt.Sprintf("GL_REPOSITORY=%s", req.GetGlRepository()),
 		fmt.Sprintf("GITALY_SOCKET=" + config.GitalyInternalSocketPath()),
 		fmt.Sprintf("GITALY_REPO=%s", repo),
 		fmt.Sprintf("GITALY_TOKEN=%s", config.Config.Auth.Token),
-	}, gitlabshell.Env()...), nil
+	}, gitlabshell.Env()...)
+
+	praefect, err := metadata.ExtractPraefectServer(ctx)
+	if err == nil {
+		praefectEnv, err := praefect.Env()
+		if err != nil {
+			return nil, err
+		}
+
+		env = append(env, praefectEnv)
+	} else if !errors.Is(os.ErrNotExist, err) {
+		return nil, err
+	}
+
+	return env, nil
 }
 
 // ReceivePackConfig contains config options we want to enforce when

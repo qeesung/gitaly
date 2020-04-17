@@ -42,7 +42,7 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 		return stream.Send(&gitalypb.PostReceivePackResponse{Data: p})
 	})
 
-	hookEnv, err := git.ReceivePackHookEnv(req)
+	hookEnv, err := git.ReceivePackHookEnv(ctx, req)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/stream"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -101,9 +102,15 @@ func main() {
 			logger.Fatalf("error when getting preReceiveHookStream client for %v: %v", subCmd, err)
 		}
 
+		environment := glValues()
+		if env, ok := os.LookupEnv(metadata.PraefectEnvKey); ok {
+			praefectEnv := fmt.Sprintf("%s=%s", metadata.PraefectEnvKey, env)
+			environment = append(environment, praefectEnv)
+		}
+
 		if err := preReceiveHookStream.Send(&gitalypb.PreReceiveHookRequest{
 			Repository:           repository,
-			EnvironmentVariables: glValues(),
+			EnvironmentVariables: environment,
 		}); err != nil {
 			logger.Fatalf("error when sending request for %v: %v", subCmd, err)
 		}
