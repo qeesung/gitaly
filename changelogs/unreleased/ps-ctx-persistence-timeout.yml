@@ -1,0 +1,5 @@
+---
+title: 'Praefect: avoid early request cancellation when queueing replication jobs'
+merge_request: 2062
+author:
+type: fixed

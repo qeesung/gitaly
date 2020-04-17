@@ -3,6 +3,7 @@ package praefect
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
@@ -216,7 +217,10 @@ func (c *Coordinator) createReplicaJobs(
 	return func() {
 		correlationID := c.ensureCorrelationID(ctx, targetRepo)
 
+		var wg sync.WaitGroup
 		for _, secondary := range secondaries {
+			wg.Add(1)
+
 			event := datastore.ReplicationEvent{
 				Job: datastore.ReplicationJob{
 					Change:            change,
@@ -228,10 +232,8 @@ func (c *Coordinator) createReplicaJobs(
 				Meta: datastore.Params{metadatahandler.CorrelationIDKey: correlationID},
 			}
 
-			// TODO: it could happen that there won't be enough time to enqueue replication events
-			// do we need to create another ctx with another timeout?
-			// https://gitlab.com/gitlab-org/gitaly/-/issues/2586
 			go func() {
+				defer wg.Done()
 				_, err := c.datastore.Enqueue(ctx, event)
 				if err != nil {
 					c.log.WithError(err).WithFields(logrus.Fields{
@@ -243,6 +245,7 @@ func (c *Coordinator) createReplicaJobs(
 				}
 			}()
 		}
+		wg.Wait()
 	}
 }
 
