@@ -103,7 +103,6 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	if err != nil {
 		return nil, err
 	}
-
 	defer sem.release()
 
 	c.monitor.Enter(ctx, time.Since(start))
