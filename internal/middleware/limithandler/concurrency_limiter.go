@@ -31,6 +31,17 @@ type semaphoreReference struct {
 	count  int
 }
 
+func (sem *semaphoreReference) acquire(ctx context.Context) error {
+	select {
+	case sem.tokens <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (sem *semaphoreReference) release() { <-sem.tokens }
+
 // Lazy create a semaphore for the given key
 func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphoreReference {
 	c.mux.Lock()
@@ -87,19 +98,13 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	sem := c.getSemaphore(lockKey)
 	defer c.putSemaphore(lockKey)
 
-	var err error
-	select {
-	case sem.tokens <- struct{}{}:
-	case <-ctx.Done():
-		err = ctx.Err()
-	}
-
+	err := sem.acquire(ctx)
 	c.monitor.Dequeued(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() { <-sem.tokens }()
+	defer sem.release()
 
 	c.monitor.Enter(ctx, time.Since(start))
 	defer c.monitor.Exit(ctx)
