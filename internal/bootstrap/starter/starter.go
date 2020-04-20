@@ -41,7 +41,7 @@ func New(cfg Config, servers bootstrap.GracefulStoppableServer) bootstrap.Starte
 		}
 
 		logrus.WithField("address", cfg.Addr).Infof("listening at %s address", cfg.Name)
-		l = connectioncounter.New(cfg.family(), l)
+		l = connectioncounter.New(cfg.Name, l)
 
 		go func() {
 			errCh <- servers.Serve(l, cfg.isSecure())
