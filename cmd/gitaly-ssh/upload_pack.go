@@ -21,7 +21,7 @@ const (
 func uploadPack(ctx context.Context, conn *grpc.ClientConn, req string) (int32, error) {
 	var request gitalypb.SSHUploadPackRequest
 	if err := jsonpb.UnmarshalString(req, &request); err != nil {
-		return 0, fmt.Errorf("json unmarshal: %v", err)
+		return 0, fmt.Errorf("json unmarshal: %w", err)
 	}
 
 	request.GitConfigOptions = append([]string{GitConfigShowAllRefs}, request.GitConfigOptions...)

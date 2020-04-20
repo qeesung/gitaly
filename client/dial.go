@@ -31,17 +31,17 @@ func DialContext(ctx context.Context, rawAddress string, connOpts []grpc.DialOpt
 
 	switch getConnectionType(rawAddress) {
 	case invalidConnection:
-		return nil, fmt.Errorf("invalid connection string: %s", rawAddress)
+		return nil, fmt.Errorf("invalid connection string: %q", rawAddress)
 
 	case tlsConnection:
 		canonicalAddress, err = extractHostFromRemoteURL(rawAddress) // Ensure the form: "host:port" ...
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to extract host for 'tls' connection: %w", err)
 		}
 
 		certPool, err := gitaly_x509.SystemCertPool()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get system certificat pool for 'tls' connection: %w", err)
 		}
 
 		creds := credentials.NewClientTLSFromCert(certPool, "")
@@ -50,7 +50,7 @@ func DialContext(ctx context.Context, rawAddress string, connOpts []grpc.DialOpt
 	case tcpConnection:
 		canonicalAddress, err = extractHostFromRemoteURL(rawAddress) // Ensure the form: "host:port" ...
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to extract host for 'tcp' connection: %w", err)
 		}
 		connOpts = append(connOpts, grpc.WithInsecure())
 
@@ -65,7 +65,7 @@ func DialContext(ctx context.Context, rawAddress string, connOpts []grpc.DialOpt
 			grpc.WithContextDialer(func(ctx context.Context, addr string) (conn net.Conn, err error) {
 				path, err := extractPathFromSocketURL(addr)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to extract host for 'unix' connection: %w", err)
 				}
 
 				d := net.Dialer{}
@@ -81,7 +81,7 @@ func DialContext(ctx context.Context, rawAddress string, connOpts []grpc.DialOpt
 
 	conn, err := grpc.DialContext(ctx, canonicalAddress, connOpts...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dial %q connection: %w", canonicalAddress, err)
 	}
 
 	return conn, nil

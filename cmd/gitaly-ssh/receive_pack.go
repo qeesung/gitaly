@@ -14,7 +14,7 @@ import (
 func receivePack(ctx context.Context, conn *grpc.ClientConn, req string) (int32, error) {
 	var request gitalypb.SSHReceivePackRequest
 	if err := jsonpb.UnmarshalString(req, &request); err != nil {
-		return 0, fmt.Errorf("json unmarshal: %v", err)
+		return 0, fmt.Errorf("json unmarshal: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

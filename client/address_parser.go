@@ -11,11 +11,11 @@ import (
 func extractHostFromRemoteURL(rawAddress string) (hostAndPort string, err error) {
 	u, err := url.Parse(rawAddress)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse remote addresses: %w", err)
 	}
 
 	if u.Path != "" {
-		return "", fmt.Errorf("remote addresses should not have a path")
+		return "", fmt.Errorf("remote addresses should not have a path: %q", u.Path)
 	}
 
 	if u.Host == "" {

@@ -74,7 +74,7 @@ func main() {
 	case "update":
 		args := os.Args[2:]
 		if len(args) != 3 {
-			logger.Fatal(errors.New("update hook missing required arguments"))
+			logger.Fatalf("hook %q is missing required arguments", subCmd)
 		}
 		ref, oldValue, newValue := args[0], args[1], args[2]
 
@@ -88,18 +88,18 @@ func main() {
 
 		updateHookStream, err := hookClient.UpdateHook(ctx, req)
 		if err != nil {
-			logger.Fatalf("error when starting command for %v: %v", subCmd, err)
+			logger.Fatalf("error when starting command for %q: %v", subCmd, err)
 		}
 
 		if hookStatus, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
 			return updateHookStream.Recv()
 		}, noopSender, os.Stdout, os.Stderr); err != nil {
-			logger.Fatalf("error when receiving data for %v: %v", subCmd, err)
+			logger.Fatalf("error when receiving data for %q: %v", subCmd, err)
 		}
 	case "pre-receive":
 		preReceiveHookStream, err := hookClient.PreReceiveHook(ctx)
 		if err != nil {
-			logger.Fatalf("error when getting preReceiveHookStream client for %v: %v", subCmd, err)
+			logger.Fatalf("error when getting preReceiveHookStream client for %q: %v", subCmd, err)
 		}
 
 		environment := glValues()
@@ -112,7 +112,7 @@ func main() {
 			Repository:           repository,
 			EnvironmentVariables: environment,
 		}); err != nil {
-			logger.Fatalf("error when sending request for %v: %v", subCmd, err)
+			logger.Fatalf("error when sending request for %q: %v", subCmd, err)
 		}
 
 		f := sendFunc(streamio.NewWriter(func(p []byte) error {
@@ -122,12 +122,12 @@ func main() {
 		if hookStatus, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
 			return preReceiveHookStream.Recv()
 		}, f, os.Stdout, os.Stderr); err != nil {
-			logger.Fatalf("error when receiving data for %v: %v", subCmd, err)
+			logger.Fatalf("error when receiving data for %q: %v", subCmd, err)
 		}
 	case "post-receive":
 		postReceiveHookStream, err := hookClient.PostReceiveHook(ctx)
 		if err != nil {
-			logger.Fatalf("error when getting stream client for %v: %v", subCmd, err)
+			logger.Fatalf("error when getting stream client for %q: %v", subCmd, err)
 		}
 
 		if err := postReceiveHookStream.Send(&gitalypb.PostReceiveHookRequest{
@@ -135,7 +135,7 @@ func main() {
 			EnvironmentVariables: glValues(),
 			GitPushOptions:       gitPushOptions(),
 		}); err != nil {
-			logger.Fatalf("error when sending request for %v: %v", subCmd, err)
+			logger.Fatalf("error when sending request for %q: %v", subCmd, err)
 		}
 
 		f := sendFunc(streamio.NewWriter(func(p []byte) error {
@@ -145,10 +145,10 @@ func main() {
 		if hookStatus, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
 			return postReceiveHookStream.Recv()
 		}, f, os.Stdout, os.Stderr); err != nil {
-			logger.Fatalf("error when receiving data for %v: %v", subCmd, err)
+			logger.Fatalf("error when receiving data for %q: %v", subCmd, err)
 		}
 	default:
-		logger.Fatal(fmt.Errorf("subcommand name invalid: %v", subCmd))
+		logger.Fatalf("subcommand name invalid: %q", subCmd)
 	}
 
 	os.Exit(int(hookStatus))
@@ -164,19 +164,19 @@ func repositoryFromEnv() (*gitalypb.Repository, error) {
 
 	var repo gitalypb.Repository
 	if err := jsonpb.UnmarshalString(repoString, &repo); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal JSON %q: %w", repoString, err)
 	}
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't define working directory: %w", err)
 	}
 
 	gitObjDirAbs, ok := os.LookupEnv("GIT_OBJECT_DIRECTORY")
 	if ok {
 		gitObjDir, err := filepath.Rel(pwd, gitObjDirAbs)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("can't define rel path %q: %w", gitObjDirAbs, err)
 		}
 		repo.GitObjectDirectory = gitObjDir
 	}
@@ -186,7 +186,7 @@ func repositoryFromEnv() (*gitalypb.Repository, error) {
 		for _, gitAltObjDirAbs := range strings.Split(gitAltObjDirsAbs, ":") {
 			gitAltObjDir, err := filepath.Rel(pwd, gitAltObjDirAbs)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("can't define rel path %q: %w", gitAltObjDirAbs, err)
 			}
 			gitAltObjDirs = append(gitAltObjDirs, gitAltObjDir)
 		}
@@ -215,7 +215,7 @@ func gitalyFromEnv() (*grpc.ClientConn, error) {
 
 	conn, err := client.Dial("unix://"+gitalySocket, dialOpts)
 	if err != nil {
-		return nil, fmt.Errorf("error when dialing: %v", err)
+		return nil, fmt.Errorf("error when dialing: %w", err)
 	}
 
 	return conn, nil
@@ -258,15 +258,14 @@ func sendFunc(reqWriter io.Writer, stream grpc.ClientStream, stdin io.Reader) fu
 func check(configPath string) (int, error) {
 	cfgFile, err := os.Open(configPath)
 	if err != nil {
-		return 1, fmt.Errorf("error when opening config file: %v", err)
+		return 1, fmt.Errorf("failed to open config file: %w", err)
 	}
 	defer cfgFile.Close()
 
 	var c config.Cfg
 
 	if _, err := toml.DecodeReader(cfgFile, &c); err != nil {
-		fmt.Println(err)
-		return 1, err
+		return 1, fmt.Errorf("failed to decode toml: %w", err)
 	}
 
 	cmd := exec.Command(filepath.Join(c.GitlabShell.Dir, "bin", "check"))
@@ -278,7 +277,7 @@ func check(configPath string) (int, error) {
 		if status, ok := command.ExitStatus(err); ok {
 			return status, nil
 		}
-		return 1, err
+		return 1, fmt.Errorf("failed to run %q: %w", cmd.String(), err)
 	}
 
 	return 0, nil
@@ -287,7 +286,7 @@ func check(configPath string) (int, error) {
 func executeScript(ctx context.Context, subCmd string, logger *gitalylog.HookLogger) {
 	gitalyRubyDir := os.Getenv("GITALY_RUBY_DIR")
 	if gitalyRubyDir == "" {
-		logger.Fatal(errors.New("GITALY_RUBY_DIR not set"))
+		logger.Fatalf("GITALY_RUBY_DIR not set")
 	}
 
 	rubyHookPath := filepath.Join(gitalyRubyDir, "gitlab-shell", "hooks", subCmd)
@@ -297,27 +296,30 @@ func executeScript(ctx context.Context, subCmd string, logger *gitalylog.HookLog
 	switch subCmd {
 	case "update":
 		args := os.Args[2:]
-		if len(args) != 3 {
-			logger.Fatal(errors.New("update hook missing required arguments"))
+		requireArgs := 3
+		if len(args) != requireArgs {
+			logger.Fatalf("update hook requires %d arguments, got: %d", requireArgs, len(args))
 		}
 
 		hookCmd = exec.Command(rubyHookPath, args...)
 	case "pre-receive", "post-receive":
 		hookCmd = exec.Command(rubyHookPath)
 	default:
-		logger.Fatal(fmt.Errorf("subcommand name invalid: %v", subCmd))
+		logger.Fatalf("subcommand name invalid: %v", subCmd)
 	}
 
 	cmd, err := command.New(ctx, hookCmd, os.Stdin, os.Stdout, os.Stderr, os.Environ()...)
 	if err != nil {
-		logger.Fatalf("error when starting command for %v: %v", rubyHookPath, err)
+		logger.Fatalf("error when starting command %q: %v", hookCmd.String(), err)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		logger.Errorf("error when executing ruby hook: %v", err)
-		exitError, ok := err.(*exec.ExitError)
-		if ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			os.Exit(exitError.ExitCode())
+		} else {
+			os.Exit(1)
 		}
 	}
 
