@@ -1,5 +1,13 @@
 # Gitaly code style
 
+## Character set
+
+### Avoid non-ASCII characters in developer-facing code
+
+Code that is developer-facing only, like variables, functions or test
+descriptions should use the ASCII character set only. This is to ensure that
+code is accessible to different developers with varying setups.
+
 ## Errors
 
 ### Use %v when wrapping errors
@@ -204,12 +212,12 @@ Example of **invalid** usage:
 import (
 	"io"
 	"os/exec"
-	
+
 	"context"
-	
+
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-	
+
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 )
 ```
@@ -251,12 +259,12 @@ via deferred statements. For example:
 func (scs SuperCoolService) MyAwesomeRPC(ctx context.Context, r Request) error {
     done := make(chan struct{}) // signals the goroutine is done
     defer func() { <-done }() // wait until the goroutine is done
-    
+
     go func() {
         defer close(done)    // signal when the goroutine returns
 	doWork(r)
     }()
-    
+
     return nil
 }
 ```

@@ -114,7 +114,7 @@ func TestReplicateRepositoryInvalidArguments(t *testing.T) {
 		expectedError string
 	}{
 		{
-			description: "everything ✅",
+			description: "everything correct",
 			input: &gitalypb.ReplicateRepositoryRequest{
 				Repository: &gitalypb.Repository{
 					StorageName:  "praefect-internal-0",
