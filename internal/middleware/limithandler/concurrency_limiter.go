@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"golang.org/x/sync/semaphore"
 )
 
 // LimitedFunc represents a function that will be limited
@@ -29,30 +27,32 @@ type ConcurrencyLimiter struct {
 }
 
 type semaphoreReference struct {
-	// A weighted semaphore is like a mutex, but with a number of 'slots'.
-	// When locking the locker requests 1 or more slots to be locked.
-	// In this package, the number of slots is the number of concurrent requests the rate limiter lets through.
-	// https://godoc.org/golang.org/x/sync/semaphore
-	*semaphore.Weighted
-	count int
+	tokens chan struct{}
+	count  int
 }
+
+func (sem *semaphoreReference) acquire(ctx context.Context) error {
+	select {
+	case sem.tokens <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (sem *semaphoreReference) release() { <-sem.tokens }
 
 // Lazy create a semaphore for the given key
 func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphoreReference {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if ref := c.semaphores[lockKey]; ref != nil {
-		ref.count++
-		return ref
+	if c.semaphores[lockKey] == nil {
+		c.semaphores[lockKey] = &semaphoreReference{tokens: make(chan struct{}, c.max)}
 	}
 
-	ref := &semaphoreReference{
-		Weighted: semaphore.NewWeighted(c.max),
-		count:    1, // The caller gets this reference so the initial value is 1
-	}
-	c.semaphores[lockKey] = ref
-	return ref
+	c.semaphores[lockKey].count++
+	return c.semaphores[lockKey]
 }
 
 func (c *ConcurrencyLimiter) putSemaphore(lockKey string) {
@@ -93,12 +93,12 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	sem := c.getSemaphore(lockKey)
 	defer c.putSemaphore(lockKey)
 
-	err := sem.Acquire(ctx, 1)
+	err := sem.acquire(ctx)
 	c.monitor.Dequeued(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer sem.Release(1)
+	defer sem.release()
 
 	c.monitor.Enter(ctx, time.Since(start))
 	defer c.monitor.Exit(ctx)
