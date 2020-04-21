@@ -47,17 +47,12 @@ func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphoreReference {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if ref := c.semaphores[lockKey]; ref != nil {
-		ref.count++
-		return ref
+	if c.semaphores[lockKey] == nil {
+		c.semaphores[lockKey] = &semaphoreReference{tokens: make(chan struct{}, c.max)}
 	}
 
-	ref := &semaphoreReference{
-		tokens: make(chan struct{}, c.max),
-		count:  1, // The caller gets this reference so the initial value is 1
-	}
-	c.semaphores[lockKey] = ref
-	return ref
+	c.semaphores[lockKey].count++
+	return c.semaphores[lockKey]
 }
 
 func (c *ConcurrencyLimiter) putSemaphore(lockKey string) {
