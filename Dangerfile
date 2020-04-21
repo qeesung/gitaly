@@ -1,6 +1,5 @@
 GITALY_TEAM = %w[
   8bitlife
-  jacobvosmaer-gitlab
   johncai
   pks-t
   pokstad1
