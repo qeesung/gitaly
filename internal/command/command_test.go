@@ -156,9 +156,7 @@ wait:
 
 	require.True(t, timePassed, "time must have passed")
 	require.Error(t, err)
-
-	_, ok := err.(spawnTimeoutError)
-	require.True(t, ok, "type of error should be spawnTimeoutError")
+	require.Contains(t, err.Error(), "process spawn timed out after")
 }
 
 func TestNewCommandWithSetupStdin(t *testing.T) {
@@ -188,9 +186,7 @@ func TestNewCommandNullInArg(t *testing.T) {
 
 	_, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"), nil, nil, nil)
 	require.Error(t, err)
-
-	_, ok := err.(nullInArgvError)
-	require.True(t, ok, "expected %+v to be nullInArgvError", err)
+	require.EqualError(t, err, `detected null byte in command argument "hello\x00world"`)
 }
 
 func TestCommandStdErr(t *testing.T) {

@@ -80,28 +80,28 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 	}{
 		{
 			subCmd: git.SubCmd{Name: "--meow"},
-			errMsg: "invalid sub command name \"--meow\"",
+			errMsg: `invalid sub command name "--meow": invalid argument`,
 		},
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
 				Flags: []git.Option{git.Flag{"woof"}},
 			},
-			errMsg: "flag \"woof\" failed regex validation",
+			errMsg: `flag "woof" failed regex validation: invalid argument`,
 		},
 		{
 			subCmd: git.SubCmd{
 				Name: "meow",
 				Args: []string{"--tweet"},
 			},
-			errMsg: "positional arg \"--tweet\" cannot start with dash '-'",
+			errMsg: `positional arg "--tweet" cannot start with dash '-': invalid argument`,
 		},
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
 				Flags: []git.Option{git.SubSubCmd{"-invalid"}},
 			},
-			errMsg: "invalid sub-sub command name \"-invalid\"",
+			errMsg: `invalid sub-sub command name "-invalid": invalid argument`,
 		},
 	} {
 		_, err := git.SafeCmd(

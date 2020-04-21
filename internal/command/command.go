@@ -142,9 +142,7 @@ func WaitAllDone() {
 	wg.Wait()
 }
 
-type spawnTimeoutError struct{ error }
 type contextWithoutDonePanic string
-type nullInArgvError struct{ error }
 
 // noopWriteCloser has a noop Close(). The reason for this is so we can close any WriteClosers that get
 // passed into writeLines. We need this for WriteClosers such as the Logrus writer, which has a
@@ -420,7 +418,7 @@ func checkNullArgv(cmd *exec.Cmd) error {
 	for _, arg := range cmd.Args {
 		if strings.IndexByte(arg, 0) > -1 {
 			// Use %q so that the null byte gets printed as \x00
-			return nullInArgvError{fmt.Errorf("detected null byte in command argument %q", arg)}
+			return fmt.Errorf("detected null byte in command argument %q", arg)
 		}
 	}
 
