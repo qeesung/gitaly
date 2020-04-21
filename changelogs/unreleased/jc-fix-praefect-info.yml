@@ -1,0 +1,6 @@
+---
+title: Allow Praefect's ServerInfo RPC to succeed even if the internal gitaly node
+  calls fail
+merge_request: 2067
+author:
+type: changed

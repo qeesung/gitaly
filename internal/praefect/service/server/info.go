@@ -5,9 +5,7 @@ import (
 	"sync"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"golang.org/x/sync/errgroup"
 )
 
 // ServerInfo sends ServerInfoRequest to all of a praefect server's internal gitaly nodes and aggregates the results into
@@ -17,30 +15,35 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 
 	var gitVersion, serverVersion string
 
-	g, ctx := errgroup.WithContext(ctx)
+	var wg sync.WaitGroup
 
 	storageStatuses := make([]*gitalypb.ServerInfoResponse_StorageStatus, len(s.conf.VirtualStorages))
 
 	for i, virtualStorage := range s.conf.VirtualStorages {
 		shard, err := s.nodeMgr.GetShard(virtualStorage.Name)
 		if err != nil {
-			return nil, err
+			ctxlogrus.Extract(ctx).WithField("virtual_storage", virtualStorage.Name).WithError(err).Error("error when getting shard")
+			continue
 		}
 
 		primary, err := shard.GetPrimary()
 		if err != nil {
-			return nil, err
+			ctxlogrus.Extract(ctx).WithField("virtual_storage", virtualStorage.Name).WithError(err).Error("error when getting primary")
+			continue
 		}
 
+		wg.Add(1)
 		i := i
 		virtualStorage := virtualStorage
 
-		g.Go(func() error {
+		go func() {
+			defer wg.Done()
+
 			client := gitalypb.NewServerServiceClient(primary.GetConnection())
 			resp, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
 			if err != nil {
 				ctxlogrus.Extract(ctx).WithField("storage", primary.GetStorage()).WithError(err).Error("error getting server info")
-				return nil
+				return
 			}
 
 			// From the perspective of the praefect client, a server info call should result in the server infos
@@ -78,14 +81,10 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 			once.Do(func() {
 				gitVersion, serverVersion = resp.GetGitVersion(), resp.GetServerVersion()
 			})
-
-			return nil
-		})
+		}()
 	}
 
-	if err := g.Wait(); err != nil {
-		return nil, helper.ErrInternal(err)
-	}
+	wg.Wait()
 
 	return &gitalypb.ServerInfoResponse{
 		ServerVersion:   serverVersion,

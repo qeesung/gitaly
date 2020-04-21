@@ -115,9 +115,23 @@ func TestGitalyServerInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, gitVersion, metadata.GetGitVersion())
 
+	// use mock gitaly backends. The ServerInfo call to Gitaly will fail with an error.
 	for _, storageStatus := range metadata.GetStorageStatuses() {
 		require.NotNil(t, storageStatus, "none of the storage statuses should be nil")
 	}
+
+	backends := map[string]mock.SimpleServiceServer{
+		conf.VirtualStorages[0].Nodes[0].Storage: &mockSvc{},
+		conf.VirtualStorages[0].Nodes[1].Storage: &mockSvc{},
+	}
+
+	cc, _, cleanup = runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
+	defer cleanup()
+
+	client = gitalypb.NewServerServiceClient(cc)
+	metadata, err = client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
+	require.NoError(t, err, "we expect praefect's server info to fail open even if the gitaly calls result in an error")
+	require.Empty(t, metadata.StorageStatuses)
 }
 
 func TestGitalyServerInfoBadNode(t *testing.T) {
