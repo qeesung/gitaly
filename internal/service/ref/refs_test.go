@@ -420,7 +420,7 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 
 	client, conn := newRefServiceClient(t, serverSocketPath)
 	defer conn.Close()
-	repo := &gitalypb.Repository{StorageName: "default", RelativePath: "made/up/path"}
+	repo := &gitalypb.Repository{StorageName: "default", RelativePath: "/made/up/path"}
 	rpcRequest := &gitalypb.FindDefaultBranchNameRequest{Repository: repo}
 
 	ctx, cancel := context.WithCancel(context.Background())

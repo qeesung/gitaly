@@ -38,6 +38,6 @@ func TestRemoveRepositoryDoesNotExist(t *testing.T) {
 	defer cancel()
 
 	_, err := client.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
-		Repository: &gitalypb.Repository{StorageName: "default", RelativePath: "does/not/exist"}})
+		Repository: &gitalypb.Repository{StorageName: "default", RelativePath: "/does/not/exist"}})
 	require.NoError(t, err)
 }
