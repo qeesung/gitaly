@@ -163,8 +163,7 @@ func (o *ObjectPool) LinkedToRepository(repo *gitalypb.Repository) (bool, error)
 	return false, nil
 }
 
-// Unlink removes the alternates file, so Git won't look there anymore
-// It removes the remote from the object pool too,
+// Unlink removes the remote from the object pool
 func (o *ObjectPool) Unlink(ctx context.Context, repo *gitalypb.Repository) error {
 	if !o.Exists() {
 		return errors.New("pool does not exist")
