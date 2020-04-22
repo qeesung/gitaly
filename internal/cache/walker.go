@@ -139,6 +139,18 @@ func moveAndClear(storagePath string) error {
 		return err
 	}
 
+	defer func() {
+		dontpanic.Go(func() {
+			start := time.Now()
+			if err := os.RemoveAll(tmpDir); err != nil {
+				logger.Errorf("unable to remove disk cache objects: %q", err)
+				return
+			}
+
+			logger.Infof("cleared all cache object files in %s after %s", tmpDir, time.Since(start))
+		})
+	}()
+
 	logger.Infof("moving disk cache object folder to %s", tmpDir)
 	cachePath := tempdir.AppendCacheDir(storagePath)
 	if err := os.Rename(cachePath, filepath.Join(tmpDir, "moved")); err != nil {
@@ -149,15 +161,6 @@ func moveAndClear(storagePath string) error {
 
 		return err
 	}
-
-	dontpanic.Go(func() {
-		start := time.Now()
-		if err := os.RemoveAll(tmpDir); err != nil {
-			logger.Errorf("unable to remove disk cache objects: %q", err)
-		}
-
-		logger.Infof("cleared all cache object files in %s after %s", tmpDir, time.Since(start))
-	})
 
 	return nil
 }

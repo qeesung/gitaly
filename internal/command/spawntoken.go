@@ -68,7 +68,7 @@ func getSpawnToken(ctx context.Context) (putToken func(), err error) {
 		logTime(ctx, start, "spawn token timeout")
 		spawnTimeoutCount.Inc()
 
-		return nil, spawnTimeoutError{fmt.Errorf("process spawn timed out after %v", spawnConfig.Timeout)}
+		return nil, fmt.Errorf("process spawn timed out after %v", spawnConfig.Timeout)
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

@@ -253,15 +253,20 @@ func validateStorages() error {
 
 	for i, storage := range Config.Storages {
 		if storage.Name == "" {
-			return fmt.Errorf("empty storage name in %v", storage)
+			return fmt.Errorf("empty storage name in %+v", storage)
 		}
 
 		if storage.Path == "" {
-			return fmt.Errorf("empty storage path in %v", storage)
+			return fmt.Errorf("empty storage path in %+v", storage)
 		}
 
-		if fs, err := os.Stat(storage.Path); err != nil || !fs.IsDir() {
-			return fmt.Errorf("storage paths have to exist %v", storage)
+		fs, err := os.Stat(storage.Path)
+		if err != nil {
+			return fmt.Errorf("storage %+v path must exist: %w", storage, err)
+		}
+
+		if !fs.IsDir() {
+			return fmt.Errorf("storage %+v path must be a dir", storage)
 		}
 
 		stPath := filepath.Clean(storage.Path)

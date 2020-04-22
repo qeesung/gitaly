@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -12,12 +13,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
-var invalidationTotal = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "gitaly_invalid_commands_total",
-		Help: "Total number of invalid arguments tried to execute",
-	},
-	[]string{"command"},
+var (
+	invalidationTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_invalid_commands_total",
+			Help: "Total number of invalid arguments tried to execute",
+		},
+		[]string{"command"},
+	)
+
+	// ErrInvalidArg represent family of errors to report about bad argument used to make a call.
+	ErrInvalidArg = errors.New("invalid argument")
 )
 
 func init() {
@@ -52,9 +58,7 @@ func (sc SubCmd) ValidateArgs() ([]string, error) {
 	var safeArgs []string
 
 	if !subCmdNameRegex.MatchString(sc.Name) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("invalid sub command name %q", sc.Name),
-		}
+		return nil, fmt.Errorf("invalid sub command name %q: %w", sc.Name, ErrInvalidArg)
 	}
 	safeArgs = append(safeArgs, sc.Name)
 
@@ -102,9 +106,7 @@ func (SubSubCmd) IsOption() {}
 // sanitary
 func (sc SubSubCmd) ValidateArgs() ([]string, error) {
 	if !subCmdNameRegex.MatchString(sc.Name) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("invalid sub-sub command name %q", sc.Name),
-		}
+		return nil, fmt.Errorf("invalid sub-sub command name %q: %w", sc.Name, ErrInvalidArg)
 	}
 	return []string{sc.Name}, nil
 }
@@ -123,9 +125,7 @@ var configKeyRegex = regexp.MustCompile(`^[[:alnum:]]+[-[:alnum:]]*\.(.+\.)*[[:a
 // ValidateArgs validates the config pair args
 func (cp ConfigPair) ValidateArgs() ([]string, error) {
 	if !configKeyRegex.MatchString(cp.Key) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("config key %q failed regexp validation", cp.Key),
-		}
+		return nil, fmt.Errorf("config key %q failed regexp validation: %w", cp.Key, ErrInvalidArg)
 	}
 	return []string{cp.Key, cp.Value}, nil
 }
@@ -142,9 +142,7 @@ func (Flag) IsOption() {}
 // ValidateArgs returns an error if the flag is not sanitary
 func (f Flag) ValidateArgs() ([]string, error) {
 	if !flagRegex.MatchString(f.Name) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("flag %q failed regex validation", f.Name),
-		}
+		return nil, fmt.Errorf("flag %q failed regex validation: %w", f.Name, ErrInvalidArg)
 	}
 	return []string{f.Name}, nil
 }
@@ -162,32 +160,21 @@ func (ValueFlag) IsOption() {}
 // ValidateArgs returns an error if the flag is not sanitary
 func (vf ValueFlag) ValidateArgs() ([]string, error) {
 	if !flagRegex.MatchString(vf.Name) {
-		return nil, &invalidArgErr{
-			msg: fmt.Sprintf("value flag %q failed regex validation", vf.Name),
-		}
+		return nil, fmt.Errorf("value flag %q failed regex validation: %w", vf.Name, ErrInvalidArg)
 	}
 	return []string{vf.Name, vf.Value}, nil
 }
 
 var flagRegex = regexp.MustCompile(`^(-|--)[[:alnum:]]`)
 
-type invalidArgErr struct {
-	msg string
-}
-
-func (iae *invalidArgErr) Error() string { return iae.msg }
-
 // IsInvalidArgErr relays if the error is due to an argument validation failure
 func IsInvalidArgErr(err error) bool {
-	_, ok := err.(*invalidArgErr)
-	return ok
+	return errors.Is(err, ErrInvalidArg)
 }
 
 func validatePositionalArg(arg string) error {
 	if strings.HasPrefix(arg, "-") {
-		return &invalidArgErr{
-			msg: fmt.Sprintf("positional arg %q cannot start with dash '-'", arg),
-		}
+		return fmt.Errorf("positional arg %q cannot start with dash '-': %w", arg, ErrInvalidArg)
 	}
 	return nil
 }
