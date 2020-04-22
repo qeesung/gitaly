@@ -111,18 +111,10 @@ state files and cached responses. Additionally, Gitaly will remove the cached
 responses on program start to guard against any chance that the cache
 invalidator was not working in a previous run.
 
-## Enabling and Observing
+## Considerations
 
-The actual caching of info ref advertisements is guarded by a feature flag. 
-Before enabling on a production system, ensure you understand the following
-requirements and risks:
-
-- **All Gitaly servers must be v1.71.0 or higher**
-    - Note: this version is available in **Omnibus GitLab 12.5.0** and above
-    - In order for the cache entries to be properly invalidated, all Gitaly nodes
-      serving a [storage location] must support the same cache invalidation
-      feature found in v1.71.0+. Custom Gitaly deployments with mixed versions
-      may serve stale info ref advertisements.
+- Note: this feature is available by default in **Omnibus GitLab 12.10.0** and
+  above
 - The cache will use extra disk on the Gitaly storage locations. This should be
   actively monitored. [Node exporter] is recommended for tracking resource
   usage.
@@ -130,12 +122,7 @@ requirements and risks:
   GitLab instances until the cache is warmed up. On a busy site like gitlab.com,
   this may last as long as several seconds to a minute.
 
-This flag can be enabled in one of two ways:
-
-- HTTP API via curl command: `curl --data "value=true" --header "PRIVATE-TOKEN: <your_access_token>" https://gitlab.example.com/api/v4/features/gitaly_inforef_uploadpack_cache`
-- Rails console command: `Feature.enable(:gitaly_inforef_uploadpack_cache)`
-
-Once enabled, the following Prometheus queries (adapted from [GitLab's dashboards])
+The following Prometheus queries (adapted from [GitLab's dashboards])
 will give you insight into the performance and behavior of the cache:
 
 - [Cache invalidation behavior]
