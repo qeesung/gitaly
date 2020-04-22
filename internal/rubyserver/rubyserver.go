@@ -87,6 +87,12 @@ func (s *Server) start() error {
 	}
 
 	cfg := config.Config
+
+	gitlabshellEnv, err := gitlabshell.Env()
+	if err != nil {
+		return err
+	}
+
 	env := append(
 		os.Environ(),
 		"GITALY_RUBY_GIT_BIN_PATH="+command.GitPath(),
@@ -99,7 +105,7 @@ func (s *Server) start() error {
 		"GITALY_SOCKET="+config.GitalyInternalSocketPath(),
 		"GITALY_TOKEN="+cfg.Auth.Token,
 		"GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH="+cfg.Ruby.RuggedGitConfigSearchPath)
-	env = append(env, gitlabshell.Env()...)
+	env = append(env, gitlabshellEnv...)
 
 	env = append(env, command.GitEnv...)
 
