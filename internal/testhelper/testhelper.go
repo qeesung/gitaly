@@ -55,6 +55,8 @@ var configureOnce sync.Once
 // terminates the program.
 func Configure() {
 	configureOnce.Do(func() {
+		gitalylog.Configure("json", "info")
+
 		config.Config.Storages = []config.Storage{
 			{Name: "default", Path: GitlabTestStoragePath()},
 		}
@@ -86,8 +88,6 @@ func Configure() {
 				log.Fatalf("error configuring tests: %v", err)
 			}
 		}
-
-		gitalylog.Configure("json", "info")
 	})
 }
 
