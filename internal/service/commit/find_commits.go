@@ -16,8 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-const commitsPerPage int = 20
-
 func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
 	ctx := stream.Context()
 
@@ -65,7 +63,7 @@ func findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream g
 		getCommits.Offset(int(req.GetOffset()))
 	}
 
-	if err := streamPaginatedCommits(getCommits, commitsPerPage, stream); err != nil {
+	if err := streamCommits(getCommits, stream); err != nil {
 		return fmt.Errorf("error streaming commits: %v", err)
 	}
 	return nil
@@ -133,7 +131,7 @@ func (s *findCommitsSender) Send() error {
 	return s.stream.Send(&gitalypb.FindCommitsResponse{Commits: s.commits})
 }
 
-func streamPaginatedCommits(getCommits *GetCommits, commitsPerPage int, stream gitalypb.CommitService_FindCommitsServer) error {
+func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer) error {
 	chunker := chunk.New(&findCommitsSender{stream: stream})
 
 	for getCommits.Scan() {

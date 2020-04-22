@@ -1,5 +1,11 @@
 package chunk
 
+import (
+	"reflect"
+
+	"github.com/golang/protobuf/proto"
+)
+
 // Item could be e.g. a commit in an RPC that returns a chunked stream of
 // commits.
 type Item interface{}
@@ -23,35 +29,53 @@ func New(s Sender) *Chunker { return &Chunker{s: s} }
 // Chunker lets you spread items you want to send over multiple chunks.
 // This type is not thread-safe.
 type Chunker struct {
-	s Sender
-	n int
+	s    Sender
+	size int
 }
+
+// MaxMessageSize is the default gRPC maximum message size, 4MB
+const MaxMessageSize = 4 * 1024 * 1024
 
 // Send will append an item to the current chunk and send the chunk if it is full.
 func (c *Chunker) Send(it Item) error {
-	if c.n == 0 {
+	if c.size == 0 {
+		c.s.Reset()
+	}
+
+	var itSize int
+
+	switch v := it.(type) {
+	case proto.Message:
+		itSize = proto.Size(v)
+	case []byte:
+		itSize = len(v)
+	case string:
+		itSize = len(v)
+	default:
+		itSize = int(reflect.TypeOf(it).Size())
+	}
+
+	if itSize+c.size >= MaxMessageSize {
+		if err := c.sendResponseMsg(); err != nil {
+			return err
+		}
 		c.s.Reset()
 	}
 
 	c.s.Append(it)
-	c.n++
-
-	const chunkSize = 20
-	if c.n >= chunkSize {
-		return c.sendResponseMsg()
-	}
+	c.size += itSize
 
 	return nil
 }
 
 func (c *Chunker) sendResponseMsg() error {
-	c.n = 0
+	c.size = 0
 	return c.s.Send()
 }
 
 // Flush sends remaining items in the current chunk, if any.
 func (c *Chunker) Flush() error {
-	if c.n == 0 {
+	if c.size == 0 {
 		return nil
 	}
 
