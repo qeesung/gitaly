@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/internal/service/cleanup/internalrefs"
@@ -89,10 +90,10 @@ func (r *bfgStreamReader) streamReader() io.Reader {
 	return streamio.NewReader(r.readOne)
 }
 
-func (w *bfgStreamWriter) Append(it chunk.Item) {
+func (w *bfgStreamWriter) Append(m proto.Message) {
 	w.entries = append(
 		w.entries,
-		it.(*gitalypb.ApplyBfgObjectMapStreamResponse_Entry),
+		m.(*gitalypb.ApplyBfgObjectMapStreamResponse_Entry),
 	)
 }
 

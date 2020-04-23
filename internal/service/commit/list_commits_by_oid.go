@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
@@ -58,8 +59,8 @@ type commitsByOidSender struct {
 	stream   gitalypb.CommitService_ListCommitsByOidServer
 }
 
-func (c *commitsByOidSender) Append(it chunk.Item) {
-	c.response.Commits = append(c.response.Commits, it.(*gitalypb.GitCommit))
+func (c *commitsByOidSender) Append(m proto.Message) {
+	c.response.Commits = append(c.response.Commits, m.(*gitalypb.GitCommit))
 }
 
 func (c *commitsByOidSender) Send() error { return c.stream.Send(c.response) }

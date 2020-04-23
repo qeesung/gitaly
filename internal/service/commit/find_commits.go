@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
@@ -123,8 +124,8 @@ type findCommitsSender struct {
 }
 
 func (s *findCommitsSender) Reset() { s.commits = nil }
-func (s *findCommitsSender) Append(it chunk.Item) {
-	s.commits = append(s.commits, it.(*gitalypb.GitCommit))
+func (s *findCommitsSender) Append(m proto.Message) {
+	s.commits = append(s.commits, m.(*gitalypb.GitCommit))
 }
 
 func (s *findCommitsSender) Send() error {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
@@ -69,8 +70,8 @@ func (t *tagSender) Reset() {
 	t.tags = nil
 }
 
-func (t *tagSender) Append(i chunk.Item) {
-	t.tags = append(t.tags, i.(*gitalypb.Tag))
+func (t *tagSender) Append(m proto.Message) {
+	t.tags = append(t.tags, m.(*gitalypb.Tag))
 }
 
 func (t *tagSender) Send() error {

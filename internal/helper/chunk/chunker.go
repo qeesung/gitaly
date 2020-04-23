@@ -1,14 +1,8 @@
 package chunk
 
 import (
-	"reflect"
-
 	"github.com/golang/protobuf/proto"
 )
-
-// Item could be e.g. a commit in an RPC that returns a chunked stream of
-// commits.
-type Item interface{}
 
 // Sender encapsulates a gRPC response stream and the current chunk
 // that's being built.
@@ -18,7 +12,7 @@ type Sender interface {
 	// Reset should create a fresh response message.
 	Reset()
 	// Append should append the given item to the slice in the current response message
-	Append(Item)
+	Append(proto.Message)
 	// Send should send the current response message
 	Send() error
 }
@@ -33,29 +27,18 @@ type Chunker struct {
 	size int
 }
 
-// MaxMessageSize is the default gRPC maximum message size, 4MB
-const MaxMessageSize = 4 * 1024 * 1024
+// maxMessageSize is maximum size per protobuf message
+const maxMessageSize = 1 * 1024 * 1024
 
 // Send will append an item to the current chunk and send the chunk if it is full.
-func (c *Chunker) Send(it Item) error {
+func (c *Chunker) Send(it proto.Message) error {
 	if c.size == 0 {
 		c.s.Reset()
 	}
 
-	var itSize int
+	itSize := proto.Size(it)
 
-	switch v := it.(type) {
-	case proto.Message:
-		itSize = proto.Size(v)
-	case []byte:
-		itSize = len(v)
-	case string:
-		itSize = len(v)
-	default:
-		itSize = int(reflect.TypeOf(it).Size())
-	}
-
-	if itSize+c.size >= MaxMessageSize {
+	if itSize+c.size >= maxMessageSize {
 		if err := c.sendResponseMsg(); err != nil {
 			return err
 		}

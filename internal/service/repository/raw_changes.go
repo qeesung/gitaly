@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/git/rawdiff"
@@ -104,8 +105,8 @@ type rawChangesSender struct {
 }
 
 func (s *rawChangesSender) Reset() { s.changes = nil }
-func (s *rawChangesSender) Append(it chunk.Item) {
-	s.changes = append(s.changes, it.(*gitalypb.GetRawChangesResponse_RawChange))
+func (s *rawChangesSender) Append(m proto.Message) {
+	s.changes = append(s.changes, m.(*gitalypb.GetRawChangesResponse_RawChange))
 }
 
 func (s *rawChangesSender) Send() error {

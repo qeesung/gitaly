@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -80,7 +81,7 @@ func listFiles(repo *gitalypb.Repository, revision string, stream gitalypb.Commi
 			continue
 		}
 
-		if err := sender.Send([]byte(entry.Path)); err != nil {
+		if err := sender.Send(&gitalypb.ListFilesResponse{Paths: [][]byte{[]byte(entry.Path)}}); err != nil {
 			return err
 		}
 	}
@@ -95,6 +96,6 @@ type listFilesSender struct {
 
 func (s *listFilesSender) Reset()      { s.response = &gitalypb.ListFilesResponse{} }
 func (s *listFilesSender) Send() error { return s.stream.Send(s.response) }
-func (s *listFilesSender) Append(it chunk.Item) {
-	s.response.Paths = append(s.response.Paths, it.([]byte))
+func (s *listFilesSender) Append(m proto.Message) {
+	s.response.Paths = append(s.response.Paths, m.(*gitalypb.ListFilesResponse).Paths...)
 }
