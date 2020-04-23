@@ -33,11 +33,6 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		return nil, err
 	}
 
-	gitlabshellEnv, err := gitlabshell.Env()
-	if err != nil {
-		return nil, err
-	}
-
 	env := append([]string{
 		fmt.Sprintf("GL_ID=%s", req.GetGlId()),
 		fmt.Sprintf("GL_USERNAME=%s", req.GetGlUsername()),
@@ -45,7 +40,7 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		fmt.Sprintf("GITALY_SOCKET=" + config.GitalyInternalSocketPath()),
 		fmt.Sprintf("GITALY_REPO=%s", repo),
 		fmt.Sprintf("GITALY_TOKEN=%s", config.Config.Auth.Token),
-	}, gitlabshellEnv...)
+	}, gitlabshell.Env()...)
 
 	praefect, err := metadata.ExtractPraefectServer(ctx)
 	if err == nil {
