@@ -367,9 +367,10 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 	tempGitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
 	defer cleanup()
 
-	defer func(gitlabShellDir string) {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}(config.Config.GitlabShell.Dir)
+	defer func(gitlabShell config.GitlabShell) {
+		config.Config.GitlabShell = gitlabShell
+	}(config.Config.GitlabShell)
+
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
 	defer func(override string) {
@@ -401,6 +402,9 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	testhelper.WriteCustomHook(testRepoPath, "pre-receive", []byte(testhelper.CheckNewObjectExists))
+
+	config.Config.GitlabShell.GitlabURL = ts.URL
+	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	defer func(override string) {
 		hooks.Override = override

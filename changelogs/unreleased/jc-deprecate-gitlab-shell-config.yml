@@ -1,0 +1,5 @@
+---
+title: Write gitlab shell config from gitaly to gitlab shell as env var
+merge_request: 2066
+author:
+type: added
