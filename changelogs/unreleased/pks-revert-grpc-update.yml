@@ -1,0 +1,5 @@
+---
+title: Revert gRPC upgrade to v1.27.0 to fix issues on multiple platforms
+merge_request: 2088
+author:
+type: fixed

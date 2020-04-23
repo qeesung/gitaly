@@ -7,45 +7,43 @@ require 'lint_pb'
 require 'shared_pb'
 require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("praefect.proto", :syntax => :proto3) do
-    add_message "gitaly.DatalossCheckRequest" do
-      optional :from, :message, 1, "google.protobuf.Timestamp"
-      optional :to, :message, 2, "google.protobuf.Timestamp"
-    end
-    add_message "gitaly.DatalossCheckResponse" do
-      map :by_relative_path, :string, :int64, 1
-    end
-    add_message "gitaly.RepositoryReplicasRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-    end
-    add_message "gitaly.RepositoryReplicasResponse" do
-      optional :primary, :message, 1, "gitaly.RepositoryReplicasResponse.RepositoryDetails"
-      repeated :replicas, :message, 2, "gitaly.RepositoryReplicasResponse.RepositoryDetails"
-    end
-    add_message "gitaly.RepositoryReplicasResponse.RepositoryDetails" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :checksum, :string, 2
-    end
-    add_message "gitaly.ConsistencyCheckRequest" do
-      optional :virtual_storage, :string, 1
-      optional :target_storage, :string, 2
-      optional :reference_storage, :string, 3
-    end
-    add_message "gitaly.ConsistencyCheckResponse" do
-      optional :repo_relative_path, :string, 1
-      optional :target_checksum, :string, 2
-      optional :reference_checksum, :string, 3
-      optional :repl_job_id, :uint64, 4
-    end
+  add_message "gitaly.DatalossCheckRequest" do
+    optional :from, :message, 1, "google.protobuf.Timestamp"
+    optional :to, :message, 2, "google.protobuf.Timestamp"
+  end
+  add_message "gitaly.DatalossCheckResponse" do
+    map :by_relative_path, :string, :int64, 1
+  end
+  add_message "gitaly.RepositoryReplicasRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+  end
+  add_message "gitaly.RepositoryReplicasResponse" do
+    optional :primary, :message, 1, "gitaly.RepositoryReplicasResponse.RepositoryDetails"
+    repeated :replicas, :message, 2, "gitaly.RepositoryReplicasResponse.RepositoryDetails"
+  end
+  add_message "gitaly.RepositoryReplicasResponse.RepositoryDetails" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :checksum, :string, 2
+  end
+  add_message "gitaly.ConsistencyCheckRequest" do
+    optional :virtual_storage, :string, 1
+    optional :target_storage, :string, 2
+    optional :reference_storage, :string, 3
+  end
+  add_message "gitaly.ConsistencyCheckResponse" do
+    optional :repo_relative_path, :string, 1
+    optional :target_checksum, :string, 2
+    optional :reference_checksum, :string, 3
+    optional :repl_job_id, :uint64, 4
   end
 end
 
 module Gitaly
-  DatalossCheckRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckRequest").msgclass
-  DatalossCheckResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse").msgclass
-  RepositoryReplicasRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
-  RepositoryReplicasResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse").msgclass
-  RepositoryReplicasResponse::RepositoryDetails = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse.RepositoryDetails").msgclass
-  ConsistencyCheckRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckRequest").msgclass
-  ConsistencyCheckResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckResponse").msgclass
+  DatalossCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckRequest").msgclass
+  DatalossCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse").msgclass
+  RepositoryReplicasRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
+  RepositoryReplicasResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse").msgclass
+  RepositoryReplicasResponse::RepositoryDetails = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse.RepositoryDetails").msgclass
+  ConsistencyCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckRequest").msgclass
+  ConsistencyCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ConsistencyCheckResponse").msgclass
 end

@@ -6,49 +6,47 @@ require 'google/protobuf'
 require 'lint_pb'
 require 'shared_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("ssh.proto", :syntax => :proto3) do
-    add_message "gitaly.SSHUploadPackRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :stdin, :bytes, 2
-      repeated :git_config_options, :string, 4
-      optional :git_protocol, :string, 5
-    end
-    add_message "gitaly.SSHUploadPackResponse" do
-      optional :stdout, :bytes, 1
-      optional :stderr, :bytes, 2
-      optional :exit_status, :message, 3, "gitaly.ExitStatus"
-    end
-    add_message "gitaly.SSHReceivePackRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :stdin, :bytes, 2
-      optional :gl_id, :string, 3
-      optional :gl_repository, :string, 4
-      optional :gl_username, :string, 5
-      optional :git_protocol, :string, 6
-      repeated :git_config_options, :string, 7
-    end
-    add_message "gitaly.SSHReceivePackResponse" do
-      optional :stdout, :bytes, 1
-      optional :stderr, :bytes, 2
-      optional :exit_status, :message, 3, "gitaly.ExitStatus"
-    end
-    add_message "gitaly.SSHUploadArchiveRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :stdin, :bytes, 2
-    end
-    add_message "gitaly.SSHUploadArchiveResponse" do
-      optional :stdout, :bytes, 1
-      optional :stderr, :bytes, 2
-      optional :exit_status, :message, 3, "gitaly.ExitStatus"
-    end
+  add_message "gitaly.SSHUploadPackRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :stdin, :bytes, 2
+    repeated :git_config_options, :string, 4
+    optional :git_protocol, :string, 5
+  end
+  add_message "gitaly.SSHUploadPackResponse" do
+    optional :stdout, :bytes, 1
+    optional :stderr, :bytes, 2
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
+  end
+  add_message "gitaly.SSHReceivePackRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :stdin, :bytes, 2
+    optional :gl_id, :string, 3
+    optional :gl_repository, :string, 4
+    optional :gl_username, :string, 5
+    optional :git_protocol, :string, 6
+    repeated :git_config_options, :string, 7
+  end
+  add_message "gitaly.SSHReceivePackResponse" do
+    optional :stdout, :bytes, 1
+    optional :stderr, :bytes, 2
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
+  end
+  add_message "gitaly.SSHUploadArchiveRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    optional :stdin, :bytes, 2
+  end
+  add_message "gitaly.SSHUploadArchiveResponse" do
+    optional :stdout, :bytes, 1
+    optional :stderr, :bytes, 2
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
   end
 end
 
 module Gitaly
-  SSHUploadPackRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadPackRequest").msgclass
-  SSHUploadPackResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadPackResponse").msgclass
-  SSHReceivePackRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHReceivePackRequest").msgclass
-  SSHReceivePackResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHReceivePackResponse").msgclass
-  SSHUploadArchiveRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadArchiveRequest").msgclass
-  SSHUploadArchiveResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadArchiveResponse").msgclass
+  SSHUploadPackRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadPackRequest").msgclass
+  SSHUploadPackResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadPackResponse").msgclass
+  SSHReceivePackRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHReceivePackRequest").msgclass
+  SSHReceivePackResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHReceivePackResponse").msgclass
+  SSHUploadArchiveRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadArchiveRequest").msgclass
+  SSHUploadArchiveResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SSHUploadArchiveResponse").msgclass
 end

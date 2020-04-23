@@ -6,43 +6,41 @@ require 'google/protobuf'
 require 'lint_pb'
 require 'shared_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("namespace.proto", :syntax => :proto3) do
-    add_message "gitaly.AddNamespaceRequest" do
-      optional :storage_name, :string, 1
-      optional :name, :string, 2
-    end
-    add_message "gitaly.RemoveNamespaceRequest" do
-      optional :storage_name, :string, 1
-      optional :name, :string, 2
-    end
-    add_message "gitaly.RenameNamespaceRequest" do
-      optional :storage_name, :string, 1
-      optional :from, :string, 2
-      optional :to, :string, 3
-    end
-    add_message "gitaly.NamespaceExistsRequest" do
-      optional :storage_name, :string, 1
-      optional :name, :string, 2
-    end
-    add_message "gitaly.NamespaceExistsResponse" do
-      optional :exists, :bool, 1
-    end
-    add_message "gitaly.AddNamespaceResponse" do
-    end
-    add_message "gitaly.RemoveNamespaceResponse" do
-    end
-    add_message "gitaly.RenameNamespaceResponse" do
-    end
+  add_message "gitaly.AddNamespaceRequest" do
+    optional :storage_name, :string, 1
+    optional :name, :string, 2
+  end
+  add_message "gitaly.RemoveNamespaceRequest" do
+    optional :storage_name, :string, 1
+    optional :name, :string, 2
+  end
+  add_message "gitaly.RenameNamespaceRequest" do
+    optional :storage_name, :string, 1
+    optional :from, :string, 2
+    optional :to, :string, 3
+  end
+  add_message "gitaly.NamespaceExistsRequest" do
+    optional :storage_name, :string, 1
+    optional :name, :string, 2
+  end
+  add_message "gitaly.NamespaceExistsResponse" do
+    optional :exists, :bool, 1
+  end
+  add_message "gitaly.AddNamespaceResponse" do
+  end
+  add_message "gitaly.RemoveNamespaceResponse" do
+  end
+  add_message "gitaly.RenameNamespaceResponse" do
   end
 end
 
 module Gitaly
-  AddNamespaceRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AddNamespaceRequest").msgclass
-  RemoveNamespaceRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveNamespaceRequest").msgclass
-  RenameNamespaceRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameNamespaceRequest").msgclass
-  NamespaceExistsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NamespaceExistsRequest").msgclass
-  NamespaceExistsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NamespaceExistsResponse").msgclass
-  AddNamespaceResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AddNamespaceResponse").msgclass
-  RemoveNamespaceResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveNamespaceResponse").msgclass
-  RenameNamespaceResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameNamespaceResponse").msgclass
+  AddNamespaceRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AddNamespaceRequest").msgclass
+  RemoveNamespaceRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveNamespaceRequest").msgclass
+  RenameNamespaceRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameNamespaceRequest").msgclass
+  NamespaceExistsRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NamespaceExistsRequest").msgclass
+  NamespaceExistsResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NamespaceExistsResponse").msgclass
+  AddNamespaceResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AddNamespaceResponse").msgclass
+  RemoveNamespaceResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RemoveNamespaceResponse").msgclass
+  RenameNamespaceResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameNamespaceResponse").msgclass
 end
