@@ -128,9 +128,9 @@ func GitalyServersMetadata(t testing.TB, serverSocketPath string) metadata.MD {
 	return metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))
 }
 
-func testRepoValid(repo *gitalypb.Repository) bool {
-	storagePath, _ := config.Config.StoragePath(repo.GetStorageName())
-	if _, err := os.Stat(path.Join(storagePath, repo.RelativePath, "objects")); err != nil {
+// isValidRepoPath checks whether a valid git repository exists at the given path.
+func isValidRepoPath(absolutePath string) bool {
+	if _, err := os.Stat(filepath.Join(absolutePath, "objects")); err != nil {
 		return false
 	}
 
@@ -148,7 +148,8 @@ func TestRepository() *gitalypb.Repository {
 		GlRepository: "project-1",
 	}
 
-	if !testRepoValid(repo) {
+	storagePath, _ := config.Config.StoragePath(repo.GetStorageName())
+	if !isValidRepoPath(filepath.Join(storagePath, repo.RelativePath)) {
 		panic("Test repo not found, did you run `make prepare-tests`?")
 	}
 
@@ -460,27 +461,39 @@ func initRepo(t testing.TB, bare bool) (*gitalypb.Repository, string, func()) {
 	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }
 
-// NewTestRepo creates a bare copy of the test repository.
+// NewTestRepoTo clones a new copy of test repository under a subdirectory in the storage root.
+func NewTestRepoTo(t testing.TB, storageRoot, relativePath string) *gitalypb.Repository {
+	repo, _, _ := cloneTestRepo(t, storageRoot, relativePath, true)
+	return repo
+}
+
+// NewTestRepo creates a bare copy of the test repository..
 func NewTestRepo(t testing.TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
-	return cloneTestRepo(t, true)
+	return cloneTestRepo(t, GitlabTestStoragePath(), NewRepositoryName(t, true), true)
 }
 
 // NewTestRepoWithWorktree creates a copy of the test repository with a
 // worktree. This is allows you to run normal 'non-bare' Git commands.
 func NewTestRepoWithWorktree(t testing.TB) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
-	return cloneTestRepo(t, false)
+	return cloneTestRepo(t, GitlabTestStoragePath(), NewRepositoryName(t, false), false)
 }
 
-func cloneTestRepo(t testing.TB, bare bool) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
-	storagePath := GitlabTestStoragePath()
-	relativePath := NewRepositoryName(t, bare)
-	repoPath = filepath.Join(storagePath, relativePath)
+// testRepositoryPath returns the absolute path of local 'gitlab-org/gitlab-test.git' clone.
+// It is cloned under the path by the test preparing step of make.
+func testRepositoryPath(t testing.TB) string {
+	path := filepath.Join(GitlabTestStoragePath(), TestRelativePath)
+	if !isValidRepoPath(path) {
+		t.Fatalf("local clone of 'gitlab-org/gitlab-test.git' not found in %q, did you run `make prepare-tests`?", path)
+	}
 
-	repo = CreateRepo(t, storagePath, relativePath)
-	testRepo := TestRepository()
-	testRepoPath := path.Join(storagePath, testRepo.RelativePath)
+	return path
+}
+
+func cloneTestRepo(t testing.TB, storageRoot, relativePath string, bare bool) (repo *gitalypb.Repository, repoPath string, cleanup func()) {
+	repoPath = filepath.Join(storageRoot, relativePath)
+
+	repo = CreateRepo(t, storageRoot, relativePath)
 	args := []string{"clone", "--no-hardlinks", "--dissociate"}
-
 	if bare {
 		args = append(args, "--bare")
 	} else {
@@ -488,7 +501,7 @@ func cloneTestRepo(t testing.TB, bare bool) (repo *gitalypb.Repository, repoPath
 		repo.RelativePath = path.Join(relativePath, ".git")
 	}
 
-	MustRunCommand(t, nil, "git", append(args, testRepoPath, repoPath)...)
+	MustRunCommand(t, nil, "git", append(args, testRepositoryPath(t), repoPath)...)
 
 	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }

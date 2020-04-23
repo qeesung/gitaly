@@ -1,0 +1,5 @@
+---
+title: Ignore repositories deleted during a file walk
+merge_request: 2083
+author:
+type: fixed

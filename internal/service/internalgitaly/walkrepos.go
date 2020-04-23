@@ -35,6 +35,10 @@ func (s *server) storagePath(storageName string) (string, error) {
 func walkStorage(ctx context.Context, storagePath string, stream gitalypb.InternalGitaly_WalkReposServer) error {
 	return filepath.Walk(storagePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+
 			return err
 		}
 
