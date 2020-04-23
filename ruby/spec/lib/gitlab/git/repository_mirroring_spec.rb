@@ -34,31 +34,14 @@ describe Gitlab::Git::RepositoryMirroring do
     end
 
     context 'with a failed push' do
-      it 'logs a list of branch results and raises CommandError' do
+      it 'raises an error' do
         output = "Oh no, push mirroring failed!"
-        logger = spy
+        allow(projects_stub).to receive(:output).and_return(output)
 
-        # Once for parsing, once for the exception
-        allow(projects_stub).to receive(:output).twice.and_return(output)
-        allow(projects_stub).to receive(:logger).and_return(logger)
-
-        push_results = double(
-          accepted_refs: %w[develop],
-          rejected_refs: %w[master]
-        )
-        expect(Gitlab::Git::PushResults).to receive(:new)
-          .with(output)
-          .and_return(push_results)
-
-        # Push fails
         expect(projects_stub).to receive(:push_branches).and_return(false)
 
-        # The CommandError gets re-raised, matching existing behavior
         expect { repository.push_remote_branches('remote_a', %w[master develop]) }
           .to raise_error(Gitlab::Git::CommandError, output)
-
-        # Ensure we logged a message with the PushResults info
-        expect(logger).to have_received(:info).with(%r{Accepted: develop / Rejected: master})
       end
     end
   end
