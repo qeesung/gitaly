@@ -270,6 +270,10 @@ func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.Re
 		require.Equal(t, http.MethodPost, r.Method, "expected http post")
 		require.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 
+		user, password, _ := r.BasicAuth()
+		require.Equal(t, options.User, user)
+		require.Equal(t, options.Password, password)
+
 		if options.GLID != "" {
 			glidSplit := strings.SplitN(options.GLID, "-", 2)
 			require.Len(t, glidSplit, 2, "number of GLID components")
@@ -515,8 +519,9 @@ func WriteShellSecretFile(t testing.TB, dir, secretToken string) {
 
 // GitlabShellConfig contains a subset of gitlabshell's config.yml
 type GitlabShellConfig struct {
-	GitlabURL    string       `yaml:"gitlab_url"`
-	HTTPSettings HTTPSettings `yaml:"http_settings"`
+	GitlabURL      string       `yaml:"gitlab_url"`
+	HTTPSettings   HTTPSettings `yaml:"http_settings"`
+	CustomHooksDir string       `yaml:"custom_hooks_dir"`
 }
 
 // HTTPSettings contains fields for http settings
