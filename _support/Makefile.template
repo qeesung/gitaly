@@ -11,7 +11,14 @@ INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
 BUNDLE_FLAGS ?= {{ .BundleFlags }}
 ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
 BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
-SHELL = /usr/bin/env bash -e
+SHELL = /usr/bin/env bash -eo pipefail
+# These variables control test options and artifacts
+TEST_OPTIONS ?= 
+TEST_REPORT_DIR ?= {{ .BuildDir }}/reports
+TEST_OUTPUT ?= $(TEST_REPORT_DIR)/go-tests-output-$(CI_JOB_NAME).txt
+TEST_REPORT ?= $(TEST_REPORT_DIR)/go-tests-report-$(CI_JOB_NAME).xml
+TEST_EXIT ?= $(TEST_REPORT_DIR)/go-tests-exit-$(CI_JOB_NAME).txt
+TEST_PACKAGES ?= {{ join .AllPackages " " }}
 
 unexport GOROOT
 export GOBIN = {{ .BuildDir }}/bin
@@ -100,7 +107,12 @@ test: test-go rspec rspec-gitlab-shell
 
 .PHONY: test-go
 test-go: prepare-tests {{ .GoJunitReport }}
-	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml) && exit $${PIPESTATUS[0]}
+	@mkdir -p $(TEST_REPORT_DIR)
+	@cd {{ .SourceDir }} && \
+		echo 0 > $(TEST_EXIT) && \
+		(go test $(TEST_OPTIONS) -v -tags "$(BUILD_TAGS)" -count=1 $(TEST_PACKAGES) 2>&1 | tee $(TEST_OUTPUT) || echo $$? > $(TEST_EXIT)) && \
+		cat $(TEST_OUTPUT) | {{ .GoJunitReport }} > $(TEST_REPORT) && \
+		exit `cat $(TEST_EXIT)`
 
 .PHONY: test-with-proxies
 test-with-proxies: prepare-tests
@@ -114,8 +126,8 @@ test-with-praefect: build prepare-tests
 	GITALY_TEST_PRAEFECT_BIN={{ .BuildDir }}/bin/praefect  go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
 
 .PHONY: race-go
-race-go: prepare-tests {{ .GoJunitReport }}
-	@cd {{ .SourceDir }} && go test -v -tags "$(BUILD_TAGS)" -race {{ join .AllPackages " " }} 2>&1 | tee >({{ .GoJunitReport }} > report-${CI_JOB_NAME}.xml) && exit $${PIPESTATUS[0]}
+race-go: TEST_OPTIONS = -race
+race-go: test-go
 
 .PHONY: rspec
 rspec: assemble-go prepare-tests

@@ -79,9 +79,9 @@ danger-review:
     - make test
   artifacts:
     paths:
-      - report-${CI_JOB_NAME}.xml
+      - _build/reports/go-tests-report-${CI_JOB_NAME}.xml
     reports:
-      junit: report-${CI_JOB_NAME}.xml
+      junit: _build/reports/go-tests-report-${CI_JOB_NAME}.xml
 
 verify:
   <<: *ruby_definition
@@ -153,9 +153,9 @@ race:
     - make race-go
   artifacts:
     paths:
-      - report-${CI_JOB_NAME}.xml
+      - _build/reports/go-tests-report-${CI_JOB_NAME}.xml
     reports:
-      junit: report-${CI_JOB_NAME}.xml
+      junit: _build/reports/go-tests-report-${CI_JOB_NAME}.xml
 
 cover:
   <<: *ruby_definition
