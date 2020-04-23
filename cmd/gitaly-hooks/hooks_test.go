@@ -90,8 +90,9 @@ func TestHooksPrePostReceive(t *testing.T) {
 	defer ts.Close()
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.GitlabShell.GitlabURL = ts.URL
+	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	gitObjectDirRegex := regexp.MustCompile(`(?m)^GIT_OBJECT_DIRECTORY=(.*)$`)
@@ -270,11 +271,18 @@ open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
 	require.Contains(t, output, "GL_PROTOCOL="+glValues.GLProtocol)
 }
 
-func TestHooksPostReceiveFailed(t *testing.T) {
+func TestHooksPostReceiveFailedWithRPC(t *testing.T) {
+	testHooksPostReceiveFailed(t, true)
+}
+
+func TestHooksPostReceiveFailedWithoutRPC(t *testing.T) {
+	testHooksPostReceiveFailed(t, false)
+}
+
+func testHooksPostReceiveFailed(t *testing.T, callHookRPC bool) {
 	defer func(cfg config.Cfg) {
 		config.Config = cfg
 	}(config.Config)
-
 	secretToken := "secret token"
 	glID := "key-1234"
 	glUsername := "iamgitlab"
@@ -305,10 +313,11 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	ts := testhelper.NewGitlabTestServer(t, c)
 	defer ts.Close()
 
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.GitlabShell.GitlabURL = ts.URL
+	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC})
 	require.NoError(t, err)
@@ -392,10 +401,12 @@ func TestHooksNotAllowed(t *testing.T) {
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.GitlabShell.GitlabURL = ts.URL
+
 	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
 	defer cleanup()
 
-	config.Config.GitlabShell.Dir = tempGitlabShellDir
 	token := "abc123"
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
@@ -456,7 +467,7 @@ func TestCheckOK(t *testing.T) {
 	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, gitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: testhelper.HTTPSettings{User: user, Password: password}})
 
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir)
+	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, ts.URL, user, password)
 	defer cleanup()
 
 	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)
@@ -504,7 +515,7 @@ func TestCheckBadCreds(t *testing.T) {
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, gitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: testhelper.HTTPSettings{User: user + "wrong", Password: password}})
 	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
 
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir)
+	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, ts.URL, "wrong", password)
 	defer cleanup()
 
 	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)
