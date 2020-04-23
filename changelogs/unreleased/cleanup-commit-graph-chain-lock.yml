@@ -1,0 +1,5 @@
+---
+title: cleanup commit-graph-chain.lock file after crash
+merge_request: 2099
+author:
+type: fixed
