@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -218,10 +219,9 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	tempGitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
 	defer cleanup()
 
-	originalGitlabShellConfig := config.Config.GitlabShell
-	defer func(gitlabShellConfig config.GitlabShell) {
-		config.Config.GitlabShell = gitlabShellConfig
-	}(originalGitlabShellConfig)
+	defer func(gitlabShell config.GitlabShell) {
+		config.Config.GitlabShell = gitlabShell
+	}(config.Config.GitlabShell)
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 

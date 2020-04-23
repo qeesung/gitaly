@@ -58,18 +58,18 @@ type TLS struct {
 
 // GitlabShell contains the settings required for executing `gitlab-shell`
 type GitlabShell struct {
-	Dir            string       `toml:"dir"`
-	CustomHooksDir string       `toml:"custom_hooks_dir"`
-	GitlabURL      string       `toml:"gitlab_url"`
-	HTTPSettings   HTTPSettings `toml:"http-settings"`
-	SecretFile     string       `toml:"secret_file"`
+	CustomHooksDir string       `toml:"custom_hooks_dir" json:"custom_hooks_dir"`
+	Dir            string       `toml:"dir" json:"dir"`
+	GitlabURL      string       `toml:"gitlab_url" json:"gitlab_url"`
+	HTTPSettings   HTTPSettings `toml:"http-settings" json:"http_settings"`
+	SecretFile     string       `toml:"secret_file" json:"secret_file"`
 }
 
 type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
 	Password    string `toml:"password" json:"password"`
-	CAFile      string `toml:"ca_file" json:"ca_file"`
+	CAFile      string `toml:"ca_file" json:"ca_file""`
 	CAPath      string `toml:"ca_path" json:"ca_path"`
 	SelfSigned  bool   `toml:"self_signed_cert" json:"self_signed_cert"`
 }
@@ -162,6 +162,10 @@ func (c *Cfg) setDefaults() {
 	c.GracefulRestartTimeout = c.GracefulRestartTimeoutToml.Duration
 	if c.GracefulRestartTimeout == 0 {
 		c.GracefulRestartTimeout = 1 * time.Minute
+	}
+
+	if c.GitlabShell.SecretFile == "" {
+		c.GitlabShell.SecretFile = filepath.Join(c.GitlabShell.Dir, ".gitlab_shell_secret")
 	}
 }
 

@@ -66,7 +66,6 @@ func TestGitHooksConfig(t *testing.T) {
 	require.Equal(t, config.Config.GitlabShell.SecretFile, rubyConfigMap["secret_file"])
 	require.Equal(t, config.Config.GitlabShell.CustomHooksDir, rubyConfigMap["custom_hooks_dir"])
 	require.Equal(t, config.Config.GitlabShell.GitlabURL, rubyConfigMap["gitlab_url"])
-	require.Equal(t, config.Config.GitlabShell.SecretFile, rubyConfigMap["secret_file"])
 
 	// HTTP Settings
 	httpSettings, ok := rubyConfigMap["http_settings"].(map[string]interface{})
