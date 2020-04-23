@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var lockFiles = []string{"config.lock", "HEAD.lock"}
+var lockFiles = []string{"config.lock", "HEAD.lock", "objects/info/commit-graphs/commit-graph-chain.lock"}
 
 func (*server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
 	if err := cleanupRepo(ctx, in.GetRepository()); err != nil {
