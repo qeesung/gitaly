@@ -323,6 +323,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 }
 
 func createFileWithTimes(path string, mTime time.Time) {
+	os.MkdirAll(filepath.Dir(path), 0755)
 	ioutil.WriteFile(path, nil, 0644)
 	os.Chtimes(path, mTime, mTime)
 }
