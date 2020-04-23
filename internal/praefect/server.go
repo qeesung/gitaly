@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/info"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/server"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
@@ -127,6 +128,7 @@ func (srv *Server) RegisterServices(nm nodes.Manager, conf config.Config, ds dat
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(conf, nm))
 	gitalypb.RegisterPraefectInfoServiceServer(srv.s, info.NewServer(nm, conf, ds))
+	gitalypb.RegisterRefTransactionServer(srv.s, transaction.NewServer())
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 
 	grpc_prometheus.Register(srv.s)

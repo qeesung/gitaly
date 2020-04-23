@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
+
+import "lint.proto";
+import "shared.proto";
+
+service RefTransaction {
+
+  rpc RegisterTransaction (RegisterTransactionRequest) returns (RegisterTransactionResponse) {
+    option (op_type) = {
+      op:          MUTATOR
+      scope_level: REPOSITORY
+    };
+  }
+
+  rpc StartTransaction (StartTransactionRequest) returns (StartTransactionResponse) {
+    option (op_type) = {
+      op:          MUTATOR
+      scope_level: REPOSITORY
+    };
+  }
+
+  rpc CancelTransaction (CancelTransactionRequest) returns (CancelTransactionResponse) {
+    option (op_type) = {
+      op:          MUTATOR
+      scope_level: REPOSITORY
+    };
+  }
+
+}
+
+message RegisterTransactionRequest {
+  Repository repository = 1[(target_repository)=true];
+  // Nodes taking part in the transaction
+  repeated string nodes = 2;
+}
+
+message RegisterTransactionResponse {
+  uint64 transaction_id = 1;
+}
+
+message StartTransactionRequest {
+  Repository repository = 1[(target_repository)=true];
+  // ID of the transaction we're processing
+  uint64 transaction_id = 2;
+  // Name of the Gitaly node that's starting a transaction.
+  string node = 3;
+  // SHA1 of the references that are to be updated
+  bytes reference_updates_hash = 4;
+}
+
+message StartTransactionResponse {
+  // The outcome of the given transaction telling the client whether the
+  // transaction should be committed or rolled back.
+  enum TransactionState {
+    COMMIT = 0;
+    ABORT = 1;
+  }
+
+  TransactionState state = 1;
+}
+
+message CancelTransactionRequest {
+  Repository repository = 1[(target_repository)=true];
+  // ID of the transaction we're about to cancel
+  uint64 transaction_id = 2;
+}
+
+message CancelTransactionResponse {}
