@@ -17,6 +17,9 @@ indent_style = tab
 indent_size = 8
 tab_width = 8
 
+[**.md]
+max_line_length = 80
+
 [**.proto]
 indent_style = space
 indent_size = 2
