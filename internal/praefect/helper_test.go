@@ -157,9 +157,18 @@ func noopBackoffFunc() (backoff, backoffReset) {
 	}, func() {}
 }
 
+func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
+
+	return runPraefectServerWithGitalyWithDatastore(t, conf, ds)
+}
+
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
-func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, ds datastore.Datastore) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	require.Len(t, conf.VirtualStorages, 1)
 	var cleanups []testhelper.Cleanup
 
@@ -179,10 +188,6 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 		conf.VirtualStorages[0].Nodes[i] = node
 	}
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
-	}
 	logEntry := log.Default()
 
 	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, promtest.NewMockHistogramVec())
