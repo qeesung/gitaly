@@ -428,6 +428,8 @@ func TestRepoRemoval(t *testing.T) {
 	require.DirExists(t, path1)
 	require.DirExists(t, path2)
 
+	// TODO: once https://gitlab.com/gitlab-org/gitaly/-/issues/2703 is done and the replication manager supports
+	// graceful shutdown, we can remove this code that waits for jobs to be complete
 	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
@@ -474,10 +476,8 @@ func TestRepoRemoval(t *testing.T) {
 		}
 	}
 
-	_, err = os.Stat(path1)
-	require.True(t, os.IsNotExist(err))
-	_, err = os.Stat(path2)
-	require.True(t, os.IsNotExist(err))
+	testhelper.AssertPathNotExists(t, path1)
+	testhelper.AssertPathNotExists(t, path2)
 }
 
 func pollUntilRemoved(t testing.TB, path string, deadline <-chan time.Time) {

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -245,15 +244,6 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	testhelper.WriteCustomHook(cloneDetails.RemoteRepoPath, "pre-receive", []byte(testhelper.CheckNewObjectExists))
-
-	defer func(override string) {
-		hooks.Override = override
-	}(hooks.Override)
-
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	hookDir := filepath.Join(cwd, "../../../ruby", "git-hooks")
-	hooks.Override = hookDir
 
 	lHead, rHead, err := sshPush(t, cloneDetails, serverSocketPath, pushParams{
 		storageName:  testRepo.GetStorageName(),
