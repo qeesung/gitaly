@@ -428,7 +428,22 @@ func TestRepoRemoval(t *testing.T) {
 	require.DirExists(t, path1)
 	require.DirExists(t, path2)
 
-	cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
+		ReplicationEventQueue: queueInterceptor,
+	}
+
+	jobsDoneCh := make(chan struct{}, 2)
+	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
+		if state == datastore.JobStateCompleted {
+			jobsDoneCh <- struct{}{}
+		}
+
+		return queue.Acknowledge(ctx, state, ids)
+	})
+
+	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, ds)
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()
@@ -450,10 +465,19 @@ func TestRepoRemoval(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, false, resp.GetExists())
 
-	// the removal of the repo on the secondary servers is not deterministic
-	// since it relies on eventually consistent replication
-	pollUntilRemoved(t, path1, time.After(10*time.Second))
-	pollUntilRemoved(t, path2, time.After(10*time.Second))
+	var jobsDone int
+	for {
+		<-jobsDoneCh
+		jobsDone++
+		if jobsDone == 2 {
+			break
+		}
+	}
+
+	_, err = os.Stat(path1)
+	require.True(t, os.IsNotExist(err))
+	_, err = os.Stat(path2)
+	require.True(t, os.IsNotExist(err))
 }
 
 func pollUntilRemoved(t testing.TB, path string, deadline <-chan time.Time) {
