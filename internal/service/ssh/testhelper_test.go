@@ -3,12 +3,12 @@ package ssh
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -33,7 +33,11 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
-	hooks.Override = "/"
+	defer func(rubyDir string) {
+		config.Config.Ruby.Dir = rubyDir
+	}(config.Config.Ruby.Dir)
+
+	config.Config.Ruby.Dir = filepath.Join("../../../ruby", "git-hooks")
 
 	err := os.RemoveAll(testPath)
 	if err != nil {
