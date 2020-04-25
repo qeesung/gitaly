@@ -47,7 +47,7 @@ GEM
       activesupport (>= 4.2.0)
     faraday (0.15.4)
       multipart-post (>= 1.2, < 3)
-    ffi (1.11.1)
+    ffi (1.12.2)
     gemojione (3.3.0)
       json
     github-linguist (7.5.1)
