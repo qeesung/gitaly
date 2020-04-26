@@ -47,12 +47,18 @@ func newCustomHooksExecutor(repoPath, customHooksDir, hookName string) (customHo
 	hookFiles = append(hookFiles, files...)
 
 	return func(ctx context.Context, args, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
-		stdinBytes, err := ioutil.ReadAll(stdin)
-		if err != nil {
-			return err
+		var stdinBytes []byte
+		if stdin != nil {
+			stdinBytes, err = ioutil.ReadAll(stdin)
+			if err != nil {
+				return err
+			}
 		}
+
 		for _, hookFile := range hookFiles {
-			c, err := command.New(ctx, exec.Command(hookFile, args...), bytes.NewBuffer(stdinBytes), stdout, stderr, env...)
+			cmd := exec.Command(hookFile, args...)
+			cmd.Dir = repoPath
+			c, err := command.New(ctx, cmd, bytes.NewReader(stdinBytes), stdout, stderr, env...)
 			if err != nil {
 				return err
 			}

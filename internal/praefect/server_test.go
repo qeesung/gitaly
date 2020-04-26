@@ -396,8 +396,9 @@ func TestRepoRemoval(t *testing.T) {
 		},
 	}
 
-	oldStorages := gconfig.Config.Storages
-	defer func() { gconfig.Config.Storages = oldStorages }()
+	defer func(storages []gconfig.Storage) {
+		gconfig.Config.Storages = storages
+	}(gconfig.Config.Storages)
 
 	testStorages := []gconfig.Storage{
 		{

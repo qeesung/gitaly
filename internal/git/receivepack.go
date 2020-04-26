@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/golang/protobuf/jsonpb"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -40,6 +42,8 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		fmt.Sprintf("GITALY_SOCKET=" + config.GitalyInternalSocketPath()),
 		fmt.Sprintf("GITALY_REPO=%s", repo),
 		fmt.Sprintf("GITALY_TOKEN=%s", config.Config.Auth.Token),
+		fmt.Sprintf("%s=%s", featureflag.HooksRPCEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.HooksRPC))),
+		fmt.Sprintf("%s=%s", featureflag.GoUpdateHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoUpdateHook))),
 	}, gitlabshell.Env()...)
 
 	praefect, err := metadata.ExtractPraefectServer(ctx)

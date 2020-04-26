@@ -1,4 +1,0 @@
-#!/usr/bin/env ruby
-require 'json'
-
-open('tempfile', 'w') { |f| f.puts(JSON.dump(ARGV)) }

@@ -195,9 +195,6 @@ func TestHooksUpdate(t *testing.T) {
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
 
-	require.NoError(t, os.MkdirAll(filepath.Join(tempGitlabShellDir, "hooks", "update.d"), 0755))
-	testhelper.MustRunCommand(t, nil, "cp", "testdata/update", filepath.Join(tempGitlabShellDir, "hooks", "update.d", "update"))
-
 	for _, callRPC := range []bool{true, false} {
 		t.Run(fmt.Sprintf("call rpc: %t", callRPC), func(t *testing.T) {
 			testHooksUpdate(t, tempGitlabShellDir, socket, token, testhelper.GlHookValues{
@@ -220,15 +217,27 @@ func testHooksUpdate(t *testing.T, gitlabShellDir, socket, token string, glValue
 	cmd := exec.Command(updateHookPath, refval, oldval, newval)
 	cmd.Env = testhelper.EnvForHooks(t, gitlabShellDir, socket, token, testRepo, glValues)
 	cmd.Dir = testRepoPath
-	tempFilePath := filepath.Join(testRepoPath, "tempfile")
 
-	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "update")
+	tempDir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
+
+	customHookArgsPath := filepath.Join(tempDir, "containsarguments")
+	dumpArgsToTempfileScript := fmt.Sprintf(`#!/usr/bin/env ruby
+require 'json'
+open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
+`, customHookArgsPath)
+	// write a custom hook to path/to/repo.git/custom_hooks/update.d/dumpargsscript which dumps the args into a tempfile
+	cleanup, err = testhelper.WriteExecutable(filepath.Join(testRepoPath, "custom_hooks", "update.d", "dumpargsscript"), []byte(dumpArgsToTempfileScript))
+	defer cleanup()
+
+	// write a custom hook to path/to/repo.git/custom_hooks/update which dumps the env into a tempfile
+	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "update")
 
 	var stdout, stderr bytes.Buffer
 
 	if callRPC {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.GoUpdateHookEnvVar))
 	}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -238,11 +247,11 @@ func testHooksUpdate(t *testing.T, gitlabShellDir, socket, token string, glValue
 	require.Empty(t, stdout.String())
 	require.Empty(t, stderr.String())
 
-	require.FileExists(t, tempFilePath)
+	require.FileExists(t, customHookArgsPath)
 
 	var inputs []string
 
-	b, err := ioutil.ReadFile(tempFilePath)
+	b, err := ioutil.ReadFile(customHookArgsPath)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(b, &inputs))
 	require.Equal(t, []string{refval, oldval, newval}, inputs)

@@ -10,9 +10,12 @@ const (
 	HooksRPC = "hooks_rpc"
 	// GoFetchInternalRemote enables a go implementation of FetchInternalRemote
 	GoFetchInternalRemote = "go_fetch_internal_remote"
+	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks
+	GoUpdateHook = "go_update_hook"
 )
 
 const (
 	// HooksRPCEnvVar is the name of the environment variable we use to pass the feature flag down into gitaly-hooks
-	HooksRPCEnvVar = "GITALY_HOOK_RPCS_ENABLED"
+	HooksRPCEnvVar     = "GITALY_HOOK_RPCS_ENABLED"
+	GoUpdateHookEnvVar = "GITALY_GO_UPDATE"
 )

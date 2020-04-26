@@ -3,14 +3,12 @@ package ssh
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 )
@@ -67,7 +65,6 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 
 	env = git.AddGitProtocolEnv(ctx, req, env)
 	env = append(env, command.GitEnv...)
-	env = append(env, fmt.Sprintf("%s=%s", featureflag.HooksRPCEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.HooksRPC))))
 
 	globalOpts := git.ReceivePackConfig()
 	for _, o := range req.GitConfigOptions {

@@ -1,0 +1,5 @@
+---
+title: Use go update hook when feature flag is toggled
+merge_request: 2095
+author:
+type: changed

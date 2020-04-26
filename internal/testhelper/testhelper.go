@@ -673,14 +673,19 @@ func WriteEnvToCustomHook(t testing.TB, repoPath, hookName string) (string, func
 // write a hook in the repo/path.git/custom_hooks directory
 func WriteCustomHook(repoPath, name string, content []byte) (func(), error) {
 	fullPath := filepath.Join(repoPath, "custom_hooks", name)
-	fullpathDir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(fullpathDir, 0755); err != nil {
+	return WriteExecutable(fullPath, content)
+}
+
+// WriteExecutable ensures that the parent directory exists, and writes an executable with provided content
+func WriteExecutable(path string, content []byte) (func(), error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return func() {}, err
 	}
 
 	return func() {
-		os.RemoveAll(fullpathDir)
-	}, ioutil.WriteFile(fullPath, content, 0755)
+		os.RemoveAll(dir)
+	}, ioutil.WriteFile(path, content, 0755)
 }
 
 // CheckNewObjectExists is a script meant to be used as a pre-receive custom hook.

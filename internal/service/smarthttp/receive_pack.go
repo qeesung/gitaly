@@ -1,15 +1,11 @@
 package smarthttp
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -55,7 +51,6 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 
 	env = git.AddGitProtocolEnv(ctx, req, env)
 	env = append(env, command.GitEnv...)
-	env = append(env, fmt.Sprintf("%s=%s", featureflag.HooksRPCEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.HooksRPC))))
 
 	globalOpts := git.ReceivePackConfig()
 	for _, o := range req.GitConfigOptions {

@@ -58,7 +58,8 @@ type TLS struct {
 
 // GitlabShell contains the settings required for executing `gitlab-shell`
 type GitlabShell struct {
-	Dir string `toml:"dir"`
+	Dir            string `toml:"dir"`
+	CustomHooksDir string `toml:"custom_hooks_dir"`
 }
 
 // Git contains the settings for the Git executable
