@@ -1,0 +1,5 @@
+---
+title: Do not enable SQL elector if failover is disabled
+merge_request: 2091
+author:
+type: fixed

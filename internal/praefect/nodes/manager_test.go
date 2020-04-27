@@ -52,6 +52,55 @@ func TestNodeStatus(t *testing.T) {
 	require.False(t, status)
 }
 
+func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
+	const virtualStorageName = "virtual-storage-0"
+	const primaryStorage = "praefect-internal-0"
+	socket0, socket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	virtualStorage := &config.VirtualStorage{
+		Name: virtualStorageName,
+		Nodes: []*models.Node{
+			{
+				Storage:        primaryStorage,
+				Address:        "unix://" + socket0,
+				DefaultPrimary: true,
+			},
+			{
+				Storage: "praefect-internal-1",
+				Address: "unix://" + socket1,
+			},
+		},
+	}
+
+	srv0, healthSrv := testhelper.NewServerWithHealth(t, socket0)
+	defer srv0.Stop()
+
+	srv1, _ := testhelper.NewServerWithHealth(t, socket1)
+	defer srv1.Stop()
+
+	conf := config.Config{
+		Failover:        config.Failover{Enabled: false, ElectionStrategy: "sql"},
+		VirtualStorages: []*config.VirtualStorage{virtualStorage},
+	}
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+
+	nm.Start(time.Millisecond, time.Millisecond)
+
+	shard, err := nm.GetShard(virtualStorageName)
+	require.NoError(t, err)
+
+	primary, err := shard.GetPrimary()
+	require.NoError(t, err)
+	require.Equal(t, primaryStorage, primary.GetStorage())
+
+	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+	nm.checkShards()
+
+	primary, err = shard.GetPrimary()
+	require.NoError(t, err)
+	require.Equal(t, primaryStorage, primary.GetStorage())
+}
+
 func TestPrimaryIsSecond(t *testing.T) {
 	virtualStorages := []*config.VirtualStorage{
 		{

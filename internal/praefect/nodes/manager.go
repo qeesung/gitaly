@@ -99,7 +99,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, latencyHistogram
 			}
 		}
 
-		if c.Failover.ElectionStrategy == "sql" {
+		if c.Failover.Enabled && c.Failover.ElectionStrategy == "sql" {
 			strategies[virtualStorage.Name] = newSQLElector(virtualStorage.Name, c, defaultFailoverTimeoutSeconds, defaultActivePraefectSeconds, db, log, ns)
 		} else {
 			strategies[virtualStorage.Name] = newLocalElector(virtualStorage.Name, c.Failover.Enabled, log, ns)
