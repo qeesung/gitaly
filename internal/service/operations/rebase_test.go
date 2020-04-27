@@ -404,6 +404,70 @@ func getBranchSha(t *testing.T, repoPath string, branchName string) string {
 	return strings.TrimSpace(branchSha)
 }
 
+func TestRebaseRequestWithDeletedFile(t *testing.T) {
+	ctxOuter, cancel := testhelper.Context()
+	defer cancel()
+
+	server, serverSocketPath := runFullServerWithHooks(t)
+	defer server.Stop()
+
+	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	defer cleanupFn()
+
+	testRepoCopy, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	cleanupSrv := operations.SetupAndStartGitlabServer(t, rebaseUser.GlId, testRepo.GlRepository)
+	defer cleanupSrv()
+
+	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+	ctx := metadata.NewOutgoingContext(ctxOuter, md)
+
+	branch := "rebase-delete-test"
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "user.name", string(rebaseUser.Name))
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "user.email", string(rebaseUser.Email))
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "checkout", "-b", branch, "master~1")
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rm", "README")
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit", "-a", "-m", "delete file")
+
+	branchSha := getBranchSha(t, testRepoPath, branch)
+
+	rebaseStream, err := client.UserRebaseConfirmable(ctx)
+	require.NoError(t, err)
+
+	headerRequest := buildHeaderRequest(testRepo, rebaseUser, "1", branch, branchSha, testRepoCopy, "master")
+	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
+
+	firstResponse, err := rebaseStream.Recv()
+	require.NoError(t, err, "receive first response")
+
+	_, err = gitlog.GetCommit(ctx, testRepo, firstResponse.GetRebaseSha())
+	require.NoError(t, err, "look up git commit before rebase is applied")
+
+	applyRequest := buildApplyRequest(true)
+	require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
+
+	secondResponse, err := rebaseStream.Recv()
+	require.NoError(t, err, "receive second response")
+
+	err = testhelper.ReceiveEOFWithTimeout(func() error {
+		_, err = rebaseStream.Recv()
+		return err
+	})
+	require.NoError(t, err, "consume EOF")
+
+	newBranchSha := getBranchSha(t, testRepoPath, branch)
+
+	require.NotEqual(t, newBranchSha, branchSha)
+	require.Equal(t, newBranchSha, firstResponse.GetRebaseSha())
+
+	require.True(t, secondResponse.GetRebaseApplied(), "the second rebase is applied")
+}
+
 // This error is used as a sentinel value
 var errRecvTimeout = errors.New("timeout waiting for response")
 

@@ -736,6 +736,14 @@ module Gitlab
 
       private
 
+      def sparse_checkout_empty?(output)
+        output.include?("error: Sparse checkout leaves no entry on working directory")
+      end
+
+      def disable_sparse_checkout
+        run_git!(%w[config core.sparseCheckout false], include_stderr: true)
+      end
+
       def create_merge_commit(user, our_commit, their_commit, message)
         raise 'Invalid merge target' unless our_commit
         raise 'Invalid merge source' unless their_commit
@@ -884,7 +892,17 @@ module Gitlab
           configure_sparse_checkout(worktree_git_path, sparse_checkout_files)
 
           # After sparse checkout configuration, checkout `branch` in worktree
-          run_git!(%W[checkout --detach #{branch}], chdir: worktree.path, env: env, include_stderr: true)
+          output, cmd_status = run_git(%W[checkout --detach #{branch}], chdir: worktree.path, env: env, include_stderr: true)
+
+          # If sparse checkout fails, fall back to a regular checkout.
+          if cmd_status.nonzero?
+            if sparse_checkout_empty?(output)
+              disable_sparse_checkout
+              run_git!(%W[checkout --detach #{branch}], chdir: worktree.path, env: env, include_stderr: true)
+            else
+              raise GitError, output
+            end
+          end
         else
           # Create worktree and checkout `branch` in it
           run_git!(base_args + [worktree.path, branch], env: env, include_stderr: true)
