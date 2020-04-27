@@ -107,60 +107,63 @@ func TestCustomHookPartialFailure(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	// project hook success, global hook failure
-	projectHookPath := filepath.Join(testRepoPath, "custom_hooks")
-	cleanupProjectHook := writeCustomHook(t, "pre-receive", projectHookPath, successScript)
-	globalHookPath := filepath.Join(globalCustomHooksDir, "pre-receive.d")
-	cleanupGlobalHook := writeCustomHook(t, "pre-receive", globalHookPath, failScript)
+	testCases := []struct {
+		hook                string
+		projectHookSucceeds bool
+		globalHookSucceeds  bool
+	}{
+		{
+			hook:                "pre-receive",
+			projectHookSucceeds: true,
+			globalHookSucceeds:  false,
+		},
+		{
+			hook:                "post-receive",
+			projectHookSucceeds: false,
+			globalHookSucceeds:  true,
+		},
+		{
+			hook:                "update",
+			projectHookSucceeds: false,
+			globalHookSucceeds:  true,
+		},
+	}
 
-	caller, err := newCustomHooksExecutor(testRepoPath, globalCustomHooksDir, "pre-receive")
-	require.NoError(t, err)
-	var stdout, stderr bytes.Buffer
+	for _, tc := range testCases {
+		t.Run(tc.hook, func(t *testing.T) {
+			projectHookScript := successScript
+			if !tc.projectHookSucceeds {
+				projectHookScript = failScript
+			}
+			projectHookPath := filepath.Join(testRepoPath, "custom_hooks")
+			cleanup := writeCustomHook(t, tc.hook, projectHookPath, projectHookScript)
+			defer cleanup()
 
-	require.Error(t, caller(ctx, nil, nil, &bytes.Buffer{}, &stdout, &stderr))
+			globalHookScript := successScript
+			if !tc.globalHookSucceeds {
+				globalHookScript = failScript
+			}
+			globalHookPath := filepath.Join(globalCustomHooksDir, fmt.Sprintf("%s.d", tc.hook))
+			cleanup = writeCustomHook(t, tc.hook, globalHookPath, globalHookScript)
+			defer cleanup()
 
-	// since global hooks execute after project hooks, the project hook should run and succeed
-	require.Equal(t, filepath.Join(projectHookPath, "pre-receive"), text.ChompBytes(stdout.Bytes()))
-	require.Equal(t, filepath.Join(globalHookPath, "pre-receive"), text.ChompBytes(stderr.Bytes()))
+			caller, err := newCustomHooksExecutor(testRepoPath, globalCustomHooksDir, tc.hook)
+			require.NoError(t, err)
 
-	cleanupProjectHook()
-	cleanupGlobalHook()
+			var stdout, stderr bytes.Buffer
+			require.Error(t, caller(ctx, nil, nil, &bytes.Buffer{}, &stdout, &stderr))
 
-	// project hook failure, global hook success
-	globalHookPath = filepath.Join(globalCustomHooksDir, "post-receive.d")
-	cleanupProjectHook = writeCustomHook(t, "post-receive", projectHookPath, failScript)
-	cleanupGlobalHook = writeCustomHook(t, "post-receive", globalHookPath, successScript)
-
-	caller, err = newCustomHooksExecutor(testRepoPath, globalCustomHooksDir, "post-receive")
-	require.NoError(t, err)
-	stdout.Reset()
-	stderr.Reset()
-
-	require.Error(t, caller(ctx, nil, nil, &bytes.Buffer{}, &stdout, &stderr))
-
-	// since the global hooks execute after project hooks, the global hook should never have run
-	require.Equal(t, filepath.Join(projectHookPath, "post-receive"), text.ChompBytes(stderr.Bytes()))
-	require.Equal(t, "", text.ChompBytes(stdout.Bytes()))
-
-	cleanupProjectHook()
-	cleanupGlobalHook()
-
-	// project hooks failure, global hooks success
-	globalHookPath = filepath.Join(globalCustomHooksDir, "update.d")
-	projectHooksPath := filepath.Join(testRepoPath, "custom_hooks", "update.d")
-	cleanupProjectHook = writeCustomHook(t, "update", projectHooksPath, failScript)
-	cleanupGlobalHook = writeCustomHook(t, "update", globalHookPath, successScript)
-
-	caller, err = newCustomHooksExecutor(testRepoPath, globalCustomHooksDir, "update")
-	require.NoError(t, err)
-	stdout.Reset()
-	stderr.Reset()
-
-	require.Error(t, caller(ctx, nil, nil, &bytes.Buffer{}, &stdout, &stderr))
-
-	// since the global hooks execute after project hooks, the global hook should never have run
-	require.Equal(t, filepath.Join(projectHooksPath, "update"), text.ChompBytes(stderr.Bytes()))
-	require.Equal(t, "", text.ChompBytes(stdout.Bytes()))
+			if tc.projectHookSucceeds && tc.globalHookSucceeds {
+				require.Equal(t, filepath.Join(projectHookPath, tc.hook), text.ChompBytes(stdout.Bytes()))
+				require.Equal(t, filepath.Join(globalHookPath, tc.hook), text.ChompBytes(stdout.Bytes()))
+			} else if tc.projectHookSucceeds && !tc.globalHookSucceeds {
+				require.Equal(t, filepath.Join(projectHookPath, tc.hook), text.ChompBytes(stdout.Bytes()))
+				require.Equal(t, filepath.Join(globalHookPath, tc.hook), text.ChompBytes(stderr.Bytes()))
+			} else {
+				require.Equal(t, filepath.Join(projectHookPath, tc.hook), text.ChompBytes(stderr.Bytes()))
+			}
+		})
+	}
 }
 
 func TestCustomHooksMultipleHooks(t *testing.T) {
