@@ -183,161 +183,177 @@ between Gitaly HA and Geo:
    architecture makes it possible for Praefect to support strong
    consistency.
 
-### Strong consistency
+## Strong Consistency Design
 
-Strong consistency is desirable for a number of reasons:
+When doing updates in a Git repository, we want to assure that all Gitaly nodes
+in a high-availability setup have the same references afterwards. Historically,
+this was accomplished by using NFS as a Gitaly storage backend, but due to
+various reasons we have been deprecating this setup in favor of Praefect.
 
-1. Minimizes data loss: Strong consistency guarantees that a replica
-will never be out of sync with the primary Gitaly node. If a primary
-fails with no up-to-date secondaries available, then the latest commits
-will be gone. Merge requests may fail to load, CI builds will fail to
-fetch references, and users will be upset.
+Praefect allows to have multiple Gitaly nodes with individual storage backends.
+In order to achieve consistency across these nodes, Praefect inspects incoming
+requests and, depending on the request's nature, may decide to replicate these
+changes after they have been performed on the primary Gitaly node. This model
+guarantees eventual consistency, but there is always at least a brief moment
+where the Gitaly nodes will disagree on what the current state is.
 
-1. Distributed reads: Strong consistency also makes it more likely that
-reads can be directed to secondaries. If secondaries take minutes to
-sync with the primary, then all reads will have to be directed to the
-primary until the secondaries catch up.
+To lift this limitation, the next iteration of Praefect's design is to achieve strong
+consistency: given a mutating request, all Gitaly nodes should agree to make the
+modification before actually persisting it to disk. This document describes the
+design for this.
 
-1. Faster replication: When implemented properly, it should be possible
-to optimize the amount of time and data needed to update secondaries. In
-the eventual consistent implementation described above, a `git fetch` is
-used to synchronize the secondaries. However, this `git fetch` is a bit
-of a blunt tool: the secondaries have to negotiate with the primary what
-data it doesn't have, and the primary has to calculate the delta and send
-the difference.
+### Reference Updates
 
-However, there are downsides:
+While server-side Git repositories can be mutated in a lot of ways, all
+user-visible mutations involve updates to one or multiple references. For the
+sake of simplicity, we can thus reduce the problem scope to ensure strong
+consistency for reference updates, only. There are multiple paths in GitLab that
+can trigger such a reference update, including but not limited to:
 
-1. It will require a significant amount of work to refactor each Gitaly
-RPC to support consistent replication.
-1. It may be harder to prove correctness.
+- Clients execute git-push(1).
 
-An eventually consistent model may be "good enough" if replication delay
-can be minimized and handled gracefully.
+- Creation of tags via GitLab's `UserCreateTag` RPC.
 
-#### Example: Replicating Git pushes
+- Merges and rebases when accepting merge requests.
 
-If we assume that all replicas are in sync with the primary, a push to the
-primary can be replicated in parallel to many nodes. A consistent
-replication approach might look like:
+Common to all of them is that they perform reference updates using git-core,
+and, more importantly, its reference transaction mechanism. An ideal solution
+would thus hook into this reference transaction mechanism directly via
+githooks(5), but given git-core does not yet have any such exposed hooks this is not
+currently possible.
 
-```mermaid
-sequenceDiagram
-    User->>Praefect: Push to repository X
-    Praefect->>Node A: Stream receive-pack data (ReceivePack)
-    Praefect->>Node B: Stream receive-pack data (ReceivePack)
-    Node A->>Praefect: Ready to commit
-    Node B->>Praefect: Ready to commit
-    Praefect->>Node A: Commit refs
-    Praefect->>Node B: Commit refs
-    Node A->>Praefect: Success!
-    Node B->>Praefect: Success!
-```
+As a first iteration, we will approximate hooking into the reference transaction
+mechanism by instead implementing strong consistency via the pre-receive hook.
+This hook gets executed whenever a client pushes to a repository. While this
+will not cover all the different ways a reference may be update,  it can be used
+as a proof of concept to establish whether strong consistency via hooks is a
+viable route to go.
 
-This diagram starts with a user pushing data to GitLab, which is handled
-by the Gitaly `ReceivePack` RPC. Let's suppose the user attempts to push
-two branches `debug` and `master`. The Git protocol data might look like
-the following:
+### Strong Consistency via Pre-Receive Hooks
 
-```
-   C: 00677d1665144a3a975c05f1f43902ddaf084e784dbe 74730d410fcb6603ace96f1dc55ea6196122532d refs/heads/debug\n
-   C: 006874730d410fcb6603ace96f1dc55ea6196122532d 5a3f6be755bbb7deae50065988cbfa1ffa9ab68a refs/heads/master\n
-   C: 0000
-   C: [PACKDATA]
-```
-
-If we assume nodes A and B are in sync, the `ReceivePack` RPC should
-first do the following:
-
-1. Check that the `before` SHAs match in both `debug` and `master`. For example,
-   `00677d1665144a3a975c05f1f43902ddaf084e784dbe` should be the tip of `debug`.
-1. Execute git receive-pack, which then:
-   a. Decodes the packfile
-   b. Writes the new objects into the Git repository
-
-##### Three-phase commit
-
-To ensure consistency, we can only update the refs for `debug` and
-`master` when we are sure that all nodes can perform that operation.
-That is why in the diagram above, we need a three-phase commit protocol:
-the nodes should only update Git references when Praefect receives
-acknowledgement that all nodes are able to update. This update also has
-to be done atomically; we either want both `debug` and `master` to be
-updated or not at all. This can be done using [Git's `--atomic`
-option](https://github.com/git/git/blob/ff66981f4593aec0f3b3eeace0eacb7dbe44fd8c/Documentation/git-push.txt#L210-L213).
-
-How might we make the push wait for Praefect to confirm? One way may be
-to use the Git pre-receive hook. Normally, Gitaly uses the pre-receive
-hook to make an internal API call to check whether the push should be
-allowed to go through. We still need to do that for the primary case, but
-we can skip this for the secondaries and simply make a separate Gitaly
-RPC to indicate the current transaction is ready to go:
+The following diagram shows the flow of a ReceivePack operation from Praefect
+via Gitaly to Git and finally to the pre-receive hook:
 
 ```mermaid
 sequenceDiagram
-    Praefect->>Node B: Stream receive-pack data (ReceivePack)
-    Node B->>Node B: git receive-pack --atomic
-    Node B->>Node B: pre-receive <changes>
-    Node B->>Praefect: Ready to commit
-    Praefect->>Node B: Commit refs
-    Node B->>Node B: <exits pre-receive with exit code 0>
-    Node B->>Node B: git update-ref <changes>
-    Node B->>Praefect: Success!
+  Praefect->>+Gitaly: ReceivePack
+  Gitaly->>+Git: git receive-pack
+  Git->>+Hook: update HEAD master
+  Hook->>+Praefect: TX: update HEAD master
+  Praefect->>+Praefect: TX: collect votes
+  Praefect->>+Hook: TX: commit
+  Hook->>+Git: exit 0
+  Git->>+Gitaly: exit 0
+  Gitaly->>+Praefect: success
 ```
 
-This diagram shows in more detail how Node B performs the three-phase
-commit. `git receive-pack` will call the `pre-receive` hook once the Git
-data has been received. If Node B is in a good state (i.e. branches are
-at the right SHAs), Node B will notify Praefect `Ready to commit`. Once
-`Praefect` responds with `Commit refs`, the pre-receive handler will
-exit with success code 0, and the reference updates will commence. When
-the update finishes with success, the `receive-pack` process should exit
-successfully, and `ReceivePack` will respond with a success message.
+1. Praefect will proxy an incoming `ReceivePack` request to multiple Gitaly
+   nodes.
+1. Gitaly executes `git receive-pack` and passes incoming data to it.
+1. After `git receive-pack` has received all references that are to be updated,
+   it executes the pre-receive hook and writes all references that are to be
+   updated to its standard input.
+1. The pre-receive hook reaches out to Praefect and notifies it about all the
+   reference updates it wants to perform.
+1. Praefect waits until all Gitaly nodes have notified it about the reference
+   update. After it has received all notifications, it verifies that all nodes
+   want to perform the same update. If so, it notifies them that they may go
+   ahead by sending a "commit" message. Otherwise, it will send an "abort"
+   message.
+1. When receiving the response, the hook will either return an error in case it
+   got an "abort" message, which will instruct Git to not update the references.
+   Otherwise, the hook will exit successfully and Git will proceed.
+1. Gitaly returns success to Praefect and the transaction is done.
 
-Note that if the primary node does not receive authorization to commit
-the changes, the transaction is aborted. Alternatively, we can check for
-authorization before deciding to send the data to all replicas, but this
-might slow the push down.
+#### Data Channel between Praefect and Hook
 
-Using Git's `receive-pack` on the nodes with this pre-receive hook
-should ensure that the objects sent via the packfile should be stored in
-a temporary, quarantined directory until the transaction completes. This
-should avoid causing lots of stale, uncommitted objects from being
-written to a secondary.
+While it would be possible to proxy transaction information via Gitaly, this
+would require us to update the complete callchain between Praefect and Git hook.
+Additionally, it would require us to update all call-sites where a reference
+could potentially be updated. Because of this, it was decided to circumvent
+Gitaly and have the Git hook talk directly to Praefect.
 
-##### Handling failures
+As Gitaly did not previously know how to connect to Praefect, Git hooks didn't
+either. To fix this, Praefect started passing along a gRPC metadata header along
+to Gitaly that includes both the listening address as well as the token required
+to authenticate. If a request is proxied by Praefect, then Gitaly will know to
+extract the connection information and make it available to hooks by exposing it
+in an environment variable.
 
-What happens if any of the secondaries fail during the replication
-attempt? There are several options:
+#### Transaction Service
+
+To let Praefect know about reference transactions, the
+[transaction service](https://gitlab.com/gitlab-org/gitaly/-/blob/master/proto/transaction.proto)
+was implemented. The service has three RPCs:
+
+- `Create` registers a new transaction with the transaction service. This is
+  called by Praefect for all incoming repository-scoped mutators.
+
+- `Start` starts a registered reference transaction. This is called by the Git
+  hook as soon as a transaction is about to start.
+
+- `Cleanup` removes a registered transaction. This is called by Praefect after
+  the RPC has been served.
+
+In order to enable a voting mechanism, the transaction service needs to know
+some bits of information.
+
+- Each transaction is identified by a transaction identifier, which is simply an
+  integer that gets randomly generated by the transaction service when `Create`
+  is called and is returned to the caller. Both `Start` and `Cleanup` requests
+  are required to pass along this identifier.
+
+- In order to enable meaningful counting of votes, the service needs to know
+  which nodes are expected and allowed to cast their vote. Thus, the `Create`
+  call also expects a list of nodes.
+
+- To know what a given node wants to vote for, it needs to let the transaction
+  service know which references it wants to update. Given that a transaction may
+  update thousands of references at once, it was deemed wasteful to pass the
+  list of all reference updates to the transaction service. Instead, Git hooks
+  hash all reference updates and send only the hash whan starting a transaction.
+
+The typical lifetime of a given transaction will then look like following:
+
+```mermaid
+sequenceDiagram
+  Praefect->>+TxService: Create("A", "B")
+  TxService-->>-Praefect: id
+  Praefect->>Gitaly A: id
+  Praefect->>Gitaly B: id
+
+  par Gitaly A
+    Gitaly A->>+TxService: Start("A", id, hash(refsA))
+  and Gitaly B
+    Gitaly B->>+TxService: Start("B", id, hash(refsB))
+  end
+
+  Note over TxService: Count votes
+
+  par Gitaly B
+    TxService-->>-Gitaly B: Commit
+    Gitaly B->>Praefect: Success
+  and Gitaly A
+    TxService-->>-Gitaly A: Commit
+    Gitaly A->>Praefect: Success
+  end
+
+  Praefect->>+TxService: Cleanup(id)
+```
+
+#### Handling failures
+
+What happens if any of the secondaries fail during the replication attempt?
+There are several options:
 
 1. Fail the push entirely
 1. Commit the transaction if there is a quorum (e.g. 2 of 3 ready to commit)
+1. Use the pre-existing replicaton mechanism for eventual consistency of
+   secondaries.
 
-When a node is out of sync, it needs to be taken out of rotation, and
-Praefect has to initiate a repair operation (e.g. `git fetch`, reclone,
-delete out-of-sync branches).
-
-#### Example: Replicating merges (`UserMergeBranch` RPC)
-
-As seen in the push case, atomic transactions are crucial for
-maintaining consistency. However, like `SSHReceivePack`, there are many
-other RPCs that create objects and update references. Suppose a user
-merges `develop` into `master`. The `UserMergeBranch` RPC handles the
-merge [in the following
-way](https://gitlab.com/gitlab-org/gitaly/blob/bb6fc2885c4acfb0bcff11e3b3ea0ce991d191ce/ruby/lib/gitlab/git/repository.rb#L279-284):
-
-1. Create a merge commit that merges `develop` and `master`
-2. Update `master` to point to this merge commit
-
-For strong consistency to work, we need to write this merge commit to
-all nodes and wait for acknowledgement before step 2 can proceed. Every
-RPC that mutates the repository therefore has to be modified to ensure
-that a three-phase commit will synchronize changes properly.
-
-One wrinkle here is that some Gitaly RPCs are implemented in Go, and
-some are implemented in Ruby via gitaly-ruby. We either have to
-implement three-phase commit in both languages or port the remaining
-RPCs to Go.
+When a node is out of sync, it needs to be taken out of rotation, and Praefect
+has to initiate a repair operation (e.g. `git fetch`, reclone, delete
+out-of-sync branches).
 
 ## Notes
 * Existing discussions
