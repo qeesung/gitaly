@@ -3,6 +3,7 @@ package commit
 import (
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -78,8 +79,8 @@ type treeEntriesSender struct {
 	stream   gitalypb.CommitService_GetTreeEntriesServer
 }
 
-func (c *treeEntriesSender) Append(it chunk.Item) {
-	c.response.Entries = append(c.response.Entries, it.(*gitalypb.TreeEntry))
+func (c *treeEntriesSender) Append(m proto.Message) {
+	c.response.Entries = append(c.response.Entries, m.(*gitalypb.TreeEntry))
 }
 
 func (c *treeEntriesSender) Send() error { return c.stream.Send(c.response) }

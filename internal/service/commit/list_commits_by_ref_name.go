@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -40,8 +41,8 @@ type commitsByRefNameSender struct {
 	stream   gitalypb.CommitService_ListCommitsByRefNameServer
 }
 
-func (c *commitsByRefNameSender) Append(it chunk.Item) {
-	c.response.Commits = append(c.response.Commits, it.(*gitalypb.GitCommit))
+func (c *commitsByRefNameSender) Append(m proto.Message) {
+	c.response.Commits = append(c.response.Commits, m.(*gitalypb.GitCommit))
 }
 
 func (c *commitsByRefNameSender) Send() error { return c.stream.Send(c.response) }

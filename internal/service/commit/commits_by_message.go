@@ -3,9 +3,9 @@ package commit
 import (
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -15,8 +15,8 @@ type commitsByMessageSender struct {
 }
 
 func (sender *commitsByMessageSender) Reset() { sender.commits = nil }
-func (sender *commitsByMessageSender) Append(it chunk.Item) {
-	sender.commits = append(sender.commits, it.(*gitalypb.GitCommit))
+func (sender *commitsByMessageSender) Append(m proto.Message) {
+	sender.commits = append(sender.commits, m.(*gitalypb.GitCommit))
 }
 
 func (sender *commitsByMessageSender) Send() error {

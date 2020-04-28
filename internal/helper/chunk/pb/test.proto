@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package test;
+
+service Test {
+  rpc StreamOutput(StreamOutputRequest) returns (stream StreamOutputResponse) {}
+}
+
+message StreamOutputRequest {
+  int32 bytes_to_return = 1;
+}
+message StreamOutputResponse {
+  repeated bytes msg = 1;
+}

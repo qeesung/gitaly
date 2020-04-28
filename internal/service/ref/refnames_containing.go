@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
@@ -45,8 +47,8 @@ type branchNamesContainingCommitSender struct {
 }
 
 func (bs *branchNamesContainingCommitSender) Reset() { bs.branchNames = nil }
-func (bs *branchNamesContainingCommitSender) Append(it chunk.Item) {
-	bs.branchNames = append(bs.branchNames, stripPrefix(it, "refs/heads/"))
+func (bs *branchNamesContainingCommitSender) Append(m proto.Message) {
+	bs.branchNames = append(bs.branchNames, stripPrefix(m.(*wrappers.StringValue).Value, "refs/heads/"))
 }
 
 func (bs *branchNamesContainingCommitSender) Send() error {
@@ -75,14 +77,14 @@ type tagNamesContainingCommitSender struct {
 }
 
 func (ts *tagNamesContainingCommitSender) Reset() { ts.tagNames = nil }
-func (ts *tagNamesContainingCommitSender) Append(it chunk.Item) {
-	ts.tagNames = append(ts.tagNames, stripPrefix(it, "refs/tags/"))
+func (ts *tagNamesContainingCommitSender) Append(m proto.Message) {
+	ts.tagNames = append(ts.tagNames, stripPrefix(m.(*wrappers.StringValue).Value, "refs/tags/"))
 }
 
 func (ts *tagNamesContainingCommitSender) Send() error {
 	return ts.stream.Send(&gitalypb.ListTagNamesContainingCommitResponse{TagNames: ts.tagNames})
 }
 
-func stripPrefix(it chunk.Item, prefix string) []byte {
-	return []byte(strings.TrimPrefix(it.(string), prefix))
+func stripPrefix(s string, prefix string) []byte {
+	return []byte(strings.TrimPrefix(s, prefix))
 }

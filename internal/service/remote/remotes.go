@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
@@ -178,8 +179,8 @@ type listRemotesSender struct {
 	remotes []*gitalypb.ListRemotesResponse_Remote
 }
 
-func (l *listRemotesSender) Append(it chunk.Item) {
-	l.remotes = append(l.remotes, it.(*gitalypb.ListRemotesResponse_Remote))
+func (l *listRemotesSender) Append(m proto.Message) {
+	l.remotes = append(l.remotes, m.(*gitalypb.ListRemotesResponse_Remote))
 }
 
 func (l *listRemotesSender) Send() error {
