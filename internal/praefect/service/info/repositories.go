@@ -17,27 +17,17 @@ func (s *Server) RepositoryReplicas(ctx context.Context, in *gitalypb.Repository
 		return nil, helper.ErrInternal(err)
 	}
 
-	primary, err := shard.GetPrimary()
-	if err != nil {
-		return nil, helper.ErrInternal(err)
-	}
-
-	secondaries, err := shard.GetSecondaries()
-	if err != nil {
-		return nil, helper.ErrInternal(err)
-	}
-
 	var resp gitalypb.RepositoryReplicasResponse
 
-	if resp.Primary, err = s.getRepositoryDetails(ctx, primary, in.GetRepository()); err != nil {
+	if resp.Primary, err = s.getRepositoryDetails(ctx, shard.Primary, in.GetRepository()); err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
-	resp.Replicas = make([]*gitalypb.RepositoryReplicasResponse_RepositoryDetails, len(secondaries))
+	resp.Replicas = make([]*gitalypb.RepositoryReplicasResponse_RepositoryDetails, len(shard.Secondaries))
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	for i, secondary := range secondaries {
+	for i, secondary := range shard.Secondaries {
 		i := i                 // rescoping
 		secondary := secondary // rescoping
 		g.Go(func() error {

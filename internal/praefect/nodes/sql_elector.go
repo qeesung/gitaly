@@ -244,44 +244,30 @@ last_contact_attempt_at = NOW()`
 	return err
 }
 
-// GetPrimary gets the primary of a shard by checking the state of the
-// database and updating the internal state. If no primary exists, it
-// will be nil. If a primary has been elected but is down, err will be
-// ErrPrimaryNotHealthy.
-func (s *sqlElector) GetPrimary() (Node, error) {
+// GetShard gets the current status of the shard. ErrPrimaryNotHealthy
+// is returned if a primary does not exist.
+func (s *sqlElector) GetShard() (Shard, error) {
 	primary, err := s.lookupPrimary()
-
 	if err != nil {
-		return nil, err
+		return Shard{}, err
 	}
 
-	// Update the internal state so that calls to GetSecondaries() will be
-	// consistent with GetPrimary()
 	s.setPrimary(primary)
-
 	if primary == nil {
-		return nil, ErrPrimaryNotHealthy
+		return Shard{}, ErrPrimaryNotHealthy
 	}
-
-	return primary, nil
-}
-
-// GetSecondaries gets the secondaries of a shard. It uses the internal
-// state to determine the primary so that calls to GetSecondaries() will
-// be consistent with the first call to GetPrimary().
-func (s *sqlElector) GetSecondaries() ([]Node, error) {
-	s.m.RLock()
-	primaryNode := s.primaryNode
-	s.m.RUnlock()
 
 	var secondaries []Node
 	for _, n := range s.nodes {
-		if primaryNode != n {
+		if primary != n {
 			secondaries = append(secondaries, n)
 		}
 	}
 
-	return secondaries, nil
+	return Shard{
+		Primary:     primary,
+		Secondaries: secondaries,
+	}, nil
 }
 
 func (s *sqlElector) updateMetrics() {

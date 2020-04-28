@@ -26,12 +26,6 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 			continue
 		}
 
-		primary, err := shard.GetPrimary()
-		if err != nil {
-			ctxlogrus.Extract(ctx).WithField("virtual_storage", virtualStorage.Name).WithError(err).Error("error when getting primary")
-			continue
-		}
-
 		wg.Add(1)
 		i := i
 		virtualStorage := virtualStorage
@@ -39,10 +33,10 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 		go func() {
 			defer wg.Done()
 
-			client := gitalypb.NewServerServiceClient(primary.GetConnection())
+			client := gitalypb.NewServerServiceClient(shard.Primary.GetConnection())
 			resp, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
 			if err != nil {
-				ctxlogrus.Extract(ctx).WithField("storage", primary.GetStorage()).WithError(err).Error("error getting server info")
+				ctxlogrus.Extract(ctx).WithField("storage", shard.Primary.GetStorage()).WithError(err).Error("error getting server info")
 				return
 			}
 
@@ -67,7 +61,7 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 			// technically, any storage's storage status can be returned in the virtual storage's server info,
 			// but to be consistent we will choose the storage with the same name as the internal gitaly storage name.
 			for _, storageStatus := range resp.GetStorageStatuses() {
-				if storageStatus.StorageName == primary.GetStorage() {
+				if storageStatus.StorageName == shard.Primary.GetStorage() {
 					storageStatuses[i] = storageStatus
 					// the storage name in the response needs to be rewritten to be the virtual storage name
 					// because the praefect client has no concept of internal gitaly nodes that are behind praefect.

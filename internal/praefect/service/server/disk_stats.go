@@ -18,16 +18,7 @@ func (s *Server) DiskStatistics(ctx context.Context, _ *gitalypb.DiskStatisticsR
 			return nil, err
 		}
 
-		primary, err := shard.GetPrimary()
-		if err != nil {
-			return nil, err
-		}
-		secondaries, err := shard.GetSecondaries()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, node := range append(secondaries, primary) {
+		for _, node := range append(shard.Secondaries, shard.Primary) {
 			client := gitalypb.NewServerServiceClient(node.GetConnection())
 			resp, err := client.DiskStatistics(ctx, &gitalypb.DiskStatisticsRequest{})
 			if err != nil {

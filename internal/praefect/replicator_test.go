@@ -170,13 +170,9 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
-	primaryNode, err := shard.GetPrimary()
-	require.NoError(t, err)
-	secondaryNodes, err := shard.GetSecondaries()
-	require.NoError(t, err)
-	require.Len(t, secondaryNodes, 1)
+	require.Len(t, shard.Secondaries, 1)
 
-	replMgr.processReplJob(ctx, jobs[0], primaryNode.GetConnection(), secondaryNodes[0].GetConnection())
+	replMgr.processReplJob(ctx, jobs[0], shard.Primary.GetConnection(), shard.Secondaries[0].GetConnection())
 
 	relativeRepoPath, err := filepath.Rel(testhelper.GitlabTestStoragePath(), testRepoPath)
 	require.NoError(t, err)

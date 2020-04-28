@@ -37,17 +37,8 @@ func (s *Server) getNodes(req *gitalypb.ConsistencyCheckRequest) (target, refere
 		return nil, nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	primary, err := shard.GetPrimary()
-	if err != nil {
-		return nil, nil, err
-	}
-	secondaries, err := shard.GetSecondaries()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// search for target node amongst all nodes in shard
-	for _, n := range append(secondaries, primary) {
+	for _, n := range append(shard.Secondaries, shard.Primary) {
 		if n.GetStorage() == req.GetTargetStorage() {
 			target = n
 			break
@@ -63,16 +54,16 @@ func (s *Server) getNodes(req *gitalypb.ConsistencyCheckRequest) (target, refere
 
 	// set reference node to default or requested storage
 	switch {
-	case req.GetReferenceStorage() == "" && req.GetTargetStorage() == primary.GetStorage():
+	case req.GetReferenceStorage() == "" && req.GetTargetStorage() == shard.Primary.GetStorage():
 		return nil, nil, status.Errorf(
 			codes.InvalidArgument,
 			"target storage %q is same as current primary, must provide alternate reference",
 			req.GetTargetStorage(),
 		)
 	case req.GetReferenceStorage() == "":
-		reference = primary // default
+		reference = shard.Primary // default
 	case req.GetReferenceStorage() != "":
-		for _, secondary := range append(secondaries, primary) {
+		for _, secondary := range append(shard.Secondaries, shard.Primary) {
 			if secondary.GetStorage() == req.GetReferenceStorage() {
 				reference = secondary
 				break

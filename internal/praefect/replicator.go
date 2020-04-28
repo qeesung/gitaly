@@ -363,25 +363,6 @@ func ExpBackoffFunc(start time.Duration, max time.Duration) BackoffFunc {
 	}
 }
 
-func (r ReplMgr) getPrimaryAndSecondaries() (primary nodes.Node, secondaries []nodes.Node, err error) {
-	shard, err := r.nodeManager.GetShard(r.virtualStorage)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	primary, err = shard.GetPrimary()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	secondaries, err = shard.GetSecondaries()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return primary, secondaries, nil
-}
-
 // createReplJob converts `ReplicationEvent` into `ReplJob`.
 // It is intermediate solution until `ReplJob` removed and code not adopted to `ReplicationEvent`.
 func (r ReplMgr) createReplJob(event datastore.ReplicationEvent) (datastore.ReplJob, error) {
@@ -421,9 +402,9 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 
 	for {
 		var totalEvents int
-		primary, secondaries, err := r.getPrimaryAndSecondaries()
+		shard, err := r.nodeManager.GetShard(r.virtualStorage)
 		if err == nil {
-			for _, secondary := range secondaries {
+			for _, secondary := range shard.Secondaries {
 				events, err := r.datastore.Dequeue(ctx, secondary.GetStorage(), 10)
 				if err != nil {
 					r.log.WithField(logWithReplTarget, secondary.GetStorage()).WithError(err).Error("failed to dequeue replication events")
@@ -440,7 +421,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) error {
 						eventIDsByState[datastore.JobStateFailed] = append(eventIDsByState[datastore.JobStateFailed], event.ID)
 						continue
 					}
-					if err := r.processReplJob(ctx, job, primary.GetConnection(), secondary.GetConnection()); err != nil {
+					if err := r.processReplJob(ctx, job, shard.Primary.GetConnection(), secondary.GetConnection()); err != nil {
 						r.log.WithFields(logrus.Fields{
 							logWithReplJobID:  job.ID,
 							logWithReplTarget: job.TargetNode.Storage,

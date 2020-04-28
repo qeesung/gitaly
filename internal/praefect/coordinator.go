@@ -101,12 +101,7 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi prot
 		return nil, err
 	}
 
-	primary, err := shard.GetPrimary()
-	if err != nil {
-		return nil, err
-	}
-
-	if err = c.rewriteStorageForRepositoryMessage(mi, m, peeker, primary.GetStorage()); err != nil {
+	if err = c.rewriteStorageForRepositoryMessage(mi, m, peeker, shard.Primary.GetStorage()); err != nil {
 		return nil, err
 	}
 
@@ -118,15 +113,10 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, mi prot
 			return nil, err
 		}
 
-		secondaries, err := shard.GetSecondaries()
-		if err != nil {
-			return nil, err
-		}
-
-		requestFinalizer = c.createReplicaJobs(ctx, targetRepo, primary, secondaries, change, params)
+		requestFinalizer = c.createReplicaJobs(ctx, targetRepo, shard.Primary, shard.Secondaries, change, params)
 	}
 
-	return proxy.NewStreamParameters(ctx, primary.GetConnection(), requestFinalizer, nil), nil
+	return proxy.NewStreamParameters(ctx, shard.Primary.GetConnection(), requestFinalizer, nil), nil
 }
 
 // streamDirector determines which downstream servers receive requests
@@ -160,12 +150,7 @@ func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string,
 		return nil, err
 	}
 
-	primary, err := shard.GetPrimary()
-	if err != nil {
-		return nil, err
-	}
-
-	return proxy.NewStreamParameters(ctx, primary.GetConnection(), func() {}, nil), nil
+	return proxy.NewStreamParameters(ctx, shard.Primary.GetConnection(), func() {}, nil), nil
 }
 
 func (c *Coordinator) rewriteStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier, primaryStorage string) error {

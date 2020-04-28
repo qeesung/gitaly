@@ -150,30 +150,21 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 	return nil
 }
 
-// GetPrimary gets the primary of a shard. If no primary exists, it will
-// be nil. If a primary has been elected but is down, err will be
-// ErrPrimaryNotHealthy.
-func (s *localElector) GetPrimary() (Node, error) {
+// GetShard gets the current status of the shard. If primary is not elected
+// or it is unhealthy and failover is enabled, ErrPrimaryNotHealthy is
+// returned.
+func (s *localElector) GetShard() (Shard, error) {
 	s.m.RLock()
 	primary := s.primaryNode
 	s.m.RUnlock()
 
 	if primary == nil {
-		return nil, ErrPrimaryNotHealthy
+		return Shard{}, ErrPrimaryNotHealthy
 	}
 
 	if s.failoverEnabled && !primary.isHealthy() {
-		return primary.node, ErrPrimaryNotHealthy
+		return Shard{}, ErrPrimaryNotHealthy
 	}
-
-	return primary.node, nil
-}
-
-// GetSecondaries gets the secondaries of a shard
-func (s *localElector) GetSecondaries() ([]Node, error) {
-	s.m.RLock()
-	primary := s.primaryNode
-	s.m.RUnlock()
 
 	var secondaries []Node
 	for _, n := range s.nodes {
@@ -182,7 +173,10 @@ func (s *localElector) GetSecondaries() ([]Node, error) {
 		}
 	}
 
-	return secondaries, nil
+	return Shard{
+		Primary:     primary.node,
+		Secondaries: secondaries,
+	}, nil
 }
 
 func (s *localElector) updateMetrics() {

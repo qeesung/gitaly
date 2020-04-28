@@ -23,9 +23,9 @@ import (
 )
 
 // Shard is a primary with a set of secondaries
-type Shard interface {
-	GetPrimary() (Node, error)
-	GetSecondaries() ([]Node, error)
+type Shard struct {
+	Primary     Node
+	Secondaries []Node
 }
 
 // Manager is responsible for returning shards for virtual storages
@@ -56,8 +56,7 @@ type Mgr struct {
 type leaderElectionStrategy interface {
 	start(bootstrapInterval, monitorInterval time.Duration)
 	checkNodes(context.Context) error
-
-	Shard
+	GetShard() (Shard, error)
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
@@ -143,20 +142,12 @@ var ErrVirtualStorageNotExist = errors.New("virtual storage does not exist")
 
 // GetShard retrieves a shard for a virtual storage name
 func (n *Mgr) GetShard(virtualStorageName string) (Shard, error) {
-	shard, ok := n.strategies[virtualStorageName]
+	strategy, ok := n.strategies[virtualStorageName]
 	if !ok {
-		return nil, ErrVirtualStorageNotExist
+		return Shard{}, ErrVirtualStorageNotExist
 	}
 
-	if n.failoverEnabled {
-		_, err := shard.GetPrimary()
-
-		if err != nil {
-			return nil, ErrPrimaryNotHealthy
-		}
-	}
-
-	return shard, nil
+	return strategy.GetShard()
 }
 
 func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {

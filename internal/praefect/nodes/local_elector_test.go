@@ -37,20 +37,18 @@ func setupElector(t *testing.T) (*localElector, []*nodeStatus, *grpc.ClientConn,
 	return strategy, ns, cc, svr
 }
 
-func TestPrimaryAndSecondaries(t *testing.T) {
+func TestGetShard(t *testing.T) {
 	strategy, ns, _, svr := setupElector(t)
 	defer svr.Stop()
 
-	primary, err := strategy.GetPrimary()
+	shard, err := strategy.GetShard()
+	require.NoError(t, err)
 
 	require.NoError(t, err)
-	require.Equal(t, ns[0], primary)
+	require.Equal(t, ns[0], shard.Primary)
 
-	secondaries, err := strategy.GetSecondaries()
-
-	require.NoError(t, err)
-	require.Equal(t, 1, len(secondaries))
-	require.Equal(t, ns[1], secondaries[0])
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, ns[1], shard.Secondaries[0])
 }
 
 func TestConcurrentCheckWithPrimary(t *testing.T) {
@@ -80,14 +78,11 @@ func TestConcurrentCheckWithPrimary(t *testing.T) {
 		start <- true
 
 		for i := 0; i < iterations; i++ {
-			primary, err := strategy.GetPrimary()
-			require.Equal(t, ns[0], primary)
+			shard, err := strategy.GetShard()
 			require.NoError(t, err)
-
-			secondaries, err := strategy.GetSecondaries()
-			require.NoError(t, err)
-			require.Equal(t, 1, len(secondaries))
-			require.Equal(t, ns[1], secondaries[0])
+			require.Equal(t, ns[0], shard.Primary)
+			require.Equal(t, 1, len(shard.Secondaries))
+			require.Equal(t, ns[1], shard.Secondaries[0])
 		}
 	}()
 

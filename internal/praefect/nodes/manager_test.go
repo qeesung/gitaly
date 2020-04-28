@@ -88,17 +88,14 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 
 	shard, err := nm.GetShard(virtualStorageName)
 	require.NoError(t, err)
-
-	primary, err := shard.GetPrimary()
-	require.NoError(t, err)
-	require.Equal(t, primaryStorage, primary.GetStorage())
+	require.Equal(t, primaryStorage, shard.Primary.GetStorage())
 
 	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
 
-	primary, err = shard.GetPrimary()
+	shard, err = nm.GetShard(virtualStorageName)
 	require.NoError(t, err)
-	require.Equal(t, primaryStorage, primary.GetStorage())
+	require.Equal(t, primaryStorage, shard.Primary.GetStorage())
 }
 
 func TestPrimaryIsSecond(t *testing.T) {
@@ -132,19 +129,12 @@ func TestPrimaryIsSecond(t *testing.T) {
 	shard, err := nm.GetShard("virtual-storage-0")
 	require.NoError(t, err)
 
-	primary, err := shard.GetPrimary()
-	require.NoError(t, err)
+	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Primary.GetAddress())
 
-	secondaries, err := shard.GetSecondaries()
-	require.Len(t, secondaries, 1)
-	require.NoError(t, err)
-
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, primary.GetAddress())
-
-	require.Len(t, secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, secondaries[0].GetAddress())
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
 }
 
 func TestNodeManager(t *testing.T) {
@@ -196,30 +186,22 @@ func TestNodeManager(t *testing.T) {
 
 	shardWithoutFailover, err := nmWithoutFailover.GetShard("virtual-storage-0")
 	require.NoError(t, err)
-	primaryWithoutFailover, err := shardWithoutFailover.GetPrimary()
-	require.NoError(t, err)
-	secondariesWithoutFailover, err := shardWithoutFailover.GetSecondaries()
-	require.NoError(t, err)
 
 	shard, err := nm.GetShard("virtual-storage-0")
 	require.NoError(t, err)
-	primary, err := shard.GetPrimary()
-	require.NoError(t, err)
-	secondaries, err := shard.GetSecondaries()
-	require.NoError(t, err)
 
 	// shard without failover and shard with failover should be the same
-	require.Equal(t, primaryWithoutFailover.GetStorage(), primary.GetStorage())
-	require.Equal(t, primaryWithoutFailover.GetAddress(), primary.GetAddress())
-	require.Len(t, secondaries, 1)
-	require.Equal(t, secondariesWithoutFailover[0].GetStorage(), secondaries[0].GetStorage())
-	require.Equal(t, secondariesWithoutFailover[0].GetAddress(), secondaries[0].GetAddress())
+	require.Equal(t, shardWithoutFailover.Primary.GetStorage(), shard.Primary.GetStorage())
+	require.Equal(t, shardWithoutFailover.Primary.GetAddress(), shard.Primary.GetAddress())
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, shardWithoutFailover.Secondaries[0].GetStorage(), shard.Secondaries[0].GetStorage())
+	require.Equal(t, shardWithoutFailover.Secondaries[0].GetAddress(), shard.Secondaries[0].GetAddress())
 
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, primary.GetAddress())
-	require.Len(t, secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, secondaries[0].GetAddress())
+	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Primary.GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Primary.GetAddress())
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Secondaries[0].GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Secondaries[0].GetAddress())
 
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
@@ -234,37 +216,29 @@ func TestNodeManager(t *testing.T) {
 
 	shardWithoutFailover, err = nmWithoutFailover.GetShard("virtual-storage-0")
 	require.NoError(t, err)
-	primaryWithoutFailover, err = shardWithoutFailover.GetPrimary()
-	require.NoError(t, err)
-	secondariesWithoutFailover, err = shardWithoutFailover.GetSecondaries()
-	require.NoError(t, err)
 
 	shard, err = nm.GetShard("virtual-storage-0")
 	require.NoError(t, err)
-	primary, err = shard.GetPrimary()
-	require.NoError(t, err)
-	secondaries, err = shard.GetSecondaries()
-	require.NoError(t, err)
 
 	// shard without failover and shard with failover should not be the same
-	require.NotEqual(t, primaryWithoutFailover.GetStorage(), primary.GetStorage())
-	require.NotEqual(t, primaryWithoutFailover.GetAddress(), primary.GetAddress())
-	require.NotEqual(t, secondariesWithoutFailover[0].GetStorage(), secondaries[0].GetStorage())
-	require.NotEqual(t, secondariesWithoutFailover[0].GetAddress(), secondaries[0].GetAddress())
+	require.NotEqual(t, shardWithoutFailover.Primary.GetStorage(), shard.Primary.GetStorage())
+	require.NotEqual(t, shardWithoutFailover.Primary.GetAddress(), shard.Primary.GetAddress())
+	require.NotEqual(t, shardWithoutFailover.Secondaries[0].GetStorage(), shard.Secondaries[0].GetStorage())
+	require.NotEqual(t, shardWithoutFailover.Secondaries[0].GetAddress(), shard.Secondaries[0].GetAddress())
 
 	// shard without failover should still match the config
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, primaryWithoutFailover.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, primaryWithoutFailover.GetAddress())
-	require.Len(t, secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, secondariesWithoutFailover[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, secondariesWithoutFailover[0].GetAddress())
+	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shardWithoutFailover.Primary.GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[0].Address, shardWithoutFailover.Primary.GetAddress())
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shardWithoutFailover.Secondaries[0].GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[1].Address, shardWithoutFailover.Secondaries[0].GetAddress())
 
 	// shard with failover should have promoted a secondary to primary and demoted the primary to a secondary
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, primary.GetAddress())
-	require.Len(t, secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, secondaries[0].GetAddress())
+	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Primary.GetAddress())
+	require.Len(t, shard.Secondaries, 1)
+	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
+	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
 
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()

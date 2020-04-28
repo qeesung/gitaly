@@ -55,14 +55,9 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 	elector.demotePrimary()
 	db.RequireRowsInTable(t, "shard_primaries", 0)
 
-	// Ensure the primary state is reflected immediately
-	primary, err := elector.GetPrimary()
-	require.Error(t, err)
-	require.Equal(t, nil, primary)
-
-	secondaries, err := elector.GetSecondaries()
-	require.NoError(t, err)
-	require.Equal(t, 1, len(secondaries))
+	shard, err := elector.GetShard()
+	require.Equal(t, ErrPrimaryNotHealthy, err)
+	require.Empty(t, shard)
 }
 
 func TestBasicFailover(t *testing.T) {
@@ -113,14 +108,11 @@ func TestBasicFailover(t *testing.T) {
 	db.RequireRowsInTable(t, "shard_primaries", 1)
 
 	require.Equal(t, cs0, elector.primaryNode.Node)
-	primary, err := elector.GetPrimary()
+	shard, err := elector.GetShard()
 	require.NoError(t, err)
-	require.Equal(t, cs0.GetStorage(), primary.GetStorage())
-
-	secondaries, err := elector.GetSecondaries()
-	require.NoError(t, err)
-	require.Equal(t, 1, len(secondaries))
-	require.Equal(t, cs1.GetStorage(), secondaries[0].GetStorage())
+	require.Equal(t, cs0.GetStorage(), shard.Primary.GetStorage())
+	require.Equal(t, 1, len(shard.Secondaries))
+	require.Equal(t, cs1.GetStorage(), shard.Secondaries[0].GetStorage())
 
 	// Bring first node down
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
@@ -128,7 +120,7 @@ func TestBasicFailover(t *testing.T) {
 	// Primary should remain even after the first check
 	err = elector.checkNodes(ctx)
 	require.NoError(t, err)
-	primary, err = elector.GetPrimary()
+	shard, err = elector.GetShard()
 	require.NoError(t, err)
 
 	// Wait for stale timeout to expire
@@ -140,9 +132,9 @@ func TestBasicFailover(t *testing.T) {
 
 	db.RequireRowsInTable(t, "node_status", 2)
 	db.RequireRowsInTable(t, "shard_primaries", 1)
-	primary, err = elector.GetPrimary()
+	shard, err = elector.GetShard()
 	require.NoError(t, err)
-	require.Equal(t, cs1.GetStorage(), primary.GetStorage())
+	require.Equal(t, cs1.GetStorage(), shard.Primary.GetStorage())
 
 	// Bring second node down
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
@@ -155,9 +147,6 @@ func TestBasicFailover(t *testing.T) {
 	db.RequireRowsInTable(t, "node_status", 2)
 	// No new candidates
 	db.RequireRowsInTable(t, "shard_primaries", 0)
-	primary, err = elector.GetPrimary()
-	require.Error(t, ErrPrimaryNotHealthy, err)
-	secondaries, err = elector.GetSecondaries()
-	require.NoError(t, err)
-	require.Equal(t, 2, len(secondaries))
+	shard, err = elector.GetShard()
+	require.Equal(t, ErrPrimaryNotHealthy, err)
 }
