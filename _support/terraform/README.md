@@ -28,14 +28,10 @@ GCP.
 When the script is done, `apt-get install gitlab-ee` is still busy
 running in the background on your new VM's.
 
-### 4. Manually create a CloudSQL instance
+One of the provisioned resources is the database, which can take up to 10
+minutes to be created.
 
-In principle Terraform can also create a CloudSQL instance for
-Praefect but this is still work in progress. In the meantime, please
-use the GCP web UI to create a CloudSQL Postgres instance for
-Praefect.
-
-### 5. Use SSH to manually configure the hosts
+### 4. Use SSH to manually configure the hosts
 
 Updating the config for all the demo cluster hosts is not yet
 automated. Please follow the documentation at
