@@ -228,10 +228,12 @@ open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
 `, customHookArgsPath)
 	// write a custom hook to path/to/repo.git/custom_hooks/update.d/dumpargsscript which dumps the args into a tempfile
 	cleanup, err = testhelper.WriteExecutable(filepath.Join(testRepoPath, "custom_hooks", "update.d", "dumpargsscript"), []byte(dumpArgsToTempfileScript))
+	require.NoError(t, err)
 	defer cleanup()
 
 	// write a custom hook to path/to/repo.git/custom_hooks/update which dumps the env into a tempfile
 	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "update")
+	defer cleanup()
 
 	var stdout, stderr bytes.Buffer
 
