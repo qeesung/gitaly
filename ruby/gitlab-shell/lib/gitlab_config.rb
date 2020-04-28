@@ -16,8 +16,62 @@ class GitlabConfig
     fetch_from_config('gitlab_url', fetch_from_legacy_config('gitlab_url',"http://localhost:8080").sub(%r{/*$}, ''))
   end
 
+  class HTTPSettings
+    DEFAULT_TIMEOUT = 300
+
+    attr_reader :settings
+    attr_reader :legacy_settings
+
+    def initialize(settings, legacy_settings = {})
+      @settings = settings || {}
+      @legacy_settings = legacy_settings || {}
+    end
+
+    def user
+      fetch_from_settings('user')
+    end
+
+    def password
+      fetch_from_settings('password')
+    end
+
+    def read_timeout
+      read_timeout = fetch_from_settings('read_timeout').to_i
+
+      return read_timeout unless read_timeout == 0
+
+      DEFAULT_TIMEOUT
+    end
+
+    def ca_file
+      fetch_from_settings('ca_file')
+    end
+
+    def ca_path
+      fetch_from_settings('ca_path')
+    end
+
+    def self_signed_cert
+      fetch_from_settings('self_signed_cert')
+    end
+
+    private
+
+    def fetch_from_settings(key)
+      value = settings[key]
+
+      return value if [true,false].include? value
+
+      return legacy_settings[key] if value.nil? || value.empty?
+
+      value
+    end
+  end
+
   def http_settings
-    fetch_from_config('http_settings', fetch_from_legacy_config('http_settings', {}))
+    @http_settings ||= GitlabConfig::HTTPSettings.new(
+                        fetch_from_config('http_settings', {}),
+                        fetch_from_legacy_config('http_settings', {}))
   end
 
   def log_file

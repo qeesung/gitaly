@@ -82,7 +82,7 @@ describe GitlabConfig do
 
     describe '#http_settings' do
       it 'returns the correct http_settings' do
-        expect(config.http_settings).to eq(config_data[:http_settings].transform_keys(&:to_s))
+        expect(config.http_settings.settings).to eq(config_data[:http_settings].transform_keys(&:to_s))
       end
     end
 

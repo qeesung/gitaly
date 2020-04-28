@@ -3,7 +3,6 @@ require_relative 'gitlab_logger'
 require_relative 'gitlab_net/errors'
 
 module HTTPHelper
-  READ_TIMEOUT = 300
   CONTENT_TYPE_JSON = 'application/json'.freeze
 
   protected
@@ -32,7 +31,7 @@ module HTTPHelper
     if uri.is_a?(URI::HTTPS)
       http.use_ssl = true
       http.cert_store = cert_store
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE if config.http_settings['self_signed_cert']
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE if config.http_settings.self_signed_cert
     end
 
     http
@@ -42,8 +41,8 @@ module HTTPHelper
     request_klass = method == :get ? Net::HTTP::Get : Net::HTTP::Post
     request = request_klass.new(uri.request_uri, headers)
 
-    user = config.http_settings['user']
-    password = config.http_settings['password']
+    user = config.http_settings.user
+    password = config.http_settings.password
     request.basic_auth(user, password) if user && password
 
     if options[:json]
@@ -105,10 +104,10 @@ module HTTPHelper
       store = OpenSSL::X509::Store.new
       store.set_default_paths
 
-      ca_file = config.http_settings['ca_file']
+      ca_file = config.http_settings.ca_file
       store.add_file(ca_file) if ca_file
 
-      ca_path = config.http_settings['ca_path']
+      ca_path = config.http_settings.ca_path
       store.add_path(ca_path) if ca_path
 
       store
@@ -120,6 +119,6 @@ module HTTPHelper
   end
 
   def read_timeout
-    config.http_settings['read_timeout'] || READ_TIMEOUT
+    config.http_settings.read_timeout
   end
 end

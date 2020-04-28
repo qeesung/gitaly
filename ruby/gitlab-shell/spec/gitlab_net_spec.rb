@@ -264,7 +264,7 @@ describe GitlabNet, vcr: true do
 
     before do
       allow(gitlab_net).to receive :cert_store
-      allow(gitlab_net.send(:config)).to receive(:http_settings) { {'self_signed_cert' => true} }
+      allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'self_signed_cert' => true}) }
     end
 
     it { expect(subject.verify_mode).to eq(OpenSSL::SSL::VERIFY_NONE) }
@@ -284,8 +284,7 @@ describe GitlabNet, vcr: true do
         subject { gitlab_net.send :http_request_for, :get, url }
 
         before do
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('user') { user }
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('password') { password }
+          allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'user' => user, 'password' => password}) }
           expect(Net::HTTP::Get).to receive(:new).with('/', {}).and_return(get)
           expect(get).to receive(:basic_auth).with(user, password).once
           expect(get).to receive(:set_form_data).with(hash_including(secret_token: secret)).once
@@ -298,8 +297,7 @@ describe GitlabNet, vcr: true do
         subject { gitlab_net.send :http_request_for, :get, url, params: params, headers: headers }
 
         before do
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('user') { user }
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('password') { password }
+          allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'user' => user, 'password' => password}) }
           expect(Net::HTTP::Get).to receive(:new).with('/', headers).and_return(get)
           expect(get).to receive(:basic_auth).with(user, password).once
           expect(get).to receive(:set_form_data).with({ 'key1' => 'value1', secret_token: secret }).once
@@ -312,8 +310,7 @@ describe GitlabNet, vcr: true do
         subject { gitlab_net.send :http_request_for, :get, url, headers: headers }
 
         before do
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('user') { user }
-          allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('password') { password }
+          allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'user' => user, 'password' => password}) }
           expect(Net::HTTP::Get).to receive(:new).with('/', headers).and_return(get)
           expect(get).to receive(:basic_auth).with(user, password).once
           expect(get).to receive(:set_form_data).with(hash_including(secret_token: secret)).once
@@ -327,8 +324,7 @@ describe GitlabNet, vcr: true do
           subject { gitlab_net.send :http_request_for, :get, url, options: options }
 
           before do
-            allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('user') { user }
-            allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('password') { password }
+            allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'user' => user, 'password' => password}) }
             expect(Net::HTTP::Get).to receive(:new).with('/', {}).and_return(get)
             expect(get).to receive(:basic_auth).with(user, password).once
             expect(get).to receive(:body=).with({ 'key2' => 'value2', secret_token: secret }.to_json).once
@@ -368,15 +364,13 @@ describe GitlabNet, vcr: true do
     end
 
     it "calls add_file with http_settings['ca_file']" do
-      allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('ca_file') { 'test_file' }
-      allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('ca_path') { nil }
+      allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'ca_file' => 'test_file', 'ca_path' => nil}) }
       expect(store).to receive(:add_file).with('test_file')
       expect(store).not_to receive(:add_path)
     end
 
     it "calls add_path with http_settings['ca_path']" do
-      allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('ca_file') { nil }
-      allow(gitlab_net.send(:config).http_settings).to receive(:[]).with('ca_path') { 'test_path' }
+      allow(gitlab_net.send(:config)).to receive(:http_settings) { GitlabConfig::HTTPSettings.new({'ca_file' => nil, 'ca_path' => 'test_path'}) }
       expect(store).not_to receive(:add_file)
       expect(store).to receive(:add_path).with('test_path')
     end
