@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,13 +31,37 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	defer testhelper.MustHaveNoChildProcess()
 
+	defer func(rubyDir string) {
+		config.Config.Ruby.Dir = rubyDir
+	}(config.Config.Ruby.Dir)
+
+	rubyDir, err := filepath.Abs("../../ruby")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config.Config.Ruby.Dir = rubyDir
+
 	testhelper.ConfigureGitalyHooksBinary()
 	testhelper.ConfigureGitalySSH()
 
 	return m.Run()
 }
 
+const (
+	callRPC           = 0x01
+	gitlabShellConfig = 0x10
+)
+
+// featureFlagBitmaps is a bitmap where 0x01 turns on calling the hook rpc, and 0x10 turns on calling
+// the hooks with the gitlab shell config passed from config.toml to gitlab ruby
+var featureFlagBitmaps = []int{0x00, 0x01, 0x10, 0x11}
+
 func TestHooksPrePostReceive(t *testing.T) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -55,9 +80,11 @@ func TestHooksPrePostReceive(t *testing.T) {
 	gitObjectDir := filepath.Join(testRepoPath, "objects", "temp")
 	gitAlternateObjectDirs := []string{(filepath.Join(testRepoPath, "objects"))}
 
+	gitlabUser, gitlabPassword := "gitlab_user-1234", "gitlabsecret9887"
+
 	c := testhelper.GitlabTestServerOptions{
-		User:                        "",
-		Password:                    "",
+		User:                        gitlabUser,
+		Password:                    gitlabPassword,
 		SecretToken:                 secretToken,
 		GLID:                        glID,
 		GLRepository:                glRepository,
@@ -72,14 +99,19 @@ func TestHooksPrePostReceive(t *testing.T) {
 
 	ts := testhelper.NewGitlabTestServer(t, c)
 	defer ts.Close()
-	gitlabShellDir := config.Config.GitlabShell.Dir
-	defer func() {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}()
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
+	testhelper.WriteTemporaryGitlabShellConfigFile(t,
+		tempGitlabShellDir,
+		testhelper.GitlabShellConfig{
+			GitlabURL: ts.URL,
+			HTTPSettings: testhelper.HTTPSettings{
+				User:     gitlabUser,
+				Password: gitlabPassword,
+			},
+		})
+
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	gitObjectDirRegex := regexp.MustCompile(`(?m)^GIT_OBJECT_DIRECTORY=(.*)$`)
@@ -88,88 +120,84 @@ func TestHooksPrePostReceive(t *testing.T) {
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
 
-	testCases := []struct {
-		hookName string
-		callRPC  bool
-	}{
-		{
-			hookName: "pre-receive",
-			callRPC:  false,
-		},
-		{
-			hookName: "post-receive",
-			callRPC:  false,
-		},
-		{
-			hookName: "pre-receive",
-			callRPC:  true,
-		},
-		{
-			hookName: "post-receive",
-			callRPC:  true,
-		},
-	}
+	hookNames := []string{"pre-receive", "post-receive"}
 
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("hookName: %s, calling rpc: %v", tc.hookName, tc.callRPC), func(t *testing.T) {
-			customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, tc.hookName)
-			defer cleanup()
+	for _, hookName := range hookNames {
+		for _, featureFlagBitmap := range featureFlagBitmaps {
+			useHookRPC := featureFlagBitmap&callRPC == callRPC
+			callWithGitlabShellConfig := featureFlagBitmap&gitlabShellConfig == gitlabShellConfig
 
-			var stderr, stdout bytes.Buffer
-			stdin := bytes.NewBuffer([]byte(changes))
-			hookPath, err := filepath.Abs(fmt.Sprintf("../../ruby/git-hooks/%s", tc.hookName))
-			require.NoError(t, err)
-			cmd := exec.Command(hookPath)
-			cmd.Stderr = &stderr
-			cmd.Stdout = &stdout
-			cmd.Stdin = stdin
-			cmd.Env = testhelper.EnvForHooks(
-				t,
-				tempGitlabShellDir,
-				socket,
-				token,
-				testRepo,
-				testhelper.GlHookValues{
-					GLID:                   glID,
-					GLUsername:             glUsername,
-					GLRepo:                 glRepository,
-					GLProtocol:             glProtocol,
-					GitObjectDir:           c.GitObjectDir,
-					GitAlternateObjectDirs: c.GitAlternateObjectDirs,
-				},
-				gitPushOptions...,
-			)
+			t.Run(fmt.Sprintf("hookName: %s, call hook rpc: %t, call with gitlabshell config %t", hookName, useHookRPC, callWithGitlabShellConfig), func(t *testing.T) {
+				customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
+				defer cleanup()
 
-			if tc.callRPC {
-				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
-			}
-			cmd.Dir = testRepoPath
+				if callWithGitlabShellConfig {
+					config.Config.GitlabShell.GitlabURL = ts.URL
+					config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
+					config.Config.GitlabShell.HTTPSettings.User = gitlabUser
+					config.Config.GitlabShell.HTTPSettings.Password = gitlabPassword
+				}
 
-			require.NoError(t, cmd.Run())
-			require.Empty(t, stderr.String())
-			require.Empty(t, stdout.String())
+				var stderr, stdout bytes.Buffer
+				stdin := bytes.NewBuffer([]byte(changes))
+				hookPath, err := filepath.Abs(fmt.Sprintf("../../ruby/git-hooks/%s", hookName))
+				require.NoError(t, err)
+				cmd := exec.Command(hookPath)
+				cmd.Stderr = &stderr
+				cmd.Stdout = &stdout
+				cmd.Stdin = stdin
+				cmd.Env = testhelper.EnvForHooks(
+					t,
+					tempGitlabShellDir,
+					socket,
+					token,
+					testRepo,
+					testhelper.GlHookValues{
+						GLID:                   glID,
+						GLUsername:             glUsername,
+						GLRepo:                 glRepository,
+						GLProtocol:             glProtocol,
+						GitObjectDir:           c.GitObjectDir,
+						GitAlternateObjectDirs: c.GitAlternateObjectDirs,
+					},
+					gitPushOptions...,
+				)
 
-			output := string(testhelper.MustReadFile(t, customHookOutputPath))
-			require.Contains(t, output, "GL_USERNAME="+glUsername)
-			require.Contains(t, output, "GL_ID="+glID)
-			require.Contains(t, output, "GL_REPOSITORY="+glRepository)
+				if useHookRPC {
+					cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
+				}
+				cmd.Dir = testRepoPath
 
-			if tc.hookName == "pre-receive" {
-				gitObjectDirMatches := gitObjectDirRegex.FindStringSubmatch(output)
-				require.Len(t, gitObjectDirMatches, 2)
-				require.Equal(t, gitObjectDir, gitObjectDirMatches[1])
+				require.NoError(t, cmd.Run())
+				require.Empty(t, stderr.String())
+				require.Empty(t, stdout.String())
 
-				gitAlternateObjectDirMatches := gitAlternateObjectDirRegex.FindStringSubmatch(output)
-				require.Len(t, gitAlternateObjectDirMatches, 2)
-				require.Equal(t, strings.Join(gitAlternateObjectDirs, ":"), gitAlternateObjectDirMatches[1])
-			} else {
-				require.Contains(t, output, "GL_PROTOCOL="+glProtocol)
-			}
-		})
+				output := string(testhelper.MustReadFile(t, customHookOutputPath))
+				require.Contains(t, output, "GL_USERNAME="+glUsername)
+				require.Contains(t, output, "GL_ID="+glID)
+				require.Contains(t, output, "GL_REPOSITORY="+glRepository)
+
+				if hookName == "pre-receive" {
+					gitObjectDirMatches := gitObjectDirRegex.FindStringSubmatch(output)
+					require.Len(t, gitObjectDirMatches, 2)
+					require.Equal(t, gitObjectDir, gitObjectDirMatches[1])
+
+					gitAlternateObjectDirMatches := gitAlternateObjectDirRegex.FindStringSubmatch(output)
+					require.Len(t, gitAlternateObjectDirMatches, 2)
+					require.Equal(t, strings.Join(gitAlternateObjectDirs, ":"), gitAlternateObjectDirMatches[1])
+				} else {
+					require.Contains(t, output, "GL_PROTOCOL="+glProtocol)
+				}
+			})
+		}
 	}
 }
 
 func TestHooksUpdate(t *testing.T) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	glID := "key-1234"
 	glUsername := "iamgitlab"
 	glProtocol := "ssh"
@@ -178,16 +206,14 @@ func TestHooksUpdate(t *testing.T) {
 	tempGitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
 	defer cleanup()
 
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: "http://www.example.com"})
+	customHooksDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+
+	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: "http://www.example.com", CustomHooksDir: customHooksDir})
 
 	os.Symlink(filepath.Join(config.Config.GitlabShell.Dir, "config.yml"), filepath.Join(tempGitlabShellDir, "config.yml"))
 
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, "the wrong token")
-
-	gitlabShellDir := config.Config.GitlabShell.Dir
-	defer func() {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}()
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
@@ -195,19 +221,30 @@ func TestHooksUpdate(t *testing.T) {
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
 
-	for _, callRPC := range []bool{true, false} {
-		t.Run(fmt.Sprintf("call rpc: %t", callRPC), func(t *testing.T) {
+	for _, featureFlagBitmap := range featureFlagBitmaps {
+		useHookRPC := featureFlagBitmap&callRPC == callRPC
+		callWithGitlabShellConfig := featureFlagBitmap&gitlabShellConfig == gitlabShellConfig
+
+		t.Run(fmt.Sprintf("call rpc: %t, call with gitlabshell config %t", useHookRPC, callWithGitlabShellConfig), func(t *testing.T) {
+			if callWithGitlabShellConfig {
+				config.Config.GitlabShell.CustomHooksDir = customHooksDir
+			}
+
 			testHooksUpdate(t, tempGitlabShellDir, socket, token, testhelper.GlHookValues{
 				GLID:       glID,
 				GLUsername: glUsername,
 				GLRepo:     glRepository,
 				GLProtocol: glProtocol,
-			}, callRPC)
+			}, useHookRPC)
 		})
 	}
 }
 
 func testHooksUpdate(t *testing.T, gitlabShellDir, socket, token string, glValues testhelper.GlHookValues, callRPC bool) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -265,7 +302,19 @@ open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
 	require.Contains(t, output, "GL_PROTOCOL="+glValues.GLProtocol)
 }
 
-func TestHooksPostReceiveFailed(t *testing.T) {
+func TestHooksPostReceiveFailedWithRPC(t *testing.T) {
+	testHooksPostReceiveFailed(t, true)
+}
+
+func TestHooksPostReceiveFailedWithoutRPC(t *testing.T) {
+	testHooksPostReceiveFailed(t, false)
+}
+
+func testHooksPostReceiveFailed(t *testing.T, callHookRPC bool) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	secretToken := "secret token"
 	glID := "key-1234"
 	glUsername := "iamgitlab"
@@ -296,15 +345,11 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	ts := testhelper.NewGitlabTestServer(t, c)
 	defer ts.Close()
 
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
-	gitlabShellDir := config.Config.GitlabShell.Dir
-	defer func() {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}()
-
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.GitlabShell.GitlabURL = ts.URL
+	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
 	defer cleanup()
@@ -324,6 +369,11 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 		GLRepo:     glRepository,
 		GLProtocol: glProtocol,
 	})
+
+	if callHookRPC {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
+	}
+
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Stdin = bytes.NewBuffer([]byte(changes))
@@ -342,6 +392,10 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 }
 
 func TestHooksNotAllowed(t *testing.T) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	secretToken := "secret token"
 	glID := "key-1234"
 	glUsername := "iamgitlab"
@@ -371,15 +425,12 @@ func TestHooksNotAllowed(t *testing.T) {
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, "the wrong token")
 
-	gitlabShellDir := config.Config.GitlabShell.Dir
-	defer func() {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}()
+	config.Config.GitlabShell.Dir = tempGitlabShellDir
+	config.Config.GitlabShell.GitlabURL = ts.URL
 
 	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
 	defer cleanup()
 
-	config.Config.GitlabShell.Dir = tempGitlabShellDir
 	token := "abc123"
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
@@ -438,9 +489,11 @@ func TestCheckOK(t *testing.T) {
 	require.NoError(t, os.Symlink(filepath.Join(cwd, "../../ruby/gitlab-shell/bin/check"), filepath.Join(binDir, "check")))
 
 	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
-	testhelper.WriteTemporaryGitlabShellConfigFile(t, gitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: testhelper.HTTPSettings{User: user, Password: password}})
+	testhelper.WriteTemporaryGitlabShellConfigFile(t,
+		gitlabShellDir,
+		testhelper.GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: testhelper.HTTPSettings{User: user, Password: password}})
 
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir)
+	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, ts.URL, user, password)
 	defer cleanup()
 
 	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)
@@ -488,7 +541,7 @@ func TestCheckBadCreds(t *testing.T) {
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, gitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL, HTTPSettings: testhelper.HTTPSettings{User: user + "wrong", Password: password}})
 	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
 
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir)
+	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, ts.URL, "wrong", password)
 	defer cleanup()
 
 	cmd := exec.Command(fmt.Sprintf("%s/gitaly-hooks", config.Config.BinDir), "check", configPath)

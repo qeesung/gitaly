@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -218,10 +219,10 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	tempGitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
 	defer cleanup()
 
-	gitlabShellDir := config.Config.GitlabShell.Dir
-	defer func() {
-		config.Config.GitlabShell.Dir = gitlabShellDir
-	}()
+	originalGitlabShellConfig := config.Config.GitlabShell
+	defer func(gitlabShellConfig config.GitlabShell) {
+		config.Config.GitlabShell = gitlabShellConfig
+	}(originalGitlabShellConfig)
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
@@ -242,6 +243,9 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
+
+	config.Config.GitlabShell.GitlabURL = ts.URL
+	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	testhelper.WriteCustomHook(cloneDetails.RemoteRepoPath, "pre-receive", []byte(testhelper.CheckNewObjectExists))
 
