@@ -1,7 +1,6 @@
 package config
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,10 +12,17 @@ import (
 )
 
 func TestConfigValidation(t *testing.T) {
-	nodes := []*models.Node{
-		{Storage: "internal-1", Address: "localhost:23456", Token: "secret-token", DefaultPrimary: true},
-		{Storage: "internal-2", Address: "localhost:23457", Token: "secret-token"},
-		{Storage: "internal-3", Address: "localhost:23458", Token: "secret-token"},
+	vs1Nodes := []*models.Node{
+		{Storage: "internal-1.0", Address: "localhost:23456", Token: "secret-token-1", DefaultPrimary: true},
+		{Storage: "internal-2.0", Address: "localhost:23457", Token: "secret-token-1"},
+		{Storage: "internal-3.0", Address: "localhost:23458", Token: "secret-token-1"},
+	}
+
+	vs2Nodes := []*models.Node{
+		// storage can have same name as storage in another virtual storage, but all addresses must be unique
+		{Storage: "internal-1.0", Address: "localhost:33456", Token: "secret-token-2", DefaultPrimary: true},
+		{Storage: "internal-2.1", Address: "localhost:33457", Token: "secret-token-2"},
+		{Storage: "internal-3.1", Address: "localhost:33458", Token: "secret-token-2"},
 	}
 
 	testCases := []struct {
@@ -25,17 +31,36 @@ func TestConfigValidation(t *testing.T) {
 		err    error
 	}{
 		{
-			desc:   "No ListenAddr or SocketPath",
-			config: Config{ListenAddr: "", VirtualStorages: []*VirtualStorage{&VirtualStorage{Nodes: nodes}}},
-			err:    errNoListener,
+			desc: "Valid config with ListenAddr",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+					{Name: "secondary", Nodes: vs2Nodes},
+				},
+			},
 		},
 		{
-			desc:   "Only a SocketPath",
-			config: Config{SocketPath: "/tmp/praefect.socket", VirtualStorages: []*VirtualStorage{&VirtualStorage{Nodes: nodes}}},
-			err:    nil,
+			desc: "Valid config with SocketPath",
+			config: Config{
+				SocketPath: "/tmp/praefect.socket",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+				},
+			},
 		},
 		{
-			desc:   "No servers",
+			desc: "No ListenAddr or SocketPath",
+			config: Config{
+				ListenAddr: "",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+				},
+			},
+			err: errNoListener,
+		},
+		{
+			desc:   "No virtual storages",
 			config: Config{ListenAddr: "localhost:1234"},
 			err:    errNoVirtualStorages,
 		},
@@ -44,28 +69,43 @@ func TestConfigValidation(t *testing.T) {
 			config: Config{
 				ListenAddr: "localhost:1234",
 				VirtualStorages: []*VirtualStorage{
-					&VirtualStorage{Nodes: append(nodes, &models.Node{Storage: nodes[0].Storage, Address: nodes[1].Address})},
+					{
+						Name: "default",
+						Nodes: append(vs1Nodes, &models.Node{
+							Storage: vs1Nodes[0].Storage,
+							Address: vs1Nodes[1].Address,
+						}),
+					},
 				},
 			},
 			err: errDuplicateStorage,
 		},
 		{
-			desc:   "Valid config",
-			config: Config{ListenAddr: "localhost:1234", VirtualStorages: []*VirtualStorage{&VirtualStorage{Nodes: nodes}}},
-			err:    nil,
+			desc: "No designated primaries",
+			config: Config{
+				ListenAddr:      "localhost:1234",
+				VirtualStorages: []*VirtualStorage{{Name: "default", Nodes: vs1Nodes[1:]}},
+			},
+			err: errNoPrimaries,
 		},
 		{
-			desc:   "No designated primaries",
-			config: Config{ListenAddr: "localhost:1234", VirtualStorages: []*VirtualStorage{&VirtualStorage{Nodes: nodes[1:]}}},
-			err:    errNoPrimaries,
+			desc: "No designated primaries",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes[1:]},
+				},
+			},
+			err: errNoPrimaries,
 		},
 		{
 			desc: "More than 1 primary",
 			config: Config{
 				ListenAddr: "localhost:1234",
 				VirtualStorages: []*VirtualStorage{
-					&VirtualStorage{
-						Nodes: append(nodes,
+					{
+						Name: "default",
+						Nodes: append(vs1Nodes,
 							&models.Node{
 								Storage:        "internal-4",
 								Address:        "localhost:23459",
@@ -78,41 +118,87 @@ func TestConfigValidation(t *testing.T) {
 			err: errMoreThanOnePrimary,
 		},
 		{
-			desc: "Node storage not unique",
+			desc: "Node storage has no name",
 			config: Config{
 				ListenAddr: "localhost:1234",
 				VirtualStorages: []*VirtualStorage{
-					&VirtualStorage{Name: "default", Nodes: nodes},
-					&VirtualStorage{
-						Name: "backup",
+					{
+						Name: "default",
 						Nodes: []*models.Node{
-							&models.Node{
-								Storage:        nodes[0].Storage,
-								Address:        "some.other.address",
-								DefaultPrimary: true},
+							{
+								Storage:        "",
+								Address:        "localhost:23456",
+								Token:          "secret-token-1",
+								DefaultPrimary: true,
+							},
 						},
 					},
 				},
 			},
-			err: errStorageAddressMismatch,
+			err: errGitalyWithoutStorage,
 		},
 		{
-			desc: "Node storage not unique",
+			desc: "Node storage has no address",
 			config: Config{
 				ListenAddr: "localhost:1234",
 				VirtualStorages: []*VirtualStorage{
-					&VirtualStorage{Name: "default", Nodes: nodes},
-					&VirtualStorage{
+					{
 						Name: "default",
 						Nodes: []*models.Node{
-							&models.Node{
-								Storage:        nodes[0].Storage,
-								Address:        "some.other.address",
-								DefaultPrimary: true}},
+							{
+								Storage:        "internal",
+								Address:        "",
+								Token:          "secret-token-1",
+								DefaultPrimary: true,
+							},
+						},
 					},
 				},
 			},
+			err: errGitalyWithoutAddr,
+		},
+		{
+			desc: "Virtual storage has no name",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "", Nodes: vs1Nodes},
+				},
+			},
+			err: errVirtualStorageUnnamed,
+		},
+		{
+			desc: "Virtual storage not unique",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+					{Name: "default", Nodes: vs2Nodes},
+				},
+			},
 			err: errVirtualStoragesNotUnique,
+		},
+		{
+			desc: "Virtual storage has no nodes",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+					{Name: "secondary", Nodes: nil},
+				},
+			},
+			err: errNoGitalyServers,
+		},
+		{
+			desc: "Node storage has address duplicate",
+			config: Config{
+				ListenAddr: "localhost:1234",
+				VirtualStorages: []*VirtualStorage{
+					{Name: "default", Nodes: vs1Nodes},
+					{Name: "secondary", Nodes: append(vs2Nodes, vs1Nodes[1])},
+				},
+			},
+			err: errStorageAddressDuplicate,
 		},
 	}
 
@@ -124,7 +210,7 @@ func TestConfigValidation(t *testing.T) {
 				return
 			}
 
-			assert.True(t, strings.Contains(err.Error(), tc.err.Error()))
+			assert.Contains(t, err.Error(), tc.err.Error())
 		})
 	}
 }

@@ -72,8 +72,9 @@ var (
 	errNoListener               = errors.New("no listen address or socket path configured")
 	errNoPrimaries              = errors.New("no primaries designated")
 	errNoVirtualStorages        = errors.New("no virtual storages configured")
-	errStorageAddressMismatch   = errors.New("storages with the same name must have the same address")
+	errStorageAddressDuplicate  = errors.New("multiple storages have the same address")
 	errVirtualStoragesNotUnique = errors.New("virtual storages must have unique names")
+	errVirtualStorageUnnamed    = errors.New("virtual storages must have a name")
 )
 
 // Validate establishes if the config is valid
@@ -86,55 +87,55 @@ func (c Config) Validate() error {
 		return errNoVirtualStorages
 	}
 
-	allStorages := make(map[string]string)
-	virtualStorages := make(map[string]struct{})
+	allAddresses := make(map[string]struct{})
+	virtualStorages := make(map[string]struct{}, len(c.VirtualStorages))
 
 	for _, virtualStorage := range c.VirtualStorages {
-		if _, ok := virtualStorages[virtualStorage.Name]; ok {
-			return errVirtualStoragesNotUnique
+		if virtualStorage.Name == "" {
+			return errVirtualStorageUnnamed
 		}
 
+		if len(virtualStorage.Nodes) == 0 {
+			return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errNoGitalyServers)
+		}
+
+		if _, ok := virtualStorages[virtualStorage.Name]; ok {
+			return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errVirtualStoragesNotUnique)
+		}
 		virtualStorages[virtualStorage.Name] = struct{}{}
 
-		storages := make(map[string]struct{})
-		var primaries int
+		storages := make(map[string]struct{}, len(virtualStorage.Nodes))
+		primaries := 0
 		for _, node := range virtualStorage.Nodes {
 			if node.DefaultPrimary {
 				primaries++
 			}
 
 			if primaries > 1 {
-				return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errMoreThanOnePrimary)
+				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errMoreThanOnePrimary)
 			}
 
 			if node.Storage == "" {
-				return errGitalyWithoutStorage
+				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errGitalyWithoutStorage)
 			}
 
 			if node.Address == "" {
-				return errGitalyWithoutAddr
+				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errGitalyWithoutAddr)
 			}
 
 			if _, found := storages[node.Storage]; found {
-				return errDuplicateStorage
+				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errDuplicateStorage)
 			}
-
-			if address, found := allStorages[node.Storage]; found {
-				if address != node.Address {
-					return errStorageAddressMismatch
-				}
-			} else {
-				allStorages[node.Storage] = node.Address
-			}
-
 			storages[node.Storage] = struct{}{}
+
+			if _, found := allAddresses[node.Address]; found {
+				return fmt.Errorf("virtual storage %q: address %q : %w", virtualStorage.Name, node.Address, errStorageAddressDuplicate)
+			}
+			allAddresses[node.Address] = struct{}{}
 		}
 
 		if primaries == 0 {
 			return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errNoPrimaries)
-		}
-		if len(storages) == 0 {
-			return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errNoGitalyServers)
 		}
 	}
 
