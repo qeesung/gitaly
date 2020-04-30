@@ -35,10 +35,10 @@ module Gitlab
           control_refs = branches.collect(&:name)
           experiment_refs = ls_remote_branches.collect(&:name)
 
-          if control_refs != experiment_refs
-            diff = experiment_refs.difference(control_refs).map { |r| "+#{r}" }
-            diff.concat(control_refs.difference(experiment_refs).map { |r| "-#{r}" })
+          diff = experiment_refs.difference(control_refs).map { |r| "+#{r}" }
+          diff.concat(control_refs.difference(experiment_refs).map { |r| "-#{r}" })
 
+          if diff.any?
             Rails.logger.warn("experimental_remote_branches returned differing values from control: #{diff.join(', ')}")
           end
         end
