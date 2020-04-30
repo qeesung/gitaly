@@ -24,6 +24,7 @@ import (
 
 // Shard is a primary with a set of secondaries
 type Shard struct {
+	IsReadOnly  bool
 	Primary     Node
 	Secondaries []Node
 }
@@ -31,6 +32,11 @@ type Shard struct {
 // Manager is responsible for returning shards for virtual storages
 type Manager interface {
 	GetShard(virtualStorageName string) (Shard, error)
+	// EnableWrites enables writes for a given virtual storage. Returns an
+	// ErrPrimaryNotHealthy if the shard does not have a healthy primary.
+	// ErrVirtualStorageNotExist if a virtual storage with the given name
+	// does not exist.
+	EnableWrites(ctx context.Context, virtualStorageName string) error
 }
 
 // Node represents some metadata of a node as well as a connection
@@ -57,6 +63,7 @@ type leaderElectionStrategy interface {
 	start(bootstrapInterval, monitorInterval time.Duration)
 	checkNodes(context.Context) error
 	GetShard() (Shard, error)
+	enableWrites(context.Context) error
 }
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
@@ -148,6 +155,15 @@ func (n *Mgr) GetShard(virtualStorageName string) (Shard, error) {
 	}
 
 	return strategy.GetShard()
+}
+
+func (n *Mgr) EnableWrites(ctx context.Context, virtualStorageName string) error {
+	strategy, ok := n.strategies[virtualStorageName]
+	if !ok {
+		return ErrVirtualStorageNotExist
+	}
+
+	return strategy.enableWrites(ctx)
 }
 
 func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {

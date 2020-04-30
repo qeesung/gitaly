@@ -43,10 +43,8 @@ func TestGetShard(t *testing.T) {
 
 	shard, err := strategy.GetShard()
 	require.NoError(t, err)
-
-	require.NoError(t, err)
+	require.False(t, shard.IsReadOnly, "new shard should not be read-only")
 	require.Equal(t, ns[0], shard.Primary)
-
 	require.Len(t, shard.Secondaries, 1)
 	require.Equal(t, ns[1], shard.Secondaries[0])
 }

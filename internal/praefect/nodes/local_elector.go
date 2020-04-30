@@ -25,6 +25,7 @@ type localElector struct {
 	shardName       string
 	nodes           []*nodeCandidate
 	primaryNode     *nodeCandidate
+	isReadOnly      bool
 	log             logrus.FieldLogger
 }
 
@@ -146,6 +147,7 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 	}
 
 	s.primaryNode = newPrimary
+	s.isReadOnly = true
 
 	return nil
 }
@@ -156,6 +158,7 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 func (s *localElector) GetShard() (Shard, error) {
 	s.m.RLock()
 	primary := s.primaryNode
+	isReadOnly := s.isReadOnly
 	s.m.RUnlock()
 
 	if primary == nil {
@@ -174,9 +177,21 @@ func (s *localElector) GetShard() (Shard, error) {
 	}
 
 	return Shard{
+		IsReadOnly:  isReadOnly,
 		Primary:     primary.node,
 		Secondaries: secondaries,
 	}, nil
+}
+
+func (s *localElector) enableWrites(context.Context) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.primaryNode == nil || !s.primaryNode.isHealthy() {
+		return ErrPrimaryNotHealthy
+	}
+
+	s.isReadOnly = false
+	return nil
 }
 
 func (s *localElector) updateMetrics() {

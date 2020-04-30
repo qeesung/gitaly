@@ -64,7 +64,13 @@ type sqlCandidate struct {
 //
 // Otherwise, if there is no primary or it is unhealthy, any Praefect node
 // can elect a new primary by choosing candidate from the healthy node
-// list.
+// list. If there are no candidate nodes, the primary is demoted by setting the `demoted` flag
+// in `shard_primaries`.
+//
+// In case of a failover, the virtual storage is marked as read-only until writes are manually enabled
+// again. This status is stored in the `shard_primaries` table's `read_only` column. If `read_only` is
+// set, mutator RPCs against the storage shard should be blocked in order to prevent new primary from
+// diverging from the previous primary before data recovery attempts have been made.
 type sqlElector struct {
 	m                     sync.RWMutex
 	praefectName          string
@@ -180,8 +186,7 @@ func (s *sqlElector) checkNodes(ctx context.Context) error {
 	// The attempt to elect a primary may have conflicted with another
 	// node attempting to elect a primary. We check the database again
 	// to see the current state.
-	candidate, err := s.lookupPrimary()
-
+	candidate, _, err := s.lookupPrimary()
 	if err != nil {
 		s.log.WithError(err).Error("error looking up primary")
 		return err
@@ -247,7 +252,7 @@ last_contact_attempt_at = NOW()`
 // GetShard gets the current status of the shard. ErrPrimaryNotHealthy
 // is returned if a primary does not exist.
 func (s *sqlElector) GetShard() (Shard, error) {
-	primary, err := s.lookupPrimary()
+	primary, readOnly, err := s.lookupPrimary()
 	if err != nil {
 		return Shard{}, err
 	}
@@ -265,6 +270,7 @@ func (s *sqlElector) GetShard() (Shard, error) {
 	}
 
 	return Shard{
+		IsReadOnly:  readOnly,
 		Primary:     primary,
 		Secondaries: secondaries,
 	}, nil
@@ -294,7 +300,7 @@ func (s *sqlElector) getQuorumCount() (int, error) {
 	var totalCount int
 
 	if err := s.db.QueryRow(q, s.shardName, s.activePraefectSeconds).Scan(&totalCount); err != nil {
-		return 0, fmt.Errorf("error retrieving quorum count: %v", err)
+		return 0, fmt.Errorf("error retrieving quorum count: %w", err)
 	}
 
 	if totalCount <= 1 {
@@ -329,7 +335,7 @@ func nodeInSlice(candidates []*sqlCandidate, node *sqlCandidate) bool {
 func (s *sqlElector) demotePrimary() error {
 	s.setPrimary(nil)
 
-	q := "DELETE FROM shard_primaries WHERE shard_name = $1"
+	q := "UPDATE shard_primaries SET demoted = true WHERE shard_name = $1"
 	_, err := s.db.Exec(q, s.shardName)
 
 	return err
@@ -342,18 +348,38 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 	// Praefect identifier.
 	newPrimary := candidates[0]
 
-	q := `INSERT INTO shard_primaries (elected_by_praefect, shard_name, node_name, elected_at)
+	// read_only is set only when a row already exists in the table. This avoids new shards, which
+	// do not yet have a row in the table, from starting in read-only mode. In a failover scenario,
+	// a row already exists in the table denoting the previous primary, and thus the shard should
+	// be switched to read-only mode.
+	const q = `INSERT INTO shard_primaries (elected_by_praefect, shard_name, node_name, elected_at)
 	SELECT $1::VARCHAR, $2::VARCHAR, $3::VARCHAR, NOW()
 	WHERE $3 != COALESCE((SELECT node_name FROM shard_primaries WHERE shard_name = $2::VARCHAR), '')
 	ON CONFLICT (shard_name)
 	DO UPDATE SET elected_by_praefect = EXCLUDED.elected_by_praefect
 				, node_name = EXCLUDED.node_name
 				, elected_at = EXCLUDED.elected_at
+				, read_only = true
+				, demoted = false
 	`
 	_, err := s.db.Exec(q, s.praefectName, s.shardName, newPrimary.GetStorage())
 
 	if err != nil {
 		s.log.Errorf("error updating new primary: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *sqlElector) enableWrites(ctx context.Context) error {
+	const q = "UPDATE shard_primaries SET read_only = false WHERE shard_name = $1 AND demoted = false"
+	if rslt, err := s.db.ExecContext(ctx, q, s.shardName); err != nil {
+		return err
+	} else if n, err := rslt.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
+		return ErrPrimaryNotHealthy
 	}
 
 	return nil
@@ -376,7 +402,7 @@ func (s *sqlElector) validateAndUpdatePrimary() error {
 	rows, err := s.db.Query(q, s.shardName, s.failoverSeconds, quorumCount)
 
 	if err != nil {
-		return fmt.Errorf("error retrieving candidates: %v", err)
+		return fmt.Errorf("error retrieving candidates: %w", err)
 	}
 	defer rows.Close()
 
@@ -385,7 +411,7 @@ func (s *sqlElector) validateAndUpdatePrimary() error {
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
-			return fmt.Errorf("error retrieving candidate rows: %v", err)
+			return fmt.Errorf("error retrieving candidate rows: %w", err)
 		}
 
 		node := s.lookupNodeByName(name)
@@ -402,7 +428,7 @@ func (s *sqlElector) validateAndUpdatePrimary() error {
 	}
 
 	// Check if primary is in this list
-	primaryNode, err := s.lookupPrimary()
+	primaryNode, _, err := s.lookupPrimary()
 
 	if err != nil {
 		s.log.WithError(err).Error("error looking up primary")
@@ -420,17 +446,17 @@ func (s *sqlElector) validateAndUpdatePrimary() error {
 	return nil
 }
 
-func (s *sqlElector) lookupPrimary() (*sqlCandidate, error) {
+func (s *sqlElector) lookupPrimary() (*sqlCandidate, bool, error) {
 	var primaryName string
+	var readOnly bool
 
-	q := `SELECT node_name FROM shard_primaries WHERE shard_name = $1`
-
-	if err := s.db.QueryRow(q, s.shardName).Scan(&primaryName); err != nil {
+	const q = `SELECT node_name, read_only FROM shard_primaries WHERE shard_name = $1 AND demoted = false`
+	if err := s.db.QueryRow(q, s.shardName).Scan(&primaryName, &readOnly); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, false, nil
 		}
 
-		return nil, fmt.Errorf("error looking up primary: %v", err)
+		return nil, false, fmt.Errorf("error looking up primary: %w", err)
 	}
 
 	var primaryNode *sqlCandidate
@@ -438,5 +464,5 @@ func (s *sqlElector) lookupPrimary() (*sqlCandidate, error) {
 		primaryNode = s.lookupNodeByName(primaryName)
 	}
 
-	return primaryNode, nil
+	return primaryNode, readOnly, nil
 }

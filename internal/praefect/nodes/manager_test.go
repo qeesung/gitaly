@@ -128,6 +128,7 @@ func TestPrimaryIsSecond(t *testing.T) {
 
 	shard, err := nm.GetShard("virtual-storage-0")
 	require.NoError(t, err)
+	require.False(t, shard.IsReadOnly, "new shard should not be read-only")
 
 	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Primary.GetAddress())
@@ -196,6 +197,8 @@ func TestNodeManager(t *testing.T) {
 	require.Len(t, shard.Secondaries, 1)
 	require.Equal(t, shardWithoutFailover.Secondaries[0].GetStorage(), shard.Secondaries[0].GetStorage())
 	require.Equal(t, shardWithoutFailover.Secondaries[0].GetAddress(), shard.Secondaries[0].GetAddress())
+	require.False(t, shard.IsReadOnly)
+	require.False(t, shardWithoutFailover.IsReadOnly)
 
 	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Primary.GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Primary.GetAddress())
@@ -232,6 +235,8 @@ func TestNodeManager(t *testing.T) {
 	require.Len(t, shard.Secondaries, 1)
 	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shardWithoutFailover.Secondaries[0].GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[1].Address, shardWithoutFailover.Secondaries[0].GetAddress())
+	require.False(t, shardWithoutFailover.IsReadOnly,
+		"shard should not be read-only after primary failure with failover disabled")
 
 	// shard with failover should have promoted a secondary to primary and demoted the primary to a secondary
 	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
@@ -239,10 +244,18 @@ func TestNodeManager(t *testing.T) {
 	require.Len(t, shard.Secondaries, 1)
 	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
+	require.True(t, shard.IsReadOnly, "shard should be read-only after a failover")
+
+	require.NoError(t, nm.EnableWrites(context.Background(), "virtual-storage-0"))
+	shard, err = nm.GetShard("virtual-storage-0")
+	require.NoError(t, err)
+	require.False(t, shard.IsReadOnly, "shard should be write enabled")
 
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	nm.checkShards()
 
 	_, err = nm.GetShard("virtual-storage-0")
 	require.Error(t, err, "should return error since no nodes are healthy")
+	require.Equal(t, ErrPrimaryNotHealthy, nm.EnableWrites(context.Background(), "virtual-storage-0"),
+		"should not be able to enable writes with unhealthy master")
 }

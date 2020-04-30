@@ -53,9 +53,8 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 	db.RequireRowsInTable(t, "shard_primaries", 1)
 
 	elector.demotePrimary()
-	db.RequireRowsInTable(t, "shard_primaries", 0)
-
 	shard, err := elector.GetShard()
+	db.RequireRowsInTable(t, "shard_primaries", 1)
 	require.Equal(t, ErrPrimaryNotHealthy, err)
 	require.Empty(t, shard)
 }
@@ -113,6 +112,7 @@ func TestBasicFailover(t *testing.T) {
 	require.Equal(t, cs0.GetStorage(), shard.Primary.GetStorage())
 	require.Equal(t, 1, len(shard.Secondaries))
 	require.Equal(t, cs1.GetStorage(), shard.Secondaries[0].GetStorage())
+	require.False(t, shard.IsReadOnly, "new shard should not be read-only")
 
 	// Bring first node down
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
@@ -122,6 +122,7 @@ func TestBasicFailover(t *testing.T) {
 	require.NoError(t, err)
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
+	require.False(t, shard.IsReadOnly)
 
 	// Wait for stale timeout to expire
 	time.Sleep(1 * time.Second)
@@ -135,6 +136,13 @@ func TestBasicFailover(t *testing.T) {
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
 	require.Equal(t, cs1.GetStorage(), shard.Primary.GetStorage())
+	require.True(t, shard.IsReadOnly, "shard should be read-only after a failover")
+
+	// We should be able to enable writes on the new primary
+	require.NoError(t, elector.enableWrites(ctx))
+	shard, err = elector.GetShard()
+	require.NoError(t, err)
+	require.False(t, shard.IsReadOnly, "")
 
 	// Bring second node down
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
@@ -146,7 +154,8 @@ func TestBasicFailover(t *testing.T) {
 
 	db.RequireRowsInTable(t, "node_status", 2)
 	// No new candidates
-	db.RequireRowsInTable(t, "shard_primaries", 0)
-	shard, err = elector.GetShard()
-	require.Equal(t, ErrPrimaryNotHealthy, err)
+	_, err = elector.GetShard()
+	require.Error(t, ErrPrimaryNotHealthy, err)
+	require.Error(t, ErrPrimaryNotHealthy, elector.enableWrites(ctx),
+		"shouldn't be able to enable writes with unhealthy master")
 }
