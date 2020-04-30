@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 
@@ -15,13 +17,18 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func cloneFromURLCommand(ctx context.Context, repoURL, repositoryFullPath string) (*command.Command, error) {
+func cloneFromURLCommand(ctx context.Context, repoURL, repositoryFullPath string, stderr io.Writer) (*command.Command, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
-	flags := []git.Option{git.Flag{Name: "--bare"}, git.ValueFlag{Name: "-c", Value: "http.followRedirects=false"}}
+	flags := []git.Option{
+		git.Flag{Name: "--bare"},
+		git.Flag{Name: "--quiet"},
+		git.ValueFlag{Name: "-c", Value: "http.followRedirects=false"},
+	}
+
 	if u.User != nil {
 		pwd, set := u.User.Password()
 
@@ -37,7 +44,7 @@ func cloneFromURLCommand(ctx context.Context, repoURL, repositoryFullPath string
 		flags = append(flags, git.ValueFlag{Name: "-c", Value: fmt.Sprintf("http.%s.extraHeader=%s", u.String(), authHeader)})
 	}
 
-	return git.SafeBareCmd(ctx, nil, nil, nil, nil, nil, git.SubCmd{
+	return git.SafeBareCmd(ctx, nil, nil, stderr, nil, nil, git.SubCmd{
 		Name:        "clone",
 		Flags:       flags,
 		PostSepArgs: []string{u.String(), repositoryFullPath},
@@ -60,14 +67,15 @@ func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.Crea
 		return nil, status.Errorf(codes.InvalidArgument, "CreateRepositoryFromURL: dest dir exists")
 	}
 
-	cmd, err := cloneFromURLCommand(ctx, req.GetUrl(), repositoryFullPath)
+	stderr := bytes.Buffer{}
+	cmd, err := cloneFromURLCommand(ctx, req.GetUrl(), repositoryFullPath, &stderr)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
 	if err := cmd.Wait(); err != nil {
 		os.RemoveAll(repositoryFullPath)
-		return nil, status.Errorf(codes.Internal, "CreateRepositoryFromURL: clone cmd wait: %v", err)
+		return nil, status.Errorf(codes.Internal, "CreateRepositoryFromURL: clone cmd wait: %s: %v", stderr.String(), err)
 	}
 
 	// CreateRepository is harmless on existing repositories with the side effect that it creates the hook symlink.

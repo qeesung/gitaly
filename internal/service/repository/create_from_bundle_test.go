@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path"
@@ -82,6 +83,48 @@ func TestSuccessfulCreateRepositoryFromBundleRequest(t *testing.T) {
 	commit, err := log.GetCommit(ctx, importedRepo, "refs/custom-refs/ref1")
 	require.NoError(t, err)
 	require.NotNil(t, commit)
+}
+
+func TestFailedCreateRepositoryFromBundleRequestDueToInvalidBundle(t *testing.T) {
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	stream, err := client.CreateRepositoryFromBundle(ctx)
+	require.NoError(t, err)
+
+	importedRepo := &gitalypb.Repository{
+		StorageName:  testhelper.DefaultStorageName,
+		RelativePath: "a-repo-from-bundle",
+	}
+	importedRepoPath, err := helper.GetPath(importedRepo)
+	require.NoError(t, err)
+	defer os.RemoveAll(importedRepoPath)
+
+	request := &gitalypb.CreateRepositoryFromBundleRequest{Repository: importedRepo}
+	writer := streamio.NewWriter(func(p []byte) error {
+		request.Data = p
+
+		if err := stream.Send(request); err != nil {
+			return err
+		}
+
+		request = &gitalypb.CreateRepositoryFromBundleRequest{}
+
+		return nil
+	})
+
+	_, err = io.Copy(writer, bytes.NewBufferString("not-a-bundle"))
+	require.NoError(t, err)
+
+	_, err = stream.CloseAndRecv()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid gitfile format")
 }
 
 func TestFailedCreateRepositoryFromBundleRequestDueToValidations(t *testing.T) {

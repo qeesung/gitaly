@@ -18,8 +18,7 @@ func (o *ObjectPool) clone(ctx context.Context, repo *gitalypb.Repository) error
 		return err
 	}
 
-	cmd, err := git.SafeCmdWithoutRepo(ctx,
-		nil,
+	cmd, err := git.SafeCmdWithoutRepo(ctx, git.CmdStream{}, nil,
 		git.SubCmd{
 			Name: "clone",
 			Flags: []git.Option{

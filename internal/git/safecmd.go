@@ -48,6 +48,12 @@ type SubCmd struct {
 	PostSepArgs []string // post separator (i.e. "--") positional args
 }
 
+// CmdStream represents standard input/output streams for a command
+type CmdStream struct {
+	In       io.Reader // standard input
+	Out, Err io.Writer // standard output and error
+}
+
 var subCmdNameRegex = regexp.MustCompile(`^[[:alnum:]]+(-[[:alnum:]]+)*$`)
 
 // IsCmd allows SubCmd to satisfy the Cmd interface
@@ -198,7 +204,7 @@ func SafeBareCmd(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer,
 		return nil, err
 	}
 
-	return unsafeBareCmd(ctx, stdin, stdout, stderr, env, args...)
+	return unsafeBareCmd(ctx, CmdStream{In: stdin, Out: stdout, Err: stderr}, env, args...)
 }
 
 // SafeStdinCmd creates a git.Command with the given args and Repository that is
@@ -215,13 +221,13 @@ func SafeStdinCmd(ctx context.Context, repo repository.GitRepo, globals []Option
 
 // SafeCmdWithoutRepo works like Command but without a git repository. It
 // validates the arguments in the command before executing.
-func SafeCmdWithoutRepo(ctx context.Context, globals []Option, sc SubCmd) (*command.Command, error) {
+func SafeCmdWithoutRepo(ctx context.Context, stream CmdStream, globals []Option, sc SubCmd) (*command.Command, error) {
 	args, err := combineArgs(globals, sc)
 	if err != nil {
 		return nil, err
 	}
 
-	return unsafeCmdWithoutRepo(ctx, args...)
+	return unsafeCmdWithoutRepo(ctx, stream, args...)
 }
 
 func combineArgs(globals []Option, sc Cmd) (_ []string, err error) {

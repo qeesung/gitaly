@@ -72,7 +72,7 @@ func TestCloneRepositoryFromUrlCommand(t *testing.T) {
 	repositoryFullPath := "full/path/to/repository"
 	url := fmt.Sprintf("https://%s@www.example.com/secretrepo.git", userInfo)
 
-	cmd, err := cloneFromURLCommand(ctx, url, repositoryFullPath)
+	cmd, err := cloneFromURLCommand(ctx, url, repositoryFullPath, nil)
 	require.NoError(t, err)
 
 	expectedScrubbedURL := "https://www.example.com/secretrepo.git"
@@ -169,6 +169,7 @@ func TestPreventingRedirect(t *testing.T) {
 	require.False(t, httpServerState.serverVisitedAfterRedirect, "git command should not follow HTTP redirection")
 
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "The requested URL returned error: 301")
 }
 
 func gitServerWithBasicAuth(t testing.TB, user, pass, repoPath string) (int, func() error) {

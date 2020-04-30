@@ -31,7 +31,7 @@ func TestGitCommandProxy(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	cmd, err := unsafeCmdWithoutRepo(ctx, "clone", "http://gitlab.com/bogus-repo", dir)
+	cmd, err := unsafeCmdWithoutRepo(ctx, CmdStream{}, "clone", "http://gitlab.com/bogus-repo", dir)
 	require.NoError(t, err)
 
 	err = cmd.Wait()

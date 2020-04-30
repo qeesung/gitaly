@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -69,11 +70,13 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return status.Error(codes.Internal, cleanError)
 	}
 
-	cmd, err := git.SafeCmdWithoutRepo(ctx, nil,
+	stderr := bytes.Buffer{}
+	cmd, err := git.SafeCmdWithoutRepo(ctx, git.CmdStream{Err: &stderr}, nil,
 		git.SubCmd{
 			Name: "clone",
 			Flags: []git.Option{
 				git.Flag{Name: "--bare"},
+				git.Flag{Name: "--quiet"},
 			},
 			PostSepArgs: []string{bundlePath, repoPath},
 		},
@@ -83,16 +86,18 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return status.Error(codes.Internal, cleanError)
 	}
 	if err := cmd.Wait(); err != nil {
-		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd wait failed: %v", err)
+		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd wait failed: %s: %v", stderr.String(), err)
 		return status.Error(codes.Internal, cleanError)
 	}
 
 	// We do a fetch to get all refs including keep-around refs
-	cmd, err = git.SafeCmdWithoutRepo(ctx,
+	stderr.Reset()
+	cmd, err = git.SafeCmdWithoutRepo(ctx, git.CmdStream{Err: &stderr},
 		[]git.Option{git.ValueFlag{Name: "-C", Value: repoPath}},
 		git.SubCmd{
-			Name: "fetch",
-			Args: []string{bundlePath, "refs/*:refs/*"},
+			Name:  "fetch",
+			Flags: []git.Option{git.Flag{Name: "--quiet"}},
+			Args:  []string{bundlePath, "refs/*:refs/*"},
 		},
 	)
 	if err != nil {
@@ -100,7 +105,7 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return status.Error(codes.Internal, cleanError)
 	}
 	if err := cmd.Wait(); err != nil {
-		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd wait failed fetching refs: %v", err)
+		cleanError := sanitizedError(repoPath, "CreateRepositoryFromBundle: cmd wait failed fetching refs: %s", stderr.String())
 		return status.Error(codes.Internal, cleanError)
 	}
 
