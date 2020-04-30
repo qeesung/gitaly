@@ -1,5 +1,5 @@
 ---
 title: 'gems: Upgrade nokogiri to > 1.10.7'
-merge_request: 2090
+merge_request: 2128
 author:
 type: security
