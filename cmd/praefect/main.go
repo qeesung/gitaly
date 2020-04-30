@@ -91,6 +91,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	"gitlab.com/gitlab-org/labkit/tracing"
@@ -233,6 +234,8 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	}
 	nodeManager.Start(1*time.Second, 3*time.Second)
 
+	transactionManager := transactions.NewManager()
+
 	registry := protoregistry.New()
 	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {
 		return err
@@ -250,7 +253,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 	var (
 		// top level server dependencies
-		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, conf, registry)
+		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, transactionManager, conf, registry)
 		repl        = praefect.NewReplMgr(
 			conf.VirtualStorages[0].Name,
 			logger,
@@ -272,7 +275,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return fmt.Errorf("unable to create a bootstrap: %v", err)
 	}
 
-	srv.RegisterServices(nodeManager, conf, ds)
+	srv.RegisterServices(nodeManager, transactionManager, conf, ds)
 
 	b.StopAction = srv.GracefulStop
 	for _, cfg := range cfgs {

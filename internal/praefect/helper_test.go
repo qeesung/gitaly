@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/service/internalgitaly"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
@@ -74,8 +75,8 @@ func testConfig(backends int) config.Config {
 
 // setupServer wires all praefect dependencies together via dependency
 // injection
-func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, ds datastore.Datastore, l *logrus.Entry, r *protoregistry.Registry) *Server {
-	coordinator := NewCoordinator(l, ds, nodeMgr, conf, r)
+func setupServer(t testing.TB, conf config.Config, nodeMgr nodes.Manager, txMgr *transactions.Manager, ds datastore.Datastore, l *logrus.Entry, r *protoregistry.Registry) *Server {
+	coordinator := NewCoordinator(l, ds, nodeMgr, txMgr, conf, r)
 
 	var defaultNode *models.Node
 	for _, n := range conf.VirtualStorages[0].Nodes {
@@ -117,17 +118,19 @@ func runPraefectServerWithMock(t *testing.T, conf config.Config, ds datastore.Da
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
+	txMgr := transactions.NewManager()
+
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(mustLoadProtoReg(t)))
 
-	prf := setupServer(t, conf, nodeMgr, ds, log.Default(), r)
+	prf := setupServer(t, conf, nodeMgr, txMgr, ds, log.Default(), r)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("praefect listening on port %d", port)
 
 	errQ := make(chan error)
 
-	prf.RegisterServices(nodeMgr, conf, ds)
+	prf.RegisterServices(nodeMgr, txMgr, conf, ds)
 	go func() {
 		errQ <- prf.Serve(listener, false)
 	}()
@@ -169,6 +172,10 @@ func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.Client
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
 func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, ds datastore.Datastore) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+	return runPraefectServer(t, conf, ds, transactions.NewManager())
+}
+
+func runPraefectServer(t *testing.T, conf config.Config, ds datastore.Datastore, txMgr *transactions.Manager) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	require.Len(t, conf.VirtualStorages, 1)
 	var cleanups []testhelper.Cleanup
 
@@ -196,7 +203,7 @@ func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, 
 
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
 
 	replmgr := NewReplMgr(
 		conf.VirtualStorages[0].Name,
@@ -218,7 +225,7 @@ func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, 
 	errQ := make(chan error)
 	ctx, cancel := testhelper.Context()
 
-	prf.RegisterServices(nodeMgr, conf, ds)
+	prf.RegisterServices(nodeMgr, txMgr, conf, ds)
 	go func() { errQ <- prf.Serve(listener, false) }()
 	go func() { errQ <- replmgr.ProcessBacklog(ctx, noopBackoffFunc) }()
 

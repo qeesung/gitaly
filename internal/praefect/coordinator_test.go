@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -80,8 +81,9 @@ func TestStreamDirector(t *testing.T) {
 	require.NoError(t, err)
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, conf, r)
+	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, r)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,
@@ -207,8 +209,9 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
+	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,

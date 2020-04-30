@@ -9,13 +9,6 @@ import "shared.proto";
 
 service RefTransaction {
 
-  rpc RegisterTransaction (RegisterTransactionRequest) returns (RegisterTransactionResponse) {
-    option (op_type) = {
-      op:          MUTATOR
-      scope_level: REPOSITORY
-    };
-  }
-
   rpc StartTransaction (StartTransactionRequest) returns (StartTransactionResponse) {
     option (op_type) = {
       op:          MUTATOR
@@ -23,23 +16,6 @@ service RefTransaction {
     };
   }
 
-  rpc CancelTransaction (CancelTransactionRequest) returns (CancelTransactionResponse) {
-    option (op_type) = {
-      op:          MUTATOR
-      scope_level: REPOSITORY
-    };
-  }
-
-}
-
-message RegisterTransactionRequest {
-  Repository repository = 1[(target_repository)=true];
-  // Nodes taking part in the transaction
-  repeated string nodes = 2;
-}
-
-message RegisterTransactionResponse {
-  uint64 transaction_id = 1;
 }
 
 message StartTransactionRequest {
@@ -62,11 +38,3 @@ message StartTransactionResponse {
 
   TransactionState state = 1;
 }
-
-message CancelTransactionRequest {
-  Repository repository = 1[(target_repository)=true];
-  // ID of the transaction we're about to cancel
-  uint64 transaction_id = 2;
-}
-
-message CancelTransactionResponse {}

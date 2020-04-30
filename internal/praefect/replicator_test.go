@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	objectpoolservice "gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
@@ -225,9 +226,11 @@ func TestPropagateReplicationJob(t *testing.T) {
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
+	txMgr := transactions.NewManager()
+
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
 
 	replmgr := NewReplMgr(
 		conf.VirtualStorages[0].Name,
@@ -246,7 +249,7 @@ func TestPropagateReplicationJob(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	prf.RegisterServices(nodeMgr, conf, ds)
+	prf.RegisterServices(nodeMgr, txMgr, conf, ds)
 	go prf.Serve(listener, false)
 	defer prf.Stop()
 

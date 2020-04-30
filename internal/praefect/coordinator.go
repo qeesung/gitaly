@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/codes"
@@ -61,6 +62,7 @@ func getReplicationDetails(methodName string, m proto.Message) (datastore.Change
 // register nodes are safe.
 type Coordinator struct {
 	nodeMgr   nodes.Manager
+	txMgr     *transactions.Manager
 	log       logrus.FieldLogger
 	datastore datastore.Datastore
 	registry  *protoregistry.Registry
@@ -68,12 +70,13 @@ type Coordinator struct {
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l logrus.FieldLogger, ds datastore.Datastore, nodeMgr nodes.Manager, conf config.Config, r *protoregistry.Registry) *Coordinator {
+func NewCoordinator(l logrus.FieldLogger, ds datastore.Datastore, nodeMgr nodes.Manager, txMgr *transactions.Manager, conf config.Config, r *protoregistry.Registry) *Coordinator {
 	return &Coordinator{
 		log:       l,
 		datastore: ds,
 		registry:  r,
 		nodeMgr:   nodeMgr,
+		txMgr:     txMgr,
 		conf:      conf,
 	}
 }

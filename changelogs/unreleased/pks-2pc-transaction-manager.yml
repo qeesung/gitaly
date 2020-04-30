@@ -1,0 +1,5 @@
+---
+title: Extract reference transaction manager from transaction service
+merge_request: 2114
+author:
+type: changed

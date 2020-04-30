@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
@@ -154,14 +155,16 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
+	txMgr := transactions.NewManager()
+
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
-	srv := setupServer(t, conf, nodeMgr, datastore.Datastore{}, entry, registry)
+	srv := setupServer(t, conf, nodeMgr, txMgr, datastore.Datastore{}, entry, registry)
 
 	listener, port := listenAvailPort(t)
 	go func() {
-		srv.RegisterServices(nodeMgr, conf, datastore.Datastore{})
+		srv.RegisterServices(nodeMgr, txMgr, conf, datastore.Datastore{})
 		srv.Serve(listener, false)
 	}()
 
@@ -292,7 +295,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook := test.NewNullLogger()
 
-	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
 		require.NotContains(t, entry.Message, "more than one backend node")
@@ -319,7 +322,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook = test.NewNullLogger()
 
-	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	var found bool
 	for _, entry := range hook.Entries {
@@ -365,7 +368,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 
 	tLogger, hook = test.NewNullLogger()
 
-	setupServer(t, conf, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
+	setupServer(t, conf, nil, nil, datastore.Datastore{}, logrus.NewEntry(tLogger), nil) // instantiates a praefect server and triggers warning
 
 	for _, entry := range hook.Entries {
 		require.NotContains(t, entry.Message, "more than one backend node")

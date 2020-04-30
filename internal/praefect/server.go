@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/info"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/server"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/transaction"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
@@ -124,11 +125,11 @@ func (srv *Server) Serve(l net.Listener, secure bool) error {
 }
 
 // RegisterServices will register any services praefect needs to handle rpcs on its own
-func (srv *Server) RegisterServices(nm nodes.Manager, conf config.Config, ds datastore.Datastore) {
+func (srv *Server) RegisterServices(nm nodes.Manager, tm *transactions.Manager, conf config.Config, ds datastore.Datastore) {
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(conf, nm))
 	gitalypb.RegisterPraefectInfoServiceServer(srv.s, info.NewServer(nm, conf, ds))
-	gitalypb.RegisterRefTransactionServer(srv.s, transaction.NewServer())
+	gitalypb.RegisterRefTransactionServer(srv.s, transaction.NewServer(tm))
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 
 	grpc_prometheus.Register(srv.s)

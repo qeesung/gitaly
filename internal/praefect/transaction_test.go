@@ -7,13 +7,31 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+func runPraefectWithTransactionMgr(t *testing.T) (*grpc.ClientConn, *transactions.Manager, testhelper.Cleanup) {
+	conf := testConfig(1)
+
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+	}
+
+	txMgr := transactions.NewManager()
+	conn, _, cleanup := runPraefectServer(t, conf, ds, txMgr)
+
+	return conn, txMgr, cleanup
+}
+
 func TestTransactionSucceeds(t *testing.T) {
-	cc, _, cleanup := runPraefectServerWithGitaly(t, testConfig(1))
+	cc, txMgr, cleanup := runPraefectWithTransactionMgr(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -21,16 +39,15 @@ func TestTransactionSucceeds(t *testing.T) {
 
 	client := gitalypb.NewRefTransactionClient(cc)
 
-	registration, err := client.RegisterTransaction(ctx, &gitalypb.RegisterTransactionRequest{
-		Nodes: []string{"node1"},
-	})
+	transactionID, cancelTransaction, err := txMgr.RegisterTransaction([]string{"node1"})
 	require.NoError(t, err)
-	require.NotZero(t, registration.TransactionId)
+	require.NotZero(t, transactionID)
+	defer cancelTransaction()
 
 	hash := sha1.Sum([]byte{})
 
 	response, err := client.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
-		TransactionId:        registration.TransactionId,
+		TransactionId:        transactionID,
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],
 	})
@@ -38,8 +55,16 @@ func TestTransactionSucceeds(t *testing.T) {
 	require.Equal(t, gitalypb.StartTransactionResponse_COMMIT, response.State)
 }
 
+func TestTransactionFailsWithMultipleNodes(t *testing.T) {
+	_, txMgr, cleanup := runPraefectWithTransactionMgr(t)
+	defer cleanup()
+
+	_, _, err := txMgr.RegisterTransaction([]string{"node1", "node2"})
+	require.Error(t, err)
+}
+
 func TestTransactionFailures(t *testing.T) {
-	cc, _, cleanup := runPraefectServerWithGitaly(t, testConfig(1))
+	cc, _, cleanup := runPraefectWithTransactionMgr(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -58,7 +83,7 @@ func TestTransactionFailures(t *testing.T) {
 }
 
 func TestTransactionCancellation(t *testing.T) {
-	cc, _, cleanup := runPraefectServerWithGitaly(t, testConfig(1))
+	cc, txMgr, cleanup := runPraefectWithTransactionMgr(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -66,20 +91,15 @@ func TestTransactionCancellation(t *testing.T) {
 
 	client := gitalypb.NewRefTransactionClient(cc)
 
-	registration, err := client.RegisterTransaction(ctx, &gitalypb.RegisterTransactionRequest{
-		Nodes: []string{"node1"},
-	})
+	transactionID, cancelTransaction, err := txMgr.RegisterTransaction([]string{"node1"})
 	require.NoError(t, err)
-	require.NotZero(t, registration.TransactionId)
+	require.NotZero(t, transactionID)
 
-	_, err = client.CancelTransaction(ctx, &gitalypb.CancelTransactionRequest{
-		TransactionId: registration.TransactionId,
-	})
-	require.NoError(t, err)
+	cancelTransaction()
 
 	hash := sha1.Sum([]byte{})
 	_, err = client.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
-		TransactionId:        registration.TransactionId,
+		TransactionId:        transactionID,
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],
 	})

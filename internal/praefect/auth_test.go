@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"google.golang.org/grpc"
@@ -176,10 +177,12 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
+	txMgr := transactions.NewManager()
+
 	registry := protoregistry.New()
 	require.NoError(t, registry.RegisterFiles(fd))
 
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, conf, registry)
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
 
 	srv := NewServer(coordinator.StreamDirector, logEntry, registry, conf)
 

@@ -48,94 +48,7 @@ func (x StartTransactionResponse_TransactionState) String() string {
 }
 
 func (StartTransactionResponse_TransactionState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{3, 0}
-}
-
-type RegisterTransactionRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	// Nodes taking part in the transaction
-	Nodes                []string `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *RegisterTransactionRequest) Reset()         { *m = RegisterTransactionRequest{} }
-func (m *RegisterTransactionRequest) String() string { return proto.CompactTextString(m) }
-func (*RegisterTransactionRequest) ProtoMessage()    {}
-func (*RegisterTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{0}
-}
-
-func (m *RegisterTransactionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RegisterTransactionRequest.Unmarshal(m, b)
-}
-func (m *RegisterTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RegisterTransactionRequest.Marshal(b, m, deterministic)
-}
-func (m *RegisterTransactionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RegisterTransactionRequest.Merge(m, src)
-}
-func (m *RegisterTransactionRequest) XXX_Size() int {
-	return xxx_messageInfo_RegisterTransactionRequest.Size(m)
-}
-func (m *RegisterTransactionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_RegisterTransactionRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RegisterTransactionRequest proto.InternalMessageInfo
-
-func (m *RegisterTransactionRequest) GetRepository() *Repository {
-	if m != nil {
-		return m.Repository
-	}
-	return nil
-}
-
-func (m *RegisterTransactionRequest) GetNodes() []string {
-	if m != nil {
-		return m.Nodes
-	}
-	return nil
-}
-
-type RegisterTransactionResponse struct {
-	TransactionId        uint64   `protobuf:"varint,1,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *RegisterTransactionResponse) Reset()         { *m = RegisterTransactionResponse{} }
-func (m *RegisterTransactionResponse) String() string { return proto.CompactTextString(m) }
-func (*RegisterTransactionResponse) ProtoMessage()    {}
-func (*RegisterTransactionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{1}
-}
-
-func (m *RegisterTransactionResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RegisterTransactionResponse.Unmarshal(m, b)
-}
-func (m *RegisterTransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RegisterTransactionResponse.Marshal(b, m, deterministic)
-}
-func (m *RegisterTransactionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RegisterTransactionResponse.Merge(m, src)
-}
-func (m *RegisterTransactionResponse) XXX_Size() int {
-	return xxx_messageInfo_RegisterTransactionResponse.Size(m)
-}
-func (m *RegisterTransactionResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_RegisterTransactionResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RegisterTransactionResponse proto.InternalMessageInfo
-
-func (m *RegisterTransactionResponse) GetTransactionId() uint64 {
-	if m != nil {
-		return m.TransactionId
-	}
-	return 0
+	return fileDescriptor_2cc4e03d2c28c490, []int{1, 0}
 }
 
 type StartTransactionRequest struct {
@@ -155,7 +68,7 @@ func (m *StartTransactionRequest) Reset()         { *m = StartTransactionRequest
 func (m *StartTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*StartTransactionRequest) ProtoMessage()    {}
 func (*StartTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{2}
+	return fileDescriptor_2cc4e03d2c28c490, []int{0}
 }
 
 func (m *StartTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -215,7 +128,7 @@ func (m *StartTransactionResponse) Reset()         { *m = StartTransactionRespon
 func (m *StartTransactionResponse) String() string { return proto.CompactTextString(m) }
 func (*StartTransactionResponse) ProtoMessage()    {}
 func (*StartTransactionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{3}
+	return fileDescriptor_2cc4e03d2c28c490, []int{1}
 }
 
 func (m *StartTransactionResponse) XXX_Unmarshal(b []byte) error {
@@ -243,127 +156,38 @@ func (m *StartTransactionResponse) GetState() StartTransactionResponse_Transacti
 	return StartTransactionResponse_COMMIT
 }
 
-type CancelTransactionRequest struct {
-	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	// ID of the transaction we're about to cancel
-	TransactionId        uint64   `protobuf:"varint,2,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *CancelTransactionRequest) Reset()         { *m = CancelTransactionRequest{} }
-func (m *CancelTransactionRequest) String() string { return proto.CompactTextString(m) }
-func (*CancelTransactionRequest) ProtoMessage()    {}
-func (*CancelTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{4}
-}
-
-func (m *CancelTransactionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CancelTransactionRequest.Unmarshal(m, b)
-}
-func (m *CancelTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CancelTransactionRequest.Marshal(b, m, deterministic)
-}
-func (m *CancelTransactionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CancelTransactionRequest.Merge(m, src)
-}
-func (m *CancelTransactionRequest) XXX_Size() int {
-	return xxx_messageInfo_CancelTransactionRequest.Size(m)
-}
-func (m *CancelTransactionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CancelTransactionRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CancelTransactionRequest proto.InternalMessageInfo
-
-func (m *CancelTransactionRequest) GetRepository() *Repository {
-	if m != nil {
-		return m.Repository
-	}
-	return nil
-}
-
-func (m *CancelTransactionRequest) GetTransactionId() uint64 {
-	if m != nil {
-		return m.TransactionId
-	}
-	return 0
-}
-
-type CancelTransactionResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *CancelTransactionResponse) Reset()         { *m = CancelTransactionResponse{} }
-func (m *CancelTransactionResponse) String() string { return proto.CompactTextString(m) }
-func (*CancelTransactionResponse) ProtoMessage()    {}
-func (*CancelTransactionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cc4e03d2c28c490, []int{5}
-}
-
-func (m *CancelTransactionResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CancelTransactionResponse.Unmarshal(m, b)
-}
-func (m *CancelTransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CancelTransactionResponse.Marshal(b, m, deterministic)
-}
-func (m *CancelTransactionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CancelTransactionResponse.Merge(m, src)
-}
-func (m *CancelTransactionResponse) XXX_Size() int {
-	return xxx_messageInfo_CancelTransactionResponse.Size(m)
-}
-func (m *CancelTransactionResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CancelTransactionResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CancelTransactionResponse proto.InternalMessageInfo
-
 func init() {
 	proto.RegisterEnum("gitaly.StartTransactionResponse_TransactionState", StartTransactionResponse_TransactionState_name, StartTransactionResponse_TransactionState_value)
-	proto.RegisterType((*RegisterTransactionRequest)(nil), "gitaly.RegisterTransactionRequest")
-	proto.RegisterType((*RegisterTransactionResponse)(nil), "gitaly.RegisterTransactionResponse")
 	proto.RegisterType((*StartTransactionRequest)(nil), "gitaly.StartTransactionRequest")
 	proto.RegisterType((*StartTransactionResponse)(nil), "gitaly.StartTransactionResponse")
-	proto.RegisterType((*CancelTransactionRequest)(nil), "gitaly.CancelTransactionRequest")
-	proto.RegisterType((*CancelTransactionResponse)(nil), "gitaly.CancelTransactionResponse")
 }
 
 func init() { proto.RegisterFile("transaction.proto", fileDescriptor_2cc4e03d2c28c490) }
 
 var fileDescriptor_2cc4e03d2c28c490 = []byte{
-	// 439 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x54, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0x65, 0xd3, 0x24, 0x22, 0x43, 0x89, 0xd2, 0xa5, 0x02, 0xe3, 0x1e, 0x30, 0x8b, 0x90, 0x8c,
-	0x04, 0x36, 0x04, 0x0e, 0x5c, 0x49, 0x91, 0xa0, 0x87, 0xaa, 0xd2, 0x36, 0x5c, 0x90, 0x50, 0xd8,
-	0xd8, 0x13, 0xdb, 0x92, 0xf1, 0x9a, 0xdd, 0xed, 0xa1, 0xe2, 0x1f, 0xb8, 0xc2, 0xaf, 0x70, 0x47,
-	0x7c, 0x14, 0x27, 0x14, 0x6f, 0x71, 0x4d, 0x63, 0x97, 0x0b, 0x12, 0xb7, 0x9d, 0x79, 0xf3, 0xe6,
-	0xed, 0x9b, 0x59, 0x2d, 0xec, 0x18, 0x25, 0x0a, 0x2d, 0x22, 0x93, 0xc9, 0x22, 0x28, 0x95, 0x34,
-	0x92, 0x0e, 0x93, 0xcc, 0x88, 0xfc, 0xd4, 0x85, 0x3c, 0x2b, 0x8c, 0xcd, 0xb9, 0xdb, 0x3a, 0x15,
-	0x0a, 0x63, 0x1b, 0xb1, 0x1c, 0x5c, 0x8e, 0x49, 0xa6, 0x0d, 0xaa, 0xf9, 0x39, 0x9d, 0xe3, 0xc7,
-	0x13, 0xd4, 0x86, 0x3e, 0x07, 0x50, 0x58, 0x4a, 0x9d, 0x19, 0xa9, 0x4e, 0x1d, 0xe2, 0x11, 0xff,
-	0xda, 0x94, 0x06, 0xb6, 0x69, 0xc0, 0x6b, 0x64, 0xd6, 0xff, 0xfa, 0xe3, 0x21, 0xe1, 0x8d, 0x5a,
-	0xba, 0x0b, 0x83, 0x42, 0xc6, 0xa8, 0x9d, 0x9e, 0xb7, 0xe5, 0x8f, 0xb8, 0x0d, 0xd8, 0x4b, 0xd8,
-	0x6b, 0x55, 0xd3, 0xa5, 0x2c, 0x34, 0xd2, 0xfb, 0x30, 0x6e, 0x78, 0x58, 0x64, 0x71, 0x25, 0xd9,
-	0xe7, 0xd7, 0x1b, 0xd9, 0x83, 0x98, 0x7d, 0x27, 0x70, 0xeb, 0xd8, 0x08, 0x65, 0xfe, 0xe9, 0x8d,
-	0x37, 0xc5, 0x7b, 0x2d, 0xe2, 0x94, 0x42, 0x7f, 0xed, 0xc5, 0xd9, 0xf2, 0x88, 0x3f, 0xe2, 0xd5,
-	0x99, 0x3e, 0x83, 0x9b, 0x0a, 0x57, 0xa8, 0xb0, 0x88, 0x70, 0x71, 0x52, 0xc6, 0xc2, 0xa0, 0x5e,
-	0xa4, 0x42, 0xa7, 0x4e, 0xdf, 0x23, 0xfe, 0x36, 0xdf, 0xad, 0xd1, 0x37, 0x16, 0x7c, 0x2d, 0x74,
-	0xca, 0x3e, 0x13, 0x70, 0x36, 0x6d, 0x9c, 0x8d, 0xe2, 0x15, 0x0c, 0xb4, 0x11, 0x06, 0x2b, 0x0b,
-	0xe3, 0xe9, 0x93, 0xdf, 0x16, 0xba, 0x08, 0x41, 0x23, 0x77, 0xbc, 0x26, 0x72, 0xcb, 0x67, 0x0f,
-	0x60, 0x72, 0x11, 0xa2, 0x00, 0xc3, 0xfd, 0xa3, 0xc3, 0xc3, 0x83, 0xf9, 0xe4, 0x0a, 0x1d, 0xc1,
-	0xe0, 0xc5, 0xec, 0x88, 0xcf, 0x27, 0x84, 0x7d, 0x02, 0x67, 0x5f, 0x14, 0x11, 0xe6, 0xff, 0x61,
-	0xae, 0x6c, 0x0f, 0x6e, 0xb7, 0x88, 0x5b, 0x73, 0xd3, 0x6f, 0x3d, 0x18, 0x73, 0x5c, 0x35, 0x20,
-	0xba, 0x82, 0x1b, 0x2d, 0x4f, 0x89, 0xb2, 0xf3, 0x3b, 0x75, 0xbd, 0x6a, 0xf7, 0xde, 0xa5, 0x35,
-	0x56, 0x92, 0x0d, 0x7f, 0x7e, 0xf1, 0x7b, 0x57, 0x09, 0x7d, 0x07, 0x93, 0x8b, 0x33, 0xa7, 0x77,
-	0xba, 0xb7, 0x61, 0x15, 0xbc, 0xbf, 0xad, 0xab, 0x6e, 0xff, 0x1e, 0x76, 0x36, 0x6c, 0xd3, 0x9a,
-	0xde, 0xb5, 0x0e, 0xf7, 0xee, 0x25, 0x15, 0x7f, 0x2a, 0xcc, 0x1e, 0xbf, 0x5d, 0xd7, 0xe6, 0x62,
-	0x19, 0x44, 0xf2, 0x43, 0x68, 0x8f, 0x8f, 0xa4, 0x4a, 0x42, 0xdb, 0x21, 0xac, 0xfe, 0x81, 0x30,
-	0x91, 0x67, 0x71, 0xb9, 0x5c, 0x0e, 0xab, 0xd4, 0xd3, 0x5f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x77,
-	0xd4, 0x86, 0x22, 0x51, 0x04, 0x00, 0x00,
+	// 339 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x51, 0xcd, 0x4a, 0xeb, 0x40,
+	0x14, 0xbe, 0xd3, 0x9b, 0x86, 0xdb, 0x73, 0x6b, 0x89, 0x83, 0x68, 0xe8, 0xc6, 0x10, 0x10, 0x22,
+	0x68, 0xa2, 0xd5, 0x85, 0x5b, 0xeb, 0x42, 0xbb, 0x28, 0x85, 0x69, 0xdd, 0x08, 0x52, 0xa6, 0xcd,
+	0x69, 0x13, 0xa8, 0x99, 0x38, 0x33, 0x5d, 0xf4, 0x25, 0xdc, 0xea, 0x03, 0x89, 0x0f, 0xe5, 0x4a,
+	0x9a, 0xd1, 0x1a, 0x2a, 0xc5, 0xdd, 0x9c, 0xef, 0xe7, 0xcc, 0xf7, 0x71, 0x60, 0x5b, 0x4b, 0x9e,
+	0x29, 0x3e, 0xd6, 0xa9, 0xc8, 0xc2, 0x5c, 0x0a, 0x2d, 0xa8, 0x3d, 0x4d, 0x35, 0x9f, 0x2d, 0x9a,
+	0x30, 0x4b, 0x33, 0x6d, 0xb0, 0x66, 0x5d, 0x25, 0x5c, 0x62, 0x6c, 0x26, 0xff, 0x95, 0xc0, 0x5e,
+	0x5f, 0x73, 0xa9, 0x07, 0xdf, 0x66, 0x86, 0x8f, 0x73, 0x54, 0x9a, 0x5e, 0x00, 0x48, 0xcc, 0x85,
+	0x4a, 0xb5, 0x90, 0x0b, 0x97, 0x78, 0x24, 0xf8, 0xdf, 0xa2, 0xa1, 0x59, 0x19, 0xb2, 0x15, 0xd3,
+	0xb6, 0x5e, 0xde, 0x8e, 0x08, 0x2b, 0x69, 0xe9, 0x01, 0x34, 0x4a, 0x61, 0x86, 0x69, 0xec, 0x56,
+	0x3c, 0x12, 0x58, 0x6c, 0xab, 0x84, 0x76, 0x62, 0x4a, 0xc1, 0xca, 0x44, 0x8c, 0xee, 0x5f, 0x8f,
+	0x04, 0x35, 0x56, 0xbc, 0xe9, 0x39, 0xec, 0x4a, 0x9c, 0xa0, 0xc4, 0x6c, 0x8c, 0xc3, 0x79, 0x1e,
+	0x73, 0x8d, 0x6a, 0x98, 0x70, 0x95, 0xb8, 0x96, 0x47, 0x82, 0x3a, 0xdb, 0x59, 0xb1, 0xb7, 0x86,
+	0xbc, 0xe1, 0x2a, 0xf1, 0x9f, 0x08, 0xb8, 0x3f, 0x6b, 0xa8, 0x5c, 0x64, 0x0a, 0xe9, 0x35, 0x54,
+	0x95, 0xe6, 0x1a, 0x8b, 0x0a, 0x8d, 0xd6, 0xe9, 0x57, 0x85, 0x4d, 0x86, 0xb0, 0x84, 0xf5, 0x97,
+	0x46, 0x66, 0xfc, 0xfe, 0x21, 0x38, 0xeb, 0x14, 0x05, 0xb0, 0xaf, 0x7a, 0xdd, 0x6e, 0x67, 0xe0,
+	0xfc, 0xa1, 0x35, 0xa8, 0x5e, 0xb6, 0x7b, 0x6c, 0xe0, 0x90, 0x96, 0x80, 0x06, 0xc3, 0x49, 0x49,
+	0x4d, 0xef, 0xc1, 0x59, 0xff, 0x90, 0xee, 0x6f, 0x8e, 0x52, 0x9c, 0xa0, 0xe9, 0xfd, 0x96, 0xd5,
+	0xb7, 0xdf, 0x9f, 0x83, 0xca, 0x3f, 0xd2, 0x3e, 0xb9, 0x5b, 0x4a, 0x67, 0x7c, 0x14, 0x8e, 0xc5,
+	0x43, 0x64, 0x9e, 0xc7, 0x42, 0x4e, 0x23, 0xb3, 0x20, 0x2a, 0xce, 0x1d, 0x4d, 0xc5, 0xe7, 0x9c,
+	0x8f, 0x46, 0x76, 0x01, 0x9d, 0x7d, 0x04, 0x00, 0x00, 0xff, 0xff, 0xca, 0xb8, 0x34, 0xbf, 0x38,
+	0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -378,9 +202,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RefTransactionClient interface {
-	RegisterTransaction(ctx context.Context, in *RegisterTransactionRequest, opts ...grpc.CallOption) (*RegisterTransactionResponse, error)
 	StartTransaction(ctx context.Context, in *StartTransactionRequest, opts ...grpc.CallOption) (*StartTransactionResponse, error)
-	CancelTransaction(ctx context.Context, in *CancelTransactionRequest, opts ...grpc.CallOption) (*CancelTransactionResponse, error)
 }
 
 type refTransactionClient struct {
@@ -389,15 +211,6 @@ type refTransactionClient struct {
 
 func NewRefTransactionClient(cc *grpc.ClientConn) RefTransactionClient {
 	return &refTransactionClient{cc}
-}
-
-func (c *refTransactionClient) RegisterTransaction(ctx context.Context, in *RegisterTransactionRequest, opts ...grpc.CallOption) (*RegisterTransactionResponse, error) {
-	out := new(RegisterTransactionResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RefTransaction/RegisterTransaction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *refTransactionClient) StartTransaction(ctx context.Context, in *StartTransactionRequest, opts ...grpc.CallOption) (*StartTransactionResponse, error) {
@@ -409,56 +222,21 @@ func (c *refTransactionClient) StartTransaction(ctx context.Context, in *StartTr
 	return out, nil
 }
 
-func (c *refTransactionClient) CancelTransaction(ctx context.Context, in *CancelTransactionRequest, opts ...grpc.CallOption) (*CancelTransactionResponse, error) {
-	out := new(CancelTransactionResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RefTransaction/CancelTransaction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // RefTransactionServer is the server API for RefTransaction service.
 type RefTransactionServer interface {
-	RegisterTransaction(context.Context, *RegisterTransactionRequest) (*RegisterTransactionResponse, error)
 	StartTransaction(context.Context, *StartTransactionRequest) (*StartTransactionResponse, error)
-	CancelTransaction(context.Context, *CancelTransactionRequest) (*CancelTransactionResponse, error)
 }
 
 // UnimplementedRefTransactionServer can be embedded to have forward compatible implementations.
 type UnimplementedRefTransactionServer struct {
 }
 
-func (*UnimplementedRefTransactionServer) RegisterTransaction(ctx context.Context, req *RegisterTransactionRequest) (*RegisterTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
-}
 func (*UnimplementedRefTransactionServer) StartTransaction(ctx context.Context, req *StartTransactionRequest) (*StartTransactionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StartTransaction not implemented")
-}
-func (*UnimplementedRefTransactionServer) CancelTransaction(ctx context.Context, req *CancelTransactionRequest) (*CancelTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CancelTransaction not implemented")
 }
 
 func RegisterRefTransactionServer(s *grpc.Server, srv RefTransactionServer) {
 	s.RegisterService(&_RefTransaction_serviceDesc, srv)
-}
-
-func _RefTransaction_RegisterTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RefTransactionServer).RegisterTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RefTransaction/RegisterTransaction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RefTransactionServer).RegisterTransaction(ctx, req.(*RegisterTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _RefTransaction_StartTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -479,39 +257,13 @@ func _RefTransaction_StartTransaction_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RefTransaction_CancelTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CancelTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RefTransactionServer).CancelTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RefTransaction/CancelTransaction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RefTransactionServer).CancelTransaction(ctx, req.(*CancelTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _RefTransaction_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "gitaly.RefTransaction",
 	HandlerType: (*RefTransactionServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "RegisterTransaction",
-			Handler:    _RefTransaction_RegisterTransaction_Handler,
-		},
-		{
 			MethodName: "StartTransaction",
 			Handler:    _RefTransaction_StartTransaction_Handler,
-		},
-		{
-			MethodName: "CancelTransaction",
-			Handler:    _RefTransaction_CancelTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
