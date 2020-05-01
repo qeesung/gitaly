@@ -333,7 +333,10 @@ func (gm *gitalyMake) GitDefaultRev() string {
 	if rev != "" {
 		return rev
 	}
-	return "master"
+
+	// Gitaly defaults to a supported version for Git, which should be a
+	// valid tag in: https://gitlab.com/gitlab-org/gitlab-git/-/tags
+	return "v2.26.2"
 }
 
 func (gm *gitalyMake) GitDefaultBuildJob() string {
@@ -344,8 +347,8 @@ func (gm *gitalyMake) GitDefaultBuildJob() string {
 	return "build"
 }
 
-func (gm *gitalyMake) GitInstallDir() string { return filepath.Join(gm.BuildDir(), "git") }
-func (gm *gitalyMake) GitBuildTarball() string { return "git_full_bins.tgz"}
+func (gm *gitalyMake) GitInstallDir() string   { return filepath.Join(gm.BuildDir(), "git") }
+func (gm *gitalyMake) GitBuildTarball() string { return "git_full_bins.tgz" }
 
 func (gm *gitalyMake) GitArtifactUrl() string {
 	return "https://gitlab.com/gitlab-org/gitlab-git/-/jobs/artifacts/" +
@@ -366,9 +369,9 @@ func (gm *gitalyMake) GitSourceDir() string { return filepath.Join(gm.BuildDir()
 
 func (gm *gitalyMake) GitBuildOptions() string {
 	buildOptions := []string{
-		"-j 8",			// use multiple parallele jobs
-		"DEVELOPER=1",		// activate developer checks
-		"CFLAGS='-O0 -g3'",	// make it easy to debug in case of crashes
+		"-j 8",             // use multiple parallele jobs
+		"DEVELOPER=1",      // activate developer checks
+		"CFLAGS='-O0 -g3'", // make it easy to debug in case of crashes
 		"NO_PERL=YesPlease",
 		"NO_EXPAT=YesPlease",
 		"NO_TCLTK=YesPlease",
