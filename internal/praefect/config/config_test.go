@@ -28,7 +28,7 @@ func TestConfigValidation(t *testing.T) {
 	testCases := []struct {
 		desc   string
 		config Config
-		err    error
+		errMsg string
 	}{
 		{
 			desc: "Valid config with ListenAddr",
@@ -57,12 +57,12 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "default", Nodes: vs1Nodes},
 				},
 			},
-			err: errNoListener,
+			errMsg: "no listen address or socket path configured",
 		},
 		{
 			desc:   "No virtual storages",
 			config: Config{ListenAddr: "localhost:1234"},
-			err:    errNoVirtualStorages,
+			errMsg: "no virtual storages configured",
 		},
 		{
 			desc: "duplicate storage",
@@ -78,15 +78,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			err: errDuplicateStorage,
-		},
-		{
-			desc: "No designated primaries",
-			config: Config{
-				ListenAddr:      "localhost:1234",
-				VirtualStorages: []*VirtualStorage{{Name: "default", Nodes: vs1Nodes[1:]}},
-			},
-			err: errNoPrimaries,
+			errMsg: `virtual storage "default": internal gitaly storages are not unique`,
 		},
 		{
 			desc: "No designated primaries",
@@ -96,7 +88,7 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "default", Nodes: vs1Nodes[1:]},
 				},
 			},
-			err: errNoPrimaries,
+			errMsg: `virtual storage "default": no primaries designated`,
 		},
 		{
 			desc: "More than 1 primary",
@@ -115,7 +107,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			err: errMoreThanOnePrimary,
+			errMsg: `virtual storage "default": only 1 node can be designated as a primary`,
 		},
 		{
 			desc: "Node storage has no name",
@@ -135,7 +127,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			err: errGitalyWithoutStorage,
+			errMsg: `virtual storage "default": all gitaly nodes must have a storage`,
 		},
 		{
 			desc: "Node storage has no address",
@@ -155,7 +147,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			err: errGitalyWithoutAddr,
+			errMsg: `virtual storage "default": all gitaly nodes must have an address`,
 		},
 		{
 			desc: "Virtual storage has no name",
@@ -165,7 +157,7 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "", Nodes: vs1Nodes},
 				},
 			},
-			err: errVirtualStorageUnnamed,
+			errMsg: `virtual storages must have a name`,
 		},
 		{
 			desc: "Virtual storage not unique",
@@ -176,7 +168,7 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "default", Nodes: vs2Nodes},
 				},
 			},
-			err: errVirtualStoragesNotUnique,
+			errMsg: `virtual storage "default": virtual storages must have unique names`,
 		},
 		{
 			desc: "Virtual storage has no nodes",
@@ -187,7 +179,7 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "secondary", Nodes: nil},
 				},
 			},
-			err: errNoGitalyServers,
+			errMsg: `virtual storage "secondary": no primary gitaly backends configured`,
 		},
 		{
 			desc: "Node storage has address duplicate",
@@ -198,19 +190,19 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "secondary", Nodes: append(vs2Nodes, vs1Nodes[1])},
 				},
 			},
-			err: errStorageAddressDuplicate,
+			errMsg: `multiple storages have the same address`,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			err := tc.config.Validate()
-			if tc.err == nil {
+			if tc.errMsg == "" {
 				assert.NoError(t, err)
 				return
 			}
 
-			assert.Contains(t, err.Error(), tc.err.Error())
+			assert.Contains(t, err.Error(), tc.errMsg)
 		})
 	}
 }

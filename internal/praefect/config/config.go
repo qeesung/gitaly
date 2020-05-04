@@ -96,7 +96,7 @@ func (c Config) Validate() error {
 		}
 
 		if len(virtualStorage.Nodes) == 0 {
-			return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errNoGitalyServers)
+			return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errNoGitalyServers)
 		}
 
 		if _, ok := virtualStorages[virtualStorage.Name]; ok {
@@ -135,7 +135,7 @@ func (c Config) Validate() error {
 		}
 
 		if primaries == 0 {
-			return fmt.Errorf("virtual storage %s: %v", virtualStorage.Name, errNoPrimaries)
+			return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errNoPrimaries)
 		}
 	}
 
