@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -248,7 +249,7 @@ func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, callHookRPC boo
 	defer cancel()
 
 	if callHookRPC {
-		ctx = outgoingCtxWithRubyFeatureFlag(ctx, "call-hook-rpc")
+		ctx = featureflag.OutgoingCtxWithRubyFeatureFlags(ctx, "call-hook-rpc")
 	}
 
 	for _, hookName := range GitlabHooks {

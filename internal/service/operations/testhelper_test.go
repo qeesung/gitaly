@@ -1,12 +1,9 @@
 package operations
 
 import (
-	"context"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -18,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -121,17 +117,4 @@ func SetupAndStartGitlabServer(t *testing.T, glID, glRepository string, gitPushO
 		Protocol:                    "web",
 		GitPushOptions:              gitPushOptions,
 	})
-}
-
-func outgoingCtxWithRubyFeatureFlag(ctx context.Context, flag string) context.Context {
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		md = metadata.New(map[string]string{})
-	}
-	md.Set(rubyHeaderKey(flag), "true")
-	return metadata.NewOutgoingContext(ctx, md)
-}
-
-func rubyHeaderKey(flag string) string {
-	return fmt.Sprintf("gitaly-feature-ruby-%s", strings.ReplaceAll(flag, "_", "-"))
 }

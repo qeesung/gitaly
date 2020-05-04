@@ -2,6 +2,8 @@ package featureflag
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -28,4 +30,21 @@ func IncomingCtxWithFeatureFlag(ctx context.Context, flag string) context.Contex
 	}
 	md.Set(HeaderKey(flag), "true")
 	return metadata.NewIncomingContext(ctx, md)
+}
+
+func OutgoingCtxWithRubyFeatureFlags(ctx context.Context, flags ...string) context.Context {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.New(map[string]string{})
+	}
+
+	for _, flag := range flags {
+		md.Set(rubyHeaderKey(flag), "true")
+	}
+
+	return metadata.NewOutgoingContext(ctx, md)
+}
+
+func rubyHeaderKey(flag string) string {
+	return fmt.Sprintf("gitaly-feature-ruby-%s", strings.ReplaceAll(flag, "_", "-"))
 }

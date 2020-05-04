@@ -33,6 +33,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -699,3 +700,69 @@ STDIN.each_line do |line|
   exit 1 unless	system(*%W[git cat-file -e #{new_object}])
 end
 `
+
+// FeatureSet is a representation of a set of features that are enabled
+// This is useful in situations where a test needs to test any combination of features toggled on and off
+type FeatureSet struct {
+	features     map[string]struct{}
+	rubyFeatures map[string]struct{}
+}
+
+func (f FeatureSet) IsEnabled(flag string) bool {
+	_, ok := f.features[flag]
+	return ok
+}
+
+func (f FeatureSet) enabledFeatures() []string {
+	var enabled []string
+
+	for feature := range f.features {
+		enabled = append(enabled, feature)
+	}
+
+	return enabled
+}
+
+func (f FeatureSet) String() string {
+	return strings.Join(f.enabledFeatures(), ",")
+}
+
+func (f FeatureSet) WithParent(ctx context.Context) context.Context {
+	for _, enabledFeature := range f.enabledFeatures() {
+		if _, ok := f.rubyFeatures[enabledFeature]; ok {
+			ctx = featureflag.OutgoingCtxWithRubyFeatureFlags(ctx, enabledFeature)
+			continue
+		}
+		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, enabledFeature)
+	}
+
+	return ctx
+}
+
+// FeatureSets is a slice containing many FeatureSets
+type FeatureSets []FeatureSet
+
+// NewFeatureSets takes a slice of go feature flags, and an optional variadic set of ruby feature flags
+// and returns a FeatureSets slice
+func NewFeatureSets(goFeatures []string, rubyFeatures ...string) (FeatureSets, error) {
+	rubyFeatureMap := make(map[string]struct{})
+	for _, rubyFeature := range rubyFeatures {
+		rubyFeatureMap[rubyFeature] = struct{}{}
+	}
+
+	// start with an empty feature set
+	f := []FeatureSet{{features: make(map[string]struct{}), rubyFeatures: rubyFeatureMap}}
+
+	allFeatures := append(goFeatures, rubyFeatures...)
+
+	for i := range allFeatures {
+		featureMap := make(map[string]struct{})
+		for j := 0; j <= i; j++ {
+			featureMap[allFeatures[j]] = struct{}{}
+		}
+
+		f = append(f, FeatureSet{features: featureMap, rubyFeatures: rubyFeatureMap})
+	}
+
+	return f, nil
+}
