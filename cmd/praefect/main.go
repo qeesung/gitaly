@@ -181,16 +181,7 @@ func configure(conf config.Config) {
 	tracing.Initialize(tracing.WithServiceName(progname))
 
 	if conf.PrometheusListenAddr != "" {
-		logger.WithField("address", conf.PrometheusListenAddr).Info("Starting prometheus listener")
 		conf.Prometheus.Configure()
-
-		go func() {
-			if err := monitoring.Start(
-				monitoring.WithListenerAddress(conf.PrometheusListenAddr),
-				monitoring.WithBuildInformation(praefect.GetVersion(), praefect.GetBuildTime())); err != nil {
-				logger.WithError(err).Errorf("Unable to start healthcheck listener: %v", conf.PrometheusListenAddr)
-			}
-		}()
 	}
 
 	sentry.ConfigureSentry(version.GetVersion(), conf.Sentry)
@@ -280,6 +271,27 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	b.StopAction = srv.GracefulStop
 	for _, cfg := range cfgs {
 		b.RegisterStarter(starter.New(cfg, srv))
+	}
+
+	if conf.PrometheusListenAddr != "" {
+		logger.WithField("address", conf.PrometheusListenAddr).Info("Starting prometheus listener")
+
+		b.RegisterStarter(func(listen bootstrap.ListenFunc, _ chan<- error) error {
+			l, err := listen("tcp", conf.PrometheusListenAddr)
+			if err != nil {
+				return err
+			}
+
+			go func() {
+				if err := monitoring.Start(
+					monitoring.WithListener(l),
+					monitoring.WithBuildInformation(praefect.GetVersion(), praefect.GetBuildTime())); err != nil {
+					logger.WithError(err).Errorf("Unable to start prometheus listener: %v", conf.PrometheusListenAddr)
+				}
+			}()
+
+			return nil
+		})
 	}
 
 	if err := b.Start(); err != nil {
