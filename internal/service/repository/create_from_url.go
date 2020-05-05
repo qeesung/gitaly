@@ -44,7 +44,7 @@ func cloneFromURLCommand(ctx context.Context, repoURL, repositoryFullPath string
 		flags = append(flags, git.ValueFlag{Name: "-c", Value: fmt.Sprintf("http.%s.extraHeader=%s", u.String(), authHeader)})
 	}
 
-	return git.SafeBareCmd(ctx, nil, nil, stderr, nil, nil, git.SubCmd{
+	return git.SafeBareCmd(ctx, git.CmdStream{Err: stderr}, nil, nil, git.SubCmd{
 		Name:        "clone",
 		Flags:       flags,
 		PostSepArgs: []string{u.String(), repositoryFullPath},

@@ -71,7 +71,7 @@ func sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitaly
 		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})
 	}
 
-	cmd, err := git.SafeBareCmd(ctx, stdin, stdout, stderr, env, globalOpts, git.SubCmd{
+	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{In: stdin, Out: stdout, Err: stderr}, env, globalOpts, git.SubCmd{
 		Name: "receive-pack",
 		Args: []string{repoPath},
 	})

@@ -85,7 +85,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})
 	}
 
-	cmd, err := git.SafeBareCmd(ctx, stdin, stdout, nil, env, globalOpts, git.SubCmd{
+	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{In: stdin, Out: stdout}, env, globalOpts, git.SubCmd{
 		Name:  "upload-pack",
 		Flags: []git.Option{git.Flag{"--stateless-rpc"}},
 		Args:  []string{repoPath},
