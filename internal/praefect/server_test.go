@@ -29,6 +29,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -136,13 +137,17 @@ func TestGitalyServerInfo(t *testing.T) {
 }
 
 func TestGitalyServerInfoBadNode(t *testing.T) {
+	gitalySocket := testhelper.GetTemporaryGitalySocketFileName()
+	_, healthSrv := testhelper.NewServerWithHealth(t, gitalySocket)
+	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Nodes: []*models.Node{
 					&models.Node{
 						Storage:        "praefect-internal-1",
-						Address:        "tcp://unreachable:1234",
+						Address:        "unix://" + gitalySocket,
 						DefaultPrimary: true,
 						Token:          "abc",
 					},

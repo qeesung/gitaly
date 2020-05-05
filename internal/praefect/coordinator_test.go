@@ -20,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -34,18 +35,26 @@ func TestSecondaryRotation(t *testing.T) {
 }
 
 func TestStreamDirector(t *testing.T) {
+	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
+	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
+
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
 				Nodes: []*models.Node{
 					&models.Node{
-						Address:        "tcp://gitaly-primary.example.com",
+						Address:        primaryAddress,
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
 					},
 					&models.Node{
-						Address: "tcp://gitaly-backup1.example.com",
+						Address: secondaryAddress,
 						Storage: "praefect-internal-2",
 					}},
 			},
@@ -73,8 +82,6 @@ func TestStreamDirector(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	address := "gitaly-primary.example.com"
-
 	entry := testhelper.DiscardTestEntry(t)
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
@@ -97,7 +104,7 @@ func TestStreamDirector(t *testing.T) {
 	peeker := &mockPeeker{frame}
 	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
 	require.NoError(t, err)
-	require.Equal(t, address, streamParams.Conn().Target())
+	require.Equal(t, primaryAddress, streamParams.Conn().Target())
 
 	md, ok := metadata.FromOutgoingContext(streamParams.Context())
 	require.True(t, ok)
@@ -164,18 +171,25 @@ func (m *mockPeeker) Modify(payload []byte) error {
 }
 
 func TestAbsentCorrelationID(t *testing.T) {
+	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
+	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
 				Nodes: []*models.Node{
 					&models.Node{
-						Address:        "tcp://gitaly-primary.example.com",
+						Address:        primaryAddress,
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
 					},
 					&models.Node{
-						Address: "tcp://gitaly-backup1.example.com",
+						Address: secondaryAddress,
 						Storage: "praefect-internal-2",
 					}},
 			},
@@ -203,8 +217,6 @@ func TestAbsentCorrelationID(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	address := "gitaly-primary.example.com"
-
 	entry := testhelper.DiscardTestEntry(t)
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
@@ -224,7 +236,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 	peeker := &mockPeeker{frame}
 	streamParams, err := coordinator.StreamDirector(ctx, fullMethod, peeker)
 	require.NoError(t, err)
-	require.Equal(t, address, streamParams.Conn().Target())
+	require.Equal(t, primaryAddress, streamParams.Conn().Target())
 
 	replEventWait.Add(1) // expected only one event to be created
 	// must be run as it adds replication events to the queue

@@ -70,16 +70,22 @@ type leaderElectionStrategy interface {
 // should not be used for a new request
 var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 
+const dialTimeout = 10 * time.Second
+
 // NewManager creates a new NodeMgr based on virtual storage configs
 func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	strategies := make(map[string]leaderElectionStrategy, len(c.VirtualStorages))
 
+	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer cancel()
+
 	for _, virtualStorage := range c.VirtualStorages {
 		ns := make([]*nodeStatus, 1, len(virtualStorage.Nodes))
 		for _, node := range virtualStorage.Nodes {
-			conn, err := client.Dial(node.Address,
+			conn, err := client.DialContext(ctx, node.Address,
 				append(
 					[]grpc.DialOption{
+						grpc.WithBlock(),
 						grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())),
 						grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(node.Token)),
 						grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(
@@ -202,9 +208,11 @@ func (n *nodeStatus) GetConnection() *grpc.ClientConn {
 	return n.ClientConn
 }
 
+const checkTimeout = 1 * time.Second
+
 func (n *nodeStatus) check(ctx context.Context) (bool, error) {
 	client := healthpb.NewHealthClient(n.ClientConn)
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
 	defer cancel()
 	status := false
 

@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -99,18 +100,24 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 }
 
 func TestPrimaryIsSecond(t *testing.T) {
+	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
+	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	virtualStorages := []*config.VirtualStorage{
 		{
 			Name: "virtual-storage-0",
 			Nodes: []*models.Node{
 				{
 					Storage:        "praefect-internal-0",
-					Address:        "unix://socket0",
+					Address:        "unix://" + gitalySocket0,
 					DefaultPrimary: false,
 				},
 				{
 					Storage:        "praefect-internal-1",
-					Address:        "unix://socket1",
+					Address:        "unix://" + gitalySocket1,
 					DefaultPrimary: true,
 				},
 			},
@@ -136,6 +143,52 @@ func TestPrimaryIsSecond(t *testing.T) {
 	require.Len(t, shard.Secondaries, 1)
 	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
 	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
+}
+
+func TestBlockingDial(t *testing.T) {
+	storageName := "default"
+	praefectSocket := testhelper.GetTemporaryGitalySocketFileName()
+	socketName := "unix://" + praefectSocket
+
+	gitalySocket := testhelper.GetTemporaryGitalySocketFileName()
+
+	lis, err := net.Listen("unix", gitalySocket)
+	require.NoError(t, err)
+
+	conf := config.Config{
+		SocketPath: socketName,
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Name: storageName,
+				Nodes: []*models.Node{
+					{
+						Storage:        "internal-storage",
+						Address:        "unix://" + gitalySocket,
+						DefaultPrimary: true,
+					},
+				},
+			},
+		},
+		Failover: config.Failover{Enabled: true},
+	}
+
+	// simulate gitaly node starting up later
+	go func() {
+		time.Sleep(checkTimeout + 10*time.Millisecond)
+
+		_, healthSrv0 := testhelper.NewHealthServerWithListener(t, lis)
+		healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	}()
+
+	mgr, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+
+	mgr.Start(1*time.Millisecond, 1*time.Millisecond)
+
+	shard, err := mgr.GetShard(storageName)
+	require.NoError(t, err)
+	require.Equal(t, "internal-storage", shard.Primary.GetStorage())
+	require.Empty(t, shard.Secondaries)
 }
 
 func TestNodeManager(t *testing.T) {

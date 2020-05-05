@@ -519,15 +519,19 @@ type HTTPSettings struct {
 }
 
 func NewServerWithHealth(t testing.TB, socketName string) (*grpc.Server, *health.Server) {
+	lis, err := net.Listen("unix", socketName)
+	require.NoError(t, err)
+
+	return NewHealthServerWithListener(t, lis)
+}
+
+func NewHealthServerWithListener(t testing.TB, listener net.Listener) (*grpc.Server, *health.Server) {
 	srv := NewTestGrpcServer(t, nil, nil)
 	healthSrvr := health.NewServer()
 	healthpb.RegisterHealthServer(srv, healthSrvr)
 	healthSrvr.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
-	lis, err := net.Listen("unix", socketName)
-	require.NoError(t, err)
-
-	go srv.Serve(lis)
+	go srv.Serve(listener)
 
 	return srv, healthSrvr
 }

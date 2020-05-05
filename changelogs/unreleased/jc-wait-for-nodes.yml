@@ -1,0 +1,5 @@
+---
+title: Block in NewManager to wait for nodes to be up
+merge_request: 2134
+author:
+type: changed
