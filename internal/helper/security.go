@@ -3,17 +3,23 @@ package helper
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-// ContainsPathTraversal checks if the path contains any traversal
-func ContainsPathTraversal(path string) bool {
-	// Disallow directory traversal for security
-	separator := string(os.PathSeparator)
-	return strings.HasPrefix(path, ".."+separator) ||
-		strings.Contains(path, separator+".."+separator) ||
-		strings.HasSuffix(path, separator+"..")
+var ErrRelativePathEscapesRoot = errors.New("relative path escapes root directory")
+
+// ValidateRelativePath validates a relative path by joining it with rootDir and verifying the result
+// is either rootDir or a path within rootDir. Returns clean relative path from rootDir to relativePath
+// or an ErrRelativePathEscapesRoot if the resulting path is not contained within rootDir.
+func ValidateRelativePath(rootDir, relativePath string) (string, error) {
+	absPath := filepath.Join(rootDir, relativePath)
+	if rootDir != absPath && !strings.HasPrefix(absPath, rootDir+string(os.PathSeparator)) {
+		return "", ErrRelativePathEscapesRoot
+	}
+
+	return filepath.Rel(rootDir, absPath)
 }
 
 // Pattern taken from Regular Expressions Cookbook, slightly modified though

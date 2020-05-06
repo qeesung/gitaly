@@ -104,15 +104,15 @@ func TestGetRepoPath(t *testing.T) {
 			err:      codes.InvalidArgument,
 		},
 		{
-			desc:     "relative path with one level traversal at the end",
+			desc:     "relative path with traversal outside storage",
 			storages: exampleStorages,
-			repo:     &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath + "/.."},
+			repo:     &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath + "/../.."},
 			err:      codes.InvalidArgument,
 		},
 		{
-			desc:     "relative path with one level dashed traversal at the end",
+			desc:     "relative path with traversal outside storage with trailing slash",
 			storages: exampleStorages,
-			repo:     &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath + "/../"},
+			repo:     &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath + "/../../"},
 			err:      codes.InvalidArgument,
 		},
 		{
@@ -205,13 +205,13 @@ func TestGetObjectDirectoryPath(t *testing.T) {
 			err:  codes.InvalidArgument,
 		},
 		{
-			desc: "with one level traversal at the end",
-			repo: &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath, GitObjectDirectory: "objects/.."},
+			desc: "with traversal outside repository",
+			repo: &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath, GitObjectDirectory: "objects/../.."},
 			err:  codes.InvalidArgument,
 		},
 		{
-			desc: "with one level dashed traversal at the end",
-			repo: &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath, GitObjectDirectory: "objects/../"},
+			desc: "with traversal outside repository with trailing separator",
+			repo: &gitalypb.Repository{StorageName: "default", RelativePath: testhelper.TestRelativePath, GitObjectDirectory: "objects/../../"},
 			err:  codes.InvalidArgument,
 		},
 		{

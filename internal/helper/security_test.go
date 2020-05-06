@@ -6,20 +6,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestContainsPathTraversal(t *testing.T) {
-	testCases := []struct {
-		path              string
-		containsTraversal bool
+func TestValidateRelativePath(t *testing.T) {
+	for _, tc := range []struct {
+		path    string
+		cleaned string
+		error   error
 	}{
-		{"../parent", true},
-		{"subdir/../../parent", true},
-		{"subdir/..", true},
-		{"subdir", false},
-		{"./subdir", false},
-	}
-
-	for _, tc := range testCases {
-		assert.Equal(t, tc.containsTraversal, ContainsPathTraversal(tc.path))
+		{"/parent", "parent", nil},
+		{"parent/", "parent", nil},
+		{"/parent-with-suffix", "parent-with-suffix", nil},
+		{"/subfolder", "subfolder", nil},
+		{"subfolder", "subfolder", nil},
+		{"subfolder/", "subfolder", nil},
+		{"subfolder//", "subfolder", nil},
+		{"subfolder/..", ".", nil},
+		{"subfolder/../..", "", ErrRelativePathEscapesRoot},
+		{"/..", "", ErrRelativePathEscapesRoot},
+		{"..", "", ErrRelativePathEscapesRoot},
+		{"../", "", ErrRelativePathEscapesRoot},
+		{"", ".", nil},
+		{".", ".", nil},
+	} {
+		const parent = "/parent"
+		t.Run(parent+" and "+tc.path, func(t *testing.T) {
+			cleaned, err := ValidateRelativePath(parent, tc.path)
+			assert.Equal(t, tc.cleaned, cleaned)
+			assert.Equal(t, tc.error, err)
+		})
 	}
 }
 

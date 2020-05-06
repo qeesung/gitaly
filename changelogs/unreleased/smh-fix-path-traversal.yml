@@ -1,0 +1,5 @@
+---
+title: Improved path traversal protection
+merge_request: 2132
+author:
+type: security

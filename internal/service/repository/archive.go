@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"os/exec"
-	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -18,7 +17,16 @@ import (
 func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.RepositoryService_GetArchiveServer) error {
 	ctx := stream.Context()
 	compressCmd, format := parseArchiveFormat(in.GetFormat())
-	path := parsePath(in.GetPath())
+
+	repoRoot, err := helper.GetRepoPath(in.GetRepository())
+	if err != nil {
+		return err
+	}
+
+	path, err := helper.ValidateRelativePath(repoRoot, string(in.GetPath()))
+	if err != nil {
+		return helper.ErrInvalidArgument(err)
+	}
 
 	if err := validateGetArchiveRequest(in, format, path); err != nil {
 		return err
@@ -50,14 +58,6 @@ func parseArchiveFormat(format gitalypb.GetArchiveRequest_Format) (*exec.Cmd, st
 	return nil, ""
 }
 
-func parsePath(path []byte) string {
-	if path == nil {
-		return "."
-	}
-
-	return string(path)
-}
-
 func validateGetArchiveRequest(in *gitalypb.GetArchiveRequest, format string, path string) error {
 	if err := git.ValidateRevision([]byte(in.GetCommitId())); err != nil {
 		return helper.ErrInvalidArgumentf("invalid commitId: %v", err)
@@ -65,10 +65,6 @@ func validateGetArchiveRequest(in *gitalypb.GetArchiveRequest, format string, pa
 
 	if len(format) == 0 {
 		return helper.ErrInvalidArgumentf("invalid format")
-	}
-
-	if helper.ContainsPathTraversal(path) {
-		return helper.ErrInvalidArgumentf("path can't contain directory traversal")
 	}
 
 	return nil
@@ -84,7 +80,7 @@ func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchive
 		return err
 	}
 
-	treeEntry, err := commit.NewTreeEntryFinder(c).FindByRevisionAndPath(in.GetCommitId(), strings.TrimRight(path, "/"))
+	treeEntry, err := commit.NewTreeEntryFinder(c).FindByRevisionAndPath(in.GetCommitId(), path)
 	if err != nil {
 		return err
 	}
