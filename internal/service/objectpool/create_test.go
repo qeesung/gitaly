@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc/status"
 )
 
 func TestCreate(t *testing.T) {
@@ -154,7 +155,7 @@ func TestUnsuccessfulCreate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, err := client.CreateObjectPool(ctx, tc.request)
-			require.Equal(t, tc.error, err)
+			require.Equal(t, status.Convert(tc.error).Err(), err)
 		})
 	}
 }
@@ -228,7 +229,7 @@ func TestDelete(t *testing.T) {
 					RelativePath: tc.relativePath,
 				},
 			}})
-			require.Equal(t, tc.error, err)
+			require.Equal(t, status.Convert(tc.error).Err(), err)
 		})
 	}
 }
