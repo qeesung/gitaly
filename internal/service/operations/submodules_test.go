@@ -2,18 +2,34 @@ package operations
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulUserUpdateSubmoduleRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -50,9 +66,6 @@ func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
-
 			request := &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
 				User:          user,

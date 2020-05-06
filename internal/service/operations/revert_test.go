@@ -1,10 +1,12 @@
 package operations_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -16,8 +18,8 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -125,11 +127,22 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserRevertRequest(t *testing.T) {
-	ctxOuter, cancel := testhelper.Context()
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulGitHooksForUserRevertRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulGitHooksForUserRevertRequest(t *testing.T, ctxOuter context.Context) {
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -185,8 +198,8 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -271,8 +284,8 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -325,8 +338,8 @@ func TestFailedUserRevertRequestDueToCreateTreeError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -368,8 +381,8 @@ func TestFailedUserRevertRequestDueToCommitError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()

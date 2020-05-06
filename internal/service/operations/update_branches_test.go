@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -55,6 +56,20 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulGitHooksForUserUpdateBranchRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -71,9 +86,6 @@ func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
 
 			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
-
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 
 			request := &gitalypb.UserUpdateBranchRequest{
 				Repository: testRepo,
@@ -94,6 +106,20 @@ func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testFailedUserUpdateBranchDueToHooks(t, ctx)
+		})
+	}
+}
+
+func testFailedUserUpdateBranchDueToHooks(t *testing.T, ctx context.Context) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -115,15 +141,12 @@ func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
 	}
 	// Write a hook that will fail with the environment as the error message
 	// so we can check that string for our env variables.
-	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' -\nexit 1")
+	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' - >&2\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
 		remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 		require.NoError(t, err)
 		defer remove()
-
-		ctx, cancel := testhelper.Context()
-		defer cancel()
 
 		response, err := client.UserUpdateBranch(ctx, request)
 		require.Nil(t, err)

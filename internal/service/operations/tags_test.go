@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -58,6 +59,20 @@ func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulGitHooksForUserDeleteTagRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -92,9 +107,6 @@ func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
 
 			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
-
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 
 			_, err := client.UserDeleteTag(ctx, request)
 			require.NoError(t, err)
@@ -210,14 +222,20 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateTagRequest(t *testing.T) {
-	testSuccessfulGitHooksForUserCreateTagRequest(t, false)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulGitHooksForUserCreateTagRequest(t, ctx)
+		})
+	}
 }
 
-func TestSuccessfulGitHooksForUserCreateTagRequestWithHookRPCs(t *testing.T) {
-	testSuccessfulGitHooksForUserCreateTagRequest(t, true)
-}
-
-func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, callHookRPC bool) {
+func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -243,13 +261,6 @@ func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, callHookRPC boo
 		TagName:        []byte(tagName),
 		TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
 		User:           user,
-	}
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	if callHookRPC {
-		ctx = featureflag.OutgoingCtxWithRubyFeatureFlags(ctx, "call-hook-rpc")
 	}
 
 	for _, hookName := range GitlabHooks {
@@ -329,6 +340,20 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 }
 
 func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testFailedUserDeleteTagDueToHooks(t, ctx)
+		})
+	}
+}
+
+func testFailedUserDeleteTagDueToHooks(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -357,16 +382,13 @@ func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
 		User:       user,
 	}
 
-	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
+	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID >&2\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
 			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
 			defer remove()
-
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 
 			response, err := client.UserDeleteTag(ctx, request)
 			require.Nil(t, err)

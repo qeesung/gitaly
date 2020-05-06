@@ -7,15 +7,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
-func TestSuccessfulUserCreateBranchRequest(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
+func TestSuccessfulCreateBranchRequest(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -24,6 +22,9 @@ func TestSuccessfulUserCreateBranchRequest(t *testing.T) {
 
 	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
 	startPoint := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
 	startPointCommit, err := log.GetCommit(ctx, testRepo, startPoint)
@@ -78,6 +79,20 @@ func TestSuccessfulUserCreateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulGitHooksForUserCreateBranchRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.Context) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -104,9 +119,6 @@ func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
 
 			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
-
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 
 			response, err := client.UserCreateBranch(ctx, request)
 			require.NoError(t, err)

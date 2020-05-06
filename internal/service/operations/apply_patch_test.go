@@ -1,6 +1,7 @@
 package operations_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -19,8 +21,22 @@ import (
 )
 
 func TestSuccessfulUserApplyPatch(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulUserApplyPatch(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -30,9 +46,6 @@ func TestSuccessfulUserApplyPatch(t *testing.T) {
 
 	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
 	defer cleanupSrv()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	user := &gitalypb.User{
 		Name:  []byte("Jane Doe"),

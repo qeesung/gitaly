@@ -1,6 +1,7 @@
 package operations_test
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -24,21 +26,18 @@ var (
 	commitFilesMessage = []byte("Change files")
 )
 
-func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
+func testSuccessfulUserCommitFilesRequest(t *testing.T, ctxWithFeatureFlags context.Context) {
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
 
 	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
 	defer cleanupSrv()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
-
-	ctxOuter, cancel := testhelper.Context()
-	defer cancel()
 
 	newRepo, newRepoPath, newRepoCleanupFn := testhelper.InitBareRepo(t)
 	defer newRepoCleanupFn()
@@ -93,7 +92,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := metadata.NewOutgoingContext(ctxOuter, md)
+			ctx := metadata.NewOutgoingContext(ctxWithFeatureFlags, md)
 			headerRequest := headerRequest(tc.repo, user, tc.branchName, commitFilesMessage)
 			setAuthorAndEmail(headerRequest, authorName, authorEmail)
 
@@ -115,7 +114,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 			require.Equal(t, tc.repoCreated, resp.GetBranchUpdate().GetRepoCreated())
 			require.Equal(t, tc.branchCreated, resp.GetBranchUpdate().GetBranchCreated())
 
-			headCommit, err := log.GetCommit(ctxOuter, tc.repo, tc.branchName)
+			headCommit, err := log.GetCommit(ctxWithFeatureFlags, tc.repo, tc.branchName)
 			require.NoError(t, err)
 			require.Equal(t, authorName, headCommit.Author.Name)
 			require.Equal(t, user.Name, headCommit.Committer.Name)
@@ -136,9 +135,23 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	}
 }
 
+func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulUserCommitFilesRequest(t, ctx)
+		})
+	}
+}
+
 func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -203,8 +216,8 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 }
 
 func TestSuccessfulUserCommitFilesRequestForceCommit(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -258,8 +271,8 @@ func TestSuccessfulUserCommitFilesRequestForceCommit(t *testing.T) {
 }
 
 func TestSuccessfulUserCommitFilesRequestStartSha(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -301,8 +314,8 @@ func TestSuccessfulUserCommitFilesRequestStartSha(t *testing.T) {
 }
 
 func TestSuccessfulUserCommitFilesRequestStartShaRemoteRepository(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -348,8 +361,8 @@ func TestSuccessfulUserCommitFilesRequestStartShaRemoteRepository(t *testing.T) 
 }
 
 func TestSuccessfulUserCommitFilesRequestWithSpecialCharactersInSignature(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -410,8 +423,8 @@ func TestSuccessfulUserCommitFilesRequestWithSpecialCharactersInSignature(t *tes
 }
 
 func TestFailedUserCommitFilesRequestDueToHooks(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -455,8 +468,8 @@ func TestFailedUserCommitFilesRequestDueToHooks(t *testing.T) {
 }
 
 func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -530,8 +543,8 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 }
 
 func TestFailedUserCommitFilesRequest(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()

@@ -11,7 +11,11 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
 	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
+	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -73,18 +77,24 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
+var RunOperationServiceServer = runOperationServiceServer
+
 func runOperationServiceServer(t *testing.T) (string, func()) {
 	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
-
-	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: RubyServer})
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer())
-	reflection.Register(srv.GrpcServer())
-
-	require.NoError(t, srv.Start())
 
 	internalSocket := config.GitalyInternalSocketPath()
 	internalListener, err := net.Listen("unix", internalSocket)
 	require.NoError(t, err)
+
+	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: RubyServer})
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer())
+	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), repository.NewServer(RubyServer, internalSocket))
+	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), ref.NewServer())
+	gitalypb.RegisterCommitServiceServer(srv.GrpcServer(), commit.NewServer())
+	gitalypb.RegisterSSHServiceServer(srv.GrpcServer(), ssh.NewServer())
+	reflection.Register(srv.GrpcServer())
+
+	require.NoError(t, srv.Start())
 
 	go func() {
 		srv.GrpcServer().Serve(internalListener)

@@ -3,6 +3,7 @@ package operations_test
 //lint:file-ignore SA1019 due to planned removal in issue https://gitlab.com/gitlab-org/gitaly/issues/1628
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	gitlog "gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -29,13 +31,24 @@ var (
 )
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
-	pushOptions := []string{"ci.skip", "test=value"}
-
-	ctxOuter, cancel := testhelper.Context()
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	for _, features := range featureSet {
+		t.Run(features.String(), func(t *testing.T) {
+			ctx = features.WithParent(ctx)
+			testSuccessfulUserRebaseConfirmableRequest(t, ctx)
+		})
+	}
+}
+
+func testSuccessfulUserRebaseConfirmableRequest(t *testing.T, ctxOuter context.Context) {
+	pushOptions := []string{"ci.skip", "test=value"}
+
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -103,8 +116,8 @@ func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -176,8 +189,8 @@ func TestAbortedUserRebaseConfirmable(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -247,8 +260,8 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -296,8 +309,8 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -361,8 +374,8 @@ func TestFailedUserRebaseConfirmableDueToGitError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
@@ -408,8 +421,8 @@ func TestRebaseRequestWithDeletedFile(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	defer stop()
 
 	client, conn := operations.NewOperationClient(t, serverSocketPath)
 	defer conn.Close()
