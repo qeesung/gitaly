@@ -126,17 +126,13 @@ func (p *TestServer) Socket() string {
 
 // Start will start the grpc server as well as spawn a praefect instance if GITALY_TEST_PRAEFECT_BIN is enabled
 func (p *TestServer) Start() error {
-	gitalyServerSocketPath := GetTemporaryGitalySocketFileName()
-
-	listener, err := net.Listen("unix", gitalyServerSocketPath)
-	if err != nil {
-		return err
-	}
-
-	go p.grpcServer.Serve(listener)
-
 	praefectBinPath, ok := os.LookupEnv("GITALY_TEST_PRAEFECT_BIN")
 	if !ok {
+		gitalyServerSocketPath, err := p.listen()
+		if err != nil {
+			return err
+		}
+
 		p.socket = gitalyServerSocketPath
 		return nil
 	}
@@ -164,6 +160,11 @@ func (p *TestServer) Start() error {
 	}
 
 	for _, storage := range p.storages {
+		gitalyServerSocketPath, err := p.listen()
+		if err != nil {
+			return err
+		}
+
 		c.VirtualStorages = append(c.VirtualStorages, &praefectconfig.VirtualStorage{
 			Name: storage,
 			Nodes: []*models.Node{
@@ -220,6 +221,18 @@ func (p *TestServer) Start() error {
 	p.process = cmd.Process
 
 	return nil
+}
+
+func (p *TestServer) listen() (string, error) {
+	gitalyServerSocketPath := GetTemporaryGitalySocketFileName()
+
+	listener, err := net.Listen("unix", gitalyServerSocketPath)
+	if err != nil {
+		return "", err
+	}
+
+	go p.grpcServer.Serve(listener)
+	return gitalyServerSocketPath, nil
 }
 
 func waitForPraefectStartup(conn *grpc.ClientConn) error {
