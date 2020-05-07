@@ -60,9 +60,7 @@ class GitlabConfig
     def fetch_from_settings(key)
       value = settings[key]
 
-      return value if [true,false].include? value
-
-      return legacy_settings[key] if value.nil? || value.empty?
+      return legacy_settings[key] if value.nil? || (value.is_a?(String) && value.empty?)
 
       value
     end
