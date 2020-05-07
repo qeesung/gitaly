@@ -39,7 +39,7 @@ func TestTransactionSucceeds(t *testing.T) {
 
 	client := gitalypb.NewRefTransactionClient(cc)
 
-	transactionID, cancelTransaction, err := txMgr.RegisterTransaction([]string{"node1"})
+	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []string{"node1"})
 	require.NoError(t, err)
 	require.NotZero(t, transactionID)
 	defer cancelTransaction()
@@ -59,7 +59,10 @@ func TestTransactionFailsWithMultipleNodes(t *testing.T) {
 	_, txMgr, cleanup := runPraefectWithTransactionMgr(t)
 	defer cleanup()
 
-	_, _, err := txMgr.RegisterTransaction([]string{"node1", "node2"})
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	_, _, err := txMgr.RegisterTransaction(ctx, []string{"node1", "node2"})
 	require.Error(t, err)
 }
 
@@ -91,7 +94,7 @@ func TestTransactionCancellation(t *testing.T) {
 
 	client := gitalypb.NewRefTransactionClient(cc)
 
-	transactionID, cancelTransaction, err := txMgr.RegisterTransaction([]string{"node1"})
+	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []string{"node1"})
 	require.NoError(t, err)
 	require.NotZero(t, transactionID)
 

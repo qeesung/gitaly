@@ -23,7 +23,7 @@ func NewServer(txMgr *transactions.Manager) gitalypb.RefTransactionServer {
 // transaction, blocking until a vote across all participating nodes has been
 // completed.
 func (s *Server) StartTransaction(ctx context.Context, in *gitalypb.StartTransactionRequest) (*gitalypb.StartTransactionResponse, error) {
-	err := s.txMgr.StartTransaction(in.TransactionId, in.Node, in.ReferenceUpdatesHash)
+	err := s.txMgr.StartTransaction(ctx, in.TransactionId, in.Node, in.ReferenceUpdatesHash)
 	if err != nil {
 		return nil, err
 	}
