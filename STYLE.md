@@ -49,6 +49,64 @@ interpolating strings. The `%q` operator quotes strings and escapes
 spaces and non-printable characters. This can save a lot of debugging
 time.
 
+## Logging
+
+### Use context-based logging
+
+The `ctxlogrus` package allows to extract a logger from the current
+`context.Context` structure. This should be the default logging facility, as it
+may carry additional context-sensitive information like the `correlation_id`
+that makes it easy to correlate a log entry with other entries of the same
+event.
+
+### Errors
+
+When logging an error, use the `WithError(err)` method.
+
+### Use the `logrus.FieldLogger` interface
+
+In case you want to pass around the logger, use the `logrus.FieldLogger`
+interface instead of either `*logrus.Entry` or `*logrus.Logger`.
+
+### Use snake case for fields
+
+When writing log entries, you should use `logger.WithFields()` to add relevant
+metadata relevant to the entry. The keys should use snake case:
+
+```golang
+logger.WithField("correlation_id", 12345).Info("StartTransaction")
+```
+
+### Use RPC name as log message
+
+In case you do not want to write a specific log message, but only want to notify
+about a certain function or RPC being called, you should use the function's name
+as the log message:
+
+```golang
+func StartTransaction(id uint64) {
+    logger.WithField("transaction_id", id).Debug("StartTransaction")
+}
+```
+
+### Embed package into log entries
+
+In order to associate log entries with a given code package, you should add a
+`component` field to the log entry. If the log entry is generated in a method,
+the component should be `$PACKAGE_NAME.$STRUCT_NAME`:
+
+```golang
+package transaction
+
+type Manager struct {}
+
+func (m Manager) StartTransaction(ctx context.Context) {
+    ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
+        "component": "transaction.Manager",
+    }).Debug("StartTransaction")
+}
+```
+
 ## Literals and constructors
 
 ### Use "address of struct" instead of new
