@@ -30,7 +30,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestServerRouteServerAccessor(t *testing.T) {
@@ -226,8 +225,8 @@ func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	client := healthpb.NewHealthClient(cc)
-	_, err := client.Check(ctx, &healthpb.HealthCheckRequest{})
+	client := grpc_health_v1.NewHealthClient(cc)
+	_, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 	require.NoError(t, err)
 }
 
