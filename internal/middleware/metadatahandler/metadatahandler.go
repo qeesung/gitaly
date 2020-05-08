@@ -91,6 +91,12 @@ func addMetadataTags(ctx context.Context) metadataTags {
 	if metadata != "" {
 		metaTags.clientName = metadata
 		tags.Set(ClientNameKey, metadata)
+	} else {
+		clientName := correlation.ExtractClientNameFromContext(ctx)
+		if clientName != "" {
+			metaTags.clientName = clientName
+			tags.Set(ClientNameKey, clientName)
+		}
 	}
 
 	metadata = getFromMD(md, "deadline_type")
