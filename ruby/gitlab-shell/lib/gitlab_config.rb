@@ -101,7 +101,7 @@ class GitlabConfig
       secret_file: secret_file,
       custom_hooks_dir: custom_hooks_dir,
       gitlab_url: gitlab_url,
-      http_settings: http_settings,
+      http_settings: http_settings.settings,
       log_file: log_file,
       log_level: log_level,
       log_format: log_format,

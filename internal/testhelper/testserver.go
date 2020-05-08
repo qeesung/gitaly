@@ -28,6 +28,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	praefectconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -282,6 +283,10 @@ func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.Re
 		require.Equal(t, http.MethodPost, r.Method, "expected http post")
 		require.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 
+		user, password, _ := r.BasicAuth()
+		require.Equal(t, options.User, user)
+		require.Equal(t, options.Password, password)
+
 		if options.GLID != "" {
 			glidSplit := strings.SplitN(options.GLID, "-", 2)
 			require.Len(t, glidSplit, 2, "number of GLID components")
@@ -460,12 +465,16 @@ func WriteTemporaryGitlabShellConfigFile(t testing.TB, dir string, config Gitlab
 
 // WriteTemporaryGitalyConfigFile writes a gitaly toml file into a temporary directory. It returns the path to
 // the file as well as a cleanup function
-func WriteTemporaryGitalyConfigFile(t testing.TB, tempDir string) (string, func()) {
+func WriteTemporaryGitalyConfigFile(t testing.TB, tempDir, gitlabURL, user, password string) (string, func()) {
 	path := filepath.Join(tempDir, "config.toml")
 	contents := fmt.Sprintf(`
 [gitlab-shell]
   dir = "%s/gitlab-shell"
-`, tempDir)
+  gitlab_url = %q
+  [gitlab-shell.http-settings]
+    user = %q
+    password = %q
+`, tempDir, gitlabURL, user, password)
 	require.NoError(t, ioutil.WriteFile(path, []byte(contents), 0644))
 
 	return path, func() {
@@ -488,8 +497,11 @@ func EnvForHooks(t testing.TB, gitlabShellDir, gitalySocket, gitalyToken string,
 	repoString, err := jsonpbMarshaller.MarshalToString(repo)
 	require.NoError(t, err)
 
-	env := append(append([]string{
-		fmt.Sprintf("GITALY_BIN_DIR=%s", config.Config.BinDir),
+	env, err := gitlabshell.EnvFromConfig(config.Config)
+	require.NoError(t, err)
+
+	env = append(env, os.Environ()...)
+	env = append(env, []string{
 		fmt.Sprintf("GITALY_RUBY_DIR=%s", rubyDir),
 		fmt.Sprintf("GL_ID=%s", glHookValues.GLID),
 		fmt.Sprintf("GL_REPOSITORY=%s", glHookValues.GLRepo),
@@ -500,9 +512,8 @@ func EnvForHooks(t testing.TB, gitlabShellDir, gitalySocket, gitalyToken string,
 		fmt.Sprintf("GITALY_REPO=%v", repoString),
 		fmt.Sprintf("GITALY_GITLAB_SHELL_DIR=%s", gitlabShellDir),
 		fmt.Sprintf("GITALY_LOG_DIR=%s", gitlabShellDir),
-		"GITALY_LOG_LEVEL=info",
-		"GITALY_LOG_FORMAT=json",
-	}, os.Environ()...), hooks.GitPushOptions(gitPushOptions)...)
+	}...)
+	env = append(env, hooks.GitPushOptions(gitPushOptions)...)
 
 	if glHookValues.GitObjectDir != "" {
 		env = append(env, fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", glHookValues.GitObjectDir))
@@ -521,8 +532,9 @@ func WriteShellSecretFile(t testing.TB, dir, secretToken string) {
 
 // GitlabShellConfig contains a subset of gitlabshell's config.yml
 type GitlabShellConfig struct {
-	GitlabURL    string       `yaml:"gitlab_url"`
-	HTTPSettings HTTPSettings `yaml:"http_settings"`
+	GitlabURL      string       `yaml:"gitlab_url"`
+	HTTPSettings   HTTPSettings `yaml:"http_settings"`
+	CustomHooksDir string       `yaml:"custom_hooks_dir"`
 }
 
 // HTTPSettings contains fields for http settings
