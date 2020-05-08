@@ -29,7 +29,7 @@ GEM
     ast (2.4.0)
     binding_ninja (0.2.3)
     builder (3.2.4)
-    charlock_holmes (0.7.6)
+    charlock_holmes (0.7.7)
     coderay (1.1.2)
     concord (0.1.5)
       adamantium (~> 0.2.0)
@@ -50,7 +50,7 @@ GEM
     ffi (1.12.2)
     gemojione (3.3.0)
       json
-    github-linguist (7.5.1)
+    github-linguist (7.9.0)
       charlock_holmes (~> 0.7.6)
       escape_utils (~> 1.2.0)
       mini_mime (~> 1.0)
@@ -211,7 +211,7 @@ DEPENDENCIES
   bundler (>= 1.17.3)
   factory_bot
   faraday (~> 0.12)
-  github-linguist (~> 7.5)
+  github-linguist (~> 7.9)
   gitlab-gollum-lib (~> 4.2.7.8)
   gitlab-gollum-rugged_adapter (~> 0.4.4.2)
   gitlab-labkit (~> 0.9.1)
