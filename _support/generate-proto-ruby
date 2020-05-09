@@ -6,22 +6,22 @@ require 'fileutils'
 require_relative 'run.rb'
 
 PROTO_INCLUDE = './proto'
-PROTO_FILES = Dir['proto/*.proto'].sort
+PROTO_FILES = Dir[File.join(PROTO_INCLUDE, '*.proto')].sort.map { |f| File.absolute_path(f) }
 RUBY_PREFIX = 'ruby/proto'
 RUBY_VERSION_FILE = 'gitaly/version.rb'
-
-ENV['PATH'] = [
-  File.join(Dir.pwd, '_build/protoc/bin'),
-  File.join(Dir.pwd, '_build/bin'),
-  ENV['PATH'],
-].join(':')
 
 def main
   ruby_lib_gitaly = File.join(RUBY_PREFIX, 'gitaly')
   FileUtils.rm(Dir[File.join(ruby_lib_gitaly, '**/*_pb.rb')])
   FileUtils.mkdir_p(ruby_lib_gitaly)
 
-  run!(%W[grpc_tools_ruby_protoc -I #{PROTO_INCLUDE} --ruby_out=#{ruby_lib_gitaly} --grpc_out=#{ruby_lib_gitaly}] + PROTO_FILES)
+  Dir.chdir(File.join(Dir.pwd, 'ruby')) do
+    # Using an absolute path make sure the prefixes match, or the passed in file
+    # locations. `protoc` requires this.
+    proto_include_abs = File.absolute_path(File.join('..', PROTO_INCLUDE))
+
+    run!(%W[bundle exec grpc_tools_ruby_protoc -I #{proto_include_abs} --ruby_out=../#{ruby_lib_gitaly} --grpc_out=../#{ruby_lib_gitaly}] + PROTO_FILES)
+  end
 
   write_ruby_requires
 end

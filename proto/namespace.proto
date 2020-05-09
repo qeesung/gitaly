@@ -5,7 +5,6 @@ package gitaly;
 option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 import "lint.proto";
-import "shared.proto";
 
 service NamespaceService {
   rpc AddNamespace(AddNamespaceRequest) returns (AddNamespaceResponse) {

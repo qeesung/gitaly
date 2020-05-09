@@ -5,7 +5,6 @@ package gitaly;
 option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/descriptor.proto";
 import "lint.proto";
 
 enum ObjectType {
