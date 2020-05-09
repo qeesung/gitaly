@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -98,4 +99,21 @@ func TestAddMetadataTags(t *testing.T) {
 			require.Equal(t, testCase.expectedMetatags, addMetadataTags(ctx))
 		})
 	}
+}
+
+func TestExtractClientNameFromContext(t *testing.T) {
+	require := require.New(t)
+
+	clientName := "CLIENT_NAME"
+
+	ctx := metadata.NewIncomingContext(
+		correlation.ContextWithClientName(
+			context.Background(),
+			clientName,
+		),
+		metadata.Pairs(),
+	)
+
+	metaTags := addMetadataTags(ctx)
+	require.Equal(clientName, metaTags.clientName)
 }
