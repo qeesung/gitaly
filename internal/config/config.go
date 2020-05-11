@@ -69,7 +69,7 @@ type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
 	Password    string `toml:"password" json:"password"`
-	CAFile      string `toml:"ca_file" json:"ca_file""`
+	CAFile      string `toml:"ca_file" json:"ca_file"`
 	CAPath      string `toml:"ca_path" json:"ca_path"`
 	SelfSigned  bool   `toml:"self_signed_cert" json:"self_signed_cert"`
 }

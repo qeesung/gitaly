@@ -55,7 +55,8 @@ func TestOptimizeRepository(t *testing.T) {
 	require.NoError(t, repoServer.optimizeRepository(ctx, testRepo))
 	require.Equal(t, getNewestPackfileModtime(t, testRepoPath), newestsPackfileTime, "there should not have been a new packfile created")
 
-	testRepo, testRepoPath, cleanup = testhelper.InitBareRepo(t)
+	testRepo, testRepoPath, cleanupBare := testhelper.InitBareRepo(t)
+	defer cleanupBare()
 
 	blobs := 10
 	blobIDs := testhelper.WriteBlobs(t, testRepoPath, blobs)
