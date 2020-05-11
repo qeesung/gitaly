@@ -343,6 +343,15 @@ func (s *sqlElector) demotePrimary() error {
 	return err
 }
 
+// targetNodeIncompleteCounts represents a row of the sql election query and is for logging purposes only
+type targetNodeIncompleteCounts struct {
+	NodeStorage string `json:"node_storage"`
+	Ready       int    `json:"ready"`
+	InProgress  int    `json:"in_progress"`
+	Failed      int    `json:"failed"`
+	Dead        int    `json:"dead"`
+}
+
 func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 	if len(candidates) == 0 {
 		return errors.New("candidates cannot be empty")
@@ -354,43 +363,52 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 		candidateStorages = append(candidateStorages, candidate.GetStorage())
 	}
 
-	q := `SELECT target_node_storage
-	      FROM (
-	          SELECT
-	              CASE
-	                  WHEN rq.state IN ('ready', 'in_progress') THEN 1
-	                  WHEN rq.state IN ('failed', 'dead') THEN 2
-	                  ELSE 0
-	              END AS incomplete_count,
-	              rq.job->>'target_node_storage' AS target_node_storage
-	          FROM replication_queue AS rq
-	          JOIN (
-	          	SELECT
-	          		job->>'target_node_storage' AS target_node_storage,
-	          		MAX(updated_at) AS updated_at
-	          	FROM replication_queue
-	          	WHERE state = 'completed' AND job->>'target_node_storage' = ANY ($1)
-	          	GROUP BY job->>'target_node_storage'
-	          ) latest ON rq.job->>'target_node_storage' = latest.target_node_storage AND rq.updated_at >= latest.updated_at
-	      ) AS t
-	      GROUP BY target_node_storage
-	      ORDER BY SUM(incomplete_count)
-	      FETCH FIRST ROW ONLY
-`
+	q := `  SELECT target_node_storage, SUM(ready) AS ready, SUM(in_progress) AS in_progress, SUM(failed) AS failed, SUM(dead) AS dead
+	        FROM (
+	            SELECT
+	                CASE WHEN rq.state = 'ready' THEN 1 ELSE 0 END AS ready,
+	                CASE WHEN rq.state = 'in_progress' THEN 1 ELSE 0 END AS in_progress,
+	                CASE WHEN rq.state = 'failed' THEN 1 ELSE 0 END AS failed,
+	                CASE WHEN rq.state = 'dead' THEN 1 ELSE 0 END AS dead,
+	                rq.job->>'target_node_storage' AS target_node_storage
+	            FROM replication_queue AS rq
+	            JOIN (
+	            	SELECT
+	            		job->>'target_node_storage' AS target_node_storage,
+	            		MAX(updated_at) AS updated_at
+	            	FROM replication_queue
+	            	WHERE state = 'completed' AND job->>'target_node_storage' = ANY ($1)
+	            	GROUP BY job->>'target_node_storage'
+	            ) latest ON rq.job->>'target_node_storage' = latest.target_node_storage AND rq.updated_at >= latest.updated_at
+	        ) AS t
+	        GROUP BY target_node_storage
+	        ORDER BY SUM(ready+in_progress+2*failed+2*dead)`
+
 	rows, err := s.db.Query(q, pq.Array(candidateStorages))
 	if err != nil {
 		return fmt.Errorf("executing query for ordering candidate nodes: %w", err)
 	}
 	defer rows.Close()
 
+	var incompleteCounts []targetNodeIncompleteCounts
+
 	newPrimaryStorage := candidateStorages[0]
 	for rows.Next() {
-		rows.Scan(&newPrimaryStorage)
-		break
+		var r targetNodeIncompleteCounts
+		if err := rows.Scan(&r.NodeStorage, &r.Ready, &r.InProgress, &r.Failed, &r.Dead); err != nil {
+			return fmt.Errorf("scanning rows for incomplete count: %w", err)
+		}
+
+		incompleteCounts = append(incompleteCounts, r)
 	}
 
 	if err = rows.Err(); err != nil {
 		return fmt.Errorf("getting rows for ordering candidate nodes: %w", err)
+	}
+
+	if len(incompleteCounts) > 0 {
+		newPrimaryStorage = incompleteCounts[0].NodeStorage
+		s.log.WithField("incomplete_counts", incompleteCounts).WithField("new_primary", newPrimaryStorage).Info("new primary selected")
 	}
 
 	// read_only is set only when a row already exists in the table. This avoids new shards, which

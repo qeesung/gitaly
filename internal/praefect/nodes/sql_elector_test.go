@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -189,9 +191,6 @@ func TestElectNewPrimary(t *testing.T) {
 	}}
 
 	failoverTimeSeconds := 1
-	logger := testhelper.NewTestLogger(t).WithField("test", t.Name())
-	elector := newSQLElector(shardName, config.Config{}, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, logger, ns)
-
 	candidates := []*sqlCandidate{
 		{
 			&nodeStatus{
@@ -211,6 +210,7 @@ func TestElectNewPrimary(t *testing.T) {
 		desc                   string
 		initialReplQueueInsert string
 		expectedPrimary        string
+		incompleteCounts       []targetNodeIncompleteCounts
 	}{{
 		desc: "gitaly-1's most recent job status after the last completion is a dead job",
 		initialReplQueueInsert: `INSERT INTO replication_queue
@@ -228,27 +228,61 @@ func TestElectNewPrimary(t *testing.T) {
 	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'dead'),
 	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'dead')`,
 		expectedPrimary: "gitaly-2",
+		incompleteCounts: []targetNodeIncompleteCounts{
+			{
+				NodeStorage: "gitaly-2",
+				Ready:       0,
+				InProgress:  0,
+				Failed:      0,
+				Dead:        0,
+			},
+			{
+				NodeStorage: "gitaly-1",
+				Ready:       0,
+				InProgress:  0,
+				Failed:      0,
+				Dead:        1,
+			},
+		},
 	},
 		{
 			desc: "gitaly-1 has 2 dead jobs, while gitaly-2 has ready and in_progress jobs",
 			initialReplQueueInsert: `INSERT INTO replication_queue
-	(job, updated_at, state)
-	VALUES
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'dead'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'dead'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
+		(job, updated_at, state)
+		VALUES
+		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'dead'),
+		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'dead'),
+		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
 
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'ready'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'in_progress'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'ready'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'completed')`,
+		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'ready'),
+		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'in_progress'),
+		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'ready'),
+		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'completed')`,
 			expectedPrimary: "gitaly-2",
+			incompleteCounts: []targetNodeIncompleteCounts{
+				{
+					NodeStorage: "gitaly-2",
+					Ready:       2,
+					InProgress:  1,
+					Failed:      0,
+					Dead:        0,
+				},
+				{
+					NodeStorage: "gitaly-1",
+					Ready:       0,
+					InProgress:  0,
+					Failed:      0,
+					Dead:        2,
+				},
+			},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			db.TruncateAll(t)
+
+			elector := newSQLElector(shardName, config.Config{}, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, testhelper.DiscardTestLogger(t), ns)
 
 			require.NoError(t, elector.electNewPrimary(candidates))
 			primary, readOnly, err := elector.lookupPrimary()
@@ -265,12 +299,21 @@ func TestElectNewPrimary(t *testing.T) {
 
 			_, err = db.Exec(testCase.initialReplQueueInsert)
 			require.NoError(t, err)
+
+			logger, hook := test.NewNullLogger()
+			logger.SetFormatter(&logrus.JSONFormatter{})
+
+			elector.log = logger
 			require.NoError(t, elector.electNewPrimary(candidates))
 
 			primary, readOnly, err = elector.lookupPrimary()
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedPrimary, primary.GetStorage())
 			require.True(t, readOnly)
+
+			incompleteCounts := hook.LastEntry().Data["incomplete_counts"].([]targetNodeIncompleteCounts)
+			require.Equal(t, testCase.incompleteCounts, incompleteCounts)
+			require.Equal(t, testCase.expectedPrimary, hook.LastEntry().Data["new_primary"].(string))
 		})
 	}
 }
