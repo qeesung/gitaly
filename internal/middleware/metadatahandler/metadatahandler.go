@@ -87,24 +87,24 @@ func addMetadataTags(ctx context.Context) metadataTags {
 		tags.Set(CallSiteKey, metadata)
 	}
 
-	metadata = getFromMD(md, "client_name")
-	if metadata != "" {
-		metaTags.clientName = metadata
-		tags.Set(ClientNameKey, metadata)
-	} else {
-		clientName := correlation.ExtractClientNameFromContext(ctx)
-		if clientName != "" {
-			metaTags.clientName = clientName
-			tags.Set(ClientNameKey, clientName)
-		}
-	}
-
 	metadata = getFromMD(md, "deadline_type")
 	_, deadlineSet := ctx.Deadline()
 	if !deadlineSet {
 		metaTags.deadlineType = "none"
 	} else if metadata != "" {
 		metaTags.deadlineType = metadata
+	}
+
+	clientName := correlation.ExtractClientNameFromContext(ctx)
+	if clientName != "" {
+		metaTags.clientName = clientName
+		tags.Set(ClientNameKey, clientName)
+	} else {
+		metadata = getFromMD(md, "client_name")
+		if metadata != "" {
+			metaTags.clientName = metadata
+			tags.Set(ClientNameKey, metadata)
+		}
 	}
 
 	// Set the deadline type in the logs
