@@ -38,3 +38,7 @@ func NewServer(nodeMgr nodes.Manager, conf config.Config, queue Queue) gitalypb.
 
 	return s
 }
+
+func (s *Server) EnableWrites(ctx context.Context, req *gitalypb.EnableWritesRequest) (*gitalypb.EnableWritesResponse, error) {
+	return nil, s.nodeMgr.EnableWrites(ctx, req.GetVirtualStorage())
+}

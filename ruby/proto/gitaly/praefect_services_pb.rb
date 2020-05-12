@@ -24,6 +24,9 @@ module Gitaly
       # timeframe. Dead replica jobs can indicate data loss and can be helpful in debugging
       # impact of a primary node failure.
       rpc :DatalossCheck, DatalossCheckRequest, DatalossCheckResponse
+      # EnableWrites enables writes for a storage that was switched to a read-only mode
+      # following a failover.
+      rpc :EnableWrites, EnableWritesRequest, EnableWritesResponse
     end
 
     Stub = Service.rpc_stub_class

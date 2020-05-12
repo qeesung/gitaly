@@ -71,6 +71,14 @@
 // "-to" specifies the exclusive ending of a timerange to check.
 //
 // If a timerange is not specified, dead jobs from last six hours are fetched by default.
+//
+// Enable Writes
+//
+// The subcommand "enable-writes" re-enables writes to a storage after it has experienced a
+// failover event. Once writes are re-enabled, the new primary's state might diverge from the
+// previous primary, making data recovery attempts more difficult due to possible conflicts.
+//
+//     praefect -config PATH_TO_CONFIG enable-writes -virtual-storage <vstorage>
 package main
 
 import (

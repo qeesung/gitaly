@@ -53,35 +53,48 @@ func TestTimeFlag(t *testing.T) {
 type mockPraefectInfoService struct {
 	gitalypb.UnimplementedPraefectInfoServiceServer
 	DatalossCheckFunc func(context.Context, *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error)
+	EnableWritesFunc  func(context.Context, *gitalypb.EnableWritesRequest) (*gitalypb.EnableWritesResponse, error)
 }
 
 func (m mockPraefectInfoService) DatalossCheck(ctx context.Context, r *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
 	return m.DatalossCheckFunc(ctx, r)
 }
 
-func TestDatalossSubcommand(t *testing.T) {
+func (m mockPraefectInfoService) EnableWrites(ctx context.Context, r *gitalypb.EnableWritesRequest) (*gitalypb.EnableWritesResponse, error) {
+	return m.EnableWritesFunc(ctx, r)
+}
+
+func StartPraefectInfoService(t testing.TB, impl gitalypb.PraefectInfoServiceServer) (net.Listener, func()) {
+	t.Helper()
+
 	tmp, clean := testhelper.TempDir(t)
-	defer clean()
+
+	ln, err := net.Listen("unix", filepath.Join(tmp, "gitaly.sock"))
+	require.NoError(t, err)
+
+	srv := grpc.NewServer()
+	gitalypb.RegisterPraefectInfoServiceServer(srv, impl)
+	go func() { require.NoError(t, srv.Serve(ln)) }()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ln, err := net.Listen("unix", filepath.Join(tmp, "gitaly.sock"))
-	require.NoError(t, err)
-	defer ln.Close()
-
-	mockSvc := &mockPraefectInfoService{}
-	srv := grpc.NewServer()
-	gitalypb.RegisterPraefectInfoServiceServer(srv, mockSvc)
-	go func() { require.NoError(t, srv.Serve(ln)) }()
-	defer srv.Stop()
-
-	// verify the mock service is up
+	// verify the service is up
 	addr := fmt.Sprintf("%s://%s", ln.Addr().Network(), ln.Addr())
 	cc, err := grpc.DialContext(ctx, addr, grpc.WithBlock(), grpc.WithInsecure())
 	require.NoError(t, err)
-	defer cc.Close()
+	require.NoError(t, cc.Close())
 
+	return ln, func() {
+		srv.Stop()
+		clean()
+	}
+}
+
+func TestDatalossSubcommand(t *testing.T) {
+	mockSvc := &mockPraefectInfoService{}
+	ln, clean := StartPraefectInfoService(t, mockSvc)
+	defer clean()
 	for _, tc := range []struct {
 		desc          string
 		args          []string

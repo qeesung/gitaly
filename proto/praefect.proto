@@ -35,7 +35,23 @@ service PraefectInfoService {
       scope_level: SERVER
     };
   }
+
+  // EnableWrites enables writes for a storage that was switched to a read-only mode
+  // following a failover.
+  rpc EnableWrites(EnableWritesRequest) returns (EnableWritesResponse) {
+    option (op_type) = {
+      op: MUTATOR
+      scope_level: STORAGE
+    };
+  }
 }
+
+message EnableWritesRequest {
+  // virtual_storage is the name of the virtual storage to enable writes for.
+  string virtual_storage = 1 [(storage)=true];
+}
+
+message EnableWritesResponse {}
 
 // DatalossCheckRequest fetches dead replica jobs from praefect.
 message DatalossCheckRequest {

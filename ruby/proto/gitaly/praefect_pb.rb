@@ -7,6 +7,11 @@ require 'lint_pb'
 require 'shared_pb'
 require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
+  add_message "gitaly.EnableWritesRequest" do
+    optional :virtual_storage, :string, 1
+  end
+  add_message "gitaly.EnableWritesResponse" do
+  end
   add_message "gitaly.DatalossCheckRequest" do
     optional :from, :message, 1, "google.protobuf.Timestamp"
     optional :to, :message, 2, "google.protobuf.Timestamp"
@@ -41,6 +46,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 
 module Gitaly
+  EnableWritesRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.EnableWritesRequest").msgclass
+  EnableWritesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.EnableWritesResponse").msgclass
   DatalossCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckRequest").msgclass
   DatalossCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse").msgclass
   RepositoryReplicasRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
