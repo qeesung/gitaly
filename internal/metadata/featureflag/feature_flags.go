@@ -18,6 +18,8 @@ const (
 	GoUpdateHook = "go_update_hook"
 	// RemoteBranchesLsRemote will use `ls-remote` for remote branches
 	RemoteBranchesLsRemote = "ruby_remote_branches_ls_remote"
+	// EnforceReadOnly enforces storage read-only mode after failover.
+	EnforceReadOnly = "enforce_read_only"
 )
 
 const (

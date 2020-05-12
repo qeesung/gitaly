@@ -9,6 +9,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -22,6 +23,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type ReadOnlyStorageError string
+
+func (storage ReadOnlyStorageError) Error() string {
+	return fmt.Sprintf("storage %q is in read-only mode", string(storage))
+}
 
 // getReplicationDetails determines the type of job and additional details based on the method name and incoming message
 func getReplicationDetails(methodName string, m proto.Message) (datastore.ChangeType, datastore.Params, error) {
@@ -108,7 +115,7 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("repo scoped: %w", err)
+		return nil, err
 	}
 
 	return ps, nil
@@ -135,6 +142,10 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	shard, err := c.nodeMgr.GetShard(virtualStorage)
 	if err != nil {
 		return nil, fmt.Errorf("mutator call: get shard: %w", err)
+	}
+
+	if featureflag.IsEnabled(ctx, featureflag.EnforceReadOnly) && shard.IsReadOnly {
+		return nil, helper.ErrPreconditionFailed(ReadOnlyStorageError(call.targetRepo.GetStorageName()))
 	}
 
 	if err = c.rewriteStorageForRepositoryMessage(call.methodInfo, call.msg, call.peeker, shard.Primary.GetStorage()); err != nil {
@@ -188,7 +199,7 @@ func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string,
 			if errors.Is(err, nodes.ErrVirtualStorageNotExist) {
 				return nil, helper.ErrInvalidArgument(err)
 			}
-			return nil, fmt.Errorf("repo scoped: %w", err)
+			return nil, err
 		}
 		return sp, nil
 	}

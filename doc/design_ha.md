@@ -148,6 +148,47 @@ to offload read queries to the replica, which is especially important
 for projects that rely on continuous integration to test the latest
 changes.
 
+### Failover
+
+Depending on the configured strategy, there are a few ways of handling a failure of a Primary
+Gitaly node:
+
+1. Strategies:
+    1. Failover disabled
+    1. Local elector
+    1. SQL elector
+1. Read-only mode
+
+#### Failover Disabled
+
+When failover is disabled, nothing will be done about the primary failure. The virtual storage
+is inaccessible until the configured primary node is back online.
+
+#### Local Elector
+
+Local election tries to promote another Gitaly node as the new primary. It simply picks the next
+node from the list of healthy secondaries of the failed primary. There is no synchronization between
+different Praefect nodes thus this strategy is mostly useful for local development. If no healthy secondary
+exists to serve as the new primary, the virtual storage will be inaccessible.
+
+#### SQL Elector
+
+SQL elector stores each Praefect's view of the Gitaly nodes' health in Postgres. When a primary fails, SQL
+elector promotes a secondary that the majority of Praefect nodes consider healthy as the new primary. When
+choosing the new primary, it also prioritizes a secondary that has the least failed replication jobs to minimize
+data loss. If there is no eligible candidate for a promotion, the virtual storage will be inaccessible.
+
+#### Read-only Mode
+
+A virtual storage is marked as read-only after failing over to a new primary. The main reason
+for this is to avoid conflicts between the new and the old primary. If there were outstanding replication jobs
+towards the new primary at the time of the failover, it would be missing some data as it wasn't able to replicate
+it from the old primary before the failover. Read-only mode prevents the new primary from accepting writes that
+would potentially conflict with the unreplicated writes on the old primary. This allows an administrator to
+solve data loss cases by synchronizing the missing data from the old primary to the new one if they so choose.
+Alternatively, an administrator can choose to enable writes on the new primary immediately if they do not wish
+to solve the data loss cases.
+
 ## Compared to Geo
 
 Despite the similarities above, there are significant differences

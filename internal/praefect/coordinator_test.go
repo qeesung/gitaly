@@ -2,6 +2,8 @@ package praefect
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"sync"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -20,6 +23,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 )
@@ -32,6 +37,108 @@ func init() {
 
 func TestSecondaryRotation(t *testing.T) {
 	t.Skip("secondary rotation will change with the new data model")
+}
+
+type mockNodeManager struct {
+	GetShardFunc func(string) (nodes.Shard, error)
+}
+
+func (m *mockNodeManager) GetShard(storage string) (nodes.Shard, error) {
+	return m.GetShardFunc(storage)
+}
+
+func (m *mockNodeManager) EnableWrites(context.Context, string) error { panic("unimplemented") }
+
+type mockNode struct {
+	nodes.Node
+	storageName string
+}
+
+func (m *mockNode) GetStorage() string { return m.storageName }
+
+func (m *mockNode) GetConnection() *grpc.ClientConn { return nil }
+
+func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
+	for _, tc := range []struct {
+		readOnly         bool
+		readOnlyEnforced bool
+		shouldError      bool
+	}{
+		{
+			readOnly:         false,
+			readOnlyEnforced: true,
+			shouldError:      false,
+		},
+		{
+			readOnly:         true,
+			readOnlyEnforced: true,
+			shouldError:      true,
+		},
+		{
+			readOnly:         false,
+			readOnlyEnforced: false,
+			shouldError:      false,
+		},
+		{
+			readOnly:         true,
+			readOnlyEnforced: false,
+			shouldError:      false,
+		},
+	} {
+		t.Run(fmt.Sprintf("read-only: %v, enabled: %v", tc.readOnly, tc.readOnlyEnforced), func(t *testing.T) {
+			conf := config.Config{
+				VirtualStorages: []*config.VirtualStorage{
+					&config.VirtualStorage{
+						Name: "praefect",
+						Nodes: []*models.Node{
+							&models.Node{
+								Address:        "tcp://gitaly-primary.example.com",
+								Storage:        "praefect-internal-1",
+								DefaultPrimary: true,
+							},
+						},
+					},
+				},
+			}
+			pbRegistry := protoregistry.New()
+			require.NoError(t, pbRegistry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+
+			const storageName = "test-storage"
+			coordinator := NewCoordinator(
+				testhelper.DiscardTestEntry(t),
+				datastore.Datastore{datastore.NewInMemory(conf), datastore.NewMemoryReplicationEventQueue()},
+				&mockNodeManager{GetShardFunc: func(storage string) (nodes.Shard, error) {
+					return nodes.Shard{
+						IsReadOnly: tc.readOnly,
+						Primary:    &mockNode{storageName: storageName},
+					}, nil
+				}},
+				transactions.NewManager(),
+				conf,
+				pbRegistry,
+			)
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+			if tc.readOnlyEnforced {
+				ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.EnforceReadOnly)
+			}
+
+			frame, err := proto.Marshal(&gitalypb.CleanupRequest{Repository: &gitalypb.Repository{
+				StorageName:  storageName,
+				RelativePath: "only-for-validation",
+			}})
+			require.NoError(t, err)
+
+			_, err = coordinator.StreamDirector(ctx, "/gitaly.RepositoryService/Cleanup", &mockPeeker{frame: frame})
+			if tc.shouldError {
+				require.True(t, errors.Is(err, ReadOnlyStorageError(storageName)))
+				testhelper.RequireGrpcError(t, err, codes.FailedPrecondition)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestStreamDirectorMutator(t *testing.T) {

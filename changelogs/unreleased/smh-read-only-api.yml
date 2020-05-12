@@ -1,0 +1,5 @@
+---
+title: Enforce read-only status for virtual storages
+merge_request: 2148
+author:
+type: added
