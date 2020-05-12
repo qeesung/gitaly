@@ -316,6 +316,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.ReplicateRepositoryResponse" do
   end
+  add_message "gitaly.OptimizeRepositoryRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+  end
+  add_message "gitaly.OptimizeRepositoryResponse" do
+  end
 end
 
 module Gitaly
@@ -404,4 +409,6 @@ module Gitaly
   RenameRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RenameRepositoryResponse").msgclass
   ReplicateRepositoryRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryRequest").msgclass
   ReplicateRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryResponse").msgclass
+  OptimizeRepositoryRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryRequest").msgclass
+  OptimizeRepositoryResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryResponse").msgclass
 end

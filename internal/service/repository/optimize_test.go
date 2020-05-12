@@ -10,6 +10,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc/codes"
 )
 
 func getNewestPackfileModtime(t *testing.T, repoPath string) time.Time {
@@ -50,9 +52,15 @@ func TestOptimizeRepository(t *testing.T) {
 
 	testhelper.CreateCommit(t, testRepoPath, "master", nil)
 
-	repoServer := &server{}
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
 
-	require.NoError(t, repoServer.optimizeRepository(ctx, testRepo))
+	repoClient, conn := NewRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	_, err = repoClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: testRepo})
+	require.NoError(t, err)
+
 	require.Equal(t, getNewestPackfileModtime(t, testRepoPath), newestsPackfileTime, "there should not have been a new packfile created")
 
 	testRepo, testRepoPath, cleanupBare := testhelper.InitBareRepo(t)
@@ -76,9 +84,57 @@ func TestOptimizeRepository(t *testing.T) {
 	require.Empty(t, bitmaps)
 
 	// optimize repository on a repository without a bitmap should call repack full
-	require.NoError(t, repoServer.optimizeRepository(ctx, testRepo))
+	_, err = repoClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: testRepo})
+	require.NoError(t, err)
 
 	bitmaps, err = filepath.Glob(filepath.Join(testRepoPath, "objects", "pack", "*.bitmap"))
 	require.NoError(t, err)
 	require.NotEmpty(t, bitmaps)
+}
+
+func TestOptimizeRepositoryValidation(t *testing.T) {
+	testRepo, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	testCases := []struct {
+		desc              string
+		repo              *gitalypb.Repository
+		expectedErrorCode codes.Code
+	}{
+		{
+			desc:              "empty repository",
+			repo:              nil,
+			expectedErrorCode: codes.InvalidArgument,
+		},
+		{
+			desc:              "invalid repository storage",
+			repo:              &gitalypb.Repository{StorageName: "non-existent", RelativePath: testRepo.GetRelativePath()},
+			expectedErrorCode: codes.InvalidArgument,
+		},
+		{
+			desc:              "invalid repository path",
+			repo:              &gitalypb.Repository{StorageName: testRepo.GetStorageName(), RelativePath: "/path/not/exist"},
+			expectedErrorCode: codes.NotFound,
+		},
+	}
+
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
+
+	repoClient, conn := NewRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := repoClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: tc.repo})
+			require.Error(t, err)
+			testhelper.RequireGrpcError(t, err, tc.expectedErrorCode)
+		})
+	}
+
+	_, err := repoClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: testRepo})
+	require.NoError(t, err)
 }

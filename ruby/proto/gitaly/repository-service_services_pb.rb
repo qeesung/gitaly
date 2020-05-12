@@ -54,6 +54,7 @@ module Gitaly
       rpc :RemoveRepository, RemoveRepositoryRequest, RemoveRepositoryResponse
       rpc :RenameRepository, RenameRepositoryRequest, RenameRepositoryResponse
       rpc :ReplicateRepository, ReplicateRepositoryRequest, ReplicateRepositoryResponse
+      rpc :OptimizeRepository, OptimizeRepositoryRequest, OptimizeRepositoryResponse
     end
 
     Stub = Service.rpc_stub_class

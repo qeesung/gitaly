@@ -36,3 +36,28 @@ func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Re
 
 	return nil
 }
+
+func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
+	if err := validateOptimizeRepositoryRequest(in); err != nil {
+		return nil, err
+	}
+
+	if err := s.optimizeRepository(ctx, in.GetRepository()); err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
+	return &gitalypb.OptimizeRepositoryResponse{}, nil
+}
+
+func validateOptimizeRepositoryRequest(in *gitalypb.OptimizeRepositoryRequest) error {
+	if in.GetRepository() == nil {
+		return helper.ErrInvalidArgumentf("empty repository")
+	}
+
+	_, err := helper.GetRepoPath(in.GetRepository())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

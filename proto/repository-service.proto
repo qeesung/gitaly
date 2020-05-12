@@ -209,6 +209,11 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+  rpc OptimizeRepository(OptimizeRepositoryRequest) returns (OptimizeRepositoryResponse) {
+    option (op_type)  = {
+      op: MUTATOR
+    };
+  }
 }
 
 message RepositoryExistsRequest {
@@ -605,3 +610,9 @@ message ReplicateRepositoryRequest {
 }
 
 message ReplicateRepositoryResponse{}
+
+message OptimizeRepositoryRequest {
+  Repository repository = 1 [(target_repository)=true];
+}
+
+message OptimizeRepositoryResponse{}
