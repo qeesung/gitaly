@@ -2,12 +2,20 @@ package metadatahandler
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	correlationID = "CORRELATION_ID"
+	clientName    = "CLIENT_NAME"
 )
 
 func TestAddMetadataTags(t *testing.T) {
@@ -98,4 +106,42 @@ func TestAddMetadataTags(t *testing.T) {
 			require.Equal(t, testCase.expectedMetatags, addMetadataTags(ctx))
 		})
 	}
+}
+
+func verifyHandler(ctx context.Context, req interface{}) (interface{}, error) {
+	require, ok := req.(*require.Assertions)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type conversion failure")
+	}
+	metaTags := addMetadataTags(ctx)
+	require.Equal(clientName, metaTags.clientName)
+
+	tags := grpc_ctxtags.Extract(ctx)
+	require.True(tags.Has(CorrelationIDKey))
+	require.True(tags.Has(ClientNameKey))
+	values := tags.Values()
+	require.Equal(correlationID, values[CorrelationIDKey])
+	require.Equal(clientName, values[ClientNameKey])
+
+	return nil, nil
+}
+
+func TestGRPCTags(t *testing.T) {
+	require := require.New(t)
+
+	ctx := metadata.NewIncomingContext(
+		correlation.ContextWithCorrelation(
+			correlation.ContextWithClientName(
+				context.Background(),
+				clientName,
+			),
+			correlationID,
+		),
+		metadata.Pairs(),
+	)
+
+	interceptor := grpc_ctxtags.UnaryServerInterceptor()
+
+	_, err := interceptor(ctx, require, nil, verifyHandler)
+	require.NoError(err)
 }
