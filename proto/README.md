@@ -221,7 +221,7 @@ default, we prefer headers.
 
 ### RPC Annotations
 
-In preparation for Gitaly HA, we are now requiring all RPC's to be annotated
+In preparation for Gitaly Clusters, we are now requiring all RPC's to be annotated
 with an appropriate designation. All methods must contain one of the following lines:
 
 - `option (op_type).op = ACCESSOR;`
@@ -244,7 +244,7 @@ indicate what is being modified:
     and may specify the additional repository.
 
 The target repository represents the location or address of the repository
-being modified by the operation. This is needed by Praefect (Gitaly HA) in
+being modified by the operation. This is needed by Praefect (Gitaly Clusters) in
 order to properly schedule replications to keep repository replicas up to date.
 
 The target repository annotation marks where the target repository can be
