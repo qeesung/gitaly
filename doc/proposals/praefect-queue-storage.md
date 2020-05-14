@@ -2,7 +2,7 @@
 
 ## Rationale
 
-Praefect is the traffic router and replication manager for Gitaly Clusters.
+Praefect is the traffic router and replication manager for Gitaly Cluster.
 Praefect is currently (November 2019) under development and far from
 being a minimum viable HA solution. We are at a point where we think we
 need to add database to Praefect's architecture.

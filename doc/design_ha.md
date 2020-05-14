@@ -1,11 +1,11 @@
 # Gitaly High Availability (HA) Design
-Gitaly Clusters is an active-active cluster configuration for resilient git operations. [Refer to our specific requirements](https://gitlab.com/gitlab-org/gitaly/issues/1332).
+Gitaly Cluster is an active-active cluster configuration for resilient git operations. [Refer to our specific requirements](https://gitlab.com/gitlab-org/gitaly/issues/1332).
 
 Refer to [epic &289][epic] for current issues and discussions revolving around
 HA MVC development.
 
 ## Terminology
-The following terminology may be used within the context of the Gitaly Clusters project:
+The following terminology may be used within the context of the Gitaly Cluster project:
 
 - Shard - partition of the storage for all repos. Each shard will require redundancy in the form of multiple Gitaly nodes (at least 3 when optimal) to maintain HA.
 - Praefect - a transparent front end to all Gitaly shards. This reverse proxy ensures that all gRPC calls are forwarded to the correct shard by consulting the coordinator. The reverse proxy also ensures that write actions are performed transactionally when needed.
@@ -192,10 +192,10 @@ to solve the data loss cases.
 ## Compared to Geo
 
 Despite the similarities above, there are significant differences
-between Gitaly Clusters and Geo:
+between Gitaly Cluster and Geo:
 
 1. High-availability vs. disaster recovery: These are fundamentally
-   different goals. Gitaly Clusters enables GitLab to function even if a
+   different goals. Gitaly Cluster enables GitLab to function even if a
    single Gitaly node goes down by transparently failing over to a
    secondary Gitaly node.
 
@@ -208,18 +208,18 @@ between Gitaly Clusters and Geo:
   does not handle failure of a single Gitaly node.
 
 1. Unlike Geo, strong consistency is most likely a requirement for
-   Gitaly Clusters. Gitaly Clusters has to be able to fail over to replicas without
+   Gitaly Cluster. Gitaly Cluster has to be able to fail over to replicas without
    human interaction.
 
-1. Gitaly Clusters only replicates Git repository data and omits other GitLab
+1. Gitaly Cluster only replicates Git repository data and omits other GitLab
    artifacts (e.g. upload attachments, Git LFS files, CI artifacts, Docker
    containers, etc.).
 
-1. Under the hood, the manner in which Geo and Gitaly Clusters detect
+1. Under the hood, the manner in which Geo and Gitaly Cluster detect
    repository changes is subtly different but important. For example,
    when a user pushes to a Geo primary instance, the Git post-receive
    handler emits an event (in the form of a database row in PostgreSQL)
-   that tells secondaries that the repository has changed. In Gitaly Clusters,
+   that tells secondaries that the repository has changed. In Gitaly Cluster,
    Praefect directly handles the RPC that will mutate the repository. This
    architecture makes it possible for Praefect to support strong
    consistency.
