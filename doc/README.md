@@ -18,7 +18,7 @@ The reference guide is documented in https://gitlab.com/gitlab-org/gitlab/blob/m
 - Tests use Git repositories too, [read more about them](doc/test_repos.md)
 - Praefect uses SQL. To create a new SQL migration see [sql_migrations.md](sql_migrations.md)
 
-#### Gitaly HA
+#### Gitaly Cluster
 
 Gitaly does not replicate any data. If a Gitaly server goes down, any of its
 clients can't read or write to the repositories stored on that server. This
