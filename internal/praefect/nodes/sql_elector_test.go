@@ -216,17 +216,20 @@ func TestElectNewPrimary(t *testing.T) {
 		initialReplQueueInsert: `INSERT INTO replication_queue
 	(job, updated_at, state)
 	VALUES
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:04', 'dead'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:03', 'completed'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'completed'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'completed'),
-	('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
+	('{"virtual_storage": "test-shard-1", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:05', 'ready'),
+	('{"virtual_storage": "test-shard-1", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:05', 'completed'),
 
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:04', 'completed'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'dead'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'dead'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'dead'),
-	('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'dead')`,
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:04', 'dead'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:03', 'completed'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'completed'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'completed'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
+
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:04', 'completed'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'dead'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'dead'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'dead'),
+	('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'dead')`,
 		expectedPrimary: "gitaly-2",
 		incompleteCounts: []targetNodeIncompleteCounts{
 			{
@@ -250,14 +253,17 @@ func TestElectNewPrimary(t *testing.T) {
 			initialReplQueueInsert: `INSERT INTO replication_queue
 		(job, updated_at, state)
 		VALUES
-		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'dead'),
-		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'dead'),
-		('{"target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
+		('{"virtual_storage": "test-shard-1", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:05', 'in_progress'),
+		('{"virtual_storage": "test-shard-1", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:05', 'completed'),
 
-		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'ready'),
-		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'in_progress'),
-		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'ready'),
-		('{"target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'completed')`,
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:02', 'dead'),
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:01', 'dead'),
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-1"}', '2020-01-01 00:00:00', 'completed'),
+
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:03', 'ready'),
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:02', 'in_progress'),
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:01', 'ready'),
+		('{"virtual_storage": "test-shard-0", "target_node_storage": "gitaly-2"}', '2020-01-01 00:00:00', 'completed')`,
 			expectedPrimary: "gitaly-2",
 			incompleteCounts: []targetNodeIncompleteCounts{
 				{

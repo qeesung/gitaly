@@ -32,6 +32,7 @@ func init() {
 			`DROP TABLE IF EXISTS replication_queue_job_lock CASCADE`,
 			`DROP TABLE IF EXISTS replication_queue CASCADE`,
 			`DROP TABLE IF EXISTS replication_queue_lock CASCADE`,
+			`DROP TYPE IF EXISTS REPLICATION_JOB_STATE`,
 		},
 	}
 

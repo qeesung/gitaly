@@ -377,14 +377,15 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 	            		job->>'target_node_storage' AS target_node_storage,
 	            		MAX(updated_at) AS updated_at
 	            	FROM replication_queue
-	            	WHERE state = 'completed' AND job->>'target_node_storage' = ANY ($1)
+	            	WHERE state = 'completed' AND job->>'target_node_storage' = ANY ($1) AND job->>'virtual_storage' = $2
 	            	GROUP BY job->>'target_node_storage'
 	            ) latest ON rq.job->>'target_node_storage' = latest.target_node_storage AND rq.updated_at >= latest.updated_at
+	            WHERE rq.job->>'virtual_storage' = $2
 	        ) AS t
 	        GROUP BY target_node_storage
 	        ORDER BY SUM(ready+in_progress+2*failed+2*dead)`
 
-	rows, err := s.db.Query(q, pq.Array(candidateStorages))
+	rows, err := s.db.Query(q, pq.Array(candidateStorages), s.shardName)
 	if err != nil {
 		return fmt.Errorf("executing query for ordering candidate nodes: %w", err)
 	}
