@@ -220,7 +220,6 @@ func ensureConsistency(ctx context.Context, disableReconcile bool, checksumResul
 			return err
 		}
 	}
-	return nil
 }
 
 func (s *Server) ConsistencyCheck(req *gitalypb.ConsistencyCheckRequest, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
