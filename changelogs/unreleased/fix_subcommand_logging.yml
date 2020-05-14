@@ -1,0 +1,5 @@
+---
+title: Configure logging before running sub-commands
+merge_request: 2169
+author:
+type: fixed

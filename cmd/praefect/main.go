@@ -145,6 +145,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	conf.ConfigureLogger()
+
 	if args := flag.Args(); len(args) > 0 {
 		os.Exit(subCommand(conf, args[0], args[1:]))
 	}
@@ -188,8 +190,6 @@ func initConfig() (config.Config, error) {
 }
 
 func configure(conf config.Config) {
-	conf.ConfigureLogger()
-
 	tracing.Initialize(tracing.WithServiceName(progname))
 
 	if conf.PrometheusListenAddr != "" {
