@@ -2,8 +2,10 @@ package info
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
@@ -40,5 +42,13 @@ func NewServer(nodeMgr nodes.Manager, conf config.Config, queue Queue) gitalypb.
 }
 
 func (s *Server) EnableWrites(ctx context.Context, req *gitalypb.EnableWritesRequest) (*gitalypb.EnableWritesResponse, error) {
-	return nil, s.nodeMgr.EnableWrites(ctx, req.GetVirtualStorage())
+	if err := s.nodeMgr.EnableWrites(ctx, req.GetVirtualStorage()); err != nil {
+		if errors.Is(err, nodes.ErrVirtualStorageNotExist) {
+			return nil, helper.ErrInvalidArgument(err)
+		}
+
+		return nil, helper.ErrInternal(err)
+	}
+
+	return &gitalypb.EnableWritesResponse{}, nil
 }
