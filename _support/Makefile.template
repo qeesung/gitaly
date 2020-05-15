@@ -7,7 +7,10 @@
 
 # These variables may be overridden at runtime by top-level make
 PREFIX ?= /usr/local
-INSTALL_DEST_DIR := $(DESTDIR)$(PREFIX)/bin/
+prefix ?= $(PREFIX)
+exec_prefix ?= $(prefix)
+bindir ?= $(exec_prefix)/bin
+INSTALL_DEST_DIR := $(DESTDIR)$(bindir)
 BUNDLE_FLAGS ?= {{ .BundleFlags }}
 ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
 BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
