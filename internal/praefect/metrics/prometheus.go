@@ -66,6 +66,35 @@ func RegisterReplicationJobsInFlight() (metrics.Gauge, error) {
 	return replicationJobsInFlight, prometheus.Register(replicationJobsInFlight)
 }
 
+// RegisterTransactionCounter creates and registers a Prometheus counter to
+// track the number of transactions and their outcomes.
+func RegisterTransactionCounter() (*prometheus.CounterVec, error) {
+	transactionCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "gitaly",
+			Subsystem: "praefect",
+			Name:      "transactions_total",
+		},
+		[]string{"action"},
+	)
+	return transactionCounter, prometheus.Register(transactionCounter)
+}
+
+// RegisterTransactionDelay creates and registers a Prometheus histogram to
+// track the delay of actions performed on transactions.
+func RegisterTransactionDelay(conf promconfig.Config) (metrics.HistogramVec, error) {
+	transactionDelay := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "gitaly",
+			Subsystem: "praefect",
+			Name:      "transactions_delay_seconds",
+			Buckets:   conf.GRPCLatencyBuckets,
+		},
+		[]string{"action"},
+	)
+	return transactionDelay, prometheus.Register(transactionDelay)
+}
+
 var MethodTypeCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: "gitaly",

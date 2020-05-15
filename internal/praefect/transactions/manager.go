@@ -7,25 +7,55 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 )
 
 // Manager handles reference transactions for Praefect. It is required in order
 // for Praefect to handle transactions directly instead of having to reach out
 // to reference transaction RPCs.
 type Manager struct {
-	lock         sync.Mutex
-	transactions map[uint64]string
+	lock          sync.Mutex
+	transactions  map[uint64]string
+	counterMetric *prometheus.CounterVec
+	delayMetric   metrics.HistogramVec
+}
+
+// ManagerOpt is a self referential option for Manager
+type ManagerOpt func(*Manager)
+
+// WithCounterMetric is an option to set the counter Prometheus metric
+func WithCounterMetric(counterMetric *prometheus.CounterVec) ManagerOpt {
+	return func(mgr *Manager) {
+		mgr.counterMetric = counterMetric
+	}
+}
+
+// WithDelayMetric is an option to set the delay Prometheus metric
+func WithDelayMetric(delayMetric metrics.HistogramVec) ManagerOpt {
+	return func(mgr *Manager) {
+		mgr.delayMetric = delayMetric
+	}
 }
 
 // NewManager creates a new transactions Manager.
-func NewManager() *Manager {
-	return &Manager{
-		transactions: make(map[uint64]string),
+func NewManager(opts ...ManagerOpt) *Manager {
+	mgr := &Manager{
+		transactions:  make(map[uint64]string),
+		counterMetric: prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
+		delayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
 	}
+
+	for _, opt := range opts {
+		opt(mgr)
+	}
+
+	return mgr
 }
 
 func (mgr *Manager) log(ctx context.Context) logrus.FieldLogger {
@@ -65,6 +95,8 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, nodes []string) (ui
 		"nodes":          nodes,
 	}).Debug("RegisterTransaction")
 
+	mgr.counterMetric.WithLabelValues("registered").Inc()
+
 	return transactionID, func() {
 		mgr.cancelTransaction(transactionID)
 	}, nil
@@ -76,22 +108,7 @@ func (mgr *Manager) cancelTransaction(transactionID uint64) {
 	delete(mgr.transactions, transactionID)
 }
 
-// StartTransaction is called by a client who's starting a reference
-// transaction. As we currently only have primary nodes which perform reference
-// transactions, this function doesn't yet do anything of interest but will
-// always instruct the node to commit, if given valid transaction parameters.
-// In future, it will wait for all clients of a given transaction to start the
-// transaction and perform a vote.
-func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
-	mgr.lock.Lock()
-	defer mgr.lock.Unlock()
-
-	mgr.log(ctx).WithFields(logrus.Fields{
-		"transaction_id": transactionID,
-		"node":           node,
-		"hash":           hex.EncodeToString(hash),
-	}).Debug("StartTransaction")
-
+func (mgr *Manager) verifyTransaction(transactionID uint64, node string, hash []byte) error {
 	// While the reference updates hash is not used yet, we already verify
 	// it's there. At a later point, the hash will be used to verify that
 	// all voting nodes agree on the same updates.
@@ -99,7 +116,10 @@ func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, 
 		return helper.ErrInvalidArgumentf("invalid reference hash: %q", hash)
 	}
 
+	mgr.lock.Lock()
 	transaction, ok := mgr.transactions[transactionID]
+	mgr.lock.Unlock()
+
 	if !ok {
 		return helper.ErrNotFound(fmt.Errorf("no such transaction: %d", transactionID))
 	}
@@ -108,10 +128,47 @@ func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, 
 		return helper.ErrInternalf("invalid node for transaction: %q", node)
 	}
 
+	return nil
+}
+
+// StartTransaction is called by a client who's starting a reference
+// transaction. As we currently only have primary nodes which perform reference
+// transactions, this function doesn't yet do anything of interest but will
+// always instruct the node to commit, if given valid transaction parameters.
+// In future, it will wait for all clients of a given transaction to start the
+// transaction and perform a vote.
+func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
+	start := time.Now()
+	defer func() {
+		delay := time.Since(start)
+		mgr.delayMetric.WithLabelValues("vote").Observe(delay.Seconds())
+	}()
+
+	mgr.counterMetric.WithLabelValues("started").Inc()
+
 	mgr.log(ctx).WithFields(logrus.Fields{
 		"transaction_id": transactionID,
+		"node":           node,
 		"hash":           hex.EncodeToString(hash),
-	}).Debug("CommitTransaction")
+	}).Debug("StartTransaction")
+
+	if err := mgr.verifyTransaction(transactionID, node, hash); err != nil {
+		mgr.log(ctx).WithFields(logrus.Fields{
+			"transaction_id": transactionID,
+			"node":           node,
+			"hash":           hex.EncodeToString(hash),
+		}).WithError(err).Error("StartTransaction: transaction invalid")
+		mgr.counterMetric.WithLabelValues("invalid").Inc()
+		return err
+	}
+
+	mgr.log(ctx).WithFields(logrus.Fields{
+		"transaction_id": transactionID,
+		"node":           node,
+		"hash":           hex.EncodeToString(hash),
+	}).Debug("StartTransaction: transaction committed")
+
+	mgr.counterMetric.WithLabelValues("committed").Inc()
 
 	return nil
 }

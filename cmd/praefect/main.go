@@ -237,7 +237,20 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	}
 	nodeManager.Start(1*time.Second, 3*time.Second)
 
-	transactionManager := transactions.NewManager()
+	transactionCounterMetric, err := metrics.RegisterTransactionCounter()
+	if err != nil {
+		return err
+	}
+
+	transactionDelayMetric, err := metrics.RegisterTransactionDelay(conf.Prometheus)
+	if err != nil {
+		return err
+	}
+
+	transactionManager := transactions.NewManager(
+		transactions.WithCounterMetric(transactionCounterMetric),
+		transactions.WithDelayMetric(transactionDelayMetric),
+	)
 
 	registry := protoregistry.New()
 	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {
