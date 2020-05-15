@@ -11,6 +11,7 @@ import (
 	"github.com/cloudflare/tableflip"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -67,7 +68,21 @@ func New() (*Bootstrap, error) {
 	_, upgradesEnabled := os.LookupEnv(EnvUpgradesEnabled)
 
 	// PIDFile is optional, if provided tableflip will keep it updated
-	upg, err := tableflip.New(tableflip.Options{PIDFile: pidFile})
+	upg, err := tableflip.New(tableflip.Options{
+		PIDFile: pidFile,
+		ListenConfig: &net.ListenConfig{
+			Control: func(network, address string, c syscall.RawConn) error {
+				var opErr error
+				err := c.Control(func(fd uintptr) {
+					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+				})
+				if err != nil {
+					return err
+				}
+				return opErr
+			},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

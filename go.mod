@@ -3,7 +3,7 @@ module gitlab.com/gitlab-org/gitaly
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cloudflare/tableflip v0.0.0-20190329062924-8392f1641731
+	github.com/cloudflare/tableflip v1.2.1-0.20200514155827-4baec9811f2b
 	github.com/getsentry/sentry-go v0.5.1
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1

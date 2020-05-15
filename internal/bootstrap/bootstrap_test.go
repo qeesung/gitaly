@@ -201,6 +201,24 @@ func TestGracefulTermination(t *testing.T) {
 	require.Contains(t, err.Error(), "completed")
 }
 
+func TestPortReuse(t *testing.T) {
+	var addr string
+
+	b, err := New()
+	require.NoError(t, err)
+
+	l, err := b.listen("tcp", "0.0.0.0:")
+	require.NoError(t, err, "failed to bind")
+
+	addr = l.Addr().String()
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	l, err = b.listen("tcp", "0.0.0.0:"+port)
+	require.NoError(t, err, "failed to bind")
+	require.NoError(t, l.Close())
+}
+
 func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout time.Duration, duringGracePeriodCallback func()) error {
 	defer func(oldVal time.Duration) {
 		config.Config.GracefulRestartTimeout = oldVal
