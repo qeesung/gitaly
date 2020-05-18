@@ -33,7 +33,7 @@ func TestDatalossCheck(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	rq := datastore.NewMemoryReplicationEventQueue()
+	rq := datastore.NewMemoryReplicationEventQueue(cfg)
 	const targetNode = "test-node"
 	killJobs := func(t *testing.T) {
 		t.Helper()

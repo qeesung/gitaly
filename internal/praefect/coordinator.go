@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -98,17 +99,25 @@ func NewCoordinator(l logrus.FieldLogger, ds datastore.Datastore, nodeMgr nodes.
 }
 
 func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call grpcCall) (*proxy.StreamParameters, error) {
-	ctx, err := metadata.InjectPraefectServer(ctx, c.conf)
+	targetRepo, err := call.methodInfo.TargetRepo(call.msg)
 	if err != nil {
+		return nil, helper.ErrInvalidArgument(fmt.Errorf("repo scoped: %w", err))
+	}
+
+	if targetRepo.StorageName == "" || targetRepo.RelativePath == "" {
+		return nil, helper.ErrInvalidArgumentf("repo scoped: target repo is invalid")
+	}
+
+	if ctx, err = metadata.InjectPraefectServer(ctx, c.conf); err != nil {
 		return nil, fmt.Errorf("repo scoped: could not inject Praefect server: %w", err)
 	}
 
 	var ps *proxy.StreamParameters
 	switch call.methodInfo.Operation {
 	case protoregistry.OpAccessor:
-		ps, err = c.accessorStreamParameters(ctx, call)
+		ps, err = c.accessorStreamParameters(ctx, call, targetRepo)
 	case protoregistry.OpMutator:
-		ps, err = c.mutatorStreamParameters(ctx, call)
+		ps, err = c.mutatorStreamParameters(ctx, call, targetRepo)
 	default:
 		err = fmt.Errorf("unknown operation type: %v", call.methodInfo.Operation)
 	}
@@ -120,23 +129,27 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 	return ps, nil
 }
 
-func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCall) (*proxy.StreamParameters, error) {
-	virtualStorage := call.targetRepo.StorageName
+func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCall, targetRepo *gitalypb.Repository) (*proxy.StreamParameters, error) {
+	repoPath := targetRepo.GetRelativePath()
+	virtualStorage := targetRepo.StorageName
 
-	shard, err := c.nodeMgr.GetShard(virtualStorage)
+	node, err := c.nodeMgr.GetSyncedNode(ctx, virtualStorage, repoPath)
 	if err != nil {
-		return nil, fmt.Errorf("accessor call: get shard: %w", err)
+		return nil, fmt.Errorf("accessor call: get synced: %w", err)
 	}
 
-	if err := c.rewriteStorageForRepositoryMessage(call.methodInfo, call.msg, call.peeker, shard.Primary.GetStorage()); err != nil {
+	storage := node.GetStorage()
+	if err := c.rewriteStorageForRepositoryMessage(call.methodInfo, call.msg, call.peeker, storage); err != nil {
 		return nil, fmt.Errorf("accessor call: rewrite storage: %w", err)
 	}
 
-	return proxy.NewStreamParameters(ctx, shard.Primary.GetConnection(), nil, nil), nil
+	metrics.ReadDistribution.WithLabelValues(virtualStorage, storage).Inc()
+
+	return proxy.NewStreamParameters(ctx, node.GetConnection(), nil, nil), nil
 }
 
-func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall) (*proxy.StreamParameters, error) {
-	virtualStorage := call.targetRepo.StorageName
+func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall, targetRepo *gitalypb.Repository) (*proxy.StreamParameters, error) {
+	virtualStorage := targetRepo.StorageName
 
 	shard, err := c.nodeMgr.GetShard(virtualStorage)
 	if err != nil {
@@ -217,14 +230,14 @@ func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string,
 	return proxy.NewStreamParameters(ctx, shard.Primary.GetConnection(), func() {}, nil), nil
 }
 
-func (c *Coordinator) rewriteStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier, primaryStorage string) error {
+func (c *Coordinator) rewriteStorageForRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, peeker proxy.StreamModifier, storage string) error {
 	targetRepo, err := mi.TargetRepo(m)
 	if err != nil {
 		return helper.ErrInvalidArgument(err)
 	}
 
 	// rewrite storage name
-	targetRepo.StorageName = primaryStorage
+	targetRepo.StorageName = storage
 
 	additionalRepo, ok, err := mi.AdditionalRepo(m)
 	if err != nil {
@@ -232,7 +245,7 @@ func (c *Coordinator) rewriteStorageForRepositoryMessage(mi protoregistry.Method
 	}
 
 	if ok {
-		additionalRepo.StorageName = primaryStorage
+		additionalRepo.StorageName = storage
 	}
 
 	b, err := proxy.NewCodec().Marshal(m)

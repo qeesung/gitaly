@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
@@ -105,11 +106,11 @@ func ContractTestCountDeadReplicationJobs(t *testing.T, q ReplicationEventQueue)
 }
 
 func TestMemoryCountDeadReplicationJobs(t *testing.T) {
-	ContractTestCountDeadReplicationJobs(t, NewMemoryReplicationEventQueue())
+	ContractTestCountDeadReplicationJobs(t, NewMemoryReplicationEventQueue(config.Config{}))
 }
 
 func TestMemoryCountDeadReplicationJobsLimit(t *testing.T) {
-	q := NewMemoryReplicationEventQueue().(*memoryReplicationEventQueue)
+	q := NewMemoryReplicationEventQueue(config.Config{}).(*memoryReplicationEventQueue)
 	q.maxDeadJobs = 2
 
 	ctx, cancel := testhelper.Context()
@@ -146,7 +147,7 @@ func TestMemoryReplicationEventQueue(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	queue := NewMemoryReplicationEventQueue()
+	queue := NewMemoryReplicationEventQueue(config.Config{})
 
 	noEvents, err := queue.Dequeue(ctx, "praefect", "storage-1", 100500)
 	require.NoError(t, err)
@@ -300,7 +301,7 @@ func TestMemoryReplicationEventQueue_ConcurrentAccess(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	queue := NewMemoryReplicationEventQueue()
+	queue := NewMemoryReplicationEventQueue(config.Config{})
 
 	job1 := ReplicationJob{
 		Change:            UpdateRepo,

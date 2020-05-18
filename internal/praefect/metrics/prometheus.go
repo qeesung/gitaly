@@ -127,11 +127,23 @@ var ChecksumMismatchCounter = prometheus.NewCounterVec(
 	}, []string{"target", "source"},
 )
 
+// ReadDistribution counts how many read operations was routed to each storage.
+var ReadDistribution = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "gitaly",
+		Subsystem: "praefect",
+		Name:      "read_distribution",
+		Help:      "Counts read operations directed to the storages",
+	},
+	[]string{"virtual_storage", "storage"},
+)
+
 func init() {
 	prometheus.MustRegister(
 		MethodTypeCounter,
 		PrimaryGauge,
 		ChecksumMismatchCounter,
 		NodeLastHealthcheckGauge,
+		ReadDistribution,
 	)
 }

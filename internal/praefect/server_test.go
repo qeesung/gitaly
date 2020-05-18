@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -433,7 +434,7 @@ func TestRepoRemoval(t *testing.T) {
 
 	// TODO: once https://gitlab.com/gitlab-org/gitaly/-/issues/2703 is done and the replication manager supports
 	// graceful shutdown, we can remove this code that waits for jobs to be complete
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
 		ReplicationEventQueue: queueInterceptor,
@@ -524,6 +525,7 @@ func TestRepoRename(t *testing.T) {
 				},
 			},
 		},
+		DistributedReadsEnabled: true,
 	}
 
 	virtualStorage := conf.VirtualStorages[0]
@@ -557,7 +559,21 @@ func TestRepoRename(t *testing.T) {
 	_, path2, cleanup2 := cloneRepoAtStorage(t, repo0, virtualStorage.Nodes[2].Storage)
 	defer cleanup2()
 
-	cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
+	var canCheckRepo sync.WaitGroup
+	canCheckRepo.Add(2)
+
+	evq := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	evq.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
+		defer canCheckRepo.Done()
+		return queue.Acknowledge(ctx, state, ids)
+	})
+
+	ds := datastore.Datastore{
+		ReplicasDatastore:     datastore.NewInMemory(conf),
+		ReplicationEventQueue: evq,
+	}
+
+	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, ds)
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()
@@ -597,6 +613,11 @@ func TestRepoRename(t *testing.T) {
 	cpVirtualRepo := *virtualRepo
 	renamedVirtualRepo := &cpVirtualRepo
 	renamedVirtualRepo.RelativePath = newName
+
+	// wait until replication jobs propagate changes to other storages
+	// as we don't know which one will be used to check because of read distribution
+	canCheckRepo.Wait()
+
 	resp, err = repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
 		Repository: renamedVirtualRepo,
 	})

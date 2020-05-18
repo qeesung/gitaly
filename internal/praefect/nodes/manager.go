@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -38,6 +41,9 @@ type Manager interface {
 	// ErrVirtualStorageNotExist if a virtual storage with the given name
 	// does not exist.
 	EnableWrites(ctx context.Context, virtualStorageName string) error
+	// GetSyncedNode returns a random storage node based on the state of the replication.
+	// It returns primary in case there are no up to date secondaries or error occurs.
+	GetSyncedNode(ctx context.Context, virtualStorageName, repoPath string) (Node, error)
 }
 
 // Node represents some metadata of a node as well as a connection
@@ -52,10 +58,14 @@ type Node interface {
 // Mgr is a concrete type that adheres to the Manager interface
 type Mgr struct {
 	failoverEnabled bool
-	log             *logrus.Entry
+	distributeReads bool
+	// log must be used only for non-request specific needs like bootstrapping, etc.
+	// for request related logging `ctxlogrus.Extract(ctx)` must be used.
+	log *logrus.Entry
 	// strategies is a map of strategies keyed on virtual storage name
 	strategies map[string]leaderElectionStrategy
 	db         *sql.DB
+	ds         datastore.Datastore
 }
 
 // leaderElectionStrategy defines the interface by which primary and
@@ -74,7 +84,7 @@ var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 const dialTimeout = 10 * time.Second
 
 // NewManager creates a new NodeMgr based on virtual storage configs
-func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
+func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, ds datastore.Datastore, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	strategies := make(map[string]leaderElectionStrategy, len(c.VirtualStorages))
 
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
@@ -123,7 +133,9 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, latencyHistogram
 		log:             log,
 		db:              db,
 		failoverEnabled: c.Failover.Enabled,
+		distributeReads: c.DistributedReadsEnabled,
 		strategies:      strategies,
+		ds:              ds,
 	}, nil
 }
 
@@ -171,6 +183,37 @@ func (n *Mgr) EnableWrites(ctx context.Context, virtualStorageName string) error
 	}
 
 	return strategy.enableWrites(ctx)
+}
+
+func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath string) (Node, error) {
+	shard, err := n.GetShard(virtualStorageName)
+	if err != nil {
+		return nil, fmt.Errorf("get shard for %q: %w", virtualStorageName, err)
+	}
+
+	var storages []string
+	if n.distributeReads {
+		if storages, err = n.ds.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
+			// this is recoverable error - proceed with primary node
+			ctxlogrus.Extract(ctx).
+				WithError(err).
+				WithFields(logrus.Fields{"virtual_storage_name": virtualStorageName, "repo_path": repoPath}).
+				Error("get up to date secondaries")
+		}
+	}
+
+	if len(storages) == 0 {
+		return shard.Primary, nil
+	}
+
+	secondary := storages[rand.Intn(len(storages))] // randomly pick up one of the synced storages
+	for _, node := range shard.Secondaries {
+		if node.GetStorage() == secondary {
+			return node, nil
+		}
+	}
+
+	return shard.Primary, nil // there is no matched secondaries, maybe because of re-configuration
 }
 
 func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {

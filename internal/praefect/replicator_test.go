@@ -90,7 +90,7 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
 	}
 
 	// create object pool on the source
@@ -149,7 +149,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	entry := testhelper.DiscardTestEntry(t)
 	replicator.log = entry
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
@@ -217,11 +217,11 @@ func TestPropagateReplicationJob(t *testing.T) {
 
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
 	}
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
@@ -457,7 +457,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	processed := make(chan struct{})
 
 	dequeues := 0
@@ -520,7 +520,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	replMgr := NewReplMgr(logEntry, ds, nodeMgr)
@@ -584,7 +584,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	})
 	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 
 	processed := make(chan struct{})
 	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
@@ -658,7 +658,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	replMgr := NewReplMgr(logEntry, ds, nodeMgr)

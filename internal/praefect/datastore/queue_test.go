@@ -572,6 +572,209 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	})
 }
 
+func TestPostgresReplicationEventQueue_GetUpToDateStorages(t *testing.T) {
+	db := getDB(t)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	source := PostgresReplicationEventQueue{qc: db}
+
+	t.Run("single 'ready' job for single storage", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'ready')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{}, ss)
+	})
+
+	t.Run("single 'dead' job for single storage", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'dead')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{}, ss)
+	})
+
+	t.Run("single 'failed' job for single storage", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'failed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{}, ss)
+	})
+
+	t.Run("single 'completed' job for single storage", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s1"}, ss)
+	})
+
+	t.Run("multiple 'completed' jobs for single storage but different repos", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-2"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s1"}, ss)
+	})
+
+	t.Run("last jobs are 'completed' for multiple storages", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s1", "s2"}, ss)
+	})
+
+	t.Run("last jobs are 'completed' for multiple storages but different virtuals", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+				('{"virtual_storage": "vs2", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s1"}, ss)
+	})
+
+	t.Run("lasts are in 'completed' and 'in_progress' for different storages", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'in_progress')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s1"}, ss)
+	})
+
+	t.Run("lasts are in 'dead', 'ready', 'failed' and 'in_progress' for different storages", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'dead'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'ready'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s3", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'failed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s4", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'in_progress')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{}, ss)
+	})
+
+	t.Run("last is not 'completed'", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'dead'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'ready'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s3", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'failed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s3", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s4", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'failed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s4", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{}, ss)
+	})
+
+	t.Run("multiple virtuals with multiple storages", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		db.MustExec(t, `
+			INSERT INTO replication_queue
+				(job, updated_at, state)
+			VALUES
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'dead'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s1", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'completed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s2", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'dead'),
+
+				('{"virtual_storage": "vs2", "target_node_storage": "s3", "relative_path": "path-1"}', '2020-01-01 00:00:01', 'completed'),
+				('{"virtual_storage": "vs2", "target_node_storage": "s3", "relative_path": "path-1"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s4", "relative_path": "path-2"}', '2020-01-01 00:00:01', 'failed'),
+				('{"virtual_storage": "vs1", "target_node_storage": "s4", "relative_path": "path-2"}', '2020-01-01 00:00:00', 'completed'),
+
+				('{"virtual_storage": "vs1", "target_node_storage": "s5", "relative_path": "path-2"}', '2020-01-01 00:00:00', 'completed')`,
+		)
+
+		ss, err := source.GetUpToDateStorages(ctx, "vs1", "path-1")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"s2"}, ss)
+	})
+}
+
 func requireEvents(t *testing.T, ctx context.Context, db glsql.DB, expected []ReplicationEvent) {
 	t.Helper()
 

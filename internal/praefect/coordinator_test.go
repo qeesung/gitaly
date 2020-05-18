@@ -48,6 +48,10 @@ func (m *mockNodeManager) GetShard(storage string) (nodes.Shard, error) {
 
 func (m *mockNodeManager) EnableWrites(context.Context, string) error { panic("unimplemented") }
 
+func (m *mockNodeManager) GetSyncedNode(context.Context, string, string) (nodes.Node, error) {
+	panic("unimplemented")
+}
+
 type mockNode struct {
 	nodes.Node
 	storageName string
@@ -106,7 +110,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 			const storageName = "test-storage"
 			coordinator := NewCoordinator(
 				testhelper.DiscardTestEntry(t),
-				datastore.Datastore{datastore.NewInMemory(conf), datastore.NewMemoryReplicationEventQueue()},
+				datastore.Datastore{datastore.NewInMemory(conf), datastore.NewMemoryReplicationEventQueue(conf)},
 				&mockNodeManager{GetShardFunc: func(storage string) (nodes.Shard, error) {
 					return nodes.Shard{
 						IsReadOnly: tc.readOnly,
@@ -162,11 +166,12 @@ func TestStreamDirectorMutator(t *testing.T) {
 					}},
 			},
 		},
+		DistributedReadsEnabled: true,
 	}
 
 	var replEventWait sync.WaitGroup
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -187,7 +192,7 @@ func TestStreamDirectorMutator(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
@@ -280,11 +285,12 @@ func TestStreamDirectorAccessor(t *testing.T) {
 					}},
 			},
 		},
+		DistributedReadsEnabled: true,
 	}
 
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
 	}
 
 	targetRepo := gitalypb.Repository{
@@ -297,7 +303,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	r := protoregistry.New()
 	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
@@ -314,7 +320,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 	peeker := &mockPeeker{frame: frame}
 	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
 	require.NoError(t, err)
-	require.Equal(t, primaryAddress, streamParams.Conn().Target())
+	require.Equal(t, secondaryAddress, streamParams.Conn().Target())
 
 	md, ok := metadata.FromOutgoingContext(streamParams.Context())
 	require.True(t, ok)
@@ -328,7 +334,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	rewrittenTargetRepo, err := mi.TargetRepo(m)
 	require.NoError(t, err)
-	require.Equal(t, "praefect-internal-1", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
+	require.Equal(t, "praefect-internal-2", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
 	// must be invoked without issues
 	streamParams.RequestFinalizer()
@@ -376,7 +382,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	var replEventWait sync.WaitGroup
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue())
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -397,7 +403,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	txMgr := transactions.NewManager()
 

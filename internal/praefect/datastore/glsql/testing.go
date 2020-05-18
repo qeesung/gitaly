@@ -41,6 +41,7 @@ func (db DB) Truncate(t testing.TB, tables ...string) {
 	require.NoError(t, err, "database truncation failed: %s", tables)
 }
 
+// RequireRowsInTable verifies that `tname` table has `n` amount of rows in it.
 func (db DB) RequireRowsInTable(t *testing.T, tname string, n int) {
 	t.Helper()
 
@@ -49,6 +50,7 @@ func (db DB) RequireRowsInTable(t *testing.T, tname string, n int) {
 	require.Equal(t, n, count, "unexpected amount of rows in table: %d instead of %d", count, n)
 }
 
+// TruncateAll removes all data from known set of tables.
 func (db DB) TruncateAll(t testing.TB) {
 	db.Truncate(t,
 		"replication_queue_job_lock",
@@ -57,6 +59,12 @@ func (db DB) TruncateAll(t testing.TB) {
 		"node_status",
 		"shard_primaries",
 	)
+}
+
+// MustExec executes `q` with `args` and verifies there are no errors.
+func (db DB) MustExec(t testing.TB, q string, args ...interface{}) {
+	_, err := db.DB.Exec(q, args...)
+	require.NoError(t, err)
 }
 
 // Close removes schema if it was used and releases connection pool.

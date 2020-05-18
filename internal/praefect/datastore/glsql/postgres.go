@@ -199,7 +199,7 @@ func ScanAll(rows *sql.Rows, in DestProvider) (err error) {
 	return err
 }
 
-// Uint64Provider allows to use it with ScanAll function to read all rows into it and return result aa a slice.
+// Uint64Provider allows to use it with ScanAll function to read all rows into it and return result as a slice.
 type Uint64Provider []*uint64
 
 // Values returns list of values read from *sql.Rows
@@ -218,6 +218,29 @@ func (p *Uint64Provider) Values() []uint64 {
 // To returns a list of pointers that will be used as a destination for scan operation.
 func (p *Uint64Provider) To() []interface{} {
 	var d uint64
+	*p = append(*p, &d)
+	return []interface{}{&d}
+}
+
+// StringProvider allows ScanAll to read all rows and return the result as a slice.
+type StringProvider []*string
+
+// Values returns list of values read from *sql.Rows
+func (p *StringProvider) Values() []string {
+	if len(*p) == 0 {
+		return nil
+	}
+
+	r := make([]string, len(*p))
+	for i, v := range *p {
+		r[i] = *v
+	}
+	return r
+}
+
+// To returns a list of pointers that will be used as a destination for scan operation.
+func (p *StringProvider) To() []interface{} {
+	var d string
 	*p = append(*p, &d)
 	return []interface{}{&d}
 }

@@ -111,6 +111,9 @@ type nullNodeMgr struct{}
 
 func (nullNodeMgr) GetShard(virtualStorageName string) (nodes.Shard, error)           { return nodes.Shard{}, nil }
 func (nullNodeMgr) EnableWrites(ctx context.Context, virtualStorageName string) error { return nil }
+func (nullNodeMgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath string) (nodes.Node, error) {
+	return nil, nil
+}
 
 type buildOptions struct {
 	withDatastore   datastore.Datastore
@@ -180,7 +183,7 @@ func withRealGitalyShared(t testing.TB) func([]*config.VirtualStorage) []testhel
 func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	ds := datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
 	}
 
 	return runPraefectServerWithGitalyWithDatastore(t, conf, ds)
@@ -199,7 +202,7 @@ func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, 
 func defaultDatastore(conf config.Config) datastore.Datastore {
 	return datastore.Datastore{
 		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(),
+		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
 	}
 }
 
@@ -207,8 +210,8 @@ func defaultTxMgr() *transactions.Manager {
 	return transactions.NewManager()
 }
 
-func defaultNodeMgr(t testing.TB, conf config.Config) nodes.Manager {
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, promtest.NewMockHistogramVec())
+func defaultNodeMgr(t testing.TB, conf config.Config, ds datastore.Datastore) nodes.Manager {
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 	return nodeMgr
@@ -241,7 +244,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		opt.withLogger = log.Default()
 	}
 	if opt.withNodeMgr == nil {
-		opt.withNodeMgr = defaultNodeMgr(t, conf)
+		opt.withNodeMgr = defaultNodeMgr(t, conf, opt.withDatastore)
 	}
 
 	coordinator := NewCoordinator(

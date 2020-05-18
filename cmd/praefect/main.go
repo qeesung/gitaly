@@ -231,7 +231,14 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		db = dbConn
 	}
 
-	nodeManager, err := nodes.NewManager(logger, conf, db, nodeLatencyHistogram)
+	ds := datastore.Datastore{ReplicasDatastore: datastore.NewInMemory(conf)}
+	if conf.PostgresQueueEnabled {
+		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
+	} else {
+		ds.ReplicationEventQueue = datastore.NewMemoryReplicationEventQueue(conf)
+	}
+
+	nodeManager, err := nodes.NewManager(logger, conf, db, ds, nodeLatencyHistogram)
 	if err != nil {
 		return err
 	}
@@ -255,16 +262,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	registry := protoregistry.New()
 	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {
 		return err
-	}
-
-	ds := datastore.Datastore{
-		ReplicasDatastore: datastore.NewInMemory(conf),
-	}
-
-	if conf.PostgresQueueEnabled {
-		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
-	} else {
-		ds.ReplicationEventQueue = datastore.NewMemoryReplicationEventQueue()
 	}
 
 	var (

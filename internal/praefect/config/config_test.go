@@ -257,7 +257,8 @@ func TestConfigParsing(t *testing.T) {
 					SSLKey:      "/path/to/key",
 					SSLRootCert: "/path/to/root-cert",
 				},
-				PostgresQueueEnabled: true,
+				PostgresQueueEnabled:    true,
+				DistributedReadsEnabled: true,
 			},
 		},
 	}
