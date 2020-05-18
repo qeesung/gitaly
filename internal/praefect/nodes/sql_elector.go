@@ -420,7 +420,7 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 	// be switched to read-only mode.
 	q = `INSERT INTO shard_primaries (elected_by_praefect, shard_name, node_name, elected_at)
 	SELECT $1::VARCHAR, $2::VARCHAR, $3::VARCHAR, NOW()
-	WHERE $3 != COALESCE((SELECT node_name FROM shard_primaries WHERE shard_name = $2::VARCHAR), '')
+	WHERE $3 != COALESCE((SELECT node_name FROM shard_primaries WHERE shard_name = $2::VARCHAR AND demoted = false), '')
 	ON CONFLICT (shard_name)
 	DO UPDATE SET elected_by_praefect = EXCLUDED.elected_by_praefect
 				, node_name = EXCLUDED.node_name

@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
@@ -173,6 +174,55 @@ func TestBasicFailover(t *testing.T) {
 		"shouldn't be able to enable writes with unhealthy master")
 }
 
+func TestElectDemotedPrimary(t *testing.T) {
+	db := getDB(t)
+
+	node := models.Node{Storage: "gitaly-0"}
+	elector := newSQLElector(
+		shardName,
+		config.Config{},
+		defaultFailoverTimeoutSeconds,
+		defaultActivePraefectSeconds,
+		db.DB,
+		testhelper.DiscardTestLogger(t),
+		[]*nodeStatus{{Node: node}},
+	)
+
+	candidates := []*sqlCandidate{{Node: &nodeStatus{Node: node}}}
+	require.NoError(t, elector.electNewPrimary(candidates))
+
+	primary, _, err := elector.lookupPrimary()
+	require.NoError(t, err)
+	require.Equal(t, node.Storage, primary.GetStorage())
+
+	require.NoError(t, elector.demotePrimary())
+
+	primary, _, err = elector.lookupPrimary()
+	require.NoError(t, err)
+	require.Nil(t, primary)
+
+	shiftElection(t, db, shardName, -1*defaultFailoverTimeoutSeconds)
+	require.NoError(t, err)
+	require.NoError(t, elector.electNewPrimary(candidates))
+
+	primary, _, err = elector.lookupPrimary()
+	require.NoError(t, err)
+	require.Equal(t, node.Storage, primary.GetStorage())
+}
+
+// pretend like the last election happened in the past because the query in electNewPrimary
+// to update the primary will not overwrite a previous that's within 10 seconds
+func shiftElection(t testing.TB, db glsql.DB, shardName string, seconds int) {
+	t.Helper()
+
+	_, err := db.Exec(
+		"UPDATE shard_primaries SET elected_at = elected_at + $1::INTERVAL SECOND WHERE shard_name = $2",
+		seconds,
+		shardName,
+	)
+	require.NoError(t, err)
+}
+
 func TestElectNewPrimary(t *testing.T) {
 	db := getDB(t)
 
@@ -300,13 +350,7 @@ func TestElectNewPrimary(t *testing.T) {
 			require.Equal(t, "gitaly-1", primary.GetStorage(), "since replication queue is empty the first candidate should be chosen")
 			require.False(t, readOnly)
 
-			// pretend like the last election happened in the past because the query in electNewPrimary to update the primary will not
-			// overwrite a previous that's within 10 seconds
-			_, err = db.Exec(`UPDATE shard_primaries SET elected_at = now() - $1::INTERVAL SECOND WHERE shard_name = $2`,
-				2*failoverTimeSeconds,
-				shardName)
-			require.NoError(t, err)
-
+			shiftElection(t, db, shardName, -1*failoverTimeSeconds)
 			_, err = db.Exec(testCase.initialReplQueueInsert)
 			require.NoError(t, err)
 
