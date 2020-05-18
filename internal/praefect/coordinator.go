@@ -9,7 +9,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -144,7 +143,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return nil, fmt.Errorf("mutator call: get shard: %w", err)
 	}
 
-	if featureflag.IsEnabled(ctx, featureflag.EnforceReadOnly) && shard.IsReadOnly {
+	if c.conf.Failover.ReadOnlyAfterFailover && shard.IsReadOnly {
 		return nil, helper.ErrPreconditionFailed(ReadOnlyStorageError(call.targetRepo.GetStorageName()))
 	}
 

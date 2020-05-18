@@ -20,13 +20,14 @@ type nodeCandidate struct {
 // shard. It does NOT support multiple Praefect nodes or have any
 // persistence. This is used mostly for testing and development.
 type localElector struct {
-	m               sync.RWMutex
-	failoverEnabled bool
-	shardName       string
-	nodes           []*nodeCandidate
-	primaryNode     *nodeCandidate
-	isReadOnly      bool
-	log             logrus.FieldLogger
+	m                     sync.RWMutex
+	failoverEnabled       bool
+	shardName             string
+	nodes                 []*nodeCandidate
+	primaryNode           *nodeCandidate
+	readOnlyAfterFailover bool
+	isReadOnly            bool
+	log                   logrus.FieldLogger
 }
 
 // healthcheckThreshold is the number of consecutive healthpb.HealthCheckResponse_SERVING necessary
@@ -63,7 +64,7 @@ func (n *nodeCandidate) isHealthy() bool {
 	return true
 }
 
-func newLocalElector(name string, failoverEnabled bool, log logrus.FieldLogger, ns []*nodeStatus) *localElector {
+func newLocalElector(name string, failoverEnabled, readOnlyAfterFailover bool, log logrus.FieldLogger, ns []*nodeStatus) *localElector {
 	nodes := make([]*nodeCandidate, len(ns))
 	for i, n := range ns {
 		nodes[i] = &nodeCandidate{
@@ -72,11 +73,12 @@ func newLocalElector(name string, failoverEnabled bool, log logrus.FieldLogger, 
 	}
 
 	return &localElector{
-		shardName:       name,
-		failoverEnabled: failoverEnabled,
-		log:             log,
-		nodes:           nodes,
-		primaryNode:     nodes[0],
+		shardName:             name,
+		failoverEnabled:       failoverEnabled,
+		log:                   log,
+		nodes:                 nodes,
+		primaryNode:           nodes[0],
+		readOnlyAfterFailover: readOnlyAfterFailover,
 	}
 }
 
@@ -147,7 +149,7 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 	}
 
 	s.primaryNode = newPrimary
-	s.isReadOnly = true
+	s.isReadOnly = s.readOnlyAfterFailover
 
 	return nil
 }

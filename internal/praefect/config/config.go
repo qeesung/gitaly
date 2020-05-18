@@ -15,8 +15,9 @@ import (
 )
 
 type Failover struct {
-	Enabled          bool   `toml:"enabled"`
-	ElectionStrategy string `toml:"election_strategy"`
+	Enabled               bool   `toml:"enabled"`
+	ElectionStrategy      string `toml:"election_strategy"`
+	ReadOnlyAfterFailover bool   `toml:"read_only_after_failover"`
 }
 
 // Config is a container for everything found in the TOML config file

@@ -218,7 +218,7 @@ func TestNodeManager(t *testing.T) {
 
 	confWithFailover := config.Config{
 		VirtualStorages: virtualStorages,
-		Failover:        config.Failover{Enabled: true},
+		Failover:        config.Failover{Enabled: true, ReadOnlyAfterFailover: true},
 	}
 	confWithoutFailover := config.Config{
 		VirtualStorages: virtualStorages,

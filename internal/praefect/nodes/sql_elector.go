@@ -83,6 +83,7 @@ type sqlElector struct {
 	log                   logrus.FieldLogger
 	failoverSeconds       int
 	activePraefectSeconds int
+	readOnlyAfterFailover bool
 }
 
 func newSQLElector(name string, c config.Config, failoverTimeoutSeconds int, activePraefectSeconds int, db *sql.DB, log logrus.FieldLogger, ns []*nodeStatus) *sqlElector {
@@ -105,6 +106,7 @@ func newSQLElector(name string, c config.Config, failoverTimeoutSeconds int, act
 		activePraefectSeconds: activePraefectSeconds,
 		nodes:                 nodes,
 		primaryNode:           nodes[0],
+		readOnlyAfterFailover: c.Failover.ReadOnlyAfterFailover,
 	}
 }
 
@@ -423,11 +425,11 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 	DO UPDATE SET elected_by_praefect = EXCLUDED.elected_by_praefect
 				, node_name = EXCLUDED.node_name
 				, elected_at = EXCLUDED.elected_at
-				, read_only = true
+				, read_only = $5
 				, demoted = false
 	   WHERE shard_primaries.elected_at < now() - $4::INTERVAL SECOND
 	`
-	_, err = s.db.Exec(q, s.praefectName, s.shardName, newPrimaryStorage, s.failoverSeconds)
+	_, err = s.db.Exec(q, s.praefectName, s.shardName, newPrimaryStorage, s.failoverSeconds, s.readOnlyAfterFailover)
 
 	if err != nil {
 		s.log.Errorf("error updating new primary: %s", err)

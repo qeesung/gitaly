@@ -70,6 +70,9 @@ func TestBasicFailover(t *testing.T) {
 
 	conf := config.Config{
 		SocketPath: socketName,
+		Failover: config.Failover{
+			ReadOnlyAfterFailover: true,
+		},
 	}
 
 	internalSocket0, internalSocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
@@ -288,7 +291,8 @@ func TestElectNewPrimary(t *testing.T) {
 		t.Run(testCase.desc, func(t *testing.T) {
 			db.TruncateAll(t)
 
-			elector := newSQLElector(shardName, config.Config{}, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, testhelper.DiscardTestLogger(t), ns)
+			conf := config.Config{Failover: config.Failover{ReadOnlyAfterFailover: true}}
+			elector := newSQLElector(shardName, conf, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, testhelper.DiscardTestLogger(t), ns)
 
 			require.NoError(t, elector.electNewPrimary(candidates))
 			primary, readOnly, err := elector.lookupPrimary()

@@ -11,7 +11,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -60,33 +59,34 @@ func (m *mockNode) GetConnection() *grpc.ClientConn { return nil }
 
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 	for _, tc := range []struct {
-		readOnly         bool
-		readOnlyEnforced bool
-		shouldError      bool
+		readOnly        bool
+		readOnlyEnabled bool
+		shouldError     bool
 	}{
 		{
-			readOnly:         false,
-			readOnlyEnforced: true,
-			shouldError:      false,
+			readOnly:        false,
+			readOnlyEnabled: true,
+			shouldError:     false,
 		},
 		{
-			readOnly:         true,
-			readOnlyEnforced: true,
-			shouldError:      true,
+			readOnly:        true,
+			readOnlyEnabled: true,
+			shouldError:     true,
 		},
 		{
-			readOnly:         false,
-			readOnlyEnforced: false,
-			shouldError:      false,
+			readOnly:        false,
+			readOnlyEnabled: false,
+			shouldError:     false,
 		},
 		{
-			readOnly:         true,
-			readOnlyEnforced: false,
-			shouldError:      false,
+			readOnly:        true,
+			readOnlyEnabled: false,
+			shouldError:     false,
 		},
 	} {
-		t.Run(fmt.Sprintf("read-only: %v, enabled: %v", tc.readOnly, tc.readOnlyEnforced), func(t *testing.T) {
+		t.Run(fmt.Sprintf("read-only: %v, enabled: %v", tc.readOnly, tc.readOnlyEnabled), func(t *testing.T) {
 			conf := config.Config{
+				Failover: config.Failover{ReadOnlyAfterFailover: tc.readOnlyEnabled},
 				VirtualStorages: []*config.VirtualStorage{
 					&config.VirtualStorage{
 						Name: "praefect",
@@ -120,9 +120,6 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
-			if tc.readOnlyEnforced {
-				ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.EnforceReadOnly)
-			}
 
 			frame, err := proto.Marshal(&gitalypb.CleanupRequest{Repository: &gitalypb.Repository{
 				StorageName:  storageName,
