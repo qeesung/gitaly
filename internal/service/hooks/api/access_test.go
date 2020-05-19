@@ -28,11 +28,16 @@ func TestAllowedVerifyParams(t *testing.T) {
 	defer cleanup()
 	changes := "changes1\nchanges2\nchanges3"
 	protocol := "protocol"
-	gitObjectDir := filepath.Join(testRepoPath, "object/dir")
-	gitAlternateObjectDirs := []string{filepath.Join(testRepoPath, "alt/object/dir1"), filepath.Join(testRepoPath, "alt/object/dir1")}
 
-	testRepo.GitObjectDirectory = gitObjectDir
-	testRepo.GitAlternateObjectDirectories = gitAlternateObjectDirs
+	testRepo.GitObjectDirectory = "object/dir"
+	testRepo.GitAlternateObjectDirectories = []string{"alt/object/dir1", "alt/object/dir2"}
+
+	gitObjectDirFull := filepath.Join(testRepoPath, testRepo.GitObjectDirectory)
+	var gitAlternateObjectDirsFull []string
+
+	for _, gitAlternateObjectDirRel := range testRepo.GitAlternateObjectDirectories {
+		gitAlternateObjectDirsFull = append(gitAlternateObjectDirsFull, filepath.Join(testRepoPath, gitAlternateObjectDirRel))
+	}
 
 	server := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
 		User:                        user,
@@ -44,8 +49,8 @@ func TestAllowedVerifyParams(t *testing.T) {
 		PostReceiveCounterDecreased: true,
 		Protocol:                    protocol,
 		GitPushOptions:              nil,
-		GitObjectDir:                gitObjectDir,
-		GitAlternateObjectDirs:      gitAlternateObjectDirs,
+		GitObjectDir:                gitObjectDirFull,
+		GitAlternateObjectDirs:      gitAlternateObjectDirsFull,
 		RepoPath:                    testRepoPath,
 	})
 

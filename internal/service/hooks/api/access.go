@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -36,21 +35,11 @@ type AllowedRequest struct {
 	UserID       string `json:"user_id,omitempty"`
 }
 
-// gitObjectDirs generates a json encoded string containing GIT_OBJECT_DIRECTORY_RELATIVE, and GIT_ALTERNATE_OBJECT_DIRECTORIES
-func gitObjectDirs(repoPath, gitObjectDir string, gitAltObjDirs []string) (string, error) {
-	gitObjDirRel, err := filepath.Rel(repoPath, gitObjectDir)
-	if err != nil {
-		return "", err
-	}
-
-	gitAltObjDirsRel, err := relativeAlternativeObjectPaths(repoPath, gitAltObjDirs)
-	if err != nil {
-		return "", err
-	}
-
+// marshallGitObjectDirs generates a json encoded string containing GIT_OBJECT_DIRECTORY_RELATIVE, and GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE
+func marshallGitObjectDirs(gitObjectDirRel string, gitAltObjectDirsRel []string) (string, error) {
 	envString, err := json.Marshal(map[string]interface{}{
-		"GIT_OBJECT_DIRECTORY_RELATIVE":             gitObjDirRel,
-		"GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE": gitAltObjDirsRel,
+		"GIT_OBJECT_DIRECTORY_RELATIVE":             gitObjectDirRel,
+		"GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE": gitAltObjectDirsRel,
 	})
 
 	if err != nil {
@@ -58,19 +47,6 @@ func gitObjectDirs(repoPath, gitObjectDir string, gitAltObjDirs []string) (strin
 	}
 
 	return string(envString), nil
-}
-
-func relativeAlternativeObjectPaths(repoPath string, gitAltObjDirs []string) ([]string, error) {
-	relPaths := make([]string, 0, len(gitAltObjDirs))
-	for _, objPath := range gitAltObjDirs {
-		relPath, err := filepath.Rel(repoPath, objPath)
-		if err != nil {
-			return relPaths, err
-		}
-		relPaths = append(relPaths, relPath)
-	}
-
-	return relPaths, nil
 }
 
 // API is a wrapper around client.GitlabNetClient with api methods for gitlab git receive hooks
@@ -92,7 +68,7 @@ func (a *API) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol,
 		return false, fmt.Errorf("getting the repository path: %w", err)
 	}
 
-	gitObjDirVars, err := gitObjectDirs(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
+	gitObjDirVars, err := marshallGitObjectDirs(repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
 	if err != nil {
 		return false, fmt.Errorf("when getting git object directories json encoded string: %w", err)
 	}
