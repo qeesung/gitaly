@@ -2,7 +2,9 @@ package transactions
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"crypto/sha1"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -20,10 +22,38 @@ import (
 // for Praefect to handle transactions directly instead of having to reach out
 // to reference transaction RPCs.
 type Manager struct {
+	txIdGenerator TransactionIdGenerator
 	lock          sync.Mutex
 	transactions  map[uint64]string
 	counterMetric *prometheus.CounterVec
 	delayMetric   metrics.HistogramVec
+}
+
+// TransactionIdGenerator is an interface for types that can generate transaction IDs.
+type TransactionIdGenerator interface {
+	// Id generates a new transaction identifier
+	Id() uint64
+}
+
+type transactionIdGenerator struct {
+	rand *rand.Rand
+}
+
+func newTransactionIdGenerator() *transactionIdGenerator {
+	var seed [8]byte
+
+	// Ignore any errors. In case we weren't able to generate a seed, the
+	// best we can do is to just use the all-zero seed.
+	cryptorand.Read(seed[:])
+	source := rand.NewSource(int64(binary.LittleEndian.Uint64(seed[:])))
+
+	return &transactionIdGenerator{
+		rand: rand.New(source),
+	}
+}
+
+func (t *transactionIdGenerator) Id() uint64 {
+	return rand.Uint64()
 }
 
 // ManagerOpt is a self referential option for Manager
@@ -43,9 +73,17 @@ func WithDelayMetric(delayMetric metrics.HistogramVec) ManagerOpt {
 	}
 }
 
+// WithTransactionIdGenerator is an option to set the transaction ID generator
+func WithTransactionIdGenerator(generator TransactionIdGenerator) ManagerOpt {
+	return func(mgr *Manager) {
+		mgr.txIdGenerator = generator
+	}
+}
+
 // NewManager creates a new transactions Manager.
 func NewManager(opts ...ManagerOpt) *Manager {
 	mgr := &Manager{
+		txIdGenerator: newTransactionIdGenerator(),
 		transactions:  make(map[uint64]string),
 		counterMetric: prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
 		delayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
@@ -84,7 +122,7 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, nodes []string) (ui
 	// that reset on restart of Praefect would be suboptimal, as the chance
 	// for collisions is a lot higher in case Praefect restarts when Gitaly
 	// nodes still have in-flight transactions.
-	transactionID := rand.Uint64()
+	transactionID := mgr.txIdGenerator.Id()
 	if _, ok := mgr.transactions[transactionID]; ok {
 		return 0, nil, helper.ErrInternalf("transaction exists already")
 	}

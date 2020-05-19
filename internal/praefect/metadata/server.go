@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/auth"
@@ -16,13 +16,26 @@ import (
 )
 
 const (
+	// PraefectMetadataKey is the key used to store Praefect server
+	// information in the gRPC metadata.
 	PraefectMetadataKey = "praefect-server"
-	PraefectEnvKey      = "PRAEFECT_SERVER"
+	// PraefectEnvKey is the key used to store Praefect server information
+	// in environment variables.
+	PraefectEnvKey = "PRAEFECT_SERVER"
 )
 
+var (
+	// ErrPraefectServerNotFound indicates the Praefect server metadata
+	// could not be found
+	ErrPraefectServerNotFound = errors.New("Praefect server info not found")
+)
+
+// PraefectServer stores parameters required to connect to a Praefect server
 type PraefectServer struct {
+	// Address is the address of the Praefect server
 	Address string `json:"address"`
-	Token   string `json:"token"`
+	// Token is the token required to authenticate with the Praefect server
+	Token string `json:"token"`
 }
 
 // InjectPraefectServer injects Praefect connection metadata into an incoming context
@@ -56,16 +69,16 @@ func InjectPraefectServer(ctx context.Context, conf config.Config) (context.Cont
 }
 
 // ExtractPraefectServer extracts `PraefectServer` from an incoming context. In
-// case the metadata key is not set, the function will return `os.ErrNotExist`.
+// case the metadata key is not set, the function will return `ErrPraefectServerNotFound`.
 func ExtractPraefectServer(ctx context.Context) (p *PraefectServer, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, ErrPraefectServerNotFound
 	}
 
 	encoded := md[PraefectMetadataKey]
 	if len(encoded) == 0 {
-		return nil, os.ErrNotExist
+		return nil, ErrPraefectServerNotFound
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(encoded[0])
@@ -82,7 +95,7 @@ func ExtractPraefectServer(ctx context.Context) (p *PraefectServer, err error) {
 
 // PraefectFromEnv extracts `PraefectServer` from the environment variable
 // `PraefectEnvKey`. In case the variable is not set, the function will return
-// `os.ErrNotExist`.
+// `ErrPraefectServerNotFound`.
 func PraefectFromEnv(envvars []string) (*PraefectServer, error) {
 	praefectKey := fmt.Sprintf("%s=", PraefectEnvKey)
 	praefectEnv := ""
@@ -93,7 +106,7 @@ func PraefectFromEnv(envvars []string) (*PraefectServer, error) {
 		}
 	}
 	if praefectEnv == "" {
-		return nil, os.ErrNotExist
+		return nil, ErrPraefectServerNotFound
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(praefectEnv)
@@ -120,6 +133,7 @@ func (p PraefectServer) Env() (string, error) {
 	return fmt.Sprintf("%s=%s", PraefectEnvKey, encoded), nil
 }
 
+// Dial will try to connect to the given Praefect server
 func (p PraefectServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
