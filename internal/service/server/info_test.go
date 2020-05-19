@@ -63,10 +63,12 @@ func TestGitalyServerInfo(t *testing.T) {
 	require.True(t, c.GetStorageStatuses()[0].Readable)
 	require.True(t, c.GetStorageStatuses()[0].Writeable)
 	require.NotEmpty(t, c.GetStorageStatuses()[0].FsType)
+	require.Equal(t, uint32(1), c.GetStorageStatuses()[0].ReplicationFactor)
 
 	require.False(t, c.GetStorageStatuses()[1].Readable)
 	require.False(t, c.GetStorageStatuses()[1].Writeable)
 	require.Equal(t, metadata.GitalyFilesystemID, c.GetStorageStatuses()[0].FilesystemId)
+	require.Equal(t, uint32(1), c.GetStorageStatuses()[1].ReplicationFactor)
 }
 
 func runServer(t *testing.T, storages []config.Storage) (*grpc.Server, string) {

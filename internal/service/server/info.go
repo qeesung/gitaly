@@ -32,11 +32,12 @@ func (s *server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 		}
 
 		storageStatuses = append(storageStatuses, &gitalypb.ServerInfoResponse_StorageStatus{
-			StorageName:  shard.Name,
-			Readable:     readable,
-			Writeable:    writeable,
-			FsType:       fsType,
-			FilesystemId: gitalyMetadata.GitalyFilesystemID,
+			StorageName:       shard.Name,
+			ReplicationFactor: 1, // gitaly is always treated as a single replica
+			Readable:          readable,
+			Writeable:         writeable,
+			FsType:            fsType,
+			FilesystemId:      gitalyMetadata.GitalyFilesystemID,
 		})
 	}
 

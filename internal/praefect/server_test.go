@@ -77,9 +77,13 @@ func TestServerRouteServerAccessor(t *testing.T) {
 }
 
 func TestGitalyServerInfo(t *testing.T) {
+	gitVersion, err := git.Version()
+	require.NoError(t, err)
+
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
+				Name: "virtual-storage-1",
 				Nodes: []*models.Node{
 					&models.Node{
 						Storage:        "praefect-internal-1",
@@ -95,41 +99,45 @@ func TestGitalyServerInfo(t *testing.T) {
 		},
 	}
 
-	cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
-	defer cleanup()
-
-	client := gitalypb.NewServerServiceClient(cc)
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	metadata, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
-	require.NoError(t, err)
-	require.Len(t, metadata.GetStorageStatuses(), len(conf.VirtualStorages))
-	require.Equal(t, conf.VirtualStorages[0].Name, metadata.GetStorageStatuses()[0].StorageName)
-	require.Equal(t, version.GetVersion(), metadata.GetServerVersion())
+	t.Run("gitaly responds with ok", func(t *testing.T) {
+		cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
+		defer cleanup()
 
-	gitVersion, err := git.Version()
-	require.NoError(t, err)
-	require.Equal(t, gitVersion, metadata.GetGitVersion())
+		expected := &gitalypb.ServerInfoResponse{
+			ServerVersion: version.GetVersion(),
+			GitVersion:    gitVersion,
+			StorageStatuses: []*gitalypb.ServerInfoResponse_StorageStatus{
+				{StorageName: "virtual-storage-1", Readable: true, Writeable: true, ReplicationFactor: 2},
+			},
+		}
 
-	// use mock gitaly backends. The ServerInfo call to Gitaly will fail with an error.
-	for _, storageStatus := range metadata.GetStorageStatuses() {
-		require.NotNil(t, storageStatus, "none of the storage statuses should be nil")
-	}
+		client := gitalypb.NewServerServiceClient(cc)
+		actual, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
+		require.NoError(t, err)
+		for _, ss := range actual.StorageStatuses {
+			ss.FsType = ""
+			ss.FilesystemId = ""
+		}
+		require.True(t, proto.Equal(expected, actual), "expected: %v, got: %v", expected, actual)
+	})
 
-	backends := map[string]mock.SimpleServiceServer{
-		conf.VirtualStorages[0].Nodes[0].Storage: &mockSvc{},
-		conf.VirtualStorages[0].Nodes[1].Storage: &mockSvc{},
-	}
+	t.Run("gitaly responds with error", func(t *testing.T) {
+		backends := map[string]mock.SimpleServiceServer{
+			conf.VirtualStorages[0].Nodes[0].Storage: &mockSvc{},
+			conf.VirtualStorages[0].Nodes[1].Storage: &mockSvc{},
+		}
 
-	cc, _, cleanup = runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
-	defer cleanup()
+		cc, _, cleanup := runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
+		defer cleanup()
 
-	client = gitalypb.NewServerServiceClient(cc)
-	metadata, err = client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
-	require.NoError(t, err, "we expect praefect's server info to fail open even if the gitaly calls result in an error")
-	require.Empty(t, metadata.StorageStatuses)
+		client := gitalypb.NewServerServiceClient(cc)
+		actual, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
+		require.NoError(t, err, "we expect praefect's server info to fail open even if the gitaly calls result in an error")
+		require.Empty(t, actual.StorageStatuses, "got: %v", actual)
+	})
 }
 
 func TestGitalyServerInfoBadNode(t *testing.T) {

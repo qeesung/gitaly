@@ -29,6 +29,7 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 		wg.Add(1)
 		i := i
 		virtualStorage := virtualStorage
+		replicas := uint32(1 + len(shard.Secondaries)) // 1 - is primary + N secondaries
 
 		go func() {
 			defer wg.Done()
@@ -50,7 +51,7 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 			// name = "internal-gitaly-0"
 			// path = "/var/opt/gitlab/git-data"
 			//
-			// [storage]]
+			// [[storage]]
 			// name = "internal-gitaly-1"
 			// path = "/var/opt/gitlab/git-data"
 			//
@@ -69,6 +70,7 @@ func (s *Server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 					// to the virtual storage's storage status.
 					storageStatuses[i].StorageName = virtualStorage.Name
 					storageStatuses[i].Writeable = !shard.IsReadOnly && storageStatus.Writeable
+					storageStatuses[i].ReplicationFactor = replicas
 					break
 				}
 			}

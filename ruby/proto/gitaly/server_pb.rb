@@ -18,6 +18,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :writeable, :bool, 3
     optional :fs_type, :string, 4
     optional :filesystem_id, :string, 5
+    optional :replication_factor, :uint32, 6
   end
   add_message "gitaly.DiskStatisticsRequest" do
   end

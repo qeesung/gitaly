@@ -30,6 +30,7 @@ message ServerInfoResponse {
     bool writeable = 3;
     string fs_type = 4;
     string filesystem_id = 5;
+    uint32 replication_factor = 6;
   }
 
   string server_version = 1;
