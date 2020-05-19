@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -80,7 +79,7 @@ func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectS
 func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookServer, hash []byte, env []string) error {
 	tx, err := metadata.TransactionFromEnv(env)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, metadata.ErrTransactionNotFound) {
 			// No transaction being present is valid, e.g. in case
 			// there is no Praefect server or the transactions
 			// feature flag is not set.

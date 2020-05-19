@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
@@ -18,6 +18,12 @@ const (
 	// TransactionEnvKey is the key used to store transaction information
 	// in environment variables.
 	TransactionEnvKey = "REFERENCE_TRANSACTION"
+)
+
+var (
+	// ErrTransactionNotFound indicates the transaction metadata could not
+	// be found
+	ErrTransactionNotFound = errors.New("transaction not found")
 )
 
 // Transaction stores parameters required to identify a reference
@@ -77,16 +83,17 @@ func InjectTransaction(ctx context.Context, tranasctionID uint64, node string) (
 }
 
 // ExtractTransaction extracts `Transaction` from an incoming context. In
-// case the metadata key is not set, the function will return `os.ErrNotExist`.
+// case the metadata key is not set, the function will return
+// `ErrTransactionNotFound`.
 func ExtractTransaction(ctx context.Context) (Transaction, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return Transaction{}, os.ErrNotExist
+		return Transaction{}, ErrTransactionNotFound
 	}
 
 	serialized := md[TransactionMetadataKey]
 	if len(serialized) == 0 {
-		return Transaction{}, os.ErrNotExist
+		return Transaction{}, ErrTransactionNotFound
 	}
 
 	return FromSerialized(serialized[0])
@@ -114,7 +121,7 @@ func TransactionFromEnv(envvars []string) (Transaction, error) {
 		}
 	}
 	if transactionEnv == "" {
-		return Transaction{}, os.ErrNotExist
+		return Transaction{}, ErrTransactionNotFound
 	}
 
 	return FromSerialized(transactionEnv)

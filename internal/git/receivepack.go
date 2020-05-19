@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -59,7 +58,7 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		}
 
 		env = append(env, praefectEnv)
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, metadata.ErrPraefectServerNotFound) {
 		return nil, err
 	}
 
@@ -71,7 +70,7 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		}
 
 		env = append(env, transactionEnv)
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, metadata.ErrTransactionNotFound) {
 		return nil, err
 	}
 
