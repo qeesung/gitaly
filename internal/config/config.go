@@ -167,6 +167,10 @@ func (c *Cfg) setDefaults() {
 	if c.GitlabShell.SecretFile == "" {
 		c.GitlabShell.SecretFile = filepath.Join(c.GitlabShell.Dir, ".gitlab_shell_secret")
 	}
+
+	if c.GitlabShell.CustomHooksDir == "" {
+		c.GitlabShell.CustomHooksDir = filepath.Join(c.GitlabShell.Dir, "hooks")
+	}
 }
 
 func validateListeners() error {
