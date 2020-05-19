@@ -16,8 +16,12 @@ import (
 )
 
 const (
+	// PraefectMetadataKey is the key used to store Praefect server
+	// information in the gRPC metadata.
 	PraefectMetadataKey = "praefect-server"
-	PraefectEnvKey      = "PRAEFECT_SERVER"
+	// PraefectEnvKey is the key used to store Praefect server information
+	// in environment variables.
+	PraefectEnvKey = "PRAEFECT_SERVER"
 )
 
 var (
@@ -26,9 +30,12 @@ var (
 	ErrPraefectServerNotFound = errors.New("Praefect server info not found")
 )
 
+// PraefectServer stores parameters required to connect to a Praefect server
 type PraefectServer struct {
+	// Address is the address of the Praefect server
 	Address string `json:"address"`
-	Token   string `json:"token"`
+	// Token is the token required to authenticate with the Praefect server
+	Token string `json:"token"`
 }
 
 // InjectPraefectServer injects Praefect connection metadata into an incoming context
@@ -126,6 +133,7 @@ func (p PraefectServer) Env() (string, error) {
 	return fmt.Sprintf("%s=%s", PraefectEnvKey, encoded), nil
 }
 
+// Dial will try to connect to the given Praefect server
 func (p PraefectServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
