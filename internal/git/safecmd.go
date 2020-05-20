@@ -59,6 +59,14 @@ var subCmdNameRegex = regexp.MustCompile(`^[[:alnum:]]+(-[[:alnum:]]+)*$`)
 // IsCmd allows SubCmd to satisfy the Cmd interface
 func (sc SubCmd) IsCmd() {}
 
+func (sc SubCmd) supportsEndOfOptions() bool {
+	switch sc.Name {
+	case "linguist", "for-each-ref", "archive", "upload-archive", "grep", "clone", "config", "rev-parse", "remote", "blame", "ls-tree":
+		return false
+	}
+	return true
+}
+
 // ValidateArgs checks all arguments in the sub command and validates them
 func (sc SubCmd) ValidateArgs() ([]string, error) {
 	var safeArgs []string
@@ -81,6 +89,10 @@ func (sc SubCmd) ValidateArgs() ([]string, error) {
 			return nil, err
 		}
 		safeArgs = append(safeArgs, a)
+	}
+
+	if sc.supportsEndOfOptions() {
+		safeArgs = append(safeArgs, "--end-of-options")
 	}
 
 	if len(sc.PostSepArgs) > 0 {
