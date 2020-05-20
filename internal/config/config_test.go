@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -646,19 +647,10 @@ func TestLoadGracefulRestartTimeout(t *testing.T) {
 	}
 }
 
-func TestGitlabShellDefaults(t *testing.T) {
-	expectedDefault := GitlabShell{
-		Dir:            "/dir",
-		SecretFile:     "/dir/.gitlab_shell_secret",
-		CustomHooksDir: "/dir/hooks",
-	}
-
-	tmpFile := configFileReader(fmt.Sprintf(`[gitlab-shell]
-dir = '%s'`, expectedDefault.Dir))
-	require.NoError(t, Load(tmpFile))
-
-	require.Equal(t, expectedDefault.SecretFile, Config.GitlabShell.SecretFile)
-	require.Equal(t, expectedDefault.CustomHooksDir, Config.GitlabShell.CustomHooksDir)
+func TestGitlabHooksDefaults(t *testing.T) {
+	require.NoError(t, Load(strings.NewReader("[gitlab-shell]\ndir = '/dir'")))
+	require.Equal(t, Gitlab{SecretFile: "/dir/.gitlab_shell_secret"}, Config.Gitlab)
+	require.Equal(t, Hooks{CustomHooksDir: "/dir/hooks"}, Config.Hooks)
 }
 
 func TestValidateInternalSocketDir(t *testing.T) {

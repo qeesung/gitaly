@@ -178,8 +178,8 @@ func (c *Cfg) setDefaults() {
 		c.Gitlab.SecretFile = filepath.Join(c.GitlabShell.Dir, ".gitlab_shell_secret")
 	}
 
-	if c.GitlabShell.CustomHooksDir == "" {
-		c.GitlabShell.CustomHooksDir = filepath.Join(c.GitlabShell.Dir, "hooks")
+	if c.Hooks.CustomHooksDir == "" {
+		c.Hooks.CustomHooksDir = filepath.Join(c.GitlabShell.Dir, "hooks")
 	}
 }
 
