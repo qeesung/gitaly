@@ -192,7 +192,6 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 
 	var storages []string
 	if featureflag.IsEnabled(ctx, featureflag.DistributedReads) {
-		//		panic("foof")
 		if storages, err = n.ds.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
 			// this is recoverable error - proceed with primary node
 			ctxlogrus.Extract(ctx).
