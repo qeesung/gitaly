@@ -403,8 +403,8 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 
 	testhelper.WriteCustomHook(testRepoPath, "pre-receive", []byte(testhelper.CheckNewObjectExists))
 
-	config.Config.GitlabShell.GitlabURL = ts.URL
-	config.Config.GitlabShell.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
+	config.Config.Gitlab.URL = ts.URL
+	config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	defer func(override string) {
 		hooks.Override = override
