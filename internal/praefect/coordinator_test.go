@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -166,7 +167,6 @@ func TestStreamDirectorMutator(t *testing.T) {
 					}},
 			},
 		},
-		DistributedReadsEnabled: true,
 	}
 
 	var replEventWait sync.WaitGroup
@@ -285,7 +285,6 @@ func TestStreamDirectorAccessor(t *testing.T) {
 					}},
 			},
 		},
-		DistributedReadsEnabled: true,
 	}
 
 	ds := datastore.Datastore{
@@ -300,6 +299,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.DistributedReads)
 
 	entry := testhelper.DiscardTestEntry(t)
 

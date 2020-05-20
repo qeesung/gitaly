@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
@@ -58,7 +59,6 @@ type Node interface {
 // Mgr is a concrete type that adheres to the Manager interface
 type Mgr struct {
 	failoverEnabled bool
-	distributeReads bool
 	// log must be used only for non-request specific needs like bootstrapping, etc.
 	// for request related logging `ctxlogrus.Extract(ctx)` must be used.
 	log *logrus.Entry
@@ -133,7 +133,6 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, ds datastore.Dat
 		log:             log,
 		db:              db,
 		failoverEnabled: c.Failover.Enabled,
-		distributeReads: c.DistributedReadsEnabled,
 		strategies:      strategies,
 		ds:              ds,
 	}, nil
@@ -192,7 +191,8 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 	}
 
 	var storages []string
-	if n.distributeReads {
+	if featureflag.IsEnabled(ctx, featureflag.DistributedReads) {
+		//		panic("foof")
 		if storages, err = n.ds.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
 			// this is recoverable error - proceed with primary node
 			ctxlogrus.Extract(ctx).

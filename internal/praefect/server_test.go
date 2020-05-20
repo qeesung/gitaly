@@ -533,7 +533,6 @@ func TestRepoRename(t *testing.T) {
 				},
 			},
 		},
-		DistributedReadsEnabled: true,
 	}
 
 	virtualStorage := conf.VirtualStorages[0]

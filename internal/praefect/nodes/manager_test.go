@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -365,15 +366,16 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 	}
 
 	conf := config.Config{
-		VirtualStorages:         virtualStorages,
-		Failover:                config.Failover{Enabled: true},
-		DistributedReadsEnabled: true,
+		VirtualStorages: virtualStorages,
+		Failover:        config.Failover{Enabled: true},
 	}
 
 	mockHistogram := promtest.NewMockHistogramVec()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.DistributedReads)
 
 	ackEvent := func(ds datastore.Datastore, job datastore.ReplicationJob, state datastore.JobState) datastore.ReplicationEvent {
 		event := datastore.ReplicationEvent{Job: job}
