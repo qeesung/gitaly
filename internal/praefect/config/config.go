@@ -34,8 +34,8 @@ type Config struct {
 	DB                   `toml:"database"`
 	Failover             Failover `toml:"failover"`
 	// Keep for legacy reasons: remove after Omnibus has switched
-	FailoverEnabled      bool `toml:"failover_enabled"`
-	PostgresQueueEnabled bool `toml:"postgres_queue_enabled"`
+	FailoverEnabled    bool `toml:"failover_enabled"`
+	MemoryQueueEnabled bool `toml:"memory_queue_enabled"`
 }
 
 // VirtualStorage represents a set of nodes for a storage
@@ -145,7 +145,7 @@ func (c Config) Validate() error {
 
 // NeedsSQL returns true if the driver for SQL needs to be initialized
 func (c Config) NeedsSQL() bool {
-	return c.PostgresQueueEnabled || (c.Failover.Enabled && c.Failover.ElectionStrategy == "sql")
+	return !c.MemoryQueueEnabled || (c.Failover.Enabled && c.Failover.ElectionStrategy == "sql")
 }
 
 // DB holds Postgres client configuration data.

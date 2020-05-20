@@ -160,6 +160,7 @@ func (p *TestServer) Start() error {
 		Auth: auth.Config{
 			Token: p.token,
 		},
+		MemoryQueueEnabled: true,
 	}
 
 	for _, storage := range p.storages {

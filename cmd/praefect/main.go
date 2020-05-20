@@ -232,10 +232,10 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	}
 
 	ds := datastore.Datastore{ReplicasDatastore: datastore.NewInMemory(conf)}
-	if conf.PostgresQueueEnabled {
-		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
-	} else {
+	if conf.MemoryQueueEnabled {
 		ds.ReplicationEventQueue = datastore.NewMemoryReplicationEventQueue(conf)
+	} else {
+		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
 	}
 
 	nodeManager, err := nodes.NewManager(logger, conf, db, ds, nodeLatencyHistogram)

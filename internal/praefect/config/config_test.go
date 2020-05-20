@@ -257,7 +257,7 @@ func TestConfigParsing(t *testing.T) {
 					SSLKey:      "/path/to/key",
 					SSLRootCert: "/path/to/root-cert",
 				},
-				PostgresQueueEnabled: true,
+				MemoryQueueEnabled: true,
 			},
 		},
 	}
@@ -318,17 +318,17 @@ func TestNeedsSQL(t *testing.T) {
 		{
 			desc:     "default",
 			config:   Config{},
-			expected: false,
+			expected: true,
 		},
 		{
-			desc:     "PostgreSQL queue enabled",
-			config:   Config{PostgresQueueEnabled: true},
-			expected: true,
+			desc:     "Memory queue enabled",
+			config:   Config{MemoryQueueEnabled: true},
+			expected: false,
 		},
 		{
 			desc:     "Failover enabled with default election strategy",
 			config:   Config{Failover: Failover{Enabled: true}},
-			expected: false,
+			expected: true,
 		},
 		{
 			desc:     "Failover enabled with SQL election strategy",
@@ -337,12 +337,12 @@ func TestNeedsSQL(t *testing.T) {
 		},
 		{
 			desc:     "Both PostgresQL and SQL election strategy enabled",
-			config:   Config{PostgresQueueEnabled: true, Failover: Failover{Enabled: true, ElectionStrategy: "sql"}},
+			config:   Config{Failover: Failover{Enabled: true, ElectionStrategy: "sql"}},
 			expected: true,
 		},
 		{
 			desc:     "Both PostgresQL and SQL election strategy enabled but failover disabled",
-			config:   Config{PostgresQueueEnabled: true, Failover: Failover{Enabled: false, ElectionStrategy: "sql"}},
+			config:   Config{Failover: Failover{Enabled: false, ElectionStrategy: "sql"}},
 			expected: true,
 		},
 	}

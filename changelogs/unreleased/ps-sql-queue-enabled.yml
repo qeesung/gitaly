@@ -1,0 +1,5 @@
+---
+title: 'Praefect: Enable database replication queue by default'
+merge_request: 2193
+author:
+type: changed
