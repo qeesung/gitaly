@@ -36,8 +36,6 @@ type Config struct {
 	// Keep for legacy reasons: remove after Omnibus has switched
 	FailoverEnabled      bool `toml:"failover_enabled"`
 	PostgresQueueEnabled bool `toml:"postgres_queue_enabled"`
-	// DistributedReadsEnabled if enabled redirects accessor operations to up to date secondaries
-	DistributedReadsEnabled bool `toml:"distributed_reads_enabled"`
 }
 
 // VirtualStorage represents a set of nodes for a storage

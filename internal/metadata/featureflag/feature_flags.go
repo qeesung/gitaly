@@ -20,6 +20,8 @@ const (
 	RemoteBranchesLsRemote = "ruby_remote_branches_ls_remote"
 	// ReferenceTransactions will handle Git reference updates via the transaction service for strong consistency
 	ReferenceTransactions = "reference_transactions"
+	// DistributedReads allows praefect to redirect accessor operations to up-to-date secondaries
+	DistributedReads = "distributed_reads"
 )
 
 const (
