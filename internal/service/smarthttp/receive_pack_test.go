@@ -349,13 +349,14 @@ func TestPostReceivePackToHooks_WithoutRPC(t *testing.T) {
 }
 
 func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
 	secretToken := "secret token"
 	glRepository := "some_repo"
 	glID := "key-123"
 
-	defer func(token string) {
-		config.Config.Auth.Token = token
-	}(config.Config.Auth.Token)
 	config.Config.Auth.Token = "abc123"
 
 	server, socket := runSmartHTTPHookServiceServer(t)
@@ -366,10 +367,6 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 
 	tempGitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
 	defer cleanup()
-
-	defer func(gitlabShell config.GitlabShell) {
-		config.Config.GitlabShell = gitlabShell
-	}(config.Config.GitlabShell)
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
