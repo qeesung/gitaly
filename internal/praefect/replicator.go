@@ -422,10 +422,15 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 		var totalEvents int
 		shard, err := r.nodeManager.GetShard(virtualStorage)
 		if err == nil {
-			for _, secondary := range shard.Secondaries {
-				events, err := r.datastore.Dequeue(ctx, virtualStorage, secondary.GetStorage(), 10)
+			targetNodes := shard.Secondaries
+			if shard.IsReadOnly {
+				targetNodes = append(targetNodes, shard.Primary)
+			}
+
+			for _, target := range targetNodes {
+				events, err := r.datastore.Dequeue(ctx, virtualStorage, target.GetStorage(), 10)
 				if err != nil {
-					logger.WithField(logWithReplTarget, secondary.GetStorage()).WithError(err).Error("failed to dequeue replication events")
+					logger.WithField(logWithReplTarget, target.GetStorage()).WithError(err).Error("failed to dequeue replication events")
 					continue
 				}
 
@@ -439,7 +444,15 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 						eventIDsByState[datastore.JobStateFailed] = append(eventIDsByState[datastore.JobStateFailed], event.ID)
 						continue
 					}
-					if err := r.processReplJob(ctx, job, shard.Primary.GetConnection(), secondary.GetConnection()); err != nil {
+
+					source, err := shard.GetNode(job.SourceNode.Storage)
+					if err != nil {
+						logger.WithField("event", event).WithError(err).Error("failed to get source node for replication job")
+						eventIDsByState[datastore.JobStateFailed] = append(eventIDsByState[datastore.JobStateFailed], event.ID)
+						continue
+					}
+
+					if err := r.processReplJob(ctx, job, source.GetConnection(), target.GetConnection()); err != nil {
 						logger.WithFields(logrus.Fields{
 							logWithReplJobID:   job.ID,
 							logWithReplVirtual: job.VirtualStorage,

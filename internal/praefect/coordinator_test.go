@@ -56,11 +56,12 @@ func (m *mockNodeManager) GetSyncedNode(context.Context, string, string) (nodes.
 type mockNode struct {
 	nodes.Node
 	storageName string
+	conn        *grpc.ClientConn
 }
 
 func (m *mockNode) GetStorage() string { return m.storageName }
 
-func (m *mockNode) GetConnection() *grpc.ClientConn { return nil }
+func (m *mockNode) GetConnection() *grpc.ClientConn { return m.conn }
 
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 	for _, tc := range []struct {

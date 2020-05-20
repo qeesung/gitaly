@@ -676,6 +676,88 @@ func TestProcessBacklog_Success(t *testing.T) {
 	require.True(t, helper.IsGitDirectory(fullNewPath2), "repository must exist at new last RenameRepository location")
 }
 
+type mockReplicator struct {
+	Replicator
+	ReplicateFunc func(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error
+}
+
+func (m mockReplicator) Replicate(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error {
+	return m.ReplicateFunc(ctx, job, source, target)
+}
+
+func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	const virtualStorage = "virtal-storage"
+	const primaryStorage = "storage-1"
+	const secondaryStorage = "storage-2"
+
+	primaryConn := &grpc.ClientConn{}
+	secondaryConn := &grpc.ClientConn{}
+
+	conf := config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Name: virtualStorage,
+				Nodes: []*models.Node{
+					{Storage: primaryStorage},
+					{Storage: secondaryStorage},
+				},
+			},
+		},
+	}
+
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	_, err := queue.Enqueue(ctx, datastore.ReplicationEvent{
+		Job: datastore.ReplicationJob{
+			Change:            datastore.UpdateRepo,
+			RelativePath:      "ignored",
+			TargetNodeStorage: primaryStorage,
+			SourceNodeStorage: secondaryStorage,
+			VirtualStorage:    virtualStorage,
+		},
+	})
+	require.NoError(t, err)
+
+	replMgr := NewReplMgr(
+		testhelper.DiscardTestEntry(t),
+		datastore.Datastore{datastore.NewInMemory(conf), queue},
+		&mockNodeManager{
+			GetShardFunc: func(vs string) (nodes.Shard, error) {
+				require.Equal(t, virtualStorage, vs)
+				return nodes.Shard{
+					IsReadOnly: true,
+					Primary: &mockNode{
+						storageName: primaryStorage,
+						conn:        primaryConn,
+					},
+					Secondaries: []nodes.Node{&mockNode{
+						storageName: secondaryStorage,
+						conn:        secondaryConn,
+					}},
+				}, nil
+			},
+		},
+	)
+
+	processed := make(chan struct{})
+	replMgr.replicator = mockReplicator{
+		ReplicateFunc: func(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error {
+			require.True(t, primaryConn == target)
+			require.True(t, secondaryConn == source)
+			close(processed)
+			return nil
+		},
+	}
+	replMgr.ProcessBacklog(ctx, noopBackoffFunc)
+	select {
+	case <-processed:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("replication job targeting read-only primary was not processed before timeout")
+	}
+}
+
 func TestBackoff(t *testing.T) {
 	start := 1 * time.Microsecond
 	max := 6 * time.Microsecond

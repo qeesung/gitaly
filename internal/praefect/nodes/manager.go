@@ -34,6 +34,20 @@ type Shard struct {
 	Secondaries []Node
 }
 
+func (s Shard) GetNode(storage string) (Node, error) {
+	if storage == s.Primary.GetStorage() {
+		return s.Primary, nil
+	}
+
+	for _, node := range s.Secondaries {
+		if storage == node.GetStorage() {
+			return node, nil
+		}
+	}
+
+	return nil, fmt.Errorf("node with storage %q does not exist", storage)
+}
+
 // Manager is responsible for returning shards for virtual storages
 type Manager interface {
 	GetShard(virtualStorageName string) (Shard, error)
