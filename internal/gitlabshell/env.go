@@ -27,14 +27,14 @@ type Config struct {
 // EnvFromConfig returns a set of environment variables from a config struct relevant to gitlab shell
 func EnvFromConfig(cfg config.Cfg) ([]string, error) {
 	gitlabShellConfig := Config{
-		CustomHooksDir: cfg.Hooks.CustomHooksDir,
-		GitlabURL:      cfg.Gitlab.URL,
-		HTTPSettings:   cfg.Gitlab.HTTPSettings,
+		CustomHooksDir: cfg.GitlabShell.CustomHooksDir,
+		GitlabURL:      cfg.GitlabShell.GitlabURL,
+		HTTPSettings:   cfg.GitlabShell.HTTPSettings,
 		LogFormat:      cfg.Logging.Format,
 		LogLevel:       cfg.Logging.Level,
 		LogPath:        cfg.Logging.Dir,
 		RootPath:       cfg.GitlabShell.Dir, //GITLAB_SHELL_DIR has been deprecated
-		SecretFile:     cfg.Gitlab.SecretFile,
+		SecretFile:     cfg.GitlabShell.SecretFile,
 	}
 
 	gitlabShellConfigString, err := json.Marshal(&gitlabShellConfig)
