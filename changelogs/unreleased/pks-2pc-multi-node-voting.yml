@@ -1,0 +1,5 @@
+---
+title: Allow transaction manager to handle multi-node transactions
+merge_request: 2182
+author:
+type: added

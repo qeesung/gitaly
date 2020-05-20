@@ -103,7 +103,7 @@ func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookSer
 
 	praefectClient := gitalypb.NewRefTransactionClient(praefectConn)
 
-	response, err := praefectClient.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
+	response, err := praefectClient.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
 		TransactionId:        tx.ID,
 		Node:                 tx.Node,
 		ReferenceUpdatesHash: hash,
@@ -112,7 +112,7 @@ func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookSer
 		return err
 	}
 
-	if response.State != gitalypb.StartTransactionResponse_COMMIT {
+	if response.State != gitalypb.VoteTransactionResponse_COMMIT {
 		return errors.New("transaction was aborted")
 	}
 

@@ -26,36 +26,36 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // The outcome of the given transaction telling the client whether the
 // transaction should be committed or rolled back.
-type StartTransactionResponse_TransactionState int32
+type VoteTransactionResponse_TransactionState int32
 
 const (
-	StartTransactionResponse_COMMIT StartTransactionResponse_TransactionState = 0
-	StartTransactionResponse_ABORT  StartTransactionResponse_TransactionState = 1
+	VoteTransactionResponse_COMMIT VoteTransactionResponse_TransactionState = 0
+	VoteTransactionResponse_ABORT  VoteTransactionResponse_TransactionState = 1
 )
 
-var StartTransactionResponse_TransactionState_name = map[int32]string{
+var VoteTransactionResponse_TransactionState_name = map[int32]string{
 	0: "COMMIT",
 	1: "ABORT",
 }
 
-var StartTransactionResponse_TransactionState_value = map[string]int32{
+var VoteTransactionResponse_TransactionState_value = map[string]int32{
 	"COMMIT": 0,
 	"ABORT":  1,
 }
 
-func (x StartTransactionResponse_TransactionState) String() string {
-	return proto.EnumName(StartTransactionResponse_TransactionState_name, int32(x))
+func (x VoteTransactionResponse_TransactionState) String() string {
+	return proto.EnumName(VoteTransactionResponse_TransactionState_name, int32(x))
 }
 
-func (StartTransactionResponse_TransactionState) EnumDescriptor() ([]byte, []int) {
+func (VoteTransactionResponse_TransactionState) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_2cc4e03d2c28c490, []int{1, 0}
 }
 
-type StartTransactionRequest struct {
+type VoteTransactionRequest struct {
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// ID of the transaction we're processing
 	TransactionId uint64 `protobuf:"varint,2,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
-	// Name of the Gitaly node that's starting a transaction.
+	// Name of the Gitaly node that's voting on a transaction.
 	Node string `protobuf:"bytes,3,opt,name=node,proto3" json:"node,omitempty"`
 	// SHA1 of the references that are to be updated
 	ReferenceUpdatesHash []byte   `protobuf:"bytes,4,opt,name=reference_updates_hash,json=referenceUpdatesHash,proto3" json:"reference_updates_hash,omitempty"`
@@ -64,129 +64,129 @@ type StartTransactionRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *StartTransactionRequest) Reset()         { *m = StartTransactionRequest{} }
-func (m *StartTransactionRequest) String() string { return proto.CompactTextString(m) }
-func (*StartTransactionRequest) ProtoMessage()    {}
-func (*StartTransactionRequest) Descriptor() ([]byte, []int) {
+func (m *VoteTransactionRequest) Reset()         { *m = VoteTransactionRequest{} }
+func (m *VoteTransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*VoteTransactionRequest) ProtoMessage()    {}
+func (*VoteTransactionRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2cc4e03d2c28c490, []int{0}
 }
 
-func (m *StartTransactionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartTransactionRequest.Unmarshal(m, b)
+func (m *VoteTransactionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_VoteTransactionRequest.Unmarshal(m, b)
 }
-func (m *StartTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartTransactionRequest.Marshal(b, m, deterministic)
+func (m *VoteTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_VoteTransactionRequest.Marshal(b, m, deterministic)
 }
-func (m *StartTransactionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartTransactionRequest.Merge(m, src)
+func (m *VoteTransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_VoteTransactionRequest.Merge(m, src)
 }
-func (m *StartTransactionRequest) XXX_Size() int {
-	return xxx_messageInfo_StartTransactionRequest.Size(m)
+func (m *VoteTransactionRequest) XXX_Size() int {
+	return xxx_messageInfo_VoteTransactionRequest.Size(m)
 }
-func (m *StartTransactionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartTransactionRequest.DiscardUnknown(m)
+func (m *VoteTransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_VoteTransactionRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_StartTransactionRequest proto.InternalMessageInfo
+var xxx_messageInfo_VoteTransactionRequest proto.InternalMessageInfo
 
-func (m *StartTransactionRequest) GetRepository() *Repository {
+func (m *VoteTransactionRequest) GetRepository() *Repository {
 	if m != nil {
 		return m.Repository
 	}
 	return nil
 }
 
-func (m *StartTransactionRequest) GetTransactionId() uint64 {
+func (m *VoteTransactionRequest) GetTransactionId() uint64 {
 	if m != nil {
 		return m.TransactionId
 	}
 	return 0
 }
 
-func (m *StartTransactionRequest) GetNode() string {
+func (m *VoteTransactionRequest) GetNode() string {
 	if m != nil {
 		return m.Node
 	}
 	return ""
 }
 
-func (m *StartTransactionRequest) GetReferenceUpdatesHash() []byte {
+func (m *VoteTransactionRequest) GetReferenceUpdatesHash() []byte {
 	if m != nil {
 		return m.ReferenceUpdatesHash
 	}
 	return nil
 }
 
-type StartTransactionResponse struct {
-	State                StartTransactionResponse_TransactionState `protobuf:"varint,1,opt,name=state,proto3,enum=gitaly.StartTransactionResponse_TransactionState" json:"state,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                                  `json:"-"`
-	XXX_unrecognized     []byte                                    `json:"-"`
-	XXX_sizecache        int32                                     `json:"-"`
+type VoteTransactionResponse struct {
+	State                VoteTransactionResponse_TransactionState `protobuf:"varint,1,opt,name=state,proto3,enum=gitaly.VoteTransactionResponse_TransactionState" json:"state,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                 `json:"-"`
+	XXX_unrecognized     []byte                                   `json:"-"`
+	XXX_sizecache        int32                                    `json:"-"`
 }
 
-func (m *StartTransactionResponse) Reset()         { *m = StartTransactionResponse{} }
-func (m *StartTransactionResponse) String() string { return proto.CompactTextString(m) }
-func (*StartTransactionResponse) ProtoMessage()    {}
-func (*StartTransactionResponse) Descriptor() ([]byte, []int) {
+func (m *VoteTransactionResponse) Reset()         { *m = VoteTransactionResponse{} }
+func (m *VoteTransactionResponse) String() string { return proto.CompactTextString(m) }
+func (*VoteTransactionResponse) ProtoMessage()    {}
+func (*VoteTransactionResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2cc4e03d2c28c490, []int{1}
 }
 
-func (m *StartTransactionResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartTransactionResponse.Unmarshal(m, b)
+func (m *VoteTransactionResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_VoteTransactionResponse.Unmarshal(m, b)
 }
-func (m *StartTransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartTransactionResponse.Marshal(b, m, deterministic)
+func (m *VoteTransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_VoteTransactionResponse.Marshal(b, m, deterministic)
 }
-func (m *StartTransactionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartTransactionResponse.Merge(m, src)
+func (m *VoteTransactionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_VoteTransactionResponse.Merge(m, src)
 }
-func (m *StartTransactionResponse) XXX_Size() int {
-	return xxx_messageInfo_StartTransactionResponse.Size(m)
+func (m *VoteTransactionResponse) XXX_Size() int {
+	return xxx_messageInfo_VoteTransactionResponse.Size(m)
 }
-func (m *StartTransactionResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartTransactionResponse.DiscardUnknown(m)
+func (m *VoteTransactionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_VoteTransactionResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_StartTransactionResponse proto.InternalMessageInfo
+var xxx_messageInfo_VoteTransactionResponse proto.InternalMessageInfo
 
-func (m *StartTransactionResponse) GetState() StartTransactionResponse_TransactionState {
+func (m *VoteTransactionResponse) GetState() VoteTransactionResponse_TransactionState {
 	if m != nil {
 		return m.State
 	}
-	return StartTransactionResponse_COMMIT
+	return VoteTransactionResponse_COMMIT
 }
 
 func init() {
-	proto.RegisterEnum("gitaly.StartTransactionResponse_TransactionState", StartTransactionResponse_TransactionState_name, StartTransactionResponse_TransactionState_value)
-	proto.RegisterType((*StartTransactionRequest)(nil), "gitaly.StartTransactionRequest")
-	proto.RegisterType((*StartTransactionResponse)(nil), "gitaly.StartTransactionResponse")
+	proto.RegisterEnum("gitaly.VoteTransactionResponse_TransactionState", VoteTransactionResponse_TransactionState_name, VoteTransactionResponse_TransactionState_value)
+	proto.RegisterType((*VoteTransactionRequest)(nil), "gitaly.VoteTransactionRequest")
+	proto.RegisterType((*VoteTransactionResponse)(nil), "gitaly.VoteTransactionResponse")
 }
 
 func init() { proto.RegisterFile("transaction.proto", fileDescriptor_2cc4e03d2c28c490) }
 
 var fileDescriptor_2cc4e03d2c28c490 = []byte{
 	// 339 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x51, 0xcd, 0x4a, 0xeb, 0x40,
-	0x14, 0xbe, 0xd3, 0x9b, 0x86, 0xdb, 0x73, 0x6b, 0x89, 0x83, 0x68, 0xe8, 0xc6, 0x10, 0x10, 0x22,
-	0x68, 0xa2, 0xd5, 0x85, 0x5b, 0xeb, 0x42, 0xbb, 0x28, 0x85, 0x69, 0xdd, 0x08, 0x52, 0xa6, 0xcd,
-	0x69, 0x13, 0xa8, 0x99, 0x38, 0x33, 0x5d, 0xf4, 0x25, 0xdc, 0xea, 0x03, 0x89, 0x0f, 0xe5, 0x4a,
-	0x9a, 0xd1, 0x1a, 0x2a, 0xc5, 0xdd, 0x9c, 0xef, 0xe7, 0xcc, 0xf7, 0x71, 0x60, 0x5b, 0x4b, 0x9e,
-	0x29, 0x3e, 0xd6, 0xa9, 0xc8, 0xc2, 0x5c, 0x0a, 0x2d, 0xa8, 0x3d, 0x4d, 0x35, 0x9f, 0x2d, 0x9a,
-	0x30, 0x4b, 0x33, 0x6d, 0xb0, 0x66, 0x5d, 0x25, 0x5c, 0x62, 0x6c, 0x26, 0xff, 0x95, 0xc0, 0x5e,
-	0x5f, 0x73, 0xa9, 0x07, 0xdf, 0x66, 0x86, 0x8f, 0x73, 0x54, 0x9a, 0x5e, 0x00, 0x48, 0xcc, 0x85,
-	0x4a, 0xb5, 0x90, 0x0b, 0x97, 0x78, 0x24, 0xf8, 0xdf, 0xa2, 0xa1, 0x59, 0x19, 0xb2, 0x15, 0xd3,
-	0xb6, 0x5e, 0xde, 0x8e, 0x08, 0x2b, 0x69, 0xe9, 0x01, 0x34, 0x4a, 0x61, 0x86, 0x69, 0xec, 0x56,
-	0x3c, 0x12, 0x58, 0x6c, 0xab, 0x84, 0x76, 0x62, 0x4a, 0xc1, 0xca, 0x44, 0x8c, 0xee, 0x5f, 0x8f,
-	0x04, 0x35, 0x56, 0xbc, 0xe9, 0x39, 0xec, 0x4a, 0x9c, 0xa0, 0xc4, 0x6c, 0x8c, 0xc3, 0x79, 0x1e,
-	0x73, 0x8d, 0x6a, 0x98, 0x70, 0x95, 0xb8, 0x96, 0x47, 0x82, 0x3a, 0xdb, 0x59, 0xb1, 0xb7, 0x86,
-	0xbc, 0xe1, 0x2a, 0xf1, 0x9f, 0x08, 0xb8, 0x3f, 0x6b, 0xa8, 0x5c, 0x64, 0x0a, 0xe9, 0x35, 0x54,
-	0x95, 0xe6, 0x1a, 0x8b, 0x0a, 0x8d, 0xd6, 0xe9, 0x57, 0x85, 0x4d, 0x86, 0xb0, 0x84, 0xf5, 0x97,
-	0x46, 0x66, 0xfc, 0xfe, 0x21, 0x38, 0xeb, 0x14, 0x05, 0xb0, 0xaf, 0x7a, 0xdd, 0x6e, 0x67, 0xe0,
-	0xfc, 0xa1, 0x35, 0xa8, 0x5e, 0xb6, 0x7b, 0x6c, 0xe0, 0x90, 0x96, 0x80, 0x06, 0xc3, 0x49, 0x49,
-	0x4d, 0xef, 0xc1, 0x59, 0xff, 0x90, 0xee, 0x6f, 0x8e, 0x52, 0x9c, 0xa0, 0xe9, 0xfd, 0x96, 0xd5,
-	0xb7, 0xdf, 0x9f, 0x83, 0xca, 0x3f, 0xd2, 0x3e, 0xb9, 0x5b, 0x4a, 0x67, 0x7c, 0x14, 0x8e, 0xc5,
-	0x43, 0x64, 0x9e, 0xc7, 0x42, 0x4e, 0x23, 0xb3, 0x20, 0x2a, 0xce, 0x1d, 0x4d, 0xc5, 0xe7, 0x9c,
-	0x8f, 0x46, 0x76, 0x01, 0x9d, 0x7d, 0x04, 0x00, 0x00, 0xff, 0xff, 0xca, 0xb8, 0x34, 0xbf, 0x38,
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x51, 0xcd, 0x4e, 0xf2, 0x40,
+	0x14, 0xfd, 0x86, 0xaf, 0x34, 0x72, 0x45, 0xc4, 0x89, 0xc1, 0x86, 0x85, 0x36, 0x4d, 0x4c, 0x6a,
+	0xa2, 0x2d, 0x41, 0x17, 0x6e, 0xc5, 0xc4, 0xc8, 0x82, 0x90, 0x8c, 0xe8, 0x82, 0x0d, 0x19, 0xe8,
+	0x85, 0x36, 0xa9, 0x9d, 0x3a, 0x33, 0x2c, 0x78, 0x07, 0xf7, 0xfa, 0x3e, 0x26, 0x3e, 0x94, 0x2b,
+	0x43, 0xab, 0xd8, 0x60, 0x88, 0xbb, 0x7b, 0xcf, 0xcf, 0xcc, 0x39, 0x33, 0xb0, 0xa7, 0x25, 0x4f,
+	0x14, 0x9f, 0xe8, 0x48, 0x24, 0x5e, 0x2a, 0x85, 0x16, 0xd4, 0x9c, 0x45, 0x9a, 0xc7, 0x8b, 0x26,
+	0xc4, 0x51, 0xa2, 0x73, 0xac, 0x59, 0x55, 0x21, 0x97, 0x18, 0xe4, 0x9b, 0xf3, 0x46, 0xa0, 0xf1,
+	0x20, 0x34, 0x0e, 0x7e, 0xbc, 0x0c, 0x9f, 0xe6, 0xa8, 0x34, 0xbd, 0x04, 0x90, 0x98, 0x0a, 0x15,
+	0x69, 0x21, 0x17, 0x16, 0xb1, 0x89, 0xbb, 0xdd, 0xa6, 0x5e, 0x7e, 0xa2, 0xc7, 0x56, 0x4c, 0xc7,
+	0x78, 0x7d, 0x3f, 0x25, 0xac, 0xa0, 0xa5, 0xc7, 0x50, 0x2b, 0x64, 0x19, 0x45, 0x81, 0x55, 0xb2,
+	0x89, 0x6b, 0xb0, 0x9d, 0x02, 0xda, 0x0d, 0x28, 0x05, 0x23, 0x11, 0x01, 0x5a, 0xff, 0x6d, 0xe2,
+	0x56, 0x58, 0x36, 0xd3, 0x0b, 0x68, 0x48, 0x9c, 0xa2, 0xc4, 0x64, 0x82, 0xa3, 0x79, 0x1a, 0x70,
+	0x8d, 0x6a, 0x14, 0x72, 0x15, 0x5a, 0x86, 0x4d, 0xdc, 0x2a, 0xdb, 0x5f, 0xb1, 0xf7, 0x39, 0x79,
+	0xcb, 0x55, 0xe8, 0x3c, 0x13, 0x38, 0xf8, 0xd5, 0x42, 0xa5, 0x22, 0x51, 0x48, 0x6f, 0xa0, 0xac,
+	0x34, 0xd7, 0x98, 0x35, 0xa8, 0xb5, 0x5b, 0xdf, 0x0d, 0x36, 0xe8, 0xbd, 0x02, 0x76, 0xb7, 0xf4,
+	0xb1, 0xdc, 0xee, 0x9c, 0x40, 0x7d, 0x9d, 0xa2, 0x00, 0xe6, 0x75, 0xbf, 0xd7, 0xeb, 0x0e, 0xea,
+	0xff, 0x68, 0x05, 0xca, 0x57, 0x9d, 0x3e, 0x1b, 0xd4, 0x49, 0x3b, 0x86, 0x1a, 0xc3, 0x69, 0x41,
+	0x4d, 0x87, 0xb0, 0xbb, 0x76, 0x1f, 0x3d, 0xdc, 0x18, 0x24, 0x7b, 0xfe, 0xe6, 0xd1, 0x1f, 0x41,
+	0x1d, 0xf3, 0xe3, 0xc5, 0x2d, 0x6d, 0x91, 0x4e, 0x6b, 0xb8, 0x54, 0xc6, 0x7c, 0xec, 0x4d, 0xc4,
+	0xa3, 0x9f, 0x8f, 0x67, 0x42, 0xce, 0xfc, 0xdc, 0xef, 0x67, 0x1f, 0xed, 0xcf, 0xc4, 0xd7, 0x9e,
+	0x8e, 0xc7, 0x66, 0x06, 0x9d, 0x7f, 0x06, 0x00, 0x00, 0xff, 0xff, 0xbe, 0x43, 0x1d, 0x41, 0x32,
 	0x02, 0x00, 0x00,
 }
 
@@ -202,7 +202,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RefTransactionClient interface {
-	StartTransaction(ctx context.Context, in *StartTransactionRequest, opts ...grpc.CallOption) (*StartTransactionResponse, error)
+	VoteTransaction(ctx context.Context, in *VoteTransactionRequest, opts ...grpc.CallOption) (*VoteTransactionResponse, error)
 }
 
 type refTransactionClient struct {
@@ -213,9 +213,9 @@ func NewRefTransactionClient(cc *grpc.ClientConn) RefTransactionClient {
 	return &refTransactionClient{cc}
 }
 
-func (c *refTransactionClient) StartTransaction(ctx context.Context, in *StartTransactionRequest, opts ...grpc.CallOption) (*StartTransactionResponse, error) {
-	out := new(StartTransactionResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RefTransaction/StartTransaction", in, out, opts...)
+func (c *refTransactionClient) VoteTransaction(ctx context.Context, in *VoteTransactionRequest, opts ...grpc.CallOption) (*VoteTransactionResponse, error) {
+	out := new(VoteTransactionResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.RefTransaction/VoteTransaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -224,35 +224,35 @@ func (c *refTransactionClient) StartTransaction(ctx context.Context, in *StartTr
 
 // RefTransactionServer is the server API for RefTransaction service.
 type RefTransactionServer interface {
-	StartTransaction(context.Context, *StartTransactionRequest) (*StartTransactionResponse, error)
+	VoteTransaction(context.Context, *VoteTransactionRequest) (*VoteTransactionResponse, error)
 }
 
 // UnimplementedRefTransactionServer can be embedded to have forward compatible implementations.
 type UnimplementedRefTransactionServer struct {
 }
 
-func (*UnimplementedRefTransactionServer) StartTransaction(ctx context.Context, req *StartTransactionRequest) (*StartTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartTransaction not implemented")
+func (*UnimplementedRefTransactionServer) VoteTransaction(ctx context.Context, req *VoteTransactionRequest) (*VoteTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VoteTransaction not implemented")
 }
 
 func RegisterRefTransactionServer(s *grpc.Server, srv RefTransactionServer) {
 	s.RegisterService(&_RefTransaction_serviceDesc, srv)
 }
 
-func _RefTransaction_StartTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartTransactionRequest)
+func _RefTransaction_VoteTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VoteTransactionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RefTransactionServer).StartTransaction(ctx, in)
+		return srv.(RefTransactionServer).VoteTransaction(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gitaly.RefTransaction/StartTransaction",
+		FullMethod: "/gitaly.RefTransaction/VoteTransaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RefTransactionServer).StartTransaction(ctx, req.(*StartTransactionRequest))
+		return srv.(RefTransactionServer).VoteTransaction(ctx, req.(*VoteTransactionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -262,8 +262,8 @@ var _RefTransaction_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RefTransactionServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "StartTransaction",
-			Handler:    _RefTransaction_StartTransaction_Handler,
+			MethodName: "VoteTransaction",
+			Handler:    _RefTransaction_VoteTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

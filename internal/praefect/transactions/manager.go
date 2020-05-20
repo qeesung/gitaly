@@ -3,10 +3,9 @@ package transactions
 import (
 	"context"
 	cryptorand "crypto/rand"
-	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -14,9 +13,10 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 )
+
+var ErrNotFound = errors.New("transaction not found")
 
 // Manager handles reference transactions for Praefect. It is required in order
 // for Praefect to handle transactions directly instead of having to reach out
@@ -24,7 +24,7 @@ import (
 type Manager struct {
 	txIdGenerator TransactionIdGenerator
 	lock          sync.Mutex
-	transactions  map[uint64]string
+	transactions  map[uint64]*transaction
 	counterMetric *prometheus.CounterVec
 	delayMetric   metrics.HistogramVec
 }
@@ -84,7 +84,7 @@ func WithTransactionIdGenerator(generator TransactionIdGenerator) ManagerOpt {
 func NewManager(opts ...ManagerOpt) *Manager {
 	mgr := &Manager{
 		txIdGenerator: newTransactionIdGenerator(),
-		transactions:  make(map[uint64]string),
+		transactions:  make(map[uint64]*transaction),
 		counterMetric: prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
 		delayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
 	}
@@ -111,22 +111,21 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, nodes []string) (ui
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
-	// We only accept a single node in transactions right now, which is
-	// usually the primary. This limitation will be lifted at a later point
-	// to allow for real transaction voting and multi-phase commits.
-	if len(nodes) != 1 {
-		return 0, nil, helper.ErrInvalidArgumentf("transaction requires exactly one node")
-	}
-
 	// Use a random transaction ID. Using monotonic incrementing counters
 	// that reset on restart of Praefect would be suboptimal, as the chance
 	// for collisions is a lot higher in case Praefect restarts when Gitaly
 	// nodes still have in-flight transactions.
 	transactionID := mgr.txIdGenerator.Id()
-	if _, ok := mgr.transactions[transactionID]; ok {
-		return 0, nil, helper.ErrInternalf("transaction exists already")
+
+	transaction, err := newTransaction(nodes)
+	if err != nil {
+		return 0, nil, err
 	}
-	mgr.transactions[transactionID] = nodes[0]
+
+	if _, ok := mgr.transactions[transactionID]; ok {
+		return 0, nil, errors.New("transaction exists already")
+	}
+	mgr.transactions[transactionID] = transaction
 
 	mgr.log(ctx).WithFields(logrus.Fields{
 		"transaction_id": transactionID,
@@ -136,46 +135,44 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, nodes []string) (ui
 	mgr.counterMetric.WithLabelValues("registered").Inc()
 
 	return transactionID, func() {
-		mgr.cancelTransaction(transactionID)
+		mgr.cancelTransaction(transactionID, transaction)
 	}, nil
 }
 
-func (mgr *Manager) cancelTransaction(transactionID uint64) {
+func (mgr *Manager) cancelTransaction(transactionID uint64, transaction *transaction) {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 	delete(mgr.transactions, transactionID)
+	transaction.cancel()
 }
 
-func (mgr *Manager) verifyTransaction(transactionID uint64, node string, hash []byte) error {
-	// While the reference updates hash is not used yet, we already verify
-	// it's there. At a later point, the hash will be used to verify that
-	// all voting nodes agree on the same updates.
-	if len(hash) != sha1.Size {
-		return helper.ErrInvalidArgumentf("invalid reference hash: %q", hash)
-	}
-
+func (mgr *Manager) voteTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
 	mgr.lock.Lock()
 	transaction, ok := mgr.transactions[transactionID]
 	mgr.lock.Unlock()
 
 	if !ok {
-		return helper.ErrNotFound(fmt.Errorf("no such transaction: %d", transactionID))
+		return ErrNotFound
 	}
 
-	if transaction != node {
-		return helper.ErrInternalf("invalid node for transaction: %q", node)
+	if err := transaction.vote(node, hash); err != nil {
+		return err
+	}
+
+	if err := transaction.collectVotes(ctx); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// StartTransaction is called by a client who's starting a reference
+// VoteTransaction is called by a client who's casting a vote on a reference
 // transaction. As we currently only have primary nodes which perform reference
 // transactions, this function doesn't yet do anything of interest but will
 // always instruct the node to commit, if given valid transaction parameters.
 // In future, it will wait for all clients of a given transaction to start the
 // transaction and perform a vote.
-func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
+func (mgr *Manager) VoteTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
 	start := time.Now()
 	defer func() {
 		delay := time.Since(start)
@@ -188,15 +185,21 @@ func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, 
 		"transaction_id": transactionID,
 		"node":           node,
 		"hash":           hex.EncodeToString(hash),
-	}).Debug("StartTransaction")
+	}).Debug("VoteTransaction")
 
-	if err := mgr.verifyTransaction(transactionID, node, hash); err != nil {
+	if err := mgr.voteTransaction(ctx, transactionID, node, hash); err != nil {
 		mgr.log(ctx).WithFields(logrus.Fields{
 			"transaction_id": transactionID,
 			"node":           node,
 			"hash":           hex.EncodeToString(hash),
-		}).WithError(err).Error("StartTransaction: transaction invalid")
-		mgr.counterMetric.WithLabelValues("invalid").Inc()
+		}).WithError(err).Error("VoteTransaction: vote failed")
+
+		if errors.Is(err, ErrTransactionVoteFailed) {
+			mgr.counterMetric.WithLabelValues("aborted").Inc()
+		} else {
+			mgr.counterMetric.WithLabelValues("invalid").Inc()
+		}
+
 		return err
 	}
 
@@ -204,7 +207,7 @@ func (mgr *Manager) StartTransaction(ctx context.Context, transactionID uint64, 
 		"transaction_id": transactionID,
 		"node":           node,
 		"hash":           hex.EncodeToString(hash),
-	}).Debug("StartTransaction: transaction committed")
+	}).Debug("VoteTransaction: transaction committed")
 
 	mgr.counterMetric.WithLabelValues("committed").Inc()
 

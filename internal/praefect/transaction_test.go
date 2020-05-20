@@ -3,6 +3,7 @@ package praefect
 import (
 	"context"
 	"crypto/sha1"
+	"sync"
 	"testing"
 	"time"
 
@@ -75,13 +76,13 @@ func TestTransactionSucceeds(t *testing.T) {
 
 	hash := sha1.Sum([]byte{})
 
-	response, err := client.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
+	response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
 		TransactionId:        transactionID,
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],
 	})
 	require.NoError(t, err)
-	require.Equal(t, gitalypb.StartTransactionResponse_COMMIT, response.State)
+	require.Equal(t, gitalypb.VoteTransactionResponse_COMMIT, response.State)
 
 	verifyCounterMetrics(t, counter, counterMetrics{
 		registered: 1,
@@ -90,14 +91,159 @@ func TestTransactionSucceeds(t *testing.T) {
 	})
 }
 
-func TestTransactionFailsWithMultipleNodes(t *testing.T) {
-	_, txMgr, cleanup := runPraefectServerAndTxMgr(t)
+func TestTransactionWithMultipleNodes(t *testing.T) {
+	testcases := []struct {
+		desc          string
+		nodes         []string
+		hashes        [][20]byte
+		expectedState gitalypb.VoteTransactionResponse_TransactionState
+	}{
+		{
+			desc: "Nodes with same hash",
+			nodes: []string{
+				"node1",
+				"node2",
+			},
+			hashes: [][20]byte{
+				sha1.Sum([]byte{}),
+				sha1.Sum([]byte{}),
+			},
+			expectedState: gitalypb.VoteTransactionResponse_COMMIT,
+		},
+		{
+			desc: "Nodes with different hashes",
+			nodes: []string{
+				"node1",
+				"node2",
+			},
+			hashes: [][20]byte{
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("bar")),
+			},
+			expectedState: gitalypb.VoteTransactionResponse_ABORT,
+		},
+		{
+			desc: "More nodes with same hash",
+			nodes: []string{
+				"node1",
+				"node2",
+				"node3",
+				"node4",
+			},
+			hashes: [][20]byte{
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("foo")),
+			},
+			expectedState: gitalypb.VoteTransactionResponse_COMMIT,
+		},
+		{
+			desc: "Majority with same hash",
+			nodes: []string{
+				"node1",
+				"node2",
+				"node3",
+				"node4",
+			},
+			hashes: [][20]byte{
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("foo")),
+				sha1.Sum([]byte("bar")),
+				sha1.Sum([]byte("foo")),
+			},
+			expectedState: gitalypb.VoteTransactionResponse_ABORT,
+		},
+	}
+
+	cc, txMgr, cleanup := runPraefectServerAndTxMgr(t)
 	defer cleanup()
 
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 
-	_, _, err := txMgr.RegisterTransaction(ctx, []string{"node1", "node2"})
+	client := gitalypb.NewRefTransactionClient(cc)
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, tc.nodes)
+			require.NoError(t, err)
+			defer cancelTransaction()
+
+			var wg sync.WaitGroup
+			for i := 0; i < len(tc.nodes); i++ {
+				wg.Add(1)
+
+				go func(idx int) {
+					defer wg.Done()
+
+					response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
+						TransactionId:        transactionID,
+						Node:                 tc.nodes[idx],
+						ReferenceUpdatesHash: tc.hashes[idx][:],
+					})
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedState, response.State)
+				}(i)
+			}
+
+			wg.Wait()
+		})
+	}
+}
+
+func TestTransactionWithContextCancellation(t *testing.T) {
+	cc, txMgr, cleanup := runPraefectServerAndTxMgr(t)
+	defer cleanup()
+
+	client := gitalypb.NewRefTransactionClient(cc)
+
+	ctx, cancel := testhelper.Context()
+
+	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []string{"voter", "absent"})
+	require.NoError(t, err)
+	defer cancelTransaction()
+
+	hash := sha1.Sum([]byte{})
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
+			TransactionId:        transactionID,
+			Node:                 "voter",
+			ReferenceUpdatesHash: hash[:],
+		})
+		require.Error(t, err)
+		require.Equal(t, codes.Canceled, status.Code(err))
+	}()
+
+	cancel()
+	wg.Wait()
+}
+
+func TestTransactionRegistrationWithInvalidNodesFails(t *testing.T) {
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	txMgr := transactions.NewManager()
+
+	_, _, err := txMgr.RegisterTransaction(ctx, []string{})
+	require.Equal(t, transactions.ErrMissingNodes, err)
+
+	_, _, err = txMgr.RegisterTransaction(ctx, []string{"node1", "node2", "node1"})
+	require.Equal(t, transactions.ErrDuplicateNodes, err)
+}
+
+func TestTransactionRegistrationWithSameNodeFails(t *testing.T) {
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	txMgr := transactions.NewManager()
+
+	_, _, err := txMgr.RegisterTransaction(ctx, []string{"foo", "bar", "foo"})
 	require.Error(t, err)
 }
 
@@ -112,7 +258,7 @@ func TestTransactionFailures(t *testing.T) {
 	client := gitalypb.NewRefTransactionClient(cc)
 
 	hash := sha1.Sum([]byte{})
-	_, err := client.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
+	_, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
 		TransactionId:        1,
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],
@@ -143,7 +289,7 @@ func TestTransactionCancellation(t *testing.T) {
 	cancelTransaction()
 
 	hash := sha1.Sum([]byte{})
-	_, err = client.StartTransaction(ctx, &gitalypb.StartTransactionRequest{
+	_, err = client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
 		TransactionId:        transactionID,
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],

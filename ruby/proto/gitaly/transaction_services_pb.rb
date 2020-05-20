@@ -14,7 +14,7 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.RefTransaction'
 
-      rpc :StartTransaction, StartTransactionRequest, StartTransactionResponse
+      rpc :VoteTransaction, VoteTransactionRequest, VoteTransactionResponse
     end
 
     Stub = Service.rpc_stub_class
