@@ -25,7 +25,6 @@ danger-review:
   script:
     - git version
     - danger
-  when: manual
 
 .ruby_template: &ruby_definition
   cache:
