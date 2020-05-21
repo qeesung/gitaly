@@ -192,7 +192,7 @@ to solve the data loss cases.
 ### Distribution of reads
 
 Praefect supports distribution of read operations across Gitaly nodes that are configured for the virtual node.
-You can enable this feature with `distributed_reads_enabled = true` (disabled by default) in your configuration file.
+You can enable this feature with with `distributed_reads` feature flag (disabled by default).
 That means that RPCs marked with `ACCESSOR` option like
 [GetBlob](https://gitlab.com/gitlab-org/gitaly/-/blob/v12.10.6/proto/blob.proto#L16)
 will be redirected to the one of the up to date Gitaly nodes.
