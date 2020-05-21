@@ -83,6 +83,10 @@ func TestOptimizeRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, bitmaps)
 
+	emptyRef := filepath.Join(testRepoPath, "refs", "empty")
+	require.NoError(t, os.MkdirAll(emptyRef, 0755))
+	require.DirExists(t, emptyRef, "sanity check for empty ref dir existence")
+
 	// optimize repository on a repository without a bitmap should call repack full
 	_, err = repoClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: testRepo})
 	require.NoError(t, err)
@@ -90,6 +94,11 @@ func TestOptimizeRepository(t *testing.T) {
 	bitmaps, err = filepath.Glob(filepath.Join(testRepoPath, "objects", "pack", "*.bitmap"))
 	require.NoError(t, err)
 	require.NotEmpty(t, bitmaps)
+
+	// All empty directories should be removed
+	testhelper.AssertPathNotExists(t, emptyRef)
+	// ... but never delete the refs directory
+	require.DirExists(t, filepath.Join(testRepoPath, "refs"))
 }
 
 func TestOptimizeRepositoryValidation(t *testing.T) {
