@@ -2,13 +2,103 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
+
+var (
+	optimizeEmptyDirRemovalTotals = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "gitaly",
+			Subsystem: "repository",
+			Name:      "optimizerepository_empty_dir_removal_total",
+			Help:      "Total number of empty directories removed by OptimizeRepository RPC",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(optimizeEmptyDirRemovalTotals)
+}
+
+func removeEmptyDirs(ctx context.Context, target string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// continue
+	}
+
+	entries, err := ioutil.ReadDir(target)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+
+		ePath := filepath.Join(target, e.Name())
+		if err := removeEmptyDirs(ctx, ePath); err != nil {
+			return err
+		}
+		continue
+	}
+
+	// recheck entries now that we have potentially removed some dirs
+	entries, err = ioutil.ReadDir(target)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if len(entries) > 0 {
+		return nil
+	}
+
+	switch err := os.Remove(target); {
+	case err != nil && !os.IsNotExist(err):
+		return err
+	case err != nil && os.IsNotExist(err):
+		break // race condition: someone else deleted it first
+	case err == nil:
+		optimizeEmptyDirRemovalTotals.Inc()
+	}
+
+	return nil
+}
+
+func removeRefEmptyDirs(ctx context.Context, repository *gitalypb.Repository) error {
+	rPath, err := helper.GetRepoPath(repository)
+	if err != nil {
+		return err
+	}
+	repoRefsPath := filepath.Join(rPath, "refs")
+
+	// we never want to delete the actual "refs" directory, so we start the
+	// recursive functions for each subdirectory
+	entries, err := ioutil.ReadDir(repoRefsPath)
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+
+		ePath := filepath.Join(repoRefsPath, e.Name())
+		if err := removeEmptyDirs(ctx, ePath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Repository) error {
 	hasBitmap, err := stats.HasBitmap(repository)
@@ -32,6 +122,10 @@ func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Re
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := removeRefEmptyDirs(ctx, repository); err != nil {
+		return fmt.Errorf("OptimizeRepository: unable to remove empty refs: %w", err)
 	}
 
 	return nil
