@@ -83,6 +83,15 @@ In general there are a couple of stages to go through, in order:
 1. Change [Gitaly][gitaly] accordingly
 1. Use the endpoint in other GitLab components (CE/EE, GitLab Workhorse, etc.)
 
+
+##### Configuration changes
+
+When modifying Gitaly's or Praefect's configuration, the changes should be propagated to other GitLab projects that
+rely on them:
+	
+1. [gitlab/omnibus-gitlab](https://gitlab.com/gitlab-org/omnibus-gitlab) contains template files that are used to generate Gitaly's and Praefect's configuration.
+2. [gitlab/CNG](https://gitlab.com/gitlab-org/build/CNG) contains configuration required to run Gitaly in a container.
+
 ##### Gitaly Proto
 
 The [Protocol buffer documentation][proto-docs] combined with the
