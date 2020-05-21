@@ -12,7 +12,7 @@ module Gitlab
         tags: '+refs/tags/*:refs/tags/*'
       }.freeze
 
-      def remote_branches(remote_name)
+      def remote_branches(remote_name, env:)
         branches = []
 
         rugged.references.each("refs/remotes/#{remote_name}/*").map do |ref|
@@ -30,7 +30,7 @@ module Gitlab
         #
         # See https://gitlab.com/gitlab-org/gitaly/-/issues/2670
         if feature_enabled?(:remote_branches_ls_remote)
-          ls_remote_branches = experimental_remote_branches(remote_name)
+          ls_remote_branches = experimental_remote_branches(remote_name, env: env)
 
           control_refs = branches.collect(&:name)
           experiment_refs = ls_remote_branches.collect(&:name)

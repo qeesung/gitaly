@@ -49,7 +49,7 @@ describe Gitlab::Git::RemoteMirror do
 
         expect(repository).to receive(:local_branches).and_return([ref('master'), ref('11-5-stable'), ref('unprotected')])
         expect(repository).to receive(:remote_branches)
-          .with(ref_name)
+          .with(ref_name, env: env)
           .and_return([ref('master'), ref('obsolete-branch')])
 
         expect(repository).to receive(:tags).and_return([tag('v1.0.0'), tag('new-tag')])
@@ -87,7 +87,7 @@ describe Gitlab::Git::RemoteMirror do
 
       expect(repository).to receive(:local_branches).and_return([ref('master'), ref('new-branch')])
       expect(repository).to receive(:remote_branches)
-        .with(ref_name)
+        .with(ref_name, env: env)
         .and_return([ref('master'), ref('obsolete-branch')])
 
       expect(repository).to receive(:tags).and_return([tag('v1.0.0'), tag('new-tag')])

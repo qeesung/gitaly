@@ -20,9 +20,9 @@ module Gitlab
 
       def update
         ssh_auth.setup do |env|
-          updated_branches = changed_refs(local_branches, remote_branches)
+          updated_branches = changed_refs(local_branches, remote_branches(env: env))
           push_refs(default_branch_first(updated_branches.keys), env: env)
-          delete_refs(local_branches, remote_branches, env: env)
+          delete_refs(local_branches, remote_branches(env: env), env: env)
 
           local_tags = refs_obj(repository.tags)
           remote_tags = refs_obj(repository.remote_tags(remote_name, env: env))
@@ -48,9 +48,9 @@ module Gitlab
         )
       end
 
-      def remote_branches
+      def remote_branches(env:)
         @remote_branches ||= refs_obj(
-          repository.remote_branches(remote_name),
+          repository.remote_branches(remote_name, env: env),
           match_refs: true
         )
       end

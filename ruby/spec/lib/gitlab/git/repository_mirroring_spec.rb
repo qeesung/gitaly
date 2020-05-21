@@ -6,12 +6,35 @@ describe Gitlab::Git::RepositoryMirroring do
   class FakeRepository
     include Gitlab::Git::RepositoryMirroring
 
-    def initialize(projects_stub)
+    attr_reader :rugged
+
+    def initialize(projects_stub, rugged_instance = nil)
       @gitlab_projects = projects_stub
+      @rugged = rugged_instance
     end
 
     def gitlab_projects_error
       raise Gitlab::Git::CommandError, @gitlab_projects.output
+    end
+  end
+
+  describe '#remote_branches' do
+    let(:projects_stub) { double.as_null_object }
+    let(:rugged_stub) { double.as_null_object }
+
+    subject(:repository) { FakeRepository.new(projects_stub, rugged_stub) }
+
+    it 'passes environment to `ls-remote`' do
+      env = { option_a: true, option_b: false }
+
+      allow(repository).to receive(:feature_enabled?)
+        .with(:remote_branches_ls_remote)
+        .and_return(true)
+      expect(repository).to receive(:list_remote_refs)
+        .with('remote_a', env: env)
+        .and_return([])
+
+      repository.remote_branches('remote_a', env: env)
     end
   end
 
