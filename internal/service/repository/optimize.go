@@ -124,7 +124,7 @@ func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Re
 	}
 
 	if err := removeRefEmptyDirs(ctx, repository); err != nil {
-		return fmt.Errorf("OptimizeRepository: unable to remove empty refs: %w", err)
+		return fmt.Errorf("OptimizeRepository: remove empty refs: %w", err)
 	}
 
 	return nil
