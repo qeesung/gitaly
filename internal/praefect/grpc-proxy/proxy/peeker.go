@@ -9,21 +9,15 @@ import (
 
 // StreamModifier abstracts away the gRPC stream being forwarded so that it can
 // be inspected and modified.
-type StreamModifier interface {
+type StreamPeeker interface {
 	// Peek allows a director to peek one message into the request stream without
 	// removing those messages from the stream that will be forwarded to
 	// the backend server.
 	Peek() (frame []byte, _ error)
-
-	// Modify replaces the peeked payload in the stream with the provided frame.
-	// If no payload was peeked, an error will be returned.
-	// Note: Modify cannot be called after the director returns.
-	Modify(payload []byte) error
 }
 
 type partialStream struct {
 	frames []*frame // frames encountered in partial stream
-	err    error    // error returned by partial stream
 }
 
 type peeker struct {
@@ -55,10 +49,6 @@ func (p peeker) Peek() ([]byte, error) {
 	return payloads[0], nil
 }
 
-func (p peeker) Modify(payload []byte) error {
-	return p.modify([][]byte{payload})
-}
-
 func (p peeker) peek(n uint) ([][]byte, error) {
 	if n < 1 {
 		return nil, ErrInvalidPeekCount
@@ -70,8 +60,7 @@ func (p peeker) peek(n uint) ([][]byte, error) {
 	for i := 0; i < len(p.consumedStream.frames); i++ {
 		f := &frame{}
 		if err := p.srcStream.RecvMsg(f); err != nil {
-			p.consumedStream.err = err
-			break
+			return nil, err
 		}
 		p.consumedStream.frames[i] = f
 		peekedFrames[i] = f.payload
