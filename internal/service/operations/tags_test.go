@@ -34,21 +34,12 @@ func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
 
 	defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", tagNameInput)
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	request := &gitalypb.UserDeleteTagRequest{
 		Repository: testRepo,
 		TagName:    []byte(tagNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	_, err := client.UserDeleteTag(ctx, request)
@@ -82,23 +73,13 @@ func testSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T, ctx context.Con
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	tagNameInput := "to-be-déleted-soon-tag"
 	defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
-
-	user := &gitalypb.User{
-		Name:       []byte("Ahmad Sherif"),
-		Email:      []byte("ahmad@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "johndoe",
-	}
 
 	request := &gitalypb.UserDeleteTagRequest{
 		Repository: testRepo,
 		TagName:    []byte(tagNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	for _, hookName := range GitlabHooks {
@@ -112,7 +93,7 @@ func testSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T, ctx context.Con
 			require.NoError(t, err)
 
 			output := testhelper.MustReadFile(t, hookOutputTempPath)
-			require.Contains(t, string(output), "GL_USERNAME=johndoe")
+			require.Contains(t, string(output), "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		})
 	}
 }
@@ -134,11 +115,6 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 	targetRevisionCommit, err := log.GetCommit(ctx, testRepo, targetRevision)
 	require.NoError(t, err)
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
 	inputTagName := "to-be-créated-soon"
 
 	cwd, err := os.Getwd()
@@ -194,12 +170,9 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 				Repository:     testRepo,
 				TagName:        []byte(testCase.tagName),
 				TargetRevision: []byte(testCase.targetRevision),
-				User:           user,
+				User:           testhelper.TestUser,
 				Message:        []byte(testCase.message),
 			}
-
-			cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-			defer cleanupSrv()
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
@@ -246,21 +219,12 @@ func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, ctx context.Con
 	defer cleanupFn()
 
 	tagName := "new-tag"
-	user := &gitalypb.User{
-		Name:       []byte("Ahmad Sherif"),
-		Email:      []byte("ahmad@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "johndoe",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	request := &gitalypb.UserCreateTagRequest{
 		Repository:     testRepo,
 		TagName:        []byte(tagName),
 		TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
-		User:           user,
+		User:           testhelper.TestUser,
 	}
 
 	for _, hookName := range GitlabHooks {
@@ -275,7 +239,7 @@ func testSuccessfulGitHooksForUserCreateTagRequest(t *testing.T, ctx context.Con
 			require.Empty(t, response.PreReceiveError)
 
 			output := string(testhelper.MustReadFile(t, hookOutputTempPath))
-			require.Contains(t, output, "GL_USERNAME="+user.GlUsername)
+			require.Contains(t, output, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		})
 	}
 }
@@ -289,12 +253,6 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
 
 	testCases := []struct {
 		desc    string
@@ -313,7 +271,7 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 			desc: "empty tag name",
 			request: &gitalypb.UserDeleteTagRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 			},
 			code: codes.InvalidArgument,
 		},
@@ -321,7 +279,7 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 			desc: "non-existent tag name",
 			request: &gitalypb.UserDeleteTagRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				TagName:    []byte("i-do-not-exist"),
 			},
 			code: codes.FailedPrecondition,
@@ -367,19 +325,10 @@ func testFailedUserDeleteTagDueToHooks(t *testing.T, ctx context.Context) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", tagNameInput)
 	defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	request := &gitalypb.UserDeleteTagRequest{
 		Repository: testRepo,
 		TagName:    []byte(tagNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID >&2\nexit 1")
@@ -392,7 +341,7 @@ func testFailedUserDeleteTagDueToHooks(t *testing.T, ctx context.Context) {
 
 			response, err := client.UserDeleteTag(ctx, request)
 			require.Nil(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+user.GlId)
+			require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
 
 			tags := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag")
 			require.Contains(t, string(tags), tagNameInput, "tag name does not exist in tags list")
@@ -410,21 +359,11 @@ func TestFailedUserCreateTagDueToHooks(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	user := &gitalypb.User{
-		Name:       []byte("Ahmad Sherif"),
-		Email:      []byte("ahmad@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "johndoe",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	request := &gitalypb.UserCreateTagRequest{
 		Repository:     testRepo,
 		TagName:        []byte("new-tag"),
 		TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
-		User:           user,
+		User:           testhelper.TestUser,
 	}
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
@@ -439,7 +378,7 @@ func TestFailedUserCreateTagDueToHooks(t *testing.T) {
 
 		response, err := client.UserCreateTag(ctx, request)
 		require.Nil(t, err)
-		require.Contains(t, response.PreReceiveError, "GL_ID="+user.GlId)
+		require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
 	}
 }
 
@@ -453,15 +392,6 @@ func TestFailedUserCreateTagRequestDueToTagExistence(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	testCase := struct {
 		tagName        string
 		targetRevision string
@@ -469,7 +399,7 @@ func TestFailedUserCreateTagRequestDueToTagExistence(t *testing.T) {
 	}{
 		tagName:        "v1.1.0",
 		targetRevision: "master",
-		user:           user,
+		user:           testhelper.TestUser,
 	}
 
 	request := &gitalypb.UserCreateTagRequest{
@@ -497,12 +427,6 @@ func TestFailedUserCreateTagRequestDueToValidation(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
 	testCases := []struct {
 		desc           string
 		tagName        string
@@ -514,7 +438,7 @@ func TestFailedUserCreateTagRequestDueToValidation(t *testing.T) {
 			desc:           "empty target revision",
 			tagName:        "shiny-new-tag",
 			targetRevision: "",
-			user:           user,
+			user:           testhelper.TestUser,
 			code:           codes.InvalidArgument,
 		},
 		{
@@ -528,7 +452,7 @@ func TestFailedUserCreateTagRequestDueToValidation(t *testing.T) {
 			desc:           "non-existing starting point",
 			tagName:        "new-tag",
 			targetRevision: "i-dont-exist",
-			user:           user,
+			user:           testhelper.TestUser,
 			code:           codes.FailedPrecondition,
 		},
 	}

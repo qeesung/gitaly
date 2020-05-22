@@ -282,7 +282,7 @@ var changeLineRegex = regexp.MustCompile("^[a-f0-9]{40} [a-f0-9]{40} refs/[^ ]+$
 
 const secretHeaderName = "Gitlab-Shared-Secret"
 
-func formToMap(u url.Values) map[string]string {
+func preReceiveFormToMap(u url.Values) map[string]string {
 	return map[string]string{
 		"action":        u.Get("action"),
 		"gl_repository": u.Get("gl_repository"),
@@ -296,59 +296,118 @@ func formToMap(u url.Values) map[string]string {
 	}
 }
 
-func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func postReceiveFormToMap(u url.Values) map[string]interface{} {
+	return map[string]interface{}{
+		"gl_repository": u.Get("gl_repository"),
+		"secret_token":  u.Get("secret_token"),
+		"changes":       u.Get("changes"),
+		"identifier":    u.Get("identifier"),
+		"push_options":  u["push_options[]"],
+	}
+}
+
+func handleAllowed(options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, r.ParseForm())
-		require.Equal(t, http.MethodPost, r.Method, "expected http post")
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "could not parse form", http.StatusBadRequest)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not POST", http.StatusMethodNotAllowed)
+			return
+		}
 
 		params := make(map[string]string)
 
 		switch r.Header.Get("Content-Type") {
 		case "application/x-www-form-urlencoded":
-			params = formToMap(r.Form)
+			params = preReceiveFormToMap(r.Form)
 		case "application/json":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				http.Error(w, "could not unmarshal json body", http.StatusBadRequest)
+				return
+			}
 		}
 
 		user, password, _ := r.BasicAuth()
-		require.Equal(t, options.User, user)
-		require.Equal(t, options.Password, password)
+		if user != options.User || password != options.Password {
+			http.Error(w, "user or password incorrect", http.StatusUnauthorized)
+			return
+		}
 
 		if options.GLID != "" {
 			glidSplit := strings.SplitN(options.GLID, "-", 2)
-			require.Len(t, glidSplit, 2, "number of GLID components")
+			if len(glidSplit) != 2 {
+				http.Error(w, "gl_id invalid", http.StatusUnauthorized)
+				return
+			}
 
-			switch glidSplit[0] {
+			glKey, glVal := glidSplit[0], glidSplit[1]
+
+			var glIDMatches bool
+			switch glKey {
 			case "user":
-				require.Equal(t, glidSplit[1], params["user_id"])
+				glIDMatches = glVal == params["user_id"]
 			case "key":
-				require.Equal(t, glidSplit[1], params["key_id"])
+				glIDMatches = glVal == params["key_id"]
 			case "username":
-				require.Equal(t, glidSplit[1], params["username"])
+				glIDMatches = glVal == params["username"]
 			default:
-				t.Fatalf("invalid GLID: %q", options.GLID)
+				http.Error(w, "gl_id invalid", http.StatusUnauthorized)
+				return
+			}
+
+			if !glIDMatches {
+				http.Error(w, "gl_id invalid", http.StatusUnauthorized)
+				return
 			}
 		}
 
-		require.NotEmpty(t, params["gl_repository"], "gl_repository should not be empty")
-		if options.GLRepository != "" {
-			require.Equal(t, options.GLRepository, params["gl_repository"], "expected value of gl_repository should match form")
+		if params["gl_repository"] == "" {
+			http.Error(w, "gl_repository is empty", http.StatusUnauthorized)
+			return
 		}
-		require.NotEmpty(t, params["protocol"], "protocol should not be empty")
+
+		if options.GLRepository != "" {
+			if params["gl_repository"] != options.GLRepository {
+				http.Error(w, "gl_repository is invalid", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		if params["protocol"] == "" {
+			http.Error(w, "protocol is empty", http.StatusUnauthorized)
+			return
+		}
+
 		if options.Protocol != "" {
-			require.Equal(t, options.Protocol, params["protocol"], "expected value of options.Protocol should match form")
+			if params["protocol"] != options.Protocol {
+				http.Error(w, "protocol is invalid", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		if options.Changes != "" {
-			require.Equal(t, options.Changes, params["changes"], "expected value of options.Changes should match form")
+			if params["changes"] != options.Changes {
+				http.Error(w, "changes is invalid", http.StatusUnauthorized)
+				return
+			}
 		} else {
 			changeLines := strings.Split(strings.TrimSuffix(params["changes"], "\n"), "\n")
 			for _, line := range changeLines {
-				require.Regexp(t, changeLineRegex, line)
+				if !changeLineRegex.MatchString(line) {
+					http.Error(w, "changes is invalid", http.StatusUnauthorized)
+					return
+				}
 			}
 		}
+
 		env := params["env"]
-		require.NotEmpty(t, env)
+		if len(env) == 0 {
+			http.Error(w, "env is empty", http.StatusUnauthorized)
+			return
+		}
 
 		var gitVars struct {
 			GitAlternateObjectDirsRel []string `json:"GIT_ALTERNATE_OBJECT_DIRECTORIES_RELATIVE"`
@@ -357,11 +416,17 @@ func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.Re
 
 		w.Header().Set("Content-Type", "application/json")
 
-		require.NoError(t, json.Unmarshal([]byte(env), &gitVars))
+		if err := json.Unmarshal([]byte(env), &gitVars); err != nil {
+			http.Error(w, "could not unmarshal env", http.StatusUnauthorized)
+			return
+		}
 
 		if options.GitObjectDir != "" {
 			relObjectDir, err := filepath.Rel(options.RepoPath, options.GitObjectDir)
-			require.NoError(t, err)
+			if err != nil {
+				http.Error(w, "git object dirs is invalid", http.StatusUnauthorized)
+				return
+			}
 			if relObjectDir != gitVars.GitObjectDirRel {
 				w.Write([]byte(`{"status":false}`))
 				return
@@ -369,10 +434,18 @@ func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.Re
 		}
 
 		if len(options.GitAlternateObjectDirs) > 0 {
-			require.Len(t, gitVars.GitAlternateObjectDirsRel, len(options.GitAlternateObjectDirs))
+			if len(gitVars.GitAlternateObjectDirsRel) != len(options.GitAlternateObjectDirs) {
+				http.Error(w, "git alternate object dirs is invalid", http.StatusUnauthorized)
+				return
+			}
+
 			for i, gitAlterateObjectDir := range options.GitAlternateObjectDirs {
 				relAltObjectDir, err := filepath.Rel(options.RepoPath, gitAlterateObjectDir)
-				require.NoError(t, err)
+				if err != nil {
+					http.Error(w, "git alternate object dirs is invalid", http.StatusUnauthorized)
+					return
+				}
+
 				if relAltObjectDir != gitVars.GitAlternateObjectDirsRel[i] {
 					w.Write([]byte(`{"status":false}`))
 					return
@@ -401,32 +474,60 @@ func handleAllowed(t testing.TB, options GitlabTestServerOptions) func(w http.Re
 	}
 }
 
-func handlePreReceive(t testing.TB, options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handlePreReceive(options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, r.ParseForm())
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "could not parse form", http.StatusBadRequest)
+			return
+		}
 
 		params := make(map[string]string)
 
 		switch r.Header.Get("Content-Type") {
 		case "application/x-www-form-urlencoded":
 			b, err := json.Marshal(r.Form)
-			require.NoError(t, err)
+			if err != nil {
+				http.Error(w, "could not marshal form", http.StatusBadRequest)
+				return
+			}
 
 			var reqForm struct {
 				GLRepository []string `json:"gl_repository"`
 			}
 
-			require.NoError(t, json.Unmarshal(b, &reqForm))
-			require.Greater(t, len(reqForm.GLRepository), 0)
+			if err = json.Unmarshal(b, &reqForm); err != nil {
+				http.Error(w, "could not unmarshal form", http.StatusBadRequest)
+				return
+			}
+
+			if len(reqForm.GLRepository) == 0 {
+				http.Error(w, "gl_repository is missing", http.StatusBadRequest)
+				return
+			}
+
 			params["gl_repository"] = reqForm.GLRepository[0]
 		case "application/json":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				http.Error(w, "error when unmarshalling json body", http.StatusBadRequest)
+				return
+			}
 		}
 
-		require.Equal(t, http.MethodPost, r.Method)
-		require.NotEmpty(t, params["gl_repository"], "gl_repository should not be empty")
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not POST", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if params["gl_repository"] == "" {
+			http.Error(w, "gl_repository is empty", http.StatusUnauthorized)
+			return
+		}
+
 		if options.GLRepository != "" {
-			require.Equal(t, options.GLRepository, params["gl_repository"], "expected value of gl_repository should match form")
+			if params["gl_repository"] != options.GLRepository {
+				http.Error(w, "gl_repository is invalid", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		var authenticated bool
@@ -441,7 +542,10 @@ func handlePreReceive(t testing.TB, options GitlabTestServerOptions) func(w http
 			}
 		}
 
-		require.True(t, authenticated, "expected value of secret_token should request")
+		if !authenticated {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -449,30 +553,82 @@ func handlePreReceive(t testing.TB, options GitlabTestServerOptions) func(w http
 	}
 }
 
-func handlePostReceive(t testing.TB, options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handlePostReceive(options GitlabTestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		require.NoError(t, r.ParseForm())
-		require.Equal(t, http.MethodPost, r.Method)
-		require.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
-		require.NotEmpty(t, r.Form.Get("gl_repository"))
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "couldn't parse form", http.StatusBadRequest)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not POST", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var params map[string]interface{}
+
+		switch r.Header.Get("Content-Type") {
+		case "application/x-www-form-urlencoded":
+			params = postReceiveFormToMap(r.Form)
+		case "application/json":
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				http.Error(w, "could not parse json body", http.StatusBadRequest)
+				return
+			}
+		}
+
+		if params["gl_repository"] == "" {
+			http.Error(w, "gl_repository is empty", http.StatusUnauthorized)
+			return
+		}
+
 		if options.GLRepository != "" {
-			require.Equal(t, options.GLRepository, r.Form.Get("gl_repository"), "expected value of gl_repository should match form")
-		}
-		require.Equal(t, options.SecretToken, r.Form.Get("secret_token"), "expected value of gl_repository should match form")
-
-		require.NotEmpty(t, r.Form.Get("identifier"), "identifier should exist")
-		if options.GLID != "" {
-			require.Equal(t, options.GLID, r.Form.Get("identifier"), "identifier should be GLID")
+			if params["gl_repository"] != options.GLRepository {
+				http.Error(w, "gl_repository is invalid", http.StatusUnauthorized)
+				return
+			}
 		}
 
-		require.NotEmpty(t, r.Form.Get("changes"), "changes should exist")
+		if params["secret_token"] != options.SecretToken {
+			http.Error(w, "secret_token is invalid", http.StatusUnauthorized)
+			return
+		}
+		if params["identifier"] == "" {
+			http.Error(w, "identifier is empty", http.StatusUnauthorized)
+			return
+		}
+
+		if options.GLRepository != "" {
+			if params["identifier"] != options.GLID {
+				http.Error(w, "identifier is invalid", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		if params["changes"] == "" {
+			http.Error(w, "changes is empty", http.StatusUnauthorized)
+			return
+		}
+
 		if options.Changes != "" {
-			require.Regexp(t, options.Changes, r.Form.Get("changes"), "expected value of changes should match form")
+			if params["changes"] != options.Changes {
+				http.Error(w, "changes is invalid", http.StatusUnauthorized)
+				return
+			}
 		}
-
 		if len(options.GitPushOptions) > 0 {
-			require.Equal(t, options.GitPushOptions, r.Form["push_options[]"], "expected value of push_options should match form")
+			pushOptions := params["push_options"].([]string)
+			if len(pushOptions) != len(options.GitPushOptions) {
+				http.Error(w, "git push options is invalid", http.StatusUnauthorized)
+				return
+			}
+
+			for i, pushOption := range pushOptions {
+				if pushOption != options.GitPushOptions[i] {
+					http.Error(w, "git push options is invalid", http.StatusUnauthorized)
+					return
+				}
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -509,11 +665,11 @@ type GitlabTestServerOptions struct {
 }
 
 // NewGitlabTestServer returns a mock gitlab server that responds to the hook api endpoints
-func NewGitlabTestServer(t testing.TB, options GitlabTestServerOptions) *httptest.Server {
+func NewGitlabTestServer(options GitlabTestServerOptions) *httptest.Server {
 	mux := http.NewServeMux()
-	mux.Handle("/api/v4/internal/allowed", http.HandlerFunc(handleAllowed(t, options)))
-	mux.Handle("/api/v4/internal/pre_receive", http.HandlerFunc(handlePreReceive(t, options)))
-	mux.Handle("/api/v4/internal/post_receive", http.HandlerFunc(handlePostReceive(t, options)))
+	mux.Handle("/api/v4/internal/allowed", http.HandlerFunc(handleAllowed(options)))
+	mux.Handle("/api/v4/internal/pre_receive", http.HandlerFunc(handlePreReceive(options)))
+	mux.Handle("/api/v4/internal/post_receive", http.HandlerFunc(handlePostReceive(options)))
 	mux.Handle("/api/v4/internal/check", http.HandlerFunc(handleCheck(options)))
 
 	return httptest.NewServer(mux)
@@ -531,12 +687,16 @@ func CreateTemporaryGitlabShellDir(t testing.TB) (string, func()) {
 
 // WriteTemporaryGitlabShellConfigFile writes a gitlab shell config.yml in a temporary directory. It returns the path
 // and a cleanup function
-func WriteTemporaryGitlabShellConfigFile(t testing.TB, dir string, config GitlabShellConfig) (string, func()) {
+func WriteTemporaryGitlabShellConfigFile(t FatalLogger, dir string, config GitlabShellConfig) (string, func()) {
 	out, err := yaml.Marshal(&config)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error marshalling config", err)
+	}
 
 	path := filepath.Join(dir, "config.yml")
-	require.NoError(t, ioutil.WriteFile(path, out, 0644))
+	if err = ioutil.WriteFile(path, out, 0644); err != nil {
+		t.Fatalf("error writing gitlab shell config", err)
+	}
 
 	return path, func() {
 		os.RemoveAll(path)
@@ -555,8 +715,8 @@ func WriteTemporaryGitalyConfigFile(t testing.TB, tempDir, gitlabURL, user, pass
     user = %q
     password = %q
 `, tempDir, gitlabURL, user, password)
-	require.NoError(t, ioutil.WriteFile(path, []byte(contents), 0644))
 
+	require.NoError(t, ioutil.WriteFile(path, []byte(contents), 0644))
 	return path, func() {
 		os.RemoveAll(path)
 	}
@@ -605,9 +765,15 @@ func EnvForHooks(t testing.TB, gitlabShellDir, gitalySocket, gitalyToken string,
 	return env
 }
 
+type FatalLogger interface {
+	Fatalf(string, ...interface{})
+}
+
 // WriteShellSecretFile writes a .gitlab_shell_secret file in the specified directory
-func WriteShellSecretFile(t testing.TB, dir, secretToken string) {
-	require.NoError(t, ioutil.WriteFile(filepath.Join(dir, ".gitlab_shell_secret"), []byte(secretToken), 0644))
+func WriteShellSecretFile(t FatalLogger, dir, secretToken string) {
+	if err := ioutil.WriteFile(filepath.Join(dir, ".gitlab_shell_secret"), []byte(secretToken), 0644); err != nil {
+		t.Fatalf("writing shell secret file: %v", err)
+	}
 }
 
 // GitlabShellConfig contains a subset of gitlabshell's config.yml
@@ -641,13 +807,13 @@ func NewHealthServerWithListener(t testing.TB, listener net.Listener) (*grpc.Ser
 	return srv, healthSrvr
 }
 
-func SetupAndStartGitlabServer(t testing.TB, c *GitlabTestServerOptions) func() {
-	ts := NewGitlabTestServer(t, *c)
+func SetupAndStartGitlabServer(t FatalLogger, c *GitlabTestServerOptions) (string, func()) {
+	ts := NewGitlabTestServer(*c)
 
 	WriteTemporaryGitlabShellConfigFile(t, config.Config.GitlabShell.Dir, GitlabShellConfig{GitlabURL: ts.URL})
 	WriteShellSecretFile(t, config.Config.GitlabShell.Dir, c.SecretToken)
 
-	return func() {
+	return ts.URL, func() {
 		ts.Close()
 	}
 }

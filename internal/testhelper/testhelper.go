@@ -48,9 +48,20 @@ const (
 	RepositoryAuthToken = "the-secret-token"
 	DefaultStorageName  = "default"
 	testGitEnv          = "testdata/git-env"
+	GlRepository        = "project-1"
+	GlID                = "user-123"
 )
 
 var configureOnce sync.Once
+
+var (
+	TestUser = &gitalypb.User{
+		Name:       []byte("Jane Doe"),
+		Email:      []byte("janedoe@gitlab.com"),
+		GlId:       GlID,
+		GlUsername: "janedoe",
+	}
+)
 
 // Configure sets up the global test configuration. On failure,
 // terminates the program.
@@ -146,7 +157,7 @@ func TestRepository() *gitalypb.Repository {
 	repo := &gitalypb.Repository{
 		StorageName:  "default",
 		RelativePath: TestRelativePath,
-		GlRepository: "project-1",
+		GlRepository: GlRepository,
 	}
 
 	storagePath, _ := config.Config.StoragePath(repo.GetStorageName())
@@ -430,7 +441,7 @@ func CreateRepo(t testing.TB, storagePath, relativePath string) *gitalypb.Reposi
 	return &gitalypb.Repository{
 		StorageName:  "default",
 		RelativePath: relativePath,
-		GlRepository: "project-1",
+		GlRepository: GlRepository,
 	}
 }
 

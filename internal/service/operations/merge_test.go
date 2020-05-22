@@ -19,12 +19,6 @@ import (
 )
 
 var (
-	mergeUser = &gitalypb.User{
-		Name:  []byte("Jane Doe"),
-		Email: []byte("janedoe@example.com"),
-		GlId:  "user-1",
-	}
-
 	commitToMerge         = "e63f41fe459e62e1228fcef60d7189127aeba95a"
 	mergeBranchName       = "gitaly-merge-test-branch"
 	mergeBranchHeadBefore = "281d3a76f31c812dbf48abce82ccf6860adedd81"
@@ -67,13 +61,10 @@ func testSuccessfulMerge(t *testing.T, ctx context.Context) {
 		defer cleanup()
 	}
 
-	cleanupSrv := SetupAndStartGitlabServer(t, mergeUser.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	mergeCommitMessage := "Merged by Gitaly"
 	firstRequest := &gitalypb.UserMergeBranchRequest{
 		Repository: testRepo,
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 		CommitId:   commitToMerge,
 		Branch:     []byte(mergeBranchName),
 		Message:    []byte(mergeCommitMessage),
@@ -109,10 +100,10 @@ func testSuccessfulMerge(t *testing.T, ctx context.Context) {
 	require.True(t, strings.HasPrefix(string(commit.Body), mergeCommitMessage), "expected %q to start with %q", commit.Body, mergeCommitMessage)
 
 	author := commit.Author
-	require.Equal(t, mergeUser.Name, author.Name)
-	require.Equal(t, mergeUser.Email, author.Email)
+	require.Equal(t, testhelper.TestUser.Name, author.Name)
+	require.Equal(t, testhelper.TestUser.Email, author.Email)
 
-	expectedGlID := "GL_ID=" + mergeUser.GlId
+	expectedGlID := "GL_ID=" + testhelper.TestUser.GlId
 	for i, h := range hooks {
 		hookEnv, err := ioutil.ReadFile(hookTempfiles[i])
 		require.NoError(t, err)
@@ -137,7 +128,7 @@ func TestAbortedMerge(t *testing.T) {
 
 	firstRequest := &gitalypb.UserMergeBranchRequest{
 		Repository: testRepo,
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 		CommitId:   commitToMerge,
 		Branch:     []byte(mergeBranchName),
 		Message:    []byte("foobar"),
@@ -209,7 +200,7 @@ func TestFailedMergeConcurrentUpdate(t *testing.T) {
 	mergeCommitMessage := "Merged by Gitaly"
 	firstRequest := &gitalypb.UserMergeBranchRequest{
 		Repository: testRepo,
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 		CommitId:   commitToMerge,
 		Branch:     []byte(mergeBranchName),
 		Message:    []byte(mergeCommitMessage),
@@ -247,9 +238,6 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 
 	prepareMergeBranch(t, testRepoPath)
 
-	cleanupSrv := SetupAndStartGitlabServer(t, mergeUser.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	hookContent := []byte("#!/bin/sh\necho 'failure'\nexit 1")
 
 	for _, hookName := range gitlabPreHooks {
@@ -267,7 +255,7 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 			mergeCommitMessage := "Merged by Gitaly"
 			firstRequest := &gitalypb.UserMergeBranchRequest{
 				Repository: testRepo,
-				User:       mergeUser,
+				User:       testhelper.TestUser,
 				CommitId:   commitToMerge,
 				Branch:     []byte(mergeBranchName),
 				Message:    []byte(mergeCommitMessage),
@@ -316,7 +304,7 @@ func TestSuccessfulUserFFBranchRequest(t *testing.T) {
 		Repository: testRepo,
 		CommitId:   commitID,
 		Branch:     []byte(branchName),
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 	}
 	expectedResponse := &gitalypb.UserFFBranchResponse{
 		BranchUpdate: &gitalypb.OperationBranchUpdate{
@@ -328,9 +316,6 @@ func TestSuccessfulUserFFBranchRequest(t *testing.T) {
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "-f", branchName, "6d394385cf567f80a8fd85055db1ab4c5295806f")
 	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchName).Run()
-
-	cleanupSrv := SetupAndStartGitlabServer(t, mergeUser.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	resp, err := client.UserFFBranch(ctx, request)
 	require.NoError(t, err)
@@ -365,7 +350,7 @@ func TestFailedUserFFBranchRequest(t *testing.T) {
 	}{
 		{
 			desc:     "empty repository",
-			user:     mergeUser,
+			user:     testhelper.TestUser,
 			branch:   []byte(branchName),
 			commitID: commitID,
 			code:     codes.InvalidArgument,
@@ -380,14 +365,14 @@ func TestFailedUserFFBranchRequest(t *testing.T) {
 		{
 			desc:   "empty commit",
 			repo:   testRepo,
-			user:   mergeUser,
+			user:   testhelper.TestUser,
 			branch: []byte(branchName),
 			code:   codes.InvalidArgument,
 		},
 		{
 			desc:     "non-existing commit",
 			repo:     testRepo,
-			user:     mergeUser,
+			user:     testhelper.TestUser,
 			branch:   []byte(branchName),
 			commitID: "f001",
 			code:     codes.InvalidArgument,
@@ -395,14 +380,14 @@ func TestFailedUserFFBranchRequest(t *testing.T) {
 		{
 			desc:     "empty branch",
 			repo:     testRepo,
-			user:     mergeUser,
+			user:     testhelper.TestUser,
 			commitID: commitID,
 			code:     codes.InvalidArgument,
 		},
 		{
 			desc:     "non-existing branch",
 			repo:     testRepo,
-			user:     mergeUser,
+			user:     testhelper.TestUser,
 			branch:   []byte("this-isnt-real"),
 			commitID: commitID,
 			code:     codes.InvalidArgument,
@@ -410,7 +395,7 @@ func TestFailedUserFFBranchRequest(t *testing.T) {
 		{
 			desc:     "commit is not a descendant of branch head",
 			repo:     testRepo,
-			user:     mergeUser,
+			user:     testhelper.TestUser,
 			branch:   []byte(branchName),
 			commitID: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
 			code:     codes.FailedPrecondition,
@@ -450,14 +435,11 @@ func TestFailedUserFFBranchDueToHooks(t *testing.T) {
 		Repository: testRepo,
 		CommitId:   commitID,
 		Branch:     []byte(branchName),
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 	}
 
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "-f", branchName, "6d394385cf567f80a8fd85055db1ab4c5295806f")
 	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchName).Run()
-
-	cleanupSrv := SetupAndStartGitlabServer(t, mergeUser.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	hookContent := []byte("#!/bin/sh\necho 'failure'\nexit 1")
 
@@ -510,7 +492,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 	}{
 		{
 			desc:           "empty target ref merge",
-			user:           mergeUser,
+			user:           testhelper.TestUser,
 			targetRef:      emptyTargetRef,
 			emptyRef:       true,
 			sourceSha:      commitToMerge,
@@ -519,7 +501,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 		},
 		{
 			desc:           "existing target ref",
-			user:           mergeUser,
+			user:           testhelper.TestUser,
 			targetRef:      existingTargetRef,
 			emptyRef:       false,
 			sourceSha:      commitToMerge,
@@ -528,7 +510,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 		},
 		{
 			desc:      "branch is specified and firstParentRef is empty",
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte(mergeBranchName),
 			targetRef: existingTargetRef,
 			emptyRef:  false,
@@ -572,8 +554,8 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 
 			// Asserts author
 			author := commit.Author
-			require.Equal(t, mergeUser.Name, author.Name)
-			require.Equal(t, mergeUser.Email, author.Email)
+			require.Equal(t, testhelper.TestUser.Name, author.Name)
+			require.Equal(t, testhelper.TestUser.Email, author.Email)
 
 			require.Equal(t, resp.CommitId, commit.Id)
 
@@ -611,7 +593,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 	}{
 		{
 			desc:      "empty repository",
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte(branchName),
 			sourceSha: commitToMerge,
 			targetRef: validTargetRef,
@@ -628,7 +610,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 		{
 			desc:      "empty source SHA",
 			repo:      testRepo,
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte(branchName),
 			targetRef: validTargetRef,
 			code:      codes.InvalidArgument,
@@ -636,7 +618,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 		{
 			desc:      "non-existing commit",
 			repo:      testRepo,
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte(branchName),
 			sourceSha: "f001",
 			targetRef: validTargetRef,
@@ -645,7 +627,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 		{
 			desc:      "empty branch and first parent ref",
 			repo:      testRepo,
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			sourceSha: commitToMerge,
 			targetRef: validTargetRef,
 			code:      codes.InvalidArgument,
@@ -653,7 +635,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 		{
 			desc:      "invalid target ref",
 			repo:      testRepo,
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte(branchName),
 			sourceSha: commitToMerge,
 			targetRef: []byte("refs/heads/branch"),
@@ -662,7 +644,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 		{
 			desc:      "non-existing branch",
 			repo:      testRepo,
-			user:      mergeUser,
+			user:      testhelper.TestUser,
 			branch:    []byte("this-isnt-real"),
 			sourceSha: commitToMerge,
 			targetRef: validTargetRef,
@@ -708,7 +690,7 @@ func TestUserMergeToRefIgnoreHooksRequest(t *testing.T) {
 		SourceSha:  commitToMerge,
 		Branch:     []byte(mergeBranchName),
 		TargetRef:  targetRef,
-		User:       mergeUser,
+		User:       testhelper.TestUser,
 		Message:    []byte(mergeCommitMessage),
 	}
 

@@ -39,7 +39,7 @@ func TestAllowedVerifyParams(t *testing.T) {
 		gitAlternateObjectDirsFull = append(gitAlternateObjectDirsFull, filepath.Join(testRepoPath, gitAlternateObjectDirRel))
 	}
 
-	server := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	server := testhelper.NewGitlabTestServer(testhelper.GitlabTestServerOptions{
 		User:                        user,
 		Password:                    password,
 		SecretToken:                 secretToken,

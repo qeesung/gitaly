@@ -383,7 +383,7 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 
 	changes := fmt.Sprintf("%s %s refs/heads/master\n", oldHead, push.newHead)
 
-	ts := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	ts := testhelper.NewGitlabTestServer(testhelper.GitlabTestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -491,7 +491,7 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 				RepoPath:     repoPath,
 			}
 
-			gitlabServer := testhelper.NewGitlabTestServer(t, opts)
+			gitlabServer := testhelper.NewGitlabTestServer(opts)
 			defer gitlabServer.Close()
 
 			gitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)

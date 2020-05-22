@@ -27,9 +27,6 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -41,7 +38,7 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 		BranchName: []byte(updateBranchName),
 		Newrev:     newrev,
 		Oldrev:     oldrev,
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	response, err := client.UserUpdateBranch(ctx, request)
@@ -81,9 +78,6 @@ func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, ctx context.
 			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 			defer cleanupFn()
 
-			cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-			defer cleanupSrv()
-
 			hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 			defer cleanup()
 
@@ -92,7 +86,7 @@ func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, ctx context.
 				BranchName: []byte(updateBranchName),
 				Newrev:     newrev,
 				Oldrev:     oldrev,
-				User:       user,
+				User:       testhelper.TestUser,
 			}
 
 			response, err := client.UserUpdateBranch(ctx, request)
@@ -100,7 +94,7 @@ func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, ctx context.
 			require.Empty(t, response.PreReceiveError)
 
 			output := string(testhelper.MustReadFile(t, hookOutputTempPath))
-			require.Contains(t, output, "GL_USERNAME="+user.GlUsername)
+			require.Contains(t, output, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		})
 	}
 }
@@ -123,9 +117,6 @@ func testFailedUserUpdateBranchDueToHooks(t *testing.T, ctx context.Context) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -137,7 +128,7 @@ func testFailedUserUpdateBranchDueToHooks(t *testing.T, ctx context.Context) {
 		BranchName: []byte(updateBranchName),
 		Newrev:     newrev,
 		Oldrev:     oldrev,
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 	// Write a hook that will fail with the environment as the error message
 	// so we can check that string for our env variables.
@@ -150,7 +141,7 @@ func testFailedUserUpdateBranchDueToHooks(t *testing.T, ctx context.Context) {
 
 		response, err := client.UserUpdateBranch(ctx, request)
 		require.Nil(t, err)
-		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+user.GlUsername)
+		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		require.Contains(t, response.PreReceiveError, "PWD="+testRepoPath)
 	}
 }
@@ -164,9 +155,6 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	revDoesntExist := fmt.Sprintf("%x", sha1.Sum([]byte("we need a non existent sha")))
 
@@ -183,7 +171,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: "",
 			newrev:     newrev,
 			oldrev:     oldrev,
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.InvalidArgument,
 		},
 		{
@@ -191,7 +179,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: updateBranchName,
 			newrev:     nil,
 			oldrev:     oldrev,
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.InvalidArgument,
 		},
 		{
@@ -199,7 +187,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: updateBranchName,
 			newrev:     newrev,
 			oldrev:     nil,
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.InvalidArgument,
 		},
 		{
@@ -215,7 +203,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: "i-dont-exist",
 			newrev:     newrev,
 			oldrev:     oldrev,
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.FailedPrecondition,
 		},
 		{
@@ -223,7 +211,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: updateBranchName,
 			newrev:     []byte(revDoesntExist),
 			oldrev:     oldrev,
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.FailedPrecondition,
 		},
 		{
@@ -231,7 +219,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			branchName: updateBranchName,
 			newrev:     newrev,
 			oldrev:     []byte(revDoesntExist),
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.FailedPrecondition,
 		},
 	}

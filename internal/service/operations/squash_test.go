@@ -46,7 +46,7 @@ func testSuccessfulUserSquashRequest(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -54,7 +54,7 @@ func testSuccessfulUserSquashRequest(t *testing.T, ctx context.Context) {
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		SquashId:      "1",
 		Author:        author,
 		CommitMessage: commitMessage,
@@ -71,8 +71,8 @@ func testSuccessfulUserSquashRequest(t *testing.T, ctx context.Context) {
 	require.Equal(t, []string{startSha}, commit.ParentIds)
 	require.Equal(t, author.Name, commit.Author.Name)
 	require.Equal(t, author.Email, commit.Author.Email)
-	require.Equal(t, user.Name, commit.Committer.Name)
-	require.Equal(t, user.Email, commit.Committer.Email)
+	require.Equal(t, testhelper.TestUser.Name, commit.Committer.Name)
+	require.Equal(t, testhelper.TestUser.Email, commit.Committer.Email)
 	require.Equal(t, commitMessage, commit.Subject)
 }
 
@@ -96,7 +96,7 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
@@ -104,7 +104,7 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		SquashId:      "1",
 		Author:        author,
 		CommitMessage: commitMessage,
@@ -122,8 +122,8 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	require.Equal(t, []string{"6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"}, commit.ParentIds)
 	require.Equal(t, author.Name, commit.Author.Name)
 	require.Equal(t, author.Email, commit.Author.Email)
-	require.Equal(t, user.Name, commit.Committer.Name)
-	require.Equal(t, user.Email, commit.Committer.Email)
+	require.Equal(t, testhelper.TestUser.Name, commit.Committer.Name)
+	require.Equal(t, testhelper.TestUser.Email, commit.Committer.Email)
 	require.Equal(t, commitMessage, commit.Subject)
 
 	// Ensure Git metadata is cleaned up
@@ -144,7 +144,7 @@ func TestSplitIndex(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -154,7 +154,7 @@ func TestSplitIndex(t *testing.T) {
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		SquashId:      "1",
 		Author:        author,
 		CommitMessage: commitMessage,
@@ -175,7 +175,7 @@ func TestSquashRequestWithRenamedFiles(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
@@ -184,8 +184,8 @@ func TestSquashRequestWithRenamedFiles(t *testing.T) {
 	originalFilename := "original-file.txt"
 	renamedFilename := "renamed-file.txt"
 
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "user.name", string(author.Name))
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "user.email", string(author.Email))
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "testhelper.TestUser.name", string(author.Name))
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "testhelper.TestUser.email", string(author.Email))
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "checkout", "-b", "squash-rename-test", "master")
 	require.NoError(t, ioutil.WriteFile(filepath.Join(testRepoPath, originalFilename), []byte("This is a test"), 0644))
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "add", ".")
@@ -208,7 +208,7 @@ func TestSquashRequestWithRenamedFiles(t *testing.T) {
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		SquashId:      "1",
 		Author:        author,
 		CommitMessage: commitMessage,
@@ -225,8 +225,8 @@ func TestSquashRequestWithRenamedFiles(t *testing.T) {
 	require.Equal(t, []string{startCommitID}, commit.ParentIds)
 	require.Equal(t, author.Name, commit.Author.Name)
 	require.Equal(t, author.Email, commit.Author.Email)
-	require.Equal(t, user.Name, commit.Committer.Name)
-	require.Equal(t, user.Email, commit.Committer.Email)
+	require.Equal(t, testhelper.TestUser.Name, commit.Committer.Name)
+	require.Equal(t, testhelper.TestUser.Email, commit.Committer.Email)
 	require.Equal(t, commitMessage, commit.Subject)
 }
 
@@ -237,7 +237,7 @@ func TestSuccessfulUserSquashRequestWithMissingFileOnTargetBranch(t *testing.T) 
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -247,7 +247,7 @@ func TestSuccessfulUserSquashRequestWithMissingFileOnTargetBranch(t *testing.T) 
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		SquashId:      "1",
 		Author:        author,
 		CommitMessage: commitMessage,
@@ -264,7 +264,7 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -279,9 +279,9 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty Repository",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    nil,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "1",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: commitMessage,
 				StartSha:      startSha,
 				EndSha:        endSha,
@@ -294,7 +294,7 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 				Repository:    testRepo,
 				User:          nil,
 				SquashId:      "1",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: commitMessage,
 				StartSha:      startSha,
 				EndSha:        endSha,
@@ -305,9 +305,9 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty SquashId",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: commitMessage,
 				StartSha:      startSha,
 				EndSha:        endSha,
@@ -318,9 +318,9 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty StartSha",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "1",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: commitMessage,
 				StartSha:      "",
 				EndSha:        endSha,
@@ -331,9 +331,9 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty EndSha",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "1",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: commitMessage,
 				StartSha:      startSha,
 				EndSha:        "",
@@ -344,7 +344,7 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty Author",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "1",
 				Author:        nil,
 				CommitMessage: commitMessage,
@@ -357,9 +357,9 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 			desc: "empty CommitMessage",
 			request: &gitalypb.UserSquashRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				SquashId:      "1",
-				Author:        user,
+				Author:        testhelper.TestUser,
 				CommitMessage: nil,
 				StartSha:      startSha,
 				EndSha:        endSha,

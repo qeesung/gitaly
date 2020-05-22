@@ -33,14 +33,11 @@ func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context)
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	commitMessage := []byte("Update Submodule message")
 
@@ -68,7 +65,7 @@ func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context)
 		t.Run(testCase.desc, func(t *testing.T) {
 			request := &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte(testCase.submodule),
 				CommitSha:     testCase.commitSha,
 				Branch:        []byte(testCase.branch),
@@ -82,8 +79,8 @@ func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context)
 
 			commit, err := log.GetCommit(ctx, testRepo, response.BranchUpdate.CommitId)
 			require.NoError(t, err)
-			require.Equal(t, commit.Author.Email, user.Email)
-			require.Equal(t, commit.Committer.Email, user.Email)
+			require.Equal(t, commit.Author.Email, testhelper.TestUser.Email)
+			require.Equal(t, commit.Committer.Email, testhelper.TestUser.Email)
 			require.Equal(t, commit.Subject, commitMessage)
 
 			entry := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "ls-tree", "-z", fmt.Sprintf("%s^{tree}:", response.BranchUpdate.CommitId), testCase.submodule)
@@ -100,7 +97,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -115,7 +112,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "empty Repository",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    nil,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 				Branch:        []byte("some-branch"),
@@ -139,7 +136,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "empty Submodule",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     nil,
 				CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 				Branch:        []byte("some-branch"),
@@ -151,7 +148,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "empty CommitSha",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "",
 				Branch:        []byte("some-branch"),
@@ -163,7 +160,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "invalid CommitSha",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "foobar",
 				Branch:        []byte("some-branch"),
@@ -175,7 +172,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "invalid CommitSha",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "db54006ff1c999fd485a",
 				Branch:        []byte("some-branch"),
@@ -187,7 +184,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "empty Branch",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 				Branch:        nil,
@@ -199,7 +196,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 			desc: "empty CommitMessage",
 			request: &gitalypb.UserUpdateSubmoduleRequest{
 				Repository:    testRepo,
-				User:          user,
+				User:          testhelper.TestUser,
 				Submodule:     []byte("six"),
 				CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 				Branch:        []byte("some-branch"),
@@ -228,7 +225,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -236,7 +233,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T) {
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		Submodule:     []byte("six"),
 		CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 		Branch:        []byte("non/existent"),
@@ -255,7 +252,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -263,7 +260,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T) {
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		Submodule:     []byte("non-existent-submodule"),
 		CommitSha:     "db54006ff1c999fd485af44581dabe9b6c85a701",
 		Branch:        []byte("master"),
@@ -282,18 +279,15 @@ func TestFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	request := &gitalypb.UserUpdateSubmoduleRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		Submodule:     []byte("six"),
 		CommitSha:     "41fa1bc9e0f0630ced6a8a211d60c2af425ecc2d",
 		Branch:        []byte("master"),
@@ -315,7 +309,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.InitRepoWithWorktree(t)
@@ -323,7 +317,7 @@ func TestFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T) {
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
 		Repository:    testRepo,
-		User:          user,
+		User:          testhelper.TestUser,
 		Submodule:     []byte("six"),
 		CommitSha:     "41fa1bc9e0f0630ced6a8a211d60c2af425ecc2d",
 		Branch:        []byte("master"),

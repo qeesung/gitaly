@@ -72,7 +72,7 @@ func validateUserApplyPatchHeader(header *gitalypb.UserApplyPatchRequest_Header)
 		return fmt.Errorf("missing User")
 	}
 
-	if header.GetTargetBranch() == nil {
+	if len(header.GetTargetBranch()) == 0 {
 		return fmt.Errorf("missing Branch")
 	}
 

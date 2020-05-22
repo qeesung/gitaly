@@ -1,4 +1,4 @@
-package operations_test
+package operations
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -35,23 +34,14 @@ func TestSuccessfulUserApplyPatch(t *testing.T) {
 }
 
 func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
-	user := &gitalypb.User{
-		Name:  []byte("Jane Doe"),
-		Email: []byte("janedoe@gitlab.com"),
-		GlId:  "user-1",
-	}
 
 	testPatchReadme := "testdata/0001-A-commit-from-a-patch.patch"
 	testPatchFeature := "testdata/0001-This-does-not-apply-to-the-feature-branch.patch"
@@ -91,7 +81,7 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 			stream, err := client.UserApplyPatch(ctx)
 			require.NoError(t, err)
 
-			headerRequest := applyPatchHeaderRequest(testRepo, user, testCase.branchName)
+			headerRequest := applyPatchHeaderRequest(testRepo, testhelper.TestUser, testCase.branchName)
 			require.NoError(t, stream.Send(headerRequest))
 
 			writer := streamio.NewWriter(func(p []byte) error {
@@ -148,33 +138,24 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 				require.NotNil(t, commit)
 				require.Equal(t, string(commit.Subject), testCase.commitMessages[index])
 				require.Equal(t, string(commit.Author.Email), "patchuser@gitlab.org")
-				require.Equal(t, string(commit.Committer.Email), string(user.Email))
+				require.Equal(t, string(commit.Committer.Email), string(testhelper.TestUser.Email))
 			}
 		})
 	}
 }
 
 func TestFailedPatchApplyPatch(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
+	serverSocketPath, stop := runOperationServiceServer(t)
+	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository, "")
-	defer cleanupSrv()
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-
-	user := &gitalypb.User{
-		Name:  []byte("Jane Doe"),
-		Email: []byte("janedoe@gitlab.com"),
-		GlId:  "user-1",
-	}
 
 	testPatch, err := ioutil.ReadFile("testdata/0001-This-does-not-apply-to-the-feature-branch.patch")
 	require.NoError(t, err)
@@ -182,7 +163,7 @@ func TestFailedPatchApplyPatch(t *testing.T) {
 	stream, err := client.UserApplyPatch(ctx)
 	require.NoError(t, err)
 
-	headerRequest := applyPatchHeaderRequest(testRepo, user, "feature")
+	headerRequest := applyPatchHeaderRequest(testRepo, testhelper.TestUser, "feature")
 	require.NoError(t, stream.Send(headerRequest))
 
 	patchRequest := applyPatchPatchesRequest(testPatch)
@@ -193,23 +174,8 @@ func TestFailedPatchApplyPatch(t *testing.T) {
 }
 
 func TestFailedValidationUserApplyPatch(t *testing.T) {
-	server, serverSocketPath := runFullServerWithHooks(t)
-	defer server.Stop()
-
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
-	defer conn.Close()
-
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	user := &gitalypb.User{
-		Name:  []byte("Jane Doe"),
-		Email: []byte("janedoe@gitlab.com"),
-		GlId:  "user-1",
-	}
 
 	testCases := []struct {
 		desc         string
@@ -222,19 +188,20 @@ func TestFailedValidationUserApplyPatch(t *testing.T) {
 			desc:         "missing Repository",
 			errorMessage: "missing Repository",
 			branchName:   "new-branch",
-			user:         user,
+			user:         testhelper.TestUser,
 		},
+
 		{
 			desc:         "missing Branch",
 			errorMessage: "missing Branch",
 			repo:         testRepo,
-			user:         user,
+			user:         testhelper.TestUser,
 		},
 		{
 			desc:         "empty BranchName",
 			errorMessage: "missing Branch",
 			repo:         testRepo,
-			user:         user,
+			user:         testhelper.TestUser,
 			branchName:   "",
 		},
 		{
@@ -247,15 +214,9 @@ func TestFailedValidationUserApplyPatch(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			stream, err := client.UserApplyPatch(ctx)
-			require.NoError(t, err)
-
 			request := applyPatchHeaderRequest(testCase.repo, testCase.user, testCase.branchName)
-			require.NoError(t, stream.Send(request))
+			err := validateUserApplyPatchHeader(request.GetHeader())
 
-			_, err = stream.CloseAndRecv()
-
-			testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 			require.Contains(t, err.Error(), testCase.errorMessage)
 		})
 	}

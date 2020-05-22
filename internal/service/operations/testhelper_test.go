@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
+	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
 	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
@@ -28,12 +29,6 @@ var (
 	GitlabPreHooks  = gitlabPreHooks
 	GitlabHooks     []string
 	RubyServer      = &rubyserver.Server{}
-	user            = &gitalypb.User{
-		Name:       []byte("Jane Doe"),
-		Email:      []byte("janedoe@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "janedoe",
-	}
 )
 
 func init() {
@@ -69,6 +64,9 @@ func testMain(m *testing.M) int {
 	}(config.Config.Auth.Token)
 	config.Config.Auth.Token = testhelper.RepositoryAuthToken
 
+	cleanupSrv := setupAndStartGitlabServer(gitalylog.Default(), testhelper.TestUser.GlId, testhelper.GlRepository)
+	defer cleanupSrv()
+
 	if err := RubyServer.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -77,18 +75,20 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-var RunOperationServiceServer = runOperationServiceServer
-
 func runOperationServiceServer(t *testing.T) (string, func()) {
+	return runOperationServiceServerWithRubyServer(t, RubyServer)
+}
+
+func runOperationServiceServerWithRubyServer(t *testing.T, ruby *rubyserver.Server) (string, func()) {
 	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
 
 	internalSocket := config.GitalyInternalSocketPath()
 	internalListener, err := net.Listen("unix", internalSocket)
 	require.NoError(t, err)
 
-	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: RubyServer})
+	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: ruby})
 	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer())
-	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), repository.NewServer(RubyServer, internalSocket))
+	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), repository.NewServer(ruby, internalSocket))
 	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), ref.NewServer())
 	gitalypb.RegisterCommitServiceServer(srv.GrpcServer(), commit.NewServer())
 	gitalypb.RegisterSSHServiceServer(srv.GrpcServer(), ssh.NewServer())
@@ -116,10 +116,8 @@ func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.Operati
 	return gitalypb.NewOperationServiceClient(conn), conn
 }
 
-var NewOperationClient = newOperationClient
-
-func SetupAndStartGitlabServer(t *testing.T, glID, glRepository string, gitPushOptions ...string) func() {
-	return testhelper.SetupAndStartGitlabServer(t, &testhelper.GitlabTestServerOptions{
+func setupAndStartGitlabServer(t testhelper.FatalLogger, glID, glRepository string, gitPushOptions ...string) func() {
+	url, cleanup := testhelper.SetupAndStartGitlabServer(t, &testhelper.GitlabTestServerOptions{
 		SecretToken:                 "secretToken",
 		GLID:                        glID,
 		GLRepository:                glRepository,
@@ -127,4 +125,13 @@ func SetupAndStartGitlabServer(t *testing.T, glID, glRepository string, gitPushO
 		Protocol:                    "web",
 		GitPushOptions:              gitPushOptions,
 	})
+
+	gitlabURL := config.Config.Gitlab.URL
+	cleanupAll := func() {
+		cleanup()
+		config.Config.Gitlab.URL = gitlabURL
+	}
+	config.Config.Gitlab.URL = url
+
+	return cleanupAll
 }

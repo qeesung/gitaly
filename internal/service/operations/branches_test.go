@@ -30,9 +30,6 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 	startPointCommit, err := log.GetCommit(ctx, testRepo, startPoint)
 	require.NoError(t, err)
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	testCases := []struct {
 		desc           string
 		branchName     string
@@ -57,7 +54,7 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 				Repository: testRepo,
 				BranchName: []byte(branchName),
 				StartPoint: []byte(testCase.startPoint),
-				User:       user,
+				User:       testhelper.TestUser,
 			}
 
 			ctx, cancel := testhelper.Context()
@@ -96,9 +93,6 @@ func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -110,7 +104,7 @@ func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.
 		Repository: testRepo,
 		BranchName: []byte(branchName),
 		StartPoint: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	for _, hookName := range GitlabHooks {
@@ -125,7 +119,7 @@ func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.
 			require.Empty(t, response.PreReceiveError)
 
 			output := string(testhelper.MustReadFile(t, hookOutputTempPath))
-			require.Contains(t, output, "GL_USERNAME="+user.GlUsername)
+			require.Contains(t, output, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		})
 	}
 }
@@ -133,9 +127,6 @@ func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.
 func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
@@ -147,7 +138,7 @@ func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 		Repository: testRepo,
 		BranchName: []byte("new-branch"),
 		StartPoint: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 	// Write a hook that will fail with the environment as the error message
 	// so we can check that string for our env variables.
@@ -163,7 +154,7 @@ func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 
 		response, err := client.UserCreateBranch(ctx, request)
 		require.Nil(t, err)
-		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+user.GlUsername)
+		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 	}
 }
 
@@ -177,9 +168,6 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	testCases := []struct {
 		desc       string
 		branchName string
@@ -191,7 +179,7 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 			desc:       "empty start_point",
 			branchName: "shiny-new-branch",
 			startPoint: "",
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.InvalidArgument,
 		},
 		{
@@ -205,7 +193,7 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 			desc:       "non-existing starting point",
 			branchName: "new-branch",
 			startPoint: "i-dont-exist",
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.FailedPrecondition,
 		},
 
@@ -213,7 +201,7 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 			desc:       "branch exists",
 			branchName: "master",
 			startPoint: "master",
-			user:       user,
+			user:       testhelper.TestUser,
 			code:       codes.FailedPrecondition,
 		},
 	}
@@ -253,21 +241,12 @@ func TestSuccessfulUserDeleteBranchRequest(t *testing.T) {
 
 	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
 
-	user := &gitalypb.User{
-		Name:  []byte("Alejandro Rodríguez"),
-		Email: []byte("alejandro@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
 
 	request := &gitalypb.UserDeleteBranchRequest{
 		Repository: testRepo,
 		BranchName: []byte(branchNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	_, err := client.UserDeleteBranch(ctx, request)
@@ -290,20 +269,10 @@ func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
 	branchNameInput := "to-be-deleted-soon-branch"
 	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
 
-	user := &gitalypb.User{
-		Name:       []byte("Alejandro Rodríguez"),
-		Email:      []byte("alejandro@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "johndoe",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	request := &gitalypb.UserDeleteBranchRequest{
 		Repository: testRepo,
 		BranchName: []byte(branchNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	for _, hookName := range GitlabHooks {
@@ -320,7 +289,7 @@ func TestSuccessfulGitHooksForUserDeleteBranchRequest(t *testing.T) {
 			require.NoError(t, err)
 
 			output := testhelper.MustReadFile(t, hookOutputTempPath)
-			require.Contains(t, string(output), "GL_USERNAME=johndoe")
+			require.Contains(t, string(output), "GL_USERNAME="+testhelper.TestUser.GlUsername)
 		})
 	}
 }
@@ -334,12 +303,6 @@ func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	user := &gitalypb.User{
-		Name:  []byte("Alejandro Rodríguez"),
-		Email: []byte("alejandro@gitlab.com"),
-		GlId:  "user-123",
-	}
 
 	testCases := []struct {
 		desc    string
@@ -358,7 +321,7 @@ func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
 			desc: "empty branch name",
 			request: &gitalypb.UserDeleteBranchRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 			},
 			code: codes.InvalidArgument,
 		},
@@ -366,7 +329,7 @@ func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
 			desc: "non-existent branch name",
 			request: &gitalypb.UserDeleteBranchRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				BranchName: []byte("i-do-not-exist"),
 			},
 			code: codes.FailedPrecondition,
@@ -398,19 +361,10 @@ func TestFailedUserDeleteBranchDueToHooks(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", branchNameInput)
 	defer exec.Command("git", "-C", testRepoPath, "branch", "-d", branchNameInput).Run()
 
-	user := &gitalypb.User{
-		Name:  []byte("Alejandro Rodríguez"),
-		Email: []byte("alejandro@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	request := &gitalypb.UserDeleteBranchRequest{
 		Repository: testRepo,
 		BranchName: []byte(branchNameInput),
-		User:       user,
+		User:       testhelper.TestUser,
 	}
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
@@ -426,7 +380,7 @@ func TestFailedUserDeleteBranchDueToHooks(t *testing.T) {
 
 			response, err := client.UserDeleteBranch(ctx, request)
 			require.Nil(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+user.GlId)
+			require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
 
 			branches := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch")
 			require.Contains(t, string(branches), branchNameInput, "branch name does not exist in branches list")

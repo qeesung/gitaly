@@ -228,7 +228,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	cloneDetails, cleanup := setupSSHClone(t)
 	defer cleanup()
 
-	ts := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	ts := testhelper.NewGitlabTestServer(testhelper.GitlabTestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,

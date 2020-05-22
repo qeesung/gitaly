@@ -88,7 +88,7 @@ func TestHooksPrePostReceive(t *testing.T) {
 		RepoPath:                    testRepoPath,
 	}
 
-	ts := testhelper.NewGitlabTestServer(t, c)
+	ts := testhelper.NewGitlabTestServer(c)
 	defer ts.Close()
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
@@ -122,12 +122,10 @@ func TestHooksPrePostReceive(t *testing.T) {
 				customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 				defer cleanup()
 
-				if featureSet.IsEnabled("use_gitaly_gitlabshell_config") {
-					config.Config.Gitlab.URL = ts.URL
-					config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
-					config.Config.Gitlab.HTTPSettings.User = gitlabUser
-					config.Config.Gitlab.HTTPSettings.Password = gitlabPassword
-				}
+				config.Config.Gitlab.URL = ts.URL
+				config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
+				config.Config.Gitlab.HTTPSettings.User = gitlabUser
+				config.Config.Gitlab.HTTPSettings.Password = gitlabPassword
 
 				var stderr, stdout bytes.Buffer
 				stdin := bytes.NewBuffer([]byte(changes))
@@ -326,7 +324,7 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 		PostReceiveCounterDecreased: false,
 		Protocol:                    "ssh",
 	}
-	ts := testhelper.NewGitlabTestServer(t, c)
+	ts := testhelper.NewGitlabTestServer(c)
 	defer ts.Close()
 
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
@@ -409,7 +407,7 @@ func TestHooksNotAllowed(t *testing.T) {
 		PostReceiveCounterDecreased: true,
 		Protocol:                    "ssh",
 	}
-	ts := testhelper.NewGitlabTestServer(t, c)
+	ts := testhelper.NewGitlabTestServer(c)
 	defer ts.Close()
 
 	testhelper.WriteTemporaryGitlabShellConfigFile(t, tempGitlabShellDir, testhelper.GitlabShellConfig{GitlabURL: ts.URL})
@@ -461,7 +459,7 @@ func TestCheckOK(t *testing.T) {
 		PostReceiveCounterDecreased: false,
 		Protocol:                    "ssh",
 	}
-	ts := testhelper.NewGitlabTestServer(t, c)
+	ts := testhelper.NewGitlabTestServer(c)
 	defer ts.Close()
 
 	tempDir, err := ioutil.TempDir("", t.Name())
@@ -510,7 +508,7 @@ func TestCheckBadCreds(t *testing.T) {
 		Protocol:                    "ssh",
 		GitPushOptions:              nil,
 	}
-	ts := testhelper.NewGitlabTestServer(t, c)
+	ts := testhelper.NewGitlabTestServer(c)
 	defer ts.Close()
 
 	tempDir, err := ioutil.TempDir("", t.Name())

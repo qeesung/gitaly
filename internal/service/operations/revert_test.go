@@ -1,4 +1,4 @@
-package operations_test
+package operations
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/service/operations"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -18,10 +17,10 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -32,15 +31,6 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 
 	masterHeadCommit, err := log.GetCommit(ctxOuter, testRepo, "master")
 	require.NoError(t, err)
-
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
 
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, "d59c60028b053793cecfb4022de34602e1a9218e")
 	require.NoError(t, err)
@@ -57,7 +47,7 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			desc: "branch exists",
 			request: &gitalypb.UserRevertRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				Commit:     revertedCommit,
 				BranchName: []byte(destinationBranch),
 				Message:    []byte("Reverting " + revertedCommit.Id),
@@ -68,7 +58,7 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			desc: "nonexistent branch + start_repository == repository",
 			request: &gitalypb.UserRevertRequest{
 				Repository:      testRepo,
-				User:            user,
+				User:            testhelper.TestUser,
 				Commit:          revertedCommit,
 				BranchName:      []byte("to-be-reverted-into-1"),
 				Message:         []byte("Reverting " + revertedCommit.Id),
@@ -80,7 +70,7 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			desc: "nonexistent branch + start_repository != repository",
 			request: &gitalypb.UserRevertRequest{
 				Repository:      testRepo,
-				User:            user,
+				User:            testhelper.TestUser,
 				Commit:          revertedCommit,
 				BranchName:      []byte("to-be-reverted-into-2"),
 				Message:         []byte("Reverting " + revertedCommit.Id),
@@ -93,7 +83,7 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			desc: "nonexistent branch + empty start_repository",
 			request: &gitalypb.UserRevertRequest{
 				Repository:      testRepo,
-				User:            user,
+				User:            testhelper.TestUser,
 				Commit:          revertedCommit,
 				BranchName:      []byte("to-be-reverted-into-3"),
 				Message:         []byte("Reverting " + revertedCommit.Id),
@@ -141,10 +131,10 @@ func TestSuccessfulGitHooksForUserRevertRequest(t *testing.T) {
 }
 
 func testSuccessfulGitHooksForUserRevertRequest(t *testing.T, ctxOuter context.Context) {
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -153,29 +143,19 @@ func testSuccessfulGitHooksForUserRevertRequest(t *testing.T, ctxOuter context.C
 	destinationBranch := "revert-dst"
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", destinationBranch, "master")
 
-	user := &gitalypb.User{
-		Name:       []byte("Ahmad Sherif"),
-		Email:      []byte("ahmad@gitlab.com"),
-		GlId:       "user-123",
-		GlUsername: "username-223",
-	}
-
-	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, "d59c60028b053793cecfb4022de34602e1a9218e")
 	require.NoError(t, err)
 
 	request := &gitalypb.UserRevertRequest{
 		Repository: testRepo,
-		User:       user,
+		User:       testhelper.TestUser,
 		Commit:     revertedCommit,
 		BranchName: []byte(destinationBranch),
 		Message:    []byte("Reverting " + revertedCommit.Id),
 	}
 
 	var hookOutputFiles []string
-	for _, hookName := range operations.GitlabHooks {
+	for _, hookName := range GitlabHooks {
 		hookOutputTempPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, hookName)
 		defer cleanup()
 		hookOutputFiles = append(hookOutputFiles, hookOutputTempPath)
@@ -190,7 +170,7 @@ func testSuccessfulGitHooksForUserRevertRequest(t *testing.T, ctxOuter context.C
 
 	for _, file := range hookOutputFiles {
 		output := string(testhelper.MustReadFile(t, file))
-		require.Contains(t, output, "GL_USERNAME="+user.GlUsername)
+		require.Contains(t, output, "GL_USERNAME="+testhelper.TestUser.GlUsername)
 	}
 }
 
@@ -198,10 +178,10 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
@@ -211,12 +191,6 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 	require.NoError(t, err)
 
 	destinationBranch := "revert-dst"
-
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
 
 	testCases := []struct {
 		desc    string
@@ -238,7 +212,7 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 			desc: "empty commit",
 			request: &gitalypb.UserRevertRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				Commit:     nil,
 				BranchName: []byte(destinationBranch),
 				Message:    []byte("Reverting " + revertedCommit.Id),
@@ -249,7 +223,7 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 			desc: "empty branch name",
 			request: &gitalypb.UserRevertRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				Commit:     revertedCommit,
 				BranchName: nil,
 				Message:    []byte("Reverting " + revertedCommit.Id),
@@ -260,7 +234,7 @@ func TestFailedUserRevertRequestDueToValidations(t *testing.T) {
 			desc: "empty message",
 			request: &gitalypb.UserRevertRequest{
 				Repository: testRepo,
-				User:       user,
+				User:       testhelper.TestUser,
 				Commit:     revertedCommit,
 				BranchName: []byte(destinationBranch),
 				Message:    nil,
@@ -284,10 +258,10 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -296,21 +270,12 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 	destinationBranch := "revert-dst"
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", destinationBranch, "master")
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
-	cleanupSrv := operations.SetupAndStartGitlabServer(t, user.GlId, testRepo.GlRepository)
-	defer cleanupSrv()
-
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, "d59c60028b053793cecfb4022de34602e1a9218e")
 	require.NoError(t, err)
 
 	request := &gitalypb.UserRevertRequest{
 		Repository: testRepo,
-		User:       user,
+		User:       testhelper.TestUser,
 		Commit:     revertedCommit,
 		BranchName: []byte(destinationBranch),
 		Message:    []byte("Reverting " + revertedCommit.Id),
@@ -318,7 +283,7 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
 
-	for _, hookName := range operations.GitlabPreHooks {
+	for _, hookName := range GitlabPreHooks {
 		t.Run(hookName, func(t *testing.T) {
 			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
 			require.NoError(t, err)
@@ -329,7 +294,7 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 
 			response, err := client.UserRevert(ctx, request)
 			require.NoError(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+user.GlId)
+			require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
 		})
 	}
 }
@@ -338,10 +303,10 @@ func TestFailedUserRevertRequestDueToCreateTreeError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -350,19 +315,13 @@ func TestFailedUserRevertRequestDueToCreateTreeError(t *testing.T) {
 	destinationBranch := "revert-dst"
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", destinationBranch, "master")
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
 	// This revert patch of the following commit cannot be applied to the destinationBranch above
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, "372ab6950519549b14d220271ee2322caa44d4eb")
 	require.NoError(t, err)
 
 	request := &gitalypb.UserRevertRequest{
 		Repository: testRepo,
-		User:       user,
+		User:       testhelper.TestUser,
 		Commit:     revertedCommit,
 		BranchName: []byte(destinationBranch),
 		Message:    []byte("Reverting " + revertedCommit.Id),
@@ -381,10 +340,10 @@ func TestFailedUserRevertRequestDueToCommitError(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	serverSocketPath, stop := operations.RunOperationServiceServer(t)
+	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
-	client, conn := operations.NewOperationClient(t, serverSocketPath)
+	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()
 
 	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
@@ -395,18 +354,12 @@ func TestFailedUserRevertRequestDueToCommitError(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", destinationBranch, "master")
 	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", sourceBranch, "a5391128b0ef5d21df5dd23d98557f4ef12fae20")
 
-	user := &gitalypb.User{
-		Name:  []byte("Ahmad Sherif"),
-		Email: []byte("ahmad@gitlab.com"),
-		GlId:  "user-123",
-	}
-
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, sourceBranch)
 	require.NoError(t, err)
 
 	request := &gitalypb.UserRevertRequest{
 		Repository:      testRepo,
-		User:            user,
+		User:            testhelper.TestUser,
 		Commit:          revertedCommit,
 		BranchName:      []byte(destinationBranch),
 		Message:         []byte("Reverting " + revertedCommit.Id),
