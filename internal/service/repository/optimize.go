@@ -38,7 +38,10 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 	}
 
 	entries, err := ioutil.ReadDir(target)
-	if err != nil && !os.IsNotExist(err) {
+	switch {
+	case os.IsNotExist(err):
+		return nil // race condition: someone else deleted it first
+	case err != nil:
 		return err
 	}
 
@@ -85,6 +88,10 @@ func removeRefEmptyDirs(ctx context.Context, repository *gitalypb.Repository) er
 	// we never want to delete the actual "refs" directory, so we start the
 	// recursive functions for each subdirectory
 	entries, err := ioutil.ReadDir(repoRefsPath)
+	if err != nil {
+		return err
+	}
+
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
