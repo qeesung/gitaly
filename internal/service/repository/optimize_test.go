@@ -83,7 +83,8 @@ func TestOptimizeRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, bitmaps)
 
-	emptyRef := filepath.Join(testRepoPath, "refs", "empty")
+	mrRefs := filepath.Join(testRepoPath, "refs/merge-requests")
+	emptyRef := filepath.Join(mrRefs, "1")
 	require.NoError(t, os.MkdirAll(emptyRef, 0755))
 	require.DirExists(t, emptyRef, "sanity check for empty ref dir existence")
 
@@ -97,8 +98,11 @@ func TestOptimizeRepository(t *testing.T) {
 
 	// All empty directories should be removed
 	testhelper.AssertPathNotExists(t, emptyRef)
-	// ... but never delete the refs directory
-	require.DirExists(t, filepath.Join(testRepoPath, "refs"))
+	testhelper.AssertPathNotExists(t, mrRefs)
+	require.FileExists(t,
+		filepath.Join(testRepoPath, "refs/heads", blobIDs[0]),
+		"unpacked refs should never be removed",
+	)
 }
 
 func TestOptimizeRepositoryValidation(t *testing.T) {
