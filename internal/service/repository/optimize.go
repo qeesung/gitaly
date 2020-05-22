@@ -51,7 +51,6 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 		if err := removeEmptyDirs(ctx, ePath); err != nil {
 			return err
 		}
-		continue
 	}
 
 	// recheck entries now that we have potentially removed some dirs
