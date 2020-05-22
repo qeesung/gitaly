@@ -125,6 +125,8 @@ func TestSafeCmdValid(t *testing.T) {
 	reenableGitCmd := disableGitCmd()
 	defer reenableGitCmd()
 
+	endOfOptions := "--end-of-options"
+
 	for _, tt := range []struct {
 		globals    []git.Option
 		subCmd     git.SubCmd
@@ -132,14 +134,14 @@ func TestSafeCmdValid(t *testing.T) {
 	}{
 		{
 			subCmd:     git.SubCmd{Name: "meow"},
-			expectArgs: []string{"meow"},
+			expectArgs: []string{"meow", endOfOptions},
 		},
 		{
 			globals: []git.Option{
 				git.Flag{"--aaaa-bbbb"},
 			},
 			subCmd:     git.SubCmd{Name: "cccc"},
-			expectArgs: []string{"--aaaa-bbbb", "cccc"},
+			expectArgs: []string{"--aaaa-bbbb", "cccc", endOfOptions},
 		},
 		{
 			subCmd: git.SubCmd{
@@ -147,7 +149,7 @@ func TestSafeCmdValid(t *testing.T) {
 				Args:        []string{""},
 				PostSepArgs: []string{"-woof", ""},
 			},
-			expectArgs: []string{"meow", "", "--", "-woof", ""},
+			expectArgs: []string{"meow", "", endOfOptions, "--", "-woof", ""},
 		},
 		{
 			globals: []git.Option{
@@ -164,7 +166,7 @@ func TestSafeCmdValid(t *testing.T) {
 				Args:        []string{"1", "2"},
 				PostSepArgs: []string{"3", "4", "5"},
 			},
-			expectArgs: []string{"-a", "-b", "c", "d", "-e", "-f", "g", "-h=i", "1", "2", "--", "3", "4", "5"},
+			expectArgs: []string{"-a", "-b", "c", "d", "-e", "-f", "g", "-h=i", "1", "2", endOfOptions, "--", "3", "4", "5"},
 		},
 		{
 			subCmd: git.SubCmd{
@@ -175,7 +177,7 @@ func TestSafeCmdValid(t *testing.T) {
 					git.Flag{"--adjective"},
 				},
 			},
-			expectArgs: []string{"noun", "verb", "-", "--adjective"},
+			expectArgs: []string{"noun", "verb", "-", "--adjective", endOfOptions},
 		},
 		{
 			globals: []git.Option{
@@ -190,7 +192,7 @@ func TestSafeCmdValid(t *testing.T) {
 					git.ValueFlag{"--why", "looking-for-first-contribution"},
 				},
 			},
-			expectArgs: []string{"--contributing", "--author", "a-gopher", "accept", "--is-important", "--why", "looking-for-first-contribution", "mr"},
+			expectArgs: []string{"--contributing", "--author", "a-gopher", "accept", "--is-important", "--why", "looking-for-first-contribution", "mr", endOfOptions},
 		},
 	} {
 		cmd, err := git.SafeCmd(ctx, testRepo, tt.globals, tt.subCmd)

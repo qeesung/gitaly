@@ -164,13 +164,8 @@ func TestUploadPackRequestWithGitConfigOptions(t *testing.T) {
 	response, err = makePostUploadPackRequest(ctx, t, serverSocketPath, rpcRequest, requestBodyCopy)
 	testhelper.RequireGrpcError(t, err, codes.Unavailable)
 
-	// Remove the if clause if support is dropped for Git versions before 2.22
-	if git.NoMissingWantErrMessage() {
-		assert.Equal(t, "", response.String(), "Ref is hidden so no response should be received")
-	} else {
-		expected := fmt.Sprintf("0049ERR upload-pack: not our ref %v", want)
-		assert.Equal(t, expected, response.String(), "Ref is hidden, expected error message did not appear")
-	}
+	expected := fmt.Sprintf("0049ERR upload-pack: not our ref %v", want)
+	assert.Equal(t, expected, response.String(), "Ref is hidden, expected error message did not appear")
 }
 
 func TestUploadPackRequestWithGitProtocol(t *testing.T) {
