@@ -65,13 +65,12 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 	}
 
 	switch err := os.Remove(target); {
-	case err != nil && !os.IsNotExist(err):
+	case os.IsNotExist(err):
+		return nil // race condition: someone else deleted it first
+	case err != nil:
 		return err
-	case err != nil && os.IsNotExist(err):
-		break // race condition: someone else deleted it first
-	case err == nil:
-		optimizeEmptyDirRemovalTotals.Inc()
 	}
+	optimizeEmptyDirRemovalTotals.Inc()
 
 	return nil
 }
