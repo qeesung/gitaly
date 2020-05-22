@@ -48,9 +48,14 @@ func cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
 		return status.Errorf(codes.Internal, "Cleanup: cleanDisconnectedWorktrees: %v", err)
 	}
 
-	configLockThreshod := time.Now().Add(-15 * time.Minute)
-	if err := cleanFileLocks(repoPath, configLockThreshod); err != nil {
+	older15min := time.Now().Add(-15 * time.Minute)
+
+	if err := cleanFileLocks(repoPath, older15min); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanupConfigLock: %v", err)
+	}
+
+	if err := cleanPackedRefsNew(repoPath, older15min); err != nil {
+		return status.Errorf(codes.Internal, "Cleanup: cleanPackedRefsNew: %v", err)
 	}
 
 	return nil
@@ -162,6 +167,31 @@ func cleanFileLocks(repoPath string, threshold time.Time) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func cleanPackedRefsNew(repoPath string, threshold time.Time) error {
+	path := filepath.Join(repoPath, "packed-refs.new")
+
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // file is already gone, nothing to do!
+		}
+		return err
+	}
+
+	if fileInfo.ModTime().After(threshold) {
+		return nil // it is fresh enough
+	}
+
+	if err := os.Remove(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil // file is already gone, nothing to do!
+		}
+		return err
 	}
 
 	return nil

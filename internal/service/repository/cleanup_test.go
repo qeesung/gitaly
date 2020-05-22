@@ -31,17 +31,17 @@ func TestCleanupDeletesRefsLocks(t *testing.T) {
 	refsPath := filepath.Join(testRepoPath, "refs")
 
 	keepRefPath := filepath.Join(refsPath, "heads", "keepthis")
-	createFileWithTimes(keepRefPath, freshTime)
+	mustCreateFileWithTimes(t, keepRefPath, freshTime)
 	keepOldRefPath := filepath.Join(refsPath, "heads", "keepthisalso")
-	createFileWithTimes(keepOldRefPath, oldTime)
+	mustCreateFileWithTimes(t, keepOldRefPath, oldTime)
 	keepDeceitfulRef := filepath.Join(refsPath, "heads", " .lock.not-actually-a-lock.lock ")
-	createFileWithTimes(keepDeceitfulRef, oldTime)
+	mustCreateFileWithTimes(t, keepDeceitfulRef, oldTime)
 
 	keepLockPath := filepath.Join(refsPath, "heads", "keepthis.lock")
-	createFileWithTimes(keepLockPath, freshTime)
+	mustCreateFileWithTimes(t, keepLockPath, freshTime)
 
 	deleteLockPath := filepath.Join(refsPath, "heads", "deletethis.lock")
-	createFileWithTimes(deleteLockPath, oldTime)
+	mustCreateFileWithTimes(t, deleteLockPath, oldTime)
 
 	c, err := client.Cleanup(ctx, req)
 	assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestCleanupDeletesPackedRefsLock(t *testing.T) {
 			lockPath := filepath.Join(testRepoPath, "packed-refs.lock")
 
 			if tc.lockTime != nil {
-				createFileWithTimes(lockPath, *tc.lockTime)
+				mustCreateFileWithTimes(t, lockPath, *tc.lockTime)
 			}
 
 			ctx, cancel := testhelper.Context()
@@ -279,15 +279,71 @@ func TestCleanupFileLocks(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Fresh lock should remain
-		createFileWithTimes(lockPath, freshTime)
+		mustCreateFileWithTimes(t, lockPath, freshTime)
 		_, err = client.Cleanup(ctx, req)
 		assert.NoError(t, err)
 		assert.FileExists(t, lockPath)
 
 		// Old lock should be removed
-		createFileWithTimes(lockPath, oldTime)
+		mustCreateFileWithTimes(t, lockPath, oldTime)
 		_, err = client.Cleanup(ctx, req)
 		assert.NoError(t, err)
 		testhelper.AssertPathNotExists(t, lockPath)
+	}
+}
+
+func TestCleanupDeletesPackedRefsNew(t *testing.T) {
+	serverSocketPath, stop := runRepoServer(t)
+	defer stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testCases := []struct {
+		desc        string
+		lockTime    *time.Time
+		shouldExist bool
+	}{
+		{
+			desc:        "created recently",
+			lockTime:    &freshTime,
+			shouldExist: true,
+		},
+		{
+			desc:        "exists for too long",
+			lockTime:    &oldTime,
+			shouldExist: false,
+		},
+		{
+			desc:        "nothing to clean up",
+			shouldExist: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+			defer cleanupFn()
+
+			req := &gitalypb.CleanupRequest{Repository: testRepo}
+			packedRefsNewPath := filepath.Join(testRepoPath, "packed-refs.new")
+
+			if tc.lockTime != nil {
+				mustCreateFileWithTimes(t, packedRefsNewPath, *tc.lockTime)
+			}
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			c, err := client.Cleanup(ctx, req)
+			require.NotNil(t, c)
+			require.NoError(t, err)
+
+			if tc.shouldExist {
+				require.FileExists(t, packedRefsNewPath)
+			} else {
+				testhelper.AssertPathNotExists(t, packedRefsNewPath)
+			}
+		})
 	}
 }

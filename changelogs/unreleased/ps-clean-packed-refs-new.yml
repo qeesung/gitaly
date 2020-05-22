@@ -1,0 +1,5 @@
+---
+title: Stale packed-refs.new files prevents branches from being deleted
+merge_request: 2206
+author:
+type: fixed

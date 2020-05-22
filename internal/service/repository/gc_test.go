@@ -173,17 +173,17 @@ func TestGarbageCollectDeletesRefsLocks(t *testing.T) {
 	// deleted are all due to our *.lock cleanup step before gc runs (since
 	// `git gc` also deletes files from /refs when packing).
 	keepRefPath := filepath.Join(refsPath, "heads", "keepthis")
-	createFileWithTimes(keepRefPath, freshTime)
+	mustCreateFileWithTimes(t, keepRefPath, freshTime)
 	keepOldRefPath := filepath.Join(refsPath, "heads", "keepthisalso")
-	createFileWithTimes(keepOldRefPath, oldTime)
+	mustCreateFileWithTimes(t, keepOldRefPath, oldTime)
 	keepDeceitfulRef := filepath.Join(refsPath, "heads", " .lock.not-actually-a-lock.lock ")
-	createFileWithTimes(keepDeceitfulRef, oldTime)
+	mustCreateFileWithTimes(t, keepDeceitfulRef, oldTime)
 
 	keepLockPath := filepath.Join(refsPath, "heads", "keepthis.lock")
-	createFileWithTimes(keepLockPath, freshTime)
+	mustCreateFileWithTimes(t, keepLockPath, freshTime)
 
 	deleteLockPath := filepath.Join(refsPath, "heads", "deletethis.lock")
-	createFileWithTimes(deleteLockPath, oldTime)
+	mustCreateFileWithTimes(t, deleteLockPath, oldTime)
 
 	c, err := client.GarbageCollect(ctx, req)
 	testhelper.RequireGrpcError(t, err, codes.Internal)
@@ -322,10 +322,10 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 	}
 }
 
-func createFileWithTimes(path string, mTime time.Time) {
-	os.MkdirAll(filepath.Dir(path), 0755)
-	ioutil.WriteFile(path, nil, 0644)
-	os.Chtimes(path, mTime, mTime)
+func mustCreateFileWithTimes(t testing.TB, path string, mTime time.Time) {
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+	require.NoError(t, ioutil.WriteFile(path, nil, 0644))
+	require.NoError(t, os.Chtimes(path, mTime, mTime))
 }
 
 func TestGarbageCollectDeltaIslands(t *testing.T) {
