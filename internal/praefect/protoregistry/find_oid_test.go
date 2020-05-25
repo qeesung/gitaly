@@ -12,9 +12,6 @@ import (
 )
 
 func TestProtoRegistryTargetRepo(t *testing.T) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-
 	testRepos := []*gitalypb.Repository{
 		&gitalypb.Repository{
 			GitAlternateObjectDirectories: []string{"a", "b", "c"},
@@ -96,7 +93,7 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 	for _, tc := range testcases {
 		desc := fmt.Sprintf("%s:%s %s", tc.svc, tc.method, tc.desc)
 		t.Run(desc, func(t *testing.T) {
-			info, err := r.LookupMethod(fmt.Sprintf("/gitaly.%s/%s", tc.svc, tc.method))
+			info, err := protoregistry.GitalyProtoPreregistered.LookupMethod(fmt.Sprintf("/gitaly.%s/%s", tc.svc, tc.method))
 			require.NoError(t, err)
 
 			actualTarget, actualErr := info.TargetRepo(tc.pbMsg)
@@ -119,9 +116,6 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 }
 
 func TestProtoRegistryStorage(t *testing.T) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-
 	testcases := []struct {
 		desc          string
 		svc           string
@@ -151,7 +145,7 @@ func TestProtoRegistryStorage(t *testing.T) {
 	for _, tc := range testcases {
 		desc := fmt.Sprintf("%s:%s %s", tc.svc, tc.method, tc.desc)
 		t.Run(desc, func(t *testing.T) {
-			info, err := r.LookupMethod(fmt.Sprintf("/gitaly.%s/%s", tc.svc, tc.method))
+			info, err := protoregistry.GitalyProtoPreregistered.LookupMethod(fmt.Sprintf("/gitaly.%s/%s", tc.svc, tc.method))
 			require.NoError(t, err)
 
 			actualStorage, actualErr := info.Storage(tc.pbMsg)

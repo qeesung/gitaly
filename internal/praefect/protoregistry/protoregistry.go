@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
@@ -35,8 +34,9 @@ func init() {
 		GitalyProtoFileDescriptors = append(GitalyProtoFileDescriptors, fd)
 	}
 
-	GitalyProtoPreregistered = New()
-	if err := GitalyProtoPreregistered.RegisterFiles(GitalyProtoFileDescriptors...); err != nil {
+	var err error
+	GitalyProtoPreregistered, err = New(GitalyProtoFileDescriptors...)
+	if err != nil {
 		panic(err)
 	}
 }
@@ -145,41 +145,31 @@ func (mi MethodInfo) UnmarshalRequestProto(b []byte) (proto.Message, error) {
 
 // Registry contains info about RPC methods
 type Registry struct {
-	sync.RWMutex
 	protos map[string]MethodInfo
 }
 
-// New creates a new ProtoRegistry
-func New() *Registry {
-	return &Registry{
-		protos: make(map[string]MethodInfo),
-	}
-}
-
-// RegisterFiles takes one or more descriptor.FileDescriptorProto and populates
-// the registry with its info
-func (pr *Registry) RegisterFiles(protos ...*descriptor.FileDescriptorProto) error {
-	pr.Lock()
-	defer pr.Unlock()
+// New creates a new ProtoRegistry with info from one or more descriptor.FileDescriptorProto
+func New(protos ...*descriptor.FileDescriptorProto) (*Registry, error) {
+	methods := make(map[string]MethodInfo)
 
 	for _, p := range protos {
 		for _, svc := range p.GetService() {
 			for _, method := range svc.GetMethod() {
 				mi, err := parseMethodInfo(p, method)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				fullMethodName := fmt.Sprintf(
 					"/%s.%s/%s",
 					p.GetPackage(), svc.GetName(), method.GetName(),
 				)
-				pr.protos[fullMethodName] = mi
+				methods[fullMethodName] = mi
 			}
 		}
 	}
 
-	return nil
+	return &Registry{protos: methods}, nil
 }
 
 func getOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg, error) {
@@ -473,9 +463,6 @@ func lastName(inputType string) (string, error) {
 
 // LookupMethod looks up an MethodInfo by service and method name
 func (pr *Registry) LookupMethod(fullMethodName string) (MethodInfo, error) {
-	pr.RLock()
-	defer pr.RUnlock()
-
 	methodInfo, ok := pr.protos[fullMethodName]
 	if !ok {
 		return MethodInfo{}, fmt.Errorf("full method name not found: %v", fullMethodName)

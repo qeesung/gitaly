@@ -227,16 +227,14 @@ func TestPropagateReplicationJob(t *testing.T) {
 
 	txMgr := transactions.NewManager()
 
-	registry := protoregistry.New()
-	require.NoError(t, registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
+	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	replmgr := NewReplMgr(logEntry, ds, nodeMgr)
 
 	prf := NewServer(
 		coordinator.StreamDirector,
 		logEntry,
-		registry,
+		protoregistry.GitalyProtoPreregistered,
 		conf,
 	)
 	listener, port := listenAvailPort(t)

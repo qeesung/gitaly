@@ -26,8 +26,8 @@ import (
 func TestInvalidators(t *testing.T) {
 	mCache := newMockCache()
 
-	reg := protoregistry.New()
-	require.NoError(t, reg.RegisterFiles(streamFileDesc(t)))
+	reg, err := protoregistry.New(streamFileDesc(t))
+	require.NoError(t, err)
 
 	srvr := grpc.NewServer(
 		grpc.StreamInterceptor(

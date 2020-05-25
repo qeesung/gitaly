@@ -259,14 +259,9 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		transactions.WithDelayMetric(transactionDelayMetric),
 	)
 
-	registry := protoregistry.New()
-	if err = registry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...); err != nil {
-		return err
-	}
-
 	var (
 		// top level server dependencies
-		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, transactionManager, conf, registry)
+		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, transactionManager, conf, protoregistry.GitalyProtoPreregistered)
 		repl        = praefect.NewReplMgr(
 			logger,
 			ds,
@@ -274,7 +269,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),
 			praefect.WithQueueMetric(queueMetric))
-		srv = praefect.NewServer(coordinator.StreamDirector, logger, registry, conf)
+		srv = praefect.NewServer(coordinator.StreamDirector, logger, protoregistry.GitalyProtoPreregistered, conf)
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())

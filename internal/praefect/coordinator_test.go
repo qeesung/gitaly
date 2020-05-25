@@ -106,8 +106,6 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 					},
 				},
 			}
-			pbRegistry := protoregistry.New()
-			require.NoError(t, pbRegistry.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
 			const storageName = "test-storage"
 			coordinator := NewCoordinator(
@@ -121,7 +119,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 				}},
 				transactions.NewManager(),
 				conf,
-				pbRegistry,
+				protoregistry.GitalyProtoPreregistered,
 			)
 
 			ctx, cancel := testhelper.Context()
@@ -195,11 +193,10 @@ func TestStreamDirectorMutator(t *testing.T) {
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, r)
+	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,
@@ -306,12 +303,10 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
 
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, r)
+	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
 	require.NoError(t, err)

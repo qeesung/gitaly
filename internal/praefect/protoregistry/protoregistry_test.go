@@ -10,9 +10,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-func TestPopulatesProtoRegistry(t *testing.T) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
+func TestNewProtoRegistry(t *testing.T) {
+	r, err := protoregistry.New(protoregistry.GitalyProtoFileDescriptors...)
+	require.NoError(t, err)
 
 	expectedResults := map[string]map[string]protoregistry.OpType{
 		"BlobService": map[string]protoregistry.OpType{
@@ -186,10 +186,7 @@ func TestPopulatesProtoRegistry(t *testing.T) {
 }
 
 func TestRequestFactory(t *testing.T) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-
-	mInfo, err := r.LookupMethod("/gitaly.RepositoryService/RepositoryExists")
+	mInfo, err := protoregistry.GitalyProtoPreregistered.LookupMethod("/gitaly.RepositoryService/RepositoryExists")
 	require.NoError(t, err)
 
 	pb, err := mInfo.UnmarshalRequestProto([]byte{})
@@ -199,9 +196,6 @@ func TestRequestFactory(t *testing.T) {
 }
 
 func TestMethodInfoScope(t *testing.T) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-
 	for _, tt := range []struct {
 		method string
 		scope  protoregistry.Scope
@@ -216,7 +210,7 @@ func TestMethodInfoScope(t *testing.T) {
 		},
 	} {
 		t.Run(tt.method, func(t *testing.T) {
-			mInfo, err := r.LookupMethod(tt.method)
+			mInfo, err := protoregistry.GitalyProtoPreregistered.LookupMethod(tt.method)
 			require.NoError(t, err)
 
 			require.Exactly(t, tt.scope, mInfo.Scope)

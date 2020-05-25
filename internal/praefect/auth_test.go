@@ -179,8 +179,8 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 
 	txMgr := transactions.NewManager()
 
-	registry := protoregistry.New()
-	require.NoError(t, registry.RegisterFiles(fd))
+	registry, err := protoregistry.New(fd)
+	require.NoError(t, err)
 
 	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
 

@@ -91,8 +91,8 @@ func assertPrimariesExist(t testing.TB, conf config.Config) {
 // configured storage node.
 // requires there to be only 1 virtual storage
 func runPraefectServerWithMock(t *testing.T, conf config.Config, ds datastore.Datastore, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(mustLoadProtoReg(t)))
+	r, err := protoregistry.New(mustLoadProtoReg(t))
+	require.NoError(t, err)
 
 	return runPraefectServer(t, conf, buildOptions{
 		withDatastore:   ds,
@@ -220,12 +220,6 @@ func defaultNodeMgr(t testing.TB, conf config.Config, ds datastore.Datastore) no
 	return nodeMgr
 }
 
-func defaultAnnotations(t testing.TB) *protoregistry.Registry {
-	r := protoregistry.New()
-	require.NoError(t, r.RegisterFiles(protoregistry.GitalyProtoFileDescriptors...))
-	return r
-}
-
 func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	assertPrimariesExist(t, conf)
 
@@ -241,7 +235,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		cleanups = append(cleanups, opt.withBackends(conf.VirtualStorages)...)
 	}
 	if opt.withAnnotations == nil {
-		opt.withAnnotations = defaultAnnotations(t)
+		opt.withAnnotations = protoregistry.GitalyProtoPreregistered
 	}
 	if opt.withLogger == nil {
 		opt.withLogger = log.Default()
