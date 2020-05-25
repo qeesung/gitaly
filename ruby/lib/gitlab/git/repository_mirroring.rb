@@ -13,37 +13,24 @@ module Gitlab
       }.freeze
 
       def remote_branches(remote_name, env:)
-        branches = []
-
-        rugged.references.each("refs/remotes/#{remote_name}/*").map do |ref|
-          name = ref.name.sub(%r{\Arefs/remotes/#{remote_name}/}, '')
-
-          begin
-            target_commit = Gitlab::Git::Commit.find(self, ref.target.oid)
-            branches << Gitlab::Git::Branch.new(self, name, ref.target, target_commit)
-          rescue Rugged::ReferenceError
-            # Omit invalid branch
-          end
-        end
-
-        # Run an experiment to see if ls-remote gives us the same data
-        #
-        # See https://gitlab.com/gitlab-org/gitaly/-/issues/2670
         if feature_enabled?(:remote_branches_ls_remote)
-          ls_remote_branches = experimental_remote_branches(remote_name, env: env)
+          experimental_remote_branches(remote_name, env: env)
+        else
+          branches = []
 
-          control_refs = branches.collect(&:name)
-          experiment_refs = ls_remote_branches.collect(&:name)
+          rugged.references.each("refs/remotes/#{remote_name}/*").map do |ref|
+            name = ref.name.sub(%r{\Arefs/remotes/#{remote_name}/}, '')
 
-          diff = experiment_refs.difference(control_refs).map { |r| "+#{r}" }
-          diff.concat(control_refs.difference(experiment_refs).map { |r| "-#{r}" })
-
-          if diff.any?
-            Rails.logger.warn("experimental_remote_branches returned differing values from control: #{diff.join(', ')}")
+            begin
+              target_commit = Gitlab::Git::Commit.find(self, ref.target.oid)
+              branches << Gitlab::Git::Branch.new(self, name, ref.target, target_commit)
+            rescue Rugged::ReferenceError
+              # Omit invalid branch
+            end
           end
-        end
 
-        branches
+          branches
+        end
       end
 
       def push_remote_branches(remote_name, branch_names, forced: true, env: {})
@@ -125,20 +112,23 @@ module Gitlab
       end
 
       def list_remote_refs(remote, env:)
-        ref_list, exit_code, error = nil
+        @list_remote_refs ||= {}
+        @list_remote_refs[remote] ||= begin
+          ref_list, exit_code, error = nil
 
-        # List heads and tags, ignoring stuff like `refs/merge-requests` and `refs/pull`
-        cmd = %W[#{Gitlab.config.git.bin_path} --git-dir=#{path} ls-remote --heads --tags #{remote}]
+          # List heads and tags, ignoring stuff like `refs/merge-requests` and `refs/pull`
+          cmd = %W[#{Gitlab.config.git.bin_path} --git-dir=#{path} ls-remote --heads --tags #{remote}]
 
-        Open3.popen3(env, *cmd) do |_stdin, stdout, stderr, wait_thr|
-          ref_list  = stdout.read
-          error     = stderr.read
-          exit_code = wait_thr.value.exitstatus
+          Open3.popen3(env, *cmd) do |_stdin, stdout, stderr, wait_thr|
+            ref_list  = stdout.read
+            error     = stderr.read
+            exit_code = wait_thr.value.exitstatus
+          end
+
+          raise RemoteError, error unless exit_code.zero?
+
+          ref_list.each_line(chomp: true)
         end
-
-        raise RemoteError, error unless exit_code.zero?
-
-        ref_list.each_line(chomp: true)
       end
     end
   end

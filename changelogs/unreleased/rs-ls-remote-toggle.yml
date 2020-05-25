@@ -1,0 +1,5 @@
+---
+title: Remote branches via ls-remote is now a toggle
+merge_request: 2183
+author:
+type: changed
