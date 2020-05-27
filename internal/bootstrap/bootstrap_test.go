@@ -14,10 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 )
-
-var testConfigGracefulRestartTimeout = 2 * time.Second
 
 type mockUpgrader struct {
 	exit      chan struct{}
@@ -107,7 +104,7 @@ func TestImmediateTerminationOnSocketError(t *testing.T) {
 	b, server := makeBootstrap(t)
 
 	waitCh := make(chan error)
-	go func() { waitCh <- b.Wait() }()
+	go func() { waitCh <- b.Wait(2 * time.Second) }()
 
 	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
@@ -124,7 +121,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 			done := server.slowRequest(3 * time.Minute)
 
 			waitCh := make(chan error)
-			go func() { waitCh <- b.Wait() }()
+			go func() { waitCh <- b.Wait(2 * time.Second) }()
 
 			// make sure we are inside b.Wait() or we'll kill the test suite
 			time.Sleep(100 * time.Millisecond)
@@ -148,7 +145,7 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 func TestGracefulTerminationStuck(t *testing.T) {
 	b, server := makeBootstrap(t)
 
-	err := testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second), nil)
+	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil)
 	require.Contains(t, err.Error(), "grace period expired")
 }
 
@@ -160,7 +157,7 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 		t.Run(sig.String(), func(t *testing.T) {
 			b, server := makeBootstrap(t)
 
-			err := testGracefulUpdate(t, server, b, 1*time.Second, func() {
+			err := testGracefulUpdate(t, server, b, 1*time.Second, 2*time.Second, func() {
 				require.NoError(t, self.Signal(sig))
 			})
 			require.Contains(t, err.Error(), "force shutdown")
@@ -178,14 +175,14 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 		require.NoError(t, server.listeners["unix"].Close())
 
 		// we start a new TCP request that if faster than the grace period
-		req := server.slowRequest(config.Config.GracefulRestartTimeout / 2)
+		req := server.slowRequest(time.Second)
 		done <- <-req
 		close(done)
 
 		server.server.Shutdown(context.Background())
 	}
 
-	err := testGracefulUpdate(t, server, b, testConfigGracefulRestartTimeout+(1*time.Second), nil)
+	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil)
 	require.Contains(t, err.Error(), "grace period expired")
 
 	require.NoError(t, <-done)
@@ -197,7 +194,7 @@ func TestGracefulTermination(t *testing.T) {
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
 	b.StopAction = func() { server.server.Close() }
 
-	err := testGracefulUpdate(t, server, b, 1*time.Second, nil)
+	err := testGracefulUpdate(t, server, b, 1*time.Second, 2*time.Second, nil)
 	require.Contains(t, err.Error(), "completed")
 }
 
@@ -219,17 +216,12 @@ func TestPortReuse(t *testing.T) {
 	require.NoError(t, l.Close())
 }
 
-func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout time.Duration, duringGracePeriodCallback func()) error {
-	defer func(oldVal time.Duration) {
-		config.Config.GracefulRestartTimeout = oldVal
-	}(config.Config.GracefulRestartTimeout)
-	config.Config.GracefulRestartTimeout = testConfigGracefulRestartTimeout
-
+func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout, gracefulWait time.Duration, duringGracePeriodCallback func()) error {
 	waitCh := make(chan error)
-	go func() { waitCh <- b.Wait() }()
+	go func() { waitCh <- b.Wait(gracefulWait) }()
 
 	// Start a slow request to keep the old server from shutting down immediately.
-	req := server.slowRequest(2 * config.Config.GracefulRestartTimeout)
+	req := server.slowRequest(2 * gracefulWait)
 
 	// make sure slow request is being handled
 	time.Sleep(100 * time.Millisecond)

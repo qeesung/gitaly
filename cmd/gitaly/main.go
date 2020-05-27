@@ -148,5 +148,5 @@ func run(b *bootstrap.Bootstrap) error {
 		return fmt.Errorf("initialize gitaly-ruby: %v", err)
 	}
 
-	return b.Wait()
+	return b.Wait(config.Config.GracefulRestartTimeout)
 }

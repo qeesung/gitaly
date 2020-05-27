@@ -10,7 +10,6 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"golang.org/x/sys/unix"
 )
 
@@ -147,7 +146,7 @@ func (b *Bootstrap) Start() error {
 // Wait will signal process readiness to the parent and than wait for an exit condition
 // SIGTERM, SIGINT and a runtime error will trigger an immediate shutdown
 // in case of an upgrade there will be a grace period to complete the ongoing requests
-func (b *Bootstrap) Wait() error {
+func (b *Bootstrap) Wait(gracefulTimeout time.Duration) error {
 	signals := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
 	immediateShutdown := make(chan os.Signal, len(signals))
 	signal.Notify(immediateShutdown, signals...)
@@ -163,7 +162,7 @@ func (b *Bootstrap) Wait() error {
 		// the new process signaled its readiness and we started a graceful stop
 		// however no further upgrades can be started until this process is running
 		// we set a grace period and then we force a termination.
-		waitError := b.waitGracePeriod(immediateShutdown)
+		waitError := b.waitGracePeriod(gracefulTimeout, immediateShutdown)
 
 		err = fmt.Errorf("graceful upgrade: %v", waitError)
 	case s := <-immediateShutdown:
@@ -174,8 +173,8 @@ func (b *Bootstrap) Wait() error {
 	return err
 }
 
-func (b *Bootstrap) waitGracePeriod(kill <-chan os.Signal) error {
-	log.WithField("graceful_restart_timeout", config.Config.GracefulRestartTimeout).Warn("starting grace period")
+func (b *Bootstrap) waitGracePeriod(gracefulTimeout time.Duration, kill <-chan os.Signal) error {
+	log.WithField("graceful_timeout", gracefulTimeout).Warn("starting grace period")
 
 	allServersDone := make(chan struct{})
 	go func() {
@@ -186,7 +185,7 @@ func (b *Bootstrap) waitGracePeriod(kill <-chan os.Signal) error {
 	}()
 
 	select {
-	case <-time.After(config.Config.GracefulRestartTimeout):
+	case <-time.After(gracefulTimeout):
 		return fmt.Errorf("grace period expired")
 	case <-kill:
 		return fmt.Errorf("force shutdown")

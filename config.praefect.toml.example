@@ -4,6 +4,9 @@ listen_addr = "127.0.0.1:2305"
 
 # # Praefect can listen on a socket when placed on the same machine as all clients
 # socket_path = "/home/git/gitlab/tmp/sockets/private/praefect.socket"
+# # Optional: grace period before a praefect process is forcibly terminated (duration)
+# # Defaults to "1m"
+# graceful_stop_timeout = "30s"
 # # Optional: export metrics via Prometheus
 # prometheus_listen_addr = "127.0.01:10101"
 # # You can optionally configure Praefect to output JSON-formatted log messages to stdout

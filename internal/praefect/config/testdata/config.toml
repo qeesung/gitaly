@@ -2,6 +2,7 @@ listen_addr = ""
 socket_path = ""
 prometheus_listen_addr = ""
 memory_queue_enabled = true
+graceful_stop_timeout = "30s"
 
 [logging]
   format = "json"

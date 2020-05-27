@@ -314,7 +314,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 	repl.ProcessBacklog(ctx, praefect.ExpBackoffFunc(1*time.Second, 5*time.Second))
 
-	return b.Wait()
+	return b.Wait(conf.GracefulStopTimeout.Duration())
 }
 
 func getStarterConfigs(socketPath, listenAddr string) ([]starter.Config, error) {

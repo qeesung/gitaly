@@ -1,10 +1,14 @@
 package config
 
 import (
+	"errors"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
 	gitaly_prometheus "gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
@@ -209,10 +213,13 @@ func TestConfigValidation(t *testing.T) {
 
 func TestConfigParsing(t *testing.T) {
 	testCases := []struct {
-		filePath string
-		expected Config
+		desc        string
+		filePath    string
+		expected    Config
+		expectedErr error
 	}{
 		{
+			desc:     "check all configuration values",
 			filePath: "testdata/config.toml",
 			expected: Config{
 				Logging: log.Config{
@@ -257,16 +264,29 @@ func TestConfigParsing(t *testing.T) {
 					SSLKey:      "/path/to/key",
 					SSLRootCert: "/path/to/root-cert",
 				},
-				MemoryQueueEnabled: true,
+				MemoryQueueEnabled:  true,
+				GracefulStopTimeout: config.Duration(30 * time.Second),
 			},
+		},
+		{
+			desc:     "empty config yields default values",
+			filePath: "testdata/config.empty.toml",
+			expected: Config{
+				GracefulStopTimeout: config.Duration(time.Minute),
+			},
+		},
+		{
+			desc:        "config file does not exist",
+			filePath:    "testdata/config.invalid-path.toml",
+			expectedErr: os.ErrNotExist,
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.filePath, func(t *testing.T) {
+		t.Run(tc.desc, func(t *testing.T) {
 			cfg, err := FromFile(tc.filePath)
-			require.NoError(t, err)
 			require.Equal(t, tc.expected, cfg)
+			require.True(t, errors.Is(err, tc.expectedErr), "actual error: %v", err)
 		})
 	}
 }

@@ -48,7 +48,7 @@ type Cfg struct {
 	Hooks                      Hooks             `toml:"hooks"`
 	Concurrency                []Concurrency     `toml:"concurrency"`
 	GracefulRestartTimeout     time.Duration
-	GracefulRestartTimeoutToml duration `toml:"graceful_restart_timeout"`
+	GracefulRestartTimeoutToml Duration `toml:"graceful_restart_timeout"`
 	InternalSocketDir          string   `toml:"internal_socket_dir"`
 }
 
@@ -169,7 +169,7 @@ func Validate() error {
 }
 
 func (c *Cfg) setDefaults() {
-	c.GracefulRestartTimeout = c.GracefulRestartTimeoutToml.Duration
+	c.GracefulRestartTimeout = c.GracefulRestartTimeoutToml.Duration()
 	if c.GracefulRestartTimeout == 0 {
 		c.GracefulRestartTimeout = 1 * time.Minute
 	}

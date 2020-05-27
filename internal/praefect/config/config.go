@@ -3,10 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
 	"gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
@@ -34,8 +35,9 @@ type Config struct {
 	DB                   `toml:"database"`
 	Failover             Failover `toml:"failover"`
 	// Keep for legacy reasons: remove after Omnibus has switched
-	FailoverEnabled    bool `toml:"failover_enabled"`
-	MemoryQueueEnabled bool `toml:"memory_queue_enabled"`
+	FailoverEnabled     bool            `toml:"failover_enabled"`
+	MemoryQueueEnabled  bool            `toml:"memory_queue_enabled"`
+	GracefulStopTimeout config.Duration `toml:"graceful_stop_timeout"`
 }
 
 // VirtualStorage represents a set of nodes for a storage
@@ -46,22 +48,20 @@ type VirtualStorage struct {
 
 // FromFile loads the config for the passed file path
 func FromFile(filePath string) (Config, error) {
-	config := &Config{}
-	cfgFile, err := os.Open(filePath)
-	if err != nil {
-		return *config, err
+	conf := &Config{}
+	if _, err := toml.DecodeFile(filePath, conf); err != nil {
+		return Config{}, err
 	}
-	defer cfgFile.Close()
 
-	_, err = toml.DecodeReader(cfgFile, config)
+	conf.setDefaults()
 
 	// TODO: Remove this after failover_enabled has moved under a separate failover section. This is for
 	// backwards compatibility only
-	if config.FailoverEnabled {
-		config.Failover.Enabled = true
+	if conf.FailoverEnabled {
+		conf.Failover.Enabled = true
 	}
 
-	return *config, err
+	return *conf, nil
 }
 
 var (
@@ -79,7 +79,7 @@ var (
 )
 
 // Validate establishes if the config is valid
-func (c Config) Validate() error {
+func (c *Config) Validate() error {
 	if c.ListenAddr == "" && c.SocketPath == "" {
 		return errNoListener
 	}
@@ -144,8 +144,14 @@ func (c Config) Validate() error {
 }
 
 // NeedsSQL returns true if the driver for SQL needs to be initialized
-func (c Config) NeedsSQL() bool {
+func (c *Config) NeedsSQL() bool {
 	return !c.MemoryQueueEnabled || (c.Failover.Enabled && c.Failover.ElectionStrategy == "sql")
+}
+
+func (c *Config) setDefaults() {
+	if c.GracefulStopTimeout.Duration() == 0 {
+		c.GracefulStopTimeout = config.Duration(time.Minute)
+	}
 }
 
 // DB holds Postgres client configuration data.
