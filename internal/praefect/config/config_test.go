@@ -291,6 +291,11 @@ func TestConfigParsing(t *testing.T) {
 	}
 }
 
+func TestVirtualStorageNames(t *testing.T) {
+	conf := Config{VirtualStorages: []*VirtualStorage{{Name: "praefect-1"}, {Name: "praefect-2"}}}
+	require.Equal(t, []string{"praefect-1", "praefect-2"}, conf.VirtualStorageNames())
+}
+
 func TestToPQString(t *testing.T) {
 	testCases := []struct {
 		desc string

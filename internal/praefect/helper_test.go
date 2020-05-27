@@ -256,6 +256,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	// TODO: run a replmgr for EVERY virtual storage
 	replmgr := NewReplMgr(
 		opt.withLogger,
+		conf.VirtualStorageNames(),
 		opt.withDatastore,
 		opt.withNodeMgr,
 		WithQueueMetric(&promtest.MockGauge{}),

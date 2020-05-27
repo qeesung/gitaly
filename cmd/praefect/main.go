@@ -264,7 +264,8 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, transactionManager, conf, protoregistry.GitalyProtoPreregistered)
 		repl        = praefect.NewReplMgr(
 			logger,
-			ds,
+			conf.VirtualStorageNames(),
+			ds.ReplicationEventQueue,
 			nodeManager,
 			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),

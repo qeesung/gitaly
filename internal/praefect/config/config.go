@@ -154,6 +154,15 @@ func (c *Config) setDefaults() {
 	}
 }
 
+// VirtualStorageNames returns names of all virtual storages configured.
+func (c *Config) VirtualStorageNames() []string {
+	names := make([]string, len(c.VirtualStorages))
+	for i, virtual := range c.VirtualStorages {
+		names[i] = virtual.Name
+	}
+	return names
+}
+
 // DB holds Postgres client configuration data.
 type DB struct {
 	Host                         string `toml:"host"`

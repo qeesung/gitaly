@@ -16,6 +16,7 @@ import (
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
@@ -127,19 +128,21 @@ func TestProcessReplicationJob(t *testing.T) {
 	secondaries, err := ds.GetSecondaries(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
 
-	var jobs []datastore.ReplJob
+	var events []datastore.ReplicationEvent
 	for _, secondary := range secondaries {
-		jobs = append(jobs, datastore.ReplJob{
-			Change:        datastore.UpdateRepo,
-			TargetNode:    secondary,
-			SourceNode:    primary,
-			RelativePath:  testRepo.GetRelativePath(),
-			State:         datastore.JobStateReady,
-			Attempts:      3,
-			CorrelationID: "correlation-id",
+		events = append(events, datastore.ReplicationEvent{
+			State:   datastore.JobStateReady,
+			Attempt: 3,
+			Job: datastore.ReplicationJob{
+				Change:            datastore.UpdateRepo,
+				TargetNodeStorage: secondary.Storage,
+				SourceNodeStorage: primary.Storage,
+				RelativePath:      testRepo.GetRelativePath(),
+			},
+			Meta: datastore.Params{metadatahandler.CorrelationIDKey: "correlation-id"},
 		})
 	}
-	require.Len(t, jobs, 1)
+	require.Len(t, events, 1)
 
 	commitID := testhelper.CreateCommit(t, testRepoPath, "master", &testhelper.CreateCommitOpts{
 		Message: "a commit",
@@ -159,6 +162,7 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	replMgr := NewReplMgr(
 		testhelper.DiscardTestEntry(t),
+		conf.VirtualStorageNames(),
 		ds,
 		nodeMgr,
 		WithLatencyMetric(&mockReplicationLatencyHistogramVec),
@@ -172,7 +176,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, shard.Secondaries, 1)
 
-	replMgr.processReplJob(ctx, jobs[0], shard.Primary.GetConnection(), shard.Secondaries[0].GetConnection())
+	replMgr.processReplJob(ctx, events[0], shard, shard.Secondaries[0].GetConnection())
 
 	relativeRepoPath, err := filepath.Rel(testhelper.GitlabTestStoragePath(), testRepoPath)
 	require.NoError(t, err)
@@ -229,7 +233,7 @@ func TestPropagateReplicationJob(t *testing.T) {
 
 	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
-	replmgr := NewReplMgr(logEntry, ds, nodeMgr)
+	replmgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
 
 	prf := NewServer(
 		coordinator.StreamDirector,
@@ -521,7 +525,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr(logEntry, ds, nodeMgr)
+	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
 	replMgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	select {
@@ -659,7 +663,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr(logEntry, ds, nodeMgr)
+	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
 	replMgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	select {
@@ -676,11 +680,11 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 type mockReplicator struct {
 	Replicator
-	ReplicateFunc func(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error
+	ReplicateFunc func(ctx context.Context, event datastore.ReplicationEvent, source, target *grpc.ClientConn) error
 }
 
-func (m mockReplicator) Replicate(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error {
-	return m.ReplicateFunc(ctx, job, source, target)
+func (m mockReplicator) Replicate(ctx context.Context, event datastore.ReplicationEvent, source, target *grpc.ClientConn) error {
+	return m.ReplicateFunc(ctx, event, source, target)
 }
 
 func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
@@ -720,6 +724,7 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 
 	replMgr := NewReplMgr(
 		testhelper.DiscardTestEntry(t),
+		conf.VirtualStorageNames(),
 		datastore.Datastore{datastore.NewInMemory(conf), queue},
 		&mockNodeManager{
 			GetShardFunc: func(vs string) (nodes.Shard, error) {
@@ -741,7 +746,7 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 
 	processed := make(chan struct{})
 	replMgr.replicator = mockReplicator{
-		ReplicateFunc: func(ctx context.Context, job datastore.ReplJob, source, target *grpc.ClientConn) error {
+		ReplicateFunc: func(ctx context.Context, event datastore.ReplicationEvent, source, target *grpc.ClientConn) error {
 			require.True(t, primaryConn == target)
 			require.True(t, secondaryConn == source)
 			close(processed)

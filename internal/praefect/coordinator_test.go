@@ -63,6 +63,10 @@ func (m *mockNode) GetStorage() string { return m.storageName }
 
 func (m *mockNode) GetConnection() *grpc.ClientConn { return m.conn }
 
+func (m *mockNode) GetAddress() string { return "" }
+
+func (m *mockNode) GetToken() string { return "" }
+
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 	for _, tc := range []struct {
 		readOnly        bool
