@@ -101,12 +101,6 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 		}).Error("checksums do not match")
 	}
 
-	// TODO: ensure attribute files are synced
-	// https://gitlab.com/gitlab-org/gitaly/issues/1655
-
-	// TODO: ensure objects/info/alternates are synced
-	// https://gitlab.com/gitlab-org/gitaly/issues/1674
-
 	return nil
 }
 
