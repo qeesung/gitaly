@@ -92,7 +92,7 @@ custom_hooks_dir = "/home/git/custom_hooks"
 
 [gitlab]
 secret_file = "/home/git/gitlab-shell/.gitlab_shell_secret"
-gitlab_url = "http://localhost:8080"
+gitlab_url = "http+unix://%2Fhome%2Fgit%2Fgitlab%2Ftmp%2Fsockets%2Fgitlab-workhorse.socket"
 [gitlab.http-settings]
 # read_timeout = 300
 # user = someone
