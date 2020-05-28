@@ -10,10 +10,11 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
-	methodCount = prometheus.NewCounterVec(
+	methodCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_streamio_method_calls_total",
 			Help: "Usage counters of gitaly streamio methods",
@@ -22,8 +23,6 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(methodCount)
-
 	bufSize64, err := strconv.ParseInt(os.Getenv("GITALY_STREAMIO_WRITE_BUFFER_SIZE"), 10, 32)
 	if err == nil && bufSize64 > 0 {
 		WriteBufferSize = int(bufSize64)

@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 var (
-	invalidationTotal = prometheus.NewCounterVec(
+	invalidationTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_invalid_commands_total",
 			Help: "Total number of invalid arguments tried to execute",
@@ -25,10 +26,6 @@ var (
 	// ErrInvalidArg represent family of errors to report about bad argument used to make a call.
 	ErrInvalidArg = errors.New("invalid argument")
 )
-
-func init() {
-	prometheus.MustRegister(invalidationTotal)
-}
 
 func incrInvalidArg(subcmdName string) {
 	invalidationTotal.WithLabelValues(subcmdName).Inc()

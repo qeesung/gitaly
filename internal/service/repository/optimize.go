@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -15,7 +16,7 @@ import (
 )
 
 var (
-	optimizeEmptyDirRemovalTotals = prometheus.NewCounter(
+	optimizeEmptyDirRemovalTotals = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "gitaly",
 			Subsystem: "repository",
@@ -25,14 +26,10 @@ var (
 	)
 )
 
-func init() {
-	prometheus.MustRegister(optimizeEmptyDirRemovalTotals)
-}
-
 func removeEmptyDirs(ctx context.Context, target string) error {
 	if err := ctx.Err(); err != nil {
-                return err
-        }
+		return err
+	}
 
 	entries, err := ioutil.ReadDir(target)
 	switch {

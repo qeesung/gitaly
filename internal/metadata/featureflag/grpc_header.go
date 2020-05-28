@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc/metadata"
 )
 
 var (
-	flagChecks = prometheus.NewCounterVec(
+	flagChecks = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_feature_flag_checks_total",
 			Help: "Number of enabled/disabled checks for Gitaly server side feature flags",
@@ -18,10 +19,6 @@ var (
 		[]string{"flag", "enabled"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(flagChecks)
-}
 
 // IsEnabled checks if the feature flag is enabled for the passed context.
 // Only return true if the metadata for the feature flag is set to "true"

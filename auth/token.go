@@ -12,6 +12,7 @@ import (
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,7 +24,7 @@ var (
 	errUnauthenticated = status.Errorf(codes.Unauthenticated, "authentication required")
 	errDenied          = status.Errorf(codes.PermissionDenied, "permission denied")
 
-	authErrors = prometheus.NewCounterVec(
+	authErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_authentication_errors_total",
 			Help: "Counts of of Gitaly request authentication errors",
@@ -38,8 +39,6 @@ func TimestampThreshold() time.Duration {
 }
 
 func init() {
-	prometheus.MustRegister(authErrors)
-
 	var err error
 	timestampThresholdDuration, err = time.ParseDuration(timestampThreshold)
 	if err != nil {

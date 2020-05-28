@@ -5,11 +5,12 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata"
 )
 
-var catfileCacheCounter = prometheus.NewCounterVec(
+var catfileCacheCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "gitaly_catfile_cache_total",
 		Help: "Counter of catfile cache hit/miss",
@@ -17,21 +18,21 @@ var catfileCacheCounter = prometheus.NewCounterVec(
 	[]string{"type"},
 )
 
-var currentCatfileProcesses = prometheus.NewGauge(
+var currentCatfileProcesses = promauto.NewGauge(
 	prometheus.GaugeOpts{
 		Name: "gitaly_catfile_processes",
 		Help: "Gauge of active catfile processes",
 	},
 )
 
-var totalCatfileProcesses = prometheus.NewCounter(
+var totalCatfileProcesses = promauto.NewCounter(
 	prometheus.CounterOpts{
 		Name: "gitaly_catfile_processes_total",
 		Help: "Counter of catfile processes",
 	},
 )
 
-var catfileLookupCounter = prometheus.NewCounterVec(
+var catfileLookupCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "gitaly_catfile_lookups_total",
 		Help: "Git catfile lookups by object type",
@@ -47,13 +48,6 @@ const (
 	// SessionIDField is the gRPC metadata field we use to store the gitaly session ID.
 	SessionIDField = "gitaly-session-id"
 )
-
-func init() {
-	prometheus.MustRegister(catfileCacheCounter)
-	prometheus.MustRegister(currentCatfileProcesses)
-	prometheus.MustRegister(totalCatfileProcesses)
-	prometheus.MustRegister(catfileLookupCounter)
-}
 
 // Batch abstracts 'git cat-file --batch' and 'git cat-file --batch-check'.
 // It lets you retrieve object metadata and raw objects from a Git repo.

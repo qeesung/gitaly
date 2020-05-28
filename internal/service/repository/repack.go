@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
@@ -14,7 +15,7 @@ import (
 )
 
 var (
-	repackCounter = prometheus.NewCounterVec(
+	repackCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_repack_total",
 			Help: "Counter of Git repack operations",
@@ -22,10 +23,6 @@ var (
 		[]string{"bitmap"},
 	)
 )
-
-func init() {
-	prometheus.Register(repackCounter)
-}
 
 func (*server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
 	options := []git.Option{
