@@ -14,6 +14,7 @@ INSTALL_DEST_DIR := $(DESTDIR)$(bindir)
 BUNDLE_FLAGS ?= {{ .BundleFlags }}
 ASSEMBLY_ROOT ?= {{ .BuildDir }}/assembly
 BUILD_TAGS := tracer_static tracer_static_jaeger continuous_profiler_stackdriver
+GO_TEST_LD_FLAGS := -X gitlab.com/gitlab-org/gitaly/auth.timestampThreshold=5s
 SHELL = /usr/bin/env bash -eo pipefail
 # These variables control test options and artifacts
 TEST_OPTIONS ?=
@@ -113,7 +114,7 @@ test-go: prepare-tests {{ .GoJunitReport }}
 	@mkdir -p $(TEST_REPORT_DIR)
 	@cd {{ .SourceDir }} && \
 		echo 0 > $(TEST_EXIT) && \
-		(go test $(TEST_OPTIONS) -v -tags "$(BUILD_TAGS)" -count=1 $(TEST_PACKAGES) 2>&1 | tee $(TEST_OUTPUT) || echo $$? > $(TEST_EXIT)) && \
+		(go test $(TEST_OPTIONS) -v -tags "$(BUILD_TAGS)" -ldflags='$(GO_TEST_LD_FLAGS)' -count=1 $(TEST_PACKAGES) 2>&1 | tee $(TEST_OUTPUT) || echo $$? > $(TEST_EXIT)) && \
 		cat $(TEST_OUTPUT) | {{ .GoJunitReport }} > $(TEST_REPORT) && \
 		exit `cat $(TEST_EXIT)`
 
@@ -126,7 +127,7 @@ test-with-proxies: prepare-tests
 .PHONY: test-with-praefect
 test-with-praefect: build prepare-tests
 	@cd {{ .SourceDir }} &&\
-	GITALY_TEST_PRAEFECT_BIN={{ .BuildDir }}/bin/praefect  go test -tags "$(BUILD_TAGS)" -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
+	GITALY_TEST_PRAEFECT_BIN={{ .BuildDir }}/bin/praefect go test -tags "$(BUILD_TAGS)" -ldflags='$(GO_TEST_LD_FLAGS)' -count=1 {{ join .AllPackages " " }} # count=1 bypasses go 1.10 test caching
 
 .PHONY: race-go
 race-go: TEST_OPTIONS = -race
@@ -229,7 +230,7 @@ cover: prepare-tests
 	@echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
 	mkdir -p "{{ .CoverageDir }}"
 	rm -f "{{ .CoverageDir }}/all.merged" "{{ .CoverageDir }}/all.html"
-	@cd {{ .SourceDir }} && go test -coverprofile "{{ .CoverageDir }}/all.merged" {{ join .AllPackages " " }}
+	@cd {{ .SourceDir }} && go test -ldflags='$(GO_TEST_LD_FLAGS)' -coverprofile "{{ .CoverageDir }}/all.merged" {{ join .AllPackages " " }}
 	@cd {{ .SourceDir }} && go tool cover -html  "{{ .CoverageDir }}/all.merged" -o "{{ .CoverageDir }}/all.html"
 	@echo ""
 	@echo "=====> Total test coverage: <====="

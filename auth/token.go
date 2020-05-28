@@ -16,11 +16,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	timestampThreshold = 30 * time.Second
-)
+var timestampThresholdDuration time.Duration
 
 var (
+	timestampThreshold = "30s"
 	errUnauthenticated = status.Errorf(codes.Unauthenticated, "authentication required")
 	errDenied          = status.Errorf(codes.PermissionDenied, "permission denied")
 
@@ -33,8 +32,19 @@ var (
 	)
 )
 
+// TimestampThreshold is used by tests
+func TimestampThreshold() time.Duration {
+	return timestampThresholdDuration
+}
+
 func init() {
 	prometheus.MustRegister(authErrors)
+
+	var err error
+	timestampThresholdDuration, err = time.ParseDuration(timestampThreshold)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // AuthInfo contains the authentication information coming from a request
@@ -58,7 +68,7 @@ func CheckToken(ctx context.Context, secret string, targetTime time.Time) error 
 	}
 
 	if authInfo.Version == "v2" {
-		if v2HmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, timestampThreshold) {
+		if v2HmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, timestampThresholdDuration) {
 			return nil
 		}
 	}

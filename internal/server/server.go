@@ -85,8 +85,8 @@ func createNewServer(rubyServer *rubyserver.Server, cfg config.Cfg, secure bool)
 			grpc_logrus.StreamServerInterceptor(logrusEntry),
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
-			lh.StreamInterceptor(),
 			auth.StreamServerInterceptor(config.Config.Auth),
+			lh.StreamInterceptor(), // Should be below auth handler to prevent v2 hmac tokens from timing out while queued
 			grpctracing.StreamServerTracingInterceptor(),
 			cache.StreamInvalidator(diskcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
 			// Panic handler should remain last so that application panics will be
@@ -101,8 +101,8 @@ func createNewServer(rubyServer *rubyserver.Server, cfg config.Cfg, secure bool)
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
-			lh.UnaryInterceptor(),
 			auth.UnaryServerInterceptor(config.Config.Auth),
+			lh.UnaryInterceptor(), // Should be below auth handler to prevent v2 hmac tokens from timing out while queued
 			grpctracing.UnaryServerTracingInterceptor(),
 			cache.UnaryInvalidator(diskcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
 			// Panic handler should remain last so that application panics will be

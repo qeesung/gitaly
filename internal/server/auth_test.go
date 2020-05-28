@@ -3,15 +3,20 @@ package server
 import (
 	netctx "context"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/auth"
+	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -165,8 +170,21 @@ func healthCheck(conn *grpc.ClientConn) error {
 	return err
 }
 
-func runServer(t *testing.T) (*grpc.Server, string) {
-	srv := NewInsecure(nil, config.Config)
+func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.OperationServiceClient, *grpc.ClientConn) {
+	connOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(config.Config.Auth.Token)),
+	}
+	conn, err := grpc.Dial(serverSocketPath, connOpts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return gitalypb.NewOperationServiceClient(conn), conn
+}
+
+func runServerWithRuby(t *testing.T, ruby *rubyserver.Server) (*grpc.Server, string) {
+	srv := NewInsecure(ruby, config.Config)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
@@ -175,6 +193,10 @@ func runServer(t *testing.T) (*grpc.Server, string) {
 	go srv.Serve(listener)
 
 	return srv, "unix://" + serverSocketPath
+}
+
+func runServer(t *testing.T) (*grpc.Server, string) {
+	return runServerWithRuby(t, nil)
 }
 
 func runSecureServer(t *testing.T) (*grpc.Server, string) {
@@ -254,4 +276,108 @@ func TestStreamingNoAuth(t *testing.T) {
 	}))
 
 	testhelper.RequireGrpcError(t, err, codes.Unauthenticated)
+}
+
+func TestMain(m *testing.M) {
+	testhelper.Configure()
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	testhelper.ConfigureGitalyHooksBinary()
+
+	return m.Run()
+}
+
+func TestAuthBeforeLimit(t *testing.T) {
+	defer func(cfg config.Cfg) {
+		config.Config = cfg
+	}(config.Config)
+
+	config.Config.Auth.Token = "abc123"
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitlabShellDir := filepath.Join(cwd, "testdata", "gitlab-shell")
+	os.RemoveAll(gitlabShellDir)
+
+	if err := os.MkdirAll(gitlabShellDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	config.Config.GitlabShell.Dir = gitlabShellDir
+
+	url, cleanup := testhelper.SetupAndStartGitlabServer(t, &testhelper.GitlabTestServerOptions{
+		SecretToken:                 "secretToken",
+		GLID:                        testhelper.GlID,
+		GLRepository:                testRepo.GlRepository,
+		PostReceiveCounterDecreased: true,
+		Protocol:                    "web",
+	})
+	defer cleanup()
+
+	config.Config.Concurrency = []config.Concurrency{{
+		RPC:        "/gitaly.OperationService/UserCreateTag",
+		MaxPerRepo: 1,
+	}}
+	config.ConfigureConcurrencyLimits()
+
+	config.Config.Gitlab.URL = url
+	var RubyServer rubyserver.Server
+	if err := RubyServer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	server, serverSocketPath := runServerWithRuby(t, &RubyServer)
+	defer server.Stop()
+
+	client, conn := newOperationClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	targetRevision := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
+	require.NoError(t, err)
+
+	inputTagName := "to-be-créated-soon"
+
+	request := &gitalypb.UserCreateTagRequest{
+		Repository:     testRepo,
+		TagName:        []byte(inputTagName),
+		TargetRevision: []byte(targetRevision),
+		User:           testhelper.TestUser,
+		Message:        []byte("a new tag!"),
+	}
+
+	cleanupCustomHook, err := testhelper.WriteCustomHook(testRepoPath, "pre-receive", []byte(fmt.Sprintf(`#!/bin/bash
+sleep %vs
+`, gitalyauth.TimestampThreshold().Seconds())))
+
+	require.NoError(t, err)
+	defer cleanupCustomHook()
+
+	errChan := make(chan error)
+
+	for i := 0; i < 2; i++ {
+		go func() {
+			_, err := client.UserCreateTag(ctx, request)
+			errChan <- err
+		}()
+	}
+
+	timer := time.NewTimer(1 * time.Minute)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-timer.C:
+			require.Fail(t, "time limit reached waiting for calls to finish")
+		case err := <-errChan:
+			require.NoError(t, err)
+		}
+	}
 }

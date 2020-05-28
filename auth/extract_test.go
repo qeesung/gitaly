@@ -10,6 +10,16 @@ import (
 )
 
 func TestCheckTokenV2(t *testing.T) {
+	// the tests below had their hmac signatures generated with the default 30s
+	// in our tests, we modify this number with ldflags but this test should continue
+	// to use the 30s number
+
+	defer func(d time.Duration) {
+		timestampThresholdDuration = d
+	}(timestampThresholdDuration)
+
+	timestampThresholdDuration = 30 * time.Second
+
 	targetTime := time.Unix(1535671600, 0)
 	secret := []byte("foo")
 
