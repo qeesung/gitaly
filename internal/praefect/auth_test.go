@@ -169,12 +169,9 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	}
 
 	logEntry := testhelper.DiscardTestEntry(t)
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	txMgr := transactions.NewManager()
@@ -182,7 +179,7 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 	registry, err := protoregistry.New(fd)
 	require.NoError(t, err)
 
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, registry)
+	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, registry)
 
 	srv := NewServer(coordinator.StreamDirector, logEntry, registry, conf)
 

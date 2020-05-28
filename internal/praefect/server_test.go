@@ -49,7 +49,7 @@ func TestServerRouteServerAccessor(t *testing.T) {
 		}
 	)
 
-	cc, _, cleanup := runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
+	cc, _, cleanup := runPraefectServerWithMock(t, conf, nil, backends)
 	defer cleanup()
 
 	cli := mock.NewSimpleServiceClient(cc)
@@ -130,7 +130,7 @@ func TestGitalyServerInfo(t *testing.T) {
 			conf.VirtualStorages[0].Nodes[1].Storage: &mockSvc{},
 		}
 
-		cc, _, cleanup := runPraefectServerWithMock(t, conf, datastore.Datastore{}, backends)
+		cc, _, cleanup := runPraefectServerWithMock(t, conf, nil, backends)
 		defer cleanup()
 
 		client := gitalypb.NewServerServiceClient(cc)
@@ -443,10 +443,6 @@ func TestRepoRemoval(t *testing.T) {
 	// TODO: once https://gitlab.com/gitlab-org/gitaly/-/issues/2703 is done and the replication manager supports
 	// graceful shutdown, we can remove this code that waits for jobs to be complete
 	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: queueInterceptor,
-	}
 
 	jobsDoneCh := make(chan struct{}, 2)
 	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
@@ -457,7 +453,7 @@ func TestRepoRemoval(t *testing.T) {
 		return queue.Acknowledge(ctx, state, ids)
 	})
 
-	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, ds)
+	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, queueInterceptor)
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()
@@ -575,12 +571,7 @@ func TestRepoRename(t *testing.T) {
 		return queue.Acknowledge(ctx, state, ids)
 	})
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: evq,
-	}
-
-	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, ds)
+	cc, _, cleanup := runPraefectServerWithGitalyWithDatastore(t, conf, evq)
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()

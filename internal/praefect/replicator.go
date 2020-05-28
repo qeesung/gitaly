@@ -412,7 +412,7 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 
 				eventIDsByState := map[datastore.JobState][]uint64{}
 				for _, event := range events {
-					if err := r.processReplJob(ctx, event, shard, target.GetConnection()); err != nil {
+					if err := r.processReplicationEvent(ctx, event, shard, target.GetConnection()); err != nil {
 						logger.WithFields(logrus.Fields{
 							logWithReplJobID:   event.ID,
 							logWithReplVirtual: event.Job.VirtualStorage,
@@ -462,7 +462,7 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 	}
 }
 
-func (r ReplMgr) processReplJob(ctx context.Context, event datastore.ReplicationEvent, shard nodes.Shard, targetCC *grpc.ClientConn) error {
+func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.ReplicationEvent, shard nodes.Shard, targetCC *grpc.ClientConn) error {
 	source, err := shard.GetNode(event.Job.SourceNodeStorage)
 	if err != nil {
 		return fmt.Errorf("get source node: %w", err)

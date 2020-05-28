@@ -86,7 +86,7 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 		Failover:        config.Failover{Enabled: false, ElectionStrategy: "sql"},
 		VirtualStorages: []*config.VirtualStorage{virtualStorage},
 	}
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, datastore.Datastore{}, promtest.NewMockHistogramVec())
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	nm.Start(time.Millisecond, time.Millisecond)
@@ -134,7 +134,7 @@ func TestPrimaryIsSecond(t *testing.T) {
 	}
 
 	mockHistogram := promtest.NewMockHistogramVec()
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, datastore.Datastore{}, mockHistogram)
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, mockHistogram)
 	require.NoError(t, err)
 
 	shard, err := nm.GetShard("virtual-storage-0")
@@ -184,7 +184,7 @@ func TestBlockingDial(t *testing.T) {
 		healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 	}()
 
-	mgr, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, datastore.Datastore{}, promtest.NewMockHistogramVec())
+	mgr, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	mgr.Start(1*time.Millisecond, 1*time.Millisecond)
@@ -229,13 +229,11 @@ func TestNodeManager(t *testing.T) {
 		Failover:        config.Failover{Enabled: false},
 	}
 
-	ds := datastore.Datastore{}
-
 	mockHistogram := promtest.NewMockHistogramVec()
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover, nil, ds, mockHistogram)
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover, nil, nil, mockHistogram)
 	require.NoError(t, err)
 
-	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover, nil, ds, mockHistogram)
+	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover, nil, nil, mockHistogram)
 	require.NoError(t, err)
 
 	nm.Start(1*time.Millisecond, 5*time.Second)
@@ -377,46 +375,46 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 
 	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.DistributedReads)
 
-	ackEvent := func(ds datastore.Datastore, job datastore.ReplicationJob, state datastore.JobState) datastore.ReplicationEvent {
+	ackEvent := func(queue datastore.ReplicationEventQueue, job datastore.ReplicationJob, state datastore.JobState) datastore.ReplicationEvent {
 		event := datastore.ReplicationEvent{Job: job}
 
-		eevent, err := ds.Enqueue(ctx, event)
+		eevent, err := queue.Enqueue(ctx, event)
 		require.NoError(t, err)
 
-		devents, err := ds.Dequeue(ctx, eevent.Job.VirtualStorage, eevent.Job.TargetNodeStorage, 2)
+		devents, err := queue.Dequeue(ctx, eevent.Job.VirtualStorage, eevent.Job.TargetNodeStorage, 2)
 		require.NoError(t, err)
 		require.Len(t, devents, 1)
 
-		acks, err := ds.Acknowledge(ctx, state, []uint64{devents[0].ID})
+		acks, err := queue.Acknowledge(ctx, state, []uint64{devents[0].ID})
 		require.NoError(t, err)
 		require.Equal(t, []uint64{devents[0].ID}, acks)
 		return devents[0]
 	}
 
-	verify := func(scenario func(t *testing.T, nm Manager, ds datastore.Datastore)) func(*testing.T) {
-		ds := datastore.Datastore{ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf)}
+	verify := func(scenario func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue)) func(*testing.T) {
+		queue := datastore.NewMemoryReplicationEventQueue(conf)
 
-		nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, ds, mockHistogram)
+		nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, queue, mockHistogram)
 		require.NoError(t, err)
 
 		nm.Start(time.Duration(0), time.Hour)
 
-		return func(t *testing.T) { scenario(t, nm, ds) }
+		return func(t *testing.T) { scenario(t, nm, queue) }
 	}
 
-	t.Run("unknown virtual storage", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
+	t.Run("unknown virtual storage", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
 		_, err := nm.GetSyncedNode(ctx, "virtual-storage-unknown", "")
 		require.True(t, errors.Is(err, ErrVirtualStorageNotExist))
 	}))
 
-	t.Run("no replication events", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
+	t.Run("no replication events", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
 		node, err := nm.GetSyncedNode(ctx, "virtual-storage-0", "no/matter")
 		require.NoError(t, err)
 		require.Contains(t, []string{vs0Primary, "unix://" + sockets[1]}, node.GetAddress())
 	}))
 
-	t.Run("last replication event is in 'ready'", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		_, err := ds.Enqueue(ctx, datastore.ReplicationEvent{
+	t.Run("last replication event is in 'ready'", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		_, err := queue.Enqueue(ctx, datastore.ReplicationEvent{
 			Job: datastore.ReplicationJob{
 				RelativePath:      "path/1",
 				TargetNodeStorage: "gitaly-1",
@@ -431,8 +429,8 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.Equal(t, vs0Primary, node.GetAddress())
 	}))
 
-	t.Run("last replication event is in 'in_progress'", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		vs0Event, err := ds.Enqueue(ctx, datastore.ReplicationEvent{
+	t.Run("last replication event is in 'in_progress'", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		vs0Event, err := queue.Enqueue(ctx, datastore.ReplicationEvent{
 			Job: datastore.ReplicationJob{
 				RelativePath:      "path/1",
 				TargetNodeStorage: "gitaly-1",
@@ -442,7 +440,7 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		vs0Events, err := ds.Dequeue(ctx, vs0Event.Job.VirtualStorage, vs0Event.Job.TargetNodeStorage, 100500)
+		vs0Events, err := queue.Dequeue(ctx, vs0Event.Job.VirtualStorage, vs0Event.Job.TargetNodeStorage, 100500)
 		require.NoError(t, err)
 		require.Len(t, vs0Events, 1)
 
@@ -451,8 +449,8 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.Equal(t, vs0Primary, node.GetAddress())
 	}))
 
-	t.Run("last replication event is in 'failed'", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		vs0Event := ackEvent(ds, datastore.ReplicationJob{
+	t.Run("last replication event is in 'failed'", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		vs0Event := ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
@@ -464,15 +462,15 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.Equal(t, vs0Primary, node.GetAddress())
 	}))
 
-	t.Run("multiple replication events for same virtual, last is in 'ready'", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		vsEvent0 := ackEvent(ds, datastore.ReplicationJob{
+	t.Run("multiple replication events for same virtual, last is in 'ready'", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		vsEvent0 := ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
 			VirtualStorage:    "virtual-storage-0",
 		}, datastore.JobStateCompleted)
 
-		vsEvent1, err := ds.Enqueue(ctx, datastore.ReplicationEvent{
+		vsEvent1, err := queue.Enqueue(ctx, datastore.ReplicationEvent{
 			Job: datastore.ReplicationJob{
 				RelativePath:      vsEvent0.Job.RelativePath,
 				TargetNodeStorage: vsEvent0.Job.TargetNodeStorage,
@@ -487,15 +485,15 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.Equal(t, vs0Primary, node.GetAddress())
 	}))
 
-	t.Run("same repo path for different virtual storages", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		vs0Event := ackEvent(ds, datastore.ReplicationJob{
+	t.Run("same repo path for different virtual storages", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		vs0Event := ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
 			VirtualStorage:    "virtual-storage-0",
 		}, datastore.JobStateDead)
 
-		ackEvent(ds, datastore.ReplicationJob{
+		ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "gitaly-1",
@@ -507,22 +505,22 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.Equal(t, vs0Primary, node.GetAddress())
 	}))
 
-	t.Run("secondary is up to date in multi-virtual setup with processed replication jobs", verify(func(t *testing.T, nm Manager, ds datastore.Datastore) {
-		ackEvent(ds, datastore.ReplicationJob{
+	t.Run("secondary is up to date in multi-virtual setup with processed replication jobs", verify(func(t *testing.T, nm Manager, queue datastore.ReplicationEventQueue) {
+		ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
 			VirtualStorage:    "virtual-storage-0",
 		}, datastore.JobStateCompleted)
 
-		ackEvent(ds, datastore.ReplicationJob{
+		ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "gitaly-1",
 			VirtualStorage:    "virtual-storage-1",
 		}, datastore.JobStateCompleted)
 
-		vs1Event := ackEvent(ds, datastore.ReplicationJob{
+		vs1Event := ackEvent(queue, datastore.ReplicationJob{
 			RelativePath:      "path/2",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "gitaly-1",

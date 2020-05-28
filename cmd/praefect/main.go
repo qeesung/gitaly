@@ -231,14 +231,14 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		db = dbConn
 	}
 
-	ds := datastore.Datastore{ReplicasDatastore: datastore.NewInMemory(conf)}
+	var queue datastore.ReplicationEventQueue
 	if conf.MemoryQueueEnabled {
-		ds.ReplicationEventQueue = datastore.NewMemoryReplicationEventQueue(conf)
+		queue = datastore.NewMemoryReplicationEventQueue(conf)
 	} else {
-		ds.ReplicationEventQueue = datastore.NewPostgresReplicationEventQueue(db)
+		queue = datastore.NewPostgresReplicationEventQueue(db)
 	}
 
-	nodeManager, err := nodes.NewManager(logger, conf, db, ds, nodeLatencyHistogram)
+	nodeManager, err := nodes.NewManager(logger, conf, db, queue, nodeLatencyHistogram)
 	if err != nil {
 		return err
 	}
@@ -261,11 +261,11 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 	var (
 		// top level server dependencies
-		coordinator = praefect.NewCoordinator(logger, ds, nodeManager, transactionManager, conf, protoregistry.GitalyProtoPreregistered)
+		coordinator = praefect.NewCoordinator(queue, nodeManager, transactionManager, conf, protoregistry.GitalyProtoPreregistered)
 		repl        = praefect.NewReplMgr(
 			logger,
 			conf.VirtualStorageNames(),
-			ds.ReplicationEventQueue,
+			queue,
 			nodeManager,
 			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),
@@ -281,7 +281,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return fmt.Errorf("unable to create a bootstrap: %v", err)
 	}
 
-	srv.RegisterServices(nodeManager, transactionManager, conf, ds)
+	srv.RegisterServices(nodeManager, transactionManager, conf, queue)
 
 	b.StopAction = srv.GracefulStop
 	for _, cfg := range cfgs {

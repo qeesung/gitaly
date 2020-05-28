@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
@@ -79,23 +80,27 @@ type grpcCall struct {
 // downstream server. The coordinator is thread safe; concurrent calls to
 // register nodes are safe.
 type Coordinator struct {
-	nodeMgr   nodes.Manager
-	txMgr     *transactions.Manager
-	log       logrus.FieldLogger
-	datastore datastore.Datastore
-	registry  *protoregistry.Registry
-	conf      config.Config
+	nodeMgr  nodes.Manager
+	txMgr    *transactions.Manager
+	queue    datastore.ReplicationEventQueue
+	registry *protoregistry.Registry
+	conf     config.Config
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
-func NewCoordinator(l logrus.FieldLogger, ds datastore.Datastore, nodeMgr nodes.Manager, txMgr *transactions.Manager, conf config.Config, r *protoregistry.Registry) *Coordinator {
+func NewCoordinator(
+	queue datastore.ReplicationEventQueue,
+	nodeMgr nodes.Manager,
+	txMgr *transactions.Manager,
+	conf config.Config,
+	r *protoregistry.Registry,
+) *Coordinator {
 	return &Coordinator{
-		log:       l,
-		datastore: ds,
-		registry:  r,
-		nodeMgr:   nodeMgr,
-		txMgr:     txMgr,
-		conf:      conf,
+		queue:    queue,
+		registry: r,
+		nodeMgr:  nodeMgr,
+		txMgr:    txMgr,
+		conf:     conf,
 	}
 }
 
@@ -212,7 +217,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 	// For phase 1, we need to route messages based on the storage location
 	// to the appropriate Gitaly node.
-	c.log.Debugf("Stream director received method %s", fullMethodName)
+	ctxlogrus.Extract(ctx).Debugf("Stream director received method %s", fullMethodName)
 
 	mi, err := c.registry.LookupMethod(fullMethodName)
 	if err != nil {
@@ -338,9 +343,9 @@ func (c *Coordinator) createReplicaJobs(
 
 			go func() {
 				defer wg.Done()
-				_, err := c.datastore.Enqueue(ctx, event)
+				_, err := c.queue.Enqueue(ctx, event)
 				if err != nil {
-					c.log.WithError(err).WithFields(logrus.Fields{
+					ctxlogrus.Extract(ctx).WithError(err).WithFields(logrus.Fields{
 						logWithReplVirtual: event.Job.VirtualStorage,
 						logWithReplSource:  event.Job.SourceNodeStorage,
 						logWithReplTarget:  event.Job.TargetNodeStorage,
@@ -360,7 +365,6 @@ func (c *Coordinator) ensureCorrelationID(ctx context.Context, targetRepo *gital
 		var err error
 		corrID, err = correlation.RandomID()
 		if err != nil {
-			c.log.WithError(err).Error("unable to generate correlation ID")
 			corrID = generatePseudorandomCorrelationID(targetRepo)
 		}
 	}

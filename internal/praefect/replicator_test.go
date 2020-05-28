@@ -89,10 +89,7 @@ func TestProcessReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
 
 	// create object pool on the source
 	objectPoolPath := testhelper.NewTestObjectPoolName(t)
@@ -123,23 +120,28 @@ func TestProcessReplicationJob(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	primary, err := ds.GetPrimary(conf.VirtualStorages[0].Name)
+	entry := testhelper.DiscardTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
-	secondaries, err := ds.GetSecondaries(conf.VirtualStorages[0].Name)
+	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
+
+	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
 	require.NoError(t, err)
+	require.Len(t, shard.Secondaries, 1)
 
 	var events []datastore.ReplicationEvent
-	for _, secondary := range secondaries {
+	for _, secondary := range shard.Secondaries {
 		events = append(events, datastore.ReplicationEvent{
-			State:   datastore.JobStateReady,
-			Attempt: 3,
 			Job: datastore.ReplicationJob{
 				Change:            datastore.UpdateRepo,
-				TargetNodeStorage: secondary.Storage,
-				SourceNodeStorage: primary.Storage,
+				TargetNodeStorage: secondary.GetStorage(),
+				SourceNodeStorage: shard.Primary.GetStorage(),
 				RelativePath:      testRepo.GetRelativePath(),
 			},
-			Meta: datastore.Params{metadatahandler.CorrelationIDKey: "correlation-id"},
+			State:   datastore.JobStateReady,
+			Attempt: 3,
+			Meta:    datastore.Params{metadatahandler.CorrelationIDKey: "correlation-id"},
 		})
 	}
 	require.Len(t, events, 1)
@@ -149,12 +151,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	})
 
 	var replicator defaultReplicator
-	entry := testhelper.DiscardTestEntry(t)
 	replicator.log = entry
-
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
-	require.NoError(t, err)
-	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
 	var mockReplicationGauge promtest.MockGauge
 	var mockReplicationLatencyHistogramVec promtest.MockHistogramVec
@@ -163,7 +160,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	replMgr := NewReplMgr(
 		testhelper.DiscardTestEntry(t),
 		conf.VirtualStorageNames(),
-		ds,
+		queue,
 		nodeMgr,
 		WithLatencyMetric(&mockReplicationLatencyHistogramVec),
 		WithDelayMetric(&mockReplicationDelayHistogramVec),
@@ -172,11 +169,7 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	replMgr.replicator = replicator
 
-	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
-	require.NoError(t, err)
-	require.Len(t, shard.Secondaries, 1)
-
-	replMgr.processReplJob(ctx, events[0], shard, shard.Secondaries[0].GetConnection())
+	require.NoError(t, replMgr.processReplicationEvent(ctx, events[0], shard, shard.Secondaries[0].GetConnection()))
 
 	relativeRepoPath, err := filepath.Rel(testhelper.GitlabTestStoragePath(), testRepoPath)
 	require.NoError(t, err)
@@ -219,21 +212,18 @@ func TestPropagateReplicationJob(t *testing.T) {
 		},
 	}
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(logEntry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
-	replmgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
+	replmgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), queue, nodeMgr)
 
 	prf := NewServer(
 		coordinator.StreamDirector,
@@ -245,7 +235,7 @@ func TestPropagateReplicationJob(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	prf.RegisterServices(nodeMgr, txMgr, conf, ds)
+	prf.RegisterServices(nodeMgr, txMgr, conf, queue)
 	go prf.Serve(listener, false)
 	defer prf.Stop()
 
@@ -496,11 +486,6 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: queueInterceptor,
-	}
-
 	// this job exists to verify that replication works
 	okJob := datastore.ReplicationJob{
 		Change:            datastore.UpdateRepo,
@@ -509,23 +494,23 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		SourceNodeStorage: primary.Storage,
 		VirtualStorage:    "praefect",
 	}
-	event1, err := ds.ReplicationEventQueue.Enqueue(ctx, datastore.ReplicationEvent{Job: okJob})
+	event1, err := queueInterceptor.Enqueue(ctx, datastore.ReplicationEvent{Job: okJob})
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), event1.ID)
 
 	// this job checks flow for replication event that fails
 	failJob := okJob
 	failJob.RelativePath = "invalid path to fail the job"
-	event2, err := ds.ReplicationEventQueue.Enqueue(ctx, datastore.ReplicationEvent{Job: failJob})
+	event2, err := queueInterceptor.Enqueue(ctx, datastore.ReplicationEvent{Job: failJob})
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), event2.ID)
 
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, queueInterceptor, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
+	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), queueInterceptor, nodeMgr)
 	replMgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	select {
@@ -599,11 +584,6 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: queueInterceptor,
-	}
-
 	// Update replication job
 	eventType1 := datastore.ReplicationEvent{
 		Job: datastore.ReplicationJob{
@@ -615,10 +595,10 @@ func TestProcessBacklog_Success(t *testing.T) {
 		},
 	}
 
-	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType1)
+	_, err = queueInterceptor.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
 
-	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType1)
+	_, err = queueInterceptor.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
 
 	renameTo1 := filepath.Join(testRepo.GetRelativePath(), "..", filepath.Base(testRepo.GetRelativePath())+"-mv1")
@@ -639,7 +619,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 		},
 	}
 
-	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType2)
+	_, err = queueInterceptor.Enqueue(ctx, eventType2)
 	require.NoError(t, err)
 
 	// Rename replication job
@@ -655,15 +635,15 @@ func TestProcessBacklog_Success(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	_, err = ds.ReplicationEventQueue.Enqueue(ctx, eventType3)
+	_, err = queueInterceptor.Enqueue(ctx, eventType3)
 	require.NoError(t, err)
 
 	logEntry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, queueInterceptor, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
-	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), ds, nodeMgr)
+	replMgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), queueInterceptor, nodeMgr)
 	replMgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	select {
@@ -725,7 +705,7 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 	replMgr := NewReplMgr(
 		testhelper.DiscardTestEntry(t),
 		conf.VirtualStorageNames(),
-		datastore.Datastore{datastore.NewInMemory(conf), queue},
+		queue,
 		&mockNodeManager{
 			GetShardFunc: func(vs string) (nodes.Shard, error) {
 				require.Equal(t, virtualStorage, vs)

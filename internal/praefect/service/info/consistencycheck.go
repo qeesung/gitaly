@@ -169,7 +169,7 @@ func checksumRepos(ctx context.Context, relpathQ <-chan string, checksumResultQ 
 	return nil
 }
 
-func scheduleReplication(ctx context.Context, csr checksumResult, q Queue, resp *gitalypb.ConsistencyCheckResponse) error {
+func scheduleReplication(ctx context.Context, csr checksumResult, q datastore.ReplicationEventQueue, resp *gitalypb.ConsistencyCheckResponse) error {
 	event, err := q.Enqueue(ctx, datastore.ReplicationEvent{
 		Job: datastore.ReplicationJob{
 			Change:            datastore.UpdateRepo,
@@ -190,7 +190,7 @@ func scheduleReplication(ctx context.Context, csr checksumResult, q Queue, resp 
 	return nil
 }
 
-func ensureConsistency(ctx context.Context, disableReconcile bool, checksumResultQ <-chan checksumResult, q Queue, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
+func ensureConsistency(ctx context.Context, disableReconcile bool, checksumResultQ <-chan checksumResult, q datastore.ReplicationEventQueue, stream gitalypb.PraefectInfoService_ConsistencyCheckServer) error {
 	for {
 		var csr checksumResult
 		select {

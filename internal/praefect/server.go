@@ -125,10 +125,10 @@ func (srv *Server) Serve(l net.Listener, secure bool) error {
 }
 
 // RegisterServices will register any services praefect needs to handle rpcs on its own
-func (srv *Server) RegisterServices(nm nodes.Manager, tm *transactions.Manager, conf config.Config, ds datastore.Datastore) {
+func (srv *Server) RegisterServices(nm nodes.Manager, tm *transactions.Manager, conf config.Config, queue datastore.ReplicationEventQueue) {
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(conf, nm))
-	gitalypb.RegisterPraefectInfoServiceServer(srv.s, info.NewServer(nm, conf, ds))
+	gitalypb.RegisterPraefectInfoServiceServer(srv.s, info.NewServer(nm, conf, queue))
 	gitalypb.RegisterRefTransactionServer(srv.s, transaction.NewServer(tm))
 	healthpb.RegisterHealthServer(srv.s, health.NewServer())
 

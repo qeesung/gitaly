@@ -113,8 +113,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 
 			const storageName = "test-storage"
 			coordinator := NewCoordinator(
-				testhelper.DiscardTestEntry(t),
-				datastore.Datastore{datastore.NewInMemory(conf), datastore.NewMemoryReplicationEventQueue(conf)},
+				datastore.NewMemoryReplicationEventQueue(conf),
 				&mockNodeManager{GetShardFunc: func(storage string) (nodes.Shard, error) {
 					return nodes.Shard{
 						IsReadOnly: tc.readOnly,
@@ -154,20 +153,13 @@ func TestStreamDirectorMutator(t *testing.T) {
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
+	primaryNode := &models.Node{Address: primaryAddress, Storage: "praefect-internal-1", DefaultPrimary: true}
+	secondaryNode := &models.Node{Address: secondaryAddress, Storage: "praefect-internal-2"}
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
-				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
-						Address:        primaryAddress,
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
-					},
-					&models.Node{
-						Address: secondaryAddress,
-						Storage: "praefect-internal-2",
-					}},
+				Name:  "praefect",
+				Nodes: []*models.Node{primaryNode, secondaryNode},
 			},
 		},
 	}
@@ -180,11 +172,6 @@ func TestStreamDirectorMutator(t *testing.T) {
 		return queue.Enqueue(ctx, event)
 	})
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: queueInterceptor,
-	}
-
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
 		RelativePath: "/path/to/hashed/storage",
@@ -195,12 +182,12 @@ func TestStreamDirectorMutator(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, queueInterceptor, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(queueInterceptor, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,
@@ -234,13 +221,8 @@ func TestStreamDirectorMutator(t *testing.T) {
 	// this call creates new events in the queue and simulates usual flow of the update operation
 	streamParams.RequestFinalizer()
 
-	targetNode, err := ds.GetStorageNode("praefect-internal-2")
-	require.NoError(t, err)
-	sourceNode, err := ds.GetStorageNode("praefect-internal-1")
-	require.NoError(t, err)
-
 	replEventWait.Wait() // wait until event persisted (async operation)
-	events, err := ds.ReplicationEventQueue.Dequeue(ctx, "praefect", "praefect-internal-2", 10)
+	events, err := queueInterceptor.Dequeue(ctx, "praefect", "praefect-internal-2", 10)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 
@@ -255,8 +237,8 @@ func TestStreamDirectorMutator(t *testing.T) {
 			Change:            datastore.UpdateRepo,
 			VirtualStorage:    conf.VirtualStorages[0].Name,
 			RelativePath:      targetRepo.RelativePath,
-			TargetNodeStorage: targetNode.Storage,
-			SourceNodeStorage: sourceNode.Storage,
+			TargetNodeStorage: secondaryNode.Storage,
+			SourceNodeStorage: primaryNode.Storage,
 		},
 		Meta: datastore.Params{metadatahandler.CorrelationIDKey: "my-correlation-id"},
 	}
@@ -289,10 +271,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		},
 	}
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -305,12 +284,12 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
 	require.NoError(t, err)
@@ -388,11 +367,6 @@ func TestAbsentCorrelationID(t *testing.T) {
 		return queue.Enqueue(ctx, event)
 	})
 
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: queueInterceptor,
-	}
-
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
 		RelativePath: "/path/to/hashed/storage",
@@ -403,11 +377,11 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, ds, promtest.NewMockHistogramVec())
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, queueInterceptor, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	txMgr := transactions.NewManager()
 
-	coordinator := NewCoordinator(entry, ds, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(queueInterceptor, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	frame, err := proto.Marshal(&gitalypb.FetchIntoObjectPoolRequest{
 		Origin:     &targetRepo,
@@ -427,7 +401,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 	streamParams.RequestFinalizer()
 
 	replEventWait.Wait() // wait until event persisted (async operation)
-	jobs, err := coordinator.datastore.Dequeue(ctx, conf.VirtualStorages[0].Name, conf.VirtualStorages[0].Nodes[1].Storage, 1)
+	jobs, err := queueInterceptor.Dequeue(ctx, conf.VirtualStorages[0].Name, conf.VirtualStorages[0].Nodes[1].Storage, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 

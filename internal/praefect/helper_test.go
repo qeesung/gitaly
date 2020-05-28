@@ -90,12 +90,12 @@ func assertPrimariesExist(t testing.TB, conf config.Config) {
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 // requires there to be only 1 virtual storage
-func runPraefectServerWithMock(t *testing.T, conf config.Config, ds datastore.Datastore, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithMock(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	r, err := protoregistry.New(mustLoadProtoReg(t))
 	require.NoError(t, err)
 
 	return runPraefectServer(t, conf, buildOptions{
-		withDatastore:   ds,
+		withQueue:       queue,
 		withBackends:    withMockBackends(t, backends),
 		withAnnotations: r,
 	})
@@ -119,7 +119,7 @@ func (nullNodeMgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPa
 }
 
 type buildOptions struct {
-	withDatastore   datastore.Datastore
+	withQueue       datastore.ReplicationEventQueue
 	withTxMgr       *transactions.Manager
 	withBackends    func([]*config.VirtualStorage) []testhelper.Cleanup
 	withAnnotations *protoregistry.Registry
@@ -184,37 +184,29 @@ func withRealGitalyShared(t testing.TB) func([]*config.VirtualStorage) []testhel
 }
 
 func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
-	ds := datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
-
-	return runPraefectServerWithGitalyWithDatastore(t, conf, ds)
+	return runPraefectServerWithGitalyWithDatastore(t, conf, defaultQueue(conf))
 }
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
-func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, ds datastore.Datastore) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
 	return runPraefectServer(t, conf, buildOptions{
-		withDatastore: ds,
-		withTxMgr:     transactions.NewManager(),
-		withBackends:  withRealGitalyShared(t),
+		withQueue:    queue,
+		withTxMgr:    transactions.NewManager(),
+		withBackends: withRealGitalyShared(t),
 	})
 }
 
-func defaultDatastore(conf config.Config) datastore.Datastore {
-	return datastore.Datastore{
-		ReplicasDatastore:     datastore.NewInMemory(conf),
-		ReplicationEventQueue: datastore.NewMemoryReplicationEventQueue(conf),
-	}
+func defaultQueue(conf config.Config) datastore.ReplicationEventQueue {
+	return datastore.NewMemoryReplicationEventQueue(conf)
 }
 
 func defaultTxMgr() *transactions.Manager {
 	return transactions.NewManager()
 }
 
-func defaultNodeMgr(t testing.TB, conf config.Config, ds datastore.Datastore) nodes.Manager {
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, ds, promtest.NewMockHistogramVec())
+func defaultNodeMgr(t testing.TB, conf config.Config, queue datastore.ReplicationEventQueue) nodes.Manager {
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(1*time.Millisecond, 5*time.Millisecond)
 	return nodeMgr
@@ -225,8 +217,8 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 
 	var cleanups []testhelper.Cleanup
 
-	if opt.withDatastore == (datastore.Datastore{}) {
-		opt.withDatastore = defaultDatastore(conf)
+	if opt.withQueue == nil {
+		opt.withQueue = defaultQueue(conf)
 	}
 	if opt.withTxMgr == nil {
 		opt.withTxMgr = defaultTxMgr()
@@ -241,12 +233,11 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		opt.withLogger = log.Default()
 	}
 	if opt.withNodeMgr == nil {
-		opt.withNodeMgr = defaultNodeMgr(t, conf, opt.withDatastore)
+		opt.withNodeMgr = defaultNodeMgr(t, conf, opt.withQueue)
 	}
 
 	coordinator := NewCoordinator(
-		opt.withLogger,
-		opt.withDatastore,
+		opt.withQueue,
 		opt.withNodeMgr,
 		opt.withTxMgr,
 		conf,
@@ -257,7 +248,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	replmgr := NewReplMgr(
 		opt.withLogger,
 		conf.VirtualStorageNames(),
-		opt.withDatastore,
+		opt.withQueue,
 		opt.withNodeMgr,
 		WithQueueMetric(&promtest.MockGauge{}),
 	)
@@ -269,7 +260,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	errQ := make(chan error)
 	ctx, cancel := testhelper.Context()
 
-	prf.RegisterServices(opt.withNodeMgr, opt.withTxMgr, conf, opt.withDatastore)
+	prf.RegisterServices(opt.withNodeMgr, opt.withTxMgr, conf, opt.withQueue)
 	go func() { errQ <- prf.Serve(listener, false) }()
 	replmgr.ProcessBacklog(ctx, noopBackoffFunc)
 

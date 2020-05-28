@@ -79,7 +79,7 @@ type Mgr struct {
 	// strategies is a map of strategies keyed on virtual storage name
 	strategies map[string]leaderElectionStrategy
 	db         *sql.DB
-	ds         datastore.Datastore
+	queue      datastore.ReplicationEventQueue
 }
 
 // leaderElectionStrategy defines the interface by which primary and
@@ -98,7 +98,7 @@ var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
 const dialTimeout = 10 * time.Second
 
 // NewManager creates a new NodeMgr based on virtual storage configs
-func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, ds datastore.Datastore, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
+func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.ReplicationEventQueue, latencyHistogram prommetrics.HistogramVec, dialOpts ...grpc.DialOption) (*Mgr, error) {
 	strategies := make(map[string]leaderElectionStrategy, len(c.VirtualStorages))
 
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
@@ -148,7 +148,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, ds datastore.Dat
 		db:              db,
 		failoverEnabled: c.Failover.Enabled,
 		strategies:      strategies,
-		ds:              ds,
+		queue:           queue,
 	}, nil
 }
 
@@ -206,7 +206,7 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 
 	var storages []string
 	if featureflag.IsEnabled(ctx, featureflag.DistributedReads) {
-		if storages, err = n.ds.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
+		if storages, err = n.queue.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
 			// this is recoverable error - proceed with primary node
 			ctxlogrus.Extract(ctx).
 				WithError(err).

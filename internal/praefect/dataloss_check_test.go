@@ -106,15 +106,9 @@ func TestDatalossCheck(t *testing.T) {
 	require.NoError(t, err)
 	killJobs(t)
 
-	cc, _, clean := runPraefectServerWithMock(t, cfg,
-		datastore.Datastore{
-			ReplicasDatastore:     datastore.NewInMemory(cfg),
-			ReplicationEventQueue: rq,
-		},
-		map[string]mock.SimpleServiceServer{
-			"not-needed": &mock.UnimplementedSimpleServiceServer{},
-		},
-	)
+	cc, _, clean := runPraefectServerWithMock(t, cfg, rq, map[string]mock.SimpleServiceServer{
+		"not-needed": &mock.UnimplementedSimpleServiceServer{},
+	})
 	defer clean()
 
 	pbFrom, err := ptypes.TimestampProto(beforeTimerange.CreatedAt)
