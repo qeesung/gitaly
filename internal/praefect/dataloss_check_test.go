@@ -8,7 +8,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -19,7 +18,7 @@ func TestDatalossCheck(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: virtualStorage,
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						DefaultPrimary: true,
 						Storage:        "not-needed",

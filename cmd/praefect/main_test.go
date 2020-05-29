@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
 
 func TestNoConfigFlag(t *testing.T) {
@@ -27,7 +26,7 @@ func TestFlattenNodes(t *testing.T) {
 				VirtualStorages: []*config.VirtualStorage{
 					{
 						Name: "meow",
-						Nodes: []*models.Node{
+						Nodes: []*config.Node{
 							{
 								Storage:        "foo",
 								Address:        "tcp://example.com",
@@ -38,7 +37,7 @@ func TestFlattenNodes(t *testing.T) {
 					},
 					{
 						Name: "woof",
-						Nodes: []*models.Node{
+						Nodes: []*config.Node{
 							{
 								Storage:        "bar",
 								Address:        "tcp://example.com",

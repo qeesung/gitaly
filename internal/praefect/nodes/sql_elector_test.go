@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"google.golang.org/grpc"
@@ -43,7 +42,7 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 
 	storageName := "default"
 	mockHistogramVec0 := promtest.NewMockHistogramVec()
-	cs0 := newConnectionStatus(models.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
+	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
 
 	ns := []*nodeStatus{cs0}
 	elector := newSQLElector(shardName, conf, 1, defaultActivePraefectSeconds, db.DB, logger, ns)
@@ -98,8 +97,8 @@ func TestBasicFailover(t *testing.T) {
 
 	storageName := "default"
 	mockHistogramVec0, mockHistogramVec1 := promtest.NewMockHistogramVec(), promtest.NewMockHistogramVec()
-	cs0 := newConnectionStatus(models.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
-	cs1 := newConnectionStatus(models.Node{Storage: storageName + "-1"}, cc1, testhelper.DiscardTestEntry(t), mockHistogramVec1)
+	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
+	cs1 := newConnectionStatus(config.Node{Storage: storageName + "-1"}, cc1, testhelper.DiscardTestEntry(t), mockHistogramVec1)
 
 	ns := []*nodeStatus{cs0, cs1}
 	failoverTimeSeconds := 1
@@ -177,7 +176,7 @@ func TestBasicFailover(t *testing.T) {
 func TestElectDemotedPrimary(t *testing.T) {
 	db := getDB(t)
 
-	node := models.Node{Storage: "gitaly-0"}
+	node := config.Node{Storage: "gitaly-0"}
 	elector := newSQLElector(
 		shardName,
 		config.Config{},
@@ -227,17 +226,17 @@ func TestElectNewPrimary(t *testing.T) {
 	db := getDB(t)
 
 	ns := []*nodeStatus{{
-		Node: models.Node{
+		Node: config.Node{
 			Storage:        "gitaly-0",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: models.Node{
+		Node: config.Node{
 			Storage:        "gitaly-1",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: models.Node{
+		Node: config.Node{
 			Storage:        "gitaly-2",
 			DefaultPrimary: true,
 		},
@@ -247,13 +246,13 @@ func TestElectNewPrimary(t *testing.T) {
 	candidates := []*sqlCandidate{
 		{
 			&nodeStatus{
-				Node: models.Node{
+				Node: config.Node{
 					Storage: "gitaly-1",
 				},
 			},
 		}, {
 			&nodeStatus{
-				Node: models.Node{
+				Node: config.Node{
 					Storage: "gitaly-2",
 				},
 			},

@@ -11,7 +11,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"google.golang.org/grpc"
@@ -34,7 +33,7 @@ func TestNodeStatus(t *testing.T) {
 	mockHistogramVec := promtest.NewMockHistogramVec()
 
 	storageName := "default"
-	cs := newConnectionStatus(models.Node{Storage: storageName}, cc, testhelper.DiscardTestEntry(t), mockHistogramVec)
+	cs := newConnectionStatus(config.Node{Storage: storageName}, cc, testhelper.DiscardTestEntry(t), mockHistogramVec)
 
 	var expectedLabels [][]string
 	for i := 0; i < healthcheckThreshold; i++ {
@@ -63,7 +62,7 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 	socket0, socket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
 	virtualStorage := &config.VirtualStorage{
 		Name: virtualStorageName,
-		Nodes: []*models.Node{
+		Nodes: []*config.Node{
 			{
 				Storage:        primaryStorage,
 				Address:        "unix://" + socket0,
@@ -113,7 +112,7 @@ func TestPrimaryIsSecond(t *testing.T) {
 	virtualStorages := []*config.VirtualStorage{
 		{
 			Name: "virtual-storage-0",
-			Nodes: []*models.Node{
+			Nodes: []*config.Node{
 				{
 					Storage:        "praefect-internal-0",
 					Address:        "unix://" + gitalySocket0,
@@ -164,7 +163,7 @@ func TestBlockingDial(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: storageName,
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						Storage:        "internal-storage",
 						Address:        "unix://" + gitalySocket,
@@ -206,7 +205,7 @@ func TestNodeManager(t *testing.T) {
 	virtualStorages := []*config.VirtualStorage{
 		{
 			Name: "virtual-storage-0",
-			Nodes: []*models.Node{
+			Nodes: []*config.Node{
 				{
 					Storage:        "praefect-internal-0",
 					Address:        "unix://" + internalSocket0,
@@ -333,7 +332,7 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 	virtualStorages := []*config.VirtualStorage{
 		{
 			Name: "virtual-storage-0",
-			Nodes: []*models.Node{
+			Nodes: []*config.Node{
 				{
 					Storage:        "gitaly-0",
 					Address:        vs0Primary,
@@ -348,7 +347,7 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		{
 			// second virtual storage needed to check there is no intersections between two even with same storage names
 			Name: "virtual-storage-1",
-			Nodes: []*models.Node{
+			Nodes: []*config.Node{
 				{
 					// same storage name as in other virtual storage is used intentionally
 					Storage:        "gitaly-1",

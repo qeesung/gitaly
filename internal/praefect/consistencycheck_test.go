@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	gconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -23,7 +22,7 @@ func TestConsistencyCheck(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "praefect",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					0: {
 						DefaultPrimary: true,
 						Storage:        "gitaly-0",

@@ -12,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
 	"gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
 
 type Failover struct {
@@ -26,7 +25,6 @@ type Config struct {
 	ListenAddr           string            `toml:"listen_addr"`
 	SocketPath           string            `toml:"socket_path"`
 	VirtualStorages      []*VirtualStorage `toml:"virtual_storage"`
-	Nodes                []*models.Node    `toml:"node"`
 	Logging              log.Config        `toml:"logging"`
 	Sentry               sentry.Config     `toml:"sentry"`
 	PrometheusListenAddr string            `toml:"prometheus_listen_addr"`
@@ -42,8 +40,8 @@ type Config struct {
 
 // VirtualStorage represents a set of nodes for a storage
 type VirtualStorage struct {
-	Name  string         `toml:"name"`
-	Nodes []*models.Node `toml:"node"`
+	Name  string  `toml:"name"`
+	Nodes []*Node `toml:"node"`
 }
 
 // FromFile loads the config for the passed file path

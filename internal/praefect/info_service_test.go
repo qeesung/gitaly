@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	gconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -18,7 +17,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,

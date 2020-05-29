@@ -18,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -47,10 +46,10 @@ func waitUntil(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
 // generates a praefect configuration with the specified number of backend
 // nodes
 func testConfig(backends int) config.Config {
-	var nodes []*models.Node
+	var nodes []*config.Node
 
 	for i := 0; i < backends; i++ {
-		n := &models.Node{
+		n := &config.Node{
 			Storage: fmt.Sprintf("praefect-internal-%d", i),
 			Token:   fmt.Sprintf("%d", i),
 		}
@@ -75,7 +74,7 @@ func testConfig(backends int) config.Config {
 
 func assertPrimariesExist(t testing.TB, conf config.Config) {
 	for _, vs := range conf.VirtualStorages {
-		var defaultNode *models.Node
+		var defaultNode *config.Node
 		for _, n := range vs.Nodes {
 			if n.DefaultPrimary {
 				defaultNode = n

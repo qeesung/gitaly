@@ -33,7 +33,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/fieldextractors"
 	praefectconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	serverauth "gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -171,7 +170,7 @@ func (p *TestServer) Start() error {
 
 		c.VirtualStorages = append(c.VirtualStorages, &praefectconfig.VirtualStorage{
 			Name: storage,
-			Nodes: []*models.Node{
+			Nodes: []*praefectconfig.Node{
 				{
 					Storage:        storage,
 					Address:        "unix:/" + gitalyServerSocketPath,

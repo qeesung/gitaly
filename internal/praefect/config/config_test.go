@@ -12,17 +12,16 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
 	gitaly_prometheus "gitlab.com/gitlab-org/gitaly/internal/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 )
 
 func TestConfigValidation(t *testing.T) {
-	vs1Nodes := []*models.Node{
+	vs1Nodes := []*Node{
 		{Storage: "internal-1.0", Address: "localhost:23456", Token: "secret-token-1", DefaultPrimary: true},
 		{Storage: "internal-2.0", Address: "localhost:23457", Token: "secret-token-1"},
 		{Storage: "internal-3.0", Address: "localhost:23458", Token: "secret-token-1"},
 	}
 
-	vs2Nodes := []*models.Node{
+	vs2Nodes := []*Node{
 		// storage can have same name as storage in another virtual storage, but all addresses must be unique
 		{Storage: "internal-1.0", Address: "localhost:33456", Token: "secret-token-2", DefaultPrimary: true},
 		{Storage: "internal-2.1", Address: "localhost:33457", Token: "secret-token-2"},
@@ -75,7 +74,7 @@ func TestConfigValidation(t *testing.T) {
 				VirtualStorages: []*VirtualStorage{
 					{
 						Name: "default",
-						Nodes: append(vs1Nodes, &models.Node{
+						Nodes: append(vs1Nodes, &Node{
 							Storage: vs1Nodes[0].Storage,
 							Address: vs1Nodes[1].Address,
 						}),
@@ -102,7 +101,7 @@ func TestConfigValidation(t *testing.T) {
 					{
 						Name: "default",
 						Nodes: append(vs1Nodes,
-							&models.Node{
+							&Node{
 								Storage:        "internal-4",
 								Address:        "localhost:23459",
 								Token:          "secret-token",
@@ -120,7 +119,7 @@ func TestConfigValidation(t *testing.T) {
 				VirtualStorages: []*VirtualStorage{
 					{
 						Name: "default",
-						Nodes: []*models.Node{
+						Nodes: []*Node{
 							{
 								Storage:        "",
 								Address:        "localhost:23456",
@@ -140,7 +139,7 @@ func TestConfigValidation(t *testing.T) {
 				VirtualStorages: []*VirtualStorage{
 					{
 						Name: "default",
-						Nodes: []*models.Node{
+						Nodes: []*Node{
 							{
 								Storage:        "internal",
 								Address:        "",
@@ -233,8 +232,8 @@ func TestConfigParsing(t *testing.T) {
 				VirtualStorages: []*VirtualStorage{
 					&VirtualStorage{
 						Name: "praefect",
-						Nodes: []*models.Node{
-							&models.Node{
+						Nodes: []*Node{
+							&Node{
 								Address:        "tcp://gitaly-internal-1.example.com",
 								Storage:        "praefect-internal-1",
 								DefaultPrimary: true,

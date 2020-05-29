@@ -19,7 +19,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
 	correlation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
@@ -229,7 +228,7 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 	return shard.Primary, nil // there is no matched secondaries, maybe because of re-configuration
 }
 
-func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {
+func newConnectionStatus(node config.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {
 	return &nodeStatus{
 		Node:        node,
 		ClientConn:  cc,
@@ -239,7 +238,7 @@ func newConnectionStatus(node models.Node, cc *grpc.ClientConn, l *logrus.Entry,
 }
 
 type nodeStatus struct {
-	models.Node
+	config.Node
 	*grpc.ClientConn
 	log         *logrus.Entry
 	latencyHist prommetrics.HistogramVec

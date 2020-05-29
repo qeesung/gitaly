@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -100,8 +99,8 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 				VirtualStorages: []*config.VirtualStorage{
 					&config.VirtualStorage{
 						Name: "praefect",
-						Nodes: []*models.Node{
-							&models.Node{
+						Nodes: []*config.Node{
+							&config.Node{
 								Address:        "tcp://gitaly-primary.example.com",
 								Storage:        "praefect-internal-1",
 								DefaultPrimary: true,
@@ -153,13 +152,13 @@ func TestStreamDirectorMutator(t *testing.T) {
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
-	primaryNode := &models.Node{Address: primaryAddress, Storage: "praefect-internal-1", DefaultPrimary: true}
-	secondaryNode := &models.Node{Address: secondaryAddress, Storage: "praefect-internal-2"}
+	primaryNode := &config.Node{Address: primaryAddress, Storage: "praefect-internal-1", DefaultPrimary: true}
+	secondaryNode := &config.Node{Address: secondaryAddress, Storage: "praefect-internal-2"}
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name:  "praefect",
-				Nodes: []*models.Node{primaryNode, secondaryNode},
+				Nodes: []*config.Node{primaryNode, secondaryNode},
 			},
 		},
 	}
@@ -257,7 +256,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "praefect",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						Address:        primaryAddress,
 						Storage:        "praefect-internal-1",
@@ -345,13 +344,13 @@ func TestAbsentCorrelationID(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						Address:        primaryAddress,
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
 					},
-					&models.Node{
+					&config.Node{
 						Address: secondaryAddress,
 						Storage: "praefect-internal-2",
 					}},

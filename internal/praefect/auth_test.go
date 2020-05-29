@@ -13,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -150,8 +149,8 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						Storage:        "praefect-internal-0",
 						DefaultPrimary: true,
 						Address:        backend,

@@ -19,7 +19,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -72,14 +71,14 @@ func TestProcessReplicationJob(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "default",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						Storage:        "default",
 						Address:        srvSocketPath,
 						Token:          gitaly_config.Config.Auth.Token,
 						DefaultPrimary: true,
 					},
-					&models.Node{
+					&config.Node{
 						Storage: backupStorageName,
 						Address: srvSocketPath,
 						Token:   gitaly_config.Config.Auth.Token,
@@ -198,7 +197,7 @@ func TestPropagateReplicationJob(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						Storage:        primaryStorage,
 						Address:        primarySocketPath,
@@ -415,13 +414,13 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	defer os.RemoveAll(backupDir)
 
-	primary := models.Node{
+	primary := config.Node{
 		Storage:        "default",
 		Address:        "unix://" + primarySocket,
 		DefaultPrimary: true,
 	}
 
-	secondary := models.Node{
+	secondary := config.Node{
 		Storage: backupStorageName,
 		Address: "unix://" + primarySocket,
 	}
@@ -430,7 +429,7 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "praefect",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					&primary,
 					&secondary,
 				},
@@ -534,13 +533,13 @@ func TestProcessBacklog_Success(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	primary := models.Node{
+	primary := config.Node{
 		Storage:        "default",
 		Address:        "unix://" + primarySocket,
 		DefaultPrimary: true,
 	}
 
-	secondary := models.Node{
+	secondary := config.Node{
 		Storage: "backup",
 		Address: "unix://" + primarySocket,
 	}
@@ -549,7 +548,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					&primary,
 					&secondary,
 				},
@@ -683,7 +682,7 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: virtualStorage,
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{Storage: primaryStorage},
 					{Storage: secondaryStorage},
 				},

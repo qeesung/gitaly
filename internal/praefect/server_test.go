@@ -22,7 +22,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -84,13 +83,13 @@ func TestGitalyServerInfo(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "virtual-storage-1",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
 						Token:          "abc",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-2",
 						Token:   "abc",
 					},
@@ -148,8 +147,8 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						Storage:        "praefect-internal-1",
 						Address:        "unix://" + gitalySocket,
 						DefaultPrimary: true,
@@ -177,7 +176,7 @@ func TestGitalyDiskStatistics(t *testing.T) {
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					{
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
@@ -225,8 +224,8 @@ func TestRejectBadStorage(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp::/this-doesnt-matter",
@@ -258,13 +257,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "default",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp://abc",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-1",
 						Address: "tcp://xyz",
 					},
@@ -272,13 +271,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 			},
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp://abc",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-1",
 						Address: "tcp://xyz",
 					},
@@ -304,13 +303,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp::/samesies",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-1",
 						Address: "tcp::/samesies",
 					},
@@ -341,13 +340,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "default",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp://abc",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-1",
 						Address: "tcp://xyz",
 					},
@@ -355,13 +354,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 			},
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        "praefect-internal-0",
 						Address:        "tcp://abc",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-2",
 						Address: "tcp://xyz",
 					},
@@ -388,17 +387,17 @@ func TestRepoRemoval(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
 				Name: "praefect",
-				Nodes: []*models.Node{
-					&models.Node{
+				Nodes: []*config.Node{
+					&config.Node{
 						DefaultPrimary: true,
 						Storage:        gconfig.Config.Storages[0].Name,
 						Address:        "tcp::/samesies",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-1",
 						Address: "tcp::/this-doesnt-matter",
 					},
-					&models.Node{
+					&config.Node{
 						Storage: "praefect-internal-2",
 						Address: "tcp::/this-doesnt-matter",
 					},
@@ -512,7 +511,7 @@ func TestRepoRename(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "praefect",
-				Nodes: []*models.Node{
+				Nodes: []*config.Node{
 					0: {
 						DefaultPrimary: true,
 						Storage:        gconfig.Config.Storages[0].Name,
