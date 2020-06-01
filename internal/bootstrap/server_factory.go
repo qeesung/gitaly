@@ -7,12 +7,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"google.golang.org/grpc"
 )
 
 // GitalyServerFactory is a factory of gitaly grpc servers
 type GitalyServerFactory struct {
 	ruby             *rubyserver.Server
+	gitlabAPI        hook.GitlabAPI
 	secure, insecure *grpc.Server
 }
 
@@ -24,8 +26,8 @@ type GracefulStoppableServer interface {
 }
 
 // NewGitalyServerFactory initializes a rubyserver and then lazily initializes both secure and insecure grpc.Server
-func NewGitalyServerFactory() *GitalyServerFactory {
-	return &GitalyServerFactory{ruby: &rubyserver.Server{}}
+func NewGitalyServerFactory(api hook.GitlabAPI) *GitalyServerFactory {
+	return &GitalyServerFactory{ruby: &rubyserver.Server{}, gitlabAPI: api}
 }
 
 // StartRuby starts the ruby process
@@ -69,14 +71,14 @@ func (s *GitalyServerFactory) Serve(l net.Listener, secure bool) error {
 func (s *GitalyServerFactory) get(secure bool) *grpc.Server {
 	if secure {
 		if s.secure == nil {
-			s.secure = server.NewSecure(s.ruby, config.Config)
+			s.secure = server.NewSecure(s.ruby, s.gitlabAPI, config.Config)
 		}
 
 		return s.secure
 	}
 
 	if s.insecure == nil {
-		s.insecure = server.NewInsecure(s.ruby, config.Config)
+		s.insecure = server.NewInsecure(s.ruby, s.gitlabAPI, config.Config)
 	}
 
 	return s.insecure

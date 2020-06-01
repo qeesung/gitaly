@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
 	"gitlab.com/gitlab-org/gitaly/internal/service/conflicts"
 	"gitlab.com/gitlab-org/gitaly/internal/service/diff"
-	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/service/internalgitaly"
 	"gitlab.com/gitlab-org/gitaly/internal/service/namespace"
 	"gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
@@ -52,7 +52,7 @@ var (
 
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
-func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server) {
+func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI) {
 	gitalypb.RegisterBlobServiceServer(grpcServer, blob.NewServer(rubyServer))
 	gitalypb.RegisterCleanupServiceServer(grpcServer, cleanup.NewServer())
 	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer())
@@ -72,7 +72,7 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(rubyServer))
 	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer(cfg.Storages))
 	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer())
-	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer())
+	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(gitlabAPI, config.Config.Hooks))
 	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(config.Config.Storages))
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())

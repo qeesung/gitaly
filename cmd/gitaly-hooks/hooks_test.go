@@ -17,7 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/reflection"
@@ -108,8 +108,6 @@ func TestHooksPrePostReceive(t *testing.T) {
 	gitObjectDirRegex := regexp.MustCompile(`(?m)^GIT_OBJECT_DIRECTORY=(.*)$`)
 	gitAlternateObjectDirRegex := regexp.MustCompile(`(?m)^GIT_ALTERNATE_OBJECT_DIRECTORIES=(.*)$`)
 	token := "abc123"
-	socket, stop := runHookServiceServer(t, token)
-	defer stop()
 
 	hookNames := []string{"pre-receive", "post-receive"}
 
@@ -126,6 +124,12 @@ func TestHooksPrePostReceive(t *testing.T) {
 				config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 				config.Config.Gitlab.HTTPSettings.User = gitlabUser
 				config.Config.Gitlab.HTTPSettings.Password = gitlabPassword
+
+				gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
+				require.NoError(t, err)
+
+				socket, stop := runHookServiceServerWithAPI(t, token, gitlabAPI)
+				defer stop()
 
 				var stderr, stdout bytes.Buffer
 				stdin := bytes.NewBuffer([]byte(changes))
@@ -336,14 +340,18 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC})
 	require.NoError(t, err)
 
+	token := "abc123"
+
+	gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
+	require.NoError(t, err)
+
+	socket, stop := runHookServiceServerWithAPI(t, token, gitlabAPI)
+	defer stop()
+
 	for _, featureSet := range featureSets {
 		t.Run(fmt.Sprintf("features: %v", featureSet), func(t *testing.T) {
 			customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
 			defer cleanup()
-
-			token := "abc123"
-			socket, stop := runHookServiceServer(t, token)
-			defer stop()
 
 			var stdout, stderr bytes.Buffer
 
@@ -415,12 +423,17 @@ func TestHooksNotAllowed(t *testing.T) {
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 	config.Config.Gitlab.URL = ts.URL
+	config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
 	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
 	defer cleanup()
 
 	token := "abc123"
-	socket, stop := runHookServiceServer(t, token)
+
+	gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
+	require.NoError(t, err)
+
+	socket, stop := runHookServiceServerWithAPI(t, token, gitlabAPI)
 	defer stop()
 
 	var stderr, stdout bytes.Buffer
@@ -543,9 +556,13 @@ func TestCheckBadCreds(t *testing.T) {
 }
 
 func runHookServiceServer(t *testing.T, token string) (string, func()) {
+	return runHookServiceServerWithAPI(t, token, testhelper.GitlabAPIStub)
+}
+
+func runHookServiceServerWithAPI(t *testing.T, token string, gitlabAPI hook.GitlabAPI) (string, func()) {
 	server := testhelper.NewServerWithAuth(t, nil, nil, token)
 
-	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hook.NewServer())
+	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hook.NewServer(gitlabAPI, config.Config.Hooks))
 	reflection.Register(server.GrpcServer())
 	require.NoError(t, server.Start())
 

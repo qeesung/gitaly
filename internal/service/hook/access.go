@@ -1,4 +1,4 @@
-package api
+package hook
 
 import (
 	"encoding/json"
@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitlab-shell/client"
@@ -49,20 +50,50 @@ func marshallGitObjectDirs(gitObjectDirRel string, gitAltObjectDirsRel []string)
 	return string(envString), nil
 }
 
-// API is a wrapper around client.GitlabNetClient with api methods for gitlab git receive hooks
-type API struct {
+// GitlabAPI is an interface for accessing the gitlab internal API
+type GitlabAPI interface {
+	// Allowed queries the gitlab internal api /allowed endpoint to determine if a ref change for a given repository and user is allowed
+	Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error)
+	// PreReceive queries the gitlab internal api /pre_receive to increase the reference counter
+	PreReceive(glRepository string) (bool, error)
+}
+
+// gitlabAPI is a wrapper around client.GitlabNetClient with API methods for gitlab git receive hooks
+type gitlabAPI struct {
 	client *client.GitlabNetClient
 }
 
-// New creates a new API
-func New(c *client.GitlabNetClient) *API {
-	return &API{
-		client: c,
+// New creates a new GitlabAPI
+func NewGitlabAPI(gitlabCfg config.Gitlab) (GitlabAPI, error) {
+	httpClient := client.NewHTTPClient(
+		gitlabCfg.URL,
+		gitlabCfg.HTTPSettings.CAFile,
+		gitlabCfg.HTTPSettings.CAPath,
+		gitlabCfg.HTTPSettings.SelfSigned,
+		uint64(gitlabCfg.HTTPSettings.ReadTimeout),
+	)
+
+	if httpClient == nil {
+		return nil, fmt.Errorf("%s is not a valid url", gitlabCfg.URL)
 	}
+
+	secret, err := ioutil.ReadFile(gitlabCfg.SecretFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading secret file: %w", err)
+	}
+
+	gitlabnetClient, err := client.NewGitlabNetClient(gitlabCfg.HTTPSettings.User, gitlabCfg.HTTPSettings.Password, string(secret), httpClient)
+	if err != nil {
+		return nil, fmt.Errorf("instantiating gitlab net client: %w", err)
+	}
+
+	return &gitlabAPI{
+		client: gitlabnetClient,
+	}, nil
 }
 
 // Allowed checks if a ref change for a given repository is allowed through the gitlab internal api /allowed endpoint
-func (a *API) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error) {
+func (a *gitlabAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error) {
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
 		return false, fmt.Errorf("getting the repository path: %w", err)
@@ -115,7 +146,7 @@ func (a *API) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol,
 			return false, fmt.Errorf("decoding response from /allowed endpoint: %w", err)
 		}
 	default:
-		return false, fmt.Errorf("API is not accessible: %d", resp.StatusCode)
+		return false, fmt.Errorf("gitlab api is not accessible: %d", resp.StatusCode)
 	}
 
 	return response.Status, nil
@@ -125,8 +156,8 @@ type preReceiveResponse struct {
 	ReferenceCounterIncreased bool `json:"reference_counter_increased"`
 }
 
-// PreReceive increases the reference counter for a push for a given gl_repository through the gitlab internal api /pre_receive endpoint
-func (a *API) PreReceive(glRepository string) (bool, error) {
+// PreReceive increases the reference counter for a push for a given gl_repository through the gitlab internal API /pre_receive endpoint
+func (a *gitlabAPI) PreReceive(glRepository string) (bool, error) {
 	resp, err := a.client.Post("/pre_receive", map[string]string{"gl_repository": glRepository})
 	if err != nil {
 		return false, fmt.Errorf("http post to gitlab api /pre_receive endpoint: %w", err)

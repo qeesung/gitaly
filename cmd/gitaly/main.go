@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
@@ -84,7 +85,12 @@ func main() {
 // Inside here we can use deferred functions. This is needed because
 // log.Fatal bypasses deferred functions.
 func run(b *bootstrap.Bootstrap) error {
-	servers := bootstrap.NewGitalyServerFactory()
+	gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
+	if err != nil {
+		log.Fatalf("could not create gitlab api client: %v", err)
+	}
+
+	servers := bootstrap.NewGitalyServerFactory(gitlabAPI)
 	defer servers.Stop()
 
 	b.StopAction = servers.GracefulStop

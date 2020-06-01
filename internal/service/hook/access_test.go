@@ -1,23 +1,17 @@
-package api_test
+package hook_test
 
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/service/hooks/api"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitlab-shell/client"
 )
-
-func TestMain(m *testing.M) {
-	testhelper.Configure()
-	os.Exit(m.Run())
-}
 
 func TestAllowedVerifyParams(t *testing.T) {
 	user, password := "user", "password"
@@ -39,6 +33,12 @@ func TestAllowedVerifyParams(t *testing.T) {
 		gitAlternateObjectDirsFull = append(gitAlternateObjectDirsFull, filepath.Join(testRepoPath, gitAlternateObjectDirRel))
 	}
 
+	tempDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+	testhelper.WriteShellSecretFile(t, tempDir, secretToken)
+
+	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
+
 	server := testhelper.NewGitlabTestServer(testhelper.GitlabTestServerOptions{
 		User:                        user,
 		Password:                    password,
@@ -56,11 +56,15 @@ func TestAllowedVerifyParams(t *testing.T) {
 
 	defer server.Close()
 
-	httpClient := client.NewHTTPClient(server.URL, "", "", false, 100)
-	gitlabnetClient, err := client.NewGitlabNetClient(user, password, secretToken, httpClient)
+	c, err := hook.NewGitlabAPI(config.Gitlab{
+		URL:        server.URL,
+		SecretFile: secretFilePath,
+		HTTPSettings: config.HTTPSettings{
+			User:     user,
+			Password: password,
+		},
+	})
 	require.NoError(t, err)
-
-	c := api.New(gitlabnetClient)
 
 	badRepo := *testRepo
 	badRepo.GitObjectDirectory = filepath.Join(testRepoPath, "bad/object/directory")
@@ -108,6 +112,12 @@ func TestAllowedResponseHandling(t *testing.T) {
 	testRepo.GitAlternateObjectDirectories = []string{gitAltObjectDir}
 
 	defer cleanup()
+
+	tempDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+	testhelper.WriteShellSecretFile(t, tempDir, "secret_token")
+
+	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
 
 	testCases := []struct {
 		desc           string
@@ -200,11 +210,12 @@ func TestAllowedResponseHandling(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(tc.allowedHandler))
 			defer server.Close()
 
-			httpClient := client.NewHTTPClient(server.URL, "", "", false, 100)
-			gitlabnetClient, err := client.NewGitlabNetClient("", "", "", httpClient)
+			c, err := hook.NewGitlabAPI(config.Gitlab{
+				URL:        server.URL,
+				SecretFile: secretFilePath,
+			})
 			require.NoError(t, err)
 
-			c := api.New(gitlabnetClient)
 			allowed, err := c.Allowed(testRepo, "repo-1", "key-123", "http", "a\nb\nc\nd")
 			require.Equal(t, tc.allowed, allowed)
 			if err != nil {
@@ -215,6 +226,13 @@ func TestAllowedResponseHandling(t *testing.T) {
 }
 
 func TestPrereceive(t *testing.T) {
+	tempDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+
+	testhelper.WriteShellSecretFile(t, tempDir, "secret_token")
+
+	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
+
 	testCases := []struct {
 		desc              string
 		prereceiveHandler func(w http.ResponseWriter, r *http.Request)
@@ -278,11 +296,12 @@ func TestPrereceive(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(tc.prereceiveHandler))
 			defer server.Close()
 
-			httpClient := client.NewHTTPClient(server.URL, "", "", false, 100)
-			gitlabnetClient, err := client.NewGitlabNetClient("", "", "", httpClient)
+			c, err := hook.NewGitlabAPI(config.Gitlab{
+				URL:        server.URL,
+				SecretFile: secretFilePath,
+			})
 			require.NoError(t, err)
 
-			c := api.New(gitlabnetClient)
 			success, err := c.PreReceive("key-123")
 			require.Equal(t, tc.success, success)
 			if err != nil {

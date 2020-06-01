@@ -13,7 +13,7 @@ import (
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
-	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
@@ -87,7 +87,7 @@ func runOperationServiceServerWithRubyServer(t *testing.T, ruby *rubyserver.Serv
 	require.NoError(t, err)
 
 	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), &server{ruby: ruby})
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer())
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer(testhelper.GitlabAPIStub, config.Config.Hooks))
 	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), repository.NewServer(ruby, internalSocket))
 	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), ref.NewServer())
 	gitalypb.RegisterCommitServiceServer(srv.GrpcServer(), commit.NewServer())

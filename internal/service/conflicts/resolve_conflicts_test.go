@@ -309,7 +309,7 @@ func TestFailedResolveConflictsRequestDueToValidation(t *testing.T) {
 }
 
 func runFullServer(t *testing.T) (*grpc.Server, string) {
-	server := serverPkg.NewInsecure(conflicts.RubyServer, config.Config)
+	server := serverPkg.NewInsecure(conflicts.RubyServer, nil, config.Config)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)

@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/server/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/service"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
@@ -69,7 +70,7 @@ func init() {
 
 // createNewServer returns a GRPC server with all Gitaly services and interceptors set up.
 // allows for specifying secure = true to enable tls credentials
-func createNewServer(rubyServer *rubyserver.Server, cfg config.Cfg, secure bool) *grpc.Server {
+func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cfg config.Cfg, secure bool) *grpc.Server {
 	ctxTagOpts := []grpc_ctxtags.Option{
 		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}
@@ -123,7 +124,7 @@ func createNewServer(rubyServer *rubyserver.Server, cfg config.Cfg, secure bool)
 
 	server := grpc.NewServer(opts...)
 
-	service.RegisterAll(server, cfg, rubyServer)
+	service.RegisterAll(server, cfg, rubyServer, gitlabAPI)
 	reflection.Register(server)
 
 	grpc_prometheus.Register(server)
@@ -132,13 +133,13 @@ func createNewServer(rubyServer *rubyserver.Server, cfg config.Cfg, secure bool)
 }
 
 // NewInsecure returns a GRPC server with all Gitaly services and interceptors set up.
-func NewInsecure(rubyServer *rubyserver.Server, cfg config.Cfg) *grpc.Server {
-	return createNewServer(rubyServer, cfg, false)
+func NewInsecure(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cfg config.Cfg) *grpc.Server {
+	return createNewServer(rubyServer, gitlabAPI, cfg, false)
 }
 
 // NewSecure returns a GRPC server enabling TLS credentials
-func NewSecure(rubyServer *rubyserver.Server, cfg config.Cfg) *grpc.Server {
-	return createNewServer(rubyServer, cfg, true)
+func NewSecure(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cfg config.Cfg) *grpc.Server {
+	return createNewServer(rubyServer, gitlabAPI, cfg, true)
 }
 
 // CleanupInternalSocketDir will clean up the directory for internal sockets if it is a generated temp dir

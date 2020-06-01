@@ -34,7 +34,7 @@ func newHooksClient(t *testing.T, serverSocketPath string) (gitalypb.HookService
 func runHooksServer(t *testing.T) (string, func()) {
 	srv := testhelper.NewServer(t, nil, nil)
 
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer())
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(testhelper.GitlabAPIStub, config.Config.Hooks))
 	reflection.Register(srv.GrpcServer())
 
 	require.NoError(t, srv.Start())

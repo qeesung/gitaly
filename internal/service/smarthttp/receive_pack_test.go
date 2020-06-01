@@ -20,7 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	hook "gitlab.com/gitlab-org/gitaly/internal/service/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -449,7 +449,7 @@ func runSmartHTTPHookServiceServer(t *testing.T) (*grpc.Server, string) {
 	}
 
 	gitalypb.RegisterSmartHTTPServiceServer(server, NewServer())
-	gitalypb.RegisterHookServiceServer(server, hook.NewServer())
+	gitalypb.RegisterHookServiceServer(server, hook.NewServer(testhelper.GitlabAPIStub, config.Config.Hooks))
 	reflection.Register(server)
 
 	go server.Serve(listener)
@@ -510,7 +510,7 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 
 			gitalyServer := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
 			gitalypb.RegisterSmartHTTPServiceServer(gitalyServer.GrpcServer(), NewServer())
-			gitalypb.RegisterHookServiceServer(gitalyServer.GrpcServer(), hook.NewServer())
+			gitalypb.RegisterHookServiceServer(gitalyServer.GrpcServer(), hook.NewServer(testhelper.GitlabAPIStub, config.Config.Hooks))
 			reflection.Register(gitalyServer.GrpcServer())
 			require.NoError(t, gitalyServer.Start())
 			defer gitalyServer.Stop()

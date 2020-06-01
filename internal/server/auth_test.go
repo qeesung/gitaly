@@ -184,7 +184,7 @@ func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.Operati
 }
 
 func runServerWithRuby(t *testing.T, ruby *rubyserver.Server) (*grpc.Server, string) {
-	srv := NewInsecure(ruby, config.Config)
+	srv := NewInsecure(ruby, nil, config.Config)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
@@ -205,7 +205,7 @@ func runSecureServer(t *testing.T) (*grpc.Server, string) {
 		KeyPath:  "testdata/gitalykey.pem",
 	}
 
-	srv := NewSecure(nil, config.Config)
+	srv := NewSecure(nil, nil, config.Config)
 
 	listener, err := net.Listen("tcp", "localhost:9999")
 	require.NoError(t, err)

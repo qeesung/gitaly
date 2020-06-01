@@ -68,6 +68,8 @@ def start_gitaly
 
   cert_path = File.join(File.dirname(__FILE__), "/certs")
 
+  File.write(File.join(GITLAB_SHELL_DIR, '.gitlab_shell_secret'), 'test_gitlab_shell_token')
+
   config_toml = <<~CONFIG
     socket_path = "#{SOCKET_PATH}"
     listen_addr = "localhost:#{GitalyConfig.dynamic_port('tcp')}"
@@ -80,6 +82,9 @@ def start_gitaly
 
     [gitlab-shell]
     dir = "#{GITLAB_SHELL_DIR}"
+
+    [gitlab]
+    url = 'http://gitlab_url'
 
     [gitaly-ruby]
     dir = "#{GITALY_RUBY_DIR}"
