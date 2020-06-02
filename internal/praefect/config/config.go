@@ -20,8 +20,6 @@ type Failover struct {
 	ReadOnlyAfterFailover bool   `toml:"read_only_after_failover"`
 }
 
-const sqlFailoverValue = "sql"
-
 // Config is a container for everything found in the TOML config file
 type Config struct {
 	ListenAddr           string            `toml:"listen_addr"`
@@ -48,10 +46,7 @@ type VirtualStorage struct {
 
 // FromFile loads the config for the passed file path
 func FromFile(filePath string) (Config, error) {
-	conf := &Config{
-		// Sets the default Failover, to be overwritten when deserializing the TOML
-		Failover: Failover{Enabled: true, ElectionStrategy: sqlFailoverValue, ReadOnlyAfterFailover: true},
-	}
+	conf := &Config{}
 	if _, err := toml.DecodeFile(filePath, conf); err != nil {
 		return Config{}, err
 	}
@@ -148,8 +143,7 @@ func (c *Config) Validate() error {
 
 // NeedsSQL returns true if the driver for SQL needs to be initialized
 func (c *Config) NeedsSQL() bool {
-	return !c.MemoryQueueEnabled ||
-		(c.Failover.Enabled && c.Failover.ElectionStrategy == sqlFailoverValue)
+	return !c.MemoryQueueEnabled || (c.Failover.Enabled && c.Failover.ElectionStrategy == "sql")
 }
 
 func (c *Config) setDefaults() {
