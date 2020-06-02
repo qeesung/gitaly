@@ -265,6 +265,23 @@ func TestConfigParsing(t *testing.T) {
 				},
 				MemoryQueueEnabled:  true,
 				GracefulStopTimeout: config.Duration(30 * time.Second),
+				Failover: Failover{
+					Enabled:               true,
+					ElectionStrategy:      sqlFailoverValue,
+					ReadOnlyAfterFailover: true,
+				},
+			},
+		},
+		{
+			desc:     "overwriting default values in the config",
+			filePath: "testdata/config.overwritedefaults.toml",
+			expected: Config{
+				GracefulStopTimeout: config.Duration(time.Minute),
+				Failover: Failover{
+					Enabled:               false,
+					ElectionStrategy:      "local",
+					ReadOnlyAfterFailover: false,
+				},
 			},
 		},
 		{
@@ -272,6 +289,11 @@ func TestConfigParsing(t *testing.T) {
 			filePath: "testdata/config.empty.toml",
 			expected: Config{
 				GracefulStopTimeout: config.Duration(time.Minute),
+				Failover: Failover{
+					Enabled:               true,
+					ElectionStrategy:      sqlFailoverValue,
+					ReadOnlyAfterFailover: true,
+				},
 			},
 		},
 		{
