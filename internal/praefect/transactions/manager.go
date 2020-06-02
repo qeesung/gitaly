@@ -22,24 +22,24 @@ var ErrNotFound = errors.New("transaction not found")
 // for Praefect to handle transactions directly instead of having to reach out
 // to reference transaction RPCs.
 type Manager struct {
-	txIdGenerator TransactionIdGenerator
+	txIDGenerator TransactionIDGenerator
 	lock          sync.Mutex
 	transactions  map[uint64]*transaction
 	counterMetric *prometheus.CounterVec
 	delayMetric   metrics.HistogramVec
 }
 
-// TransactionIdGenerator is an interface for types that can generate transaction IDs.
-type TransactionIdGenerator interface {
-	// Id generates a new transaction identifier
-	Id() uint64
+// TransactionIDGenerator is an interface for types that can generate transaction IDs.
+type TransactionIDGenerator interface {
+	// ID generates a new transaction identifier
+	ID() uint64
 }
 
-type transactionIdGenerator struct {
+type transactionIDGenerator struct {
 	rand *rand.Rand
 }
 
-func newTransactionIdGenerator() *transactionIdGenerator {
+func newTransactionIDGenerator() *transactionIDGenerator {
 	var seed [8]byte
 
 	// Ignore any errors. In case we weren't able to generate a seed, the
@@ -47,12 +47,12 @@ func newTransactionIdGenerator() *transactionIdGenerator {
 	cryptorand.Read(seed[:])
 	source := rand.NewSource(int64(binary.LittleEndian.Uint64(seed[:])))
 
-	return &transactionIdGenerator{
+	return &transactionIDGenerator{
 		rand: rand.New(source),
 	}
 }
 
-func (t *transactionIdGenerator) Id() uint64 {
+func (t *transactionIDGenerator) ID() uint64 {
 	return rand.Uint64()
 }
 
@@ -73,17 +73,17 @@ func WithDelayMetric(delayMetric metrics.HistogramVec) ManagerOpt {
 	}
 }
 
-// WithTransactionIdGenerator is an option to set the transaction ID generator
-func WithTransactionIdGenerator(generator TransactionIdGenerator) ManagerOpt {
+// WithTransactionIDGenerator is an option to set the transaction ID generator
+func WithTransactionIDGenerator(generator TransactionIDGenerator) ManagerOpt {
 	return func(mgr *Manager) {
-		mgr.txIdGenerator = generator
+		mgr.txIDGenerator = generator
 	}
 }
 
 // NewManager creates a new transactions Manager.
 func NewManager(opts ...ManagerOpt) *Manager {
 	mgr := &Manager{
-		txIdGenerator: newTransactionIdGenerator(),
+		txIDGenerator: newTransactionIDGenerator(),
 		transactions:  make(map[uint64]*transaction),
 		counterMetric: prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
 		delayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
@@ -115,7 +115,7 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, nodes []string) (ui
 	// that reset on restart of Praefect would be suboptimal, as the chance
 	// for collisions is a lot higher in case Praefect restarts when Gitaly
 	// nodes still have in-flight transactions.
-	transactionID := mgr.txIdGenerator.Id()
+	transactionID := mgr.txIDGenerator.ID()
 
 	transaction, err := newTransaction(nodes)
 	if err != nil {

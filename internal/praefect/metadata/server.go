@@ -27,7 +27,7 @@ const (
 var (
 	// ErrPraefectServerNotFound indicates the Praefect server metadata
 	// could not be found
-	ErrPraefectServerNotFound = errors.New("Praefect server info not found")
+	ErrPraefectServerNotFound = errors.New("metadata for Praefect server not found")
 )
 
 // PraefectServer stores parameters required to connect to a Praefect server
