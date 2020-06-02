@@ -1,5 +1,0 @@
-[failover]
-enabled = false
-election_strategy = "local"
-read_only_after_failover = false
-

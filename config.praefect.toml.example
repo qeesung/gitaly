@@ -31,8 +31,8 @@ listen_addr = "127.0.0.1:2305"
 
 [failover]
 enabled = true
-election_strategy = "sql" # Options: local, sql. Defaults to 'sql'.
-read_only_after_failover = true # Switch the virtual storage to read-only mode after after a failover.
+election_strategy = "local" # Options: local, sql
+read_only_after_failover = false # Switch the virtual storage to read-only mode after after a failover.
 
 [[virtual_storage]]
 name = 'praefect'
