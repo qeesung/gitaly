@@ -31,25 +31,24 @@ var (
 
 // Cfg is a container for all config derived from config.toml.
 type Cfg struct {
-	SocketPath                 string            `toml:"socket_path" split_words:"true"`
-	ListenAddr                 string            `toml:"listen_addr" split_words:"true"`
-	TLSListenAddr              string            `toml:"tls_listen_addr" split_words:"true"`
-	PrometheusListenAddr       string            `toml:"prometheus_listen_addr" split_words:"true"`
-	BinDir                     string            `toml:"bin_dir"`
-	Git                        Git               `toml:"git" envconfig:"git"`
-	Storages                   []Storage         `toml:"storage" envconfig:"storage"`
-	Logging                    Logging           `toml:"logging" envconfig:"logging"`
-	Prometheus                 prometheus.Config `toml:"prometheus"`
-	Auth                       auth.Config       `toml:"auth"`
-	TLS                        TLS               `toml:"tls"`
-	Ruby                       Ruby              `toml:"gitaly-ruby"`
-	Gitlab                     Gitlab            `toml:"gitlab"`
-	GitlabShell                GitlabShell       `toml:"gitlab-shell"`
-	Hooks                      Hooks             `toml:"hooks"`
-	Concurrency                []Concurrency     `toml:"concurrency"`
-	GracefulRestartTimeout     time.Duration
-	GracefulRestartTimeoutToml Duration `toml:"graceful_restart_timeout"`
-	InternalSocketDir          string   `toml:"internal_socket_dir"`
+	SocketPath             string            `toml:"socket_path" split_words:"true"`
+	ListenAddr             string            `toml:"listen_addr" split_words:"true"`
+	TLSListenAddr          string            `toml:"tls_listen_addr" split_words:"true"`
+	PrometheusListenAddr   string            `toml:"prometheus_listen_addr" split_words:"true"`
+	BinDir                 string            `toml:"bin_dir"`
+	Git                    Git               `toml:"git" envconfig:"git"`
+	Storages               []Storage         `toml:"storage" envconfig:"storage"`
+	Logging                Logging           `toml:"logging" envconfig:"logging"`
+	Prometheus             prometheus.Config `toml:"prometheus"`
+	Auth                   auth.Config       `toml:"auth"`
+	TLS                    TLS               `toml:"tls"`
+	Ruby                   Ruby              `toml:"gitaly-ruby"`
+	Gitlab                 Gitlab            `toml:"gitlab"`
+	GitlabShell            GitlabShell       `toml:"gitlab-shell"`
+	Hooks                  Hooks             `toml:"hooks"`
+	Concurrency            []Concurrency     `toml:"concurrency"`
+	GracefulRestartTimeout Duration          `toml:"graceful_restart_timeout"`
+	InternalSocketDir      string            `toml:"internal_socket_dir"`
 }
 
 // TLS configuration
@@ -173,9 +172,8 @@ func Validate() error {
 }
 
 func (c *Cfg) setDefaults() {
-	c.GracefulRestartTimeout = c.GracefulRestartTimeoutToml.Duration()
-	if c.GracefulRestartTimeout == 0 {
-		c.GracefulRestartTimeout = 1 * time.Minute
+	if c.GracefulRestartTimeout.Duration() == 0 {
+		c.GracefulRestartTimeout = Duration(time.Minute)
 	}
 
 	if c.Gitlab.SecretFile == "" {
