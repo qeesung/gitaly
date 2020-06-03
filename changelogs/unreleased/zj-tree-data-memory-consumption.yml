@@ -1,0 +1,5 @@
+---
+title: Decrease memory consuption when parsing tree objects
+merge_request: 2241
+author:
+type: performance

@@ -1,7 +1,9 @@
 package commit
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"io"
 	pathPkg "path"
@@ -54,32 +56,38 @@ func (tef *TreeEntryFinder) FindByRevisionAndPath(revision, path string) (*gital
 }
 
 const (
-	oidSize                  = 20
+	oidSize                  = sha1.Size
 	defaultFlatTreeRecursion = 10
 )
 
-func extractEntryInfoFromTreeData(treeData *bytes.Buffer, commitOid, rootOid, rootPath, oid string) ([]*gitalypb.TreeEntry, error) {
+func extractEntryInfoFromTreeData(treeData io.Reader, commitOid, rootOid, rootPath, oid string) ([]*gitalypb.TreeEntry, error) {
 	if len(oid) == 0 {
 		return nil, fmt.Errorf("empty tree oid")
 	}
 
+	bufReader := bufio.NewReader(treeData)
+
 	var entries []*gitalypb.TreeEntry
 	oidBuf := &bytes.Buffer{}
-	for treeData.Len() > 0 {
-		modeBytes, err := treeData.ReadBytes(' ')
+
+	for {
+		modeBytes, err := bufReader.ReadBytes(' ')
+		if err == io.EOF {
+			break
+		}
 		if err != nil || len(modeBytes) <= 1 {
 			return nil, fmt.Errorf("read entry mode: %v", err)
 		}
 		modeBytes = modeBytes[:len(modeBytes)-1]
 
-		filename, err := treeData.ReadBytes('\x00')
+		filename, err := bufReader.ReadBytes('\x00')
 		if err != nil || len(filename) <= 1 {
 			return nil, fmt.Errorf("read entry path: %v", err)
 		}
 		filename = filename[:len(filename)-1]
 
 		oidBuf.Reset()
-		if _, err := io.CopyN(oidBuf, treeData, oidSize); err != nil {
+		if _, err := io.CopyN(oidBuf, bufReader, oidSize); err != nil {
 			return nil, fmt.Errorf("read entry oid: %v", err)
 		}
 
@@ -126,12 +134,7 @@ func treeEntries(c *catfile.Batch, revision, path string, rootOid string, recurs
 		return nil, err
 	}
 
-	treeBytes := &bytes.Buffer{}
-	if _, err := treeBytes.ReadFrom(treeObj.Reader); err != nil {
-		return nil, err
-	}
-
-	entries, err := extractEntryInfoFromTreeData(treeBytes, revision, rootOid, path, treeObj.Oid)
+	entries, err := extractEntryInfoFromTreeData(treeObj, revision, rootOid, path, treeObj.Oid)
 	if err != nil {
 		return nil, err
 	}
