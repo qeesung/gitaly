@@ -1,6 +1,6 @@
 RSpec.shared_context 'gitlab shell', shared_context: :metadata do
   def original_root_path
-    File.dirname(__dir__)
+    ROOT_PATH
   end
 
   def config_path
