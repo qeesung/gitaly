@@ -1,0 +1,5 @@
+---
+title: Warn if SO_REUSEPORT cannot be set
+merge_request: 2236
+author:
+type: fixed
