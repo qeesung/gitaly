@@ -1,8 +1,9 @@
+# frozen_string_literal: true
 require 'yaml'
 
 NO_CHANGELOG_LABELS = %w[backstage documentation test].freeze
-SEE_DOC = "See [the documentation](https://gitlab.com/gitlab-org/gitaly/blob/master/CONTRIBUTING.md#changelog)".freeze
-CREATE_CHANGELOG_MESSAGE = <<~MSG.freeze
+SEE_DOC = "See the [changelog documentation](https://docs.gitlab.com/ee/development/changelog.html)."
+CREATE_CHANGELOG_MESSAGE = <<~MSG
 You can create one with:
 
 ```
@@ -13,20 +14,31 @@ If your merge request doesn't warrant a CHANGELOG entry,
 consider adding any of the %<labels>s labels.
 MSG
 
+SUGGEST_MR_COMMENT = <<~SUGGEST_COMMENT
+```suggestion
+merge_request: %<mr_iid>s
+```
+
+#{SEE_DOC}
+SUGGEST_COMMENT
+
 def check_changelog(path)
-  yaml = YAML.load_file(path)
+  raw_file = File.read(path)
+  yaml = YAML.safe_load(raw_file)
 
   fail "`title` should be set, in #{gitlab.html_link(path)}! #{SEE_DOC}" if yaml["title"].nil?
   fail "`type` should be set, in #{gitlab.html_link(path)}! #{SEE_DOC}" if yaml["type"].nil?
 
   if yaml["merge_request"].nil?
-    message "Consider setting `merge_request` to #{gitlab.mr_json["iid"]} in #{gitlab.html_link(path)}. #{SEE_DOC}"
+    mr_line = raw_file.lines.find_index { |l| l.start_with?("merge_request:") }
+
+    if mr_line
+      markdown(format(SUGGEST_MR_COMMENT, mr_iid: gitlab.mr_json["iid"]), file: path, line: mr_line.succ)
+    else
+      message "Consider setting `merge_request` to #{gitlab.mr_json["iid"]} in #{gitlab.html_link(path)}. #{SEE_DOC}"
+    end
   elsif yaml["merge_request"] != gitlab.mr_json["iid"]
     fail "Merge request ID was not set to #{gitlab.mr_json["iid"]}! #{SEE_DOC}"
-  end
-
-  if yaml["type"].nil?
-    fail "No type was set in the changelog"
   end
 rescue Psych::SyntaxError, Psych::DisallowedClass, Psych::BadAlias
   # YAML could not be parsed, fail the build.
@@ -49,13 +61,11 @@ if git.modified_files.include?("CHANGELOG.md")
     format(CREATE_CHANGELOG_MESSAGE, mr_iid: gitlab.mr_json["iid"], mr_title: mr_title, labels: presented_no_changelog_labels)
 end
 
-if changelog_needed
-  if changelog_found
-    check_changelog(changelog_found)
-  else
-    warn "**[CHANGELOG missing](https://docs.gitlab.com/ce/development/changelog.html).**\n\n" +
-      format(CREATE_CHANGELOG_MESSAGE, mr_iid: gitlab.mr_json["iid"], mr_title: mr_title, labels: presented_no_changelog_labels)
-  end
+if changelog_found
+  check_changelog(changelog_found)
+elsif changelog_needed
+  warn "**[CHANGELOG missing](https://docs.gitlab.com/ce/development/changelog.html).**\n\n" +
+    format(CREATE_CHANGELOG_MESSAGE, mr_iid: gitlab.mr_json["iid"], mr_title: mr_title, labels: presented_no_changelog_labels)
 end
 
 # vim: ft=ruby
