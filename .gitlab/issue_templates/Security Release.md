@@ -27,16 +27,16 @@ GitLab at the correct times.
 ### DO NOT PUSH TO GITLAB.COM!
 
 **IMPORTANT:** All steps below involved with a security release should be done
-in a dedicated local repository cloned from https://dev.gitlab.org/gitlab/gitaly
+in a dedicated local repository cloned from https://gitlab.org/gitlab/security/gitaly
 unless otherwise specified. Using a dedicated repository prevents leaking
-security patches by restricting the pushes to `dev.gitlab.org` hosted origins.
+security patches by restricting the pushes to `gitlab.org/security` hosted origins.
 As a sanity check, you can verify your repository only points to remotes in
-`dev.gitlab.org` by running: `git remote -v`
+`gitlab.org/security` by running: `git remote -v`
 
 - **Contributor:** When developing fixes, you must adhere to these guidelines:
    - [ ] Your branch name should start with `security-` to prevent unwanted
      disclosures on the public gitlab.com (this branch name pattern is protected).
-   - [ ] Start your security merge request against master in Gitaly on `dev.gitlab.org`
+   - [ ] Start your security merge request against master in Gitaly on `gitlab.org/security`
    - [ ] Keep the MR in WIP state until instructed otherwise.
    - [ ] Once finished and approved, **DO NOT MERGE**. Merging into master
      will happen later after the security release is public.
@@ -45,8 +45,8 @@ As a sanity check, you can verify your repository only points to remotes in
      checking if all the versions are affected and require a fix
 - **Contributor:**
    - [ ] Backport fixes:
-      1. Manually squash all commits in your MR to Gitaly master and force push it to your feature branch on `dev.gitlab.org`.
-      1. Cherry pick that squashed commit into a backport MR for all Gitaly target stable branches on `dev.gitlab.org`.
+      1. Manually squash all commits in your MR to Gitaly master and force push it to your feature branch on `gitlab.org/security`.
+      1. Cherry pick that squashed commit into a backport MR for all Gitaly target stable branches on `gitlab.org/security`.
       1. Link all backport MR's into the [above table](#version-matrix).
       1. Reassign to Maintainer
 - **Maintainer:**
@@ -65,11 +65,11 @@ As a sanity check, you can verify your repository only points to remotes in
       1. `git remote remove gitlab.com`
       1. Ensure no origins exist that point to gitlab.com: `git remote -v`
    - [ ] Merge in request against master on `dev.gitlab.com`
-   - [ ] Bring gitlab.com up to sync with dev.gitlab.org:
+   - [ ] Bring gitlab.com up to sync with gitlab.org/security:
       1. `git remote add gitlab.com git@gitlab.com:gitlab-org/gitaly.git`
       1. `git fetch gitlab.com`
       1. `git checkout -b gitlab-com-master gitlab.com/master`
-      1. `git merge origin/master` (note: in this repo, origin points to dev.gitlab.org)
+      1. `git merge origin/master` (note: in this repo, origin points to gitlab.org/security)
       1. `git push gitlab.com gitlab-com-master:master`
           - Note: If the push fails, try running `git pull gitlab.com master`
             and then try the push again.
