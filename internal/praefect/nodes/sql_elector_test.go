@@ -45,7 +45,7 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
 
 	ns := []*nodeStatus{cs0}
-	elector := newSQLElector(shardName, conf, 1, defaultActivePraefectSeconds, db.DB, logger, ns)
+	elector := newSQLElector(shardName, conf, db.DB, logger, ns)
 	require.Contains(t, elector.praefectName, ":"+socketName)
 	require.Equal(t, elector.shardName, shardName)
 
@@ -101,8 +101,7 @@ func TestBasicFailover(t *testing.T) {
 	cs1 := newConnectionStatus(config.Node{Storage: storageName + "-1"}, cc1, testhelper.DiscardTestEntry(t), mockHistogramVec1)
 
 	ns := []*nodeStatus{cs0, cs1}
-	failoverTimeSeconds := 1
-	elector := newSQLElector(shardName, conf, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, logger, ns)
+	elector := newSQLElector(shardName, conf, db.DB, logger, ns)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -122,23 +121,17 @@ func TestBasicFailover(t *testing.T) {
 
 	// Bring first node down
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+	predateElection(t, db, shardName, failoverTimeout)
 
-	// pretend like the last election happened in the past because the query in electNewPrimary to update the primary will not
-	// overwrite a previous that's within 10 seconds
-	_, err = db.Exec(`UPDATE shard_primaries SET elected_at = now() - $1::INTERVAL SECOND WHERE shard_name = $2`,
-		2*failoverTimeSeconds,
-		shardName)
-	require.NoError(t, err)
-
-	// Primary should remain even after the first check
+	// Primary should remain before the failover timeout is exceeded
 	err = elector.checkNodes(ctx)
 	require.NoError(t, err)
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
 	require.False(t, shard.IsReadOnly)
 
-	// Wait for stale timeout to expire
-	time.Sleep(1 * time.Second)
+	// Predate the timeout to exceed it
+	predateLastSeenActiveAt(t, db, shardName, cs0.GetStorage(), failoverTimeout)
 
 	// Expect that the other node is promoted
 	err = elector.checkNodes(ctx)
@@ -160,11 +153,8 @@ func TestBasicFailover(t *testing.T) {
 	// Bring second node down
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 
-	// Wait for stale timeout to expire
-	time.Sleep(1 * time.Second)
 	err = elector.checkNodes(ctx)
 	require.NoError(t, err)
-
 	db.RequireRowsInTable(t, "node_status", 2)
 	// No new candidates
 	_, err = elector.GetShard()
@@ -180,8 +170,6 @@ func TestElectDemotedPrimary(t *testing.T) {
 	elector := newSQLElector(
 		shardName,
 		config.Config{},
-		defaultFailoverTimeoutSeconds,
-		defaultActivePraefectSeconds,
 		db.DB,
 		testhelper.DiscardTestLogger(t),
 		[]*nodeStatus{{Node: node}},
@@ -200,7 +188,7 @@ func TestElectDemotedPrimary(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, primary)
 
-	shiftElection(t, db, shardName, -1*defaultFailoverTimeoutSeconds)
+	predateElection(t, db, shardName, failoverTimeout)
 	require.NoError(t, err)
 	require.NoError(t, elector.electNewPrimary(candidates))
 
@@ -209,14 +197,27 @@ func TestElectDemotedPrimary(t *testing.T) {
 	require.Equal(t, node.Storage, primary.GetStorage())
 }
 
-// pretend like the last election happened in the past because the query in electNewPrimary
-// to update the primary will not overwrite a previous that's within 10 seconds
-func shiftElection(t testing.TB, db glsql.DB, shardName string, seconds int) {
+// predateLastSeenActiveAt shifts the last_seen_active_at column to an earlier time. This avoids
+// waiting for the node's status to become unhealthy.
+func predateLastSeenActiveAt(t testing.TB, db glsql.DB, shardName, nodeName string, amount time.Duration) {
+	t.Helper()
+
+	_, err := db.Exec(`
+UPDATE node_status SET last_seen_active_at = last_seen_active_at - INTERVAL '1 MICROSECOND' * $1
+WHERE shard_name = $2 AND node_name = $3`, amount.Microseconds(), shardName, nodeName,
+	)
+
+	require.NoError(t, err)
+}
+
+// predateElection shifts the election to an earlier time. This avoids waiting for the failover timeout to trigger
+// a new election.
+func predateElection(t testing.TB, db glsql.DB, shardName string, amount time.Duration) {
 	t.Helper()
 
 	_, err := db.Exec(
-		"UPDATE shard_primaries SET elected_at = elected_at + $1::INTERVAL SECOND WHERE shard_name = $2",
-		seconds,
+		"UPDATE shard_primaries SET elected_at = elected_at - INTERVAL '1 MICROSECOND' * $1 WHERE shard_name = $2",
+		amount.Microseconds(),
 		shardName,
 	)
 	require.NoError(t, err)
@@ -242,7 +243,6 @@ func TestElectNewPrimary(t *testing.T) {
 		},
 	}}
 
-	failoverTimeSeconds := 1
 	candidates := []*sqlCandidate{
 		{
 			&nodeStatus{
@@ -341,7 +341,7 @@ func TestElectNewPrimary(t *testing.T) {
 			db.TruncateAll(t)
 
 			conf := config.Config{Failover: config.Failover{ReadOnlyAfterFailover: true}}
-			elector := newSQLElector(shardName, conf, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, testhelper.DiscardTestLogger(t), ns)
+			elector := newSQLElector(shardName, conf, db.DB, testhelper.DiscardTestLogger(t), ns)
 
 			require.NoError(t, elector.electNewPrimary(candidates))
 			primary, readOnly, err := elector.lookupPrimary()
@@ -349,7 +349,7 @@ func TestElectNewPrimary(t *testing.T) {
 			require.Equal(t, "gitaly-1", primary.GetStorage(), "since replication queue is empty the first candidate should be chosen")
 			require.False(t, readOnly)
 
-			shiftElection(t, db, shardName, -1*failoverTimeSeconds)
+			predateElection(t, db, shardName, failoverTimeout)
 			_, err = db.Exec(testCase.initialReplQueueInsert)
 			require.NoError(t, err)
 

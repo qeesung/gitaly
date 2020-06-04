@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	defaultFailoverTimeoutSeconds = 10
-	defaultActivePraefectSeconds  = 60
+	failoverTimeout       = 10 * time.Second
+	activePraefectTimeout = 60 * time.Second
 )
 
 type sqlCandidate struct {
@@ -81,12 +81,10 @@ type sqlElector struct {
 	primaryNode           *sqlCandidate
 	db                    *sql.DB
 	log                   logrus.FieldLogger
-	failoverSeconds       int
-	activePraefectSeconds int
 	readOnlyAfterFailover bool
 }
 
-func newSQLElector(name string, c config.Config, failoverTimeoutSeconds int, activePraefectSeconds int, db *sql.DB, log logrus.FieldLogger, ns []*nodeStatus) *sqlElector {
+func newSQLElector(name string, c config.Config, db *sql.DB, log logrus.FieldLogger, ns []*nodeStatus) *sqlElector {
 	praefectName := getPraefectName(c, log)
 
 	log = log.WithField("praefectName", praefectName)
@@ -102,8 +100,6 @@ func newSQLElector(name string, c config.Config, failoverTimeoutSeconds int, act
 		shardName:             name,
 		db:                    db,
 		log:                   log,
-		failoverSeconds:       failoverTimeoutSeconds,
-		activePraefectSeconds: activePraefectSeconds,
 		nodes:                 nodes,
 		primaryNode:           nodes[0],
 		readOnlyAfterFailover: c.Failover.ReadOnlyAfterFailover,
@@ -299,11 +295,11 @@ func (s *sqlElector) updateMetrics() {
 func (s *sqlElector) getQuorumCount() (int, error) {
 	// This is crude form of service discovery. Find how many active
 	// Praefect nodes based on whether they attempted to update entries.
-	q := `SELECT COUNT (DISTINCT praefect_name) FROM node_status WHERE shard_name = $1 AND last_contact_attempt_at >= NOW() - $2::INTERVAL SECOND`
+	q := `SELECT COUNT (DISTINCT praefect_name) FROM node_status WHERE shard_name = $1 AND last_contact_attempt_at >= NOW() - INTERVAL '1 MICROSECOND' * $2`
 
 	var totalCount int
 
-	if err := s.db.QueryRow(q, s.shardName, s.activePraefectSeconds).Scan(&totalCount); err != nil {
+	if err := s.db.QueryRow(q, s.shardName, activePraefectTimeout.Microseconds()).Scan(&totalCount); err != nil {
 		return 0, fmt.Errorf("error retrieving quorum count: %w", err)
 	}
 
@@ -427,9 +423,9 @@ func (s *sqlElector) electNewPrimary(candidates []*sqlCandidate) error {
 				, elected_at = EXCLUDED.elected_at
 				, read_only = $5
 				, demoted = false
-	   WHERE shard_primaries.elected_at < now() - $4::INTERVAL SECOND
+	   WHERE shard_primaries.elected_at < now() - INTERVAL '1 MICROSECOND' * $4
 	`
-	_, err = s.db.Exec(q, s.praefectName, s.shardName, newPrimaryStorage, s.failoverSeconds, s.readOnlyAfterFailover)
+	_, err = s.db.Exec(q, s.praefectName, s.shardName, newPrimaryStorage, failoverTimeout.Microseconds(), s.readOnlyAfterFailover)
 
 	if err != nil {
 		s.log.Errorf("error updating new primary: %s", err)
@@ -461,12 +457,12 @@ func (s *sqlElector) validateAndUpdatePrimary() error {
 
 	// Retrieves candidates, ranked by the ones that are the most active
 	q := `SELECT node_name FROM node_status
-			WHERE shard_name = $1 AND last_seen_active_at >= NOW() - $2::INTERVAL SECOND
+			WHERE shard_name = $1 AND last_seen_active_at >= NOW() - INTERVAL '1 MICROSECOND' * $2
 			GROUP BY node_name
 			HAVING COUNT(praefect_name) >= $3
 			ORDER BY COUNT(node_name) DESC, node_name ASC`
 
-	rows, err := s.db.Query(q, s.shardName, s.failoverSeconds, quorumCount)
+	rows, err := s.db.Query(q, s.shardName, failoverTimeout.Microseconds(), quorumCount)
 
 	if err != nil {
 		return fmt.Errorf("error retrieving candidates: %w", err)
