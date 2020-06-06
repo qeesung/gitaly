@@ -41,6 +41,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.FindRemoteRepositoryRequest" do
     optional :remote, :string, 1
+    optional :storage_name, :string, 2
   end
   add_message "gitaly.FindRemoteRepositoryResponse" do
     optional :exists, :bool, 1

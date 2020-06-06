@@ -17,7 +17,7 @@ const (
 	// EnvPidFile is the name of the environment variable containing the pid file path
 	EnvPidFile = "GITALY_PID_FILE"
 	// EnvUpgradesEnabled is an environment variable that when defined gitaly must enable graceful upgrades on SIGHUP
-	EnvUpgradesEnabled = "GITALY_UPGRADES_ENABLED"
+	EnvUpgradesEnabled     = "GITALY_UPGRADES_ENABLED"
 	SocketReusePortWarning = "Unable to set SO_REUSEPORT: zero downtime upgrades will not work"
 )
 
