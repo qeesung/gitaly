@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/models"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -58,7 +57,7 @@ func TestSubCmdDialNodes(t *testing.T) {
 				VirtualStorages: []*config.VirtualStorage{
 					{
 						Name: "default",
-						Nodes: []*models.Node{
+						Nodes: []*config.Node{
 							{
 								Storage: "1",
 								Address: "unix:/" + ln.Addr().String(),
@@ -67,7 +66,7 @@ func TestSubCmdDialNodes(t *testing.T) {
 					},
 					{
 						Name: "storage-1",
-						Nodes: []*models.Node{
+						Nodes: []*config.Node{
 							{
 								Storage: "2",
 								Address: "unix:/" + ln.Addr().String(),
