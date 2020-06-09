@@ -1367,8 +1367,10 @@ type ListCommitsByRefNameResponse_CommitForRef struct {
 func (m *ListCommitsByRefNameResponse_CommitForRef) Reset() {
 	*m = ListCommitsByRefNameResponse_CommitForRef{}
 }
-func (m *ListCommitsByRefNameResponse_CommitForRef) String() string { return proto.CompactTextString(m) }
-func (*ListCommitsByRefNameResponse_CommitForRef) ProtoMessage()    {}
+func (m *ListCommitsByRefNameResponse_CommitForRef) String() string {
+	return proto.CompactTextString(m)
+}
+func (*ListCommitsByRefNameResponse_CommitForRef) ProtoMessage() {}
 func (*ListCommitsByRefNameResponse_CommitForRef) Descriptor() ([]byte, []int) {
 	return fileDescriptor_db7163399a465f48, []int{22, 0}
 }
