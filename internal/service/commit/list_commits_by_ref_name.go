@@ -28,7 +28,11 @@ func (s *server) ListCommitsByRefName(in *gitalypb.ListCommitsByRefNameRequest, 
 			return helper.ErrInternal(err)
 		}
 
-		if err := sender.Send(commit); err != nil {
+		commitByRef := &gitalypb.ListCommitsByRefNameResponse_CommitForRef{
+			Commit: commit, RefName: refName,
+		}
+
+		if err := sender.Send(commitByRef); err != nil {
 			return helper.ErrInternal(err)
 		}
 	}
@@ -42,7 +46,9 @@ type commitsByRefNameSender struct {
 }
 
 func (c *commitsByRefNameSender) Append(m proto.Message) {
-	c.response.Commits = append(c.response.Commits, m.(*gitalypb.GitCommit))
+	commitByRef := m.(*gitalypb.ListCommitsByRefNameResponse_CommitForRef)
+
+	c.response.CommitRefs = append(c.response.CommitRefs, commitByRef)
 }
 
 func (c *commitsByRefNameSender) Send() error { return c.stream.Send(c.response) }

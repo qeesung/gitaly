@@ -405,8 +405,7 @@ type ResolveConflictsRequest_FilesJson struct {
 
 func (*ResolveConflictsRequest_Header) isResolveConflictsRequest_ResolveConflictsRequestPayload() {}
 
-func (*ResolveConflictsRequest_FilesJson) isResolveConflictsRequest_ResolveConflictsRequestPayload() {
-}
+func (*ResolveConflictsRequest_FilesJson) isResolveConflictsRequest_ResolveConflictsRequestPayload() {}
 
 func (m *ResolveConflictsRequest) GetResolveConflictsRequestPayload() isResolveConflictsRequest_ResolveConflictsRequestPayload {
 	if m != nil {

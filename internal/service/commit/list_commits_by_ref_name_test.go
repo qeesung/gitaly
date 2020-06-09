@@ -140,18 +140,18 @@ func TestSuccessfulListCommitsByRefNameRequest(t *testing.T) {
 			c, err := client.ListCommitsByRefName(ctx, request)
 			require.NoError(t, err)
 
-			receivedCommits := consumeGetByRefNameResponse(t, c)
-			require.Len(t, receivedCommits, len(testCase.expectedIds))
+			receivedCommitRefs := consumeGetByRefNameResponse(t, c)
+			require.Len(t, receivedCommitRefs, len(testCase.expectedIds))
 
-			for i, receivedCommit := range receivedCommits {
-				require.Equal(t, testCase.expectedIds[i], receivedCommit.Id, "mismatched commit")
+			for i, commitRef := range receivedCommitRefs {
+				require.Equal(t, testCase.expectedIds[i], commitRef.Commit.Id, "mismatched commit")
 			}
 		})
 	}
 }
 
-func consumeGetByRefNameResponse(t *testing.T, c gitalypb.CommitService_ListCommitsByRefNameClient) []*gitalypb.GitCommit {
-	receivedCommits := []*gitalypb.GitCommit{}
+func consumeGetByRefNameResponse(t *testing.T, c gitalypb.CommitService_ListCommitsByRefNameClient) []*gitalypb.ListCommitsByRefNameResponse_CommitForRef {
+	receivedCommitRefs := []*gitalypb.ListCommitsByRefNameResponse_CommitForRef{}
 	for {
 		resp, err := c.Recv()
 		if err == io.EOF {
@@ -159,10 +159,10 @@ func consumeGetByRefNameResponse(t *testing.T, c gitalypb.CommitService_ListComm
 		}
 		require.NoError(t, err)
 
-		receivedCommits = append(receivedCommits, resp.GetCommits()...)
+		receivedCommitRefs = append(receivedCommitRefs, resp.GetCommitRefs()...)
 	}
 
-	return receivedCommits
+	return receivedCommitRefs
 }
 
 var repositoryRefNames = map[string]string{
@@ -216,7 +216,7 @@ func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
 	actualCommits := consumeGetByRefNameResponse(t, c)
 
 	for _, actual := range actualCommits {
-		_, ok := repositoryRefNames[actual.Id]
-		require.True(t, ok, "commit ID must be present in the input list: %s", actual.Id)
+		_, ok := repositoryRefNames[actual.Commit.Id]
+		require.True(t, ok, "commit ID must be present in the input list: %s", actual.Commit.Id)
 	}
 }
