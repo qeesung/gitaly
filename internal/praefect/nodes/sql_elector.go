@@ -85,6 +85,7 @@ type sqlElector struct {
 }
 
 func newSQLElector(name string, c config.Config, db *sql.DB, log logrus.FieldLogger, ns []*nodeStatus) *sqlElector {
+	log = log.WithField("virtual_storage", name)
 	praefectName := getPraefectName(c, log)
 
 	log = log.WithField("praefectName", praefectName)
@@ -117,9 +118,7 @@ func getPraefectName(c config.Config, log logrus.FieldLogger) string {
 
 	if err != nil {
 		name = uuid.New().String()
-		log.WithError(err).WithFields(logrus.Fields{
-			"praefectName": name,
-		}).Warn("unable to determine Praefect hostname, using randomly generated UUID")
+		log.WithError(err).WithField("praefectName", name).Warn("unable to determine Praefect hostname, using randomly generated UUID")
 	}
 
 	if c.ListenAddr != "" {
@@ -163,10 +162,9 @@ func (s *sqlElector) checkNodes(ctx context.Context) error {
 
 		go func(n Node) {
 			defer wg.Done()
-			result, _ := n.check(ctx)
+			result, _ := n.CheckHealth(ctx)
 			if err := s.updateNode(n, result); err != nil {
 				s.log.WithError(err).WithFields(logrus.Fields{
-					"shard":   s.shardName,
 					"storage": n.GetStorage(),
 					"address": n.GetAddress(),
 				}).Error("error checking node")
@@ -215,7 +213,7 @@ func (s *sqlElector) setPrimary(candidate *sqlCandidate) {
 		s.log.WithFields(logrus.Fields{
 			"oldPrimary": oldPrimary,
 			"newPrimary": newPrimary,
-			"shard":      s.shardName}).Info("primary node changed")
+		}).Info("primary node changed")
 
 		s.primaryNode = candidate
 	}

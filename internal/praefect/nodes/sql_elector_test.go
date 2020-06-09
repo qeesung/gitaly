@@ -208,10 +208,10 @@ func TestElectDemotedPrimary(t *testing.T) {
 		config.Config{},
 		db.DB,
 		testhelper.DiscardTestLogger(t),
-		[]*nodeStatus{{Node: node}},
+		[]*nodeStatus{{node: node}},
 	)
 
-	candidates := []*sqlCandidate{{Node: &nodeStatus{Node: node}}}
+	candidates := []*sqlCandidate{{Node: &nodeStatus{node: node}}}
 	require.NoError(t, elector.electNewPrimary(candidates))
 
 	primary, _, _, err := elector.lookupPrimary()
@@ -263,17 +263,17 @@ func TestElectNewPrimary(t *testing.T) {
 	db := getDB(t)
 
 	ns := []*nodeStatus{{
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-0",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-1",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-2",
 			DefaultPrimary: true,
 		},
@@ -282,13 +282,13 @@ func TestElectNewPrimary(t *testing.T) {
 	candidates := []*sqlCandidate{
 		{
 			&nodeStatus{
-				Node: config.Node{
+				node: config.Node{
 					Storage: "gitaly-1",
 				},
 			},
 		}, {
 			&nodeStatus{
-				Node: config.Node{
+				node: config.Node{
 					Storage: "gitaly-2",
 				},
 			},

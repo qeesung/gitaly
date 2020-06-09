@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
@@ -146,10 +147,10 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 
 func TestStreamDirectorMutator(t *testing.T) {
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
-	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
-	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
-	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	srv1, _ := testhelper.NewServerWithHealth(t, gitalySocket0)
+	defer srv1.Stop()
+	srv2, _ := testhelper.NewServerWithHealth(t, gitalySocket1)
+	defer srv2.Stop()
 
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
 	primaryNode := &config.Node{Address: primaryAddress, Storage: "praefect-internal-1", DefaultPrimary: true}
@@ -245,28 +246,100 @@ func TestStreamDirectorMutator(t *testing.T) {
 }
 
 func TestStreamDirectorAccessor(t *testing.T) {
-	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
-	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
-	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
-	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	gitalySocket := testhelper.GetTemporaryGitalySocketFileName()
+	srv, _ := testhelper.NewServerWithHealth(t, gitalySocket)
+	defer srv.Stop()
 
-	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
+	gitalyAddress := "unix://" + gitalySocket
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "praefect",
 				Nodes: []*config.Node{
 					{
-						Address:        primaryAddress,
+						Address:        gitalyAddress,
 						Storage:        "praefect-internal-1",
 						DefaultPrimary: true,
 					},
-					{
-						Address: secondaryAddress,
-						Storage: "praefect-internal-2",
-					}},
+				},
 			},
+		},
+	}
+
+	queue := datastore.NewMemoryReplicationEventQueue(conf)
+
+	targetRepo := gitalypb.Repository{
+		StorageName:  "praefect",
+		RelativePath: "/path/to/hashed/storage",
+	}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	entry := testhelper.DiscardTestEntry(t)
+
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, queue, promtest.NewMockHistogramVec())
+	require.NoError(t, err)
+	nodeMgr.Start(0, time.Minute)
+
+	txMgr := transactions.NewManager()
+
+	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
+
+	frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
+	require.NoError(t, err)
+
+	fullMethod := "/gitaly.RefService/FindAllBranches"
+
+	peeker := &mockPeeker{frame: frame}
+	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+	require.NoError(t, err)
+	require.Equal(t, gitalyAddress, streamParams.Conn().Target())
+
+	md, ok := metadata.FromOutgoingContext(streamParams.Context())
+	require.True(t, ok)
+	require.Contains(t, md, "praefect-server")
+
+	mi, err := coordinator.registry.LookupMethod(fullMethod)
+	require.NoError(t, err)
+	require.Equal(t, protoregistry.ScopeRepository, mi.Scope, "method must be repository scoped")
+	require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
+
+	m, err := protoMessageFromPeeker(mi, peeker)
+	require.NoError(t, err)
+
+	rewrittenTargetRepo, err := mi.TargetRepo(m)
+	require.NoError(t, err)
+	require.Equal(t, "praefect-internal-1", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
+}
+
+func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
+	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
+	srv1, _ := testhelper.NewServerWithHealth(t, gitalySocket0)
+	defer srv1.Stop()
+	srv2, healthSrv := testhelper.NewServerWithHealth(t, gitalySocket1)
+	defer srv2.Stop()
+
+	primaryNodeConf := config.Node{
+		Address:        "unix://" + gitalySocket0,
+		Storage:        "gitaly-1",
+		DefaultPrimary: true,
+	}
+
+	secondaryNodeConf := config.Node{
+		Address: "unix://" + gitalySocket1,
+		Storage: "gitaly-2",
+	}
+	conf := config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			{
+				Name:  "praefect",
+				Nodes: []*config.Node{&primaryNodeConf, &secondaryNodeConf},
+			},
+		},
+		Failover: config.Failover{
+			Enabled:          true,
+			ElectionStrategy: "local",
 		},
 	}
 
@@ -285,37 +358,117 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, queue, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
+	nodeMgr.Start(0, time.Minute)
 
 	txMgr := transactions.NewManager()
 
 	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
-	frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
-	require.NoError(t, err)
+	t.Run("forwards accessor operations", func(t *testing.T) {
+		frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
+		require.NoError(t, err)
 
-	fullMethod := "/gitaly.RefService/FindAllBranches"
+		fullMethod := "/gitaly.RefService/FindAllBranches"
 
-	peeker := &mockPeeker{frame: frame}
-	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
-	require.NoError(t, err)
-	require.Equal(t, secondaryAddress, streamParams.Conn().Target())
+		peeker := &mockPeeker{frame: frame}
+		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+		require.NoError(t, err)
+		require.Equal(t, secondaryNodeConf.Address, streamParams.Conn().Target(), "must be redirected to secondary")
 
-	md, ok := metadata.FromOutgoingContext(streamParams.Context())
-	require.True(t, ok)
-	require.Contains(t, md, "praefect-server")
+		md, ok := metadata.FromOutgoingContext(streamParams.Context())
+		require.True(t, ok)
+		require.Contains(t, md, "praefect-server")
 
-	mi, err := coordinator.registry.LookupMethod(fullMethod)
-	require.NoError(t, err)
+		mi, err := coordinator.registry.LookupMethod(fullMethod)
+		require.NoError(t, err)
+		require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
 
-	m, err := protoMessageFromPeeker(mi, peeker)
-	require.NoError(t, err)
+		m, err := protoMessageFromPeeker(mi, peeker)
+		require.NoError(t, err)
 
-	rewrittenTargetRepo, err := mi.TargetRepo(m)
-	require.NoError(t, err)
-	require.Equal(t, "praefect-internal-2", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
+		rewrittenTargetRepo, err := mi.TargetRepo(m)
+		require.NoError(t, err)
+		require.Equal(t, "gitaly-2", rewrittenTargetRepo.GetStorageName(), "stream director must rewrite the storage name")
+	})
 
-	// must be invoked without issues
-	streamParams.RequestFinalizer()
+	t.Run("forwards accessor operations only to healthy nodes", func(t *testing.T) {
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+		shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
+		require.NoError(t, err)
+
+		gitaly1, err := shard.GetNode(secondaryNodeConf.Storage)
+		require.NoError(t, err)
+		waitNodeToChangeHealthStatus(ctx, t, gitaly1, false)
+		defer func() {
+			healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+			waitNodeToChangeHealthStatus(ctx, t, gitaly1, true)
+		}()
+
+		frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
+		require.NoError(t, err)
+
+		fullMethod := "/gitaly.RefService/FindAllBranches"
+
+		peeker := &mockPeeker{frame: frame}
+		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+		require.NoError(t, err)
+		require.Equal(t, primaryNodeConf.Address, streamParams.Conn().Target(), "must be redirected to primary")
+
+		md, ok := metadata.FromOutgoingContext(streamParams.Context())
+		require.True(t, ok)
+		require.Contains(t, md, "praefect-server")
+
+		mi, err := coordinator.registry.LookupMethod(fullMethod)
+		require.NoError(t, err)
+		require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
+
+		m, err := protoMessageFromPeeker(mi, peeker)
+		require.NoError(t, err)
+
+		rewrittenTargetRepo, err := mi.TargetRepo(m)
+		require.NoError(t, err)
+		require.Equal(t, "gitaly-1", rewrittenTargetRepo.GetStorageName(), "stream director must rewrite the storage name")
+	})
+
+	t.Run("doesn't forward mutator operations", func(t *testing.T) {
+		frame, err := proto.Marshal(&gitalypb.UserUpdateBranchRequest{Repository: &targetRepo})
+		require.NoError(t, err)
+
+		fullMethod := "/gitaly.OperationService/UserUpdateBranch"
+
+		peeker := &mockPeeker{frame: frame}
+		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+		require.NoError(t, err)
+		require.Equal(t, primaryNodeConf.Address, streamParams.Conn().Target(), "must be redirected to primary")
+
+		md, ok := metadata.FromOutgoingContext(streamParams.Context())
+		require.True(t, ok)
+		require.Contains(t, md, "praefect-server")
+
+		mi, err := coordinator.registry.LookupMethod(fullMethod)
+		require.NoError(t, err)
+		require.Equal(t, protoregistry.OpMutator, mi.Operation, "method must be a mutator")
+
+		m, err := protoMessageFromPeeker(mi, peeker)
+		require.NoError(t, err)
+
+		rewrittenTargetRepo, err := mi.TargetRepo(m)
+		require.NoError(t, err)
+		require.Equal(t, "gitaly-1", rewrittenTargetRepo.GetStorageName(), "stream director must rewrite the storage name")
+	})
+}
+
+func waitNodeToChangeHealthStatus(ctx context.Context, t *testing.T, node nodes.Node, health bool) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	for node.IsHealthy() != health {
+		_, err := node.CheckHealth(ctx)
+		require.NoError(t, err)
+	}
 }
 
 type mockPeeker struct {
