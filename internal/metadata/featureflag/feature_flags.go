@@ -12,8 +12,6 @@ const (
 	// note: there doesn't need to be a separate gitaly ruby feature flag name. The same featureflag string can be used for both the go code
 	// and being passed into gitaly-ruby
 	GitalyRubyCallHookRPC = "call_hook_rpc"
-	// GoFetchInternalRemote enables a go implementation of FetchInternalRemote
-	GoFetchInternalRemote = "go_fetch_internal_remote"
 	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks
 	GoUpdateHook = "go_update_hook"
 	// RemoteBranchesLsRemote will use `ls-remote` for remote branches
@@ -22,10 +20,13 @@ const (
 	ReferenceTransactions = "reference_transactions"
 	// DistributedReads allows praefect to redirect accessor operations to up-to-date secondaries
 	DistributedReads = "distributed_reads"
+	// GoPrereceiveHook will bypass the ruby pre-receive hook and use the go implementation
+	GoPreReceiveHook = "go_prereceive_hook"
 )
 
 const (
 	// HooksRPCEnvVar is the name of the environment variable we use to pass the feature flag down into gitaly-hooks
-	HooksRPCEnvVar     = "GITALY_HOOK_RPCS_ENABLED"
-	GoUpdateHookEnvVar = "GITALY_GO_UPDATE"
+	HooksRPCEnvVar         = "GITALY_HOOK_RPCS_ENABLED"
+	GoUpdateHookEnvVar     = "GITALY_GO_UPDATE"
+	GoPreReceiveHookEnvVar = "GITALY_GO_PRERECEIVE"
 )

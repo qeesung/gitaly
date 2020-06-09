@@ -189,19 +189,6 @@ solve data loss cases by synchronizing the missing data from the old primary to 
 Alternatively, an administrator can choose to enable writes on the new primary immediately if they do not wish
 to solve the data loss cases.
 
-### Distribution of reads
-
-Praefect supports distribution of read operations across Gitaly nodes that are configured for the virtual node.
-You can enable this feature with with `distributed_reads` feature flag (disabled by default).
-That means that RPCs marked with `ACCESSOR` option like
-[GetBlob](https://gitlab.com/gitlab-org/gitaly/-/blob/v12.10.6/proto/blob.proto#L16)
-will be redirected to the one of the up to date Gitaly nodes.
-_Up to date in_ this context means that the replication for this node is successfully completed (the replication queue
-for this storage and repository is empty). In case there is a failure on determining the up to date node or there is no
-such, the primary node will be taken to serve the request. To track distribution of read operations you can use a new
-Prometheus counter metric named `gitaly_praefect_read_distribution`. It has two labels: `virtual_storage` and `storage` that
-reflects the configuration defined for this instance of Praefect.
-
 ## Compared to Geo
 
 Despite the similarities above, there are significant differences

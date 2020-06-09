@@ -92,7 +92,7 @@ class GitlabCustomHook
     return [] unless Dir.exist?(path)
 
     Dir["#{path}/*"].select do |f|
-      !f.end_with?('~') && File.executable?(f)
+      !f.end_with?('~') && File.file?(f) && File.executable?(f)
     end.sort
   end
 end

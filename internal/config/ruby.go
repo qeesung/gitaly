@@ -8,15 +8,13 @@ import (
 
 // Ruby contains setting for Ruby worker processes
 type Ruby struct {
-	Dir                        string `toml:"dir"`
-	MaxRSS                     int    `toml:"max_rss"`
-	GracefulRestartTimeout     time.Duration
-	GracefulRestartTimeoutToml Duration `toml:"graceful_restart_timeout"`
-	RestartDelay               time.Duration
-	RestartDelayToml           Duration `toml:"restart_delay"`
-	NumWorkers                 int      `toml:"num_workers"`
-	LinguistLanguagesPath      string   `toml:"linguist_languages_path"`
-	RuggedGitConfigSearchPath  string   `toml:"rugged_git_config_search_path"`
+	Dir                       string   `toml:"dir"`
+	MaxRSS                    int      `toml:"max_rss"`
+	GracefulRestartTimeout    Duration `toml:"graceful_restart_timeout"`
+	RestartDelay              Duration `toml:"restart_delay"`
+	NumWorkers                int      `toml:"num_workers"`
+	LinguistLanguagesPath     string   `toml:"linguist_languages_path"`
+	RuggedGitConfigSearchPath string   `toml:"rugged_git_config_search_path"`
 }
 
 // Duration is a trick to let our TOML library parse durations from strings.
@@ -43,18 +41,16 @@ func (d Duration) MarshalText() ([]byte, error) {
 
 // ConfigureRuby validates the gitaly-ruby configuration and sets default values.
 func ConfigureRuby() error {
-	Config.Ruby.GracefulRestartTimeout = Config.Ruby.GracefulRestartTimeoutToml.Duration()
-	if Config.Ruby.GracefulRestartTimeout == 0 {
-		Config.Ruby.GracefulRestartTimeout = 10 * time.Minute
+	if Config.Ruby.GracefulRestartTimeout.Duration() == 0 {
+		Config.Ruby.GracefulRestartTimeout = Duration(10 * time.Minute)
 	}
 
 	if Config.Ruby.MaxRSS == 0 {
 		Config.Ruby.MaxRSS = 200 * 1024 * 1024
 	}
 
-	Config.Ruby.RestartDelay = Config.Ruby.RestartDelayToml.Duration()
-	if Config.Ruby.RestartDelay == 0 {
-		Config.Ruby.RestartDelay = 5 * time.Minute
+	if Config.Ruby.RestartDelay.Duration() == 0 {
+		Config.Ruby.RestartDelay = Duration(5 * time.Minute)
 	}
 
 	if len(Config.Ruby.Dir) == 0 {

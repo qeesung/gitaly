@@ -4,7 +4,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
@@ -26,6 +28,18 @@ func TestSuccessfulCreateBundleRequest(t *testing.T) {
 
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
+
+	// create a work tree with a HEAD pointing to a commit that is missing.
+	// CreateBundle should clean this up before creating the bundle
+	sha, branchName := testhelper.CreateCommitOnNewBranch(t, testRepoPath)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(testRepoPath, "gitlab-worktree"), 0755))
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "worktree", "add", "gitlab-worktree/worktree1", sha)
+	os.Chtimes(filepath.Join(testRepoPath, "gitlab-worktree", "worktree1"), time.Now().Add(-7*time.Hour), time.Now().Add(-7*time.Hour))
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "branch", "-D", branchName)
+	require.NoError(t, os.Remove(filepath.Join(testRepoPath, "objects", sha[0:2], sha[2:])))
 
 	request := &gitalypb.CreateBundleRequest{Repository: testRepo}
 

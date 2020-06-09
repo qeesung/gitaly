@@ -72,7 +72,6 @@ type grpcCall struct {
 	fullMethodName string
 	methodInfo     protoregistry.MethodInfo
 	msg            proto.Message
-	peeker         proxy.StreamPeeker
 	targetRepo     *gitalypb.Repository
 }
 

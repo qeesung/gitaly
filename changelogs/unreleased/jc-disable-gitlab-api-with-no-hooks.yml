@@ -1,0 +1,5 @@
+---
+title: Skip creation of gitlab api if GITALY_TESTING_NO_GIT_HOOKS is set
+merge_request: 2245
+author:
+type: changed

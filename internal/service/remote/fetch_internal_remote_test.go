@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -27,45 +26,27 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 	remoteRepo, remoteRepoPath, remoteCleanupFn := testhelper.NewTestRepo(t)
 	defer remoteCleanupFn()
 
-	for _, tc := range []struct {
-		CaseName     string
-		FeatureFlags []string
-	}{
-		{
-			CaseName: "ruby",
-		},
-		{
-			CaseName:     "go",
-			FeatureFlags: []string{featureflag.GoFetchInternalRemote},
-		},
-	} {
-		t.Run(tc.CaseName, func(t *testing.T) {
-			repo, repoPath, cleanupFn := testhelper.InitBareRepo(t)
-			defer cleanupFn()
+	repo, repoPath, cleanupFn := testhelper.InitBareRepo(t)
+	defer cleanupFn()
 
-			ctx, cancel := testhelper.Context()
-			defer cancel()
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
-			ctx = metadata.NewOutgoingContext(ctx, md)
-			for _, feature := range tc.FeatureFlags {
-				ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, feature)
-			}
+	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-			request := &gitalypb.FetchInternalRemoteRequest{
-				Repository:       repo,
-				RemoteRepository: remoteRepo,
-			}
-
-			c, err := client.FetchInternalRemote(ctx, request)
-			require.NoError(t, err)
-			require.True(t, c.GetResult())
-
-			remoteRefs := testhelper.GetRepositoryRefs(t, remoteRepoPath)
-			refs := testhelper.GetRepositoryRefs(t, repoPath)
-			require.Equal(t, remoteRefs, refs)
-		})
+	request := &gitalypb.FetchInternalRemoteRequest{
+		Repository:       repo,
+		RemoteRepository: remoteRepo,
 	}
+
+	c, err := client.FetchInternalRemote(ctx, request)
+	require.NoError(t, err)
+	require.True(t, c.GetResult())
+
+	remoteRefs := testhelper.GetRepositoryRefs(t, remoteRepoPath)
+	refs := testhelper.GetRepositoryRefs(t, repoPath)
+	require.Equal(t, remoteRefs, refs)
 }
 
 func TestFailedFetchInternalRemote(t *testing.T) {
@@ -75,44 +56,26 @@ func TestFailedFetchInternalRemote(t *testing.T) {
 	client, conn := remote.NewRemoteClient(t, serverSocketPath)
 	defer conn.Close()
 
-	for _, tc := range []struct {
-		CaseName     string
-		FeatureFlags []string
-	}{
-		{
-			CaseName: "ruby",
-		},
-		{
-			CaseName:     "go",
-			FeatureFlags: []string{featureflag.GoFetchInternalRemote},
-		},
-	} {
-		t.Run(tc.CaseName, func(t *testing.T) {
-			repo, _, cleanupFn := testhelper.InitBareRepo(t)
-			defer cleanupFn()
+	repo, _, cleanupFn := testhelper.InitBareRepo(t)
+	defer cleanupFn()
 
-			ctx, cancel := testhelper.Context()
-			defer cancel()
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
-			ctx = metadata.NewOutgoingContext(ctx, md)
-			for _, feature := range tc.FeatureFlags {
-				ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, feature)
-			}
+	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-			// Non-existing remote repo
-			remoteRepo := &gitalypb.Repository{StorageName: "default", RelativePath: "fake.git"}
+	// Non-existing remote repo
+	remoteRepo := &gitalypb.Repository{StorageName: "default", RelativePath: "fake.git"}
 
-			request := &gitalypb.FetchInternalRemoteRequest{
-				Repository:       repo,
-				RemoteRepository: remoteRepo,
-			}
-
-			c, err := client.FetchInternalRemote(ctx, request)
-			require.NoError(t, err, "FetchInternalRemote is not supposed to return an error when 'git fetch' fails")
-			require.False(t, c.GetResult())
-		})
+	request := &gitalypb.FetchInternalRemoteRequest{
+		Repository:       repo,
+		RemoteRepository: remoteRepo,
 	}
+
+	c, err := client.FetchInternalRemote(ctx, request)
+	require.NoError(t, err, "FetchInternalRemote is not supposed to return an error when 'git fetch' fails")
+	require.False(t, c.GetResult())
 }
 
 func TestFailedFetchInternalRemoteDueToValidations(t *testing.T) {

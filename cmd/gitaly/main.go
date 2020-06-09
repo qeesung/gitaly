@@ -85,9 +85,16 @@ func main() {
 // Inside here we can use deferred functions. This is needed because
 // log.Fatal bypasses deferred functions.
 func run(b *bootstrap.Bootstrap) error {
-	gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
-	if err != nil {
-		log.Fatalf("could not create gitlab api client: %v", err)
+	var gitlabAPI hook.GitlabAPI
+	var err error
+
+	if config.SkipHooks() {
+		log.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
+	} else {
+		gitlabAPI, err = hook.NewGitlabAPI(config.Config.Gitlab)
+		if err != nil {
+			log.Fatalf("could not create GitLab API client: %v", err)
+		}
 	}
 
 	servers := bootstrap.NewGitalyServerFactory(gitlabAPI)
@@ -154,5 +161,5 @@ func run(b *bootstrap.Bootstrap) error {
 		return fmt.Errorf("initialize gitaly-ruby: %v", err)
 	}
 
-	return b.Wait(config.Config.GracefulRestartTimeout)
+	return b.Wait(config.Config.GracefulRestartTimeout.Duration())
 }

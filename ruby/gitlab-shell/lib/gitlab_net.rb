@@ -60,7 +60,7 @@ class GitlabNet # rubocop:disable Metrics/ClassLength
   end
 
   def pre_receive(gl_repository)
-    resp = post("#{internal_api_endpoint}/pre_receive", gl_repository: gl_repository)
+    resp = post("#{internal_api_endpoint}/pre_receive", { gl_repository: gl_repository })
 
     raise NotFound if resp.code == '404'
 

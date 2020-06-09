@@ -156,10 +156,12 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	for i := 0; i < 2; i++ {
 		select {
 		case s2cErr := <-s2cErrChan:
-			if s2cErr == io.EOF {
+			if s2cErr == nil {
 				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore./
 				// the clientStream>serverStream may continue pumping though.
-				primaryStream.CloseSend()
+				for _, stream := range append(secondaryStreams, primaryStream) {
+					stream.CloseSend()
+				}
 
 				// wait for the writes to be proxied to the secondaries
 				secondaryErr := <-secondaryErrChan
@@ -170,10 +172,9 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 				// however, we may have gotten a receive error (stream disconnected, a read error etc) in which case we need
 				// to cancel the clientStream to the backend, let all of its goroutines be freed up by the CancelFunc and
 				// exit with an error to the stack
-				primaryStream.cancel()
 
-				for _, secondaryStream := range secondaryStreams {
-					secondaryStream.cancel()
+				for _, stream := range append(secondaryStreams, primaryStream) {
+					stream.cancel()
 				}
 				return status.Errorf(codes.Internal, "failed proxying s2c: %v", s2cErr)
 			}
@@ -191,9 +192,11 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 				}
 				return c2sErr
 			}
+
 			return nil
 		}
 	}
+
 	return status.Errorf(codes.Internal, "gRPC proxying should never reach this stage.")
 }
 
@@ -210,10 +213,10 @@ func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
 				for {
 					if err := src.RecvMsg(&frame{}); err != nil {
 						if err == io.EOF {
-							return src.CloseSend()
-						} else {
-							src.cancel()
+							return nil
 						}
+
+						src.cancel()
 						return err
 					}
 				}
@@ -259,18 +262,15 @@ func (s *handler) forwardClientToServer(src grpc.ClientStream, dst grpc.ServerSt
 }
 
 func (s *handler) forwardServerToClients(src grpc.ServerStream, dsts []streamAndMsg) chan error {
-	ret := make(chan error, len(dsts))
+	ret := make(chan error, 1)
 	go func() {
 		var g errgroup.Group
 		for _, dst := range dsts {
 			dst := dst // rescoping for goroutine
 			g.Go(func() error {
-				newPayloads := [][]byte{dst.msg}
-				for _, payload := range newPayloads {
-					if err := dst.SendMsg(&frame{payload: payload}); err != nil {
-						return err
-					}
-				}
+				g.Go(func() error {
+					return dst.SendMsg(&frame{payload: dst.msg})
+				})
 
 				return nil
 			})
@@ -302,24 +302,28 @@ func (s *handler) forwardServerToClients(src grpc.ServerStream, dsts []streamAnd
 			})
 		}
 
-		for {
-			f := &frame{}
+		go func() {
+			for {
+				f := &frame{}
 
-			if err := src.RecvMsg(f); err != nil {
-				for _, frameChan := range frameChans {
-					frameChan <- nil
+				if err := src.RecvMsg(f); err != nil {
+					for _, frameChan := range frameChans {
+						frameChan <- nil
+					}
+					if err != io.EOF {
+						ret <- err
+					}
+
+					break
 				}
-				ret <- err // this can be io.EOF which is happy case
-				break
-			}
-			for _, frameChan := range frameChans {
-				frameChan <- f
-			}
-		}
 
-		if err := g.Wait(); err != nil {
-			ret <- err
-		}
+				for _, frameChan := range frameChans {
+					frameChan <- f
+				}
+			}
+		}()
+
+		ret <- g.Wait()
 	}()
 	return ret
 }

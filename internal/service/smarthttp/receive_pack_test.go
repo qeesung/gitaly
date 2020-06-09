@@ -474,7 +474,7 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 	gitlabUser := "gitlab_user-1234"
 	gitlabPassword := "gitlabsecret9887"
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.ReferenceTransactions})
+	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.ReferenceTransactions, featureflag.GoPreReceiveHook})
 	require.NoError(t, err)
 
 	for _, features := range featureSets {
@@ -506,6 +506,12 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 						Password: gitlabPassword,
 					},
 				})
+
+			config.Config.Gitlab.URL = gitlabServer.URL
+			config.Config.Gitlab.HTTPSettings.User = gitlabUser
+			config.Config.Gitlab.HTTPSettings.Password = gitlabPassword
+			config.Config.Gitlab.SecretFile = filepath.Join(gitlabShellDir, ".gitlab_shell_secret")
+
 			testhelper.WriteShellSecretFile(t, gitlabShellDir, secretToken)
 
 			gitalyServer := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)

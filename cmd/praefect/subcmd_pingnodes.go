@@ -15,12 +15,18 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+type (
+	virtualStorage string
+	gitalyStorage  string
+)
+
 type nodePing struct {
-	address   string
-	storages  map[string]struct{} // set of storages this node hosts
-	vStorages map[string]struct{} // set of virtual storages node belongs to
-	token     string              // auth token
-	err       error               // any error during dial/ping
+	address string
+	// set of storages this node hosts
+	storages  map[gitalyStorage][]virtualStorage
+	vStorages map[virtualStorage]struct{} // set of virtual storages node belongs to
+	token     string                      // auth token
+	err       error                       // any error during dial/ping
 }
 
 func flattenNodes(conf config.Config) map[string]*nodePing {
@@ -28,17 +34,23 @@ func flattenNodes(conf config.Config) map[string]*nodePing {
 
 	// flatten nodes between virtual storages
 	for _, vs := range conf.VirtualStorages {
+		vsName := virtualStorage(vs.Name)
 		for _, node := range vs.Nodes {
+			gsName := gitalyStorage(node.Storage)
+
 			n, ok := nodeByAddress[node.Address]
 			if !ok {
 				n = &nodePing{
-					storages:  map[string]struct{}{},
-					vStorages: map[string]struct{}{},
+					storages:  map[gitalyStorage][]virtualStorage{},
+					vStorages: map[virtualStorage]struct{}{},
 				}
 			}
 			n.address = node.Address
-			n.storages[node.Storage] = struct{}{}
-			n.vStorages[vs.Name] = struct{}{}
+
+			s := n.storages[gsName]
+			n.storages[gsName] = append(s, vsName)
+
+			n.vStorages[vsName] = struct{}{}
 			n.token = node.Token
 			nodeByAddress[node.Address] = n
 		}
@@ -115,25 +127,37 @@ func (npr *nodePing) isConsistent(cc *grpc.ClientConn) bool {
 		return false
 	}
 
-	storagesSet := make(map[string]bool, len(resp.StorageStatuses))
+	storagesSet := make(map[gitalyStorage]bool, len(resp.StorageStatuses))
 
-	knownStoragesSet := make(map[string]bool, len(npr.storages))
+	knownStoragesSet := make(map[gitalyStorage]bool, len(npr.storages))
 	for k := range npr.storages {
 		knownStoragesSet[k] = true
 	}
 
 	consistent := true
 	for _, status := range resp.StorageStatuses {
-		if storagesSet[status.StorageName] {
+		gStorage := gitalyStorage(status.StorageName)
+
+		// only proceed if the gitaly storage belongs to a configured
+		// virtual storage
+		if len(npr.storages[gStorage]) == 0 {
+			continue
+		}
+
+		if storagesSet[gStorage] {
 			npr.log("ERROR: remote has duplicated storage: %q", status.StorageName)
 			consistent = false
 			continue
 		}
-		storagesSet[status.StorageName] = true
+		storagesSet[gStorage] = true
 
 		if status.Readable && status.Writeable {
-			npr.log("SUCCESS: %q is served by Gitaly", status.StorageName)
-			delete(knownStoragesSet, status.StorageName) // storage found
+			npr.log(
+				"SUCCESS: confirmed Gitaly storage %q in virtual storages %v is served",
+				status.StorageName,
+				npr.storages[gStorage],
+			)
+			delete(knownStoragesSet, gStorage) // storage found
 		} else {
 			npr.log("ERROR: storage %q is not readable or writable", status.StorageName)
 			consistent = false
@@ -187,5 +211,5 @@ func (npr *nodePing) checkNode() {
 		npr.log("ERROR: %v", npr.err)
 		return
 	}
-	npr.log("SUCCESS: node is consistent!")
+	npr.log("SUCCESS: node configuration is consistent!")
 }

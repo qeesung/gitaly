@@ -12,7 +12,7 @@ import (
 
 func TestEnableWritesSubcommand(t *testing.T) {
 	mockSvc := &mockPraefectInfoService{}
-	ln, clean := StartPraefectInfoService(t, mockSvc)
+	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(mockSvc)})
 	defer clean()
 
 	type EnableWritesFunc func(context.Context, *gitalypb.EnableWritesRequest) (*gitalypb.EnableWritesResponse, error)

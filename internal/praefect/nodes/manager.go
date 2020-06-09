@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -28,9 +29,12 @@ import (
 
 // Shard is a primary with a set of secondaries
 type Shard struct {
-	IsReadOnly  bool
-	Primary     Node
-	Secondaries []Node
+	// PreviousWritablePrimary is the virtual storage's previous
+	// write-enabled primary.
+	PreviousWritablePrimary Node
+	IsReadOnly              bool
+	Primary                 Node
+	Secondaries             []Node
 }
 
 func (s Shard) GetNode(storage string) (Node, error) {
@@ -60,13 +64,26 @@ type Manager interface {
 	GetSyncedNode(ctx context.Context, virtualStorageName, repoPath string) (Node, error)
 }
 
+const (
+	// healthcheckTimeout is the max duration allowed for checking of node health status.
+	// If check takes more time it considered as failed.
+	healthcheckTimeout = 1 * time.Second
+	// healthcheckThreshold is the number of consecutive healthpb.HealthCheckResponse_SERVING necessary
+	// for deeming a node "healthy"
+	healthcheckThreshold = 3
+)
+
 // Node represents some metadata of a node as well as a connection
 type Node interface {
 	GetStorage() string
 	GetAddress() string
 	GetToken() string
 	GetConnection() *grpc.ClientConn
-	check(context.Context) (bool, error)
+	// IsHealthy reports if node is healthy and can handle requests.
+	// Node considered healthy if last 'healthcheckThreshold' checks were positive.
+	IsHealthy() bool
+	// CheckHealth executes health check for the node and tracks last 'healthcheckThreshold' checks for it.
+	CheckHealth(context.Context) (bool, error)
 }
 
 // Mgr is a concrete type that adheres to the Manager interface
@@ -104,6 +121,8 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.
 	defer cancel()
 
 	for _, virtualStorage := range c.VirtualStorages {
+		log = log.WithField("virtual_storage", virtualStorage.Name)
+
 		ns := make([]*nodeStatus, 1, len(virtualStorage.Nodes))
 		for _, node := range virtualStorage.Nodes {
 			conn, err := client.DialContext(ctx, node.Address,
@@ -136,7 +155,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.
 		}
 
 		if c.Failover.Enabled && c.Failover.ElectionStrategy == "sql" {
-			strategies[virtualStorage.Name] = newSQLElector(virtualStorage.Name, c, defaultFailoverTimeoutSeconds, defaultActivePraefectSeconds, db, log, ns)
+			strategies[virtualStorage.Name] = newSQLElector(virtualStorage.Name, c, db, log, ns)
 		} else {
 			strategies[virtualStorage.Name] = newLocalElector(virtualStorage.Name, c.Failover.Enabled, c.Failover.ReadOnlyAfterFailover, log, ns)
 		}
@@ -203,85 +222,123 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 		return nil, fmt.Errorf("get shard for %q: %w", virtualStorageName, err)
 	}
 
-	var storages []string
-	if featureflag.IsEnabled(ctx, featureflag.DistributedReads) {
-		if storages, err = n.queue.GetUpToDateStorages(ctx, virtualStorageName, repoPath); err != nil {
-			// this is recoverable error - proceed with primary node
-			ctxlogrus.Extract(ctx).
-				WithError(err).
-				WithFields(logrus.Fields{"virtual_storage_name": virtualStorageName, "repo_path": repoPath}).
-				Error("get up to date secondaries")
+	if !featureflag.IsEnabled(ctx, featureflag.DistributedReads) {
+		return shard.Primary, nil
+	}
+
+	logger := ctxlogrus.Extract(ctx).WithFields(logrus.Fields{"virtual_storage_name": virtualStorageName, "repo_path": repoPath})
+	upToDateStorages, err := n.queue.GetUpToDateStorages(ctx, virtualStorageName, repoPath)
+	if err != nil {
+		// this is recoverable error - proceed with primary node
+		logger.WithError(err).Warn("get up to date secondaries")
+	}
+
+	var storages []Node
+	for _, upToDateStorage := range upToDateStorages {
+		node, err := shard.GetNode(upToDateStorage)
+		if err != nil {
+			// this is recoverable error - proceed with with other nodes
+			logger.WithError(err).Warn("storage returned as up-to-date")
 		}
+
+		if !node.IsHealthy() || node == shard.Primary {
+			continue
+		}
+
+		storages = append(storages, node)
 	}
 
 	if len(storages) == 0 {
 		return shard.Primary, nil
 	}
 
-	secondary := storages[rand.Intn(len(storages))] // randomly pick up one of the synced storages
-	for _, node := range shard.Secondaries {
-		if node.GetStorage() == secondary {
-			return node, nil
-		}
-	}
-
-	return shard.Primary, nil // there is no matched secondaries, maybe because of re-configuration
+	return storages[rand.Intn(len(storages))], nil // randomly pick up one of the synced storages
 }
 
-func newConnectionStatus(node config.Node, cc *grpc.ClientConn, l *logrus.Entry, latencyHist prommetrics.HistogramVec) *nodeStatus {
+func newConnectionStatus(node config.Node, cc *grpc.ClientConn, l logrus.FieldLogger, latencyHist prommetrics.HistogramVec) *nodeStatus {
 	return &nodeStatus{
-		Node:        node,
-		ClientConn:  cc,
+		node:        node,
+		clientConn:  cc,
 		log:         l,
 		latencyHist: latencyHist,
 	}
 }
 
 type nodeStatus struct {
-	config.Node
-	*grpc.ClientConn
-	log         *logrus.Entry
+	node        config.Node
+	clientConn  *grpc.ClientConn
+	log         logrus.FieldLogger
 	latencyHist prommetrics.HistogramVec
+	mtx         sync.RWMutex
+	statuses    []bool
 }
 
 // GetStorage gets the storage name of a node
 func (n *nodeStatus) GetStorage() string {
-	return n.Storage
+	return n.node.Storage
 }
 
 // GetAddress gets the address of a node
 func (n *nodeStatus) GetAddress() string {
-	return n.Address
+	return n.node.Address
 }
 
 // GetToken gets the token of a node
 func (n *nodeStatus) GetToken() string {
-	return n.Token
+	return n.node.Token
 }
 
 // GetConnection gets the client connection of a node
 func (n *nodeStatus) GetConnection() *grpc.ClientConn {
-	return n.ClientConn
+	return n.clientConn
 }
 
-const checkTimeout = 1 * time.Second
+func (n *nodeStatus) IsHealthy() bool {
+	n.mtx.RLock()
+	healthy := n.isHealthy()
+	n.mtx.RUnlock()
+	return healthy
+}
 
-func (n *nodeStatus) check(ctx context.Context) (bool, error) {
-	client := healthpb.NewHealthClient(n.ClientConn)
-	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
+func (n *nodeStatus) isHealthy() bool {
+	if len(n.statuses) < healthcheckThreshold {
+		return false
+	}
+
+	for _, ok := range n.statuses[len(n.statuses)-healthcheckThreshold:] {
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (n *nodeStatus) updateStatus(status bool) {
+	n.mtx.Lock()
+	n.statuses = append(n.statuses, status)
+	if len(n.statuses) > healthcheckThreshold {
+		n.statuses = n.statuses[1:]
+	}
+	n.mtx.Unlock()
+}
+
+func (n *nodeStatus) CheckHealth(ctx context.Context) (bool, error) {
+	health := healthpb.NewHealthClient(n.clientConn)
+	ctx, cancel := context.WithTimeout(ctx, healthcheckTimeout)
 	defer cancel()
 	status := false
 
 	start := time.Now()
-	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
-	n.latencyHist.WithLabelValues(n.Storage).Observe(time.Since(start).Seconds())
+	resp, err := health.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
+	n.latencyHist.WithLabelValues(n.node.Storage).Observe(time.Since(start).Seconds())
 
 	if err == nil && resp.Status == healthpb.HealthCheckResponse_SERVING {
 		status = true
 	} else {
 		n.log.WithError(err).WithFields(logrus.Fields{
-			"storage": n.Storage,
-			"address": n.Address,
+			"storage": n.node.Storage,
+			"address": n.node.Address,
 		}).Warn("error when pinging healthcheck")
 	}
 
@@ -290,6 +347,8 @@ func (n *nodeStatus) check(ctx context.Context) (bool, error) {
 		gaugeValue = 1
 	}
 	metrics.NodeLastHealthcheckGauge.WithLabelValues(n.GetStorage()).Set(gaugeValue)
+
+	n.updateStatus(status)
 
 	return status, err
 }

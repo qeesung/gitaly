@@ -123,7 +123,7 @@ func (w *worker) monitor() {
 				}
 
 				swMem.mark()
-				if swMem.elapsed() <= config.Config.Ruby.RestartDelay {
+				if swMem.elapsed() <= config.Config.Ruby.RestartDelay.Duration() {
 					break nextEvent
 				}
 
@@ -219,7 +219,7 @@ func (w *worker) waitTerminate(pid int) {
 	w.logPid(pid).Info("sending SIGTERM")
 	syscall.Kill(pid, syscall.SIGTERM)
 
-	time.Sleep(config.Config.Ruby.GracefulRestartTimeout)
+	time.Sleep(config.Config.Ruby.GracefulRestartTimeout.Duration())
 
 	w.logPid(pid).Info("sending SIGKILL")
 	syscall.Kill(pid, syscall.SIGKILL)

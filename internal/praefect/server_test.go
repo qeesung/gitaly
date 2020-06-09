@@ -390,6 +390,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 		withLogger:  logrus.NewEntry(tLogger),
 		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
+	defer cleanup()
 
 	for _, entry := range hook.Entries {
 		require.NotContains(t, entry.Message, "more than one backend node")

@@ -45,7 +45,7 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
 
 	ns := []*nodeStatus{cs0}
-	elector := newSQLElector(shardName, conf, 1, defaultActivePraefectSeconds, db.DB, logger, ns)
+	elector := newSQLElector(shardName, conf, db.DB, logger, ns)
 	require.Contains(t, elector.praefectName, ":"+socketName)
 	require.Equal(t, elector.shardName, shardName)
 
@@ -82,27 +82,28 @@ func TestBasicFailover(t *testing.T) {
 	srv1, healthSrv1 := testhelper.NewServerWithHealth(t, internalSocket1)
 	defer srv1.Stop()
 
+	addr0 := "unix://" + internalSocket0
 	cc0, err := grpc.Dial(
-		"unix://"+internalSocket0,
+		addr0,
 		grpc.WithInsecure(),
 	)
 	require.NoError(t, err)
 
+	addr1 := "unix://" + internalSocket1
 	cc1, err := grpc.Dial(
-		"unix://"+internalSocket1,
+		addr1,
 		grpc.WithInsecure(),
 	)
 
 	require.NoError(t, err)
 
 	storageName := "default"
-	mockHistogramVec0, mockHistogramVec1 := promtest.NewMockHistogramVec(), promtest.NewMockHistogramVec()
-	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0"}, cc0, testhelper.DiscardTestEntry(t), mockHistogramVec0)
-	cs1 := newConnectionStatus(config.Node{Storage: storageName + "-1"}, cc1, testhelper.DiscardTestEntry(t), mockHistogramVec1)
+
+	cs0 := newConnectionStatus(config.Node{Storage: storageName + "-0", Address: addr0}, cc0, logger, promtest.NewMockHistogramVec())
+	cs1 := newConnectionStatus(config.Node{Storage: storageName + "-1", Address: addr1}, cc1, logger, promtest.NewMockHistogramVec())
 
 	ns := []*nodeStatus{cs0, cs1}
-	failoverTimeSeconds := 1
-	elector := newSQLElector(shardName, conf, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, logger, ns)
+	elector := newSQLElector(shardName, conf, db.DB, logger, ns)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -115,30 +116,29 @@ func TestBasicFailover(t *testing.T) {
 	require.Equal(t, cs0, elector.primaryNode.Node)
 	shard, err := elector.GetShard()
 	require.NoError(t, err)
-	require.Equal(t, cs0.GetStorage(), shard.Primary.GetStorage())
-	require.Equal(t, 1, len(shard.Secondaries))
-	require.Equal(t, cs1.GetStorage(), shard.Secondaries[0].GetStorage())
-	require.False(t, shard.IsReadOnly, "new shard should not be read-only")
+	assertShard(t, shardAssertion{
+		IsReadOnly:  false,
+		Primary:     &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		Secondaries: []nodeAssertion{{cs1.GetStorage(), cs1.GetAddress()}},
+	}, shard)
 
 	// Bring first node down
 	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+	predateElection(t, db, shardName, failoverTimeout)
 
-	// pretend like the last election happened in the past because the query in electNewPrimary to update the primary will not
-	// overwrite a previous that's within 10 seconds
-	_, err = db.Exec(`UPDATE shard_primaries SET elected_at = now() - $1::INTERVAL SECOND WHERE shard_name = $2`,
-		2*failoverTimeSeconds,
-		shardName)
-	require.NoError(t, err)
-
-	// Primary should remain even after the first check
+	// Primary should remain before the failover timeout is exceeded
 	err = elector.checkNodes(ctx)
 	require.NoError(t, err)
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
-	require.False(t, shard.IsReadOnly)
+	assertShard(t, shardAssertion{
+		IsReadOnly:  false,
+		Primary:     &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		Secondaries: []nodeAssertion{{cs1.GetStorage(), cs1.GetAddress()}},
+	}, shard)
 
-	// Wait for stale timeout to expire
-	time.Sleep(1 * time.Second)
+	// Predate the timeout to exceed it
+	predateLastSeenActiveAt(t, db, shardName, cs0.GetStorage(), failoverTimeout)
 
 	// Expect that the other node is promoted
 	err = elector.checkNodes(ctx)
@@ -148,23 +148,49 @@ func TestBasicFailover(t *testing.T) {
 	db.RequireRowsInTable(t, "shard_primaries", 1)
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
-	require.Equal(t, cs1.GetStorage(), shard.Primary.GetStorage())
-	require.True(t, shard.IsReadOnly, "shard should be read-only after a failover")
+	assertShard(t, shardAssertion{
+		// previous primary was write-enabled, so we should record it
+		PreviousWritablePrimary: &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		IsReadOnly:              true,
+		Primary:                 &nodeAssertion{cs1.GetStorage(), cs1.GetAddress()},
+		Secondaries:             []nodeAssertion{{cs0.GetStorage(), cs0.GetAddress()}},
+	}, shard)
+
+	// Failover back to the original node
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	predateElection(t, db, shardName, failoverTimeout)
+	predateLastSeenActiveAt(t, db, shardName, cs1.GetStorage(), failoverTimeout)
+	require.NoError(t, elector.checkNodes(ctx))
+
+	shard, err = elector.GetShard()
+	require.NoError(t, err)
+	assertShard(t, shardAssertion{
+		// failing back to the original node means the primary is the same as the
+		// previous write-enabled primary. Node 2 was read-only, so field is not
+		// modified
+		PreviousWritablePrimary: &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		IsReadOnly:              true,
+		Primary:                 &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		Secondaries:             []nodeAssertion{{cs1.GetStorage(), cs1.GetAddress()}},
+	}, shard)
 
 	// We should be able to enable writes on the new primary
 	require.NoError(t, elector.enableWrites(ctx))
 	shard, err = elector.GetShard()
 	require.NoError(t, err)
-	require.False(t, shard.IsReadOnly, "")
+	assertShard(t, shardAssertion{
+		PreviousWritablePrimary: &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		IsReadOnly:              false,
+		Primary:                 &nodeAssertion{cs0.GetStorage(), cs0.GetAddress()},
+		Secondaries:             []nodeAssertion{{cs1.GetStorage(), cs1.GetAddress()}},
+	}, shard)
 
 	// Bring second node down
-	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 
-	// Wait for stale timeout to expire
-	time.Sleep(1 * time.Second)
 	err = elector.checkNodes(ctx)
 	require.NoError(t, err)
-
 	db.RequireRowsInTable(t, "node_status", 2)
 	// No new candidates
 	_, err = elector.GetShard()
@@ -180,43 +206,54 @@ func TestElectDemotedPrimary(t *testing.T) {
 	elector := newSQLElector(
 		shardName,
 		config.Config{},
-		defaultFailoverTimeoutSeconds,
-		defaultActivePraefectSeconds,
 		db.DB,
 		testhelper.DiscardTestLogger(t),
-		[]*nodeStatus{{Node: node}},
+		[]*nodeStatus{{node: node}},
 	)
 
-	candidates := []*sqlCandidate{{Node: &nodeStatus{Node: node}}}
+	candidates := []*sqlCandidate{{Node: &nodeStatus{node: node}}}
 	require.NoError(t, elector.electNewPrimary(candidates))
 
-	primary, _, err := elector.lookupPrimary()
+	primary, _, _, err := elector.lookupPrimary()
 	require.NoError(t, err)
 	require.Equal(t, node.Storage, primary.GetStorage())
 
 	require.NoError(t, elector.demotePrimary())
 
-	primary, _, err = elector.lookupPrimary()
+	primary, _, _, err = elector.lookupPrimary()
 	require.NoError(t, err)
 	require.Nil(t, primary)
 
-	shiftElection(t, db, shardName, -1*defaultFailoverTimeoutSeconds)
+	predateElection(t, db, shardName, failoverTimeout)
 	require.NoError(t, err)
 	require.NoError(t, elector.electNewPrimary(candidates))
 
-	primary, _, err = elector.lookupPrimary()
+	primary, _, _, err = elector.lookupPrimary()
 	require.NoError(t, err)
 	require.Equal(t, node.Storage, primary.GetStorage())
 }
 
-// pretend like the last election happened in the past because the query in electNewPrimary
-// to update the primary will not overwrite a previous that's within 10 seconds
-func shiftElection(t testing.TB, db glsql.DB, shardName string, seconds int) {
+// predateLastSeenActiveAt shifts the last_seen_active_at column to an earlier time. This avoids
+// waiting for the node's status to become unhealthy.
+func predateLastSeenActiveAt(t testing.TB, db glsql.DB, shardName, nodeName string, amount time.Duration) {
+	t.Helper()
+
+	_, err := db.Exec(`
+UPDATE node_status SET last_seen_active_at = last_seen_active_at - INTERVAL '1 MICROSECOND' * $1
+WHERE shard_name = $2 AND node_name = $3`, amount.Microseconds(), shardName, nodeName,
+	)
+
+	require.NoError(t, err)
+}
+
+// predateElection shifts the election to an earlier time. This avoids waiting for the failover timeout to trigger
+// a new election.
+func predateElection(t testing.TB, db glsql.DB, shardName string, amount time.Duration) {
 	t.Helper()
 
 	_, err := db.Exec(
-		"UPDATE shard_primaries SET elected_at = elected_at + $1::INTERVAL SECOND WHERE shard_name = $2",
-		seconds,
+		"UPDATE shard_primaries SET elected_at = elected_at - INTERVAL '1 MICROSECOND' * $1 WHERE shard_name = $2",
+		amount.Microseconds(),
 		shardName,
 	)
 	require.NoError(t, err)
@@ -226,33 +263,32 @@ func TestElectNewPrimary(t *testing.T) {
 	db := getDB(t)
 
 	ns := []*nodeStatus{{
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-0",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-1",
 			DefaultPrimary: true,
 		},
 	}, {
-		Node: config.Node{
+		node: config.Node{
 			Storage:        "gitaly-2",
 			DefaultPrimary: true,
 		},
 	}}
 
-	failoverTimeSeconds := 1
 	candidates := []*sqlCandidate{
 		{
 			&nodeStatus{
-				Node: config.Node{
+				node: config.Node{
 					Storage: "gitaly-1",
 				},
 			},
 		}, {
 			&nodeStatus{
-				Node: config.Node{
+				node: config.Node{
 					Storage: "gitaly-2",
 				},
 			},
@@ -341,15 +377,15 @@ func TestElectNewPrimary(t *testing.T) {
 			db.TruncateAll(t)
 
 			conf := config.Config{Failover: config.Failover{ReadOnlyAfterFailover: true}}
-			elector := newSQLElector(shardName, conf, failoverTimeSeconds, defaultActivePraefectSeconds, db.DB, testhelper.DiscardTestLogger(t), ns)
+			elector := newSQLElector(shardName, conf, db.DB, testhelper.DiscardTestLogger(t), ns)
 
 			require.NoError(t, elector.electNewPrimary(candidates))
-			primary, readOnly, err := elector.lookupPrimary()
+			primary, readOnly, _, err := elector.lookupPrimary()
 			require.NoError(t, err)
 			require.Equal(t, "gitaly-1", primary.GetStorage(), "since replication queue is empty the first candidate should be chosen")
 			require.False(t, readOnly)
 
-			shiftElection(t, db, shardName, -1*failoverTimeSeconds)
+			predateElection(t, db, shardName, failoverTimeout)
 			_, err = db.Exec(testCase.initialReplQueueInsert)
 			require.NoError(t, err)
 
@@ -359,7 +395,7 @@ func TestElectNewPrimary(t *testing.T) {
 			elector.log = logger
 			require.NoError(t, elector.electNewPrimary(candidates))
 
-			primary, readOnly, err = elector.lookupPrimary()
+			primary, readOnly, _, err = elector.lookupPrimary()
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedPrimary, primary.GetStorage())
 			require.True(t, readOnly)

@@ -658,7 +658,7 @@ func TestLoadGracefulRestartTimeout(t *testing.T) {
 			err := Load(tmpFile)
 			assert.NoError(t, err)
 
-			assert.Equal(t, test.expected, Config.GracefulRestartTimeout)
+			assert.Equal(t, test.expected, Config.GracefulRestartTimeout.Duration())
 		})
 	}
 }

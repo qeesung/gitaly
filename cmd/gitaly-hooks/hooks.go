@@ -116,6 +116,10 @@ func main() {
 			}
 		}
 
+		if os.Getenv(featureflag.GoPreReceiveHookEnvVar) == "true" {
+			environment = append(environment, fmt.Sprintf("%s=true", featureflag.GoPreReceiveHookEnvVar))
+		}
+
 		if err := preReceiveHookStream.Send(&gitalypb.PreReceiveHookRequest{
 			Repository:           repository,
 			EnvironmentVariables: environment,

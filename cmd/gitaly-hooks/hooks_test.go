@@ -105,13 +105,18 @@ func TestHooksPrePostReceive(t *testing.T) {
 
 	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
+	config.Config.Gitlab.URL = ts.URL
+	config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
+	config.Config.Gitlab.HTTPSettings.User = gitlabUser
+	config.Config.Gitlab.HTTPSettings.Password = gitlabPassword
+
 	gitObjectDirRegex := regexp.MustCompile(`(?m)^GIT_OBJECT_DIRECTORY=(.*)$`)
 	gitAlternateObjectDirRegex := regexp.MustCompile(`(?m)^GIT_ALTERNATE_OBJECT_DIRECTORIES=(.*)$`)
 	token := "abc123"
 
 	hookNames := []string{"pre-receive", "post-receive"}
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC})
+	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.GoPreReceiveHook})
 	require.NoError(t, err)
 
 	for _, hookName := range hookNames {
@@ -159,6 +164,11 @@ func TestHooksPrePostReceive(t *testing.T) {
 				if featureSet.IsEnabled(featureflag.HooksRPC) {
 					cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
 				}
+
+				if featureSet.IsEnabled(featureflag.GoPreReceiveHook) {
+					cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.GoPreReceiveHookEnvVar))
+				}
+
 				cmd.Dir = testRepoPath
 
 				require.NoError(t, cmd.Run())

@@ -1,0 +1,5 @@
+---
+title: Remove feature flag go_fetch_internal_remote
+merge_request: 2203
+author:
+type: changed

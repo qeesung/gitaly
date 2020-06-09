@@ -9,74 +9,32 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
 )
 
-type nodeCandidate struct {
-	m        sync.RWMutex
-	node     Node
-	statuses []bool
-}
-
 // localElector relies on an in-memory datastore to track the primary
 // and secondaries. A single election strategy pertains to a single
 // shard. It does NOT support multiple Praefect nodes or have any
 // persistence. This is used mostly for testing and development.
 type localElector struct {
-	m                     sync.RWMutex
-	failoverEnabled       bool
-	shardName             string
-	nodes                 []*nodeCandidate
-	primaryNode           *nodeCandidate
-	readOnlyAfterFailover bool
-	isReadOnly            bool
-	log                   logrus.FieldLogger
-}
-
-// healthcheckThreshold is the number of consecutive healthpb.HealthCheckResponse_SERVING necessary
-// for deeming a node "healthy"
-const healthcheckThreshold = 3
-
-func (n *nodeCandidate) checkNode(ctx context.Context) {
-	status, _ := n.node.check(ctx)
-
-	n.m.Lock()
-	defer n.m.Unlock()
-
-	n.statuses = append(n.statuses, status)
-
-	if len(n.statuses) > healthcheckThreshold {
-		n.statuses = n.statuses[1:]
-	}
-}
-
-func (n *nodeCandidate) isHealthy() bool {
-	n.m.RLock()
-	defer n.m.RUnlock()
-
-	if len(n.statuses) < healthcheckThreshold {
-		return false
-	}
-
-	for _, status := range n.statuses[len(n.statuses)-healthcheckThreshold:] {
-		if !status {
-			return false
-		}
-	}
-
-	return true
+	m                       sync.RWMutex
+	failoverEnabled         bool
+	shardName               string
+	nodes                   []Node
+	primaryNode             Node
+	readOnlyAfterFailover   bool
+	previousWritablePrimary Node
+	isReadOnly              bool
+	log                     logrus.FieldLogger
 }
 
 func newLocalElector(name string, failoverEnabled, readOnlyAfterFailover bool, log logrus.FieldLogger, ns []*nodeStatus) *localElector {
-	nodes := make([]*nodeCandidate, len(ns))
+	nodes := make([]Node, len(ns))
 	for i, n := range ns {
-		nodes[i] = &nodeCandidate{
-			node: n,
-		}
+		nodes[i] = n
 	}
-
 	return &localElector{
 		shardName:             name,
 		failoverEnabled:       failoverEnabled,
-		log:                   log,
-		nodes:                 nodes,
+		log:                   log.WithField("virtual_storage", name),
+		nodes:                 nodes[:],
 		primaryNode:           nodes[0],
 		readOnlyAfterFailover: readOnlyAfterFailover,
 	}
@@ -124,21 +82,27 @@ func (s *localElector) monitor(d time.Duration) {
 func (s *localElector) checkNodes(ctx context.Context) error {
 	defer s.updateMetrics()
 
+	var wg sync.WaitGroup
 	for _, n := range s.nodes {
-		n.checkNode(ctx)
+		wg.Add(1)
+		go func(n Node) {
+			defer wg.Done()
+			_, _ = n.CheckHealth(ctx)
+		}(n)
 	}
+	wg.Wait()
 
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	if s.primaryNode != nil && s.primaryNode.isHealthy() {
+	if s.primaryNode.IsHealthy() {
 		return nil
 	}
 
-	var newPrimary *nodeCandidate
+	var newPrimary Node
 
 	for _, node := range s.nodes {
-		if node != s.primaryNode && node.isHealthy() {
+		if node != s.primaryNode && node.IsHealthy() {
 			newPrimary = node
 			break
 		}
@@ -148,8 +112,20 @@ func (s *localElector) checkNodes(ctx context.Context) error {
 		return ErrPrimaryNotHealthy
 	}
 
+	var previousWritablePrimary Node
+	if s.primaryNode != nil {
+		previousWritablePrimary = s.primaryNode
+	}
+
+	if s.isReadOnly {
+		previousWritablePrimary = s.previousWritablePrimary
+	}
+
 	s.primaryNode = newPrimary
+	s.previousWritablePrimary = previousWritablePrimary
 	s.isReadOnly = s.readOnlyAfterFailover
+
+	metrics.ReadOnlyGauge.WithLabelValues(s.shardName).Set(metrics.BoolAsFloat(s.isReadOnly))
 
 	return nil
 }
@@ -161,34 +137,36 @@ func (s *localElector) GetShard() (Shard, error) {
 	s.m.RLock()
 	primary := s.primaryNode
 	isReadOnly := s.isReadOnly
+	previousWritablePrimary := s.previousWritablePrimary
 	s.m.RUnlock()
 
 	if primary == nil {
 		return Shard{}, ErrPrimaryNotHealthy
 	}
 
-	if s.failoverEnabled && !primary.isHealthy() {
+	if s.failoverEnabled && !primary.IsHealthy() {
 		return Shard{}, ErrPrimaryNotHealthy
 	}
 
 	var secondaries []Node
 	for _, n := range s.nodes {
 		if n != primary {
-			secondaries = append(secondaries, n.node)
+			secondaries = append(secondaries, n)
 		}
 	}
 
 	return Shard{
-		IsReadOnly:  isReadOnly,
-		Primary:     primary.node,
-		Secondaries: secondaries,
+		PreviousWritablePrimary: previousWritablePrimary,
+		IsReadOnly:              isReadOnly,
+		Primary:                 primary,
+		Secondaries:             secondaries,
 	}, nil
 }
 
 func (s *localElector) enableWrites(context.Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-	if s.primaryNode == nil || !s.primaryNode.isHealthy() {
+	if !s.primaryNode.IsHealthy() {
 		return ErrPrimaryNotHealthy
 	}
 
@@ -208,6 +186,6 @@ func (s *localElector) updateMetrics() {
 			val = 1
 		}
 
-		metrics.PrimaryGauge.WithLabelValues(s.shardName, n.node.GetStorage()).Set(val)
+		metrics.PrimaryGauge.WithLabelValues(s.shardName, n.GetStorage()).Set(val)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -17,6 +18,10 @@ func (s *server) CreateBundle(req *gitalypb.CreateBundleRequest, stream gitalypb
 	}
 
 	ctx := stream.Context()
+
+	if _, err := s.Cleanup(ctx, &gitalypb.CleanupRequest{Repository: req.GetRepository()}); err != nil {
+		return helper.ErrInternalf("running Cleanup on repository: %w", err)
+	}
 
 	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "bundle",

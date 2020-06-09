@@ -31,10 +31,14 @@ func newHooksClient(t *testing.T, serverSocketPath string) (gitalypb.HookService
 	return gitalypb.NewHookServiceClient(conn), conn
 }
 
-func runHooksServer(t *testing.T) (string, func()) {
+func runHooksServer(t *testing.T, hooksCfg config.Hooks) (string, func()) {
+	return runHooksServerWithAPI(t, testhelper.GitlabAPIStub, hooksCfg)
+}
+
+func runHooksServerWithAPI(t *testing.T, gitlabAPI GitlabAPI, hooksCfg config.Hooks) (string, func()) {
 	srv := testhelper.NewServer(t, nil, nil)
 
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(testhelper.GitlabAPIStub, config.Config.Hooks))
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(gitlabAPI, hooksCfg))
 	reflection.Register(srv.GrpcServer())
 
 	require.NoError(t, srv.Start())

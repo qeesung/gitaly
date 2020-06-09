@@ -96,7 +96,7 @@ func TestAllowedVerifyParams(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		allowed, err := c.Allowed(tc.repo, tc.glRepository, tc.glID, tc.protocol, tc.changes)
+		allowed, _, err := c.Allowed(tc.repo, tc.glRepository, tc.glID, tc.protocol, tc.changes)
 		require.NoError(t, err)
 		require.Equal(t, tc.allowed, allowed)
 	}
@@ -125,6 +125,7 @@ func TestAllowedResponseHandling(t *testing.T) {
 		allowed        bool
 		errMsg         string
 	}{
+
 		{
 			desc: "allowed",
 			allowedHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +135,17 @@ func TestAllowedResponseHandling(t *testing.T) {
 			},
 			allowed: true,
 			errMsg:  "",
+		},
+
+		{
+			desc: "not allowed",
+			allowedHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"status": false, "message": "this change is not allowed"}`))
+			},
+			allowed: false,
+			errMsg:  "this change is not allowed",
 		},
 		{
 			desc: "bad content type in response",
@@ -216,10 +228,12 @@ func TestAllowedResponseHandling(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			allowed, err := c.Allowed(testRepo, "repo-1", "key-123", "http", "a\nb\nc\nd")
+			allowed, message, err := c.Allowed(testRepo, "repo-1", "key-123", "http", "a\nb\nc\nd")
 			require.Equal(t, tc.allowed, allowed)
 			if err != nil {
 				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.Equal(t, tc.errMsg, message)
 			}
 		})
 	}

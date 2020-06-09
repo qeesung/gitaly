@@ -1,0 +1,5 @@
+---
+title: 'Praefect: unhealthy nodes must not be used for read distribution'
+merge_request: 2250
+author:
+type: fixed

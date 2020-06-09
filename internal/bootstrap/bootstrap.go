@@ -17,7 +17,8 @@ const (
 	// EnvPidFile is the name of the environment variable containing the pid file path
 	EnvPidFile = "GITALY_PID_FILE"
 	// EnvUpgradesEnabled is an environment variable that when defined gitaly must enable graceful upgrades on SIGHUP
-	EnvUpgradesEnabled = "GITALY_UPGRADES_ENABLED"
+	EnvUpgradesEnabled     = "GITALY_UPGRADES_ENABLED"
+	SocketReusePortWarning = "Unable to set SO_REUSEPORT: zero downtime upgrades will not work"
 )
 
 // Bootstrap handles graceful upgrades
@@ -76,9 +77,12 @@ func New() (*Bootstrap, error) {
 					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
 				})
 				if err != nil {
-					return err
+					log.WithError(err).Warn(SocketReusePortWarning)
 				}
-				return opErr
+				if opErr != nil {
+					log.WithError(opErr).Warn(SocketReusePortWarning)
+				}
+				return nil
 			},
 		},
 	})

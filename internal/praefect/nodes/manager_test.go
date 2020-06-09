@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -17,6 +18,45 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
+
+type nodeAssertion struct {
+	Storage string
+	Address string
+}
+
+type shardAssertion struct {
+	PreviousWritablePrimary *nodeAssertion
+	IsReadOnly              bool
+	Primary                 *nodeAssertion
+	Secondaries             []nodeAssertion
+}
+
+func toNodeAssertion(n Node) *nodeAssertion {
+	if n == nil {
+		return nil
+	}
+
+	return &nodeAssertion{
+		Storage: n.GetStorage(),
+		Address: n.GetAddress(),
+	}
+}
+
+func assertShard(t *testing.T, exp shardAssertion, act Shard) {
+	t.Helper()
+
+	actSecondaries := make([]nodeAssertion, 0, len(act.Secondaries))
+	for _, n := range act.Secondaries {
+		actSecondaries = append(actSecondaries, *toNodeAssertion(n))
+	}
+
+	require.Equal(t, exp, shardAssertion{
+		PreviousWritablePrimary: toNodeAssertion(act.PreviousWritablePrimary),
+		IsReadOnly:              act.IsReadOnly,
+		Primary:                 toNodeAssertion(act.Primary),
+		Secondaries:             actSecondaries,
+	})
+}
 
 func TestNodeStatus(t *testing.T) {
 	socket := testhelper.GetTemporaryGitalySocketFileName()
@@ -38,7 +78,7 @@ func TestNodeStatus(t *testing.T) {
 	var expectedLabels [][]string
 	for i := 0; i < healthcheckThreshold; i++ {
 		ctx := context.Background()
-		status, err := cs.check(ctx)
+		status, err := cs.CheckHealth(ctx)
 
 		require.NoError(t, err)
 		require.True(t, status)
@@ -51,7 +91,7 @@ func TestNodeStatus(t *testing.T) {
 	healthSvr.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	ctx := context.Background()
-	status, err := cs.check(ctx)
+	status, err := cs.CheckHealth(ctx)
 	require.NoError(t, err)
 	require.False(t, status)
 }
@@ -177,7 +217,7 @@ func TestBlockingDial(t *testing.T) {
 
 	// simulate gitaly node starting up later
 	go func() {
-		time.Sleep(checkTimeout + 10*time.Millisecond)
+		time.Sleep(healthcheckTimeout + 10*time.Millisecond)
 
 		_, healthSrv0 := testhelper.NewHealthServerWithListener(t, lis)
 		healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
@@ -202,20 +242,21 @@ func TestNodeManager(t *testing.T) {
 	srv1, healthSrv1 := testhelper.NewServerWithHealth(t, internalSocket1)
 	defer srv1.Stop()
 
+	node1 := &config.Node{
+		Storage:        "praefect-internal-0",
+		Address:        "unix://" + internalSocket0,
+		DefaultPrimary: true,
+	}
+
+	node2 := &config.Node{
+		Storage: "praefect-internal-1",
+		Address: "unix://" + internalSocket1,
+	}
+
 	virtualStorages := []*config.VirtualStorage{
 		{
-			Name: "virtual-storage-0",
-			Nodes: []*config.Node{
-				{
-					Storage:        "praefect-internal-0",
-					Address:        "unix://" + internalSocket0,
-					DefaultPrimary: true,
-				},
-				{
-					Storage: "praefect-internal-1",
-					Address: "unix://" + internalSocket1,
-				},
-			},
+			Name:  "virtual-storage-0",
+			Nodes: []*config.Node{node1, node2},
 		},
 	}
 
@@ -238,9 +279,6 @@ func TestNodeManager(t *testing.T) {
 	nm.Start(1*time.Millisecond, 5*time.Second)
 	nmWithoutFailover.Start(1*time.Millisecond, 5*time.Second)
 
-	_, err = nm.GetShard("virtual-storage-0")
-	require.NoError(t, err)
-
 	shardWithoutFailover, err := nmWithoutFailover.GetShard("virtual-storage-0")
 	require.NoError(t, err)
 
@@ -248,22 +286,23 @@ func TestNodeManager(t *testing.T) {
 	require.NoError(t, err)
 
 	// shard without failover and shard with failover should be the same
-	require.Equal(t, shardWithoutFailover.Primary.GetStorage(), shard.Primary.GetStorage())
-	require.Equal(t, shardWithoutFailover.Primary.GetAddress(), shard.Primary.GetAddress())
-	require.Len(t, shard.Secondaries, 1)
-	require.Equal(t, shardWithoutFailover.Secondaries[0].GetStorage(), shard.Secondaries[0].GetStorage())
-	require.Equal(t, shardWithoutFailover.Secondaries[0].GetAddress(), shard.Secondaries[0].GetAddress())
-	require.False(t, shard.IsReadOnly)
-	require.False(t, shardWithoutFailover.IsReadOnly)
+	initialState := shardAssertion{
+		Primary:     &nodeAssertion{node1.Storage, node1.Address},
+		Secondaries: []nodeAssertion{{node2.Storage, node2.Address}},
+	}
+	assertShard(t, initialState, shard)
+	assertShard(t, initialState, shardWithoutFailover)
 
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Primary.GetAddress())
-	require.Len(t, shard.Secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Secondaries[0].GetAddress())
+	const unhealthyCheckCount = 1
+	const healthyCheckCount = healthcheckThreshold
+	checkShards := func(count int) {
+		for i := 0; i < count; i++ {
+			nm.checkShards()
+		}
+	}
 
-	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
-	nm.checkShards()
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	checkShards(unhealthyCheckCount)
 
 	labelsCalled := mockHistogram.LabelsCalled()
 	for _, node := range virtualStorages[0].Nodes {
@@ -286,29 +325,48 @@ func TestNodeManager(t *testing.T) {
 	require.NotEqual(t, shardWithoutFailover.Secondaries[0].GetAddress(), shard.Secondaries[0].GetAddress())
 
 	// shard without failover should still match the config
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shardWithoutFailover.Primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, shardWithoutFailover.Primary.GetAddress())
-	require.Len(t, shard.Secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shardWithoutFailover.Secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, shardWithoutFailover.Secondaries[0].GetAddress())
-	require.False(t, shardWithoutFailover.IsReadOnly,
-		"shard should not be read-only after primary failure with failover disabled")
+	assertShard(t, initialState, shardWithoutFailover)
 
 	// shard with failover should have promoted a secondary to primary and demoted the primary to a secondary
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Primary.GetAddress())
-	require.Len(t, shard.Secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
-	require.True(t, shard.IsReadOnly, "shard should be read-only after a failover")
+	assertShard(t, shardAssertion{
+		// previous write enabled primary should have been recorded
+		PreviousWritablePrimary: &nodeAssertion{node1.Storage, node1.Address},
+		IsReadOnly:              true,
+		Primary:                 &nodeAssertion{node2.Storage, node2.Address},
+		Secondaries:             []nodeAssertion{{node1.Storage, node1.Address}},
+	}, shard)
+
+	// failing back to the original primary
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	checkShards(healthyCheckCount)
+
+	shard, err = nm.GetShard("virtual-storage-0")
+	require.NoError(t, err)
+
+	assertShard(t, shardAssertion{
+		// previous rw primary is now the primary again, field remains the same
+		// as node2 was not write enabled
+		PreviousWritablePrimary: &nodeAssertion{node1.Storage, node1.Address},
+		IsReadOnly:              true,
+		Primary:                 &nodeAssertion{node1.Storage, node1.Address},
+		Secondaries:             []nodeAssertion{{node2.Storage, node2.Address}},
+	}, shard)
 
 	require.NoError(t, nm.EnableWrites(context.Background(), "virtual-storage-0"))
 	shard, err = nm.GetShard("virtual-storage-0")
 	require.NoError(t, err)
-	require.False(t, shard.IsReadOnly, "shard should be write enabled")
 
+	assertShard(t, shardAssertion{
+		PreviousWritablePrimary: &nodeAssertion{node1.Storage, node1.Address},
+		IsReadOnly:              false,
+		Primary:                 &nodeAssertion{node1.Storage, node1.Address},
+		Secondaries:             []nodeAssertion{{node2.Storage, node2.Address}},
+	}, shard)
+
+	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
 	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
-	nm.checkShards()
+	checkShards(unhealthyCheckCount)
 
 	_, err = nm.GetShard("virtual-storage-0")
 	require.Error(t, err, "should return error since no nodes are healthy")
@@ -530,4 +588,112 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, vs1Secondary, node.GetAddress())
 	}))
+}
+
+func TestNodeStatus_IsHealthy(t *testing.T) {
+	checkNTimes := func(ctx context.Context, t *testing.T, ns *nodeStatus, n int) {
+		for i := 0; i < n; i++ {
+			_, err := ns.CheckHealth(ctx)
+			require.NoError(t, err)
+		}
+	}
+
+	socket := testhelper.GetTemporaryGitalySocketFileName()
+	address := "unix://" + socket
+
+	srv, healthSrv := testhelper.NewServerWithHealth(t, socket)
+	defer srv.Stop()
+
+	clientConn, err := client.Dial(address, nil)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, clientConn.Close()) }()
+
+	node := config.Node{Storage: "gitaly-0", Address: address, DefaultPrimary: true}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	logger := testhelper.DiscardTestLogger(t)
+	latencyHistMock := &promtest.MockHistogramVec{}
+
+	t.Run("unchecked node is unhealthy", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		require.False(t, ns.IsHealthy())
+	})
+
+	t.Run("not enough check to consider it healthy", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+		checkNTimes(ctx, t, ns, healthcheckThreshold-1)
+
+		require.False(t, ns.IsHealthy())
+	})
+
+	t.Run("healthy", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+		checkNTimes(ctx, t, ns, healthcheckThreshold)
+
+		require.True(t, ns.IsHealthy())
+	})
+
+	t.Run("healthy turns into unhealthy after single failed check", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+		checkNTimes(ctx, t, ns, healthcheckThreshold)
+
+		require.True(t, ns.IsHealthy(), "node must be turned into healthy state")
+
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		checkNTimes(ctx, t, ns, 1)
+
+		require.False(t, ns.IsHealthy(), "node must be turned into unhealthy state")
+	})
+
+	t.Run("unhealthy turns into healthy after pre-define threshold of checks", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+		checkNTimes(ctx, t, ns, healthcheckThreshold)
+
+		require.True(t, ns.IsHealthy(), "node must be turned into healthy state")
+
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		checkNTimes(ctx, t, ns, 1)
+
+		require.False(t, ns.IsHealthy(), "node must be turned into unhealthy state")
+
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+		for i := 1; i < healthcheckThreshold; i++ {
+			checkNTimes(ctx, t, ns, 1)
+			require.False(t, ns.IsHealthy(), "node must be unhealthy until defined threshold of checks complete positively")
+		}
+		checkNTimes(ctx, t, ns, 1) // the last check that must turn it into healthy state
+
+		require.True(t, ns.IsHealthy(), "node should be healthy again")
+	})
+
+	t.Run("concurrent access has no races", func(t *testing.T) {
+		ns := newConnectionStatus(node, clientConn, logger, latencyHistMock)
+		healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
+		t.Run("continuously does health checks - 1", func(t *testing.T) {
+			t.Parallel()
+			checkNTimes(ctx, t, ns, healthcheckThreshold)
+		})
+
+		t.Run("continuously checks health - 1", func(t *testing.T) {
+			t.Parallel()
+			ns.IsHealthy()
+		})
+
+		t.Run("continuously does health checks - 2", func(t *testing.T) {
+			t.Parallel()
+			checkNTimes(ctx, t, ns, healthcheckThreshold)
+		})
+
+		t.Run("continuously checks health - 2", func(t *testing.T) {
+			t.Parallel()
+			ns.IsHealthy()
+		})
+	})
 }

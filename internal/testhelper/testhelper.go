@@ -795,8 +795,8 @@ func NewFeatureSets(goFeatures []string, rubyFeatures ...string) (FeatureSets, e
 type mockAPI struct {
 }
 
-func (m *mockAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error) {
-	return true, nil
+func (m *mockAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, string, error) {
+	return true, "", nil
 }
 
 func (m *mockAPI) PreReceive(glRepository string) (bool, error) {

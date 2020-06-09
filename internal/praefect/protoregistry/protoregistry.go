@@ -46,7 +46,7 @@ type OpType int
 
 const (
 	// OpUnknown = unknown operation type
-	OpUnknown = iota
+	OpUnknown OpType = iota
 	// OpAccessor = accessor operation type (ready only)
 	OpAccessor
 	// OpMutator = mutator operation type (modifies a repository)
@@ -60,7 +60,7 @@ const (
 	// ScopeUnknown is the default scope until determined otherwise
 	ScopeUnknown = iota
 	// ScopeRepository indicates an RPC's scope is limited to a repository
-	ScopeRepository = iota
+	ScopeRepository Scope = iota
 	// ScopeStorage indicates an RPC is scoped to an entire storage location
 	ScopeStorage
 	// ScopeServer indicates an RPC is scoped to an entire server

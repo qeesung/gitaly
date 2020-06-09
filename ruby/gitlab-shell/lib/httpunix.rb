@@ -4,7 +4,7 @@
 #   http://fixall.online/theres-no-need-to-reinvent-the-wheelhttpsgithubcommsabramorequests-unixsocketurl/241810/
 #   https://github.com/msabramo/requests-unixsocket
 
-require 'uri'
+require 'cgi'
 require 'net/http'
 
 module URI
@@ -12,7 +12,7 @@ module URI
     def hostname
       # decode %XX from path to file
       v = host
-      URI.decode(v)
+      CGI.unescape(v)
     end
 
     # port is not allowed in URI

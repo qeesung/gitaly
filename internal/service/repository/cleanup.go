@@ -40,7 +40,7 @@ func cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
 	}
 
 	worktreeThreshold := time.Now().Add(-6 * time.Hour)
-	if err := cleanStaleWorktrees(repoPath, worktreeThreshold); err != nil {
+	if err := cleanStaleWorktrees(ctx, repo, repoPath, worktreeThreshold); err != nil {
 		return status.Errorf(codes.Internal, "Cleanup: cleanStaleWorktrees: %v", err)
 	}
 
@@ -105,7 +105,7 @@ func cleanPackedRefsLock(repoPath string, threshold time.Time) error {
 	return nil
 }
 
-func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
+func cleanStaleWorktrees(ctx context.Context, repo *gitalypb.Repository, repoPath string, threshold time.Time) error {
 	worktreePath := filepath.Join(repoPath, worktreePrefix)
 
 	dirInfo, err := os.Stat(worktreePath)
@@ -126,10 +126,16 @@ func cleanStaleWorktrees(repoPath string, threshold time.Time) error {
 			continue
 		}
 
-		path := filepath.Join(worktreePath, info.Name())
-
 		if info.ModTime().Before(threshold) {
-			if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) {
+			cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
+				Name:  "worktree",
+				Flags: []git.Option{git.SubSubCmd{"remove"}, git.Flag{Name: "--force"}, git.SubSubCmd{info.Name()}},
+			})
+			if err != nil {
+				return err
+			}
+
+			if err = cmd.Wait(); err != nil {
 				return err
 			}
 		}

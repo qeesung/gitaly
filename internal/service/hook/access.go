@@ -53,7 +53,7 @@ func marshallGitObjectDirs(gitObjectDirRel string, gitAltObjectDirsRel []string)
 // GitlabAPI is an interface for accessing the gitlab internal API
 type GitlabAPI interface {
 	// Allowed queries the gitlab internal api /allowed endpoint to determine if a ref change for a given repository and user is allowed
-	Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error)
+	Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, string, error)
 	// PreReceive queries the gitlab internal api /pre_receive to increase the reference counter
 	PreReceive(glRepository string) (bool, error)
 }
@@ -93,15 +93,15 @@ func NewGitlabAPI(gitlabCfg config.Gitlab) (GitlabAPI, error) {
 }
 
 // Allowed checks if a ref change for a given repository is allowed through the gitlab internal api /allowed endpoint
-func (a *gitlabAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, error) {
+func (a *gitlabAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glProtocol, changes string) (bool, string, error) {
 	repoPath, err := helper.GetRepoPath(repo)
 	if err != nil {
-		return false, fmt.Errorf("getting the repository path: %w", err)
+		return false, "", fmt.Errorf("getting the repository path: %w", err)
 	}
 
 	gitObjDirVars, err := marshallGitObjectDirs(repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
 	if err != nil {
-		return false, fmt.Errorf("when getting git object directories json encoded string: %w", err)
+		return false, "", fmt.Errorf("when getting git object directories json encoded string: %w", err)
 	}
 
 	req := AllowedRequest{
@@ -114,12 +114,12 @@ func (a *gitlabAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glPro
 	}
 
 	if err := req.parseAndSetGLID(glID); err != nil {
-		return false, fmt.Errorf("setting gl_id: %w", err)
+		return false, "", fmt.Errorf("setting gl_id: %w", err)
 	}
 
 	resp, err := a.client.Post("/allowed", &req)
 	if err != nil {
-		return false, fmt.Errorf("http post to gitlab api /allowed endpoint: %w", err)
+		return false, "", err
 	}
 
 	defer func() {
@@ -135,21 +135,21 @@ func (a *gitlabAPI) Allowed(repo *gitalypb.Repository, glRepository, glID, glPro
 
 		mtype, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
-			return false, fmt.Errorf("/allowed endpoint respond with unsupported content type: %w", err)
+			return false, "", fmt.Errorf("/allowed endpoint respond with unsupported content type: %w", err)
 		}
 
 		if mtype != "application/json" {
-			return false, fmt.Errorf("/allowed endpoint respond with unsupported content type: %s", mtype)
+			return false, "", fmt.Errorf("/allowed endpoint respond with unsupported content type: %s", mtype)
 		}
 
 		if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return false, fmt.Errorf("decoding response from /allowed endpoint: %w", err)
+			return false, "", fmt.Errorf("decoding response from /allowed endpoint: %w", err)
 		}
 	default:
-		return false, fmt.Errorf("gitlab api is not accessible: %d", resp.StatusCode)
+		return false, "", fmt.Errorf("gitlab api is not accessible: %d", resp.StatusCode)
 	}
 
-	return response.Status, nil
+	return response.Status, response.Message, nil
 }
 
 type preReceiveResponse struct {
@@ -208,7 +208,7 @@ func (a *AllowedRequest) parseAndSetGLID(glID string) error {
 	}
 
 	if !glIDRegex.MatchString(value) {
-		return fmt.Errorf("gl_id='%s' is invalid!", glID)
+		return fmt.Errorf("gl_id='%s' is invalid", glID)
 	}
 
 	return nil

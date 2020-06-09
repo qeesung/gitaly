@@ -14,9 +14,9 @@ func TestWorker(t *testing.T) {
 	restartDelay := 10 * time.Millisecond
 
 	defer func(old time.Duration) {
-		config.Config.Ruby.RestartDelay = old
-	}(config.Config.Ruby.RestartDelay)
-	config.Config.Ruby.RestartDelay = restartDelay
+		config.Config.Ruby.RestartDelay = config.Duration(old)
+	}(config.Config.Ruby.RestartDelay.Duration())
+	config.Config.Ruby.RestartDelay = config.Duration(restartDelay)
 
 	events := make(chan supervisor.Event)
 	addr := "the address"

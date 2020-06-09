@@ -8,8 +8,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitalyssh"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,10 +22,6 @@ const (
 func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInternalRemoteRequest) (*gitalypb.FetchInternalRemoteResponse, error) {
 	if err := validateFetchInternalRemoteRequest(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "FetchInternalRemote: %v", err)
-	}
-
-	if featureflag.IsDisabled(ctx, featureflag.GoFetchInternalRemote) {
-		return s.rubyFetchInternalRemote(ctx, req)
 	}
 
 	env, err := gitalyssh.UploadPackEnv(ctx, &gitalypb.SSHUploadPackRequest{Repository: req.RemoteRepository})
@@ -58,20 +52,6 @@ func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInt
 	}
 
 	return &gitalypb.FetchInternalRemoteResponse{Result: true}, nil
-}
-
-func (s *server) rubyFetchInternalRemote(ctx context.Context, req *gitalypb.FetchInternalRemoteRequest) (*gitalypb.FetchInternalRemoteResponse, error) {
-	client, err := s.ruby.RemoteServiceClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	clientCtx, err := rubyserver.SetHeaders(ctx, req.GetRepository())
-	if err != nil {
-		return nil, err
-	}
-
-	return client.FetchInternalRemote(clientCtx, req)
 }
 
 func validateFetchInternalRemoteRequest(req *gitalypb.FetchInternalRemoteRequest) error {

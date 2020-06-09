@@ -119,7 +119,8 @@ module Gitlab
           'GITALY_REPO' => repository.gitaly_repository.to_json,
           'GITALY_SOCKET' => Gitlab.config.gitaly.internal_socket,
           'GITALY_HOOK_RPCS_ENABLED' => repository.feature_enabled?('call-hook-rpc').to_s,
-          'GITALY_GO_UPDATE' => repository.feature_enabled?('go-update-hook').to_s
+          'GITALY_GO_UPDATE' => repository.feature_enabled?('go-update-hook').to_s,
+          'GITALY_GO_PRERECEIVE' => repository.feature_enabled?('go-prereceive-hook').to_s
         }
       end
     end
