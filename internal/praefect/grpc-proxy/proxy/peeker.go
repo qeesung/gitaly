@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"errors"
-	"fmt"
 
 	"google.golang.org/grpc"
 )
@@ -67,16 +66,4 @@ func (p peeker) peek(n uint) ([][]byte, error) {
 	}
 
 	return peekedFrames, nil
-}
-
-func (p peeker) modify(payloads [][]byte) error {
-	if len(payloads) != len(p.consumedStream.frames) {
-		return fmt.Errorf("replacement frames count %d does not match consumed frames count %d", len(payloads), len(p.consumedStream.frames))
-	}
-
-	for i, payload := range payloads {
-		p.consumedStream.frames[i].payload = payload
-	}
-
-	return nil
 }
