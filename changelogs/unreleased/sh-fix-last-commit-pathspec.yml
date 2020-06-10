@@ -1,0 +1,5 @@
+---
+title: Enforce literal paths for LastCommitForPath
+merge_request: 2271
+author:
+type: fixed
