@@ -268,11 +268,7 @@ func (s *handler) forwardServerToClients(src grpc.ServerStream, dsts []streamAnd
 		for _, dst := range dsts {
 			dst := dst // rescoping for goroutine
 			g.Go(func() error {
-				g.Go(func() error {
-					return dst.SendMsg(&frame{payload: dst.msg})
-				})
-
-				return nil
+				return dst.SendMsg(&frame{payload: dst.msg})
 			})
 		}
 
