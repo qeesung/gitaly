@@ -157,7 +157,7 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	for i := 0; i < 2; i++ {
 		select {
 		case s2cErr := <-s2cErrChan:
-			if s2cErr == io.EOF {
+			if errors.Is(s2cErr, io.EOF) {
 				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore.
 				// the clientStream>serverStream may continue pumping though.
 
@@ -269,8 +269,10 @@ func forwardClientToServer(src grpc.ClientStream, dst grpc.ServerStream) error {
 }
 
 func (s *handler) forwardServerToClients(src grpc.ServerStream, dsts []streamAndMsg) chan error {
-	ret := make(chan error, len(dsts))
+	ret := make(chan error, 2)
 	go func() {
+		defer close(ret)
+
 		var g errgroup.Group
 
 		// resume two-way stream after peeked messages
@@ -306,7 +308,7 @@ func forwardConsumedToClient(dst grpc.ClientStream, frameChan <-chan *frame) err
 		}
 	}
 
-	// all messages have been redirected
+	// all messages redirected
 	return dst.CloseSend()
 }
 
@@ -314,8 +316,8 @@ func consumeServerAndForward(src grpc.ServerStream, frameChans []chan<- *frame) 
 	f := &frame{}
 
 	if err := src.RecvMsg(f); err != nil {
-		// no more data to redirect
 		for _, frameChan := range frameChans {
+			// signal no more data to redirect
 			close(frameChan)
 		}
 		return err // this can be io.EOF which is happy case
