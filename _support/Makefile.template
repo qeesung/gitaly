@@ -255,7 +255,7 @@ docker:
 .PHONY: proto
 proto: {{ .ProtoCGenGitaly }} ../.ruby-bundle
 	cd {{ .SourceDir }} && {{ .ProtoC }} --gitaly_out=proto_dir=./proto,gitalypb_dir=./proto/go/gitalypb:. --go_out=paths=source_relative,plugins=grpc:./proto/go/gitalypb -I./proto ./proto/*.proto
-	cd {{ .SourceDir }} && _support/generate-proto-ruby
+	cd {{ .SourceDir }} && BUNDLE_GEMFILE=./ruby/Gemfile bundle exec _support/generate-proto-ruby
 # this part is related to the generation of sources from testing proto files
 	cd {{ .SourceDir }} && {{ .ProtoC }} --plugin={{ .ProtoCGenGo }} --go_out=plugins=grpc:. internal/praefect/grpc-proxy/testdata/test.proto
 
