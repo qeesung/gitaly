@@ -9,6 +9,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
@@ -200,8 +201,10 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 // receiveSecondaryStreams reads from the client streams of the secondaries and drops the message
 // but returns an error to the channel if it encounters a non io.EOF error
 func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
-	ret := make(chan error)
+	ret := make(chan error, 1)
 	go func() {
+		defer close(ret)
+
 		var g errgroup.Group
 
 		for _, src := range srcs {
@@ -209,7 +212,7 @@ func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
 			g.Go(func() error {
 				for {
 					if err := src.RecvMsg(&frame{}); err != nil {
-						if err == io.EOF {
+						if errors.Is(err, io.EOF) {
 							return nil
 						}
 
@@ -220,8 +223,9 @@ func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
 			})
 		}
 
-		err := g.Wait()
-		ret <- err
+		if err := g.Wait(); err != nil {
+			ret <- err
+		}
 	}()
 	return ret
 }
