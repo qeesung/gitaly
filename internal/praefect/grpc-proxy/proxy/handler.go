@@ -9,6 +9,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/sentryhandler"
@@ -156,12 +157,9 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	for i := 0; i < 2; i++ {
 		select {
 		case s2cErr := <-s2cErrChan:
-			if s2cErr == nil {
-				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore./
+			if errors.Is(s2cErr, io.EOF) {
+				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore.
 				// the clientStream>serverStream may continue pumping though.
-				for _, stream := range append(secondaryStreams, primaryStream) {
-					stream.CloseSend()
-				}
 
 				// wait for the writes to be proxied to the secondaries
 				secondaryErr := <-secondaryErrChan
@@ -203,8 +201,10 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 // receiveSecondaryStreams reads from the client streams of the secondaries and drops the message
 // but returns an error to the channel if it encounters a non io.EOF error
 func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
-	ret := make(chan error)
+	ret := make(chan error, 1)
 	go func() {
+		defer close(ret)
+
 		var g errgroup.Group
 
 		for _, src := range srcs {
@@ -212,7 +212,7 @@ func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
 			g.Go(func() error {
 				for {
 					if err := src.RecvMsg(&frame{}); err != nil {
-						if err == io.EOF {
+						if errors.Is(err, io.EOF) {
 							return nil
 						}
 
@@ -223,103 +223,109 @@ func receiveSecondaryStreams(srcs []streamAndMsg) chan error {
 			})
 		}
 
-		err := g.Wait()
-		ret <- err
+		if err := g.Wait(); err != nil {
+			ret <- err
+		}
 	}()
 	return ret
 }
 
 func (s *handler) forwardClientToServer(src grpc.ClientStream, dst grpc.ServerStream) chan error {
 	ret := make(chan error, 1)
-	go func() {
-		f := &frame{}
-		for i := 0; ; i++ {
-			if err := src.RecvMsg(f); err != nil {
-				ret <- err // this can be io.EOF which is happy case
-				break
-			}
-			if i == 0 {
-				// This is a bit of a hack, but client to server headers are only readable after first client msg is
-				// received but must be written to server stream before the first msg is flushed.
-				// This is the only place to do it nicely.
-				md, err := src.Header()
-				if err != nil {
-					ret <- err
-					break
-				}
-				if err := dst.SendHeader(md); err != nil {
-					ret <- err
-					break
-				}
-			}
-			if err := dst.SendMsg(f); err != nil {
-				ret <- err
-				break
-			}
-		}
-	}()
+	go func() { ret <- forwardClientToServer(src, dst) }()
 	return ret
 }
 
+func forwardClientToServer(src grpc.ClientStream, dst grpc.ServerStream) error {
+	f := &frame{}
+	if err := src.RecvMsg(f); err != nil {
+		return err // this can be io.EOF which is happy case
+	}
+
+	// This is a bit of a hack, but client to server headers are only readable after first client msg is
+	// received but must be written to server stream before the first msg is flushed.
+	// This is the only place to do it nicely.
+	md, err := src.Header()
+	if err != nil {
+		return err
+	}
+
+	if err := dst.SendHeader(md); err != nil {
+		return err
+	}
+
+	if err := dst.SendMsg(f); err != nil {
+		return err
+	}
+
+	for {
+		if err := src.RecvMsg(f); err != nil {
+			return err // this can be io.EOF which is happy case
+		}
+		if err := dst.SendMsg(f); err != nil {
+			return err
+		}
+	}
+}
+
 func (s *handler) forwardServerToClients(src grpc.ServerStream, dsts []streamAndMsg) chan error {
-	ret := make(chan error, 1)
+	ret := make(chan error, 2)
 	go func() {
+		defer close(ret)
+
 		var g errgroup.Group
+
+		// resume two-way stream after peeked messages
+		frameChans := make([]chan<- *frame, 0, len(dsts))
+
 		for _, dst := range dsts {
-			dst := dst // rescoping for goroutine
-			g.Go(func() error {
-				return dst.SendMsg(&frame{payload: dst.msg})
-			})
+			dst := dst
+			frameChan := make(chan *frame, 16)
+			frameChan <- &frame{payload: dst.msg} // send re-written message
+			frameChans = append(frameChans, frameChan)
+
+			g.Go(func() error { return forwardConsumedToClient(dst, frameChan) })
+		}
+
+		for {
+			if err := consumeServerAndForward(src, frameChans); err != nil {
+				ret <- err // this can be io.EOF which is happy case
+				break
+			}
 		}
 
 		if err := g.Wait(); err != nil {
 			ret <- err
 		}
-
-		// resume two-way stream after peeked messages
-		frameChans := make([]chan *frame, 0, len(dsts))
-
-		for _, dst := range dsts {
-			dst := dst
-			frameChan := make(chan *frame)
-
-			frameChans = append(frameChans, frameChan)
-			g.Go(func() error {
-				for {
-					f := <-frameChan
-					if f == nil {
-						return nil
-					}
-
-					if err := dst.SendMsg(f); err != nil {
-						return err
-					}
-				}
-			})
-		}
-
-		go func() {
-			for {
-				f := &frame{}
-
-				if err := src.RecvMsg(f); err != nil {
-					for _, frameChan := range frameChans {
-						frameChan <- nil
-					}
-					if err != io.EOF {
-						ret <- err
-					}
-
-					break
-				}
-
-				for _, frameChan := range frameChans {
-					frameChan <- f
-				}
-			}
-		}()
-
-		ret <- g.Wait()
 	}()
 	return ret
+}
+
+func forwardConsumedToClient(dst grpc.ClientStream, frameChan <-chan *frame) error {
+	for f := range frameChan {
+		if err := dst.SendMsg(f); err != nil {
+			return err
+		}
+	}
+
+	// all messages redirected
+	return dst.CloseSend()
+}
+
+func consumeServerAndForward(src grpc.ServerStream, frameChans []chan<- *frame) error {
+	f := &frame{}
+
+	if err := src.RecvMsg(f); err != nil {
+		for _, frameChan := range frameChans {
+			// signal no more data to redirect
+			close(frameChan)
+		}
+		return err // this can be io.EOF which is happy case
+	}
+
+	for _, frameChan := range frameChans {
+		frameChan <- f
+	}
+
+	return nil
 }
