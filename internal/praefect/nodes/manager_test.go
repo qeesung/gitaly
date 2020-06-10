@@ -385,6 +385,7 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 	}
 
 	vs0Primary := "unix://" + sockets[0]
+	vs1Primary := "unix://" + sockets[2]
 	vs1Secondary := "unix://" + sockets[3]
 
 	virtualStorages := []*config.VirtualStorage{
@@ -586,7 +587,7 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 
 		node, err := nm.GetSyncedNode(ctx, vs1Event.Job.VirtualStorage, vs1Event.Job.RelativePath)
 		require.NoError(t, err)
-		require.Equal(t, vs1Secondary, node.GetAddress())
+		require.Contains(t, []string{vs1Primary, vs1Secondary}, node.GetAddress(), "should be one of the secondaries or the primary")
 	}))
 }
 

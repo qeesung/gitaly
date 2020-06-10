@@ -233,7 +233,9 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 		logger.WithError(err).Warn("get up to date secondaries")
 	}
 
-	var storages []Node
+	storages := make([]Node, 0, len(upToDateStorages)+1) // +1 is for the primary node
+	storages = append(storages, shard.Primary)
+
 	for _, upToDateStorage := range upToDateStorages {
 		node, err := shard.GetNode(upToDateStorage)
 		if err != nil {
@@ -241,18 +243,14 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 			logger.WithError(err).Warn("storage returned as up-to-date")
 		}
 
-		if !node.IsHealthy() || node == shard.Primary {
+		if !node.IsHealthy() {
 			continue
 		}
 
 		storages = append(storages, node)
 	}
 
-	if len(storages) == 0 {
-		return shard.Primary, nil
-	}
-
-	return storages[rand.Intn(len(storages))], nil // randomly pick up one of the synced storages
+	return storages[rand.Intn(len(storages))], nil
 }
 
 func newConnectionStatus(node config.Node, cc *grpc.ClientConn, l logrus.FieldLogger, latencyHist prommetrics.HistogramVec) *nodeStatus {

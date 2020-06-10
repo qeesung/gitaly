@@ -1,0 +1,5 @@
+---
+title: Distribute reads between all shards, including primaries
+merge_request: 2267
+author:
+type: added
