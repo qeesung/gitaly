@@ -1,0 +1,5 @@
+---
+title: Pass git push options into pre receive
+merge_request: 2266
+author:
+type: fixed

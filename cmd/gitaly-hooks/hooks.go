@@ -123,6 +123,7 @@ func main() {
 		if err := preReceiveHookStream.Send(&gitalypb.PreReceiveHookRequest{
 			Repository:           repository,
 			EnvironmentVariables: environment,
+			GitPushOptions:       gitPushOptions(),
 		}); err != nil {
 			logger.Fatalf("error when sending request for %q: %v", subCmd, err)
 		}

@@ -14,6 +14,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
@@ -28,6 +29,11 @@ type hookRequest interface {
 	GetRepository() *gitalypb.Repository
 }
 
+type prePostRequest interface {
+	hookRequest
+	GetGitPushOptions() []string
+}
+
 func hookRequestEnv(req hookRequest) ([]string, error) {
 	gitlabshellEnv, err := gitlabshell.Env()
 	if err != nil {
@@ -36,7 +42,7 @@ func hookRequestEnv(req hookRequest) ([]string, error) {
 	return append(gitlabshellEnv, req.GetEnvironmentVariables()...), nil
 }
 
-func preReceiveEnv(req hookRequest) ([]string, error) {
+func preReceiveEnv(req prePostRequest) ([]string, error) {
 	_, env, err := alternates.PathAndEnv(req.GetRepository())
 	if err != nil {
 		return nil, err
@@ -46,6 +52,9 @@ func preReceiveEnv(req hookRequest) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	env = append(env, hookEnv...)
+	env = append(env, hooks.GitPushOptions(req.GetGitPushOptions())...)
 
 	return append(hookEnv, env...), nil
 }

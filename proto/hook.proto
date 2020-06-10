@@ -29,6 +29,7 @@ message PreReceiveHookRequest {
   Repository repository = 1 [(target_repository)=true];
   repeated string environment_variables = 2;
   bytes stdin = 4;
+  repeated string git_push_options = 5;
 }
 
 message PreReceiveHookResponse{

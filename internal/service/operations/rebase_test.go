@@ -62,6 +62,12 @@ func testSuccessfulUserRebaseConfirmableRequest(t *testing.T, ctxOuter context.C
 	branchSha := getBranchSha(t, testRepoPath, rebaseBranchName)
 
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+
+	mdFromCtx, ok := metadata.FromOutgoingContext(ctxOuter)
+	if ok {
+		md = metadata.Join(md, mdFromCtx)
+	}
+
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
