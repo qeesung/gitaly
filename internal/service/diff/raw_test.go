@@ -2,6 +2,8 @@ package diff
 
 import (
 	"fmt"
+	"io/ioutil"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -200,6 +202,37 @@ func TestFailedRawPatchRequestDueToValidations(t *testing.T) {
 			testhelper.RequireGrpcError(t, drainRawPatchResponse(c), testCase.code)
 		})
 	}
+}
+
+func TestRawPatchContainsGitLabSignature(t *testing.T) {
+	server, serverSocketPath := runDiffServer(t)
+	defer server.Stop()
+
+	client, conn := newDiffClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	rightCommit := "e395f646b1499e8e0279445fc99a0596a65fab7e"
+	leftCommit := "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"
+	rpcRequest := &gitalypb.RawPatchRequest{Repository: testRepo, RightCommitId: rightCommit, LeftCommitId: leftCommit}
+
+	c, err := client.RawPatch(ctx, rpcRequest)
+	require.NoError(t, err)
+
+	reader := streamio.NewReader(func() ([]byte, error) {
+		response, err := c.Recv()
+		return response.GetData(), err
+	})
+
+	patch, err := ioutil.ReadAll(reader)
+	require.NoError(t, err)
+
+	require.Regexp(t, regexp.MustCompile(`\n-- \nGitLab\s+$`), string(patch))
 }
 
 func drainRawDiffResponse(c gitalypb.DiffService_RawDiffClient) error {

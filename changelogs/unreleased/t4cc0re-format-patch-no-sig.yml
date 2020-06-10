@@ -1,0 +1,5 @@
+---
+title: Set a stable signature for .patch endpoints to create reproducible patches
+merge_request: 2253
+author:
+type: changed

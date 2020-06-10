@@ -36,7 +36,7 @@ func (s *server) RawPatch(in *gitalypb.RawPatchRequest, stream gitalypb.DiffServ
 
 	subCmd := git.SubCmd{
 		Name:  "format-patch",
-		Flags: []git.Option{git.Flag{"--stdout"}},
+		Flags: []git.Option{git.Flag{"--stdout"}, git.ValueFlag{"--signature", "GitLab"}},
 		Args:  []string{in.LeftCommitId + ".." + in.RightCommitId},
 	}
 
