@@ -74,6 +74,8 @@ func DialContext(ctx context.Context, rawAddress string, connOpts []grpc.DialOpt
 		)
 	}
 
+	// grpc.KeepaliveParams must be specified at least as large as what is allowed by the
+	// server-side grpc.KeepaliveEnforcementPolicy
 	connOpts = append(connOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
 		Time:                20 * time.Second,
 		PermitWithoutStream: true,
