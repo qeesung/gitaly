@@ -266,10 +266,7 @@ code_navigation:
   allow_failure: true
   script:
     - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
-    - gem install lsif_parser
     - ~/go/bin/lsif-go
-    - lsif_parser dump.lsif $PWD
-    - mv dump.lsif.tmp lsif
   artifacts:
-    paths:
-      - lsif/
+    reports:
+      lsif: dump.lsif
