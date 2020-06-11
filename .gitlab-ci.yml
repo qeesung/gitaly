@@ -266,7 +266,7 @@ code_navigation:
   allow_failure: true
   script:
     - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
-    - lsif-go
+    - ~/go/bin/lsif-go
   artifacts:
     reports:
       lsif: dump.lsif
