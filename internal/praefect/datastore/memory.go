@@ -189,8 +189,10 @@ func (s *memoryReplicationEventQueue) GetOutdatedRepositories(ctx context.Contex
 	defer s.RUnlock()
 	outdatedRepositories := make(map[string][]string)
 	for _, event := range s.lastEventByDest {
-		// ensure the event is in the virtual storage we are checking
+		// ensure the event is in the virtual storage we are checking and it is not targeting
+		// the reference node
 		if event.Job.VirtualStorage != virtualStorage ||
+			event.Job.TargetNodeStorage == referenceStorage ||
 			// ensure the event satisfies the rules specified in the ReplicationEventQueue
 			// interface documentation
 			event.Job.SourceNodeStorage == referenceStorage && event.State == JobStateCompleted {

@@ -254,6 +254,22 @@ func contractTestQueueGetOutdatedRepositories(t *testing.T, rq ReplicationEventQ
 			},
 		},
 		{
+			desc: "jobs targeting reference are ignored",
+			events: []ReplicationEvent{
+				{
+					State:     JobStateDead,
+					UpdatedAt: offset(0),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: secondary,
+						TargetNodeStorage: oldPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+			},
+			expected: map[string][]string{},
+		},
+		{
 			// completed job from a secondary indicates the new primary's
 			// state does not originate from the previous writable primary.
 			// This might indicate data loss, if the secondary is not up to

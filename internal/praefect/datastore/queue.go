@@ -358,7 +358,8 @@ WITH latest_jobs AS (
 		job->>'source_node_storage' AS source,
 		state
 	FROM replication_queue
-	WHERE job->>'virtual_storage' = $1
+	WHERE job->>'virtual_storage' = $1 AND
+		job->>'target_node_storage' != $2
 	ORDER BY repository, target, updated_at DESC NULLS FIRST
 )
 
