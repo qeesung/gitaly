@@ -25,6 +25,10 @@ type ReplicationEventQueue interface {
 	// CountDeadReplicationJobs returns the dead replication job counts by relative path within the
 	// given timerange. The timerange beginning is inclusive and ending is exclusive.
 	CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error)
+	// GetOutdatedRepositories returns storages by repositories which are considered outdated. A repository is considered
+	// outdated if the latest replication job is not in 'complete' state or the latest replication job does not originate
+	// from the reference storage.
+	GetOutdatedRepositories(ctx context.Context, virtualStorage string, referenceStorage string) (map[string][]string, error)
 	// GetUpToDateStorages returns list of target storages where latest replication job is in 'completed' state.
 	// It returns no results if there is no up to date storages or there were no replication events yet.
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
@@ -343,6 +347,45 @@ func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state J
 	}
 
 	return acknowledged.Values(), nil
+}
+
+func (rq PostgresReplicationEventQueue) GetOutdatedRepositories(ctx context.Context, virtualStorage, reference string) (map[string][]string, error) {
+	const q = `
+WITH latest_jobs AS (
+	SELECT DISTINCT ON (repository, target)
+		job->>'relative_path' AS repository,
+		job->>'target_node_storage' AS target,
+		job->>'source_node_storage' AS source,
+		state
+	FROM replication_queue
+	WHERE job->>'virtual_storage' = $1
+	ORDER BY repository, target, updated_at DESC NULLS FIRST
+)
+
+SELECT repository, target
+FROM latest_jobs
+WHERE state != 'completed' OR source != $2
+ORDER BY repository, target
+`
+
+	rows, err := rq.qc.QueryContext(ctx, q, virtualStorage, reference)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	nodesByRepo := map[string][]string{}
+	for rows.Next() {
+		var repo, node string
+		if err := rows.Scan(&repo, &node); err != nil {
+			return nil, err
+		}
+
+		nodesByRepo[repo] = append(nodesByRepo[repo], node)
+	}
+
+	return nodesByRepo, rows.Err()
 }
 
 func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error) {

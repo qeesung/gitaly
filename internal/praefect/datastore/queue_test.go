@@ -572,6 +572,21 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	})
 }
 
+func TestPostgresReplicationEventQueue_GetOutdatedRepositories(t *testing.T) {
+	db := getDB(t)
+	contractTestQueueGetOutdatedRepositories(t,
+		NewPostgresReplicationEventQueue(db),
+		func(t testing.TB, events []ReplicationEvent) {
+			db.TruncateAll(t)
+			for _, event := range events {
+				db.MustExec(t, "INSERT INTO replication_queue (state, updated_at, job) VALUES ($1, $2, $3)",
+					event.State, event.UpdatedAt, event.Job,
+				)
+			}
+		},
+	)
+}
+
 func TestPostgresReplicationEventQueue_GetUpToDateStorages(t *testing.T) {
 	db := getDB(t)
 

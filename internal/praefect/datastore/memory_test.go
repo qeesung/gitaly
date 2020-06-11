@@ -143,6 +143,208 @@ func TestMemoryCountDeadReplicationJobsLimit(t *testing.T) {
 	require.Equal(t, map[string]int64{"job-1": 1, "job-2": 1}, dead, "should only include the last two dead jobs")
 }
 
+func contractTestQueueGetOutdatedRepositories(t *testing.T, rq ReplicationEventQueue, setState func(testing.TB, []ReplicationEvent)) {
+	const (
+		virtualStorage = "test-virtual-storage"
+		oldPrimary     = "old-primary"
+		newPrimary     = "new-primary"
+		secondary      = "secondary"
+	)
+
+	now := time.Now()
+	offset := func(d time.Duration) *time.Time {
+		t := now.Add(d)
+		return &t
+	}
+
+	for _, tc := range []struct {
+		desc     string
+		events   []ReplicationEvent
+		error    error
+		expected map[string][]string
+	}{
+		{
+			desc: "basic scenarios work",
+			events: []ReplicationEvent{
+				{
+					State: JobStateReady,
+					Job: ReplicationJob{
+						VirtualStorage:    "wrong-virtual-storage",
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State: JobStateDead,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: "wrong-source-node",
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State: JobStateCompleted,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "completed-job-ignored",
+					},
+				},
+				{
+					State: JobStateDead,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State: JobStateInProgress,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-2",
+					},
+				},
+				{
+					State: JobStateFailed,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: secondary,
+						RelativePath:      "repo-2",
+					},
+				},
+			},
+			expected: map[string][]string{
+				"repo-1": {newPrimary},
+				"repo-2": {newPrimary, secondary},
+			},
+		},
+		{
+			desc: "search considers null updated_at as latest",
+			events: []ReplicationEvent{
+				{
+					State:     JobStateCompleted,
+					UpdatedAt: offset(0),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State: JobStateReady,
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+			},
+			expected: map[string][]string{
+				"repo-1": []string{newPrimary},
+			},
+		},
+		{
+			// completed job from a secondary indicates the new primary's
+			// state does not originate from the previous writable primary.
+			// This might indicate data loss, if the secondary is not up to
+			// date with the previous writable primary.
+			desc: "completed job from secondary",
+			events: []ReplicationEvent{
+				{
+					State:     JobStateCompleted,
+					UpdatedAt: offset(0),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State:     JobStateCompleted,
+					UpdatedAt: offset(time.Second),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: secondary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+			},
+			expected: map[string][]string{
+				"repo-1": {newPrimary},
+			},
+		},
+		{
+			// Node that experienced data loss on failover but was later
+			// reconciled from the previous writable primary should
+			// contain complete data.
+			desc: "up to date with earlier failed job from old primary",
+			events: []ReplicationEvent{
+				{
+					State:     JobStateDead,
+					UpdatedAt: offset(0),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+				{
+					State:     JobStateCompleted,
+					UpdatedAt: offset(time.Second),
+					Job: ReplicationJob{
+						VirtualStorage:    virtualStorage,
+						SourceNodeStorage: oldPrimary,
+						TargetNodeStorage: newPrimary,
+						RelativePath:      "repo-1",
+					},
+				},
+			},
+			expected: map[string][]string{},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			setState(t, tc.events)
+
+			actual, err := rq.GetOutdatedRepositories(ctx, virtualStorage, oldPrimary)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestMemoryReplicationEventQueue_GetOutdatedRepositories(t *testing.T) {
+	rq := NewMemoryReplicationEventQueue(config.Config{}).(*memoryReplicationEventQueue)
+
+	contractTestQueueGetOutdatedRepositories(t, rq,
+		func(t testing.TB, events []ReplicationEvent) {
+			rq.lastEventByDest = map[eventDestination]ReplicationEvent{}
+			for _, event := range events {
+				rq.lastEventByDest[eventDestination{
+					virtual:      event.Job.VirtualStorage,
+					storage:      event.Job.TargetNodeStorage,
+					relativePath: event.Job.RelativePath,
+				}] = event
+			}
+		},
+	)
+}
+
 func TestMemoryReplicationEventQueue(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
