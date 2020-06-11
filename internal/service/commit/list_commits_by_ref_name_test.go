@@ -9,7 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-func TestListCommitsByRefNameRequest(t *testing.T) {
+func TestSuccessfulListCommitsByRefNameRequest(t *testing.T) {
 	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
@@ -150,7 +150,7 @@ func TestListCommitsByRefNameRequest(t *testing.T) {
 	}
 }
 
-func TestListCommitsByRefNameLargeRequest(t *testing.T) {
+func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
 	var repositoryRefNames = map[string]string{
 		"bb5206fee213d983da88c47f9cf4cc6caf9c66dc": "refs/heads/feature_conflict",
 		"0031876facac3f2b2702a0e53a26e89939a42209": "refs/heads/few-commits",
