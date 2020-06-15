@@ -2,9 +2,6 @@ package commit
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -144,46 +141,4 @@ func TestFailedLastCommitForPathRequest(t *testing.T) {
 			testhelper.RequireGrpcError(t, err, testCase.code)
 		})
 	}
-}
-
-func TestSuccessfulLastCommitWithGlobCharacters(t *testing.T) {
-	server, serverSocketPath := startTestServices(t)
-	defer server.Stop()
-
-	client, conn := newCommitServiceClient(t, serverSocketPath)
-	defer conn.Close()
-
-	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
-	defer cleanupFn()
-
-	branch := "last-commit-test"
-	filename := filepath.Join(testRepoPath, ":wq")
-	f, err := os.Create(filename)
-	require.NoError(t, err)
-	f.WriteString("hello world\n")
-	f.Close()
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "checkout", "-b", branch, "master")
-	testhelper.MustRunCommand(t, nil, "git", "--literal-pathspecs", "-C", testRepoPath, "add", ":wq")
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit", "-a", "-m", "add file")
-
-	branchSha := getBranchSha(t, testRepoPath, branch)
-
-	request := &gitalypb.LastCommitForPathRequest{
-		Repository: testRepo,
-		Revision:   []byte(branchSha),
-		Path:       []byte(":wq"),
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	response, err := client.LastCommitForPath(ctx, request)
-	require.NoError(t, err)
-	require.NotNil(t, response.GetCommit())
-	require.Equal(t, branchSha, response.GetCommit().Id)
-}
-
-func getBranchSha(t *testing.T, repoPath string, branchName string) string {
-	branchSha := string(testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "rev-parse", branchName))
-	return strings.TrimSpace(branchSha)
 }

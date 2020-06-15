@@ -13,7 +13,7 @@ import (
 
 // LastCommitForPath returns the last commit which modified path.
 func LastCommitForPath(ctx context.Context, batch *catfile.Batch, repo *gitalypb.Repository, revision string, path string) (*gitalypb.GitCommit, error) {
-	cmd, err := git.SafeCmd(ctx, repo, []git.Option{git.Flag{"--literal-pathspecs"}}, git.SubCmd{
+	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:        "log",
 		Flags:       []git.Option{git.Flag{"--format=%H"}, git.Flag{"--max-count=1"}},
 		Args:        []string{revision},
