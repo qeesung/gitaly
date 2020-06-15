@@ -235,6 +235,7 @@ func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStor
 					AND state IN ('ready', 'failed')
 					AND job->>'virtual_storage' = $1
 					AND job->>'target_node_storage' = $2
+					AND lock_id NOT IN (SELECT lock_id FROM replication_queue_job_lock)
 				ORDER BY created_at
 				LIMIT $3 FOR UPDATE
 			)
@@ -255,6 +256,7 @@ func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStor
 						AND state IN ('ready', 'failed')
 						AND job->>'virtual_storage' = $1
 						AND job->>'target_node_storage' = $2
+						AND lock_id NOT IN (SELECT lock_id FROM replication_queue_job_lock)
 					ORDER BY created_at
 					LIMIT $3
 				)
