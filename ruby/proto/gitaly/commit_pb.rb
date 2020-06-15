@@ -124,6 +124,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "gitaly.ListCommitsByRefNameResponse" do
     repeated :commits, :message, 1, "gitaly.GitCommit"
+    repeated :commit_refs, :message, 2, "gitaly.ListCommitsByRefNameResponse.CommitForRef"
+  end
+  add_message "gitaly.ListCommitsByRefNameResponse.CommitForRef" do
+    optional :commit, :message, 1, "gitaly.GitCommit"
+    optional :ref_name, :bytes, 2
   end
   add_message "gitaly.FindAllCommitsRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
@@ -278,6 +283,7 @@ module Gitaly
   ListCommitsByOidResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListCommitsByOidResponse").msgclass
   ListCommitsByRefNameRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListCommitsByRefNameRequest").msgclass
   ListCommitsByRefNameResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListCommitsByRefNameResponse").msgclass
+  ListCommitsByRefNameResponse::CommitForRef = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListCommitsByRefNameResponse.CommitForRef").msgclass
   FindAllCommitsRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllCommitsRequest").msgclass
   FindAllCommitsRequest::Order = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllCommitsRequest.Order").enummodule
   FindAllCommitsResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllCommitsResponse").msgclass

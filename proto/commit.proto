@@ -277,7 +277,14 @@ message ListCommitsByRefNameRequest {
 }
 
 message ListCommitsByRefNameResponse {
-  repeated GitCommit commits = 1;
+  repeated GitCommit commits = 1 [deprecated = true];
+
+  message CommitForRef {
+    GitCommit commit = 1;
+    bytes ref_name = 2;
+  }
+
+  repeated CommitForRef commit_refs = 2;
 }
 
 message FindAllCommitsRequest {

@@ -140,55 +140,40 @@ func TestSuccessfulListCommitsByRefNameRequest(t *testing.T) {
 			c, err := client.ListCommitsByRefName(ctx, request)
 			require.NoError(t, err)
 
-			receivedCommits := consumeGetByRefNameResponse(t, c)
-			require.Len(t, receivedCommits, len(testCase.expectedIds))
+			receivedCommitRefs := consumeGetByRefNameResponse(t, c)
+			require.Len(t, receivedCommitRefs, len(testCase.expectedIds))
 
-			for i, receivedCommit := range receivedCommits {
-				require.Equal(t, testCase.expectedIds[i], receivedCommit.Id, "mismatched commit")
+			for i, commitRef := range receivedCommitRefs {
+				require.Equal(t, testCase.expectedIds[i], commitRef.Commit.Id, "mismatched commit")
 			}
 		})
 	}
 }
 
-func consumeGetByRefNameResponse(t *testing.T, c gitalypb.CommitService_ListCommitsByRefNameClient) []*gitalypb.GitCommit {
-	receivedCommits := []*gitalypb.GitCommit{}
-	for {
-		resp, err := c.Recv()
-		if err == io.EOF {
-			break
-		}
-		require.NoError(t, err)
-
-		receivedCommits = append(receivedCommits, resp.GetCommits()...)
+func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
+	var repositoryRefNames = map[string]string{
+		"bb5206fee213d983da88c47f9cf4cc6caf9c66dc": "refs/heads/feature_conflict",
+		"0031876facac3f2b2702a0e53a26e89939a42209": "refs/heads/few-commits",
+		"06041ab2037429d243a38abb55957818dd9f948d": "refs/heads/file-mode-change",
+		"48f0be4bd10c1decee6fae52f9ae6d10f77b60f4": "refs/heads/fix",
+		"ce369011c189f62c815f5971d096b26759bab0d1": "refs/heads/flat-path",
+		"d25b6d94034242f3930dfcfeb6d8d9aac3583992": "refs/heads/flat-path-2",
+		"e56497bb5f03a90a51293fc6d516788730953899": "refs/heads/flatten-dirs",
+		"ab2c9622c02288a2bbaaf35d96088cfdff31d9d9": "refs/heads/gitaly-diff-stuff",
+		"0999bb770f8dc92ab5581cc0b474b3e31a96bf5c": "refs/heads/gitaly-non-utf8-commit",
+		"94bb47ca1297b7b3731ff2a36923640991e9236f": "refs/heads/gitaly-rename-test",
+		"cb19058ecc02d01f8e4290b7e79cafd16a8839b6": "refs/heads/gitaly-stuff",
+		"e63f41fe459e62e1228fcef60d7189127aeba95a": "refs/heads/gitaly-test-ref",
+		"c809470461118b7bcab850f6e9a7ca97ac42f8ea": "refs/heads/gitaly-windows-1251",
+		"5937ac0a7beb003549fc5fd26fc247adbce4a52e": "refs/heads/improve/awesome",
+		"7df99c9ad5b8c9bfc5ae4fb7a91cc87adcce02ef": "refs/heads/jv-conflict-1",
+		"bd493d44ae3c4dd84ce89cb75be78c4708cbd548": "refs/heads/jv-conflict-2",
+		"d23bddc916b96c98ff192e198b1adee0f6871085": "refs/heads/many_files",
+		"0ed8c6c6752e8c6ea63e7b92a517bf5ac1209c80": "refs/heads/markdown",
+		"6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9": "refs/tags/v1.0.0",
+		"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b": "refs/tags/v1.1.0",
 	}
 
-	return receivedCommits
-}
-
-var repositoryRefNames = map[string]string{
-	"bb5206fee213d983da88c47f9cf4cc6caf9c66dc": "refs/heads/feature_conflict",
-	"0031876facac3f2b2702a0e53a26e89939a42209": "refs/heads/few-commits",
-	"06041ab2037429d243a38abb55957818dd9f948d": "refs/heads/file-mode-change",
-	"48f0be4bd10c1decee6fae52f9ae6d10f77b60f4": "refs/heads/fix",
-	"ce369011c189f62c815f5971d096b26759bab0d1": "refs/heads/flat-path",
-	"d25b6d94034242f3930dfcfeb6d8d9aac3583992": "refs/heads/flat-path-2",
-	"e56497bb5f03a90a51293fc6d516788730953899": "refs/heads/flatten-dirs",
-	"ab2c9622c02288a2bbaaf35d96088cfdff31d9d9": "refs/heads/gitaly-diff-stuff",
-	"0999bb770f8dc92ab5581cc0b474b3e31a96bf5c": "refs/heads/gitaly-non-utf8-commit",
-	"94bb47ca1297b7b3731ff2a36923640991e9236f": "refs/heads/gitaly-rename-test",
-	"cb19058ecc02d01f8e4290b7e79cafd16a8839b6": "refs/heads/gitaly-stuff",
-	"e63f41fe459e62e1228fcef60d7189127aeba95a": "refs/heads/gitaly-test-ref",
-	"c809470461118b7bcab850f6e9a7ca97ac42f8ea": "refs/heads/gitaly-windows-1251",
-	"5937ac0a7beb003549fc5fd26fc247adbce4a52e": "refs/heads/improve/awesome",
-	"7df99c9ad5b8c9bfc5ae4fb7a91cc87adcce02ef": "refs/heads/jv-conflict-1",
-	"bd493d44ae3c4dd84ce89cb75be78c4708cbd548": "refs/heads/jv-conflict-2",
-	"d23bddc916b96c98ff192e198b1adee0f6871085": "refs/heads/many_files",
-	"0ed8c6c6752e8c6ea63e7b92a517bf5ac1209c80": "refs/heads/markdown",
-	"6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9": "refs/tags/v1.0.0",
-	"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b": "refs/tags/v1.1.0",
-}
-
-func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
 	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
 
@@ -216,7 +201,22 @@ func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
 	actualCommits := consumeGetByRefNameResponse(t, c)
 
 	for _, actual := range actualCommits {
-		_, ok := repositoryRefNames[actual.Id]
-		require.True(t, ok, "commit ID must be present in the input list: %s", actual.Id)
+		_, ok := repositoryRefNames[actual.Commit.Id]
+		require.True(t, ok, "commit ID must be present in the input list: %s", actual.Commit.Id)
 	}
+}
+
+func consumeGetByRefNameResponse(t *testing.T, c gitalypb.CommitService_ListCommitsByRefNameClient) []*gitalypb.ListCommitsByRefNameResponse_CommitForRef {
+	receivedCommitRefs := []*gitalypb.ListCommitsByRefNameResponse_CommitForRef{}
+	for {
+		resp, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+
+		receivedCommitRefs = append(receivedCommitRefs, resp.GetCommitRefs()...)
+	}
+
+	return receivedCommitRefs
 }
