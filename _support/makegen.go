@@ -336,7 +336,7 @@ func (gm *gitalyMake) GitDefaultRev() string {
 
 	// Gitaly defaults to a supported version for Git, which should be a
 	// valid tag in: https://gitlab.com/gitlab-org/gitlab-git/-/tags
-	return "v2.26.2"
+	return "v2.27.0"
 }
 
 func (gm *gitalyMake) GitDefaultBuildJob() string {
