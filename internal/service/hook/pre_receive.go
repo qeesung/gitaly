@@ -64,8 +64,13 @@ func gitlabShellHook(hookName string) string {
 }
 
 func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectServer) (*grpc.ClientConn, error) {
+	address, err := server.Address()
+	if err != nil {
+		return nil, err
+	}
+
 	s.mutex.RLock()
-	conn, ok := s.praefectConnPool[server.Address]
+	conn, ok := s.praefectConnPool[address]
 	s.mutex.RUnlock()
 
 	if ok {
@@ -75,7 +80,7 @@ func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectS
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	conn, ok = s.praefectConnPool[server.Address]
+	conn, ok = s.praefectConnPool[address]
 	if !ok {
 		var err error
 		conn, err = server.Dial(ctx)
@@ -83,7 +88,7 @@ func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectS
 			return nil, err
 		}
 
-		s.praefectConnPool[server.Address] = conn
+		s.praefectConnPool[address] = conn
 	}
 
 	return conn, nil

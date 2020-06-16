@@ -51,26 +51,24 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		fmt.Sprintf("%s=%s", featureflag.GoPreReceiveHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoPreReceiveHook))),
 	}, gitlabshellEnv...)
 
-	praefect, err := metadata.ExtractPraefectServer(ctx)
+	transaction, err := metadata.ExtractTransaction(ctx)
 	if err == nil {
+		praefect, err := metadata.PraefectFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+
 		praefectEnv, err := praefect.Env()
 		if err != nil {
 			return nil, err
 		}
 
-		env = append(env, praefectEnv)
-	} else if !errors.Is(err, metadata.ErrPraefectServerNotFound) {
-		return nil, err
-	}
-
-	transaction, err := metadata.ExtractTransaction(ctx)
-	if err == nil {
 		transactionEnv, err := transaction.Env()
 		if err != nil {
 			return nil, err
 		}
 
-		env = append(env, transactionEnv)
+		env = append(env, praefectEnv, transactionEnv)
 	} else if !errors.Is(err, metadata.ErrTransactionNotFound) {
 		return nil, err
 	}

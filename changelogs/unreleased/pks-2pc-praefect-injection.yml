@@ -1,0 +1,5 @@
+---
+title: Adjust Praefect server address based on peer info
+merge_request: 2273
+author:
+type: fixed
