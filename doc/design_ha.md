@@ -396,6 +396,27 @@ When a node is out of sync, it needs to be taken out of rotation, and Praefect
 has to initiate a repair operation (e.g. `git fetch`, reclone, delete
 out-of-sync branches).
 
+## Enabling Strong Consistency
+
+The current implementation of strong consistency via pre-receive hooks is
+guarded by feature flags. In order to make use of it, you thus need to enable
+the following feature flags:
+
+- `gitaly_hooks_rpc`: The reference transaction voting mechanism is only
+  implemented in the Go hooks RPC service and not in the deprecated Ruby
+  hooks.
+
+- `gitaly_reference_transactions`: Enables usage of reference transactions and
+  proxying to multiple Gitaly nodes at once for both SSH and HTTPS receive-pack
+  endpoints.
+
+In order to observe reference transactions, two metrics
+`gitaly_praefect_transactions_total` and
+`gitaly_praefect_transactions_delay_seconds` are exposed.
+
+**Note:** Required work is only present in Gitaly starting with release
+v13.1.0-rc3.
+
 ## Notes
 * Existing discussions
 	* Requirements: https://gitlab.com/gitlab-org/gitaly/issues/1332
