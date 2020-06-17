@@ -3,12 +3,18 @@ package testhelper
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"os"
 	"os/exec"
@@ -805,3 +811,86 @@ func (m *mockAPI) PreReceive(glRepository string) (bool, error) {
 
 // GitlabAPIStub is a global mock that can be used in testing
 var GitlabAPIStub = &mockAPI{}
+
+// MustModifyEnvironment will change an environment variable and return a func suitable
+// for `defer` to change the value back.
+func MustModifyEnvironment(t testing.TB, key string, value string) func() {
+	t.Helper()
+
+	oldValue, hasOldValue := os.LookupEnv(key)
+	require.NoError(t, os.Setenv(key, value))
+	return func() {
+		if hasOldValue {
+			require.NoError(t, os.Setenv(key, oldValue))
+		} else {
+			require.NoError(t, os.Unsetenv(key))
+		}
+	}
+}
+
+// GenerateTestCerts creates a certificate that can be used to establish TLS protected TCP connection.
+// It returns paths to the file with the certificate and its private key.
+func GenerateTestCerts(t *testing.T) (string, string, Cleanup) {
+	t.Helper()
+
+	rootCA := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 0, 1),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		DNSNames:              []string{"localhost", "0.0.0.0", "127.0.0.1"},
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	caCert, err := x509.CreateCertificate(rand.Reader, rootCA, rootCA, &caKey.PublicKey, caKey)
+	require.NoError(t, err)
+
+	entityKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	entityX509 := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+	}
+
+	entityCert, err := x509.CreateCertificate(rand.Reader, rootCA, entityX509, &entityKey.PublicKey, caKey)
+	require.NoError(t, err)
+
+	certFile, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+	defer certFile.Close()
+
+	// create chained PEM file with CA and entity cert
+	for _, cert := range [][]byte{entityCert, caCert} {
+		require.NoError(t,
+			pem.Encode(certFile, &pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: cert,
+			}),
+		)
+	}
+
+	keyFile, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+	defer keyFile.Close()
+
+	entityKeyBytes, err := x509.MarshalECPrivateKey(entityKey)
+	require.NoError(t, err)
+
+	require.NoError(t,
+		pem.Encode(keyFile, &pem.Block{
+			Type:  "ECDSA PRIVATE KEY",
+			Bytes: entityKeyBytes,
+		}),
+	)
+
+	cleanup := func() {
+		require.NoError(t, os.Remove(certFile.Name()))
+		require.NoError(t, os.Remove(keyFile.Name()))
+	}
+
+	return certFile.Name(), keyFile.Name(), cleanup
+}
