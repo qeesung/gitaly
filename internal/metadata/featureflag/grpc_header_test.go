@@ -10,17 +10,19 @@ import (
 
 func TestGRPCMetadataFeatureFlag(t *testing.T) {
 	testCases := []struct {
-		flag    string
-		headers map[string]string
-		enabled bool
-		desc    string
+		flag     string
+		headers  map[string]string
+		enabled  bool
+		disabled bool
+		desc     string
 	}{
-		{"", nil, false, "empty name and no headers"},
-		{"flag", nil, false, "no headers"},
-		{"flag", map[string]string{"flag": "true"}, false, "no 'gitaly-feature' prefix in flag name"},
-		{"flag", map[string]string{"gitaly-feature-flag": "TRUE"}, false, "not valid header value"},
-		{"flag_under_score", map[string]string{"gitaly-feature-flag-under-score": "true"}, true, "flag name with underscores"},
-		{"flag-dash-ok", map[string]string{"gitaly-feature-flag-dash-ok": "true"}, true, "flag name with dashes"},
+		{"", nil, false, false, "empty name and no headers"},
+		{"flag", nil, false, false, "no headers"},
+		{"flag", map[string]string{"flag": "true"}, false, false, "no 'gitaly-feature' prefix in flag name"},
+		{"flag", map[string]string{"gitaly-feature-flag": "TRUE"}, false, false, "not valid header value"},
+		{"flag_under_score", map[string]string{"gitaly-feature-flag-under-score": "true"}, true, false, "flag name with underscores"},
+		{"flag-dash-ok", map[string]string{"gitaly-feature-flag-dash-ok": "true"}, true, false, "flag name with dashes"},
+		{"flag", map[string]string{"gitaly-feature-flag": "false"}, false, true, "flag explicitly disabled"},
 	}
 
 	for _, tc := range testCases {
@@ -29,7 +31,9 @@ func TestGRPCMetadataFeatureFlag(t *testing.T) {
 			ctx := metadata.NewIncomingContext(context.Background(), md)
 
 			assert.Equal(t, tc.enabled, IsEnabled(ctx, tc.flag))
-			assert.NotEqual(t, tc.enabled, IsDisabled(ctx, tc.flag))
+			if tc.disabled {
+				assert.True(t, IsDisabled(ctx, tc.flag))
+			}
 		})
 	}
 }

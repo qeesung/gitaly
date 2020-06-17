@@ -24,7 +24,7 @@ func init() {
 }
 
 // IsEnabled checks if the feature flag is enabled for the passed context.
-// Only return true if the metadata for the feature flag is set to "true"
+// Only returns true if the metadata for the feature flag is set to "true"
 func IsEnabled(ctx context.Context, flag string) bool {
 	enabled := isEnabled(ctx, flag)
 	flagChecks.WithLabelValues(flag, strconv.FormatBool(enabled)).Inc()
@@ -32,26 +32,49 @@ func IsEnabled(ctx context.Context, flag string) bool {
 }
 
 func isEnabled(ctx context.Context, flag string) bool {
-	if flag == "" {
+	val, ok := getFlagVal(ctx, flag)
+	if !ok {
 		return false
+	}
+
+	return val == "true"
+}
+
+func getFlagVal(ctx context.Context, flag string) (string, bool) {
+	if flag == "" {
+		return "", false
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return false
+		return "", false
 	}
 
 	val, ok := md[HeaderKey(flag)]
 	if !ok {
+		return "", false
+	}
+
+	if len(val) == 0 {
+		return "", false
+	}
+
+	return val[0], true
+}
+
+// IsDisabled checks if the feature flag is explicitly disabled for the passed context.
+// Only returns true if the metadata for the feature flag is set to "false"
+// For non-explicit disable, use !IsEnabled
+func IsDisabled(ctx context.Context, flag string) bool {
+	val, ok := getFlagVal(ctx, flag)
+	if !ok {
 		return false
 	}
 
-	return len(val) > 0 && val[0] == "true"
-}
+	disabled := val == "false"
+	flagChecks.WithLabelValues(flag, strconv.FormatBool(!disabled)).Inc()
 
-// IsDisabled is the inverse operation of IsEnabled
-func IsDisabled(ctx context.Context, flag string) bool {
-	return !IsEnabled(ctx, flag)
+	return disabled
 }
 
 const ffPrefix = "gitaly-feature-"
