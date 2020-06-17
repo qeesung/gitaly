@@ -9,7 +9,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
 )
@@ -27,7 +26,7 @@ func TestStreamPeeking(t *testing.T) {
 	pingReqSent := &testservice.PingRequest{Value: "hi"}
 
 	// director will peek into stream before routing traffic
-	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
+	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 		t.Logf("director routing method %s to backend", fullMethodName)
 
 		peekedMsg, err := peeker.Peek()
@@ -38,7 +37,7 @@ func TestStreamPeeking(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, proto.Equal(pingReqSent, peekedRequest), "expected to be the same")
 
-		return proxy.NewStreamParameters(proxy.Destination{Ctx: helper.IncomingToOutgoing(ctx), Conn: backendCC, Msg: peekedMsg}, nil, nil, nil), nil
+		return proxy.NewStreamParameters(ctx, backendCC, nil, nil), nil
 	}
 
 	pingResp := &testservice.PingResponse{
@@ -86,7 +85,7 @@ func TestStreamInjecting(t *testing.T) {
 	newValue := "bye"
 
 	// director will peek into stream and change some frames
-	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
+	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamModifier) (*proxy.StreamParameters, error) {
 		t.Logf("modifying request for method %s", fullMethodName)
 
 		peekedMsg, err := peeker.Peek()
@@ -101,7 +100,9 @@ func TestStreamInjecting(t *testing.T) {
 		newPayload, err := proto.Marshal(peekedRequest)
 		require.NoError(t, err)
 
-		return proxy.NewStreamParameters(proxy.Destination{Ctx: helper.IncomingToOutgoing(ctx), Conn: backendCC, Msg: newPayload}, nil, nil, nil), nil
+		require.NoError(t, peeker.Modify(newPayload))
+
+		return proxy.NewStreamParameters(ctx, backendCC, nil, nil), nil
 	}
 
 	pingResp := &testservice.PingResponse{
