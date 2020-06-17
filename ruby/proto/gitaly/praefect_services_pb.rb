@@ -20,9 +20,8 @@ module Gitaly
       # back indicating which repos are consistent with the primary and which ones
       # need repair.
       rpc :ConsistencyCheck, ConsistencyCheckRequest, stream(ConsistencyCheckResponse)
-      # DatalossCheck returns the count of dead replica jobs created within a given
-      # timeframe. Dead replica jobs can indicate data loss and can be helpful in debugging
-      # impact of a primary node failure.
+      # DatalossCheck checks for nodes which are not up to date with the previous writable primary.
+      # This indicates possible data loss after a failover event.
       rpc :DatalossCheck, DatalossCheckRequest, DatalossCheckResponse
       # EnableWrites enables writes for a storage that was switched to a read-only mode
       # following a failover.

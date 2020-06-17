@@ -13,11 +13,18 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "gitaly.EnableWritesResponse" do
   end
   add_message "gitaly.DatalossCheckRequest" do
-    optional :from, :message, 1, "google.protobuf.Timestamp"
-    optional :to, :message, 2, "google.protobuf.Timestamp"
+    optional :virtual_storage, :string, 1
   end
   add_message "gitaly.DatalossCheckResponse" do
-    map :by_relative_path, :string, :int64, 1
+    optional :virtual_storage, :string, 1
+    optional :previous_writable_primary, :string, 2
+    optional :current_primary, :string, 3
+    optional :is_read_only, :bool, 4
+    repeated :outdated_nodes, :message, 5, "gitaly.DatalossCheckResponse.Nodes"
+  end
+  add_message "gitaly.DatalossCheckResponse.Nodes" do
+    optional :relative_path, :string, 1
+    repeated :nodes, :string, 2
   end
   add_message "gitaly.RepositoryReplicasRequest" do
     optional :repository, :message, 1, "gitaly.Repository"
@@ -50,6 +57,7 @@ module Gitaly
   EnableWritesResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.EnableWritesResponse").msgclass
   DatalossCheckRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckRequest").msgclass
   DatalossCheckResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse").msgclass
+  DatalossCheckResponse::Nodes = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DatalossCheckResponse.Nodes").msgclass
   RepositoryReplicasRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasRequest").msgclass
   RepositoryReplicasResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse").msgclass
   RepositoryReplicasResponse::RepositoryDetails = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositoryReplicasResponse.RepositoryDetails").msgclass

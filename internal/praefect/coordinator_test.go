@@ -23,7 +23,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
@@ -38,34 +37,6 @@ func init() {
 func TestSecondaryRotation(t *testing.T) {
 	t.Skip("secondary rotation will change with the new data model")
 }
-
-type mockNodeManager struct {
-	GetShardFunc func(string) (nodes.Shard, error)
-}
-
-func (m *mockNodeManager) GetShard(storage string) (nodes.Shard, error) {
-	return m.GetShardFunc(storage)
-}
-
-func (m *mockNodeManager) EnableWrites(context.Context, string) error { panic("unimplemented") }
-
-func (m *mockNodeManager) GetSyncedNode(context.Context, string, string) (nodes.Node, error) {
-	panic("unimplemented")
-}
-
-type mockNode struct {
-	nodes.Node
-	storageName string
-	conn        *grpc.ClientConn
-}
-
-func (m *mockNode) GetStorage() string { return m.storageName }
-
-func (m *mockNode) GetConnection() *grpc.ClientConn { return m.conn }
-
-func (m *mockNode) GetAddress() string { return "" }
-
-func (m *mockNode) GetToken() string { return "" }
 
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 	for _, tc := range []struct {
@@ -114,10 +85,10 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 			const storageName = "test-storage"
 			coordinator := NewCoordinator(
 				datastore.NewMemoryReplicationEventQueue(conf),
-				&mockNodeManager{GetShardFunc: func(storage string) (nodes.Shard, error) {
+				&nodes.MockManager{GetShardFunc: func(storage string) (nodes.Shard, error) {
 					return nodes.Shard{
 						IsReadOnly: tc.readOnly,
-						Primary:    &mockNode{storageName: storageName},
+						Primary:    &nodes.MockNode{StorageName: storageName},
 					}, nil
 				}},
 				transactions.NewManager(),

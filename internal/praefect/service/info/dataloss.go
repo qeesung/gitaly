@@ -2,27 +2,43 @@ package info
 
 import (
 	"context"
+	"sort"
 
-	"github.com/golang/protobuf/ptypes"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func (s *Server) DatalossCheck(ctx context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
-	from, err := ptypes.Timestamp(req.GetFrom())
-	if err != nil {
-		return nil, helper.ErrInvalidArgumentf("invalid 'from': %v", err)
-	}
-
-	to, err := ptypes.Timestamp(req.GetTo())
-	if err != nil {
-		return nil, helper.ErrInvalidArgumentf("invalid 'to': %v", err)
-	}
-
-	dead, err := s.queue.CountDeadReplicationJobs(ctx, from, to)
+	shard, err := s.nodeMgr.GetShard(req.VirtualStorage)
 	if err != nil {
 		return nil, err
 	}
 
-	return &gitalypb.DatalossCheckResponse{ByRelativePath: dead}, nil
+	if shard.PreviousWritablePrimary == nil {
+		return &gitalypb.DatalossCheckResponse{
+			CurrentPrimary: shard.Primary.GetStorage(),
+			IsReadOnly:     shard.IsReadOnly,
+		}, nil
+	}
+
+	repos, err := s.queue.GetOutdatedRepositories(ctx, req.GetVirtualStorage(), shard.PreviousWritablePrimary.GetStorage())
+	if err != nil {
+		return nil, err
+	}
+
+	outdatedNodes := make([]*gitalypb.DatalossCheckResponse_Nodes, 0, len(repos))
+	for repo, nodes := range repos {
+		outdatedNodes = append(outdatedNodes, &gitalypb.DatalossCheckResponse_Nodes{
+			RelativePath: repo,
+			Nodes:        nodes,
+		})
+	}
+
+	sort.Slice(outdatedNodes, func(i, j int) bool { return outdatedNodes[i].RelativePath < outdatedNodes[j].RelativePath })
+
+	return &gitalypb.DatalossCheckResponse{
+		PreviousWritablePrimary: shard.PreviousWritablePrimary.GetStorage(),
+		CurrentPrimary:          shard.Primary.GetStorage(),
+		IsReadOnly:              shard.IsReadOnly,
+		OutdatedNodes:           outdatedNodes,
+	}, nil
 }

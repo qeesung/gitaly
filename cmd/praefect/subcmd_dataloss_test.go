@@ -3,47 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
-	"flag"
 	"testing"
-	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
-
-func TestTimeFlag(t *testing.T) {
-	for _, tc := range []struct {
-		input    string
-		expected time.Time
-	}{
-		{
-			input:    "2020-02-03T14:15:16Z",
-			expected: time.Date(2020, 2, 3, 14, 15, 16, 0, time.UTC),
-		},
-		{
-			input:    "2020-02-03T14:15:16+02:00",
-			expected: time.Date(2020, 2, 3, 14, 15, 16, 0, time.FixedZone("UTC+2", 2*60*60)),
-		},
-		{
-			input: "",
-		},
-	} {
-		t.Run(tc.input, func(t *testing.T) {
-			var actual time.Time
-			fs := flag.NewFlagSet("dataloss", flag.ContinueOnError)
-			fs.Var((*timeFlag)(&actual), "time", "")
-
-			err := fs.Parse([]string{"-time", tc.input})
-			if !tc.expected.IsZero() {
-				require.NoError(t, err)
-			}
-
-			require.True(t, tc.expected.Equal(actual))
-		})
-	}
-}
 
 type mockPraefectInfoService struct {
 	gitalypb.UnimplementedPraefectInfoServiceServer
@@ -64,48 +30,98 @@ func TestDatalossSubcommand(t *testing.T) {
 	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(mockSvc)})
 	defer clean()
 	for _, tc := range []struct {
-		desc          string
-		args          []string
-		datalossCheck func(context.Context, *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error)
-		output        string
-		error         error
+		desc            string
+		args            []string
+		virtualStorages []*config.VirtualStorage
+		datalossCheck   func(context.Context, *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error)
+		output          string
+		error           error
 	}{
 		{
-			desc:  "from equals to",
-			args:  []string{"-from=2020-01-02T00:00:00Z", "-to=2020-01-02T00:00:00Z"},
-			error: errFromNotBeforeTo,
+			desc:  "positional arguments",
+			args:  []string{"-virtual-storage=test-virtual-storage", "positional-arg"},
+			error: UnexpectedPositionalArgsError{Command: "dataloss"},
 		},
 		{
-			desc:  "from after to",
-			args:  []string{"-from=2020-01-02T00:00:00Z", "-to=2020-01-01T00:00:00Z"},
-			error: errFromNotBeforeTo,
-		},
-		{
-			desc: "no dead jobs",
-			args: []string{"-from=2020-01-02T00:00:00Z", "-to=2020-01-03T00:00:00Z"},
+			desc: "no failover",
+			args: []string{"-virtual-storage=test-virtual-storage"},
 			datalossCheck: func(ctx context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
-				require.Equal(t, req.GetFrom(), &timestamp.Timestamp{Seconds: 1577923200})
-				require.Equal(t, req.GetTo(), &timestamp.Timestamp{Seconds: 1578009600})
-				return &gitalypb.DatalossCheckResponse{}, nil
+				assert.Equal(t, "test-virtual-storage", req.GetVirtualStorage())
+				return &gitalypb.DatalossCheckResponse{
+					CurrentPrimary: "test-current-primary",
+				}, nil
 			},
-			output: "Failed replication jobs between [2020-01-02 00:00:00 +0000 UTC, 2020-01-03 00:00:00 +0000 UTC):\n",
+			output: `Virtual storage: test-virtual-storage
+  Current write-enabled primary: test-current-primary
+    No data loss as the virtual storage has not encountered a failover
+`,
 		},
 		{
-			desc: "success",
-			args: []string{"-from=2020-01-02T00:00:00Z", "-to=2020-01-03T00:00:00Z"},
-			datalossCheck: func(_ context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
-				require.Equal(t, req.GetFrom(), &timestamp.Timestamp{Seconds: 1577923200})
-				require.Equal(t, req.GetTo(), &timestamp.Timestamp{Seconds: 1578009600})
-				return &gitalypb.DatalossCheckResponse{ByRelativePath: map[string]int64{
-					"test-repo/relative-path/2": 4,
-					"test-repo/relative-path/1": 1,
-					"test-repo/relative-path/3": 2,
-				}}, nil
+			desc: "no data loss",
+			args: []string{"-virtual-storage=test-virtual-storage"},
+			datalossCheck: func(ctx context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
+				assert.Equal(t, "test-virtual-storage", req.GetVirtualStorage())
+				return &gitalypb.DatalossCheckResponse{
+					PreviousWritablePrimary: "test-previous-primary",
+					IsReadOnly:              false,
+					CurrentPrimary:          "test-current-primary",
+				}, nil
 			},
-			output: `Failed replication jobs between [2020-01-02 00:00:00 +0000 UTC, 2020-01-03 00:00:00 +0000 UTC):
-test-repo/relative-path/1: 1 jobs
-test-repo/relative-path/2: 4 jobs
-test-repo/relative-path/3: 2 jobs
+			output: `Virtual storage: test-virtual-storage
+  Current write-enabled primary: test-current-primary
+  Previous write-enabled primary: test-previous-primary
+    No data loss from failing over from test-previous-primary
+`,
+		},
+		{
+			desc: "data loss",
+			args: []string{"-virtual-storage=test-virtual-storage"},
+			datalossCheck: func(ctx context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
+				assert.Equal(t, "test-virtual-storage", req.GetVirtualStorage())
+				return &gitalypb.DatalossCheckResponse{
+					PreviousWritablePrimary: "test-previous-primary",
+					IsReadOnly:              true,
+					CurrentPrimary:          "test-current-primary",
+					OutdatedNodes: []*gitalypb.DatalossCheckResponse_Nodes{
+						{RelativePath: "repository-1", Nodes: []string{"gitaly-2", "gitaly-3"}},
+						{RelativePath: "repository-2", Nodes: []string{"gitaly-1"}},
+					},
+				}, nil
+			},
+			output: `Virtual storage: test-virtual-storage
+  Current read-only primary: test-current-primary
+  Previous write-enabled primary: test-previous-primary
+    Nodes with data loss from failing over from test-previous-primary:
+      repository-1: gitaly-2, gitaly-3
+      repository-2: gitaly-1
+`,
+		},
+		{
+			desc:            "multiple virtual storages",
+			virtualStorages: []*config.VirtualStorage{{Name: "test-virtual-storage-2"}, {Name: "test-virtual-storage-1"}},
+			datalossCheck: func(ctx context.Context, req *gitalypb.DatalossCheckRequest) (*gitalypb.DatalossCheckResponse, error) {
+				return &gitalypb.DatalossCheckResponse{
+					PreviousWritablePrimary: "test-previous-primary",
+					IsReadOnly:              true,
+					CurrentPrimary:          "test-current-primary",
+					OutdatedNodes: []*gitalypb.DatalossCheckResponse_Nodes{
+						{RelativePath: "repository-1", Nodes: []string{"gitaly-2", "gitaly-3"}},
+						{RelativePath: "repository-2", Nodes: []string{"gitaly-1"}},
+					},
+				}, nil
+			},
+			output: `Virtual storage: test-virtual-storage-1
+  Current read-only primary: test-current-primary
+  Previous write-enabled primary: test-previous-primary
+    Nodes with data loss from failing over from test-previous-primary:
+      repository-1: gitaly-2, gitaly-3
+      repository-2: gitaly-1
+Virtual storage: test-virtual-storage-2
+  Current read-only primary: test-current-primary
+  Previous write-enabled primary: test-previous-primary
+    Nodes with data loss from failing over from test-previous-primary:
+      repository-1: gitaly-2, gitaly-3
+      repository-2: gitaly-1
 `,
 		},
 	} {
@@ -114,8 +130,13 @@ test-repo/relative-path/3: 2 jobs
 			cmd := newDatalossSubcommand()
 			output := &bytes.Buffer{}
 			cmd.output = output
-			require.NoError(t, cmd.FlagSet().Parse(tc.args))
-			require.Equal(t, tc.error, cmd.Exec(cmd.FlagSet(), config.Config{SocketPath: ln.Addr().String()}))
+
+			fs := cmd.FlagSet()
+			require.NoError(t, fs.Parse(tc.args))
+			require.Equal(t, tc.error, cmd.Exec(fs, config.Config{
+				VirtualStorages: tc.virtualStorages,
+				SocketPath:      ln.Addr().String(),
+			}))
 			require.Equal(t, tc.output, output.String())
 		})
 	}

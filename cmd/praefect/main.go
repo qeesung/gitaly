@@ -60,17 +60,15 @@
 //
 // Dataloss
 //
-// The subcommand "dataloss" helps identify dataloss cases during a given
-// timeframe by checking for dead replication jobs. This can be useful to
-// quantify the impact of a primary node failure.
+// The subcommand "dataloss" identifies Gitaly nodes which are missing data from the
+// previous write-enabled primary node. It does so by looking through incomplete
+// replication jobs. This is useful for identifying potential data loss from a failover
+// event.
 //
-//     praefect -config PATH_TO_CONFIG dataloss -from RFC3339_TIME -to RFC3339_TIME
+//     praefect -config PATH_TO_CONFIG dataloss [-virtual-storage <virtual-storage>]
 //
-// "-from" specifies the inclusive beginning of a timerange to check.
-//
-// "-to" specifies the exclusive ending of a timerange to check.
-//
-// If a timerange is not specified, dead jobs from last six hours are fetched by default.
+// "-virtual-storage" specifies which virtual storage to check for data loss. If not specified,
+// the check is performed for every configured virtual storage.
 //
 // Enable Writes
 //

@@ -706,18 +706,18 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 		testhelper.DiscardTestEntry(t),
 		conf.VirtualStorageNames(),
 		queue,
-		&mockNodeManager{
+		&nodes.MockManager{
 			GetShardFunc: func(vs string) (nodes.Shard, error) {
 				require.Equal(t, virtualStorage, vs)
 				return nodes.Shard{
 					IsReadOnly: true,
-					Primary: &mockNode{
-						storageName: primaryStorage,
-						conn:        primaryConn,
+					Primary: &nodes.MockNode{
+						StorageName: primaryStorage,
+						Conn:        primaryConn,
 					},
-					Secondaries: []nodes.Node{&mockNode{
-						storageName: secondaryStorage,
-						conn:        secondaryConn,
+					Secondaries: []nodes.Node{&nodes.MockNode{
+						StorageName: secondaryStorage,
+						Conn:        secondaryConn,
 					}},
 				}, nil
 			},

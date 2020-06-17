@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
 
@@ -22,9 +21,6 @@ type ReplicationEventQueue interface {
 	// It only updates events that are in 'in_progress' state.
 	// It returns list of ids that was actually acknowledged.
 	Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error)
-	// CountDeadReplicationJobs returns the dead replication job counts by relative path within the
-	// given timerange. The timerange beginning is inclusive and ending is exclusive.
-	CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error)
 	// GetOutdatedRepositories returns storages by repositories which are considered outdated. A repository is considered
 	// outdated if the latest replication job is not in 'complete' state or the latest replication job does not originate
 	// from the reference storage.
@@ -158,43 +154,6 @@ func NewPostgresReplicationEventQueue(qc glsql.Querier) PostgresReplicationEvent
 // PostgresReplicationEventQueue is a Postgres implementation of persistent queue.
 type PostgresReplicationEventQueue struct {
 	qc glsql.Querier
-}
-
-// CountDeadReplicationJobs returns the dead replication job counts by relative path within the
-// given timerange. The timerange beginning is inclusive and ending is exclusive.
-func (rq PostgresReplicationEventQueue) CountDeadReplicationJobs(ctx context.Context, from, to time.Time) (map[string]int64, error) {
-	const q = `
-		SELECT job->>'relative_path', count(*)
-		FROM replication_queue
-		WHERE	state 		= 'dead'
-			AND created_at >= $1
-			AND created_at  < $2
-		GROUP BY job->>'relative_path';
-	`
-
-	rows, err := rq.qc.QueryContext(ctx, q, from.UTC(), to.UTC())
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			ctxlogrus.Extract(ctx).WithError(err).Error("error closing database rows")
-		}
-	}()
-
-	out := map[string]int64{}
-	for rows.Next() {
-		var relativePath string
-		var count int64
-
-		if err := rows.Scan(&relativePath, &count); err != nil {
-			return nil, err
-		}
-
-		out[relativePath] = count
-	}
-
-	return out, rows.Err()
 }
 
 func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {

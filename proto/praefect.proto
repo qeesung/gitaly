@@ -26,9 +26,8 @@ service PraefectInfoService {
     };
   }
 
-  // DatalossCheck returns the count of dead replica jobs created within a given
-  // timeframe. Dead replica jobs can indicate data loss and can be helpful in debugging
-  // impact of a primary node failure.
+  // DatalossCheck checks for nodes which are not up to date with the previous writable primary.
+  // This indicates possible data loss after a failover event.
   rpc DatalossCheck(DatalossCheckRequest) returns (DatalossCheckResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -53,21 +52,24 @@ message EnableWritesRequest {
 
 message EnableWritesResponse {}
 
-// DatalossCheckRequest fetches dead replica jobs from praefect.
 message DatalossCheckRequest {
-  // from is an inclusive beginning of the timeframe the dead replica jobs are to be
-  // counted in.
-  google.protobuf.Timestamp from = 1;
-  // to is an exclusive ending of the timeframe the dead replica jobs are to be
-  // counted in.
-  google.protobuf.Timestamp to = 2;
+  string virtual_storage = 1 [(storage)=true];
 }
 
-// DatalossCheckResponse contains dead replica jobs by repository.
 message DatalossCheckResponse {
-  // by_relative_path contains the count of dead replica job by repository relative
-  // path within the requested timeframe.
-  map<string,int64> by_relative_path = 1;
+  message Nodes {
+    // relative path of the repository with outdated nodes
+    string relative_path = 1;
+    // nodes whose copy of the repository is not up to date
+    repeated string nodes = 2;
+  }
+
+  string virtual_storage = 1;
+  string previous_writable_primary = 2;
+  string current_primary = 3;
+  // whether the virtual storage is currently in read-only mode
+  bool is_read_only = 4;
+  repeated Nodes outdated_nodes = 5;
 }
 
 message RepositoryReplicasRequest{

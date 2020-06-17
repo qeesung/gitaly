@@ -2,74 +2,56 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"sort"
-	"time"
+	"strings"
 
-	"github.com/golang/protobuf/ptypes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-var errFromNotBeforeTo = errors.New("'from' must be a time before 'to'")
-
-type timeFlag time.Time
-
-func (tf *timeFlag) String() string {
-	return time.Time(*tf).Format(time.RFC3339)
-}
-
-func (tf *timeFlag) Set(v string) error {
-	t, err := time.Parse(time.RFC3339, v)
-	*tf = timeFlag(t)
-	return err
-}
-
 type datalossSubcommand struct {
-	output io.Writer
-	from   time.Time
-	to     time.Time
+	output         io.Writer
+	virtualStorage string
 }
 
 func newDatalossSubcommand() *datalossSubcommand {
-	now := time.Now()
-	return &datalossSubcommand{
-		output: os.Stdout,
-		from:   now.Add(-6 * time.Hour),
-		to:     now,
-	}
+	return &datalossSubcommand{output: os.Stdout}
 }
 
 func (cmd *datalossSubcommand) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("dataloss", flag.ContinueOnError)
-	fs.Var((*timeFlag)(&cmd.from), "from", "inclusive beginning of timerange")
-	fs.Var((*timeFlag)(&cmd.to), "to", "exclusive ending of timerange")
+	fs.StringVar(&cmd.virtualStorage, "virtual-storage", "", "virtual storage to check for data loss")
 	return fs
 }
 
-func (cmd *datalossSubcommand) Exec(_ *flag.FlagSet, cfg config.Config) error {
+func (cmd *datalossSubcommand) println(indent int, msg string, args ...interface{}) {
+	fmt.Fprint(cmd.output, strings.Repeat("  ", indent))
+	fmt.Fprintf(cmd.output, msg, args...)
+	fmt.Fprint(cmd.output, "\n")
+}
+
+func (cmd *datalossSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) error {
+	if flags.NArg() > 0 {
+		return UnexpectedPositionalArgsError{Command: flags.Name()}
+	}
+
+	virtualStorages := []string{cmd.virtualStorage}
+	if cmd.virtualStorage == "" {
+		virtualStorages = make([]string, len(cfg.VirtualStorages))
+		for i := range cfg.VirtualStorages {
+			virtualStorages[i] = cfg.VirtualStorages[i].Name
+		}
+	}
+	sort.Strings(virtualStorages)
+
 	nodeAddr, err := getNodeAddress(cfg)
 	if err != nil {
 		return err
-	}
-
-	if !cmd.from.Before(cmd.to) {
-		return errFromNotBeforeTo
-	}
-
-	pbFrom, err := ptypes.TimestampProto(cmd.from)
-	if err != nil {
-		return fmt.Errorf("invalid 'from': %v", err)
-	}
-
-	pbTo, err := ptypes.TimestampProto(cmd.to)
-	if err != nil {
-		return fmt.Errorf("invalid 'to': %v", err)
 	}
 
 	conn, err := subCmdDial(nodeAddr, cfg.Auth.Token)
@@ -83,27 +65,36 @@ func (cmd *datalossSubcommand) Exec(_ *flag.FlagSet, cfg config.Config) error {
 	}()
 
 	client := gitalypb.NewPraefectInfoServiceClient(conn)
-	resp, err := client.DatalossCheck(context.Background(), &gitalypb.DatalossCheckRequest{
-		From: pbFrom,
-		To:   pbTo,
-	})
-	if err != nil {
-		return fmt.Errorf("error checking: %v", err)
-	}
 
-	keys := make([]string, 0, len(resp.ByRelativePath))
-	for k := range resp.ByRelativePath {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	for _, vs := range virtualStorages {
+		resp, err := client.DatalossCheck(context.Background(), &gitalypb.DatalossCheckRequest{
+			VirtualStorage: vs,
+		})
+		if err != nil {
+			return fmt.Errorf("error checking: %v", err)
+		}
 
-	if _, err := fmt.Fprintf(cmd.output, "Failed replication jobs between [%s, %s):\n", cmd.from, cmd.to); err != nil {
-		return fmt.Errorf("error writing output: %v", err)
-	}
+		mode := "write-enabled"
+		if resp.IsReadOnly {
+			mode = "read-only"
+		}
 
-	for _, proj := range keys {
-		if _, err := fmt.Fprintf(cmd.output, "%s: %d jobs\n", proj, resp.ByRelativePath[proj]); err != nil {
-			return fmt.Errorf("error writing output: %v", err)
+		cmd.println(0, "Virtual storage: %s", vs)
+		cmd.println(1, "Current %s primary: %s", mode, resp.CurrentPrimary)
+		if resp.PreviousWritablePrimary == "" {
+			fmt.Fprintln(cmd.output, "    No data loss as the virtual storage has not encountered a failover")
+			continue
+		}
+
+		cmd.println(1, "Previous write-enabled primary: %s", resp.PreviousWritablePrimary)
+		if len(resp.OutdatedNodes) == 0 {
+			cmd.println(2, "No data loss from failing over from %s", resp.PreviousWritablePrimary)
+			continue
+		}
+
+		cmd.println(2, "Nodes with data loss from failing over from %s:", resp.PreviousWritablePrimary)
+		for _, odn := range resp.OutdatedNodes {
+			cmd.println(3, "%s: %s", odn.RelativePath, strings.Join(odn.Nodes, ", "))
 		}
 	}
 
