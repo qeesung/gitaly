@@ -161,7 +161,7 @@ func injectCustomCATestCerts(t *testing.T) (*x509.CertPool, testhelper.Cleanup) 
 	config.Config.TLS.CertPath = certFile
 	config.Config.TLS.KeyPath = keyFile
 
-	revertEnv := testhelper.MustModifyEnvironment(t, gitaly_x509.SSLCertFile, certFile)
+	revertEnv := testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, certFile)
 	cleanup := func() {
 		config.Config.TLS = oldTLSConfig
 		revertEnv()

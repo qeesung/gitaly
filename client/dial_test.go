@@ -110,7 +110,7 @@ func TestDial(t *testing.T) {
 			}
 
 			if tt.envSSLCertFile != "" {
-				defer testhelper.MustModifyEnvironment(t, gitaly_x509.SSLCertFile, tt.envSSLCertFile)()
+				defer testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, tt.envSSLCertFile)()
 			}
 
 			err := doDialAndExecuteCall(tt.rawAddress)

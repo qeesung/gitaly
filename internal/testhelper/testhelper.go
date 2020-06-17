@@ -812,9 +812,9 @@ func (m *mockAPI) PreReceive(glRepository string) (bool, error) {
 // GitlabAPIStub is a global mock that can be used in testing
 var GitlabAPIStub = &mockAPI{}
 
-// MustModifyEnvironment will change an environment variable and return a func suitable
+// ModifyEnvironment will change an environment variable and return a func suitable
 // for `defer` to change the value back.
-func MustModifyEnvironment(t testing.TB, key string, value string) func() {
+func ModifyEnvironment(t testing.TB, key string, value string) func() {
 	t.Helper()
 
 	oldValue, hasOldValue := os.LookupEnv(key)
