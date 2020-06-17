@@ -51,11 +51,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if os.Getenv(featureflag.HooksRPCEnvVar) != "true" {
-		executeScript(ctx, subCmd, logger)
-		return
-	}
-
 	repository, err := repositoryFromEnv()
 	if err != nil {
 		logger.Fatalf("error when getting repository: %v", err)
@@ -299,47 +294,4 @@ func check(configPath string) (int, error) {
 	}
 
 	return 0, nil
-}
-
-func executeScript(ctx context.Context, subCmd string, logger *gitalylog.HookLogger) {
-	gitalyRubyDir := os.Getenv("GITALY_RUBY_DIR")
-	if gitalyRubyDir == "" {
-		logger.Fatalf("GITALY_RUBY_DIR not set")
-	}
-
-	rubyHookPath := filepath.Join(gitalyRubyDir, "gitlab-shell", "hooks", subCmd)
-
-	var hookCmd *exec.Cmd
-
-	switch subCmd {
-	case "update":
-		args := os.Args[2:]
-		requireArgs := 3
-		if len(args) != requireArgs {
-			logger.Fatalf("update hook requires %d arguments, got: %d", requireArgs, len(args))
-		}
-
-		hookCmd = exec.Command(rubyHookPath, args...)
-	case "pre-receive", "post-receive":
-		hookCmd = exec.Command(rubyHookPath)
-	default:
-		logger.Fatalf("subcommand name invalid: %v", subCmd)
-	}
-
-	cmd, err := command.New(ctx, hookCmd, os.Stdin, os.Stdout, os.Stderr, os.Environ()...)
-	if err != nil {
-		logger.Fatalf("error when starting command %q: %v", hookCmd.String(), err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		logger.Errorf("error when executing ruby hook: %v", err)
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			os.Exit(exitError.ExitCode())
-		} else {
-			os.Exit(1)
-		}
-	}
-
-	os.Exit(0)
 }

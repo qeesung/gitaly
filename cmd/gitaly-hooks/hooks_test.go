@@ -116,7 +116,7 @@ func TestHooksPrePostReceive(t *testing.T) {
 
 	hookNames := []string{"pre-receive", "post-receive"}
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.GoPreReceiveHook})
+	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.GoPreReceiveHook})
 	require.NoError(t, err)
 
 	for _, hookName := range hookNames {
@@ -160,10 +160,6 @@ func TestHooksPrePostReceive(t *testing.T) {
 					},
 					gitPushOptions...,
 				)
-
-				if featureSet.IsEnabled(featureflag.HooksRPC) {
-					cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
-				}
 
 				if featureSet.IsEnabled(featureflag.GoPreReceiveHook) {
 					cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.GoPreReceiveHookEnvVar))
@@ -224,7 +220,7 @@ func TestHooksUpdate(t *testing.T) {
 	socket, stop := runHookServiceServer(t, token)
 	defer stop()
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.GoUpdateHook})
+	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.GoUpdateHook})
 	require.NoError(t, err)
 
 	for _, featureSet := range featureSets {
@@ -277,9 +273,6 @@ open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
 
 	var stdout, stderr bytes.Buffer
 
-	if features.IsEnabled(featureflag.HooksRPC) {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
-	}
 	if features.IsEnabled(featureflag.GoUpdateHook) {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.GoUpdateHookEnvVar))
 	}
@@ -347,9 +340,6 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	config.Config.Gitlab.URL = ts.URL
 	config.Config.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC})
-	require.NoError(t, err)
-
 	token := "abc123"
 
 	gitlabAPI, err := hook.NewGitlabAPI(config.Config.Gitlab)
@@ -358,43 +348,35 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	socket, stop := runHookServiceServerWithAPI(t, token, gitlabAPI)
 	defer stop()
 
-	for _, featureSet := range featureSets {
-		t.Run(fmt.Sprintf("features: %v", featureSet), func(t *testing.T) {
-			customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
-			defer cleanup()
+	customHookOutputPath, cleanup := testhelper.WriteEnvToCustomHook(t, testRepoPath, "post-receive")
+	defer cleanup()
 
-			var stdout, stderr bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
-			postReceiveHookPath, err := filepath.Abs("../../ruby/git-hooks/post-receive")
-			require.NoError(t, err)
-			cmd := exec.Command(postReceiveHookPath)
-			cmd.Env = testhelper.EnvForHooks(t, tempGitlabShellDir, socket, token, testRepo, testhelper.GlHookValues{
-				GLID:       glID,
-				GLUsername: glUsername,
-				GLRepo:     glRepository,
-				GLProtocol: glProtocol,
-			})
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-			cmd.Stdin = bytes.NewBuffer([]byte(changes))
-			cmd.Dir = testRepoPath
+	postReceiveHookPath, err := filepath.Abs("../../ruby/git-hooks/post-receive")
+	require.NoError(t, err)
+	cmd := exec.Command(postReceiveHookPath)
+	cmd.Env = testhelper.EnvForHooks(t, tempGitlabShellDir, socket, token, testRepo, testhelper.GlHookValues{
+		GLID:       glID,
+		GLUsername: glUsername,
+		GLRepo:     glRepository,
+		GLProtocol: glProtocol,
+	})
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = bytes.NewBuffer([]byte(changes))
+	cmd.Dir = testRepoPath
 
-			if featureSet.IsEnabled(featureflag.HooksRPC) {
-				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=true", featureflag.HooksRPCEnvVar))
-			}
+	err = cmd.Run()
+	code, ok := command.ExitStatus(err)
 
-			err = cmd.Run()
-			code, ok := command.ExitStatus(err)
+	require.True(t, ok, "expect exit status in %v", err)
+	require.Equal(t, 1, code, "exit status")
+	require.Empty(t, stdout.String())
+	require.Empty(t, stderr.String())
 
-			require.True(t, ok, "expect exit status in %v", err)
-			require.Equal(t, 1, code, "exit status")
-			require.Empty(t, stdout.String())
-			require.Empty(t, stderr.String())
-
-			output := string(testhelper.MustReadFile(t, customHookOutputPath))
-			require.Empty(t, output, "custom hook should not have run")
-		})
-	}
+	output := string(testhelper.MustReadFile(t, customHookOutputPath))
+	require.Empty(t, output, "custom hook should not have run")
 }
 
 func TestHooksNotAllowed(t *testing.T) {

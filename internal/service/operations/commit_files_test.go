@@ -127,7 +127,7 @@ func testSuccessfulUserCommitFilesRequest(t *testing.T, ctxWithFeatureFlags cont
 }
 
 func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()

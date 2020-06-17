@@ -76,7 +76,7 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()

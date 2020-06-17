@@ -50,7 +50,7 @@ func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -195,7 +195,7 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateTagRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 
 	ctx, cancel := testhelper.Context()
@@ -298,7 +298,7 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 }
 
 func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GitalyRubyCallHookRPC, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 
 	ctx, cancel := testhelper.Context()

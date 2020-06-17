@@ -340,15 +340,7 @@ func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePa
 	return err
 }
 
-func TestPostReceivePackToHooks_WithRPC(t *testing.T) {
-	testPostReceivePackToHooks(t, true)
-}
-
-func TestPostReceivePackToHooks_WithoutRPC(t *testing.T) {
-	testPostReceivePackToHooks(t, false)
-}
-
-func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
+func TestPostReceivePackToHooks(t *testing.T) {
 	defer func(cfg config.Cfg) {
 		config.Config = cfg
 	}(config.Config)
@@ -415,10 +407,6 @@ func testPostReceivePackToHooks(t *testing.T, callRPC bool) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	if callRPC {
-		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.HooksRPC)
-	}
-
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
@@ -474,7 +462,7 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 	gitlabUser := "gitlab_user-1234"
 	gitlabPassword := "gitlabsecret9887"
 
-	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.HooksRPC, featureflag.ReferenceTransactions, featureflag.GoPreReceiveHook})
+	featureSets, err := testhelper.NewFeatureSets([]string{featureflag.ReferenceTransactions, featureflag.GoPreReceiveHook})
 	require.NoError(t, err)
 
 	for _, features := range featureSets {
