@@ -188,12 +188,13 @@ func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStor
 			SELECT id
 			FROM replication_queue_lock AS repo_lock
 			WHERE repo_lock.acquired = FALSE AND repo_lock.id IN (
-				SELECT lock_id
-				FROM replication_queue
-				WHERE attempt > 0
-					AND state IN ('ready', 'failed')
-					AND job->>'virtual_storage' = $1
-					AND job->>'target_node_storage' = $2
+				SELECT rq.lock_id
+				FROM replication_queue rq
+				WHERE rq.attempt > 0
+					AND rq.state IN ('ready', 'failed')
+					AND rq.job->>'virtual_storage' = $1
+					AND rq.job->>'target_node_storage' = $2
+					AND NOT EXISTS (SELECT 1 FROM replication_queue_job_lock WHERE lock_id = rq.lock_id)
 				ORDER BY created_at
 				LIMIT $3 FOR UPDATE
 			)
@@ -208,12 +209,13 @@ func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStor
 			WHERE queue.lock_id IN (SELECT id FROM to_lock)
 				AND state NOT IN ('in_progress', 'cancelled', 'completed')
 				AND queue.id IN (
-					SELECT id
-					FROM replication_queue
-					WHERE attempt > 0
-						AND state IN ('ready', 'failed')
-						AND job->>'virtual_storage' = $1
-						AND job->>'target_node_storage' = $2
+					SELECT rq.id
+					FROM replication_queue rq
+					WHERE rq.attempt > 0
+						AND rq.state IN ('ready', 'failed')
+						AND rq.job->>'virtual_storage' = $1
+						AND rq.job->>'target_node_storage' = $2
+						AND NOT EXISTS (SELECT 1 FROM replication_queue_job_lock WHERE lock_id = rq.lock_id)
 					ORDER BY created_at
 					LIMIT $3
 				)
