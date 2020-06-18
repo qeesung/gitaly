@@ -1,6 +1,11 @@
 package starter
 
 import (
+	"errors"
+	"fmt"
+	"net"
+	"strings"
+
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/internal/connectioncounter"
@@ -13,11 +18,69 @@ const (
 	TLS string = "tls"
 	// Unix is the prefix for unix
 	Unix string = "unix"
+
+	separator = "://"
 )
+
+var (
+	errEmptySchema  = errors.New("empty schema can't be used")
+	errEmptyAddress = errors.New("empty address can't be used")
+)
+
+// Parse returns Config based on the passed in address string.
+// Returns error only if provided address has no schema defined.
+func Parse(addr string) (Config, error) {
+	if addr == "" {
+		return Config{}, errEmptyAddress
+	}
+
+	parts := strings.Split(addr, separator)
+	if len(parts) != 2 {
+		return Config{}, fmt.Errorf("unsupported format: %q", addr)
+	}
+
+	if err := verifySchema(parts[0]); err != nil {
+		return Config{}, err
+	}
+
+	if parts[1] == "" {
+		return Config{}, errEmptyAddress
+	}
+	return Config{Name: parts[0], Addr: parts[1]}, nil
+}
+
+// Compose returns address composed from provided schema and schema-less address.
+func Compose(schema, address string) (string, error) {
+	if address == "" {
+		return "", errEmptyAddress
+	}
+
+	if err := verifySchema(schema); err != nil {
+		return "", err
+	}
+
+	return schema + separator + address, nil
+}
+
+func verifySchema(schema string) error {
+	switch schema {
+	case "":
+		return errEmptySchema
+	case TCP, TLS, Unix:
+		return nil
+	default:
+		return fmt.Errorf("unsupported schema: %q", schema)
+	}
+}
 
 // Config represents a network type, and address
 type Config struct {
 	Name, Addr string
+}
+
+// Endpoint returns fully qualified address.
+func (c *Config) Endpoint() (string, error) {
+	return Compose(c.Name, c.Addr)
 }
 
 func (c *Config) isSecure() bool {
@@ -33,7 +96,7 @@ func (c *Config) family() string {
 }
 
 // New creates a new bootstrap.Starter from a config and a GracefulStoppableServer
-func New(cfg Config, servers bootstrap.GracefulStoppableServer) bootstrap.Starter {
+func New(cfg Config, servers GracefulStoppableServer) bootstrap.Starter {
 	return func(listen bootstrap.ListenFunc, errCh chan<- error) error {
 		l, err := listen(cfg.family(), cfg.Addr)
 		if err != nil {
@@ -49,4 +112,11 @@ func New(cfg Config, servers bootstrap.GracefulStoppableServer) bootstrap.Starte
 
 		return nil
 	}
+}
+
+// GracefulStoppableServer allows to serve contents on a net.Listener, Stop serving and performing a GracefulStop
+type GracefulStoppableServer interface {
+	GracefulStop()
+	Stop()
+	Serve(l net.Listener, secure bool) error
 }
