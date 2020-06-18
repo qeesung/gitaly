@@ -72,8 +72,8 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(rubyServer))
 	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer(cfg.Storages))
 	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer())
-	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(gitlabAPI, config.Config.Hooks))
-	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(config.Config.Storages))
+	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(gitlabAPI, cfg.Hooks))
+	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(cfg.Storages))
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 }

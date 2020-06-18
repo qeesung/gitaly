@@ -88,7 +88,7 @@ func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cf
 			grpc_logrus.StreamServerInterceptor(logrusEntry),
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
-			auth.StreamServerInterceptor(config.Config.Auth),
+			auth.StreamServerInterceptor(cfg.Auth),
 			lh.StreamInterceptor(), // Should be below auth handler to prevent v2 hmac tokens from timing out while queued
 			grpctracing.StreamServerTracingInterceptor(),
 			cache.StreamInvalidator(diskcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
@@ -104,7 +104,7 @@ func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cf
 			grpc_logrus.UnaryServerInterceptor(logrusEntry),
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
-			auth.UnaryServerInterceptor(config.Config.Auth),
+			auth.UnaryServerInterceptor(cfg.Auth),
 			lh.UnaryInterceptor(), // Should be below auth handler to prevent v2 hmac tokens from timing out while queued
 			grpctracing.UnaryServerTracingInterceptor(),
 			cache.UnaryInvalidator(diskcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
@@ -121,7 +121,7 @@ func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cf
 	// If tls config is specified attempt to extract tls options and use it
 	// as a grpc.ServerOption
 	if secure {
-		cert, err := tls.LoadX509KeyPair(config.Config.TLS.CertPath, config.Config.TLS.KeyPath)
+		cert, err := tls.LoadX509KeyPair(cfg.TLS.CertPath, cfg.TLS.KeyPath)
 		if err != nil {
 			log.Fatalf("error reading certificate and key paths: %v", err)
 		}

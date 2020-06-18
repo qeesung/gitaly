@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	gitaly_x509 "gitlab.com/gitlab-org/gitaly/internal/x509"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -109,8 +110,7 @@ func TestDial(t *testing.T) {
 			}
 
 			if tt.envSSLCertFile != "" {
-				restore := modifyEnvironment("SSL_CERT_FILE", tt.envSSLCertFile)
-				defer restore()
+				defer testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, tt.envSSLCertFile)()
 			}
 
 			err := doDialAndExecuteCall(tt.rawAddress)
@@ -218,20 +218,6 @@ func startListeners() (func(), map[string]string, error) {
 			v()
 		}
 	}, connectionMap, nil
-}
-
-// modifyEnvironment will change an environment variable and return a func suitable
-// for `defer` to change the value back.
-func modifyEnvironment(key string, value string) func() {
-	oldValue, hasOldValue := os.LookupEnv(key)
-	os.Setenv(key, value)
-	return func() {
-		if hasOldValue {
-			os.Setenv(key, oldValue)
-		} else {
-			os.Unsetenv(key)
-		}
-	}
 }
 
 func emitProxyWarning() bool {

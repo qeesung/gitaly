@@ -1,19 +1,11 @@
 package repository_test
 
 import (
-	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
-	"encoding/pem"
-	"io"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
@@ -162,79 +154,24 @@ func TestFailedCreateForkRequestDueToExistingTarget(t *testing.T) {
 }
 
 func injectCustomCATestCerts(t *testing.T) (*x509.CertPool, testhelper.Cleanup) {
-	rootCA := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(0, 0, 1),
-		IsCA:         true,
-		DNSNames:     []string{"localhost"},
-	}
-
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-
-	caCert, err := x509.CreateCertificate(rand.Reader, rootCA, rootCA, &caKey.PublicKey, caKey)
-	require.NoError(t, err)
-
-	entityKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-
-	entityX509 := &x509.Certificate{
-		SerialNumber: big.NewInt(2),
-	}
-
-	entityCert, err := x509.CreateCertificate(
-		rand.Reader, rootCA, entityX509, &entityKey.PublicKey, caKey)
-	require.NoError(t, err)
-
-	certFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer certFile.Close()
-
-	caPEMBytes := &bytes.Buffer{}
-	certPEMWriter := io.MultiWriter(certFile, caPEMBytes)
-
-	// create chained PEM file with CA and entity cert
-	for _, cert := range [][]byte{entityCert, caCert} {
-		require.NoError(t,
-			pem.Encode(certPEMWriter, &pem.Block{
-				Type:  "CERTIFICATE",
-				Bytes: cert,
-			}),
-		)
-	}
-
-	keyFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer keyFile.Close()
-
-	entityKeyBytes, err := x509.MarshalECPrivateKey(entityKey)
-	require.NoError(t, err)
-
-	require.NoError(t,
-		pem.Encode(keyFile, &pem.Block{
-			Type:  "ECDSA PRIVATE KEY",
-			Bytes: entityKeyBytes,
-		}),
-	)
+	certFile, keyFile, removeCerts := testhelper.GenerateTestCerts(t)
 
 	oldTLSConfig := config.Config.TLS
 
-	config.Config.TLS.CertPath = certFile.Name()
-	config.Config.TLS.KeyPath = keyFile.Name()
+	config.Config.TLS.CertPath = certFile
+	config.Config.TLS.KeyPath = keyFile
 
-	oldSSLCert := os.Getenv(gitaly_x509.SSLCertFile)
-	os.Setenv(gitaly_x509.SSLCertFile, certFile.Name())
-
+	revertEnv := testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, certFile)
 	cleanup := func() {
 		config.Config.TLS = oldTLSConfig
-		os.Setenv(gitaly_x509.SSLCertFile, oldSSLCert)
-		require.NoError(t, os.Remove(certFile.Name()))
-		require.NoError(t, os.Remove(keyFile.Name()))
+		revertEnv()
+		removeCerts()
 	}
 
+	caPEMBytes, err := ioutil.ReadFile(certFile)
+	require.NoError(t, err)
 	pool := x509.NewCertPool()
-	require.True(t, pool.AppendCertsFromPEM(caPEMBytes.Bytes()))
+	require.True(t, pool.AppendCertsFromPEM(caPEMBytes))
 
 	return pool, cleanup
 }

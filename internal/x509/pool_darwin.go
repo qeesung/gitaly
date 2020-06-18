@@ -2,6 +2,7 @@ package x509
 
 import (
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -48,6 +49,8 @@ func SystemCertPool() (*x509.CertPool, error) {
 		return nil, err
 	}
 
-	pool.AppendCertsFromPEM(certPem)
+	if !pool.AppendCertsFromPEM(certPem) {
+		return nil, errors.New("certificate(s) can't be added to the system pool")
+	}
 	return pool, nil
 }
