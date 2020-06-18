@@ -1,9 +1,6 @@
 package featureflag
 
 const (
-	// UploadPackFilter enables partial clones by sending uploadpack.allowFilter and uploadpack.allowAnySHA1InWant
-	// to upload-pack
-	UploadPackFilter = "upload_pack_filter"
 	// LinguistFileCountStats will invoke an additional git-linguist command to get the number of files per language
 	LinguistFileCountStats = "linguist_file_count_stats"
 	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks

@@ -10,7 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/inspect"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -75,11 +74,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 	}
 
 	git.WarnIfTooManyBitmaps(ctx, req.GetRepository())
-
-	var globalOpts []git.Option
-	if featureflag.IsEnabled(ctx, featureflag.UploadPackFilter) {
-		globalOpts = append(globalOpts, git.UploadPackFilterConfig()...)
-	}
+	globalOpts := git.UploadPackFilterConfig()
 
 	for _, o := range req.GitConfigOptions {
 		globalOpts = append(globalOpts, git.ValueFlag{"-c", o})

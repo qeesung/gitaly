@@ -1,0 +1,5 @@
+---
+title: Remove upload-pack feature flags to enable partial clone by default
+merge_request:
+author:
+type: added

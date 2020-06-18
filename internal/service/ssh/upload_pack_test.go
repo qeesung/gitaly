@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -240,22 +239,23 @@ func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
 	blobGreaterThanLimit := "18079e308ff9b3a5e304941020747e5c39b46c88"
 
 	tests := []struct {
-		desc     string
-		flags    []string
-		repoTest func(t *testing.T, repoPath string)
+		desc      string
+		repoTest  func(t *testing.T, repoPath string)
+		cloneArgs []string
 	}{
 		{
 			desc: "full_clone",
 			repoTest: func(t *testing.T, repoPath string) {
 				testhelper.GitObjectMustExist(t, repoPath, blobGreaterThanLimit)
 			},
+			cloneArgs: []string{"clone", "git@localhost:test/test.git"},
 		},
 		{
-			desc:  "partial_clone",
-			flags: []string{featureflag.UploadPackFilter},
+			desc: "partial_clone",
 			repoTest: func(t *testing.T, repoPath string) {
 				testhelper.GitObjectMustNotExist(t, repoPath, blobGreaterThanLimit)
 			},
+			cloneArgs: []string{"clone", "--filter=blob:limit=2048", "git@localhost:test/test.git"},
 		},
 	}
 
@@ -266,10 +266,9 @@ func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
 			// UploadPackFilter flag disabled.
 			localPath := path.Join(testRepoRoot, fmt.Sprintf("gitlab-test-upload-pack-local-%s", tc.desc))
 			cmd := cloneCommand{
-				repository:   testRepo,
-				command:      exec.Command("git", "clone", "--filter=blob:limit=2048", "git@localhost:test/test.git", localPath),
-				server:       serverSocketPath,
-				featureFlags: tc.flags,
+				repository: testRepo,
+				command:    exec.Command("git", append(tc.cloneArgs, localPath)...),
+				server:     serverSocketPath,
 			}
 			err := cmd.execute(t)
 			defer os.RemoveAll(localPath)

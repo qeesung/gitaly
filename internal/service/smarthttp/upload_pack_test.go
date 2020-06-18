@@ -19,7 +19,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -369,7 +368,7 @@ func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
 	// UploadPack request is a "want" packet line followed by a packet flush, then many "have" packets followed by a packet flush.
 	// This is explained a bit in https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols#_downloading_data
 
-	var requestBuffer, requestBufferForFailed bytes.Buffer
+	var requestBuffer bytes.Buffer
 	pktline.WriteString(&requestBuffer, fmt.Sprintf("want %s %s\n", newHead, clientCapabilities))
 	pktline.WriteString(&requestBuffer, fmt.Sprintf("filter %s\n", "blob:limit=200"))
 	pktline.WriteFlush(&requestBuffer)
@@ -385,13 +384,6 @@ func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-
-	requestBufferForFailed = requestBuffer
-
-	_, err = makePostUploadPackRequest(ctx, t, serverSocketPath, req, &requestBufferForFailed)
-	require.Error(t, err, "trying to use filters without the feature flag should result in an error")
-
-	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UploadPackFilter)
 
 	responseBuffer, err := makePostUploadPackRequest(ctx, t, serverSocketPath, req, &requestBuffer)
 	require.NoError(t, err)
@@ -430,5 +422,5 @@ func TestUploadPackRequestForPartialCloneSuccess(t *testing.T) {
 
 	metric, err := negotiationMetrics.GetMetricWithLabelValues("filter")
 	require.NoError(t, err)
-	require.Equal(t, 2.0, promtest.ToFloat64(metric))
+	require.Equal(t, 1.0, promtest.ToFloat64(metric))
 }

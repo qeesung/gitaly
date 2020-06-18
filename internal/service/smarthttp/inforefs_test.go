@@ -18,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -56,25 +55,14 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 		Repository: testRepo,
 	}
 
-	fullResponse, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, request)
-	require.NoError(t, err)
-	fullRefs := stats.Get{}
-	err = fullRefs.Parse(bytes.NewReader(fullResponse))
-	require.NoError(t, err)
-
-	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UploadPackFilter)
-
 	partialResponse, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, request)
 	require.NoError(t, err)
 	partialRefs := stats.Get{}
 	err = partialRefs.Parse(bytes.NewReader(partialResponse))
 	require.NoError(t, err)
 
-	require.Equal(t, fullRefs.Refs, partialRefs.Refs)
-
 	for _, c := range []string{"allow-tip-sha1-in-want", "allow-reachable-sha1-in-want", "filter"} {
 		require.Contains(t, partialRefs.Caps, c)
-		require.NotContains(t, fullRefs.Caps, c)
 	}
 }
 
