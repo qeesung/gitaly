@@ -171,7 +171,7 @@ func (gm *gitalyMake) VersionFromFile() string {
 }
 
 func (gm *gitalyMake) VersionFromGit() string {
-	cmd := exec.Command("git", "describe")
+	cmd := exec.Command("git", "describe", "--match", "v*")
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
