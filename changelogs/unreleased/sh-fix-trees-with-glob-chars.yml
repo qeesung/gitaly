@@ -1,0 +1,5 @@
+---
+title: Support literal path lookups in LastCommitsForTreeRequest
+merge_request: 2301
+author:
+type: changed

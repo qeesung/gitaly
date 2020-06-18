@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -98,6 +101,10 @@ func TestSuccessfulListLastCommitsForTreeRequest(t *testing.T) {
 					path: []byte("six"),
 					id:   "cfe32cf61b73a0d5e9f13e774abde7ff789b1660",
 				},
+				{
+					path: []byte("*"),
+					id:   "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
+				},
 			},
 			limit:  25,
 			offset: 0,
@@ -125,6 +132,10 @@ func TestSuccessfulListLastCommitsForTreeRequest(t *testing.T) {
 				},
 				{
 					path: []byte("files/ruby"),
+					id:   "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
+				},
+				{
+					path: []byte("files/*"),
 					id:   "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
 				},
 			},
@@ -361,7 +372,54 @@ func TestNonUtf8ListLastCommitsForTreeRequest(t *testing.T) {
 	stream, err := client.ListLastCommitsForTree(ctx, request)
 	require.NoError(t, err)
 
-	var nonUTF8FilenameFound bool
+	assert.True(t, fileExistsInCommits(t, stream, nonUTF8Filename))
+}
+
+func TestSuccessfulListLastCommitsForTreeRequestWithGlobCharacters(t *testing.T) {
+	server, serverSocketPath := startTestServices(t)
+	defer server.Stop()
+
+	client, conn := newCommitServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	defer cleanupFn()
+
+	path := ":wq"
+	err := os.Mkdir(filepath.Join(testRepoPath, path), 0755)
+	require.NoError(t, err)
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "testhelper.TestUser.name", "test@example.com")
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "config", "testhelper.TestUser.email", "test@example.com")
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "mv", "README.md", path)
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "commit", "-a", "-m", "renamed test file")
+	commitID := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "HEAD"))
+
+	request := &gitalypb.ListLastCommitsForTreeRequest{
+		Repository:      testRepo,
+		Revision:        commitID,
+		Path:            []byte(path),
+		LiteralPathspec: true,
+		Limit:           100,
+		Offset:          0,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.ListLastCommitsForTree(ctx, request)
+	require.NoError(t, err)
+
+	assert.True(t, fileExistsInCommits(t, stream, path))
+
+	request.LiteralPathspec = false
+	stream, err = client.ListLastCommitsForTree(ctx, request)
+	require.NoError(t, err)
+	assert.False(t, fileExistsInCommits(t, stream, path))
+}
+
+func fileExistsInCommits(t *testing.T, stream gitalypb.CommitService_ListLastCommitsForTreeClient, path string) bool {
+	var filenameFound bool
+
 	for {
 		fetchedCommits, err := stream.Recv()
 		if err == io.EOF {
@@ -373,11 +431,11 @@ func TestNonUtf8ListLastCommitsForTreeRequest(t *testing.T) {
 		commits := fetchedCommits.GetCommits()
 
 		for _, fetchedCommit := range commits {
-			if bytes.Equal(fetchedCommit.PathBytes, []byte(nonUTF8Filename)) {
-				nonUTF8FilenameFound = true
+			if bytes.Equal(fetchedCommit.PathBytes, []byte(path)) {
+				filenameFound = true
 			}
 		}
 	}
 
-	assert.True(t, nonUTF8FilenameFound)
+	return filenameFound
 }

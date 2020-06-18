@@ -377,6 +377,7 @@ message ListLastCommitsForTreeRequest {
   bytes path = 3;
   int32 limit = 4;
   int32 offset = 5;
+  bool literal_pathspec = 6;
 }
 
 message ListLastCommitsForTreeResponse {

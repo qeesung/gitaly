@@ -205,6 +205,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :path, :bytes, 3
     optional :limit, :int32, 4
     optional :offset, :int32, 5
+    optional :literal_pathspec, :bool, 6
   end
   add_message "gitaly.ListLastCommitsForTreeResponse" do
     repeated :commits, :message, 1, "gitaly.ListLastCommitsForTreeResponse.CommitForTree"
