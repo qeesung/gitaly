@@ -144,7 +144,14 @@ digits, but then you may not use a `4` as the first digit. 0377 equals
 hexadecimal you cannot make this mistake because the largest two digit
 hex number is 0xff which equals 255.
 
-## Return statements
+## Functions
+
+### Method Receivers
+
+Without any good reason, methods should always use value receivers, where good
+reasons include (but are not limited to) performance/memory concerns or
+modification of state in the receiver. Otherwise, if any of the type's methods
+requires a pointer receiver, all methods should be pointer receivers.
 
 ### Don't use "naked return"
 
