@@ -363,6 +363,7 @@ message LastCommitForPathRequest {
   Repository repository = 1 [(target_repository)=true];
   bytes revision = 2;
   bytes path = 3;
+  bool literal_pathspec = 4;
 }
 
 message LastCommitForPathResponse {

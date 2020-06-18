@@ -1,0 +1,5 @@
+---
+title: Make --literal-pathspecs optional for LastCommitForPath
+merge_request: 2285
+author:
+type: fixed

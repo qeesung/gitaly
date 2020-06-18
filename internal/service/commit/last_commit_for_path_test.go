@@ -66,6 +66,12 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 			path:     []byte("/"),
 		},
 		{
+			desc:     "path is '*'",
+			revision: "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
+			commit:   commit,
+			path:     []byte("*"),
+		},
+		{
 			desc:     "file does not exist in this commit",
 			revision: "570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
 			path:     []byte("files/lfs/lfs_object.iso"),
@@ -141,4 +147,45 @@ func TestFailedLastCommitForPathRequest(t *testing.T) {
 			testhelper.RequireGrpcError(t, err, testCase.code)
 		})
 	}
+}
+
+func TestSuccessfulLastCommitWithGlobCharacters(t *testing.T) {
+	server, serverSocketPath := startTestServices(t)
+	defer server.Stop()
+
+	client, conn := newCommitServiceClient(t, serverSocketPath)
+	defer conn.Close()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepoWithWorktree(t)
+	defer cleanupFn()
+
+	// This is an arbitrary blob known to exist in the test repository
+	const blobID = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"
+	path := ":wq"
+
+	commitID := testhelper.CommitBlobWithName(t,
+		testRepoPath,
+		blobID,
+		path,
+		"commit for filename with glob characters",
+	)
+
+	request := &gitalypb.LastCommitForPathRequest{
+		Repository:      testRepo,
+		Revision:        []byte(commitID),
+		Path:            []byte(path),
+		LiteralPathspec: true,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	response, err := client.LastCommitForPath(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, response.GetCommit())
+	require.Equal(t, commitID, response.GetCommit().Id)
+
+	request.LiteralPathspec = false
+	response, err = client.LastCommitForPath(ctx, request)
+	require.NoError(t, err)
+	require.Nil(t, response.GetCommit())
 }

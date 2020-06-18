@@ -35,7 +35,9 @@ func lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitForPathReques
 		return nil, err
 	}
 
-	commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), path)
+	literalPathspec := in.GetLiteralPathspec()
+
+	commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), path, literalPathspec)
 	if log.IsNotFound(err) {
 		return &gitalypb.LastCommitForPathResponse{}, nil
 	}

@@ -194,6 +194,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :repository, :message, 1, "gitaly.Repository"
     optional :revision, :bytes, 2
     optional :path, :bytes, 3
+    optional :literal_pathspec, :bool, 4
   end
   add_message "gitaly.LastCommitForPathResponse" do
     optional :commit, :message, 1, "gitaly.GitCommit"
