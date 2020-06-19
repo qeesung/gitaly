@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"runtime"
@@ -22,27 +21,45 @@ func TestGitalyServerFactory(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	t.Run("insecure", func(t *testing.T) {
-		sf := NewGitalyServerFactory(nil)
+	checkHealth := func(t *testing.T, sf *GitalyServerFactory, schema, addr string) (healthpb.HealthClient, testhelper.Cleanup) {
+		var cleanups []testhelper.Cleanup
 
-		// start gitaly serving on public endpoint
-		listener, err := net.Listen(starter.TCP, ":0")
+		lschema := schema
+		secure := false
+		if schema == starter.TLS {
+			lschema = starter.TCP
+			secure = true
+		}
+		listener, err := net.Listen(lschema, addr)
 		require.NoError(t, err)
-		defer func() { require.NoError(t, listener.Close()) }()
-		go sf.Serve(listener, false)
+		cleanups = append(cleanups, func() { listener.Close() })
 
-		addr, err := starter.Compose(starter.TCP, listener.Addr().String())
+		go sf.Serve(listener, secure)
+
+		endpoint, err := starter.Compose(schema, listener.Addr().String())
 		require.NoError(t, err)
 
-		cc, err := client.Dial(addr, nil)
+		cc, err := client.Dial(endpoint, nil)
 		require.NoError(t, err)
-		defer func() { require.NoError(t, cc.Close()) }()
+		cleanups = append(cleanups, func() { cc.Close() })
 
 		healthClient := healthpb.NewHealthClient(cc)
 
 		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
 		require.NoError(t, err)
 		require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
+		return healthClient, func() {
+			for i := len(cleanups) - 1; i >= 0; i-- {
+				cleanups[i]()
+			}
+		}
+	}
+
+	t.Run("insecure", func(t *testing.T) {
+		sf := NewGitalyServerFactory(nil)
+
+		_, cleanup := checkHealth(t, sf, starter.TCP, ":0")
+		defer cleanup()
 	})
 
 	t.Run("secure", func(t *testing.T) {
@@ -61,67 +78,24 @@ func TestGitalyServerFactory(t *testing.T) {
 		defer testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, config.Config.TLS.CertPath)()
 
 		sf := NewGitalyServerFactory(nil)
+		defer sf.GracefulStop()
 
-		// start gitaly serving on public endpoint
-		listener, err := net.Listen(starter.TCP, ":0")
-		require.NoError(t, err)
-		defer func() { require.NoError(t, listener.Close()) }()
-		go sf.Serve(listener, true)
-
-		addr, err := starter.Compose(starter.TLS, fmt.Sprintf("localhost:%d", listener.Addr().(*net.TCPAddr).Port))
-		require.NoError(t, err)
-
-		cc, err := client.Dial(addr, nil)
-		require.NoError(t, err)
-		defer func() { require.NoError(t, cc.Close()) }()
-
-		healthClient := healthpb.NewHealthClient(cc)
-
-		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
-		require.NoError(t, err)
-		require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
+		_, cleanup := checkHealth(t, sf, starter.TLS, ":0")
+		defer cleanup()
 	})
 
 	t.Run("all services must be stopped", func(t *testing.T) {
 		sf := NewGitalyServerFactory(nil)
+		defer sf.GracefulStop()
 
-		// start gitaly serving on public endpoint
-		tcpListener, err := net.Listen(starter.TCP, ":0")
-		require.NoError(t, err)
-		defer tcpListener.Close()
-		go sf.Serve(tcpListener, false)
-
-		tcpAddr, err := starter.Compose(starter.TCP, fmt.Sprintf("localhost:%d", tcpListener.Addr().(*net.TCPAddr).Port))
-		require.NoError(t, err)
-
-		tcpCC, err := client.Dial(tcpAddr, nil)
-		require.NoError(t, err)
-
-		tcpHealthClient := healthpb.NewHealthClient(tcpCC)
-
-		tcpResp, err := tcpHealthClient.Check(ctx, &healthpb.HealthCheckRequest{})
-		require.NoError(t, err)
-		require.Equal(t, healthpb.HealthCheckResponse_SERVING, tcpResp.Status)
+		tcpHealthClient, tcpCleanup := checkHealth(t, sf, starter.TCP, ":0")
+		defer tcpCleanup()
 
 		socket := testhelper.GetTemporaryGitalySocketFileName()
 		defer func() { require.NoError(t, os.RemoveAll(socket)) }()
-		socketListener, err := net.Listen(starter.Unix, socket)
-		require.NoError(t, err)
-		defer socketListener.Close()
-		go sf.Serve(socketListener, false)
 
-		socketAddr, err := starter.Compose(starter.Unix, socketListener.Addr().String())
-		require.NoError(t, err)
-
-		socketCC, err := client.Dial(socketAddr, nil)
-		require.NoError(t, err)
-		defer func() { require.NoError(t, socketCC.Close()) }()
-
-		socketHealthClient := healthpb.NewHealthClient(socketCC)
-
-		socketResp, err := socketHealthClient.Check(ctx, &healthpb.HealthCheckRequest{})
-		require.NoError(t, err)
-		require.Equal(t, healthpb.HealthCheckResponse_SERVING, socketResp.Status)
+		socketHealthClient, unixCleanup := checkHealth(t, sf, starter.Unix, socket)
+		defer unixCleanup()
 
 		sf.GracefulStop() // stops all started servers(listeners)
 
