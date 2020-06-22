@@ -27,16 +27,16 @@ var (
 	errEmptyAddress = errors.New("empty address can't be used")
 )
 
-// Parse returns Config based on the passed in address string.
-// Returns error only if provided address has no schema defined.
-func Parse(addr string) (Config, error) {
-	if addr == "" {
+// ParseEndpoint returns Config based on the passed in address string.
+// Returns error only if provided endpoint has no schema or address defined.
+func ParseEndpoint(endpoint string) (Config, error) {
+	if endpoint == "" {
 		return Config{}, errEmptyAddress
 	}
 
-	parts := strings.Split(addr, separator)
+	parts := strings.Split(endpoint, separator)
 	if len(parts) != 2 {
-		return Config{}, fmt.Errorf("unsupported format: %q", addr)
+		return Config{}, fmt.Errorf("unsupported format: %q", endpoint)
 	}
 
 	if err := verifySchema(parts[0]); err != nil {
@@ -49,8 +49,8 @@ func Parse(addr string) (Config, error) {
 	return Config{Name: parts[0], Addr: parts[1]}, nil
 }
 
-// Compose returns address composed from provided schema and schema-less address.
-func Compose(schema, address string) (string, error) {
+// ComposeEndpoint returns address string composed from provided schema and schema-less address.
+func ComposeEndpoint(schema, address string) (string, error) {
 	if address == "" {
 		return "", errEmptyAddress
 	}
@@ -80,7 +80,7 @@ type Config struct {
 
 // Endpoint returns fully qualified address.
 func (c *Config) Endpoint() (string, error) {
-	return Compose(c.Name, c.Addr)
+	return ComposeEndpoint(c.Name, c.Addr)
 }
 
 func (c *Config) isSecure() bool {

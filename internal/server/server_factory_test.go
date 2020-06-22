@@ -36,7 +36,7 @@ func TestGitalyServerFactory(t *testing.T) {
 
 		go sf.Serve(listener, secure)
 
-		endpoint, err := starter.Compose(schema, listener.Addr().String())
+		endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
 		require.NoError(t, err)
 
 		cc, err := client.Dial(endpoint, nil)

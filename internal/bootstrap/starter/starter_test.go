@@ -38,7 +38,7 @@ func TestFamily(t *testing.T) {
 	}
 }
 
-func TestCompose(t *testing.T) {
+func TestComposeEndpoint(t *testing.T) {
 	for _, tc := range []struct {
 		desc   string
 		schema string
@@ -84,14 +84,14 @@ func TestCompose(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			actual, err := Compose(tc.schema, tc.addr)
+			actual, err := ComposeEndpoint(tc.schema, tc.addr)
 			require.Equal(t, tc.expErr, err)
 			require.Equal(t, tc.exp, actual)
 		})
 	}
 }
 
-func TestParse(t *testing.T) {
+func TestParseEndpoint(t *testing.T) {
 	for _, tc := range []struct {
 		desc   string
 		addr   string
@@ -134,7 +134,7 @@ func TestParse(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			actual, err := Parse(tc.addr)
+			actual, err := ParseEndpoint(tc.addr)
 			require.Equal(t, tc.expErr, err)
 			require.Equal(t, tc.exp, actual)
 		})
@@ -165,8 +165,8 @@ func TestConfig_Endpoint(t *testing.T) {
 		},
 		{
 			desc: "unix",
-			conf: Config{Name: Unix, Addr: "localhost"},
-			exp:  "unix://localhost",
+			conf: Config{Name: Unix, Addr: "/var/opt/some"},
+			exp:  "unix:///var/opt/some",
 		},
 		{
 			desc: "tcp",
