@@ -3,9 +3,6 @@ calls to a set of Gitaly services.*/
 package praefect
 
 import (
-	"context"
-	"net"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -35,35 +32,18 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// Server is a praefect server
-type Server struct {
-	s *grpc.Server
-	l *logrus.Entry
-}
-
-func (srv *Server) warnDupeAddrs(c config.Config) {
-	var fishy bool
-
-	for _, virtualStorage := range c.VirtualStorages {
-		addrSet := map[string]struct{}{}
-		for _, n := range virtualStorage.Nodes {
-			_, ok := addrSet[n.Address]
-			if ok {
-				srv.l.Warnf("more than one backend node is hosted at %s", n.Address)
-				fishy = true
-				continue
-			}
-			addrSet[n.Address] = struct{}{}
-		}
-		if fishy {
-			srv.l.Warnf("your Praefect configuration may not offer actual redundancy")
-		}
-	}
-}
-
-// NewServer returns an initialized praefect gPRC proxy server configured
-// with the provided gRPC server options
-func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.Registry, conf config.Config, grpcOpts ...grpc.ServerOption) *Server {
+// NewGRPCServer returns gRPC server with registered proxy-handler and actual services praefect serves on its own.
+// It includes a set of unary and stream interceptors required to add logging, authentication, etc.
+func NewGRPCServer(
+	conf config.Config,
+	logger *logrus.Entry,
+	registry *protoregistry.Registry,
+	director proxy.StreamDirector,
+	nodeMgr nodes.Manager,
+	txMgr *transactions.Manager,
+	queue datastore.ReplicationEventQueue,
+	grpcOpts ...grpc.ServerOption,
+) *grpc.Server {
 	ctxTagOpts := []grpc_ctxtags.Option{
 		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}
@@ -73,10 +53,10 @@ func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
 			grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
-			middleware.MethodTypeStreamInterceptor(r),
+			middleware.MethodTypeStreamInterceptor(registry),
 			metadatahandler.StreamInterceptor,
 			grpc_prometheus.StreamServerInterceptor,
-			grpc_logrus.StreamServerInterceptor(l),
+			grpc_logrus.StreamServerInterceptor(logger),
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
 			grpctracing.StreamServerTracingInterceptor(),
@@ -88,10 +68,10 @@ func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(ctxTagOpts...),
 			grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
-			middleware.MethodTypeUnaryInterceptor(r),
+			middleware.MethodTypeUnaryInterceptor(registry),
 			metadatahandler.UnaryInterceptor,
 			grpc_prometheus.UnaryServerInterceptor,
-			grpc_logrus.UnaryServerInterceptor(l),
+			grpc_logrus.UnaryServerInterceptor(logger),
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
 			grpctracing.UnaryServerTracingInterceptor(),
@@ -102,14 +82,11 @@ func NewServer(director proxy.StreamDirector, l *logrus.Entry, r *protoregistry.
 		)),
 	}...)
 
-	s := &Server{
-		s: grpc.NewServer(grpcOpts...),
-		l: l,
-	}
+	warnDupeAddrs(logger, conf)
 
-	s.warnDupeAddrs(conf)
-
-	return s
+	srv := grpc.NewServer(grpcOpts...)
+	registerServices(srv, nodeMgr, txMgr, conf, queue)
+	return srv
 }
 
 func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
@@ -119,47 +96,33 @@ func proxyRequiredOpts(director proxy.StreamDirector) []grpc.ServerOption {
 	}
 }
 
-// Serve starts serving requests from the listener
-func (srv *Server) Serve(l net.Listener, secure bool) error {
-	return srv.s.Serve(l)
-}
-
-// RegisterServices will register any services praefect needs to handle rpcs on its own
-func (srv *Server) RegisterServices(nm nodes.Manager, tm *transactions.Manager, conf config.Config, queue datastore.ReplicationEventQueue) {
+// registerServices registers services praefect needs to handle RPCs on its own.
+func registerServices(srv *grpc.Server, nm nodes.Manager, tm *transactions.Manager, conf config.Config, queue datastore.ReplicationEventQueue) {
 	// ServerServiceServer is necessary for the ServerInfo RPC
-	gitalypb.RegisterServerServiceServer(srv.s, server.NewServer(conf, nm))
-	gitalypb.RegisterPraefectInfoServiceServer(srv.s, info.NewServer(nm, conf, queue))
-	gitalypb.RegisterRefTransactionServer(srv.s, transaction.NewServer(tm))
-	healthpb.RegisterHealthServer(srv.s, health.NewServer())
+	gitalypb.RegisterServerServiceServer(srv, server.NewServer(conf, nm))
+	gitalypb.RegisterPraefectInfoServiceServer(srv, info.NewServer(nm, conf, queue))
+	gitalypb.RegisterRefTransactionServer(srv, transaction.NewServer(tm))
+	healthpb.RegisterHealthServer(srv, health.NewServer())
 
-	grpc_prometheus.Register(srv.s)
+	grpc_prometheus.Register(srv)
 }
 
-// Shutdown will attempt a graceful shutdown of the grpc server. If unable
-// to gracefully shutdown within the context deadline, it will then
-// forcefully shutdown the server and return a context cancellation error.
-func (srv *Server) Shutdown(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		srv.s.GracefulStop()
-		close(done)
-	}()
+func warnDupeAddrs(logger logrus.FieldLogger, conf config.Config) {
+	var fishy bool
 
-	select {
-	case <-ctx.Done():
-		srv.s.Stop()
-		return ctx.Err()
-	case <-done:
-		return nil
+	for _, virtualStorage := range conf.VirtualStorages {
+		addrSet := map[string]struct{}{}
+		for _, n := range virtualStorage.Nodes {
+			_, ok := addrSet[n.Address]
+			if ok {
+				logger.Warnf("more than one backend node is hosted at %s", n.Address)
+				fishy = true
+				continue
+			}
+			addrSet[n.Address] = struct{}{}
+		}
+		if fishy {
+			logger.Warnf("your Praefect configuration may not offer actual redundancy")
+		}
 	}
-}
-
-// GracefulStop stops the praefect server gracefully
-func (srv *Server) GracefulStop() {
-	srv.s.GracefulStop()
-}
-
-// Stop stops the praefect server
-func (srv *Server) Stop() {
-	srv.s.Stop()
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -28,6 +29,11 @@ func TestConfigValidation(t *testing.T) {
 		{Storage: "internal-3.1", Address: "localhost:33458", Token: "secret-token-2"},
 	}
 
+	f, err := ioutil.TempFile("", t.Name())
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	socketPath := f.Name()
+
 	testCases := []struct {
 		desc   string
 		config Config
@@ -46,7 +52,7 @@ func TestConfigValidation(t *testing.T) {
 		{
 			desc: "Valid config with SocketPath",
 			config: Config{
-				SocketPath: "/tmp/praefect.socket",
+				SocketPath: socketPath,
 				VirtualStorages: []*VirtualStorage{
 					{Name: "default", Nodes: vs1Nodes},
 				},
@@ -205,6 +211,8 @@ func TestConfigValidation(t *testing.T) {
 				return
 			}
 
+			_, serr := os.Stat(socketPath)
+			require.True(t, os.IsNotExist(serr), "configured socket path: %v", serr)
 			assert.Contains(t, err.Error(), tc.errMsg)
 		})
 	}

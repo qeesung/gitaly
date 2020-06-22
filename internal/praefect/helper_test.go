@@ -89,7 +89,7 @@ func assertPrimariesExist(t testing.TB, conf config.Config) {
 // config.Nodes. There must be a 1-to-1 mapping between backend server and
 // configured storage node.
 // requires there to be only 1 virtual storage
-func runPraefectServerWithMock(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithMock(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue, backends map[string]mock.SimpleServiceServer) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
 	r, err := protoregistry.New(mustLoadProtoReg(t))
 	require.NoError(t, err)
 
@@ -182,13 +182,13 @@ func withRealGitalyShared(t testing.TB) func([]*config.VirtualStorage) []testhel
 	}
 }
 
-func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithGitaly(t *testing.T, conf config.Config) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
 	return runPraefectServerWithGitalyWithDatastore(t, conf, defaultQueue(conf))
 }
 
 // runPraefectServerWithGitaly runs a praefect server with actual Gitaly nodes
 // requires exactly 1 virtual storage
-func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServerWithGitalyWithDatastore(t *testing.T, conf config.Config, queue datastore.ReplicationEventQueue) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
 	return runPraefectServer(t, conf, buildOptions{
 		withQueue:    queue,
 		withTxMgr:    transactions.NewManager(),
@@ -211,7 +211,7 @@ func defaultNodeMgr(t testing.TB, conf config.Config, queue datastore.Replicatio
 	return nodeMgr
 }
 
-func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grpc.ClientConn, *Server, testhelper.Cleanup) {
+func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
 	assertPrimariesExist(t, conf)
 
 	var cleanups []testhelper.Cleanup
@@ -250,7 +250,8 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		opt.withQueue,
 		opt.withNodeMgr,
 	)
-	prf := NewServer(coordinator.StreamDirector, opt.withLogger, opt.withAnnotations, conf)
+
+	prf := NewGRPCServer(conf, opt.withLogger, protoregistry.GitalyProtoPreregistered, coordinator.StreamDirector, opt.withNodeMgr, opt.withTxMgr, opt.withQueue)
 
 	listener, port := listenAvailPort(t)
 	t.Logf("proxy listening on port %d", port)
@@ -258,8 +259,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	errQ := make(chan error)
 	ctx, cancel := testhelper.Context()
 
-	prf.RegisterServices(opt.withNodeMgr, opt.withTxMgr, conf, opt.withQueue)
-	go func() { errQ <- prf.Serve(listener, false) }()
+	go func() { errQ <- prf.Serve(listener) }()
 	replmgr.ProcessBacklog(ctx, noopBackoffFunc)
 
 	// dial client to praefect
@@ -270,9 +270,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 			cu()
 		}
 
-		ctx, timed := context.WithTimeout(ctx, time.Second)
-		defer timed()
-		require.NoError(t, prf.Shutdown(ctx))
+		prf.Stop()
 
 		cancel()
 		require.Error(t, context.Canceled, <-errQ)
@@ -290,7 +288,7 @@ type partialGitaly interface {
 	healthpb.HealthServer
 }
 
-func registerServices(server *grpc.Server, pg partialGitaly) {
+func registerGitalyServices(server *grpc.Server, pg partialGitaly) {
 	gitalypb.RegisterServerServiceServer(server, pg)
 	gitalypb.RegisterRepositoryServiceServer(server, pg)
 	gitalypb.RegisterInternalGitalyServer(server, pg)
@@ -325,7 +323,7 @@ func runInternalGitalyServer(t testing.TB, storages []gconfig.Storage, token str
 	internalListener, err := net.Listen("unix", internalSocketPath)
 	require.NoError(t, err)
 
-	registerServices(server, realGitaly(storages, token, internalSocketPath))
+	registerGitalyServices(server, realGitaly(storages, token, internalSocketPath))
 
 	errQ := make(chan error)
 

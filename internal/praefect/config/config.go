@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -85,6 +86,12 @@ var (
 func (c *Config) Validate() error {
 	if c.ListenAddr == "" && c.SocketPath == "" {
 		return errNoListener
+	}
+
+	if c.SocketPath != "" {
+		if err := os.RemoveAll(c.SocketPath); err != nil {
+			return fmt.Errorf("configured path for socket can't be used: %w", err)
+		}
 	}
 
 	if len(c.VirtualStorages) == 0 {
