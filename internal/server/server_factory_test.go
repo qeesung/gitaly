@@ -78,7 +78,7 @@ func TestGitalyServerFactory(t *testing.T) {
 		defer testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, config.Config.TLS.CertPath)()
 
 		sf := NewGitalyServerFactory(nil)
-		defer sf.GracefulStop()
+		defer sf.Stop()
 
 		_, cleanup := checkHealth(t, sf, starter.TLS, ":0")
 		defer cleanup()
@@ -86,7 +86,7 @@ func TestGitalyServerFactory(t *testing.T) {
 
 	t.Run("all services must be stopped", func(t *testing.T) {
 		sf := NewGitalyServerFactory(nil)
-		defer sf.GracefulStop()
+		defer sf.Stop()
 
 		tcpHealthClient, tcpCleanup := checkHealth(t, sf, starter.TCP, ":0")
 		defer tcpCleanup()
