@@ -44,6 +44,8 @@ GO_BUILD_TAGS   := tracer_static tracer_static_jaeger continuous_profiler_stackd
 # Dependency versions
 GOLANGCI_LINT_VERSION ?= 1.24.0
 PROTOC_VERSION        ?= 3.6.1
+PROTOC_GEN_GO_VERSION ?= 1.3.2
+GIT_VERSION           ?= v2.27.0
 
 # Dependency downloads
 ifeq (${OS},Darwin)
@@ -62,11 +64,11 @@ endif
 GOLANGCI_LINT_URL := https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/${GOLANGCI_LINT_ARCHIVE}.tar.gz
 
 # Git target
-GIT_VERSION      ?= v2.27.0
-GIT_REPO_URL     ?= https://gitlab.com/gitlab-org/gitlab-git.git
-GIT_BINARIES_URL ?= https://gitlab.com/gitlab-org/gitlab-git/-/jobs/artifacts/${GIT_VERSION}/raw/git_full_bins.tgz?job=build
-GIT_INSTALL_DIR  := ${BUILD_DIR}/git
-GIT_SOURCE_DIR   := ${BUILD_DIR}/src/git
+GIT_REPO_URL      ?= https://gitlab.com/gitlab-org/gitlab-git.git
+GIT_BINARIES_URL  ?= https://gitlab.com/gitlab-org/gitlab-git/-/jobs/artifacts/${GIT_VERSION}/raw/git_full_bins.tgz?job=build
+GIT_BINARIES_HASH ?= 7947f05069a61351992ae5857db077223e740ca5928b1686dac43032637163e5
+GIT_INSTALL_DIR   := ${BUILD_DIR}/git
+GIT_SOURCE_DIR    := ${BUILD_DIR}/src/git
 
 ifeq (${GIT_BUILD_OPTIONS},)
 # activate developer checks
@@ -166,10 +168,10 @@ test: test-go rspec rspec-gitlab-shell
 .PHONY: test-go
 test-go: prepare-tests ${GO_JUNIT_REPORT}
 	@mkdir -p ${TEST_REPORT_DIR}
-	@echo 0 >${TEST_EXIT} && \
-		(go test ${TEST_OPTIONS} -v -tags "${GO_BUILD_TAGS}" -ldflags='${GO_TEST_LDFLAGS}' -count=1 $(call find_go_packages) 2>&1 | tee ${TEST_OUTPUT} || echo $$? >${TEST_EXIT}) && \
-		${GO_JUNIT_REPORT} <${TEST_OUTPUT} >${TEST_REPORT} && \
-		exit `cat ${TEST_EXIT}`
+	@echo 0>${TEST_EXIT}
+	@go test ${TEST_OPTIONS} -v -tags "${GO_BUILD_TAGS}" -ldflags='${GO_TEST_LDFLAGS}' -count=1 $(call find_go_packages) 2>&1 | tee ${TEST_OUTPUT} || echo $$? >${TEST_EXIT}
+	@${GO_JUNIT_REPORT} <${TEST_OUTPUT} >${TEST_REPORT}
+	@exit `cat ${TEST_EXIT}`
 
 .PHONY: test-with-proxies
 test-with-proxies: prepare-tests
@@ -225,19 +227,11 @@ lint-warnings: staticcheck-deprecations
 	# Runs verification analysis that is okay to fail (but not ignore completely)
 
 .PHONY: notice-up-to-date
-notice-up-to-date: notice-tmp
-	# notice-up-to-date
+notice-up-to-date: ${BUILD_DIR}/NOTICE
 	@(cmp ${BUILD_DIR}/NOTICE ${SOURCE_DIR}/NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
 .PHONY: notice
-notice: notice-tmp
-	mv ${BUILD_DIR}/NOTICE ${SOURCE_DIR}/NOTICE
-
-.PHONY: notice-tmp
-notice-tmp: ${GO_LICENSES} clean-ruby-vendor-go
-	rm -rf ${BUILD_DIR}/licenses
-	${GO_LICENSES} save ./... --save_path=${BUILD_DIR}/licenses
-	go run ${SOURCE_DIR}/_support/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/_support/noticegen/notice.template > ${BUILD_DIR}/NOTICE
+notice: ${SOURCE_DIR}/NOTICE
 
 .PHONY: clean
 clean:
@@ -301,9 +295,7 @@ smoke-test: all rspec
 	@go test ./internal/rubyserver
 
 .PHONY: download-git
-download-git: | ${BUILD_DIR}
-	@echo "Getting Git from ${GIT_BINARIES_URL}"
-	curl -o ${BUILD_DIR}/git_full_bins.tgz --silent --show-error -L ${GIT_BINARIES_URL}
+download-git: ${BUILD_DIR}/git_full_bins.tgz
 	rm -rf ${GIT_INSTALL_DIR}
 	mkdir -p ${GIT_INSTALL_DIR}
 	tar -C ${GIT_INSTALL_DIR} -xvzf ${BUILD_DIR}/git_full_bins.tgz
@@ -326,6 +318,14 @@ ${SOURCE_DIR}/.ruby-bundle: ${GITALY_RUBY_DIR}/Gemfile.lock ${GITALY_RUBY_DIR}/G
 	cd ${GITALY_RUBY_DIR} && bundle install ${BUNDLE_FLAGS}
 	touch $@
 
+${SOURCE_DIR}/NOTICE: ${BUILD_DIR}/NOTICE
+	@mv $< $@
+
+${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go
+	@rm -rf ${BUILD_DIR}/licenses
+	@${GO_LICENSES} save ./... --save_path=${BUILD_DIR}/licenses
+	@go run ${SOURCE_DIR}/_support/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/_support/noticegen/notice.template > ${BUILD_DIR}/NOTICE
+
 ${BUILD_DIR}:
 	mkdir -p ${BUILD_DIR}
 
@@ -345,6 +345,11 @@ ${BUILD_DIR}/protoc.zip: | ${BUILD_DIR}
 	printf '${PROTOC_HASH}  $@.tmp' | shasum -a256 -c -
 	mv $@.tmp $@
 
+${BUILD_DIR}/git_full_bins.tgz: | ${BUILD_DIR}
+	curl -o $@.tmp --silent --show-error -L ${GIT_BINARIES_URL}
+	printf '${GIT_BINARIES_HASH}  $@.tmp' | shasum -a256 -c -
+	mv $@.tmp $@
+
 ${GOIMPORTS}: ${BUILD_DIR}/go.mod | ${BUILD_DIR}/bin
 	cd ${BUILD_DIR} && go get golang.org/x/tools/cmd/goimports@2538eef75904eff384a2551359968e40c207d9d2
 
@@ -358,7 +363,7 @@ ${GO_LICENSES}: ${BUILD_DIR}/go.mod | ${BUILD_DIR}/bin
 	cd ${BUILD_DIR} && go get github.com/google/go-licenses@0fa8c766a59182ce9fd94169ddb52abe568b7f4e
 
 ${PROTOC_GEN_GO}: ${BUILD_DIR}/go.mod | ${BUILD_DIR}/bin
-	cd ${BUILD_DIR} && go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
+	cd ${BUILD_DIR} && go get github.com/golang/protobuf/protoc-gen-go@v${PROTOC_GEN_GO_VERSION}
 
 ${PROTOC_GEN_GITALY}: ${BUILD_DIR}/go.mod proto-lint | ${BUILD_DIR}/bin
 	go build -o $@ gitlab.com/gitlab-org/gitaly/proto/go/internal/cmd/protoc-gen-gitaly
