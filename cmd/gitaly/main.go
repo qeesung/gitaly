@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/server"
 	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
@@ -98,7 +99,7 @@ func run(b *bootstrap.Bootstrap) error {
 		}
 	}
 
-	servers := bootstrap.NewGitalyServerFactory(gitlabAPI)
+	servers := server.NewGitalyServerFactory(gitlabAPI)
 	defer servers.Stop()
 
 	b.StopAction = servers.GracefulStop

@@ -839,7 +839,8 @@ func GenerateTestCerts(t *testing.T) (string, string, Cleanup) {
 		NotAfter:              time.Now().AddDate(0, 0, 1),
 		BasicConstraintsValid: true,
 		IsCA:                  true,
-		DNSNames:              []string{"localhost", "0.0.0.0", "127.0.0.1", "::1"},
+		IPAddresses:           []net.IP{net.ParseIP("0.0.0.0"), net.ParseIP("127.0.0.1"), net.ParseIP("::1"), net.ParseIP("::")},
+		DNSNames:              []string{"localhost"},
 		KeyUsage:              x509.KeyUsageCertSign,
 	}
 
