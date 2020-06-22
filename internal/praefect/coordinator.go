@@ -154,7 +154,7 @@ func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCal
 	return proxy.NewStreamParameters(ctx, node.GetConnection(), nil, nil), nil
 }
 
-func (c *Coordinator) injectTransaction(ctx context.Context, node nodes.Node) (context.Context, func(), error) {
+func (c *Coordinator) injectTransaction(ctx context.Context, node nodes.Node, primary bool) (context.Context, func(), error) {
 	// We currently only handle single-node-transactions for the primary,
 	// so we just blindly call this single node "primary".
 	nodeName := "primary"
@@ -164,7 +164,7 @@ func (c *Coordinator) injectTransaction(ctx context.Context, node nodes.Node) (c
 		return nil, nil, err
 	}
 
-	ctx, err = metadata.InjectTransaction(ctx, transactionID, nodeName)
+	ctx, err = metadata.InjectTransaction(ctx, transactionID, nodeName, primary)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -197,7 +197,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 
 	if featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
 		var transactionCleanup func()
-		ctx, transactionCleanup, err = c.injectTransaction(ctx, shard.Primary)
+		ctx, transactionCleanup, err = c.injectTransaction(ctx, shard.Primary, true)
 		if err != nil {
 			return nil, err
 		}

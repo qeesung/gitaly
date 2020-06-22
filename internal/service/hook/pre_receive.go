@@ -137,6 +137,55 @@ func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookSer
 	return nil
 }
 
+func (s *server) executeCustomHooks(stream gitalypb.HookService_PreReceiveHookServer, changes []byte, repository *gitalypb.Repository, reqEnvVars []string) error {
+	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stdout: p}) })
+	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stderr: p}) })
+
+	// custom hooks execution
+	repoPath, err := helper.GetRepoPath(repository)
+	if err != nil {
+		return err
+	}
+	executor, err := newCustomHooksExecutor(repoPath, s.hooksConfig.CustomHooksDir, "pre-receive")
+	if err != nil {
+		return fmt.Errorf("creating custom hooks executor: %w", err)
+	}
+
+	_, gitObjectDirEnv, err := alternates.PathAndEnv(repository)
+	if err != nil {
+		return fmt.Errorf("getting git object dir from request %w", err)
+	}
+
+	env := append(reqEnvVars, gitObjectDirEnv...)
+
+	if err = executor(
+		stream.Context(),
+		nil,
+		env,
+		bytes.NewReader(changes),
+		stdout,
+		stderr,
+	); err != nil {
+		return fmt.Errorf("executing custom hooks: %w", err)
+	}
+
+	return nil
+}
+
+func isPrimary(env []string) (bool, error) {
+	tx, err := metadata.TransactionFromEnv(env)
+	if err != nil {
+		if errors.Is(err, metadata.ErrTransactionNotFound) {
+			// If there is no transaction, then we only ever write
+			// to the primary. Thus, we return true.
+			return true, nil
+		}
+		return false, err
+	}
+
+	return tx.Primary, nil
+}
+
 func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {
@@ -153,9 +202,6 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 		return s.preReceiveHookRuby(firstRequest, stream)
 	}
 
-	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stdout: p}) })
-	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stderr: p}) })
-
 	stdin := streamio.NewReader(func() ([]byte, error) {
 		req, err := stream.Recv()
 		return req.GetStdin(), err
@@ -168,60 +214,44 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 
 	glID, glRepo, glProtocol := getEnvVar("GL_ID", reqEnvVars), getEnvVar("GL_REPOSITORY", reqEnvVars), getEnvVar("GL_PROTOCOL", reqEnvVars)
 
-	allowed, message, err := s.gitlabAPI.Allowed(repository, glRepo, glID, glProtocol, string(changes))
+	primary, err := isPrimary(reqEnvVars)
 	if err != nil {
-		return preReceiveHookResponse(stream, int32(1), fmt.Sprintf("GitLab: %v", err))
+		return helper.ErrInternalf("could not check role: %w", err)
 	}
 
-	if !allowed {
-		return preReceiveHookResponse(stream, int32(1), message)
-	}
-
-	// custom hooks execution
-	repoPath, err := helper.GetRepoPath(repository)
-	if err != nil {
-		return err
-	}
-	executor, err := newCustomHooksExecutor(repoPath, s.hooksConfig.CustomHooksDir, "pre-receive")
-	if err != nil {
-		return helper.ErrInternalf("creating custom hooks executor: %v", err)
-	}
-
-	_, gitObjectDirEnv, err := alternates.PathAndEnv(repository)
-	if err != nil {
-		return helper.ErrInternalf("getting git object dir from request %v", err)
-	}
-
-	env := append(reqEnvVars, gitObjectDirEnv...)
-
-	if err = executor(
-		stream.Context(),
-		nil,
-		env,
-		bytes.NewReader(changes),
-		stdout,
-		stderr,
-	); err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			return preReceiveHookResponse(stream, int32(exitError.ExitCode()), "")
+	// Only the primary should execute hooks and increment reference counters.
+	if primary {
+		allowed, message, err := s.gitlabAPI.Allowed(repository, glRepo, glID, glProtocol, string(changes))
+		if err != nil {
+			return preReceiveHookResponse(stream, int32(1), fmt.Sprintf("GitLab: %v", err))
 		}
 
-		return helper.ErrInternalf("executing custom hooks: %v", err)
-	}
+		if !allowed {
+			return preReceiveHookResponse(stream, int32(1), message)
+		}
 
-	// reference counter
-	ok, err := s.gitlabAPI.PreReceive(glRepo)
-	if err != nil {
-		return helper.ErrInternalf("calling pre_receive endpoint: %v", err)
-	}
+		if err := s.executeCustomHooks(stream, changes, repository, reqEnvVars); err != nil {
+			var exitError *exec.ExitError
+			if errors.As(err, &exitError) {
+				return preReceiveHookResponse(stream, int32(exitError.ExitCode()), "")
+			}
 
-	if !ok {
-		return preReceiveHookResponse(stream, 1, "")
+			return helper.ErrInternal(err)
+		}
+
+		// reference counter
+		ok, err := s.gitlabAPI.PreReceive(glRepo)
+		if err != nil {
+			return helper.ErrInternalf("calling pre_receive endpoint: %v", err)
+		}
+
+		if !ok {
+			return preReceiveHookResponse(stream, 1, "")
+		}
 	}
 
 	hash := sha1.Sum(changes)
-	if err := s.voteOnTransaction(stream, hash[:], env); err != nil {
+	if err := s.voteOnTransaction(stream, hash[:], reqEnvVars); err != nil {
 		return helper.ErrInternalf("error voting on transaction: %v", err)
 	}
 
@@ -267,31 +297,42 @@ func (s *server) preReceiveHookRuby(firstRequest *gitalypb.PreReceiveHookRequest
 
 		return stdin, nil
 	})
-	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stdout: p}) })
-	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stderr: p}) })
-
-	repoPath, err := helper.GetRepoPath(firstRequest.GetRepository())
-	if err != nil {
-		return helper.ErrInternal(err)
-	}
-
-	c := exec.Command(gitlabShellHook("pre-receive"))
-	c.Dir = repoPath
 
 	env, err := preReceiveEnv(firstRequest)
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
 
-	status, err := streamCommandResponse(
-		stream.Context(),
-		stdin,
-		stdout, stderr,
-		c,
-		env,
-	)
+	primary, err := isPrimary(env)
 	if err != nil {
-		return helper.ErrInternal(err)
+		return helper.ErrInternalf("could not check role: %w", err)
+	}
+
+	var status int32
+
+	// Only the primary should execute hooks.
+	if primary {
+		stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stdout: p}) })
+		stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stderr: p}) })
+
+		repoPath, err := helper.GetRepoPath(firstRequest.GetRepository())
+		if err != nil {
+			return helper.ErrInternal(err)
+		}
+
+		c := exec.Command(gitlabShellHook("pre-receive"))
+		c.Dir = repoPath
+
+		status, err = streamCommandResponse(
+			stream.Context(),
+			stdin,
+			stdout, stderr,
+			c,
+			env,
+		)
+		if err != nil {
+			return helper.ErrInternal(err)
+		}
 	}
 
 	if err := s.voteOnTransaction(stream, referenceUpdatesHasher.Sum(nil), env); err != nil {

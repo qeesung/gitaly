@@ -33,6 +33,8 @@ type Transaction struct {
 	ID uint64 `json:"id"`
 	// Node is the name used to cast a vote
 	Node string `json:"node"`
+	// Primary identifies the node's role in this transaction
+	Primary bool `json:"primary"`
 }
 
 // Serialize serializes a `Transaction` into a string.
@@ -60,10 +62,11 @@ func FromSerialized(serialized string) (Transaction, error) {
 }
 
 // InjectTransaction injects reference transaction metadata into an incoming context
-func InjectTransaction(ctx context.Context, tranasctionID uint64, node string) (context.Context, error) {
+func InjectTransaction(ctx context.Context, tranasctionID uint64, node string, primary bool) (context.Context, error) {
 	transaction := Transaction{
-		ID:   tranasctionID,
-		Node: node,
+		ID:      tranasctionID,
+		Node:    node,
+		Primary: primary,
 	}
 
 	serialized, err := transaction.Serialize()

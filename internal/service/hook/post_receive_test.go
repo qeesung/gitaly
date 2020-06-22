@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -33,6 +34,21 @@ func TestPostReceiveInvalidArgument(t *testing.T) {
 	_, err = stream.Recv()
 
 	testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
+}
+
+func transactionEnv(t *testing.T, primary bool) string {
+	t.Helper()
+
+	transaction := metadata.Transaction{
+		ID:      1234,
+		Node:    "node-1",
+		Primary: primary,
+	}
+
+	env, err := transaction.Env()
+	require.NoError(t, err)
+
+	return env
 }
 
 func TestPostReceive(t *testing.T) {
@@ -143,6 +159,42 @@ func TestPostReceive(t *testing.T) {
 			status: 1,
 			stdout: "",
 			stderr: "FAIL",
+		},
+		{
+			desc:  "primary fails with missing stdin because hook gets executed",
+			stdin: bytes.NewBuffer(nil),
+			req: gitalypb.PostReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key_id",
+					"GL_USERNAME=username",
+					"GL_PROTOCOL=protocol",
+					"GL_REPOSITORY=repository",
+					transactionEnv(t, true),
+				},
+				GitPushOptions: []string{"option0"},
+			},
+			status: 1,
+			stdout: "",
+			stderr: "FAIL",
+		},
+		{
+			desc:  "secondary succeeds with missing stdin because hook does not get executed",
+			stdin: bytes.NewBuffer(nil),
+			req: gitalypb.PostReceiveHookRequest{
+				Repository: testRepo,
+				EnvironmentVariables: []string{
+					"GL_ID=key_id",
+					"GL_USERNAME=username",
+					"GL_PROTOCOL=protocol",
+					"GL_REPOSITORY=repository",
+					transactionEnv(t, false),
+				},
+				GitPushOptions: []string{"option0"},
+			},
+			status: 0,
+			stdout: "",
+			stderr: "",
 		},
 	}
 

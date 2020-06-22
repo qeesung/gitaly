@@ -1,0 +1,5 @@
+---
+title: Only execute hooks on primary nodes
+merge_request: 2294
+author:
+type: fixed
