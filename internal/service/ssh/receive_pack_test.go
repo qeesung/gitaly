@@ -176,7 +176,7 @@ func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
 	repo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(repo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(config.NewLocator(config.Config), repo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Create(ctx, repo))

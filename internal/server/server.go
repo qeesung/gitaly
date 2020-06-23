@@ -79,6 +79,8 @@ func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cf
 
 	lh := limithandler.New(concurrencyKeyFn)
 
+	storageLocator := config.NewLocator(cfg)
+
 	opts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
@@ -130,7 +132,7 @@ func createNewServer(rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, cf
 
 	server := grpc.NewServer(opts...)
 
-	service.RegisterAll(server, cfg, rubyServer, gitlabAPI)
+	service.RegisterAll(server, cfg, rubyServer, gitlabAPI, storageLocator)
 	reflection.Register(server)
 
 	grpc_prometheus.Register(server)

@@ -16,7 +16,7 @@ func (s *server) LinkRepositoryToObjectPool(ctx context.Context, req *gitalypb.L
 		return nil, status.Error(codes.InvalidArgument, "no repository")
 	}
 
-	pool, err := poolForRequest(req)
+	pool, err := s.poolForRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (s *server) UnlinkRepositoryFromObjectPool(ctx context.Context, req *gitaly
 		return nil, helper.ErrInvalidArgument(errors.New("no repository"))
 	}
 
-	pool, err := poolForRequest(req)
+	pool, err := s.poolForRequest(req)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}

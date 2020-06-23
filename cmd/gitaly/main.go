@@ -149,7 +149,7 @@ func run(b *bootstrap.Bootstrap) error {
 	}
 
 	for _, shard := range config.Config.Storages {
-		if err := storage.WriteMetadataFile(shard); err != nil {
+		if err := storage.WriteMetadataFile(shard.Path); err != nil {
 			// TODO should this be a return? https://gitlab.com/gitlab-org/gitaly/issues/1893
 			log.WithError(err).Error("Unable to write gitaly metadata file")
 		}

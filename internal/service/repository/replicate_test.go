@@ -325,7 +325,7 @@ func runServerWithBadFetchInternalRemote(t *testing.T) (*grpc.Server, string) {
 	internalListener, err := net.Listen("unix", config.GitalyInternalSocketPath())
 	require.NoError(t, err)
 
-	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(repository.RubyServer, config.GitalyInternalSocketPath()))
+	gitalypb.RegisterRepositoryServiceServer(server, repository.NewServer(repository.RubyServer, config.NewLocator(config.Config), config.GitalyInternalSocketPath()))
 	gitalypb.RegisterRemoteServiceServer(server, &mockRemoteServer{})
 	reflection.Register(server)
 

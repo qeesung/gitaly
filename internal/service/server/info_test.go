@@ -46,8 +46,8 @@ func TestGitalyServerInfo(t *testing.T) {
 
 	config.Config.BinDir = tempDir
 
-	require.NoError(t, storage.WriteMetadataFile(testStorages[0]))
-	metadata, err := storage.ReadMetadataFile(testStorages[0])
+	require.NoError(t, storage.WriteMetadataFile(testStorages[0].Path))
+	metadata, err := storage.ReadMetadataFile(testStorages[0].Path)
 	require.NoError(t, err)
 
 	c, err := client.ServerInfo(ctx, &gitalypb.ServerInfoRequest{})

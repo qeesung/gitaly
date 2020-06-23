@@ -17,9 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -228,28 +228,28 @@ func newPendingLease(repo *gitalypb.Repository) (string, error) {
 
 // cacheDir is $STORAGE/+gitaly/cache
 func cacheDir(repo *gitalypb.Repository) (string, error) {
-	storage, ok := config.Config.Storage(repo.StorageName)
+	s, ok := config.Config.Storage(repo.StorageName)
 	if !ok {
 		return "", fmt.Errorf("storage not found for %v", repo)
 	}
 
-	return tempdir.CacheDir(storage), nil
+	return tempdir.CacheDir(s), nil
 }
 
 func getRepoStatePath(repo *gitalypb.Repository) (string, error) {
-	storage, ok := config.Config.Storage(repo.StorageName)
+	s, ok := config.Config.Storage(repo.StorageName)
 	if !ok {
 		return "", fmt.Errorf("getRepoStatePath: storage not found for %v", repo)
 	}
 
-	stateDir := tempdir.StateDir(storage)
+	stateDir := tempdir.StateDir(s)
 
 	relativePath := repo.GetRelativePath()
 	if len(relativePath) == 0 {
 		return "", fmt.Errorf("getRepoStatePath: relative path missing from %+v", repo)
 	}
 
-	if _, err := helper.ValidateRelativePath(storage.Path, relativePath); err != nil {
+	if _, err := storage.ValidateRelativePath(s.Path, relativePath); err != nil {
 		return "", fmt.Errorf("getRepoStatePath: %s", err)
 	}
 

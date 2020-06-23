@@ -15,7 +15,6 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
@@ -28,6 +27,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -92,7 +92,7 @@ func TestProcessReplicationJob(t *testing.T) {
 
 	// create object pool on the source
 	objectPoolPath := testhelper.NewTestObjectPoolName(t)
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), objectPoolPath)
+	pool, err := objectpool.NewObjectPool(gitaly_config.NewLocator(gitaly_config.Config), testRepo.GetStorageName(), objectPoolPath)
 	require.NoError(t, err)
 
 	poolCtx, cancel := testhelper.Context()
@@ -655,7 +655,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	_, serr := os.Stat(fullNewPath1)
 	require.True(t, os.IsNotExist(serr), "repository must be moved from %q to the new location", fullNewPath1)
-	require.True(t, helper.IsGitDirectory(fullNewPath2), "repository must exist at new last RenameRepository location")
+	require.True(t, storage.IsGitDirectory(fullNewPath2), "repository must exist at new last RenameRepository location")
 }
 
 type mockReplicator struct {
@@ -789,8 +789,9 @@ func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 
 	svr := testhelper.NewTestGrpcServer(tb, nil, nil)
 
-	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(RubyServer, internalSocketName))
-	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer())
+	locator := gitaly_config.NewLocator(gitaly_config.Config)
+	gitalypb.RegisterRepositoryServiceServer(svr, repository.NewServer(RubyServer, locator, internalSocketName))
+	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer(locator))
 	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(RubyServer))
 	gitalypb.RegisterSSHServiceServer(svr, ssh.NewServer())
 	reflection.Register(svr)

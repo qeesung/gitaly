@@ -6,6 +6,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,7 +23,7 @@ func (s *server) RepositoryExists(ctx context.Context, in *gitalypb.RepositoryEx
 		return nil, err
 	}
 
-	return &gitalypb.RepositoryExistsResponse{Exists: helper.IsGitDirectory(path)}, nil
+	return &gitalypb.RepositoryExistsResponse{Exists: storage.IsGitDirectory(path)}, nil
 }
 
 func (s *server) HasLocalBranches(ctx context.Context, in *gitalypb.HasLocalBranchesRequest) (*gitalypb.HasLocalBranchesResponse, error) {

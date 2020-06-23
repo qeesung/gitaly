@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -34,7 +35,7 @@ func TestRenameRepositorySuccess(t *testing.T) {
 	require.DirExists(t, newDirectory)
 	defer func() { require.NoError(t, os.RemoveAll(newDirectory)) }()
 
-	require.True(t, helper.IsGitDirectory(newDirectory), "moved Git repository has been corrupted")
+	require.True(t, storage.IsGitDirectory(newDirectory), "moved Git repository has been corrupted")
 
 	// ensure the git directory that got renamed contains a sha in the seed repo
 	testhelper.GitObjectMustExist(t, newDirectory, "913c66a37b4a45b9769037c55c2d238bd0942d2e")

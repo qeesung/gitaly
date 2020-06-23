@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,7 +49,7 @@ func walkStorage(ctx context.Context, storagePath string, stream gitalypb.Intern
 			// keep walking
 		}
 
-		if helper.IsGitDirectory(path) {
+		if storage.IsGitDirectory(path) {
 			relPath, err := filepath.Rel(storagePath, path)
 			if err != nil {
 				return err

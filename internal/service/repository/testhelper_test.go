@@ -75,7 +75,7 @@ func runRepoServer(t *testing.T, opts ...testhelper.TestServerOpt) (string, func
 
 	srv := testhelper.NewServerWithAuth(t, streamInt, unaryInt, config.Config.Auth.Token, opts...)
 
-	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(RubyServer, config.GitalyInternalSocketPath()))
+	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(RubyServer, config.NewLocator(config.Config), config.GitalyInternalSocketPath()))
 	reflection.Register(srv.GrpcServer())
 
 	require.NoError(t, srv.Start())

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
@@ -21,7 +22,7 @@ func NewTestObjectPool(t *testing.T) (*objectpool.ObjectPool, *gitalypb.Reposito
 	relativePath := testhelper.NewTestObjectPoolName(t)
 	repo := testhelper.CreateRepo(t, storagePath, relativePath)
 
-	pool, err := objectpool.NewObjectPool(repo.GetStorageName(), relativePath)
+	pool, err := objectpool.NewObjectPool(config.NewLocator(config.Config), repo.GetStorageName(), relativePath)
 	require.NoError(t, err)
 
 	return pool, repo

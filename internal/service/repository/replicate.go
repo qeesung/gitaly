@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -36,7 +37,7 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 		return nil, helper.ErrInternal(err)
 	}
 
-	if helper.IsGitDirectory(repoPath) {
+	if storage.IsGitDirectory(repoPath) {
 		syncFuncs = append(syncFuncs, s.syncRepository)
 	} else {
 		if err = s.create(ctx, in, repoPath); err != nil {

@@ -7,9 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -28,7 +30,7 @@ func TestLink(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Remove(ctx), "make sure pool does not exist at start of test")
@@ -101,7 +103,7 @@ func TestLinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))
@@ -131,7 +133,7 @@ func TestLinkNoClobber(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -170,7 +172,7 @@ func TestLinkNoPool(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	// intentionally do not call pool.Create
 	defer pool.Remove(ctx)
@@ -186,7 +188,7 @@ func TestLinkNoPool(t *testing.T) {
 	poolRepoPath, err := helper.GetRepoPath(pool)
 	require.NoError(t, err)
 
-	assert.True(t, helper.IsGitDirectory(poolRepoPath))
+	assert.True(t, storage.IsGitDirectory(poolRepoPath))
 }
 
 func TestUnlink(t *testing.T) {
@@ -205,7 +207,9 @@ func TestUnlink(t *testing.T) {
 	deletedRepo, deletedRepoPath, removeDeletedRepo := testhelper.NewTestRepo(t)
 	defer removeDeletedRepo()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	locator := gconfig.NewLocator(gconfig.Config)
+
+	pool, err := objectpool.NewObjectPool(locator, testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 
@@ -216,7 +220,7 @@ func TestUnlink(t *testing.T) {
 	removeDeletedRepo()
 	testhelper.AssertPathNotExists(t, deletedRepoPath)
 
-	pool2, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool2, err := objectpool.NewObjectPool(locator, testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	require.NoError(t, pool2.Create(ctx, testRepo), "create pool 2")
 	defer pool2.Remove(ctx)
@@ -314,7 +318,7 @@ func TestUnlinkIdempotent(t *testing.T) {
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 	require.NoError(t, pool.Create(ctx, testRepo))

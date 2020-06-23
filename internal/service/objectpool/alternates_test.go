@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	gconfig "gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -26,7 +27,7 @@ func TestDisconnectGitAlternates(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	pool, err := objectpool.NewObjectPool(testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
+	pool, err := objectpool.NewObjectPool(gconfig.NewLocator(gconfig.Config), testRepo.GetStorageName(), testhelper.NewTestObjectPoolName(t))
 	require.NoError(t, err)
 	defer pool.Remove(ctx)
 

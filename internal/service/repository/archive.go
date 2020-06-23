@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/service/commit"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 )
@@ -23,7 +24,7 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 		return err
 	}
 
-	path, err := helper.ValidateRelativePath(repoRoot, string(in.GetPath()))
+	path, err := storage.ValidateRelativePath(repoRoot, string(in.GetPath()))
 	if err != nil {
 		return helper.ErrInvalidArgument(err)
 	}

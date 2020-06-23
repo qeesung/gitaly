@@ -26,7 +26,7 @@ func (s *server) ServerInfo(ctx context.Context, in *gitalypb.ServerInfoRequest)
 		readable, writeable := shardCheck(shard.Path)
 		fsType := fstype.FileSystem(shard.Path)
 
-		gitalyMetadata, err := storage.ReadMetadataFile(shard)
+		gitalyMetadata, err := storage.ReadMetadataFile(shard.Path)
 		if err != nil {
 			ctxlogrus.Extract(ctx).WithField("storage", shard).WithError(err).Error("reading gitaly metadata file")
 		}

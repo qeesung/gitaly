@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -32,7 +31,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	originPath, err := helper.GetPath(origin)
+	originPath, err := o.locator.GetPath(origin)
 
 	if err != nil {
 		return err

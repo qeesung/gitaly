@@ -1,10 +1,13 @@
 package objectpool
 
-import "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+import (
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+)
 
 // FromProto returns an object pool object from a git repository object
-func FromProto(o *gitalypb.ObjectPool) (*ObjectPool, error) {
-	return NewObjectPool(o.GetRepository().GetStorageName(), o.GetRepository().GetRelativePath())
+func FromProto(locator storage.Locator, o *gitalypb.ObjectPool) (*ObjectPool, error) {
+	return NewObjectPool(locator, o.GetRepository().GetStorageName(), o.GetRepository().GetRelativePath())
 }
 
 // ToProto returns a new struct that is the protobuf definition of the ObjectPool

@@ -26,7 +26,7 @@ func (s *server) CreateObjectPool(ctx context.Context, in *gitalypb.CreateObject
 		return nil, errMissingOriginRepository
 	}
 
-	pool, err := poolForRequest(in)
+	pool, err := s.poolForRequest(in)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (s *server) CreateObjectPool(ctx context.Context, in *gitalypb.CreateObject
 }
 
 func (s *server) DeleteObjectPool(ctx context.Context, in *gitalypb.DeleteObjectPoolRequest) (*gitalypb.DeleteObjectPoolResponse, error) {
-	pool, err := poolForRequest(in)
+	pool, err := s.poolForRequest(in)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ type poolRequest interface {
 	GetObjectPool() *gitalypb.ObjectPool
 }
 
-func poolForRequest(req poolRequest) (*objectpool.ObjectPool, error) {
+func (s *server) poolForRequest(req poolRequest) (*objectpool.ObjectPool, error) {
 	reqPool := req.GetObjectPool()
 
 	poolRepo := reqPool.GetRepository()
@@ -67,7 +67,7 @@ func poolForRequest(req poolRequest) (*objectpool.ObjectPool, error) {
 		return nil, errMissingPool
 	}
 
-	pool, err := objectpool.NewObjectPool(poolRepo.GetStorageName(), poolRepo.GetRelativePath())
+	pool, err := objectpool.NewObjectPool(s.locator, poolRepo.GetStorageName(), poolRepo.GetRelativePath())
 	if err != nil {
 		if err == objectpool.ErrInvalidPoolDir {
 			return nil, errInvalidPoolDir

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/safe"
 )
 
@@ -22,8 +21,8 @@ type Metadata struct {
 }
 
 // WriteMetadataFile marshals and writes a metadata file
-func WriteMetadataFile(storage config.Storage) error {
-	path := filepath.Join(storage.Path, metadataFilename)
+func WriteMetadataFile(storagePath string) error {
+	path := filepath.Join(storagePath, metadataFilename)
 
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return err
@@ -45,8 +44,8 @@ func WriteMetadataFile(storage config.Storage) error {
 }
 
 // ReadMetadataFile reads and decodes the json metadata file
-func ReadMetadataFile(storage config.Storage) (Metadata, error) {
-	path := filepath.Join(storage.Path, metadataFilename)
+func ReadMetadataFile(storagePath string) (Metadata, error) {
+	path := filepath.Join(storagePath, metadataFilename)
 
 	var metadata Metadata
 

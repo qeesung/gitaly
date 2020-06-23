@@ -16,7 +16,7 @@ func (s *server) CloneFromPool(ctx context.Context, req *gitalypb.CloneFromPoolR
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	if err := validateCloneFromPoolRequestRepositoryState(req); err != nil {
+	if err := s.validateCloneFromPoolRequestRepositoryState(req); err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
@@ -32,7 +32,7 @@ func (s *server) CloneFromPool(ctx context.Context, req *gitalypb.CloneFromPoolR
 		return nil, helper.ErrInternalf("fetch http remote: %v", err)
 	}
 
-	objectPool, err := objectpool.FromProto(req.GetPool())
+	objectPool, err := objectpool.FromProto(s.locator, req.GetPool())
 	if err != nil {
 		return nil, helper.ErrInternalf("get object pool from request: %v", err)
 	}
@@ -44,7 +44,7 @@ func (s *server) CloneFromPool(ctx context.Context, req *gitalypb.CloneFromPoolR
 	return &gitalypb.CloneFromPoolResponse{}, nil
 }
 
-func validateCloneFromPoolRequestRepositoryState(req *gitalypb.CloneFromPoolRequest) error {
+func (s *server) validateCloneFromPoolRequestRepositoryState(req *gitalypb.CloneFromPoolRequest) error {
 	targetRepositoryFullPath, err := helper.GetPath(req.GetRepository())
 	if err != nil {
 		return fmt.Errorf("getting target repository path: %v", err)
@@ -54,7 +54,7 @@ func validateCloneFromPoolRequestRepositoryState(req *gitalypb.CloneFromPoolRequ
 		return errors.New("target reopsitory already exists")
 	}
 
-	objectPool, err := objectpool.FromProto(req.GetPool())
+	objectPool, err := objectpool.FromProto(s.locator, req.GetPool())
 	if err != nil {
 		return fmt.Errorf("getting object pool from repository: %v", err)
 	}

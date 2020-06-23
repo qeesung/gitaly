@@ -14,6 +14,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -31,6 +32,7 @@ const ErrInvalidPoolDir errString = "invalid object pool directory"
 // live in a pool in a distinct repository which is used as an alternate object
 // store for other repositories.
 type ObjectPool struct {
+	locator     storage.Locator
 	storageName string
 	storagePath string
 
@@ -40,7 +42,7 @@ type ObjectPool struct {
 // NewObjectPool will initialize the object with the required data on the storage
 // shard. Relative path is validated to match the expected naming and directory
 // structure. If the shard cannot be found, this function returns an error.
-func NewObjectPool(storageName, relativePath string) (pool *ObjectPool, err error) {
+func NewObjectPool(locator storage.Locator, storageName, relativePath string) (pool *ObjectPool, err error) {
 	storagePath, err := helper.GetStorageByName(storageName)
 	if err != nil {
 		return nil, err
@@ -51,7 +53,7 @@ func NewObjectPool(storageName, relativePath string) (pool *ObjectPool, err erro
 		return nil, ErrInvalidPoolDir
 	}
 
-	return &ObjectPool{storageName, storagePath, relativePath}, nil
+	return &ObjectPool{locator: locator, storageName: storageName, storagePath: storagePath, relativePath: relativePath}, nil
 }
 
 // GetGitAlternateObjectDirectories for object pools are empty, given pools are
@@ -83,7 +85,7 @@ func (o *ObjectPool) IsValid() bool {
 		return false
 	}
 
-	return helper.IsGitDirectory(o.FullPath())
+	return storage.IsGitDirectory(o.FullPath())
 }
 
 // Create will create a pool for a repository and pull the required data to this
@@ -117,7 +119,7 @@ func (o *ObjectPool) Remove(ctx context.Context) (err error) {
 func (o *ObjectPool) Init(ctx context.Context) (err error) {
 	targetDir := o.FullPath()
 
-	if helper.IsGitDirectory(targetDir) {
+	if storage.IsGitDirectory(targetDir) {
 		return nil
 	}
 
@@ -138,7 +140,7 @@ func (o *ObjectPool) Init(ctx context.Context) (err error) {
 }
 
 // FromRepo returns an instance of ObjectPool that the repository points to
-func FromRepo(repo *gitalypb.Repository) (*ObjectPool, error) {
+func FromRepo(locator storage.Locator, repo *gitalypb.Repository) (*ObjectPool, error) {
 	dir, err := getAlternateObjectDir(repo)
 	if err != nil {
 		return nil, err
@@ -148,12 +150,17 @@ func FromRepo(repo *gitalypb.Repository) (*ObjectPool, error) {
 		return nil, nil
 	}
 
-	altPathRelativeToStorage, err := objectPathRelativeToStorage(repo, dir)
+	repoPath, err := locator.GetPath(repo)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewObjectPool(repo.GetStorageName(), filepath.Dir(altPathRelativeToStorage))
+	altPathRelativeToStorage, err := objectPathRelativeToStorage(repo.GetStorageName(), dir, repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewObjectPool(locator, repo.GetStorageName(), filepath.Dir(altPathRelativeToStorage))
 }
 
 var (
@@ -204,13 +211,8 @@ func getAlternateObjectDir(repo *gitalypb.Repository) (string, error) {
 
 // objectPathRelativeToStorage takes an object path that's relative to a repository's object directory
 // and returns the path relative to the storage path of the repository.
-func objectPathRelativeToStorage(repo *gitalypb.Repository, path string) (string, error) {
-	repoPath, err := helper.GetPath(repo)
-	if err != nil {
-		return "", err
-	}
-
-	storagePath, err := helper.GetStorageByName(repo.GetStorageName())
+func objectPathRelativeToStorage(storageName, path, repoPath string) (string, error) {
+	storagePath, err := helper.GetStorageByName(storageName)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +220,7 @@ func objectPathRelativeToStorage(repo *gitalypb.Repository, path string) (string
 
 	poolObjectDirFullPath := filepath.Join(objectDirPath, path)
 
-	if !helper.IsGitDirectory(filepath.Dir(poolObjectDirFullPath)) {
+	if !storage.IsGitDirectory(filepath.Dir(poolObjectDirFullPath)) {
 		return "", ErrInvalidPoolRepository
 	}
 

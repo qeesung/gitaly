@@ -305,7 +305,7 @@ func realGitaly(storages []gconfig.Storage, authToken, internalSocketPath string
 		healthpb.HealthServer
 	}{
 		gitalyserver.NewServer(storages),
-		repository.NewServer(RubyServer, internalSocketPath),
+		repository.NewServer(RubyServer, gconfig.NewLocator(gconfig.Config), internalSocketPath),
 		internalgitaly.NewServer(gconfig.Config.Storages),
 		health.NewServer(),
 	}

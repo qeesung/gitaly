@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -32,7 +33,7 @@ func runObjectPoolServer(t *testing.T) (*grpc.Server, string) {
 		t.Fatal(err)
 	}
 
-	gitalypb.RegisterObjectPoolServiceServer(server, NewServer())
+	gitalypb.RegisterObjectPoolServiceServer(server, NewServer(config.NewLocator(config.Config)))
 	reflection.Register(server)
 
 	go server.Serve(listener)

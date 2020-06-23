@@ -68,7 +68,7 @@ func TestFetchRemoteSuccess(t *testing.T) {
 }
 
 func TestFetchRemoteFailure(t *testing.T) {
-	server := NewServer(RubyServer, config.GitalyInternalSocketPath())
+	server := NewServer(RubyServer, config.NewLocator(config.Config), config.GitalyInternalSocketPath())
 
 	tests := []struct {
 		desc string

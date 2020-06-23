@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/internal/service/wiki"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -52,7 +53,7 @@ var (
 
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
-func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI) {
+func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server, gitlabAPI hook.GitlabAPI, locator storage.Locator) {
 	gitalypb.RegisterBlobServiceServer(grpcServer, blob.NewServer(rubyServer))
 	gitalypb.RegisterCleanupServiceServer(grpcServer, cleanup.NewServer())
 	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer())
@@ -60,7 +61,7 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	gitalypb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer())
 	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(rubyServer))
 	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer())
-	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(rubyServer, config.GitalyInternalSocketPath()))
+	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(rubyServer, locator, config.GitalyInternalSocketPath()))
 	gitalypb.RegisterSSHServiceServer(grpcServer, ssh.NewServer(
 		ssh.WithPackfileNegotiationMetrics(sshPackfileNegotiationMetrics),
 	))
@@ -71,7 +72,7 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	gitalypb.RegisterConflictsServiceServer(grpcServer, conflicts.NewServer(rubyServer))
 	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(rubyServer))
 	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer(cfg.Storages))
-	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer())
+	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer(locator))
 	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(gitlabAPI, cfg.Hooks))
 	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(cfg.Storages))
 
