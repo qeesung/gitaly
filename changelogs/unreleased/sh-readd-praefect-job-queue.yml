@@ -1,0 +1,5 @@
+---
+title: Ensure Praefect replication queue tables exist
+merge_request: 2309
+author:
+type: other
