@@ -27,11 +27,11 @@ func NewServerFactory(
 	return &ServerFactory{
 		conf:     conf,
 		logger:   logger,
-		registry: registry,
 		director: director,
 		nodeMgr:  nodeMgr,
 		txMgr:    txMgr,
 		queue:    queue,
+		registry: registry,
 	}
 }
 
@@ -40,11 +40,11 @@ type ServerFactory struct {
 	mtx      sync.Mutex
 	conf     config.Config
 	logger   *logrus.Entry
-	registry *protoregistry.Registry
 	director proxy.StreamDirector
 	nodeMgr  nodes.Manager
 	txMgr    *transactions.Manager
 	queue    datastore.ReplicationEventQueue
+	registry *protoregistry.Registry
 	insecure []*grpc.Server
 }
 

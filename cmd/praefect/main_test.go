@@ -118,6 +118,40 @@ func TestGetStarterConfigs(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "addresses without schema",
+			conf: config.Config{
+				ListenAddr: "127.0.0.1:2306",
+				SocketPath: "/socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
+		{
+			desc: "addresses with/without schema",
+			conf: config.Config{
+				ListenAddr: "127.0.0.1:2306",
+				SocketPath: "unix:///socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			actual, err := getStarterConfigs(tc.conf)
