@@ -336,30 +336,49 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, protoregistry.GitalyProtoPreregistered)
 
 	t.Run("forwards accessor operations", func(t *testing.T) {
-		frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
-		require.NoError(t, err)
+		var primaryChosen int
+		var secondaryChosen int
 
-		fullMethod := "/gitaly.RefService/FindAllBranches"
+		for i := 0; i < 16; i++ {
+			frame, err := proto.Marshal(&gitalypb.FindAllBranchesRequest{Repository: &targetRepo})
+			require.NoError(t, err)
 
-		peeker := &mockPeeker{frame: frame}
-		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
-		require.NoError(t, err)
-		require.Equal(t, secondaryNodeConf.Address, streamParams.Conn().Target(), "must be redirected to secondary")
+			fullMethod := "/gitaly.RefService/FindAllBranches"
 
-		md, ok := metadata.FromOutgoingContext(streamParams.Context())
-		require.True(t, ok)
-		require.Contains(t, md, "praefect-server")
+			peeker := &mockPeeker{frame: frame}
 
-		mi, err := coordinator.registry.LookupMethod(fullMethod)
-		require.NoError(t, err)
-		require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
+			streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+			require.NoError(t, err)
+			require.Contains(t, []string{primaryNodeConf.Address, secondaryNodeConf.Address}, streamParams.Conn().Target(), "must be redirected to primary or secondary")
 
-		m, err := protoMessageFromPeeker(mi, peeker)
-		require.NoError(t, err)
+			var nodeConf config.Node
+			switch streamParams.Conn().Target() {
+			case primaryNodeConf.Address:
+				nodeConf = primaryNodeConf
+				primaryChosen++
+			case secondaryNodeConf.Address:
+				nodeConf = secondaryNodeConf
+				secondaryChosen++
+			}
 
-		rewrittenTargetRepo, err := mi.TargetRepo(m)
-		require.NoError(t, err)
-		require.Equal(t, "gitaly-2", rewrittenTargetRepo.GetStorageName(), "stream director must rewrite the storage name")
+			md, ok := metadata.FromOutgoingContext(streamParams.Context())
+			require.True(t, ok)
+			require.Contains(t, md, "praefect-server")
+
+			mi, err := coordinator.registry.LookupMethod(fullMethod)
+			require.NoError(t, err)
+			require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
+
+			m, err := protoMessageFromPeeker(mi, peeker)
+			require.NoError(t, err)
+
+			rewrittenTargetRepo, err := mi.TargetRepo(m)
+			require.NoError(t, err)
+			require.Equal(t, nodeConf.Storage, rewrittenTargetRepo.GetStorageName(), "stream director must rewrite the storage name")
+		}
+
+		require.NotZero(t, primaryChosen, "primary should have been chosen at least once")
+		require.NotZero(t, secondaryChosen, "secondary should have been chosen at least once")
 	})
 
 	t.Run("forwards accessor operations only to healthy nodes", func(t *testing.T) {
