@@ -59,7 +59,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repositor
 	if err := lines.Send(cmd, writer, lines.SenderOpts{
 		IsPageToken: opts.IsPageToken,
 		Delimiter:   opts.delim,
-		Limit:       int(opts.Limit),
+		Limit:       opts.Limit,
 	}); err != nil {
 		return err
 	}

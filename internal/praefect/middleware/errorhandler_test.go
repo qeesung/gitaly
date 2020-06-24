@@ -55,6 +55,7 @@ func TestStreamInterceptor(t *testing.T) {
 
 	internalServerSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 	lis, err := net.Listen("unix", internalServerSocketPath)
+	require.NoError(t, err)
 
 	gz := proto.FileDescriptor("mock.proto")
 	fd, err := protoregistry.ExtractFileDescriptor(gz)
