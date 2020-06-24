@@ -65,7 +65,7 @@ func commitsByMessage(in *gitalypb.CommitsByMessageRequest, stream gitalypb.Comm
 		paths = append(paths, string(path))
 	}
 
-	return sendCommits(stream.Context(), sender, in.GetRepository(), []string{string(revision)}, paths, gitLogExtraOptions...)
+	return sendCommits(stream.Context(), sender, in.GetRepository(), []string{string(revision)}, paths, in.GetGlobalOptions(), gitLogExtraOptions...)
 }
 
 func validateCommitsByMessageRequest(in *gitalypb.CommitsByMessageRequest) error {

@@ -68,7 +68,7 @@ func listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream g
 	}
 
 	for _, entry := range entries[offset:limit] {
-		commit, err := log.LastCommitForPath(ctx, c, repo, in.GetRevision(), entry.Path, in.GetLiteralPathspec())
+		commit, err := log.LastCommitForPath(ctx, c, repo, in.GetRevision(), entry.Path, in.GetGlobalOptions())
 		if err != nil {
 			return err
 		}
@@ -122,11 +122,7 @@ func newLSTreeParser(in *gitalypb.ListLastCommitsForTreeRequest, stream gitalypb
 		path = "."
 	}
 
-	var globals []git.Option
-	if in.GetLiteralPathspec() {
-		globals = []git.Option{git.Flag{"--literal-pathspecs"}}
-	}
-
+	globals := git.ConvertGlobalOptions(in.GetGlobalOptions())
 	cmd, err := git.SafeCmd(stream.Context(), in.GetRepository(), globals, git.SubCmd{
 		Name:  "ls-tree",
 		Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--full-name"}},

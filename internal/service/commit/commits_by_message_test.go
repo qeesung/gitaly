@@ -12,6 +12,29 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+var rubyFilesCommit = []*gitalypb.GitCommit{
+	{
+		Id:      "913c66a37b4a45b9769037c55c2d238bd0942d2e",
+		Subject: []byte("Files, encoding and much more"),
+		Body:    []byte("Files, encoding and much more\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
+		Author: &gitalypb.CommitAuthor{
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393488896},
+			Timezone: []byte("+0200"),
+		},
+		Committer: &gitalypb.CommitAuthor{
+			Name:     []byte("Dmitriy Zaporozhets"),
+			Email:    []byte("dmitriy.zaporozhets@gmail.com"),
+			Date:     &timestamp.Timestamp{Seconds: 1393488896},
+			Timezone: []byte("+0200"),
+		},
+		ParentIds:     []string{"cfe32cf61b73a0d5e9f13e774abde7ff789b1660"},
+		BodySize:      98,
+		SignatureType: gitalypb.SignatureType_PGP,
+	},
+}
+
 func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
 	server, serverSocketPath := startTestServices(t)
 	defer server.Stop()
@@ -80,28 +103,24 @@ func TestSuccessfulCommitsByMessageRequest(t *testing.T) {
 				Query: "much more",
 				Path:  []byte("files/ruby"),
 			},
-			expectedCommits: []*gitalypb.GitCommit{
-				{
-					Id:      "913c66a37b4a45b9769037c55c2d238bd0942d2e",
-					Subject: []byte("Files, encoding and much more"),
-					Body:    []byte("Files, encoding and much more\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
-					Author: &gitalypb.CommitAuthor{
-						Name:     []byte("Dmitriy Zaporozhets"),
-						Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-						Date:     &timestamp.Timestamp{Seconds: 1393488896},
-						Timezone: []byte("+0200"),
-					},
-					Committer: &gitalypb.CommitAuthor{
-						Name:     []byte("Dmitriy Zaporozhets"),
-						Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-						Date:     &timestamp.Timestamp{Seconds: 1393488896},
-						Timezone: []byte("+0200"),
-					},
-					ParentIds:     []string{"cfe32cf61b73a0d5e9f13e774abde7ff789b1660"},
-					BodySize:      98,
-					SignatureType: gitalypb.SignatureType_PGP,
-				},
+			expectedCommits: rubyFilesCommit,
+		},
+		{
+			desc: "query + empty revision + wildcard pathspec",
+			request: &gitalypb.CommitsByMessageRequest{
+				Query: "much more",
+				Path:  []byte("files/*"),
 			},
+			expectedCommits: rubyFilesCommit,
+		},
+		{
+			desc: "query + empty revision + non-existent literal pathspec",
+			request: &gitalypb.CommitsByMessageRequest{
+				Query:         "much more",
+				Path:          []byte("files/*"),
+				GlobalOptions: &gitalypb.GlobalOptions{LiteralPathspecs: true},
+			},
+			expectedCommits: []*gitalypb.GitCommit{},
 		},
 		{
 			desc: "query + empty revision + path not in the commits",

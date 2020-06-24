@@ -1,0 +1,5 @@
+---
+title: Support literal path lookups in other commit RPCs
+merge_request: 2303
+author:
+type: other

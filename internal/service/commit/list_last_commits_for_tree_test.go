@@ -396,12 +396,12 @@ func TestSuccessfulListLastCommitsForTreeRequestWithGlobCharacters(t *testing.T)
 	commitID := text.ChompBytes(testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", "HEAD"))
 
 	request := &gitalypb.ListLastCommitsForTreeRequest{
-		Repository:      testRepo,
-		Revision:        commitID,
-		Path:            []byte(path),
-		LiteralPathspec: true,
-		Limit:           100,
-		Offset:          0,
+		Repository:    testRepo,
+		Revision:      commitID,
+		Path:          []byte(path),
+		GlobalOptions: &gitalypb.GlobalOptions{LiteralPathspecs: true},
+		Limit:         100,
+		Offset:        0,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -411,7 +411,7 @@ func TestSuccessfulListLastCommitsForTreeRequestWithGlobCharacters(t *testing.T)
 
 	assert.True(t, fileExistsInCommits(t, stream, path))
 
-	request.LiteralPathspec = false
+	request.GlobalOptions = &gitalypb.GlobalOptions{LiteralPathspecs: false}
 	stream, err = client.ListLastCommitsForTree(ctx, request)
 	require.NoError(t, err)
 	assert.False(t, fileExistsInCommits(t, stream, path))

@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 var (
@@ -195,6 +196,21 @@ func validatePositionalArg(arg string) error {
 		return fmt.Errorf("positional arg %q cannot start with dash '-': %w", arg, ErrInvalidArg)
 	}
 	return nil
+}
+
+// ConvertGlobalOptions converts a protobuf message to command-line flags
+func ConvertGlobalOptions(options *gitalypb.GlobalOptions) []Option {
+	var globals []Option
+
+	if options == nil {
+		return globals
+	}
+
+	if options.GetLiteralPathspecs() {
+		globals = append(globals, Flag{"--literal-pathspecs"})
+	}
+
+	return globals
 }
 
 // SafeCmd creates a git.Command with the given args and Repository. It

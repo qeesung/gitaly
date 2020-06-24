@@ -60,6 +60,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :max_count, :int32, 6
     optional :all, :bool, 7
     optional :first_parent, :bool, 8
+    optional :global_options, :message, 9, "gitaly.GlobalOptions"
   end
   add_message "gitaly.CountCommitsResponse" do
     optional :count, :int32, 1
@@ -160,6 +161,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :first_parent, :bool, 12
     optional :author, :bytes, 13
     optional :order, :enum, 14, "gitaly.FindCommitsRequest.Order"
+    optional :global_options, :message, 15, "gitaly.GlobalOptions"
   end
   add_enum "gitaly.FindCommitsRequest.Order" do
     value :NONE, 0
@@ -195,6 +197,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :revision, :bytes, 2
     optional :path, :bytes, 3
     optional :literal_pathspec, :bool, 4
+    optional :global_options, :message, 5, "gitaly.GlobalOptions"
   end
   add_message "gitaly.LastCommitForPathResponse" do
     optional :commit, :message, 1, "gitaly.GitCommit"
@@ -206,6 +209,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :limit, :int32, 4
     optional :offset, :int32, 5
     optional :literal_pathspec, :bool, 6
+    optional :global_options, :message, 7, "gitaly.GlobalOptions"
   end
   add_message "gitaly.ListLastCommitsForTreeResponse" do
     repeated :commits, :message, 1, "gitaly.ListLastCommitsForTreeResponse.CommitForTree"
@@ -221,6 +225,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :limit, :int32, 4
     optional :path, :bytes, 5
     optional :query, :string, 6
+    optional :global_options, :message, 7, "gitaly.GlobalOptions"
   end
   add_message "gitaly.CommitsByMessageResponse" do
     repeated :commits, :message, 1, "gitaly.GitCommit"

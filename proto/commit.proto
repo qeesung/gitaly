@@ -187,6 +187,7 @@ message CountCommitsRequest {
   // all and revision are mutually exclusive
   bool all = 7;
   bool first_parent = 8;
+  GlobalOptions global_options = 9;
 }
 
 message CountCommitsResponse {
@@ -326,6 +327,7 @@ message FindCommitsRequest {
     TOPO = 1;
   }
   Order order = 14;
+  GlobalOptions global_options = 15;
 }
 
 // A single 'page' of the result set
@@ -363,7 +365,8 @@ message LastCommitForPathRequest {
   Repository repository = 1 [(target_repository)=true];
   bytes revision = 2;
   bytes path = 3;
-  bool literal_pathspec = 4;
+  bool literal_pathspec = 4; // Deprecate after Rails stops using this
+  GlobalOptions global_options = 5;
 }
 
 message LastCommitForPathResponse {
@@ -377,7 +380,8 @@ message ListLastCommitsForTreeRequest {
   bytes path = 3;
   int32 limit = 4;
   int32 offset = 5;
-  bool literal_pathspec = 6;
+  bool literal_pathspec = 6 [deprecated = true];
+  GlobalOptions global_options = 7;
 }
 
 message ListLastCommitsForTreeResponse {
@@ -398,6 +402,7 @@ message CommitsByMessageRequest {
   int32 limit = 4;
   bytes path = 5;
   string query = 6;
+  GlobalOptions global_options = 7;
 }
 
 // One 'page' of the paginated response of CommitsByMessage

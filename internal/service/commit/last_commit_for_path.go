@@ -35,9 +35,20 @@ func lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitForPathReques
 		return nil, err
 	}
 
-	literalPathspec := in.GetLiteralPathspec()
+	options := in.GetGlobalOptions()
 
-	commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), path, literalPathspec)
+	// Preserve backwards compatibility with legacy LiteralPathspec
+	// flag: These protobuf changes were not shipped in 13.1, so can be
+	// remove before 13.2.
+	if in.GetLiteralPathspec() {
+		if options == nil {
+			options = &gitalypb.GlobalOptions{}
+		}
+
+		options.LiteralPathspecs = true
+	}
+
+	commit, err := log.LastCommitForPath(ctx, c, repo, string(in.GetRevision()), path, options)
 	if log.IsNotFound(err) {
 		return &gitalypb.LastCommitForPathResponse{}, nil
 	}

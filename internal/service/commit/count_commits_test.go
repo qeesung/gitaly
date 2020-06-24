@@ -45,10 +45,13 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 			"commit", "--allow-empty", "-m", "Empty commit")
 	}
 
+	literalOptions := &gitalypb.GlobalOptions{LiteralPathspecs: true}
+
 	testCases := []struct {
 		repo                *gitalypb.Repository
 		revision, path      []byte
 		all                 bool
+		options             *gitalypb.GlobalOptions
 		before, after, desc string
 		maxCount            int32
 		count               int32
@@ -109,6 +112,25 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 			count:    12,
 		},
 		{
+			desc:     "revision + before + after + wildcard path",
+			repo:     testRepo1,
+			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			before:   "2015-12-07T11:54:28+01:00",
+			after:    "2014-02-27T10:14:56+02:00",
+			path:     []byte("files/*"),
+			count:    12,
+		},
+		{
+			desc:     "revision + before + after + non-existent literal pathspec",
+			repo:     testRepo1,
+			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			before:   "2015-12-07T11:54:28+01:00",
+			after:    "2014-02-27T10:14:56+02:00",
+			path:     []byte("files/*"),
+			options:  literalOptions,
+			count:    0,
+		},
+		{
 			desc:  "all refs #1",
 			repo:  testRepo2,
 			all:   true,
@@ -118,7 +140,7 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			request := &gitalypb.CountCommitsRequest{Repository: testCase.repo}
+			request := &gitalypb.CountCommitsRequest{Repository: testCase.repo, GlobalOptions: testCase.options}
 
 			if testCase.all {
 				request.All = true

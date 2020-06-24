@@ -119,3 +119,9 @@ message PaginationParameter {
 	// results are send in the response.
 	int32 limit = 2;
 }
+
+// https://git-scm.com/docs/git/#_options
+message GlobalOptions {
+    // Treat pathspecs literally (i.e. no globbing, no pathspec magic)
+    bool literal_pathspecs = 1;
+}

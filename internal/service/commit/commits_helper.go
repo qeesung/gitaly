@@ -10,8 +10,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
-func sendCommits(ctx context.Context, sender chunk.Sender, repo *gitalypb.Repository, revisionRange []string, paths []string, extraArgs ...git.Option) error {
-	cmd, err := log.GitLogCommand(ctx, repo, revisionRange, paths, extraArgs...)
+func sendCommits(ctx context.Context, sender chunk.Sender, repo *gitalypb.Repository, revisionRange []string, paths []string, options *gitalypb.GlobalOptions, extraArgs ...git.Option) error {
+	cmd, err := log.GitLogCommand(ctx, repo, revisionRange, paths, options, extraArgs...)
 	if err != nil {
 		return err
 	}

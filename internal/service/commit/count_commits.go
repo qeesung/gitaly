@@ -44,7 +44,8 @@ func (s *server) CountCommits(ctx context.Context, in *gitalypb.CountCommitsRequ
 		subCmd.PostSepArgs = []string{string(path)}
 	}
 
-	cmd, err := git.SafeCmd(ctx, in.Repository, nil, subCmd)
+	globals := git.ConvertGlobalOptions(in.GetGlobalOptions())
+	cmd, err := git.SafeCmd(ctx, in.Repository, globals, subCmd)
 	if err != nil {
 		if _, ok := status.FromError(err); ok {
 			return nil, err
