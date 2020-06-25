@@ -1,0 +1,5 @@
+---
+title: Always git fetch after snapshot repository creation
+merge_request: 2320
+author:
+type: fixed

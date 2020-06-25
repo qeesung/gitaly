@@ -301,13 +301,6 @@ func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 	md := testhelper.GitalyServersMetadata(t, serverSocketPath)
 	injectedCtx := metadata.NewOutgoingContext(ctx, md)
 
-	// first ReplicateRepository call will replicate via snapshot
-	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
-		Repository: &targetRepo,
-		Source:     testRepo,
-	})
-	require.NoError(t, err)
-
 	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
 		Repository: &targetRepo,
 		Source:     testRepo,

@@ -28,18 +28,12 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	syncFuncs := []func(context.Context, *gitalypb.ReplicateRepositoryRequest) error{
-		s.syncInfoAttributes,
-	}
-
 	repoPath, err := helper.GetPath(in.GetRepository())
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
-	if storage.IsGitDirectory(repoPath) {
-		syncFuncs = append(syncFuncs, s.syncRepository)
-	} else {
+	if !storage.IsGitDirectory(repoPath) {
 		if err = s.create(ctx, in, repoPath); err != nil {
 			return nil, helper.ErrInternal(err)
 		}
@@ -47,6 +41,11 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 
 	g, ctx := errgroup.WithContext(ctx)
 	outgoingCtx := helper.IncomingToOutgoing(ctx)
+
+	syncFuncs := []func(context.Context, *gitalypb.ReplicateRepositoryRequest) error{
+		s.syncInfoAttributes,
+		s.syncRepository,
+	}
 
 	for _, f := range syncFuncs {
 		f := f // rescoping f
