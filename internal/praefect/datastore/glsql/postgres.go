@@ -40,6 +40,7 @@ func Migrate(db *sql.DB, ignoreUnknown bool) (int, error) {
 type Querier interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 }
 
 // TxQuery runs operations inside transaction and commits|rollbacks on Done.

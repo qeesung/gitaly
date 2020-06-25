@@ -396,57 +396,17 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 
 		var totalEvents int
 		shard, err := r.nodeManager.GetShard(virtualStorage)
-		if err == nil {
+		if err != nil {
+			logger.WithError(err).Error("error when getting primary and secondaries")
+		} else {
 			targetNodes := shard.Secondaries
 			if shard.IsReadOnly {
 				targetNodes = append(targetNodes, shard.Primary)
 			}
 
 			for _, target := range targetNodes {
-				events, err := r.queue.Dequeue(ctx, virtualStorage, target.GetStorage(), 10)
-				if err != nil {
-					logger.WithField(logWithReplTarget, target.GetStorage()).WithError(err).Error("failed to dequeue replication events")
-					continue
-				}
-
-				totalEvents += len(events)
-
-				eventIDsByState := map[datastore.JobState][]uint64{}
-				for _, event := range events {
-					if err := r.processReplicationEvent(ctx, event, shard, target.GetConnection()); err != nil {
-						logger.WithFields(logrus.Fields{
-							logWithReplJobID:   event.ID,
-							logWithReplVirtual: event.Job.VirtualStorage,
-							logWithReplTarget:  event.Job.TargetNodeStorage,
-							logWithReplSource:  event.Job.SourceNodeStorage,
-							logWithReplChange:  event.Job.Change,
-							logWithReplPath:    event.Job.RelativePath,
-							logWithCorrID:      getCorrelationID(event.Meta),
-						}).WithError(err).Error("replication job failed")
-						if event.Attempt <= 0 {
-							eventIDsByState[datastore.JobStateDead] = append(eventIDsByState[datastore.JobStateDead], event.ID)
-						} else {
-							eventIDsByState[datastore.JobStateFailed] = append(eventIDsByState[datastore.JobStateFailed], event.ID)
-						}
-						continue
-					}
-					eventIDsByState[datastore.JobStateCompleted] = append(eventIDsByState[datastore.JobStateCompleted], event.ID)
-				}
-				for state, eventIDs := range eventIDsByState {
-					ackIDs, err := r.queue.Acknowledge(ctx, state, eventIDs)
-					if err != nil {
-						logger.WithField("state", state).WithField("event_ids", eventIDs).WithError(err).Error("failed to acknowledge replication events")
-						continue
-					}
-
-					notAckIDs := subtractUint64(ackIDs, eventIDs)
-					if len(notAckIDs) > 0 {
-						logger.WithField("state", state).WithField("event_ids", notAckIDs).WithError(err).Error("replication events were not acknowledged")
-					}
-				}
+				totalEvents += r.handleNode(ctx, logger, shard, virtualStorage, target)
 			}
-		} else {
-			logger.WithError(err).Error("error when getting primary and secondaries")
 		}
 
 		if totalEvents == 0 {
@@ -461,6 +421,55 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 
 		reset()
 	}
+}
+
+func (r ReplMgr) handleNode(ctx context.Context, logger logrus.FieldLogger, shard nodes.Shard, virtualStorage string, target nodes.Node) int {
+	events, err := r.queue.Dequeue(ctx, virtualStorage, target.GetStorage(), 10)
+	if err != nil {
+		logger.WithField(logWithReplTarget, target.GetStorage()).WithError(err).Error("failed to dequeue replication events")
+		return 0
+	}
+
+	defer r.queue.StartHealthPing(ctx, logger, 5*time.Second, events)()
+
+	eventIDsByState := map[datastore.JobState][]uint64{}
+	for _, event := range events {
+		state := r.handleNodeEvent(ctx, logger, shard, target, event)
+		eventIDsByState[state] = append(eventIDsByState[state], event.ID)
+	}
+
+	for state, eventIDs := range eventIDsByState {
+		ackIDs, err := r.queue.Acknowledge(ctx, state, eventIDs)
+		if err != nil {
+			logger.WithField("state", state).WithField("event_ids", eventIDs).WithError(err).Error("failed to acknowledge replication events")
+			continue
+		}
+
+		notAckIDs := subtractUint64(ackIDs, eventIDs)
+		if len(notAckIDs) > 0 {
+			logger.WithField("state", state).WithField("event_ids", notAckIDs).WithError(err).Error("replication events were not acknowledged")
+		}
+	}
+
+	return len(events)
+}
+
+func (r ReplMgr) handleNodeEvent(ctx context.Context, logger logrus.FieldLogger, shard nodes.Shard, target nodes.Node, event datastore.ReplicationEvent) datastore.JobState {
+	err := r.processReplicationEvent(ctx, event, shard, target.GetConnection())
+	if err == nil {
+		return datastore.JobStateCompleted
+	}
+
+	logger.WithFields(logrus.Fields{
+		logWithReplJobID: event.ID,
+		logWithCorrID:    getCorrelationID(event.Meta),
+	}).WithError(err).Error("replication job failed")
+
+	if event.Attempt <= 0 {
+		return datastore.JobStateDead
+	}
+
+	return datastore.JobStateFailed
 }
 
 func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.ReplicationEvent, shard nodes.Shard, targetCC *grpc.ClientConn) error {

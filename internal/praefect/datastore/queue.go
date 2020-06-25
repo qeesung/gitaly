@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
 
@@ -28,7 +31,18 @@ type ReplicationEventQueue interface {
 	// GetUpToDateStorages returns list of target storages where latest replication job is in 'completed' state.
 	// It returns no results if there is no up to date storages or there were no replication events yet.
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
+	// StartHealthPing starts periodical update of the event's health identifier.
+	// The events with fresh health identifier won't be considered as stale.
+	// The first health ping would start after the 'period' time pass or won't be done at all if
+	// returned 'CancelFunc' will be executed.
+	StartHealthPing(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc
 }
+
+// CancelFunc is used to abort long-running task or periodically executed task.
+type CancelFunc func()
+
+// noopCancel is a stub that does nothing
+func noopFunc() {}
 
 func allowToAck(state JobState) error {
 	switch state {
@@ -373,4 +387,69 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 	}
 
 	return storages.Values(), nil
+}
+
+// StartHealthPing starts periodical update of the event's health identifier.
+// The events with fresh health identifier won't be considered as stale.
+// The first health ping would start after the 'period' time pass or won't be done at all if
+// returned 'CancelFunc' will be executed or 'ctx' cancelled/expired.
+func (rq PostgresReplicationEventQueue) StartHealthPing(pCtx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
+	if len(events) == 0 {
+		return noopFunc
+	}
+
+	ticker := time.NewTicker(period)
+	ctx, cancel := context.WithCancel(pCtx)
+
+	stop := func() {
+		cancel()
+		ticker.Stop()
+	}
+
+	go func() {
+		defer stop()
+
+		eventIDs := make([]uint64, len(events))
+		assembler := glsql.NewParamsAssembler()
+		query := strings.Builder{}
+		query.WriteString(`UPDATE replication_queue_job_lock SET triggered_at = NOW() AT TIME ZONE 'UTC' WHERE (job_id, lock_id) IN (`)
+		for i, event := range events {
+			eventIDs[i] = event.ID
+			if i > 0 {
+				query.WriteString(`,`)
+			}
+			query.WriteString(`(`)
+			query.WriteString(assembler.AddParams([]interface{}{event.ID, event.LockID}))
+			query.WriteString(`)`)
+		}
+		query.WriteString(`)`)
+		params := assembler.Params()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				res, err := rq.qc.ExecContext(ctx, query.String(), params...)
+				if err != nil {
+					if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+						logger.WithError(err).WithField("event_ids", eventIDs).Error("replication processing health ping")
+					}
+					return
+				}
+
+				affected, err := res.RowsAffected()
+				if err != nil {
+					logger.WithError(err).WithField("event_ids", eventIDs).Error("result of replication processing health ping")
+					return
+				}
+
+				if affected == 0 {
+					return
+				}
+			}
+		}
+	}()
+
+	return stop
 }

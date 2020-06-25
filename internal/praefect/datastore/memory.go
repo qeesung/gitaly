@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 )
 
@@ -217,6 +218,12 @@ func (s *memoryReplicationEventQueue) GetUpToDateStorages(_ context.Context, vir
 		}
 	}
 	return result, nil
+}
+
+// StartHealthPing does nothing as it has no sense in terms of in-memory implementation as
+// all information about events will be lost after restart.
+func (s *memoryReplicationEventQueue) StartHealthPing(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) CancelFunc {
+	return noopFunc
 }
 
 // remove deletes i-th element from the queue and from the in-flight tracking map.

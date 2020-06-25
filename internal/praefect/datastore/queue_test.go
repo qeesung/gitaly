@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -853,6 +854,183 @@ func TestPostgresReplicationEventQueue_GetUpToDateStorages(t *testing.T) {
 	})
 }
 
+func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
+	db := getDB(t)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	eventType1 := ReplicationEvent{Job: ReplicationJob{
+		Change:            UpdateRepo,
+		VirtualStorage:    "vs-1",
+		TargetNodeStorage: "s-1",
+		SourceNodeStorage: "s-0",
+		RelativePath:      "/path/1",
+	}}
+
+	eventType2 := eventType1
+	eventType2.Job.RelativePath = "/path/2"
+
+	eventType3 := eventType1
+	eventType3.Job.VirtualStorage = "vs-2"
+
+	eventType4 := eventType1
+	eventType4.Job.TargetNodeStorage = "s-2"
+
+	t.Run("no events is valid", func(t *testing.T) {
+		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
+		queue := PostgresReplicationEventQueue{}
+		logger, hook := test.NewNullLogger()
+
+		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, nil)
+		defer stopHealthPing()
+
+		time.Sleep(10 * time.Millisecond)
+		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
+	})
+
+	t.Run("can be terminated by the passed in context", func(t *testing.T) {
+		pingCtx, pingCancel := context.WithCancel(ctx)
+		pingCancel()
+		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
+		queue := PostgresReplicationEventQueue{}
+		logger, hook := test.NewNullLogger()
+
+		stopHealthPing := queue.StartHealthPing(pingCtx, logger, time.Millisecond, []ReplicationEvent{eventType1})
+		defer stopHealthPing()
+
+		time.Sleep(10 * time.Millisecond)
+		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
+	})
+
+	t.Run("stops after first error", func(t *testing.T) {
+		qc, err := db.DB.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		require.NoError(t, qc.Rollback())
+
+		// 'qc' is initialized with invalid connection (transaction is finished), so operations on it will fail
+		queue := PostgresReplicationEventQueue{qc: qc}
+		logger, hook := test.NewNullLogger()
+
+		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
+		defer stopHealthPing()
+
+		time.Sleep(10 * time.Millisecond)
+		logEntries := hook.AllEntries()
+		require.Len(t, logEntries, 1, "the loop should break after the first error")
+		require.Equal(t, "replication processing health ping", logEntries[0].Message)
+		require.Len(t, logEntries[0].Data, 2, "the error and list of ids are expected")
+		require.Equal(t, []uint64{eventType1.ID}, logEntries[0].Data["event_ids"])
+	})
+
+	t.Run("stops if nothing to update (extended coverage)", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		queue := PostgresReplicationEventQueue{qc: db}
+		logger, hook := test.NewNullLogger()
+
+		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
+		defer stopHealthPing()
+
+		time.Sleep(10 * time.Millisecond)
+		require.Len(t, hook.AllEntries(), 0, "nothing expected to be logged")
+		db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
+	})
+
+	t.Run("doesn't run before passed in time duration", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		queue := PostgresReplicationEventQueue{qc: db}
+		event, err := queue.Enqueue(ctx, eventType1)
+		require.NoError(t, err, "failed to fill in event queue")
+
+		dequeuedEvents, err := queue.Dequeue(ctx, event.Job.VirtualStorage, event.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEvents, 1)
+
+		initialJobLocks := fetchJobLocks(t, ctx, db)
+
+		stopHealthPing := queue.StartHealthPing(ctx, testhelper.DiscardTestEntry(t), time.Second, dequeuedEvents)
+		defer stopHealthPing()
+		time.Sleep(10 * time.Millisecond)
+
+		updatedJobLocks := fetchJobLocks(t, ctx, db)
+		for i := range initialJobLocks {
+			require.Equal(t, initialJobLocks[i].TriggeredAt, updatedJobLocks[i].TriggeredAt)
+		}
+	})
+
+	t.Run("returned function stops it", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		queue := PostgresReplicationEventQueue{qc: db}
+		event, err := queue.Enqueue(ctx, eventType1)
+		require.NoError(t, err, "failed to fill in event queue")
+
+		dequeuedEvents, err := queue.Dequeue(ctx, event.Job.VirtualStorage, event.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEvents, 1)
+
+		initialJobLocks := fetchJobLocks(t, ctx, db)
+
+		stopHealthPing := queue.StartHealthPing(ctx, testhelper.DiscardTestEntry(t), 10*time.Millisecond, dequeuedEvents)
+		stopHealthPing()
+		time.Sleep(20 * time.Millisecond)
+
+		updatedJobLocks := fetchJobLocks(t, ctx, db)
+		for i := range initialJobLocks {
+			require.Equal(t, initialJobLocks[i].TriggeredAt, updatedJobLocks[i].TriggeredAt)
+		}
+	})
+
+	t.Run("triggers all passed in events", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		queue := PostgresReplicationEventQueue{qc: db}
+		events := []ReplicationEvent{eventType1, eventType2, eventType3, eventType4}
+		for i := range events {
+			var err error
+			events[i], err = queue.Enqueue(ctx, events[i])
+			require.NoError(t, err, "failed to fill in event queue")
+		}
+
+		dequeuedEventsToTrigger, err := queue.Dequeue(ctx, eventType1.Job.VirtualStorage, eventType1.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEventsToTrigger, 2, "eventType3 and eventType4 should not be fetched")
+		ids := []uint64{dequeuedEventsToTrigger[0].ID, dequeuedEventsToTrigger[1].ID}
+
+		dequeuedEventsUntriggered, err := queue.Dequeue(ctx, eventType3.Job.VirtualStorage, eventType3.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEventsUntriggered, 1, "only eventType3 should be fetched")
+
+		logger, hook := test.NewNullLogger()
+
+		initialJobLocks := fetchJobLocks(t, ctx, db)
+
+		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, dequeuedEventsToTrigger)
+		defer stopHealthPing()
+		time.Sleep(10 * time.Millisecond)
+
+		updatedJobLocks := fetchJobLocks(t, ctx, db)
+		for i := range initialJobLocks {
+			if updatedJobLocks[i].JobID == dequeuedEventsUntriggered[0].ID {
+				require.Equal(t, initialJobLocks[i].TriggeredAt, updatedJobLocks[i].TriggeredAt, "no update expected as it was not submitted")
+			} else {
+				require.True(t, updatedJobLocks[i].TriggeredAt.After(initialJobLocks[i].TriggeredAt))
+			}
+		}
+
+		require.Len(t, hook.AllEntries(), 0, "nothing expected to be logged")
+
+		ackIDs, err := queue.Acknowledge(ctx, JobStateFailed, ids)
+		require.NoError(t, err)
+		require.ElementsMatch(t, ackIDs, ids)
+
+		require.Len(t, fetchJobLocks(t, ctx, db), 1, "bindings should be removed after acknowledgment")
+		require.Len(t, hook.AllEntries(), 0, "health ping should run without issues when there are no in_progress events to update")
+	})
+}
+
 func requireEvents(t *testing.T, ctx context.Context, db glsql.DB, expected []ReplicationEvent) {
 	t.Helper()
 
@@ -909,17 +1087,27 @@ type JobLockRow struct {
 func requireJobLocks(t *testing.T, ctx context.Context, db glsql.DB, expected []JobLockRow) {
 	t.Helper()
 
-	sqlStmt := `SELECT job_id, lock_id FROM replication_queue_job_lock ORDER BY triggered_at`
+	actual := fetchJobLocks(t, ctx, db)
+	for i := range actual {
+		actual[i].TriggeredAt = time.Time{}
+	}
+	require.ElementsMatch(t, expected, actual)
+}
+
+func fetchJobLocks(t *testing.T, ctx context.Context, db glsql.DB) []JobLockRow {
+	t.Helper()
+	sqlStmt := `SELECT job_id, lock_id, triggered_at FROM replication_queue_job_lock ORDER BY job_id`
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close(), "completion of result fetching") }()
 
-	var actual []JobLockRow
+	var entries []JobLockRow
 	for rows.Next() {
 		var entry JobLockRow
-		require.NoError(t, rows.Scan(&entry.JobID, &entry.LockID), "failed to scan entry")
-		actual = append(actual, entry)
+		require.NoError(t, rows.Scan(&entry.JobID, &entry.LockID, &entry.TriggeredAt), "failed to scan entry")
+		entries = append(entries, entry)
 	}
 	require.NoError(t, rows.Err(), "completion of result loop scan")
-	require.ElementsMatch(t, expected, actual)
+
+	return entries
 }
