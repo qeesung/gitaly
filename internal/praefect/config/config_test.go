@@ -204,6 +204,10 @@ func TestConfigValidation(t *testing.T) {
 				assert.NoError(t, err)
 				return
 			}
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tc.errMsg)
+			}
 		})
 	}
 }

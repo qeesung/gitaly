@@ -58,7 +58,7 @@ func (s *ServerFactory) Serve(l net.Listener, secure bool) error {
 	return srv.Serve(l)
 }
 
-// Stop stops both the secure and insecure servers.
+// Stop stops all servers created by the factory.
 func (s *ServerFactory) Stop() {
 	for _, srv := range s.all() {
 		srv.Stop()
