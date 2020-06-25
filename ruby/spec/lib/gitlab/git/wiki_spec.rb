@@ -77,6 +77,21 @@ describe Gitlab::Git::Wiki do
     it 'returns formatted data' do
       expect(subject.page(title: 'page1', dir: '').formatted_data).to be_a(String)
     end
+
+    context 'with a custom version' do
+      it 'returns page at specified version' do
+        version = repository.commit
+        subject.update_page('page1', 'page1', :markdown, 'new content', commit_details('page1'))
+        page = subject.page(title: 'page1', dir: '', version: version)
+
+        expect(page.version.commit).to eq(version)
+        expect(page.raw_data).to eq('content')
+      end
+
+      it 'returns nil if version does not exist' do
+        expect(subject.page(title: 'page1', dir: '', version: 'invalid')).to be_nil
+      end
+    end
   end
 
   describe '#write_page' do

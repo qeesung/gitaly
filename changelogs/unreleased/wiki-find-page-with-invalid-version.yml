@@ -1,0 +1,5 @@
+---
+title: Return nil for missing wiki page versions
+merge_request: 2323
+author:
+type: fixed

@@ -164,7 +164,10 @@ module Gitlab
       end
 
       def gollum_find_page(title:, version: nil, dir: nil)
-        version = Gitlab::Git::Commit.find(@repository, version).id if version
+        if version
+          version = Gitlab::Git::Commit.find(@repository, version)&.id
+          return unless version
+        end
 
         gollum_page = gollum_wiki.page(title, version, dir)
         return unless gollum_page
