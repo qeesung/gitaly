@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
@@ -881,12 +882,13 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
 		logger, hook := test.NewNullLogger()
+		logger.SetLevel(logrus.DebugLevel)
 
 		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, nil)
 		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
-		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
+		require.Equal(t, hook.LastEntry().Message, "replication processing health update has nothing to process")
 	})
 
 	t.Run("can be terminated by the passed in context", func(t *testing.T) {
@@ -895,12 +897,14 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
 		logger, hook := test.NewNullLogger()
+		logger.SetLevel(logrus.DebugLevel)
 
 		stopHealthUpdate := queue.StartHealthUpdate(updateCtx, logger, time.Millisecond, []ReplicationEvent{eventType1})
 		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
-		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
+		require.Equal(t, hook.LastEntry().Message, "replication processing health update completed")
+		require.Equal(t, []uint64{eventType1.ID}, hook.LastEntry().Data["event_ids"])
 	})
 
 	t.Run("stops after first error", func(t *testing.T) {
@@ -928,12 +932,14 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 		queue := PostgresReplicationEventQueue{qc: db}
 		logger, hook := test.NewNullLogger()
+		logger.SetLevel(logrus.DebugLevel)
 
 		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
 		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
-		require.Len(t, hook.AllEntries(), 0, "nothing expected to be logged")
+		require.Equal(t, hook.LastEntry().Message, "replication processing health update has nothing to update")
+		require.Equal(t, []uint64{eventType1.ID}, hook.LastEntry().Data["event_ids"])
 		db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
 	})
 

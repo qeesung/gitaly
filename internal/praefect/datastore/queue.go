@@ -395,6 +395,7 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 // returned 'CancelFunc' will be executed or 'ctx' cancelled/expired.
 func (rq PostgresReplicationEventQueue) StartHealthUpdate(pCtx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
 	if len(events) == 0 {
+		logger.Debug("replication processing health update has nothing to process")
 		return noopFunc
 	}
 
@@ -424,27 +425,30 @@ func (rq PostgresReplicationEventQueue) StartHealthUpdate(pCtx context.Context, 
 		}
 		query.WriteString(`)`)
 		params := assembler.Params()
+		logger := logger.WithField("event_ids", eventIDs)
 
 		for {
 			select {
 			case <-ctx.Done():
+				logger.Debug("replication processing health update completed")
 				return
 			case <-ticker.C:
 				res, err := rq.qc.ExecContext(ctx, query.String(), params...)
 				if err != nil {
 					if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-						logger.WithError(err).WithField("event_ids", eventIDs).Error("replication processing health update")
+						logger.WithError(err).Error("replication processing health update")
 					}
 					return
 				}
 
 				affected, err := res.RowsAffected()
 				if err != nil {
-					logger.WithError(err).WithField("event_ids", eventIDs).Error("result of replication processing health update")
+					logger.WithError(err).Error("result of replication processing health update")
 					return
 				}
 
 				if affected == 0 {
+					logger.Debug("replication processing health update has nothing to update")
 					return
 				}
 			}
