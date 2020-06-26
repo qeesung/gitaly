@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/config/log"
@@ -201,13 +200,12 @@ func TestConfigValidation(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			err := tc.config.Validate()
 			if tc.errMsg == "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return
 			}
 
-			if assert.Error(t, err) {
-				assert.Contains(t, err.Error(), tc.errMsg)
-			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.errMsg)
 		})
 	}
 }
