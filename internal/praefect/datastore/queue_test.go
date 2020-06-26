@@ -854,7 +854,7 @@ func TestPostgresReplicationEventQueue_GetUpToDateStorages(t *testing.T) {
 	})
 }
 
-func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
+func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	db := getDB(t)
 
 	ctx, cancel := testhelper.Context()
@@ -882,22 +882,22 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 		queue := PostgresReplicationEventQueue{}
 		logger, hook := test.NewNullLogger()
 
-		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, nil)
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, nil)
+		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
 		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
 	})
 
 	t.Run("can be terminated by the passed in context", func(t *testing.T) {
-		pingCtx, pingCancel := context.WithCancel(ctx)
-		pingCancel()
+		updateCtx, updateCancel := context.WithCancel(ctx)
+		updateCancel()
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
 		logger, hook := test.NewNullLogger()
 
-		stopHealthPing := queue.StartHealthPing(pingCtx, logger, time.Millisecond, []ReplicationEvent{eventType1})
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(updateCtx, logger, time.Millisecond, []ReplicationEvent{eventType1})
+		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
 		require.Len(t, hook.AllEntries(), 0, "no actions expected to be logged")
@@ -912,13 +912,13 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 		queue := PostgresReplicationEventQueue{qc: qc}
 		logger, hook := test.NewNullLogger()
 
-		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
+		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
 		logEntries := hook.AllEntries()
 		require.Len(t, logEntries, 1, "the loop should break after the first error")
-		require.Equal(t, "replication processing health ping", logEntries[0].Message)
+		require.Equal(t, "replication processing health update", logEntries[0].Message)
 		require.Len(t, logEntries[0].Data, 2, "the error and list of ids are expected")
 		require.Equal(t, []uint64{eventType1.ID}, logEntries[0].Data["event_ids"])
 	})
@@ -929,8 +929,8 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 		queue := PostgresReplicationEventQueue{qc: db}
 		logger, hook := test.NewNullLogger()
 
-		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
+		defer stopHealthUpdate()
 
 		time.Sleep(10 * time.Millisecond)
 		require.Len(t, hook.AllEntries(), 0, "nothing expected to be logged")
@@ -950,8 +950,8 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
-		stopHealthPing := queue.StartHealthPing(ctx, testhelper.DiscardTestEntry(t), time.Second, dequeuedEvents)
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, testhelper.DiscardTestEntry(t), time.Second, dequeuedEvents)
+		defer stopHealthUpdate()
 		time.Sleep(10 * time.Millisecond)
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
@@ -973,8 +973,8 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
-		stopHealthPing := queue.StartHealthPing(ctx, testhelper.DiscardTestEntry(t), 10*time.Millisecond, dequeuedEvents)
-		stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, testhelper.DiscardTestEntry(t), 10*time.Millisecond, dequeuedEvents)
+		stopHealthUpdate()
 		time.Sleep(20 * time.Millisecond)
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
@@ -1007,8 +1007,8 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
-		stopHealthPing := queue.StartHealthPing(ctx, logger, time.Nanosecond, dequeuedEventsToTrigger)
-		defer stopHealthPing()
+		stopHealthUpdate := queue.StartHealthUpdate(ctx, logger, time.Nanosecond, dequeuedEventsToTrigger)
+		defer stopHealthUpdate()
 		time.Sleep(10 * time.Millisecond)
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
@@ -1027,7 +1027,7 @@ func TestPostgresReplicationEventQueue_StartHealthPing(t *testing.T) {
 		require.ElementsMatch(t, ackIDs, ids)
 
 		require.Len(t, fetchJobLocks(t, ctx, db), 1, "bindings should be removed after acknowledgment")
-		require.Len(t, hook.AllEntries(), 0, "health ping should run without issues when there are no in_progress events to update")
+		require.Len(t, hook.AllEntries(), 0, "health update should run without issues when there are no in_progress events to update")
 	})
 }
 

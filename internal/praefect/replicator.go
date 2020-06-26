@@ -430,7 +430,11 @@ func (r ReplMgr) handleNode(ctx context.Context, logger logrus.FieldLogger, shar
 		return 0
 	}
 
-	defer r.queue.StartHealthPing(ctx, logger, 5*time.Second, events)()
+	if len(events) == 0 {
+		return 0
+	}
+
+	defer r.queue.StartHealthUpdate(ctx, logger, 5*time.Second, events)()
 
 	eventIDsByState := map[datastore.JobState][]uint64{}
 	for _, event := range events {

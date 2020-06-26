@@ -31,11 +31,11 @@ type ReplicationEventQueue interface {
 	// GetUpToDateStorages returns list of target storages where latest replication job is in 'completed' state.
 	// It returns no results if there is no up to date storages or there were no replication events yet.
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
-	// StartHealthPing starts periodical update of the event's health identifier.
+	// StartHealthUpdate starts periodical update of the event's health identifier.
 	// The events with fresh health identifier won't be considered as stale.
-	// The first health ping would start after the 'period' time pass or won't be done at all if
+	// The first health update would start after the 'period' time pass or won't be done at all if
 	// returned 'CancelFunc' will be executed.
-	StartHealthPing(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc
+	StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc
 }
 
 // CancelFunc is used to abort long-running task or periodically executed task.
@@ -389,11 +389,11 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 	return storages.Values(), nil
 }
 
-// StartHealthPing starts periodical update of the event's health identifier.
+// StartHealthUpdate starts periodical update of the event's health identifier.
 // The events with fresh health identifier won't be considered as stale.
-// The first health ping would start after the 'period' time pass or won't be done at all if
+// The first health update would start after the 'period' time pass or won't be done at all if
 // returned 'CancelFunc' will be executed or 'ctx' cancelled/expired.
-func (rq PostgresReplicationEventQueue) StartHealthPing(pCtx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
+func (rq PostgresReplicationEventQueue) StartHealthUpdate(pCtx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
 	if len(events) == 0 {
 		return noopFunc
 	}
@@ -433,14 +433,14 @@ func (rq PostgresReplicationEventQueue) StartHealthPing(pCtx context.Context, lo
 				res, err := rq.qc.ExecContext(ctx, query.String(), params...)
 				if err != nil {
 					if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-						logger.WithError(err).WithField("event_ids", eventIDs).Error("replication processing health ping")
+						logger.WithError(err).WithField("event_ids", eventIDs).Error("replication processing health update")
 					}
 					return
 				}
 
 				affected, err := res.RowsAffected()
 				if err != nil {
-					logger.WithError(err).WithField("event_ids", eventIDs).Error("result of replication processing health ping")
+					logger.WithError(err).WithField("event_ids", eventIDs).Error("result of replication processing health update")
 					return
 				}
 

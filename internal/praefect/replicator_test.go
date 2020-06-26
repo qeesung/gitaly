@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
@@ -584,6 +585,13 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
+	healthUpdated := false
+	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, logger logrus.FieldLogger, duration time.Duration, events []datastore.ReplicationEvent) datastore.CancelFunc {
+		require.Equal(t, 5*time.Second, duration)
+		require.Len(t, events, 4)
+		return func() { healthUpdated = true }
+	})
+
 	// Update replication job
 	eventType1 := datastore.ReplicationEvent{
 		Job: datastore.ReplicationJob{
@@ -648,6 +656,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	select {
 	case <-processed:
+		require.True(t, healthUpdated, "health update should be called")
 	case <-time.After(30 * time.Second):
 		// strongly depends on the processing capacity
 		t.Fatal("time limit expired for job to complete")
