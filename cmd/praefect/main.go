@@ -337,6 +337,9 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 		addrConf, err := starter.ParseEndpoint(addr)
 		if err != nil {
 			// address doesn't include schema
+			if !errors.Is(err, starter.ErrEmptySchema) {
+				return nil, err
+			}
 			addrConf = starter.Config{Name: schema, Addr: addr}
 		}
 
@@ -351,7 +354,7 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 	}
 
 	if len(cfgs) == 0 {
-		return nil, errors.New("none of listening addresses were provided, unable to start")
+		return nil, errors.New("no listening addresses were provided, unable to start")
 	}
 
 	return cfgs, nil

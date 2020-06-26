@@ -75,6 +75,8 @@ func TestServerFactory(t *testing.T) {
 	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, registry)
 
 	checkOwnRegisteredServices := func(ctx context.Context, t *testing.T, cc *grpc.ClientConn) healthpb.HealthClient {
+		t.Helper()
+
 		healthClient := healthpb.NewHealthClient(cc)
 		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
 		require.NoError(t, err)
@@ -83,6 +85,8 @@ func TestServerFactory(t *testing.T) {
 	}
 
 	checkProxyingOntoGitaly := func(ctx context.Context, t *testing.T, cc *grpc.ClientConn) {
+		t.Helper()
+
 		commitClient := gitalypb.NewCommitServiceClient(cc)
 		resp, err := commitClient.CommitLanguages(ctx, &gitalypb.CommitLanguagesRequest{Repository: repo, Revision: []byte(revision)})
 		require.NoError(t, err)

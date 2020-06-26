@@ -82,7 +82,7 @@ func TestGetStarterConfigs(t *testing.T) {
 	}{
 		{
 			desc:   "no addresses",
-			expErr: errors.New("none of listening addresses were provided, unable to start"),
+			expErr: errors.New("no listening addresses were provided, unable to start"),
 		},
 		{
 			desc: "addresses without schema",

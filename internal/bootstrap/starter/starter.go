@@ -23,7 +23,8 @@ const (
 )
 
 var (
-	errEmptySchema  = errors.New("empty schema can't be used")
+	// ErrEmptySchema signals that the address has no schema in it.
+	ErrEmptySchema  = errors.New("empty schema can't be used")
 	errEmptyAddress = errors.New("empty address can't be used")
 )
 
@@ -36,7 +37,7 @@ func ParseEndpoint(endpoint string) (Config, error) {
 
 	parts := strings.Split(endpoint, separator)
 	if len(parts) != 2 {
-		return Config{}, fmt.Errorf("unsupported format: %q", endpoint)
+		return Config{}, fmt.Errorf("unsupported format: %q: %w", endpoint, ErrEmptySchema)
 	}
 
 	if err := verifySchema(parts[0]); err != nil {
@@ -65,7 +66,7 @@ func ComposeEndpoint(schema, address string) (string, error) {
 func verifySchema(schema string) error {
 	switch schema {
 	case "":
-		return errEmptySchema
+		return ErrEmptySchema
 	case TCP, TLS, Unix:
 		return nil
 	default:

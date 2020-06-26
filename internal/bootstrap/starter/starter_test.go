@@ -2,6 +2,7 @@ package starter
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -110,12 +111,12 @@ func TestParseEndpoint(t *testing.T) {
 		{
 			desc:   "no schema",
 			addr:   "://127.0.0.1:2306",
-			expErr: errEmptySchema,
+			expErr: ErrEmptySchema,
 		},
 		{
 			desc:   "bad format",
 			addr:   "127.0.0.1:2306",
-			expErr: errors.New(`unsupported format: "127.0.0.1:2306"`),
+			expErr: fmt.Errorf(`unsupported format: "127.0.0.1:2306": %w`, ErrEmptySchema),
 		},
 		{
 			desc: "tcp schema addresses",
