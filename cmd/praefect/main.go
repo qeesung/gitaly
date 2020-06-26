@@ -153,7 +153,7 @@ func main() {
 
 	logger.WithField("version", praefect.GetVersionString()).Info("Starting " + progname)
 
-	starterConfigs, err := getStarterConfigs(conf.SocketPath, conf.ListenAddr)
+	starterConfigs, err := getStarterConfigs(conf)
 	if err != nil {
 		logger.Fatalf("%s", err)
 	}
@@ -269,7 +269,15 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			praefect.WithLatencyMetric(latencyMetric),
 			praefect.WithInFlightJobsGauge(storageJobs),
 		)
-		srv = praefect.NewServer(coordinator.StreamDirector, logger, protoregistry.GitalyProtoPreregistered, conf)
+		srvFactory = praefect.NewServerFactory(
+			conf,
+			logger,
+			coordinator.StreamDirector,
+			nodeManager,
+			transactionManager,
+			queue,
+			protoregistry.GitalyProtoPreregistered,
+		)
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -280,18 +288,16 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return fmt.Errorf("unable to create a bootstrap: %v", err)
 	}
 
-	srv.RegisterServices(nodeManager, transactionManager, conf, queue)
-
-	b.StopAction = srv.GracefulStop
+	b.StopAction = srvFactory.GracefulStop
 	for _, cfg := range cfgs {
-		b.RegisterStarter(starter.New(cfg, srv))
+		b.RegisterStarter(starter.New(cfg, srvFactory))
 	}
 
 	if conf.PrometheusListenAddr != "" {
 		logger.WithField("address", conf.PrometheusListenAddr).Info("Starting prometheus listener")
 
 		b.RegisterStarter(func(listen bootstrap.ListenFunc, _ chan<- error) error {
-			l, err := listen("tcp", conf.PrometheusListenAddr)
+			l, err := listen(starter.TCP, conf.PrometheusListenAddr)
 			if err != nil {
 				return err
 			}
@@ -317,26 +323,38 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	return b.Wait(conf.GracefulStopTimeout.Duration())
 }
 
-func getStarterConfigs(socketPath, listenAddr string) ([]starter.Config, error) {
+func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 	var cfgs []starter.Config
-	if socketPath != "" {
-		if err := os.RemoveAll(socketPath); err != nil {
-			return nil, err
+	unique := map[string]struct{}{}
+	for schema, addr := range map[string]string{
+		starter.TCP:  conf.ListenAddr,
+		starter.Unix: conf.SocketPath,
+	} {
+		if addr == "" {
+			continue
 		}
 
-		cleanPath := strings.TrimPrefix(socketPath, "unix:")
+		addrConf, err := starter.ParseEndpoint(addr)
+		if err != nil {
+			// address doesn't include schema
+			if !errors.Is(err, starter.ErrEmptySchema) {
+				return nil, err
+			}
+			addrConf = starter.Config{Name: schema, Addr: addr}
+		}
 
-		cfgs = append(cfgs, starter.Config{Name: starter.Unix, Addr: cleanPath})
+		if _, found := unique[addrConf.Addr]; found {
+			return nil, fmt.Errorf("same address can't be used for different schemas %q", addr)
+		}
+		unique[addrConf.Addr] = struct{}{}
 
-		logger.WithField("address", socketPath).Info("listening on unix socket")
+		cfgs = append(cfgs, addrConf)
+
+		logger.WithFields(logrus.Fields{"schema": schema, "address": addr}).Info("listening")
 	}
 
-	if listenAddr != "" {
-		cleanAddr := strings.TrimPrefix(listenAddr, "tcp://")
-
-		cfgs = append(cfgs, starter.Config{Name: starter.TCP, Addr: cleanAddr})
-
-		logger.WithField("address", listenAddr).Info("listening at tcp address")
+	if len(cfgs) == 0 {
+		return nil, errors.New("no listening addresses were provided, unable to start")
 	}
 
 	return cfgs, nil

@@ -225,18 +225,13 @@ func TestPropagateReplicationJob(t *testing.T) {
 
 	replmgr := NewReplMgr(logEntry, conf.VirtualStorageNames(), queue, nodeMgr)
 
-	prf := NewServer(
-		coordinator.StreamDirector,
-		logEntry,
-		protoregistry.GitalyProtoPreregistered,
-		conf,
-	)
+	prf := NewGRPCServer(conf, logEntry, protoregistry.GitalyProtoPreregistered, coordinator.StreamDirector, nodeMgr, txMgr, queue)
+
 	listener, port := listenAvailPort(t)
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	prf.RegisterServices(nodeMgr, txMgr, conf, queue)
-	go prf.Serve(listener, false)
+	go prf.Serve(listener)
 	defer prf.Stop()
 
 	cc := dialLocalPort(t, port, false)

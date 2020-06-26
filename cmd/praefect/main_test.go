@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 )
 
@@ -67,6 +69,94 @@ func TestFlattenNodes(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			actual := flattenNodes(tt.conf)
 			require.Equal(t, tt.expect, actual)
+		})
+	}
+}
+
+func TestGetStarterConfigs(t *testing.T) {
+	for _, tc := range []struct {
+		desc   string
+		conf   config.Config
+		exp    []starter.Config
+		expErr error
+	}{
+		{
+			desc:   "no addresses",
+			expErr: errors.New("no listening addresses were provided, unable to start"),
+		},
+		{
+			desc: "addresses without schema",
+			conf: config.Config{
+				ListenAddr: "127.0.0.1:2306",
+				SocketPath: "/socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
+		{
+			desc: "addresses with schema",
+			conf: config.Config{
+				ListenAddr: "tcp://127.0.0.1:2306",
+				SocketPath: "unix:///socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
+		{
+			desc: "addresses without schema",
+			conf: config.Config{
+				ListenAddr: "127.0.0.1:2306",
+				SocketPath: "/socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
+		{
+			desc: "addresses with/without schema",
+			conf: config.Config{
+				ListenAddr: "127.0.0.1:2306",
+				SocketPath: "unix:///socket/path",
+			},
+			exp: []starter.Config{
+				{
+					Name: starter.TCP,
+					Addr: "127.0.0.1:2306",
+				},
+				{
+					Name: starter.Unix,
+					Addr: "/socket/path",
+				},
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual, err := getStarterConfigs(tc.conf)
+			require.Equal(t, tc.expErr, err)
+			require.ElementsMatch(t, tc.exp, actual)
 		})
 	}
 }

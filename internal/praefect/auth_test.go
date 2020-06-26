@@ -50,7 +50,7 @@ func TestAuthFailures(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			srv, serverSocketPath, cleanup := runServer(t, "quxbaz", true)
-			defer srv.Shutdown(ctx)
+			defer srv.Stop()
 			defer cleanup()
 
 			connOpts := append(tc.opts, grpc.WithInsecure())
@@ -103,7 +103,7 @@ func TestAuthSuccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			srv, serverSocketPath, cleanup := runServer(t, tc.token, tc.required)
-			defer srv.Shutdown(ctx)
+			defer srv.Stop()
 			defer cleanup()
 
 			connOpts := append(tc.opts, grpc.WithInsecure())
@@ -133,7 +133,7 @@ func dial(serverSocketPath string, opts []grpc.DialOption) (*grpc.ClientConn, er
 	return grpc.Dial(serverSocketPath, opts...)
 }
 
-func runServer(t *testing.T, token string, required bool) (*Server, string, func()) {
+func runServer(t *testing.T, token string, required bool) (*grpc.Server, string, func()) {
 	backendToken := "abcxyz"
 	mockServer := &mockSvc{
 		serverAccessor: func(_ context.Context, req *mock.SimpleRequest) (*mock.SimpleResponse, error) {
@@ -180,13 +180,13 @@ func runServer(t *testing.T, token string, required bool) (*Server, string, func
 
 	coordinator := NewCoordinator(queue, nodeMgr, txMgr, conf, registry)
 
-	srv := NewServer(coordinator.StreamDirector, logEntry, registry, conf)
+	srv := NewGRPCServer(conf, logEntry, registry, coordinator.StreamDirector, nodeMgr, txMgr, queue)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
-	go srv.Serve(listener, false)
+	go srv.Serve(listener)
 
 	return srv, "unix://" + serverSocketPath, cleanup
 }
