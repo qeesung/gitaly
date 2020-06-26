@@ -1,5 +1,11 @@
 #!/usr/bin/env ruby
 
+# Gitaly always spawns this executable with LANG=en_US.UTF-8. In case the
+# system doesn't have this local, Ruby will fall back to the C locale and as a
+# result use ASCII encoding. As this breaks reading external commands printing
+# non-ASCII characters, we need to force the external encoding to UTF-8 here.
+Encoding.default_external = Encoding::UTF_8
+
 require 'fileutils'
 
 require 'grpc'
