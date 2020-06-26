@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -585,11 +586,11 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
-	healthUpdated := false
+	var healthUpdated int32
 	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, logger logrus.FieldLogger, duration time.Duration, events []datastore.ReplicationEvent) datastore.CancelFunc {
 		require.Equal(t, 5*time.Second, duration)
 		require.Len(t, events, 4)
-		return func() { healthUpdated = true }
+		return func() { atomic.AddInt32(&healthUpdated, 1) }
 	})
 
 	// Update replication job
@@ -656,7 +657,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	select {
 	case <-processed:
-		require.True(t, healthUpdated, "health update should be called")
+		require.EqualValues(t, 1, atomic.LoadInt32(&healthUpdated), "health update should be called")
 	case <-time.After(30 * time.Second):
 		// strongly depends on the processing capacity
 		t.Fatal("time limit expired for job to complete")
