@@ -318,21 +318,23 @@ func ConfigureGit() error {
 		return fmt.Errorf("could not get caller info")
 	}
 
-	goenvCmd := exec.Command("go", "env", "GOCACHE")
-	goCacheBytes, err := goenvCmd.Output()
-	goCache := strings.TrimSpace(string(goCacheBytes))
-	if err != nil {
-		return err
-	}
+	// Set both GOCACHE and GOPATH to the currently active settings to not
+	// have them be overridden by changing our home directory. default it
+	for _, envvar := range []string{"GOCACHE", "GOPATH"} {
+		cmd := exec.Command("go", "env", envvar)
 
-	// set GOCACHE env to current go cache location, otherwise if it's default it would be overwritten by setting HOME
-	err = os.Setenv("GOCACHE", goCache)
-	if err != nil {
-		return err
+		output, err := cmd.Output()
+		if err != nil {
+			return err
+		}
+
+		err = os.Setenv(envvar, strings.TrimSpace(string(output)))
+		if err != nil {
+			return err
+		}
 	}
 
 	testHome := filepath.Join(filepath.Dir(currentFile), "testdata/home")
-
 	// overwrite HOME env variable so user global .gitconfig doesn't influence tests
 	return os.Setenv("HOME", testHome)
 }
