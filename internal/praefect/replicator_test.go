@@ -37,35 +37,30 @@ import (
 )
 
 func TestProcessReplicationJob(t *testing.T) {
-	srv, srvSocketPath := runFullGitalyServer(t)
-	defer srv.Stop()
-
-	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
 	backupStorageName := "backup"
 
 	backupDir, err := ioutil.TempDir(testhelper.GitlabTestStoragePath(), backupStorageName)
 	require.NoError(t, err)
 
-	defer func() {
-		os.RemoveAll(backupDir)
-	}()
+	defer func() { os.RemoveAll(backupDir) }()
+	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
 
-	oldStorages := gitaly_config.Config.Storages
-	defer func() {
-		gitaly_config.Config.Storages = oldStorages
-	}()
-
-	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
-		Name: backupStorageName,
-		Path: backupDir,
-	},
+	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages,
+		gitaly_config.Storage{
+			Name: backupStorageName,
+			Path: backupDir,
+		},
 		gitaly_config.Storage{
 			Name: "default",
 			Path: testhelper.GitlabTestStoragePath(),
 		},
 	)
+
+	srv, srvSocketPath := runFullGitalyServer(t)
+	defer srv.Stop()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
 
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
@@ -396,18 +391,25 @@ func TestConfirmReplication(t *testing.T) {
 }
 
 func TestProcessBacklog_FailedJobs(t *testing.T) {
+	backupStorageName := "backup"
+
+	backupDir, err := ioutil.TempDir(testhelper.GitlabTestStoragePath(), backupStorageName)
+	require.NoError(t, err)
+	defer os.RemoveAll(backupDir)
+	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
+
+	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
+		Name: backupStorageName,
+		Path: backupDir,
+	})
+
+	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
+
 	primarySvr, primarySocket := newReplicationService(t)
 	defer primarySvr.Stop()
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	backupStorageName := "backup"
-
-	backupDir, err := ioutil.TempDir(testhelper.GitlabTestStoragePath(), backupStorageName)
-	require.NoError(t, err)
-
-	defer os.RemoveAll(backupDir)
 
 	primary := config.Node{
 		Storage:        "default",
@@ -434,15 +436,6 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-
-	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
-
-	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
-		Name: backupStorageName,
-		Path: backupDir,
-	})
-
-	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
 
 	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	processed := make(chan struct{})
@@ -522,6 +515,18 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 }
 
 func TestProcessBacklog_Success(t *testing.T) {
+	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
+
+	backupDir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer os.RemoveAll(backupDir)
+
+	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
+		Name: "backup",
+		Path: backupDir,
+	})
+	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
+
 	primarySvr, primarySocket := newReplicationService(t)
 	defer primarySvr.Stop()
 
@@ -553,18 +558,6 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-
-	defer func(oldStorages []gitaly_config.Storage) { gitaly_config.Config.Storages = oldStorages }(gitaly_config.Config.Storages)
-
-	backupDir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer os.RemoveAll(backupDir)
-
-	gitaly_config.Config.Storages = append(gitaly_config.Config.Storages, gitaly_config.Storage{
-		Name: "backup",
-		Path: backupDir,
-	})
-	require.Len(t, gitaly_config.Config.Storages, 2, "expected 'default' storage and a new one")
 
 	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 

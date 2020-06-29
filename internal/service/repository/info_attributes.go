@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -13,7 +12,7 @@ import (
 )
 
 func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream gitalypb.RepositoryService_GetInfoAttributesServer) error {
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return err
 	}

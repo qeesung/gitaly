@@ -7,7 +7,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitalyssh"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,7 +25,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 		return nil, status.Errorf(codes.InvalidArgument, "CreateFork: empty Repository")
 	}
 
-	targetRepositoryFullPath, err := helper.GetPath(targetRepository)
+	targetRepositoryFullPath, err := s.locator.GetPath(targetRepository)
 	if err != nil {
 		return nil, err
 	}

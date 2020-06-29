@@ -10,12 +10,11 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySizeRequest) (*gitalypb.RepositorySizeResponse, error) {
-	path, err := helper.GetPath(in.Repository)
+	path, err := s.locator.GetPath(in.Repository)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +23,7 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 }
 
 func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObjectDirectorySizeRequest) (*gitalypb.GetObjectDirectorySizeResponse, error) {
-	path, err := helper.GetObjectDirectoryPath(in.Repository)
+	path, err := s.locator.GetObjectDirectoryPath(in.Repository)
 	if err != nil {
 		return nil, err
 	}

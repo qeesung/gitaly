@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -75,7 +74,7 @@ func untar(ctx context.Context, path string, in *gitalypb.CreateRepositoryFromSn
 }
 
 func (s *server) CreateRepositoryFromSnapshot(ctx context.Context, in *gitalypb.CreateRepositoryFromSnapshotRequest) (*gitalypb.CreateRepositoryFromSnapshotResponse, error) {
-	realPath, err := helper.GetPath(in.Repository)
+	realPath, err := s.locator.GetPath(in.Repository)
 	if err != nil {
 		return nil, err
 	}

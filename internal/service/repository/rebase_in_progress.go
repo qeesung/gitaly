@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -26,7 +25,7 @@ func (s *server) IsRebaseInProgress(ctx context.Context, req *gitalypb.IsRebaseI
 		return nil, status.Errorf(codes.InvalidArgument, "IsRebaseInProgress: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(req.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(req.GetRepository())
 	if err != nil {
 		return nil, err
 	}

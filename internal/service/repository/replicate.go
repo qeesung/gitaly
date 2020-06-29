@@ -28,7 +28,7 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	repoPath, err := helper.GetPath(in.GetRepository())
+	repoPath, err := s.locator.GetPath(in.GetRepository())
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}
@@ -137,7 +137,7 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		return err
 	}
 
-	targetPath, err := helper.GetPath(in.GetRepository())
+	targetPath, err := s.locator.GetPath(in.GetRepository())
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateR
 		return err
 	}
 
-	repoPath, err := helper.GetRepoPath(in.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return err
 	}

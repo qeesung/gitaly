@@ -15,12 +15,12 @@ func (s *server) RenameRepository(ctx context.Context, in *gitalypb.RenameReposi
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	fromFullPath, err := helper.GetRepoPath(in.GetRepository())
+	fromFullPath, err := s.locator.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	toFullPath, err := helper.GetPath(&gitalypb.Repository{StorageName: in.GetRepository().GetStorageName(), RelativePath: in.GetRelativePath()})
+	toFullPath, err := s.locator.GetPath(&gitalypb.Repository{StorageName: in.GetRepository().GetStorageName(), RelativePath: in.GetRelativePath()})
 	if err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}

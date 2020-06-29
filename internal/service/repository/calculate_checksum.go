@@ -12,7 +12,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,7 +24,7 @@ var refWhitelist = regexp.MustCompile(`HEAD|(refs/(heads|tags|keep-around|merge-
 func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateChecksumRequest) (*gitalypb.CalculateChecksumResponse, error) {
 	repo := in.GetRepository()
 
-	repoPath, err := helper.GetRepoPath(repo)
+	repoPath, err := s.locator.GetRepoPath(repo)
 	if err != nil {
 		return nil, err
 	}

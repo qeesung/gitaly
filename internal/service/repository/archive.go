@@ -19,7 +19,7 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 	ctx := stream.Context()
 	compressCmd, format := parseArchiveFormat(in.GetFormat())
 
-	repoRoot, err := helper.GetRepoPath(in.GetRepository())
+	repoRoot, err := s.locator.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return err
 	}

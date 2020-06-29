@@ -74,8 +74,8 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 	return nil
 }
 
-func removeRefEmptyDirs(ctx context.Context, repository *gitalypb.Repository) error {
-	rPath, err := helper.GetRepoPath(repository)
+func (s *server) removeRefEmptyDirs(ctx context.Context, repository *gitalypb.Repository) error {
+	rPath, err := s.locator.GetRepoPath(repository)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Re
 		}
 	}
 
-	if err := removeRefEmptyDirs(ctx, repository); err != nil {
+	if err := s.removeRefEmptyDirs(ctx, repository); err != nil {
 		return fmt.Errorf("OptimizeRepository: remove empty refs: %w", err)
 	}
 
@@ -134,7 +134,7 @@ func (s *server) optimizeRepository(ctx context.Context, repository *gitalypb.Re
 }
 
 func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
-	if err := validateOptimizeRepositoryRequest(in); err != nil {
+	if err := s.validateOptimizeRepositoryRequest(in); err != nil {
 		return nil, err
 	}
 
@@ -145,12 +145,12 @@ func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRe
 	return &gitalypb.OptimizeRepositoryResponse{}, nil
 }
 
-func validateOptimizeRepositoryRequest(in *gitalypb.OptimizeRepositoryRequest) error {
+func (s *server) validateOptimizeRepositoryRequest(in *gitalypb.OptimizeRepositoryRequest) error {
 	if in.GetRepository() == nil {
 		return helper.ErrInvalidArgumentf("empty repository")
 	}
 
-	_, err := helper.GetRepoPath(in.GetRepository())
+	_, err := s.locator.GetRepoPath(in.GetRepository())
 	if err != nil {
 		return err
 	}

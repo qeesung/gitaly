@@ -4,7 +4,6 @@ import (
 	"os/exec"
 
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -33,7 +32,7 @@ func (s *server) RestoreCustomHooks(stream gitalypb.RepositoryService_RestoreCus
 		return request.GetData(), err
 	})
 
-	repoPath, err := helper.GetPath(repo)
+	repoPath, err := s.locator.GetPath(repo)
 	if err != nil {
 		return status.Errorf(codes.Internal, "RestoreCustomHooks: getting repo path failed %v", err)
 	}

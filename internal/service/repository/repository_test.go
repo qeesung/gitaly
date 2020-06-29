@@ -16,15 +16,9 @@ import (
 )
 
 func TestRepositoryExists(t *testing.T) {
-	serverSocketPath, stop := runRepoServer(t, testhelper.WithStorages([]string{"default", "other", "broken"}))
-	defer stop()
-
 	storageOtherDir, err := ioutil.TempDir("", "gitaly-repository-exists-test")
 	require.NoError(t, err, "tempdir")
 	defer os.Remove(storageOtherDir)
-
-	client, conn := newRepositoryClient(t, serverSocketPath)
-	defer conn.Close()
 
 	// Setup storage paths
 	testStorages := []config.Storage{
@@ -37,6 +31,12 @@ func TestRepositoryExists(t *testing.T) {
 		config.Config.Storages = oldStorages
 	}(config.Config.Storages)
 	config.Config.Storages = testStorages
+
+	serverSocketPath, stop := runRepoServer(t, testhelper.WithStorages([]string{"default", "other", "broken"}))
+	defer stop()
+
+	client, conn := newRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
 
 	queries := []struct {
 		desc      string

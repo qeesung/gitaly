@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,7 +19,7 @@ func (s *server) IsSquashInProgress(ctx context.Context, req *gitalypb.IsSquashI
 		return nil, status.Errorf(codes.InvalidArgument, "IsSquashInProgress: %v", err)
 	}
 
-	repoPath, err := helper.GetRepoPath(req.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(req.GetRepository())
 	if err != nil {
 		return nil, err
 	}

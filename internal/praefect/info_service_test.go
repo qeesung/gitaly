@@ -33,15 +33,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 		},
 	}
 
-	testRepo, _, cleanup := testhelper.NewTestRepo(t)
-	defer cleanup()
-
-	cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
-	defer cleanup()
-
-	defer func(storages []gconfig.Storage) {
-		gconfig.Config.Storages = storages
-	}(gconfig.Config.Storages)
+	defer func(storages []gconfig.Storage) { gconfig.Config.Storages = storages }(gconfig.Config.Storages)
 
 	tempDir, cleanupTempDir := testhelper.TempDir(t)
 	defer cleanupTempDir()
@@ -54,6 +46,12 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 			Path: storagePath,
 		})
 	}
+
+	testRepo, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+
+	cc, _, cleanup := runPraefectServerWithGitaly(t, conf)
+	defer cleanup()
 
 	testRepoPrimary, _, cleanup := cloneRepoAtStorage(t, testRepo, conf.VirtualStorages[0].Nodes[0].Storage)
 	defer cleanup()

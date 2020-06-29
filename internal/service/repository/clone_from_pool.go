@@ -20,7 +20,7 @@ func (s *server) CloneFromPool(ctx context.Context, req *gitalypb.CloneFromPoolR
 		return nil, helper.ErrInternal(err)
 	}
 
-	if err := cloneFromPool(ctx, req.GetPool(), req.GetRepository()); err != nil {
+	if err := s.cloneFromPool(ctx, req.GetPool(), req.GetRepository()); err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
@@ -45,7 +45,7 @@ func (s *server) CloneFromPool(ctx context.Context, req *gitalypb.CloneFromPoolR
 }
 
 func (s *server) validateCloneFromPoolRequestRepositoryState(req *gitalypb.CloneFromPoolRequest) error {
-	targetRepositoryFullPath, err := helper.GetPath(req.GetRepository())
+	targetRepositoryFullPath, err := s.locator.GetPath(req.GetRepository())
 	if err != nil {
 		return fmt.Errorf("getting target repository path: %v", err)
 	}

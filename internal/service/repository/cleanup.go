@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,16 +16,16 @@ import (
 
 var lockFiles = []string{"config.lock", "HEAD.lock", "objects/info/commit-graphs/commit-graph-chain.lock"}
 
-func (*server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
-	if err := cleanupRepo(ctx, in.GetRepository()); err != nil {
+func (s *server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
+	if err := s.cleanupRepo(ctx, in.GetRepository()); err != nil {
 		return nil, err
 	}
 
 	return &gitalypb.CleanupResponse{}, nil
 }
 
-func cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
-	repoPath, err := helper.GetRepoPath(repo)
+func (s *server) cleanupRepo(ctx context.Context, repo *gitalypb.Repository) error {
+	repoPath, err := s.locator.GetRepoPath(repo)
 	if err != nil {
 		return err
 	}

@@ -10,7 +10,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -79,9 +78,9 @@ func applyGitattributes(c *catfile.Batch, repoPath string, revision []byte) erro
 	return os.Rename(tempFile.Name(), attributesPath)
 }
 
-func (*server) ApplyGitattributes(ctx context.Context, in *gitalypb.ApplyGitattributesRequest) (*gitalypb.ApplyGitattributesResponse, error) {
+func (s *server) ApplyGitattributes(ctx context.Context, in *gitalypb.ApplyGitattributesRequest) (*gitalypb.ApplyGitattributesResponse, error) {
 	repo := in.GetRepository()
-	repoPath, err := helper.GetRepoPath(repo)
+	repoPath, err := s.locator.GetRepoPath(repo)
 	if err != nil {
 		return nil, err
 	}
