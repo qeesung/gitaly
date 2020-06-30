@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
@@ -33,16 +33,10 @@ type ReplicationEventQueue interface {
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
 	// StartHealthUpdate starts periodical update of the event's health identifier.
 	// The events with fresh health identifier won't be considered as stale.
-	// The first health update would start after the 'period' time pass or won't be done at all if
-	// returned 'CancelFunc' will be executed.
-	StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc
+	// The first health update would be done after the passed 'period'.
+	// It is a blocking call that is managed by the passed in context.
+	StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent)
 }
-
-// CancelFunc is used to abort long-running task or periodically executed task.
-type CancelFunc func()
-
-// noopCancel is a stub that does nothing
-func noopFunc() {}
 
 func allowToAck(state JobState) error {
 	switch state {
@@ -393,67 +387,52 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 // The events with fresh health identifier won't be considered as stale.
 // The first health update would start after the 'period' time pass or won't be done at all if
 // returned 'CancelFunc' will be executed or 'ctx' cancelled/expired.
-func (rq PostgresReplicationEventQueue) StartHealthUpdate(pCtx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
+func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) {
 	if len(events) == 0 {
 		logger.Debug("replication processing health update has nothing to process")
-		return noopFunc
+		return
 	}
 
 	ticker := time.NewTicker(period)
-	ctx, cancel := context.WithCancel(pCtx)
+	defer ticker.Stop()
 
-	stop := func() {
-		cancel()
-		ticker.Stop()
+	jobIDs := make(pq.Int64Array, len(events))
+	lockIDs := make(pq.StringArray, len(events))
+	for i := range events {
+		jobIDs[i] = int64(events[i].ID)
+		lockIDs[i] = events[i].LockID
 	}
 
-	go func() {
-		defer stop()
+	query := `
+		UPDATE replication_queue_job_lock
+		SET triggered_at = NOW() AT TIME ZONE 'UTC'
+		WHERE (job_id, lock_id) IN (SELECT UNNEST($1::BIGINT[]), UNNEST($2::TEXT[]))`
+	logger = logger.WithField("event_ids", jobIDs)
 
-		eventIDs := make([]uint64, len(events))
-		assembler := glsql.NewParamsAssembler()
-		query := strings.Builder{}
-		query.WriteString(`UPDATE replication_queue_job_lock SET triggered_at = NOW() AT TIME ZONE 'UTC' WHERE (job_id, lock_id) IN (`)
-		for i, event := range events {
-			eventIDs[i] = event.ID
-			if i > 0 {
-				query.WriteString(`,`)
-			}
-			query.WriteString(`(`)
-			query.WriteString(assembler.AddParams([]interface{}{event.ID, event.LockID}))
-			query.WriteString(`)`)
-		}
-		query.WriteString(`)`)
-		params := assembler.Params()
-		logger := logger.WithField("event_ids", eventIDs)
-
-		for {
-			select {
-			case <-ctx.Done():
-				logger.Debug("replication processing health update completed")
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Debug("replication processing health update completed")
+			return
+		case <-ticker.C:
+			res, err := rq.qc.ExecContext(ctx, query, jobIDs, lockIDs)
+			if err != nil {
+				if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+					logger.WithError(err).Error("replication processing health update")
+				}
 				return
-			case <-ticker.C:
-				res, err := rq.qc.ExecContext(ctx, query.String(), params...)
-				if err != nil {
-					if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-						logger.WithError(err).Error("replication processing health update")
-					}
-					return
-				}
+			}
 
-				affected, err := res.RowsAffected()
-				if err != nil {
-					logger.WithError(err).Error("result of replication processing health update")
-					return
-				}
+			affected, err := res.RowsAffected()
+			if err != nil {
+				logger.WithError(err).Error("result of replication processing health update")
+				return
+			}
 
-				if affected == 0 {
-					logger.Debug("replication processing health update has nothing to update")
-					return
-				}
+			if affected == 0 {
+				logger.Debug("replication processing health update has nothing to update")
+				return
 			}
 		}
-	}()
-
-	return stop
+	}
 }

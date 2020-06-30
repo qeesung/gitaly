@@ -587,10 +587,10 @@ func TestProcessBacklog_Success(t *testing.T) {
 	})
 
 	var healthUpdated int32
-	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, logger logrus.FieldLogger, duration time.Duration, events []datastore.ReplicationEvent) datastore.CancelFunc {
+	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, logger logrus.FieldLogger, duration time.Duration, events []datastore.ReplicationEvent) {
 		require.Equal(t, 5*time.Second, duration)
 		require.Len(t, events, 4)
-		return func() { atomic.AddInt32(&healthUpdated, 1) }
+		atomic.AddInt32(&healthUpdated, 1)
 	})
 
 	// Update replication job

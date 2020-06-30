@@ -434,7 +434,9 @@ func (r ReplMgr) handleNode(ctx context.Context, logger logrus.FieldLogger, shar
 		return 0
 	}
 
-	defer r.queue.StartHealthUpdate(ctx, logger, 5*time.Second, events)()
+	healthUpdateCtx, healthUpdateCancel := context.WithCancel(ctx)
+	go r.queue.StartHealthUpdate(healthUpdateCtx, logger, 5*time.Second, events)
+	defer healthUpdateCancel()
 
 	eventIDsByState := map[datastore.JobState][]uint64{}
 	for _, event := range events {

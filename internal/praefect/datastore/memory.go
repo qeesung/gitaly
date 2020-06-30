@@ -222,8 +222,7 @@ func (s *memoryReplicationEventQueue) GetUpToDateStorages(_ context.Context, vir
 
 // StartHealthUpdate does nothing as it has no sense in terms of in-memory implementation as
 // all information about events will be lost after restart.
-func (s *memoryReplicationEventQueue) StartHealthUpdate(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) CancelFunc {
-	return noopFunc
+func (s *memoryReplicationEventQueue) StartHealthUpdate(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) {
 }
 
 // remove deletes i-th element from the queue and from the in-flight tracking map.
@@ -248,7 +247,7 @@ type ReplicationEventQueueInterceptor interface {
 	// OnAcknowledge allows to set action that would be executed each time when `Acknowledge` method called.
 	OnAcknowledge(func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error))
 	// OnStartHealthUpdate allows to set action that would be executed each time when `StartHealthUpdate` method called.
-	OnStartHealthUpdate(func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) CancelFunc)
+	OnStartHealthUpdate(func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent))
 }
 
 // NewReplicationEventQueueInterceptor returns interception over `ReplicationEventQueue` interface.
@@ -261,7 +260,7 @@ type replicationEventQueueInterceptor struct {
 	onEnqueue           func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)
 	onDequeue           func(context.Context, string, string, int, ReplicationEventQueue) ([]ReplicationEvent, error)
 	onAcknowledge       func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error)
-	onStartHealthUpdate func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) CancelFunc
+	onStartHealthUpdate func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent)
 }
 
 func (i *replicationEventQueueInterceptor) OnEnqueue(action func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)) {
@@ -276,7 +275,7 @@ func (i *replicationEventQueueInterceptor) OnAcknowledge(action func(context.Con
 	i.onAcknowledge = action
 }
 
-func (i *replicationEventQueueInterceptor) OnStartHealthUpdate(action func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent) CancelFunc) {
+func (i *replicationEventQueueInterceptor) OnStartHealthUpdate(action func(context.Context, logrus.FieldLogger, time.Duration, []ReplicationEvent)) {
 	i.onStartHealthUpdate = action
 }
 
@@ -301,9 +300,10 @@ func (i *replicationEventQueueInterceptor) Acknowledge(ctx context.Context, stat
 	return i.ReplicationEventQueue.Acknowledge(ctx, state, ids)
 }
 
-func (i *replicationEventQueueInterceptor) StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) CancelFunc {
+func (i *replicationEventQueueInterceptor) StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) {
 	if i.onStartHealthUpdate != nil {
-		return i.onStartHealthUpdate(ctx, logger, period, events)
+		i.onStartHealthUpdate(ctx, logger, period, events)
+		return
 	}
-	return i.ReplicationEventQueue.StartHealthUpdate(ctx, logger, period, events)
+	i.ReplicationEventQueue.StartHealthUpdate(ctx, logger, period, events)
 }
