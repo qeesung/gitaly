@@ -434,9 +434,7 @@ func (r ReplMgr) handleNode(ctx context.Context, logger logrus.FieldLogger, shar
 		return 0
 	}
 
-	healthUpdateCtx, healthUpdateCancel := context.WithCancel(ctx)
-	go r.queue.StartHealthUpdate(healthUpdateCtx, logger, 5*time.Second, events)
-	defer healthUpdateCancel()
+	defer r.healthUpdate(ctx, logger, events)()
 
 	eventIDsByState := map[datastore.JobState][]uint64{}
 	for _, event := range events {
@@ -458,6 +456,22 @@ func (r ReplMgr) handleNode(ctx context.Context, logger logrus.FieldLogger, shar
 	}
 
 	return len(events)
+}
+
+func (r ReplMgr) healthUpdate(ctx context.Context, logger logrus.FieldLogger, events []datastore.ReplicationEvent) context.CancelFunc {
+	healthUpdateCtx, healthUpdateCancel := context.WithCancel(ctx)
+	go func() {
+		ids := make([]uint64, len(events))
+		for i, event := range events {
+			ids[i] = event.ID
+		}
+		logger = logger.WithField("event_ids", ids)
+		if err := r.queue.StartHealthUpdate(healthUpdateCtx, 5*time.Second, events); err != nil {
+			logger.WithError(err).Error("health update loop")
+		}
+	}()
+
+	return healthUpdateCancel
 }
 
 func (r ReplMgr) handleNodeEvent(ctx context.Context, logger logrus.FieldLogger, shard nodes.Shard, target nodes.Node, event datastore.ReplicationEvent) datastore.JobState {

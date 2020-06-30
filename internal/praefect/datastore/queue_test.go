@@ -7,9 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lib/pq"
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -879,15 +876,11 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	t.Run("no events is valid", func(t *testing.T) {
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
-		logger, hook := test.NewNullLogger()
-		logger.SetLevel(logrus.DebugLevel)
 
 		ctx, cancel := testhelper.Context()
 		defer cancel()
 
-		queue.StartHealthUpdate(ctx, logger, time.Nanosecond, nil)
-
-		require.Equal(t, hook.LastEntry().Message, "replication processing health update has nothing to process")
+		require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, nil))
 	})
 
 	t.Run("can be terminated by the passed in context", func(t *testing.T) {
@@ -896,14 +889,8 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
-		logger, hook := test.NewNullLogger()
-		logger.SetLevel(logrus.DebugLevel)
-
 		cancel()
-		queue.StartHealthUpdate(ctx, logger, time.Millisecond, []ReplicationEvent{eventType1})
-
-		require.Equal(t, hook.LastEntry().Message, "replication processing health update completed")
-		require.Equal(t, pq.Int64Array{int64(eventType1.ID)}, hook.LastEntry().Data["event_ids"])
+		require.NoError(t, queue.StartHealthUpdate(ctx, time.Millisecond, []ReplicationEvent{eventType1}))
 	})
 
 	t.Run("stops after first error", func(t *testing.T) {
@@ -916,15 +903,8 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 		// 'qc' is initialized with invalid connection (transaction is finished), so operations on it will fail
 		queue := PostgresReplicationEventQueue{qc: qc}
-		logger, hook := test.NewNullLogger()
 
-		queue.StartHealthUpdate(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
-
-		logEntries := hook.AllEntries()
-		require.Len(t, logEntries, 1, "the loop should break after the first error")
-		require.Equal(t, "replication processing health update", logEntries[0].Message)
-		require.Len(t, logEntries[0].Data, 2, "the error and list of ids are expected")
-		require.Equal(t, pq.Int64Array{int64(eventType1.ID)}, logEntries[0].Data["event_ids"])
+		require.Error(t, queue.StartHealthUpdate(ctx, time.Nanosecond, []ReplicationEvent{eventType1}))
 	})
 
 	t.Run("stops if nothing to update (extended coverage)", func(t *testing.T) {
@@ -933,15 +913,19 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		ctx, cancel := testhelper.Context()
 		defer cancel()
 
+		done := make(chan struct{})
 		queue := PostgresReplicationEventQueue{qc: db}
-		logger, hook := test.NewNullLogger()
-		logger.SetLevel(logrus.DebugLevel)
+		go func() {
+			defer close(done)
+			require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, []ReplicationEvent{eventType1}))
+		}()
 
-		queue.StartHealthUpdate(ctx, logger, time.Nanosecond, []ReplicationEvent{eventType1})
-
-		require.Equal(t, hook.LastEntry().Message, "replication processing health update has nothing to update")
-		require.Equal(t, pq.Int64Array{int64(eventType1.ID)}, hook.LastEntry().Data["event_ids"])
-		db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
+		select {
+		case <-done:
+			return // happy path
+		case <-time.After(time.Second):
+			require.FailNow(t, "method should return almost immediately as there is nothing to process")
+		}
 	})
 
 	t.Run("doesn't run before passed in time duration", func(t *testing.T) {
@@ -960,7 +944,9 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
-		go queue.StartHealthUpdate(ctx, testhelper.DiscardTestEntry(t), time.Second, dequeuedEvents)
+		go func() {
+			require.NoError(t, queue.StartHealthUpdate(ctx, time.Second, dequeuedEvents))
+		}()
 		time.Sleep(10 * time.Millisecond)
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
@@ -992,11 +978,11 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, dequeuedEventsUntriggered, 1, "only eventType3 should be fetched")
 
-		logger, hook := test.NewNullLogger()
-
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
-		go queue.StartHealthUpdate(ctx, logger, time.Nanosecond, dequeuedEventsToTrigger)
+		go func() {
+			require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, dequeuedEventsToTrigger))
+		}()
 		time.Sleep(10 * time.Millisecond)
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
@@ -1008,14 +994,11 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 			}
 		}
 
-		require.Len(t, hook.AllEntries(), 0, "nothing expected to be logged")
-
 		ackIDs, err := queue.Acknowledge(ctx, JobStateFailed, ids)
 		require.NoError(t, err)
 		require.ElementsMatch(t, ackIDs, ids)
 
 		require.Len(t, fetchJobLocks(t, ctx, db), 1, "bindings should be removed after acknowledgment")
-		require.Len(t, hook.AllEntries(), 0, "health update should run without issues when there are no in_progress events to update")
 	})
 }
 

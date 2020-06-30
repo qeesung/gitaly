@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
@@ -587,10 +586,11 @@ func TestProcessBacklog_Success(t *testing.T) {
 	})
 
 	var healthUpdated int32
-	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, logger logrus.FieldLogger, duration time.Duration, events []datastore.ReplicationEvent) {
+	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, duration time.Duration, events []datastore.ReplicationEvent) error {
 		require.Equal(t, 5*time.Second, duration)
 		require.Len(t, events, 4)
 		atomic.AddInt32(&healthUpdated, 1)
+		return nil
 	})
 
 	// Update replication job

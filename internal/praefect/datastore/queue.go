@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
 
@@ -35,7 +34,7 @@ type ReplicationEventQueue interface {
 	// The events with fresh health identifier won't be considered as stale.
 	// The first health update would be done after the passed 'period'.
 	// It is a blocking call that is managed by the passed in context.
-	StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent)
+	StartHealthUpdate(ctx context.Context, period time.Duration, events []ReplicationEvent) error
 }
 
 func allowToAck(state JobState) error {
@@ -385,12 +384,11 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 
 // StartHealthUpdate starts periodical update of the event's health identifier.
 // The events with fresh health identifier won't be considered as stale.
-// The first health update would start after the 'period' time pass or won't be done at all if
-// returned 'CancelFunc' will be executed or 'ctx' cancelled/expired.
-func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, logger logrus.FieldLogger, period time.Duration, events []ReplicationEvent) {
+// The first health update would be done after the passed 'period'.
+// It is a blocking call that is managed by the passed in context.
+func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, period time.Duration, events []ReplicationEvent) error {
 	if len(events) == 0 {
-		logger.Debug("replication processing health update has nothing to process")
-		return
+		return nil
 	}
 
 	ticker := time.NewTicker(period)
@@ -407,31 +405,27 @@ func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, l
 		UPDATE replication_queue_job_lock
 		SET triggered_at = NOW() AT TIME ZONE 'UTC'
 		WHERE (job_id, lock_id) IN (SELECT UNNEST($1::BIGINT[]), UNNEST($2::TEXT[]))`
-	logger = logger.WithField("event_ids", jobIDs)
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Debug("replication processing health update completed")
-			return
+			return nil
 		case <-ticker.C:
 			res, err := rq.qc.ExecContext(ctx, query, jobIDs, lockIDs)
 			if err != nil {
 				if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-					logger.WithError(err).Error("replication processing health update")
+					return err
 				}
-				return
+				return nil
 			}
 
 			affected, err := res.RowsAffected()
 			if err != nil {
-				logger.WithError(err).Error("result of replication processing health update")
-				return
+				return err
 			}
 
 			if affected == 0 {
-				logger.Debug("replication processing health update has nothing to update")
-				return
+				return nil
 			}
 		}
 	}
