@@ -800,7 +800,7 @@ func TestProxyWrites(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.ReferenceTransactions)
+	ctx = featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.ReferenceTransactions)
 
 	testRepo, _, cleanup := testhelper.NewTestRepo(t)
 	defer cleanup()
