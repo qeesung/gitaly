@@ -31,7 +31,7 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 
 	exclude := make([]string, len(in.GetExclude()))
 	for i, ex := range in.GetExclude() {
-		exclude[i], err = helper.ValidateRelativePath(repoRoot, string(ex))
+		exclude[i], err = storage.ValidateRelativePath(repoRoot, string(ex))
 		if err != nil {
 			return helper.ErrInvalidArgument(err)
 		}
