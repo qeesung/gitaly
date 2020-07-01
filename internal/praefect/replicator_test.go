@@ -586,8 +586,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	})
 
 	var healthUpdated int32
-	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, duration time.Duration, events []datastore.ReplicationEvent) error {
-		require.Equal(t, 5*time.Second, duration)
+	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, trigger <-chan time.Time, events []datastore.ReplicationEvent) error {
 		require.Len(t, events, 4)
 		atomic.AddInt32(&healthUpdated, 1)
 		return nil

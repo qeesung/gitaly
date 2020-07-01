@@ -221,7 +221,7 @@ func (s *memoryReplicationEventQueue) GetUpToDateStorages(_ context.Context, vir
 
 // StartHealthUpdate does nothing as it has no sense in terms of in-memory implementation as
 // all information about events will be lost after restart.
-func (s *memoryReplicationEventQueue) StartHealthUpdate(context.Context, time.Duration, []ReplicationEvent) error {
+func (s *memoryReplicationEventQueue) StartHealthUpdate(context.Context, <-chan time.Time, []ReplicationEvent) error {
 	return nil
 }
 
@@ -247,7 +247,7 @@ type ReplicationEventQueueInterceptor interface {
 	// OnAcknowledge allows to set action that would be executed each time when `Acknowledge` method called.
 	OnAcknowledge(func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error))
 	// OnStartHealthUpdate allows to set action that would be executed each time when `StartHealthUpdate` method called.
-	OnStartHealthUpdate(func(context.Context, time.Duration, []ReplicationEvent) error)
+	OnStartHealthUpdate(func(context.Context, <-chan time.Time, []ReplicationEvent) error)
 }
 
 // NewReplicationEventQueueInterceptor returns interception over `ReplicationEventQueue` interface.
@@ -260,7 +260,7 @@ type replicationEventQueueInterceptor struct {
 	onEnqueue           func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)
 	onDequeue           func(context.Context, string, string, int, ReplicationEventQueue) ([]ReplicationEvent, error)
 	onAcknowledge       func(context.Context, JobState, []uint64, ReplicationEventQueue) ([]uint64, error)
-	onStartHealthUpdate func(context.Context, time.Duration, []ReplicationEvent) error
+	onStartHealthUpdate func(context.Context, <-chan time.Time, []ReplicationEvent) error
 }
 
 func (i *replicationEventQueueInterceptor) OnEnqueue(action func(context.Context, ReplicationEvent, ReplicationEventQueue) (ReplicationEvent, error)) {
@@ -275,7 +275,7 @@ func (i *replicationEventQueueInterceptor) OnAcknowledge(action func(context.Con
 	i.onAcknowledge = action
 }
 
-func (i *replicationEventQueueInterceptor) OnStartHealthUpdate(action func(context.Context, time.Duration, []ReplicationEvent) error) {
+func (i *replicationEventQueueInterceptor) OnStartHealthUpdate(action func(context.Context, <-chan time.Time, []ReplicationEvent) error) {
 	i.onStartHealthUpdate = action
 }
 
@@ -300,9 +300,9 @@ func (i *replicationEventQueueInterceptor) Acknowledge(ctx context.Context, stat
 	return i.ReplicationEventQueue.Acknowledge(ctx, state, ids)
 }
 
-func (i *replicationEventQueueInterceptor) StartHealthUpdate(ctx context.Context, period time.Duration, events []ReplicationEvent) error {
+func (i *replicationEventQueueInterceptor) StartHealthUpdate(ctx context.Context, trigger <-chan time.Time, events []ReplicationEvent) error {
 	if i.onStartHealthUpdate != nil {
-		return i.onStartHealthUpdate(ctx, period, events)
+		return i.onStartHealthUpdate(ctx, trigger, events)
 	}
-	return i.ReplicationEventQueue.StartHealthUpdate(ctx, period, events)
+	return i.ReplicationEventQueue.StartHealthUpdate(ctx, trigger, events)
 }

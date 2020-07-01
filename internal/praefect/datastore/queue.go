@@ -32,9 +32,9 @@ type ReplicationEventQueue interface {
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
 	// StartHealthUpdate starts periodical update of the event's health identifier.
 	// The events with fresh health identifier won't be considered as stale.
-	// The first health update would be done after the passed 'period'.
+	// The health update will be executed on each new entry received from trigger channel passed in.
 	// It is a blocking call that is managed by the passed in context.
-	StartHealthUpdate(ctx context.Context, period time.Duration, events []ReplicationEvent) error
+	StartHealthUpdate(ctx context.Context, trigger <-chan time.Time, events []ReplicationEvent) error
 }
 
 func allowToAck(state JobState) error {
@@ -384,15 +384,12 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 
 // StartHealthUpdate starts periodical update of the event's health identifier.
 // The events with fresh health identifier won't be considered as stale.
-// The first health update would be done after the passed 'period'.
+// The health update will be executed on each new entry received from trigger channel passed in.
 // It is a blocking call that is managed by the passed in context.
-func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, period time.Duration, events []ReplicationEvent) error {
+func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, trigger <-chan time.Time, events []ReplicationEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
-
-	ticker := time.NewTicker(period)
-	defer ticker.Stop()
 
 	jobIDs := make(pq.Int64Array, len(events))
 	lockIDs := make(pq.StringArray, len(events))
@@ -410,7 +407,7 @@ func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, p
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-ticker.C:
+		case <-trigger:
 			res, err := rq.qc.ExecContext(ctx, query, jobIDs, lockIDs)
 			if err != nil {
 				if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {

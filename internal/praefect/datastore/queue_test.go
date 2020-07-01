@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -880,7 +881,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		ctx, cancel := testhelper.Context()
 		defer cancel()
 
-		require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, nil))
+		require.NoError(t, queue.StartHealthUpdate(ctx, nil, nil))
 	})
 
 	t.Run("can be terminated by the passed in context", func(t *testing.T) {
@@ -890,7 +891,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
 		queue := PostgresReplicationEventQueue{}
 		cancel()
-		require.NoError(t, queue.StartHealthUpdate(ctx, time.Millisecond, []ReplicationEvent{eventType1}))
+		require.NoError(t, queue.StartHealthUpdate(ctx, nil, []ReplicationEvent{eventType1}))
 	})
 
 	t.Run("stops after first error", func(t *testing.T) {
@@ -904,7 +905,10 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		// 'qc' is initialized with invalid connection (transaction is finished), so operations on it will fail
 		queue := PostgresReplicationEventQueue{qc: qc}
 
-		require.Error(t, queue.StartHealthUpdate(ctx, time.Nanosecond, []ReplicationEvent{eventType1}))
+		trigger := make(chan time.Time, 1)
+		trigger <- time.Time{}
+
+		require.Error(t, queue.StartHealthUpdate(ctx, trigger, []ReplicationEvent{eventType1}))
 	})
 
 	t.Run("stops if nothing to update (extended coverage)", func(t *testing.T) {
@@ -916,8 +920,11 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		done := make(chan struct{})
 		queue := PostgresReplicationEventQueue{qc: db}
 		go func() {
+			trigger := make(chan time.Time)
+			close(trigger)
+
 			defer close(done)
-			require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, []ReplicationEvent{eventType1}))
+			assert.NoError(t, queue.StartHealthUpdate(ctx, trigger, []ReplicationEvent{eventType1}))
 		}()
 
 		select {
@@ -925,33 +932,6 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 			return // happy path
 		case <-time.After(time.Second):
 			require.FailNow(t, "method should return almost immediately as there is nothing to process")
-		}
-	})
-
-	t.Run("doesn't run before passed in time duration", func(t *testing.T) {
-		db.TruncateAll(t)
-
-		ctx, cancel := testhelper.Context()
-		defer cancel()
-
-		queue := PostgresReplicationEventQueue{qc: db}
-		event, err := queue.Enqueue(ctx, eventType1)
-		require.NoError(t, err, "failed to fill in event queue")
-
-		dequeuedEvents, err := queue.Dequeue(ctx, event.Job.VirtualStorage, event.Job.TargetNodeStorage, 10)
-		require.NoError(t, err)
-		require.Len(t, dequeuedEvents, 1)
-
-		initialJobLocks := fetchJobLocks(t, ctx, db)
-
-		go func() {
-			require.NoError(t, queue.StartHealthUpdate(ctx, time.Second, dequeuedEvents))
-		}()
-		time.Sleep(10 * time.Millisecond)
-
-		updatedJobLocks := fetchJobLocks(t, ctx, db)
-		for i := range initialJobLocks {
-			require.Equal(t, initialJobLocks[i].TriggeredAt, updatedJobLocks[i].TriggeredAt)
 		}
 	})
 
@@ -980,10 +960,14 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
+		trigger := make(chan time.Time, 1)
 		go func() {
-			require.NoError(t, queue.StartHealthUpdate(ctx, time.Nanosecond, dequeuedEventsToTrigger))
+			trigger <- time.Time{}
+			assert.NoError(t, queue.StartHealthUpdate(ctx, trigger, dequeuedEventsToTrigger))
 		}()
-		time.Sleep(10 * time.Millisecond)
+
+		time.Sleep(time.Millisecond) // we should sleep as the processing is too fast and won't give different time
+		trigger <- time.Time{}       // once this consumed we are sure that the previous update has been executed
 
 		updatedJobLocks := fetchJobLocks(t, ctx, db)
 		for i := range initialJobLocks {
