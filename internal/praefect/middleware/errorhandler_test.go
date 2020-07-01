@@ -84,7 +84,7 @@ func TestStreamInterceptor(t *testing.T) {
 			require.NoError(t, err)
 			f, err := peeker.Peek()
 			require.NoError(t, err)
-			return proxy.NewStreamParameters(proxy.Destination{Conn: cc, Ctx: ctx, Msg: f}, nil, func() {}, nil), nil
+			return proxy.NewStreamParameters(proxy.Destination{Conn: cc, Ctx: ctx, Msg: f}, nil, func() error { return nil }, nil), nil
 		})),
 	}
 
