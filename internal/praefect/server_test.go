@@ -647,12 +647,12 @@ func TestRepoRename(t *testing.T) {
 	defer func() { require.NoError(t, os.RemoveAll(expNewPath2)) }()
 }
 
-type mockSmartHttp struct {
+type mockSmartHTTP struct {
 	m             sync.Mutex
 	methodsCalled map[string]int
 }
 
-func (m *mockSmartHttp) InfoRefsUploadPack(req *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsUploadPackServer) error {
+func (m *mockSmartHTTP) InfoRefsUploadPack(req *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsUploadPackServer) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if m.methodsCalled == nil {
@@ -665,7 +665,7 @@ func (m *mockSmartHttp) InfoRefsUploadPack(req *gitalypb.InfoRefsRequest, stream
 	return nil
 }
 
-func (m *mockSmartHttp) InfoRefsReceivePack(req *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsReceivePackServer) error {
+func (m *mockSmartHTTP) InfoRefsReceivePack(req *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsReceivePackServer) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if m.methodsCalled == nil {
@@ -678,7 +678,7 @@ func (m *mockSmartHttp) InfoRefsReceivePack(req *gitalypb.InfoRefsRequest, strea
 	return nil
 }
 
-func (m *mockSmartHttp) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackServer) error {
+func (m *mockSmartHTTP) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackServer) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if m.methodsCalled == nil {
@@ -691,7 +691,7 @@ func (m *mockSmartHttp) PostUploadPack(stream gitalypb.SmartHTTPService_PostUplo
 	return nil
 }
 
-func (m *mockSmartHttp) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePackServer) error {
+func (m *mockSmartHTTP) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePackServer) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if m.methodsCalled == nil {
@@ -719,7 +719,7 @@ func (m *mockSmartHttp) PostReceivePack(stream gitalypb.SmartHTTPService_PostRec
 	return nil
 }
 
-func (m *mockSmartHttp) Called(method string) int {
+func (m *mockSmartHTTP) Called(method string) int {
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -742,13 +742,13 @@ func newGrpcServer(t *testing.T, srv gitalypb.SmartHTTPServiceServer) (string, *
 }
 
 func TestProxyWrites(t *testing.T) {
-	smartHttp0, smartHttp1, smartHttp2 := &mockSmartHttp{}, &mockSmartHttp{}, &mockSmartHttp{}
+	smartHTTP0, smartHTTP1, smartHTTP2 := &mockSmartHTTP{}, &mockSmartHTTP{}, &mockSmartHTTP{}
 
-	socket0, srv0 := newGrpcServer(t, smartHttp0)
+	socket0, srv0 := newGrpcServer(t, smartHTTP0)
 	defer srv0.Stop()
-	socket1, srv1 := newGrpcServer(t, smartHttp1)
+	socket1, srv1 := newGrpcServer(t, smartHTTP1)
 	defer srv1.Stop()
-	socket2, srv2 := newGrpcServer(t, smartHttp2)
+	socket2, srv2 := newGrpcServer(t, smartHTTP2)
 	defer srv2.Stop()
 
 	conf := config.Config{
@@ -832,9 +832,9 @@ func TestProxyWrites(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	assert.Equal(t, 1, smartHttp0.Called("PostReceivePack"))
-	assert.Equal(t, 1, smartHttp1.Called("PostReceivePack"))
-	assert.Equal(t, 1, smartHttp2.Called("PostReceivePack"))
+	assert.Equal(t, 1, smartHTTP0.Called("PostReceivePack"))
+	assert.Equal(t, 1, smartHTTP1.Called("PostReceivePack"))
+	assert.Equal(t, 1, smartHTTP2.Called("PostReceivePack"))
 	assert.Equal(t, bytes.Repeat([]byte(payload), 10), receivedData.Bytes())
 }
 

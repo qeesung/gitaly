@@ -158,24 +158,6 @@ func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCal
 	}, nil, nil, nil), nil
 }
 
-func (c *Coordinator) injectTransaction(ctx context.Context, node nodes.Node, primary bool) (context.Context, func(), error) {
-	// We currently only handle single-node-transactions for the primary,
-	// so we just blindly call this single node "primary".
-	voter := transactions.Voter{Name: "primary"}
-
-	transactionID, cancel, err := c.txMgr.RegisterTransaction(ctx, []transactions.Voter{voter})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ctx, err = metadata.InjectTransaction(ctx, transactionID, voter.Name, primary)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return ctx, cancel, nil
-}
-
 var transactionRPCs = map[string]struct{}{
 	"/gitaly.SmartHTTPService/PostReceivePack": {},
 	"/gitaly.SSHService/SSHReceivePack":        {},
