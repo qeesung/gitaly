@@ -4,6 +4,7 @@ variable "praefect_demo_cluster_name" { }
 variable "ssh_user" { }
 variable "ssh_pubkey" { }
 variable "os_image" { default = "ubuntu-os-cloud/ubuntu-1804-lts" }
+variable "gitlab_root_password" { }
 variable "startup_script" {
   default = <<EOF
     set -e
@@ -90,7 +91,10 @@ resource "google_compute_instance" "gitlab" {
 
   metadata = {
     ssh-keys = format("%s:%s", var.ssh_user, var.ssh_pubkey)
-    startup-script = var.startup_script
+    startup-script = <<EOF
+      ${var.startup_script}
+      GITLAB_ROOT_PASSWORD=${var.gitlab_root_password} gitlab-ctl reconfigure
+    EOF
   }
 
   tags = ["http-server", "https-server"]

@@ -38,6 +38,14 @@ def praefect_sql_password
   )
 end
 
+def gitlab_root_password
+  get_input(
+    'Enter a password for the root GitLab user',
+    'GITLAB_ROOT_PASSWORD',
+    echo: false
+  )
+end
+
 def username
   Etc.getlogin
 end
