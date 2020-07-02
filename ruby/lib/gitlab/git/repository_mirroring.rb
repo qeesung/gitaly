@@ -13,7 +13,7 @@ module Gitlab
       }.freeze
 
       def remote_branches(remote_name, env:)
-        if feature_enabled?(:remote_branches_ls_remote)
+        if feature_enabled?(:remote_branches_ls_remote, on_by_default: true)
           experimental_remote_branches(remote_name, env: env)
         else
           branches = []

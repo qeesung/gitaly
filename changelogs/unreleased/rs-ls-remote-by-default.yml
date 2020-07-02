@@ -1,0 +1,5 @@
+---
+title: Gather remote branches via ls-remote, rather than fetch, by default
+merge_request: 2330
+author:
+type: changed

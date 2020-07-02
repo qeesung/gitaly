@@ -28,7 +28,7 @@ describe Gitlab::Git::RepositoryMirroring do
       env = { option_a: true, option_b: false }
 
       allow(repository).to receive(:feature_enabled?)
-        .with(:remote_branches_ls_remote)
+        .with(:remote_branches_ls_remote, on_by_default: true)
         .and_return(true)
       expect(repository).to receive(:list_remote_refs)
         .with('remote_a', env: env)

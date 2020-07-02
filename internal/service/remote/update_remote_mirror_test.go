@@ -28,11 +28,11 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 	}{
 		{
 			"ls-remote",
-			featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
+			ctx,
 		},
 		{
 			"fetch-remote",
-			ctx,
+			featureflag.OutgoingCtxWithDisabledFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,9 +174,6 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithLsRemote(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	// Enable the flag to use ls-remote
-	ctx = featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote)
-
 	firstRequest := &gitalypb.UpdateRemoteMirrorRequest{
 		Repository:           testRepo,
 		RefName:              remoteName,
@@ -232,11 +229,11 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 	}{
 		{
 			"ls-remote",
-			featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
+			ctx,
 		},
 		{
 			"fetch-remote",
-			ctx,
+			featureflag.OutgoingCtxWithDisabledFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -328,11 +325,11 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) 
 	}{
 		{
 			"ls-remote",
-			featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
+			ctx,
 		},
 		{
 			"fetch-remote",
-			ctx,
+			featureflag.OutgoingCtxWithDisabledFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -445,8 +442,8 @@ func TestFailedUpdateRemoteMirrorRequestDueToValidation(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			// Ensure this flag doesn't alter existing behavior
-			ctx = featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote)
+			// Ensure disabling this flag doesn't alter previous behavior
+			ctx = featureflag.OutgoingCtxWithDisabledFeatureFlags(ctx, featureflag.RemoteBranchesLsRemote)
 
 			stream, err := client.UpdateRemoteMirror(ctx)
 			require.NoError(t, err)

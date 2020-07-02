@@ -84,8 +84,8 @@ module Gitlab
         [storage, relative_path] == [other.storage, other.relative_path]
       end
 
-      def feature_enabled?(flag)
-        @feature_flags.enabled?(flag)
+      def feature_enabled?(flag, on_by_default: false)
+        @feature_flags.enabled?(flag, on_by_default: on_by_default)
       end
 
       def add_branch(branch_name, user:, target:)

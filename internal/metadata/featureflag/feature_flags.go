@@ -14,7 +14,7 @@ var (
 	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks
 	GoUpdateHook = FeatureFlag{Name: "go_update_hook", OnByDefault: false}
 	// RemoteBranchesLsRemote will use `ls-remote` for remote branches
-	RemoteBranchesLsRemote = FeatureFlag{Name: "ruby_remote_branches_ls_remote", OnByDefault: false}
+	RemoteBranchesLsRemote = FeatureFlag{Name: "ruby_remote_branches_ls_remote", OnByDefault: true}
 	// GoFetchSourceBranch enables a go implementation of FetchSourceBranch
 	GoFetchSourceBranch = FeatureFlag{Name: "go_fetch_source_branch", OnByDefault: false}
 	// ReferenceTransactions will handle Git reference updates via the transaction service for strong consistency
