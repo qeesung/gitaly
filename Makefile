@@ -1,5 +1,9 @@
 # Makefile for Gitaly
 
+# You can override options by creating a "config.mak" file in Gitaly's root
+# directory.
+-include config.mak
+
 # Call `make V=1` in order to print commands verbosely.
 ifeq ($(V),1)
     Q =
@@ -56,19 +60,19 @@ GIT_VERSION           ?= v2.27.0
 
 # Dependency downloads
 ifeq (${OS},Darwin)
-    PROTOC_URL            := https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-osx-x86_64.zip
-    PROTOC_HASH           := 0decc6ce5beed07f8c20361ddeb5ac7666f09cf34572cca530e16814093f9c0c
-    GOLANGCI_LINT_ARCHIVE := golangci-lint-${GOLANGCI_LINT_VERSION}-darwin-amd64
-    GOLANGCI_LINT_HASH    := f05af56f15ebbcf77663a8955d1e39009b584ce8ea4c5583669369d80353a113
+    PROTOC_URL            ?= https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-osx-x86_64.zip
+    PROTOC_HASH           ?= 0decc6ce5beed07f8c20361ddeb5ac7666f09cf34572cca530e16814093f9c0c
+    GOLANGCI_LINT_ARCHIVE ?= golangci-lint-${GOLANGCI_LINT_VERSION}-darwin-amd64
+    GOLANGCI_LINT_HASH    ?= f05af56f15ebbcf77663a8955d1e39009b584ce8ea4c5583669369d80353a113
 else ifeq (${OS},Linux)
-    PROTOC_URL            := https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip
-    PROTOC_HASH           := 6003de742ea3fcf703cfec1cd4a3380fd143081a2eb0e559065563496af27807
-    GOLANGCI_LINT_ARCHIVE := golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64
-    GOLANGCI_LINT_HASH    := 241ca454102e909de04957ff8a5754c757cefa255758b3e1fba8a4533d19d179
+    PROTOC_URL            ?= https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip
+    PROTOC_HASH           ?= 6003de742ea3fcf703cfec1cd4a3380fd143081a2eb0e559065563496af27807
+    GOLANGCI_LINT_ARCHIVE ?= golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64
+    GOLANGCI_LINT_HASH    ?= 241ca454102e909de04957ff8a5754c757cefa255758b3e1fba8a4533d19d179
 else
     $(error Unsupported OS: ${OS})
 endif
-GOLANGCI_LINT_URL := https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/${GOLANGCI_LINT_ARCHIVE}.tar.gz
+GOLANGCI_LINT_URL ?= https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/${GOLANGCI_LINT_ARCHIVE}.tar.gz
 
 # Git target
 GIT_REPO_URL      ?= https://gitlab.com/gitlab-org/gitlab-git.git
@@ -78,19 +82,19 @@ GIT_INSTALL_DIR   := ${BUILD_DIR}/git
 GIT_SOURCE_DIR    := ${BUILD_DIR}/src/git
 
 ifeq (${GIT_BUILD_OPTIONS},)
-# activate developer checks
-GIT_BUILD_OPTIONS += DEVELOPER=1
-# make it easy to debug in case of crashes
-GIT_BUILD_OPTIONS += CFLAGS='-O0 -g3'
-GIT_BUILD_OPTIONS += NO_PERL=YesPlease
-GIT_BUILD_OPTIONS += NO_EXPAT=YesPlease
-GIT_BUILD_OPTIONS += NO_TCLTK=YesPlease
-# fix compilation on musl libc
-GIT_BUILD_OPTIONS += NO_REGEX=YesPlease
-GIT_BUILD_OPTIONS += NO_GETTEXT=YesPlease
-GIT_BUILD_OPTIONS += NO_PYTHON=YesPlease
-GIT_BUILD_OPTIONS += NO_INSTALL_HARDLINKS=YesPlease
-GIT_BUILD_OPTIONS += NO_R_TO_GCC_LINKER=YesPlease
+    # activate developer checks
+    GIT_BUILD_OPTIONS += DEVELOPER=1
+    # make it easy to debug in case of crashes
+    GIT_BUILD_OPTIONS += CFLAGS='-O0 -g3'
+    GIT_BUILD_OPTIONS += NO_PERL=YesPlease
+    GIT_BUILD_OPTIONS += NO_EXPAT=YesPlease
+    GIT_BUILD_OPTIONS += NO_TCLTK=YesPlease
+    # fix compilation on musl libc
+    GIT_BUILD_OPTIONS += NO_REGEX=YesPlease
+    GIT_BUILD_OPTIONS += NO_GETTEXT=YesPlease
+    GIT_BUILD_OPTIONS += NO_PYTHON=YesPlease
+    GIT_BUILD_OPTIONS += NO_INSTALL_HARDLINKS=YesPlease
+    GIT_BUILD_OPTIONS += NO_R_TO_GCC_LINKER=YesPlease
 endif
 
 # These variables control test options and artifacts

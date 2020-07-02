@@ -41,6 +41,31 @@ gitaly:
 
 #### General advice
 
+##### Using the Makefile
+
+Gitaly uses make to manage its build process, where all targets are defined in
+our top-level [Makefile](../Makefile). By default, simply running `make` will
+build our "all" target, which installs Gitaly into the top-level directory so
+that it's easily picked up by the GDK. The following is a list of the most
+frequently used targets:
+
+- build: Build Gitaly, but do not install it.
+
+- install: Build and install Gitaly. The destination directory can be modified
+  by modifying a set of variables, most importantly `PREFIX`.
+
+- test: Execute both Go and Ruby tests.
+
+- clean: Remove all generated build artifacts.
+
+You can modify some parts of the build process by setting up various variables.
+For example, by executing `make V=1` you can do a verbose build or by overriding
+the `PROTOC_VERSION` and `PROTOC_HASH` a different protobuf compiler version
+will be used for generating code.
+
+If you wish to persist your configuration, you may create a `config.mak` file
+next to the Makefile and put all variables you wish to override in there.
+
 ##### Editing code and seeing what happens
 
 If you're used to Ruby on Rails development you may be used to a "edit
@@ -88,7 +113,7 @@ In general there are a couple of stages to go through, in order:
 
 When modifying Gitaly's or Praefect's configuration, the changes should be propagated to other GitLab projects that
 rely on them:
-	
+
 1. [gitlab/omnibus-gitlab](https://gitlab.com/gitlab-org/omnibus-gitlab) contains template files that are used to generate Gitaly's and Praefect's configuration.
 2. [gitlab/CNG](https://gitlab.com/gitlab-org/build/CNG) contains configuration required to run Gitaly in a container.
 
