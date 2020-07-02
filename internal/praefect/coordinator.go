@@ -238,12 +238,19 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	}
 
 	return proxy.NewStreamParameters(primaryDest, secondaryDests, func() error {
+		var firstErr error
 		for _, finalizer := range finalizers {
-			if err := finalizer(); err != nil {
-				return err
+			switch err := finalizer(); {
+			case err != nil && firstErr == nil: // first error
+				firstErr = err
+			case err != nil && firstErr != nil:
+				ctxlogrus.
+					Extract(ctx).
+					WithError(err).
+					Error("coordinator proxy stream finalizer failure")
 			}
 		}
-		return nil
+		return firstErr
 	}, nil), nil
 }
 
