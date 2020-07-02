@@ -382,6 +382,9 @@ func (c *Coordinator) createReplicaJobs(
 
 			g.Go(func() error {
 				_, err := c.queue.Enqueue(ctx, event)
+				if err != nil {
+					err = fmt.Errorf("enqueue replication event: %w", err)
+				}
 				return err
 			})
 		}
