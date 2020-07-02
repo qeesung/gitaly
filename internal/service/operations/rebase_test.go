@@ -24,7 +24,7 @@ var (
 )
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoPreReceiveHook, featureflag.GoUpdateHook)
 	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()

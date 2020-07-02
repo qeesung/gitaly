@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -283,19 +284,24 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
 
+	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoPreReceiveHook, featureflag.GoUpdateHook)
+	require.NoError(t, err)
+
 	for _, hookName := range GitlabPreHooks {
-		t.Run(hookName, func(t *testing.T) {
-			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
-			require.NoError(t, err)
-			defer remove()
+		for _, features := range featureSet {
+			t.Run(fmt.Sprintf("%s, features: %v", hookName, features.String()), func(t *testing.T) {
+				remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
+				require.NoError(t, err)
+				defer remove()
 
-			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
-			ctx := metadata.NewOutgoingContext(ctxOuter, md)
+				md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+				ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-			response, err := client.UserRevert(ctx, request)
-			require.NoError(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
-		})
+				response, err := client.UserRevert(features.WithParent(ctx), request)
+				require.NoError(t, err)
+				require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
+			})
+		}
 	}
 }
 

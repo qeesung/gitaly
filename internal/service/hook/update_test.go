@@ -2,6 +2,7 @@ package hook
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -200,4 +202,65 @@ func TestUpdate(t *testing.T) {
 			assert.Equal(t, tc.stdout, text.ChompBytes(stdout.Bytes()), "hook stdout")
 		})
 	}
+}
+
+func TestUpdate_CustomHooks(t *testing.T) {
+	rubyDir := config.Config.Ruby.Dir
+	defer func() {
+		config.Config.Ruby.Dir = rubyDir
+	}()
+
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	config.Config.Ruby.Dir = filepath.Join(cwd, "testdata")
+
+	serverSocketPath, stop := runHooksServer(t, config.Config.Hooks)
+	defer stop()
+
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	client, conn := newHooksClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	req := gitalypb.UpdateHookRequest{
+		Repository:           testRepo,
+		Ref:                  []byte("master"),
+		OldValue:             "a",
+		NewValue:             "b",
+		EnvironmentVariables: []string{"GL_ID=key-123", "GL_USERNAME=username", "GL_PROTOCOL=protocol", "GL_REPOSITORY=repository"},
+	}
+
+	errorMsg := "error123"
+	cleanup, err := testhelper.WriteCustomHook(testRepoPath, "update", []byte(fmt.Sprintf(`#!/bin/bash
+echo %s 1>&2
+exit 1
+`, errorMsg)))
+	require.NoError(t, err)
+	defer cleanup()
+
+	req.EnvironmentVariables = append(req.EnvironmentVariables, featureflag.GoUpdateHookEnvVar+"=true")
+	stream, err := client.UpdateHook(ctx, &req)
+	require.NoError(t, err)
+
+	var status int32
+	var stderr, stdout bytes.Buffer
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err, "when receiving stream")
+
+		stderr.Write(resp.GetStderr())
+		stdout.Write(resp.GetStdout())
+
+		status = resp.GetExitStatus().GetValue()
+	}
+
+	assert.Equal(t, int32(1), status)
+	assert.Equal(t, errorMsg, text.ChompBytes(stderr.Bytes()), "hook stderr")
+	assert.Equal(t, "", text.ChompBytes(stdout.Bytes()), "hook stdout")
 }

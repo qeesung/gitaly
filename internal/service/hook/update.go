@@ -58,16 +58,15 @@ func updateHookRuby(in *gitalypb.UpdateHookRequest, stream gitalypb.HookService_
 	)
 
 	if err != nil {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			return updateHookResponse(stream, int32(exitError.ExitCode()))
+		}
+
 		return helper.ErrInternal(err)
 	}
 
-	if err := stream.SendMsg(&gitalypb.UpdateHookResponse{
-		ExitStatus: &gitalypb.ExitStatus{Value: status},
-	}); err != nil {
-		return helper.ErrInternal(err)
-	}
-
-	return nil
+	return updateHookResponse(stream, status)
 }
 
 func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.HookService_UpdateHookServer) error {
@@ -99,7 +98,22 @@ func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.Hook
 		stdout,
 		stderr,
 	); err != nil {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			return updateHookResponse(stream, int32(exitError.ExitCode()))
+		}
+
 		return helper.ErrInternal(err)
+	}
+
+	return updateHookResponse(stream, 0)
+}
+
+func updateHookResponse(stream gitalypb.HookService_UpdateHookServer, code int32) error {
+	if err := stream.Send(&gitalypb.UpdateHookResponse{
+		ExitStatus: &gitalypb.ExitStatus{Value: code},
+	}); err != nil {
+		return helper.ErrInternalf("sending response: %v", err)
 	}
 
 	return nil

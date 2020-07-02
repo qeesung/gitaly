@@ -1,0 +1,5 @@
+---
+title: Pass env vars correctly into custom hooks
+merge_request: 2331
+author:
+type: fixed

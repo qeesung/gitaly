@@ -137,7 +137,7 @@ func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookSer
 	return nil
 }
 
-func (s *server) executeCustomHooks(stream gitalypb.HookService_PreReceiveHookServer, changes []byte, repository *gitalypb.Repository, reqEnvVars []string) error {
+func (s *server) executeCustomHooks(firstReq prePostRequest, stream gitalypb.HookService_PreReceiveHookServer, changes []byte, repository *gitalypb.Repository, reqEnvVars []string) error {
 	stdout := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stdout: p}) })
 	stderr := streamio.NewWriter(func(p []byte) error { return stream.Send(&gitalypb.PreReceiveHookResponse{Stderr: p}) })
 
@@ -151,12 +151,11 @@ func (s *server) executeCustomHooks(stream gitalypb.HookService_PreReceiveHookSe
 		return fmt.Errorf("creating custom hooks executor: %w", err)
 	}
 
-	_, gitObjectDirEnv, err := alternates.PathAndEnv(repository)
+	env, err := preReceiveEnv(firstReq)
 	if err != nil {
-		return fmt.Errorf("getting git object dir from request %w", err)
+		return fmt.Errorf("getting env vars from request: %v", err)
 	}
-
-	env := append(reqEnvVars, gitObjectDirEnv...)
+	env = append(env, reqEnvVars...)
 
 	if err = executor(
 		stream.Context(),
@@ -230,7 +229,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 			return preReceiveHookResponse(stream, int32(1), message)
 		}
 
-		if err := s.executeCustomHooks(stream, changes, repository, reqEnvVars); err != nil {
+		if err := s.executeCustomHooks(firstRequest, stream, changes, repository, reqEnvVars); err != nil {
 			var exitError *exec.ExitError
 			if errors.As(err, &exitError) {
 				return preReceiveHookResponse(stream, int32(exitError.ExitCode()), "")
