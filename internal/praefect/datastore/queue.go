@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/lib/pq"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 )
 
@@ -28,6 +30,11 @@ type ReplicationEventQueue interface {
 	// GetUpToDateStorages returns list of target storages where latest replication job is in 'completed' state.
 	// It returns no results if there is no up to date storages or there were no replication events yet.
 	GetUpToDateStorages(ctx context.Context, virtualStorage, repoPath string) ([]string, error)
+	// StartHealthUpdate starts periodical update of the event's health identifier.
+	// The events with fresh health identifier won't be considered as stale.
+	// The health update will be executed on each new entry received from trigger channel passed in.
+	// It is a blocking call that is managed by the passed in context.
+	StartHealthUpdate(ctx context.Context, trigger <-chan time.Time, events []ReplicationEvent) error
 }
 
 func allowToAck(state JobState) error {
@@ -373,4 +380,50 @@ func (rq PostgresReplicationEventQueue) GetUpToDateStorages(ctx context.Context,
 	}
 
 	return storages.Values(), nil
+}
+
+// StartHealthUpdate starts periodical update of the event's health identifier.
+// The events with fresh health identifier won't be considered as stale.
+// The health update will be executed on each new entry received from trigger channel passed in.
+// It is a blocking call that is managed by the passed in context.
+func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, trigger <-chan time.Time, events []ReplicationEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	jobIDs := make(pq.Int64Array, len(events))
+	lockIDs := make(pq.StringArray, len(events))
+	for i := range events {
+		jobIDs[i] = int64(events[i].ID)
+		lockIDs[i] = events[i].LockID
+	}
+
+	query := `
+		UPDATE replication_queue_job_lock
+		SET triggered_at = NOW() AT TIME ZONE 'UTC'
+		WHERE (job_id, lock_id) IN (SELECT UNNEST($1::BIGINT[]), UNNEST($2::TEXT[]))`
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-trigger:
+			res, err := rq.qc.ExecContext(ctx, query, jobIDs, lockIDs)
+			if err != nil {
+				if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+					return err
+				}
+				return nil
+			}
+
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if affected == 0 {
+				return nil
+			}
+		}
+	}
 }

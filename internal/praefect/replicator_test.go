@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -572,6 +573,13 @@ func TestProcessBacklog_Success(t *testing.T) {
 		return ackIDs, err
 	})
 
+	var healthUpdated int32
+	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, trigger <-chan time.Time, events []datastore.ReplicationEvent) error {
+		require.Len(t, events, 4)
+		atomic.AddInt32(&healthUpdated, 1)
+		return nil
+	})
+
 	// Update replication job
 	eventType1 := datastore.ReplicationEvent{
 		Job: datastore.ReplicationJob{
@@ -636,6 +644,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 
 	select {
 	case <-processed:
+		require.EqualValues(t, 1, atomic.LoadInt32(&healthUpdated), "health update should be called")
 	case <-time.After(30 * time.Second):
 		// strongly depends on the processing capacity
 		t.Fatal("time limit expired for job to complete")

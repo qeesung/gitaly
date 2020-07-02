@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -853,6 +854,138 @@ func TestPostgresReplicationEventQueue_GetUpToDateStorages(t *testing.T) {
 	})
 }
 
+func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
+	db := getDB(t)
+
+	eventType1 := ReplicationEvent{Job: ReplicationJob{
+		Change:            UpdateRepo,
+		VirtualStorage:    "vs-1",
+		TargetNodeStorage: "s-1",
+		SourceNodeStorage: "s-0",
+		RelativePath:      "/path/1",
+	}}
+
+	eventType2 := eventType1
+	eventType2.Job.RelativePath = "/path/2"
+
+	eventType3 := eventType1
+	eventType3.Job.VirtualStorage = "vs-2"
+
+	eventType4 := eventType1
+	eventType4.Job.TargetNodeStorage = "s-2"
+
+	t.Run("no events is valid", func(t *testing.T) {
+		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
+		queue := PostgresReplicationEventQueue{}
+
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		require.NoError(t, queue.StartHealthUpdate(ctx, nil, nil))
+	})
+
+	t.Run("can be terminated by the passed in context", func(t *testing.T) {
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
+		queue := PostgresReplicationEventQueue{}
+		cancel()
+		require.NoError(t, queue.StartHealthUpdate(ctx, nil, []ReplicationEvent{eventType1}))
+	})
+
+	t.Run("stops after first error", func(t *testing.T) {
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		qc, err := db.DB.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		require.NoError(t, qc.Rollback())
+
+		// 'qc' is initialized with invalid connection (transaction is finished), so operations on it will fail
+		queue := PostgresReplicationEventQueue{qc: qc}
+
+		trigger := make(chan time.Time, 1)
+		trigger <- time.Time{}
+
+		require.Error(t, queue.StartHealthUpdate(ctx, trigger, []ReplicationEvent{eventType1}))
+	})
+
+	t.Run("stops if nothing to update (extended coverage)", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		done := make(chan struct{})
+		queue := PostgresReplicationEventQueue{qc: db}
+		go func() {
+			trigger := make(chan time.Time)
+			close(trigger)
+
+			defer close(done)
+			assert.NoError(t, queue.StartHealthUpdate(ctx, trigger, []ReplicationEvent{eventType1}))
+		}()
+
+		select {
+		case <-done:
+			return // happy path
+		case <-time.After(time.Second):
+			require.FailNow(t, "method should return almost immediately as there is nothing to process")
+		}
+	})
+
+	t.Run("triggers all passed in events", func(t *testing.T) {
+		db.TruncateAll(t)
+
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		queue := PostgresReplicationEventQueue{qc: db}
+		events := []ReplicationEvent{eventType1, eventType2, eventType3, eventType4}
+		for i := range events {
+			var err error
+			events[i], err = queue.Enqueue(ctx, events[i])
+			require.NoError(t, err, "failed to fill in event queue")
+		}
+
+		dequeuedEventsToTrigger, err := queue.Dequeue(ctx, eventType1.Job.VirtualStorage, eventType1.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEventsToTrigger, 2, "eventType3 and eventType4 should not be fetched")
+		ids := []uint64{dequeuedEventsToTrigger[0].ID, dequeuedEventsToTrigger[1].ID}
+
+		dequeuedEventsUntriggered, err := queue.Dequeue(ctx, eventType3.Job.VirtualStorage, eventType3.Job.TargetNodeStorage, 10)
+		require.NoError(t, err)
+		require.Len(t, dequeuedEventsUntriggered, 1, "only eventType3 should be fetched")
+
+		initialJobLocks := fetchJobLocks(t, ctx, db)
+
+		trigger := make(chan time.Time, 1)
+		go func() {
+			trigger <- time.Time{}
+			assert.NoError(t, queue.StartHealthUpdate(ctx, trigger, dequeuedEventsToTrigger))
+		}()
+
+		time.Sleep(time.Millisecond) // we should sleep as the processing is too fast and won't give different time
+		trigger <- time.Time{}       // once this consumed we are sure that the previous update has been executed
+
+		updatedJobLocks := fetchJobLocks(t, ctx, db)
+		for i := range initialJobLocks {
+			if updatedJobLocks[i].JobID == dequeuedEventsUntriggered[0].ID {
+				require.Equal(t, initialJobLocks[i].TriggeredAt, updatedJobLocks[i].TriggeredAt, "no update expected as it was not submitted")
+			} else {
+				require.True(t, updatedJobLocks[i].TriggeredAt.After(initialJobLocks[i].TriggeredAt))
+			}
+		}
+
+		ackIDs, err := queue.Acknowledge(ctx, JobStateFailed, ids)
+		require.NoError(t, err)
+		require.ElementsMatch(t, ackIDs, ids)
+
+		require.Len(t, fetchJobLocks(t, ctx, db), 1, "bindings should be removed after acknowledgment")
+	})
+}
+
 func requireEvents(t *testing.T, ctx context.Context, db glsql.DB, expected []ReplicationEvent) {
 	t.Helper()
 
@@ -909,17 +1042,27 @@ type JobLockRow struct {
 func requireJobLocks(t *testing.T, ctx context.Context, db glsql.DB, expected []JobLockRow) {
 	t.Helper()
 
-	sqlStmt := `SELECT job_id, lock_id FROM replication_queue_job_lock ORDER BY triggered_at`
+	actual := fetchJobLocks(t, ctx, db)
+	for i := range actual {
+		actual[i].TriggeredAt = time.Time{}
+	}
+	require.ElementsMatch(t, expected, actual)
+}
+
+func fetchJobLocks(t *testing.T, ctx context.Context, db glsql.DB) []JobLockRow {
+	t.Helper()
+	sqlStmt := `SELECT job_id, lock_id, triggered_at FROM replication_queue_job_lock ORDER BY job_id`
 	rows, err := db.QueryContext(ctx, sqlStmt)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close(), "completion of result fetching") }()
 
-	var actual []JobLockRow
+	var entries []JobLockRow
 	for rows.Next() {
 		var entry JobLockRow
-		require.NoError(t, rows.Scan(&entry.JobID, &entry.LockID), "failed to scan entry")
-		actual = append(actual, entry)
+		require.NoError(t, rows.Scan(&entry.JobID, &entry.LockID, &entry.TriggeredAt), "failed to scan entry")
+		entries = append(entries, entry)
 	}
 	require.NoError(t, rows.Err(), "completion of result loop scan")
-	require.ElementsMatch(t, expected, actual)
+
+	return entries
 }
