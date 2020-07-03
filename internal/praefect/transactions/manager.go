@@ -103,7 +103,7 @@ func (mgr *Manager) log(ctx context.Context) logrus.FieldLogger {
 // CancelFunc is the transaction cancellation function returned by
 // `RegisterTransaction`. Calling it will cause the transaction to be removed
 // from the transaction manager.
-type CancelFunc func()
+type CancelFunc func() error
 
 // RegisterTransaction registers a new reference transaction for a set of nodes
 // taking part in the transaction. `threshold` is the threshold at which an
@@ -136,8 +136,9 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, thr
 
 	mgr.counterMetric.WithLabelValues("registered").Inc()
 
-	return transactionID, func() {
+	return transactionID, func() error {
 		mgr.cancelTransaction(transactionID, transaction)
+		return nil
 	}, nil
 }
 

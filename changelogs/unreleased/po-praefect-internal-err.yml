@@ -1,0 +1,5 @@
+---
+title: Error forwarded mutator RPCs on replication job enqueue failure
+merge_request: 2332
+author:
+type: other

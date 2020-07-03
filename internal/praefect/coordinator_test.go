@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
@@ -496,7 +498,8 @@ func TestAbsentCorrelationID(t *testing.T) {
 					&config.Node{
 						Address: secondaryAddress,
 						Storage: "praefect-internal-2",
-					}},
+					},
+				},
 			},
 		},
 	}
@@ -549,4 +552,67 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	require.NotZero(t, jobs[0].Meta[metadatahandler.CorrelationIDKey],
 		"the coordinator should have generated a random ID")
+}
+
+func TestCoordinatorEnqueueFailure(t *testing.T) {
+	conf := config.Config{
+		VirtualStorages: []*config.VirtualStorage{
+			&config.VirtualStorage{
+				Name: "praefect",
+				Nodes: []*config.Node{
+					&config.Node{
+						Address:        "unix://woof",
+						Storage:        "praefect-internal-1",
+						DefaultPrimary: true,
+					},
+					&config.Node{
+						Address: "unix://meow",
+						Storage: "praefect-internal-2",
+					}},
+			},
+		},
+	}
+
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	errQ := make(chan error, 1)
+	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+		return datastore.ReplicationEvent{}, <-errQ
+	})
+
+	ms := &mockSvc{
+		repoMutatorUnary: func(context.Context, *mock.RepoRequest) (*empty.Empty, error) {
+			return &empty.Empty{}, nil // always succeeds
+		},
+	}
+
+	r, err := protoregistry.New(mustLoadProtoReg(t))
+	require.NoError(t, err)
+
+	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+		withAnnotations: r,
+		withQueue:       queueInterceptor,
+		withBackends: withMockBackends(t, map[string]mock.SimpleServiceServer{
+			conf.VirtualStorages[0].Nodes[0].Storage: ms,
+			conf.VirtualStorages[0].Nodes[1].Storage: ms,
+		}),
+	})
+	defer cleanup()
+
+	mcli := mock.NewSimpleServiceClient(cc)
+
+	errQ <- nil
+	repoReq := &mock.RepoRequest{
+		Repo: &gitalypb.Repository{
+			RelativePath: "meow",
+			StorageName:  conf.VirtualStorages[0].Name,
+		},
+	}
+	_, err = mcli.RepoMutatorUnary(context.Background(), repoReq)
+	require.NoError(t, err)
+
+	expectErrMsg := "enqueue failed"
+	errQ <- errors.New(expectErrMsg)
+	_, err = mcli.RepoMutatorUnary(context.Background(), repoReq)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "rpc error: code = Unknown desc = enqueue replication event: "+expectErrMsg)
 }

@@ -28,7 +28,7 @@ type StreamDirector func(ctx context.Context, fullMethodName string, peeker Stre
 // proxy handler
 type StreamParameters struct {
 	primary      Destination
-	reqFinalizer func()
+	reqFinalizer func() error
 	callOptions  []grpc.CallOption
 	secondaries  []Destination
 }
@@ -41,7 +41,7 @@ type Destination struct {
 }
 
 // NewStreamParameters returns a new instance of StreamParameters
-func NewStreamParameters(primary Destination, secondaries []Destination, reqFinalizer func(), callOpts []grpc.CallOption) *StreamParameters {
+func NewStreamParameters(primary Destination, secondaries []Destination, reqFinalizer func() error, callOpts []grpc.CallOption) *StreamParameters {
 	return &StreamParameters{
 		primary:      primary,
 		secondaries:  secondaries,
@@ -59,10 +59,11 @@ func (s *StreamParameters) Secondaries() []Destination {
 }
 
 // RequestFinalizer calls the request finalizer
-func (s *StreamParameters) RequestFinalizer() {
+func (s *StreamParameters) RequestFinalizer() error {
 	if s.reqFinalizer != nil {
-		s.reqFinalizer()
+		return s.reqFinalizer()
 	}
+	return nil
 }
 
 // CallOptions returns call options

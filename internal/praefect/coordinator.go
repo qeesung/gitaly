@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
@@ -22,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -185,7 +184,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return nil, fmt.Errorf("mutator call: replication details: %w", err)
 	}
 
-	var finalizers []func()
+	var finalizers []func() error
 
 	primaryDest := proxy.Destination{
 		Ctx:  helper.IncomingToOutgoing(ctx),
@@ -241,11 +240,27 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		finalizers = append(finalizers, c.createReplicaJobs(ctx, virtualStorage, call.targetRepo, shard.Primary, shard.Secondaries, change, params))
 	}
 
-	return proxy.NewStreamParameters(primaryDest, secondaryDests, func() {
+	reqFinalizer := func() error {
+		var firstErr error
 		for _, finalizer := range finalizers {
-			finalizer()
+			err := finalizer()
+			if err == nil {
+				continue
+			}
+
+			if firstErr == nil {
+				firstErr = err
+				continue
+			}
+
+			ctxlogrus.
+				Extract(ctx).
+				WithError(err).
+				Error("coordinator proxy stream finalizer failure")
 		}
-	}, nil), nil
+		return firstErr
+	}
+	return proxy.NewStreamParameters(primaryDest, secondaryDests, reqFinalizer, nil), nil
 }
 
 // streamDirector determines which downstream servers receive requests
@@ -310,7 +325,7 @@ func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string,
 		Ctx:  helper.IncomingToOutgoing(ctx),
 		Conn: shard.Primary.GetConnection(),
 		Msg:  payload,
-	}, nil, func() {}, nil), nil
+	}, nil, func() error { return nil }, nil), nil
 }
 
 func rewrittenRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, storage string) ([]byte, error) {
@@ -356,14 +371,12 @@ func (c *Coordinator) createReplicaJobs(
 	secondaries []nodes.Node,
 	change datastore.ChangeType,
 	params datastore.Params,
-) func() {
-	return func() {
+) func() error {
+	return func() error {
 		correlationID := c.ensureCorrelationID(ctx, targetRepo)
 
-		var wg sync.WaitGroup
+		g, ctx := errgroup.WithContext(ctx)
 		for _, secondary := range secondaries {
-			wg.Add(1)
-
 			event := datastore.ReplicationEvent{
 				Job: datastore.ReplicationJob{
 					Change:            change,
@@ -376,21 +389,14 @@ func (c *Coordinator) createReplicaJobs(
 				Meta: datastore.Params{metadatahandler.CorrelationIDKey: correlationID},
 			}
 
-			go func() {
-				defer wg.Done()
-				_, err := c.queue.Enqueue(ctx, event)
-				if err != nil {
-					ctxlogrus.Extract(ctx).WithError(err).WithFields(logrus.Fields{
-						logWithReplVirtual: event.Job.VirtualStorage,
-						logWithReplSource:  event.Job.SourceNodeStorage,
-						logWithReplTarget:  event.Job.TargetNodeStorage,
-						logWithReplChange:  event.Job.Change,
-						logWithReplPath:    event.Job.RelativePath,
-					}).Error("failed to persist replication event")
+			g.Go(func() error {
+				if _, err := c.queue.Enqueue(ctx, event); err != nil {
+					return fmt.Errorf("enqueue replication event: %w", err)
 				}
-			}()
+				return nil
+			})
 		}
-		wg.Wait()
+		return g.Wait()
 	}
 }
 
