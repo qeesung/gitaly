@@ -106,8 +106,10 @@ func (mgr *Manager) log(ctx context.Context) logrus.FieldLogger {
 type CancelFunc func()
 
 // RegisterTransaction registers a new reference transaction for a set of nodes
-// taking part in the transaction.
-func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter) (uint64, CancelFunc, error) {
+// taking part in the transaction. `threshold` is the threshold at which an
+// election will succeed. It needs to be in the range `weight(voters)/2 <
+// threshold <= weight(voters) to avoid indecidable votes.
+func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, threshold uint) (uint64, CancelFunc, error) {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
@@ -117,7 +119,7 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter) (ui
 	// nodes still have in-flight transactions.
 	transactionID := mgr.txIDGenerator.ID()
 
-	transaction, err := newTransaction(voters)
+	transaction, err := newTransaction(voters, threshold)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -159,7 +161,7 @@ func (mgr *Manager) voteTransaction(ctx context.Context, transactionID uint64, n
 		return err
 	}
 
-	if err := transaction.collectVotes(ctx); err != nil {
+	if err := transaction.collectVotes(ctx, node); err != nil {
 		return err
 	}
 
@@ -167,8 +169,7 @@ func (mgr *Manager) voteTransaction(ctx context.Context, transactionID uint64, n
 }
 
 // VoteTransaction is called by a client who's casting a vote on a reference
-// transaction. It will wait for all clients of a given transaction to start
-// the transaction and perform a vote.
+// transaction. It waits until quorum was reached on the given transaction.
 func (mgr *Manager) VoteTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {
 	start := time.Now()
 	defer func() {

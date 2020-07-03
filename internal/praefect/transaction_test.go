@@ -3,6 +3,7 @@ package praefect
 import (
 	"context"
 	"crypto/sha1"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -70,8 +71,8 @@ func TestTransactionSucceeds(t *testing.T) {
 	client := gitalypb.NewRefTransactionClient(cc)
 
 	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
-		{Name: "node1"},
-	})
+		{Name: "node1", Votes: 1},
+	}, 1)
 	require.NoError(t, err)
 	require.NotZero(t, transactionID)
 	defer cancelTransaction()
@@ -169,11 +170,13 @@ func TestTransactionWithMultipleNodes(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			var voters []transactions.Voter
+			var threshold uint
 			for _, node := range tc.nodes {
-				voters = append(voters, transactions.Voter{Name: node})
+				voters = append(voters, transactions.Voter{Name: node, Votes: 1})
+				threshold += 1
 			}
 
-			transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters)
+			transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters, threshold)
 			require.NoError(t, err)
 			defer cancelTransaction()
 
@@ -208,9 +211,9 @@ func TestTransactionWithContextCancellation(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 
 	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
-		{Name: "voter"},
-		{Name: "absent"},
-	})
+		{Name: "voter", Votes: 1},
+		{Name: "absent", Votes: 1},
+	}, 2)
 	require.NoError(t, err)
 	defer cancelTransaction()
 
@@ -240,15 +243,204 @@ func TestTransactionRegistrationWithInvalidNodesFails(t *testing.T) {
 
 	txMgr := transactions.NewManager()
 
-	_, _, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{})
+	_, _, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{}, 1)
 	require.Equal(t, transactions.ErrMissingNodes, err)
 
 	_, _, err = txMgr.RegisterTransaction(ctx, []transactions.Voter{
-		{Name: "node1"},
-		{Name: "node2"},
-		{Name: "node1"},
-	})
+		{Name: "node1", Votes: 1},
+		{Name: "node2", Votes: 1},
+		{Name: "node1", Votes: 1},
+	}, 3)
 	require.Equal(t, transactions.ErrDuplicateNodes, err)
+}
+
+func TestTransactionRegistrationWithInvalidThresholdFails(t *testing.T) {
+	tc := []struct {
+		desc      string
+		votes     []uint
+		threshold uint
+	}{
+		{
+			desc:      "threshold is unreachable",
+			votes:     []uint{1, 1},
+			threshold: 3,
+		},
+		{
+			desc:      "threshold of zero fails",
+			votes:     []uint{0},
+			threshold: 0,
+		},
+		{
+			desc:      "threshold smaller than majority fails",
+			votes:     []uint{1, 1, 1},
+			threshold: 1,
+		},
+		{
+			desc:      "threshold equaling majority fails",
+			votes:     []uint{1, 1, 1, 1},
+			threshold: 2,
+		},
+		{
+			desc:      "threshold accounts for higher node votes",
+			votes:     []uint{2, 2, 2, 2},
+			threshold: 4,
+		},
+	}
+
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	txMgr := transactions.NewManager()
+
+	for _, tc := range tc {
+		t.Run(tc.desc, func(t *testing.T) {
+			var voters []transactions.Voter
+
+			for i, votes := range tc.votes {
+				voters = append(voters, transactions.Voter{
+					Name:  fmt.Sprintf("node-%d", i),
+					Votes: votes,
+				})
+			}
+
+			_, _, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			require.Equal(t, transactions.ErrInvalidThreshold, err)
+		})
+	}
+}
+
+func TestTransactionReachesQuorum(t *testing.T) {
+	type voter struct {
+		votes         uint
+		vote          string
+		showsUp       bool
+		shouldSucceed bool
+	}
+
+	tc := []struct {
+		desc      string
+		voters    []voter
+		threshold uint
+	}{
+		{
+			desc: "quorum is is not reached without majority",
+			voters: []voter{
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: false},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: false},
+				{votes: 1, vote: "baz", showsUp: true, shouldSucceed: false},
+			},
+			threshold: 2,
+		},
+		{
+			desc: "quorum is reached with unweighted node failing",
+			voters: []voter{
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 0, vote: "bar", showsUp: true, shouldSucceed: false},
+			},
+			threshold: 1,
+		},
+		{
+			desc: "quorum is reached with majority",
+			voters: []voter{
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: false},
+			},
+			threshold: 2,
+		},
+		{
+			desc: "quorum is reached with high vote outweighing",
+			voters: []voter{
+				{votes: 3, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: false},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: false},
+			},
+			threshold: 3,
+		},
+		{
+			desc: "quorum is reached with high vote being outweighed",
+			voters: []voter{
+				{votes: 3, vote: "foo", showsUp: true, shouldSucceed: false},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: true, shouldSucceed: true},
+			},
+			threshold: 4,
+		},
+		{
+			desc: "quorum is reached with disappearing unweighted voter",
+			voters: []voter{
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 0, vote: "foo", showsUp: false, shouldSucceed: false},
+			},
+			threshold: 1,
+		},
+		{
+			desc: "quorum is reached with disappearing weighted voter",
+			voters: []voter{
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "foo", showsUp: true, shouldSucceed: true},
+				{votes: 1, vote: "bar", showsUp: false, shouldSucceed: false},
+			},
+			threshold: 2,
+		},
+	}
+
+	cc, txMgr, cleanup := runPraefectServerAndTxMgr(t)
+	defer cleanup()
+
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	client := gitalypb.NewRefTransactionClient(cc)
+
+	for _, tc := range tc {
+		t.Run(tc.desc, func(t *testing.T) {
+			var voters []transactions.Voter
+
+			for i, voter := range tc.voters {
+				voters = append(voters, transactions.Voter{
+					Name:  fmt.Sprintf("node-%d", i),
+					Votes: voter.votes,
+				})
+			}
+
+			transactionID, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			require.NoError(t, err)
+			defer cancel()
+
+			var wg sync.WaitGroup
+			for i, v := range tc.voters {
+				if !v.showsUp {
+					continue
+				}
+
+				wg.Add(1)
+				go func(i int, v voter) {
+					defer wg.Done()
+
+					name := fmt.Sprintf("node-%d", i)
+					hash := sha1.Sum([]byte(v.vote))
+
+					response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
+						TransactionId:        transactionID,
+						Node:                 name,
+						ReferenceUpdatesHash: hash[:],
+					})
+					require.NoError(t, err)
+
+					if v.shouldSucceed {
+						require.Equal(t, gitalypb.VoteTransactionResponse_COMMIT, response.State, "node should have received COMMIT")
+					} else {
+						require.Equal(t, gitalypb.VoteTransactionResponse_ABORT, response.State, "node should have received ABORT")
+					}
+				}(i, v)
+			}
+
+			wg.Wait()
+		})
+	}
 }
 
 func TestTransactionFailures(t *testing.T) {
@@ -287,8 +479,8 @@ func TestTransactionCancellation(t *testing.T) {
 	client := gitalypb.NewRefTransactionClient(cc)
 
 	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
-		{Name: "node1"},
-	})
+		{Name: "node1", Votes: 1},
+	}, 1)
 	require.NoError(t, err)
 	require.NotZero(t, transactionID)
 

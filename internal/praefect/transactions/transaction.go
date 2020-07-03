@@ -11,6 +11,7 @@ import (
 var (
 	ErrDuplicateNodes        = errors.New("transactions cannot have duplicate nodes")
 	ErrMissingNodes          = errors.New("transaction requires at least one node")
+	ErrInvalidThreshold      = errors.New("transaction has invalid threshold")
 	ErrTransactionVoteFailed = errors.New("transaction vote failed")
 	ErrTransactionCanceled   = errors.New("transaction was canceled")
 )
@@ -19,6 +20,10 @@ var (
 type Voter struct {
 	// Name of the voter, usually Gitaly's storage name.
 	Name string
+	// Votes is the number of votes available to this voter in the voting
+	// process. `0` means the outcome of the vote will not be influenced by
+	// this voter.
+	Votes uint
 
 	vote vote
 }
@@ -44,16 +49,21 @@ type transaction struct {
 	doneCh   chan interface{}
 	cancelCh chan interface{}
 
+	threshold uint
+
 	lock         sync.Mutex
 	votersByNode map[string]*Voter
+	voteCounts   map[vote]uint
 }
 
-func newTransaction(voters []Voter) (*transaction, error) {
+func newTransaction(voters []Voter, threshold uint) (*transaction, error) {
 	if len(voters) == 0 {
 		return nil, ErrMissingNodes
 	}
 
+	var totalVotes uint
 	votersByNode := make(map[string]*Voter, len(voters))
+
 	for _, voter := range voters {
 		if _, ok := votersByNode[voter.Name]; ok {
 			return nil, ErrDuplicateNodes
@@ -61,12 +71,28 @@ func newTransaction(voters []Voter) (*transaction, error) {
 
 		voter := voter // rescope loop variable
 		votersByNode[voter.Name] = &voter
+		totalVotes += voter.Votes
+	}
+
+	// If the given threshold is smaller than the total votes, then we
+	// cannot ever reach quorum.
+	if totalVotes < threshold {
+		return nil, ErrInvalidThreshold
+	}
+
+	// If the threshold is less or equal than half of all node's votes,
+	// it's possible to reach multiple different quorums that settle on
+	// different outcomes.
+	if threshold*2 <= totalVotes {
+		return nil, ErrInvalidThreshold
 	}
 
 	return &transaction{
 		doneCh:       make(chan interface{}),
 		cancelCh:     make(chan interface{}),
+		threshold:    threshold,
 		votersByNode: votersByNode,
+		voteCounts:   make(map[vote]uint, len(votersByNode)),
 	}, nil
 }
 
@@ -94,23 +120,45 @@ func (t *transaction) vote(node string, hash []byte) error {
 	}
 	voter.vote = vote
 
-	// Count votes to see if we're done. If there are no more votes, then
-	// we must notify other voters (and ourselves) by closing the `done`
-	// channel.
+	oldCount := t.voteCounts[vote]
+	newCount := oldCount + voter.Votes
+	t.voteCounts[vote] = newCount
+
+	// If the threshold was reached before already, we mustn't try to
+	// signal the other voters again.
+	if oldCount >= t.threshold {
+		return nil
+	}
+
+	// If we've just crossed the threshold, signal all voters that the
+	// voting has concluded.
+	if newCount >= t.threshold {
+		close(t.doneCh)
+		return nil
+	}
+
+	// If any other vote has already reached the threshold, we mustn't try
+	// to notify voters again.
+	for _, count := range t.voteCounts {
+		if count >= t.threshold {
+			return nil
+		}
+	}
+
+	// If any of the voters didn't yet cast its vote, we need to wait for
+	// them.
 	for _, voter := range t.votersByNode {
 		if voter.vote.isEmpty() {
 			return nil
 		}
 	}
 
-	// As only the last voter may see that all participants have cast their
-	// vote, this can really only be called by a single goroutine.
+	// Otherwise, signal voters that all votes were gathered.
 	close(t.doneCh)
-
 	return nil
 }
 
-func (t *transaction) collectVotes(ctx context.Context) error {
+func (t *transaction) collectVotes(ctx context.Context, node string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -120,15 +168,18 @@ func (t *transaction) collectVotes(ctx context.Context) error {
 		break
 	}
 
-	// Count votes to see whether we reached agreement or not. There should
-	// be no need to lock as nobody will modify the votes anymore.
-	var firstVote vote
-	for _, voter := range t.votersByNode {
-		if firstVote.isEmpty() {
-			firstVote = voter.vote
-		} else if firstVote != voter.vote {
-			return ErrTransactionVoteFailed
-		}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	voter, ok := t.votersByNode[node]
+	if !ok {
+		return fmt.Errorf("invalid node for transaction: %q", node)
+	}
+
+	// See if our vote crossed the threshold. As there can be only one vote
+	// exceeding it, we know we're the winner in that case.
+	if t.voteCounts[voter.vote] < t.threshold {
+		return ErrTransactionVoteFailed
 	}
 
 	return nil

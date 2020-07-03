@@ -197,14 +197,17 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 
 	if _, ok := transactionRPCs[call.fullMethodName]; ok && featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
 		var voters []transactions.Voter
+		var threshold uint
 
 		for _, node := range append(shard.Secondaries, shard.Primary) {
 			voters = append(voters, transactions.Voter{
-				Name: node.GetStorage(),
+				Name:  node.GetStorage(),
+				Votes: 1,
 			})
+			threshold += 1
 		}
 
-		transactionID, transactionCleanup, err := c.txMgr.RegisterTransaction(ctx, voters)
+		transactionID, transactionCleanup, err := c.txMgr.RegisterTransaction(ctx, voters, threshold)
 		if err != nil {
 			return nil, fmt.Errorf("registering transactions: %w", err)
 		}
