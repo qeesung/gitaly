@@ -237,21 +237,27 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		finalizers = append(finalizers, c.createReplicaJobs(ctx, virtualStorage, call.targetRepo, shard.Primary, shard.Secondaries, change, params))
 	}
 
-	return proxy.NewStreamParameters(primaryDest, secondaryDests, func() error {
+	reqFinalizer := func() error {
 		var firstErr error
 		for _, finalizer := range finalizers {
-			switch err := finalizer(); {
-			case err != nil && firstErr == nil: // first error
-				firstErr = err
-			case err != nil && firstErr != nil:
-				ctxlogrus.
-					Extract(ctx).
-					WithError(err).
-					Error("coordinator proxy stream finalizer failure")
+			err := finalizer()
+			if err == nil {
+				continue
 			}
+
+			if firstErr == nil {
+				firstErr = err
+				continue
+			}
+
+			ctxlogrus.
+				Extract(ctx).
+				WithError(err).
+				Error("coordinator proxy stream finalizer failure")
 		}
 		return firstErr
-	}, nil), nil
+	}
+	return proxy.NewStreamParameters(primaryDest, secondaryDests, reqFinalizer, nil), nil
 }
 
 // streamDirector determines which downstream servers receive requests
@@ -381,11 +387,10 @@ func (c *Coordinator) createReplicaJobs(
 			}
 
 			g.Go(func() error {
-				_, err := c.queue.Enqueue(ctx, event)
-				if err != nil {
-					err = fmt.Errorf("enqueue replication event: %w", err)
+				if _, err := c.queue.Enqueue(ctx, event); err != nil {
+					return fmt.Errorf("enqueue replication event: %w", err)
 				}
-				return err
+				return nil
 			})
 		}
 		return g.Wait()
