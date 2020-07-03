@@ -613,5 +613,6 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 	expectErrMsg := "enqueue failed"
 	go func() { errQ <- errors.New(expectErrMsg) }()
 	_, err = mcli.RepoMutatorUnary(context.Background(), repoReq)
-	require.Error(t, err, expectErrMsg)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "rpc error: code = Unknown desc = enqueue replication event: "+expectErrMsg)
 }
