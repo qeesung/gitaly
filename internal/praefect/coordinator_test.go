@@ -574,7 +574,7 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 	}
 
 	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
-	errQ := make(chan error)
+	errQ := make(chan error, 1)
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		return datastore.ReplicationEvent{}, <-errQ
 	})
@@ -600,7 +600,7 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 
 	mcli := mock.NewSimpleServiceClient(cc)
 
-	go func() { errQ <- nil }()
+	errQ <- nil
 	repoReq := &mock.RepoRequest{
 		Repo: &gitalypb.Repository{
 			RelativePath: "meow",
@@ -611,7 +611,7 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	expectErrMsg := "enqueue failed"
-	go func() { errQ <- errors.New(expectErrMsg) }()
+	errQ <- errors.New(expectErrMsg)
 	_, err = mcli.RepoMutatorUnary(context.Background(), repoReq)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "rpc error: code = Unknown desc = enqueue replication event: "+expectErrMsg)
