@@ -36,7 +36,7 @@ For configuration please read [praefects configuration documentation](doc/config
 - [Git object quarantine during git push](object_quarantine.md)
 - [Logging in Gitaly](logging.md)
 
-#### Proposals
+#### RFCs
 
-- [Snapshot storage](proposals/snapshot-storage.md)
-- [Praefect Queue storage](proposals/praefect-queue-storage.md)
+- [Praefect Queue storage](rfcs/praefect-queue-storage.md)
+- [Snapshot storage](rfcs/snapshot-storage.md)

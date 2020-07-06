@@ -130,7 +130,7 @@ responsibilities:
 
 Praefect has internal state: it needs to be able to "remember" which
 repositories are in need of replication, and which Gitaly server is the
-primary. [We will use Postgres to store Praefect's internal state](doc/proposals/praefect-queue-storage.md).
+primary. [We will use Postgres to store Praefect's internal state](doc/rfcs/praefect-queue-storage.md).
 
 As of December 2019 we are busy rolling out the Postgres integration in
 Praefect. The minimum supported Postgres version is 9.6, just like the
