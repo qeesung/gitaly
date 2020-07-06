@@ -55,7 +55,7 @@ rescue StandardError => e
 end
 
 def presented_no_changelog_labels
-  NO_CHANGELOG_LABELS.map { |label| %Q(~"#{label}") }.join(', ')
+  NO_CHANGELOG_LABELS.map { |label| %Q(~\\"#{label}\\") }.join(', ')
 end
 
 changelog_needed = (gitlab.mr_labels & NO_CHANGELOG_LABELS).empty?
