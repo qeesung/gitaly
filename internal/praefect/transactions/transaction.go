@@ -51,7 +51,7 @@ type transaction struct {
 
 	threshold uint
 
-	lock         sync.Mutex
+	lock         sync.RWMutex
 	votersByNode map[string]*Voter
 	voteCounts   map[vote]uint
 }
@@ -168,8 +168,8 @@ func (t *transaction) collectVotes(ctx context.Context, node string) error {
 		break
 	}
 
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	t.lock.RLock()
+	defer t.lock.RUnlock()
 
 	voter, ok := t.votersByNode[node]
 	if !ok {
