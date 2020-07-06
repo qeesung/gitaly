@@ -1,0 +1,5 @@
+---
+title: Improve logging on the replication manager
+merge_request: 2351
+author:
+type: fixed

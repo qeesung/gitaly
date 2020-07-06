@@ -385,6 +385,8 @@ func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStora
 	logger := r.log.WithField("virtual_storage", virtualStorage)
 	backoff, reset := b()
 
+	logger.Info("processing started")
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -479,15 +481,17 @@ func (r ReplMgr) startHealthUpdate(ctx context.Context, logger logrus.FieldLogge
 }
 
 func (r ReplMgr) handleNodeEvent(ctx context.Context, logger logrus.FieldLogger, shard nodes.Shard, target nodes.Node, event datastore.ReplicationEvent) datastore.JobState {
+	logger = logger.WithFields(logrus.Fields{
+		logWithReplJobID: event.ID,
+		logWithCorrID:    getCorrelationID(event.Meta),
+	})
+	logger.Info("processing replication job")
 	err := r.processReplicationEvent(ctx, event, shard, target.GetConnection())
 	if err == nil {
 		return datastore.JobStateCompleted
 	}
 
-	logger.WithFields(logrus.Fields{
-		logWithReplJobID: event.ID,
-		logWithCorrID:    getCorrelationID(event.Meta),
-	}).WithError(err).Error("replication job failed")
+	logger.WithError(err).Error("replication job failed")
 
 	if event.Attempt <= 0 {
 		return datastore.JobStateDead
