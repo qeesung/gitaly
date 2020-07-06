@@ -6,9 +6,6 @@ type FeatureFlag struct {
 }
 
 var (
-	// UploadPackFilter enables partial clones by sending uploadpack.allowFilter and uploadpack.allowAnySHA1InWant
-	// to upload-pack
-	UploadPackFilter = FeatureFlag{Name: "upload_pack_filter", OnByDefault: false}
 	// LinguistFileCountStats will invoke an additional git-linguist command to get the number of files per language
 	LinguistFileCountStats = FeatureFlag{Name: "linguist_file_count_stats", OnByDefault: false}
 	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks
