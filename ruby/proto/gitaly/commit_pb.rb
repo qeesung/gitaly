@@ -124,7 +124,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     repeated :ref_names, :bytes, 2
   end
   add_message "gitaly.ListCommitsByRefNameResponse" do
-    repeated :commits, :message, 1, "gitaly.GitCommit"
     repeated :commit_refs, :message, 2, "gitaly.ListCommitsByRefNameResponse.CommitForRef"
   end
   add_message "gitaly.ListCommitsByRefNameResponse.CommitForRef" do

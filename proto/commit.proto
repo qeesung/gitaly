@@ -278,7 +278,7 @@ message ListCommitsByRefNameRequest {
 }
 
 message ListCommitsByRefNameResponse {
-  repeated GitCommit commits = 1 [deprecated = true];
+  reserved 1;
 
   message CommitForRef {
     GitCommit commit = 1;
