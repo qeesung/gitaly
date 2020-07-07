@@ -25,7 +25,7 @@ func (s *server) CreateBundle(req *gitalypb.CreateBundleRequest, stream gitalypb
 
 	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "bundle",
-		Flags: []git.Option{git.SubSubCmd{"create"}, git.OutputToStdout, git.Flag{"--all"}},
+		Flags: []git.Option{git.SubSubCmd{"create"}, git.OutputToStdout, git.Flag{Name: "--all"}},
 	})
 	if err != nil {
 		return status.Errorf(codes.Internal, "CreateBundle: cmd start failed: %v", err)

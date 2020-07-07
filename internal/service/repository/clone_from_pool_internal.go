@@ -121,7 +121,7 @@ func (s *server) cloneFromPool(ctx context.Context, objectPoolRepo *gitalypb.Obj
 
 	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{}, nil, nil, git.SubCmd{
 		Name:        "clone",
-		Flags:       []git.Option{git.Flag{"--bare"}, git.Flag{"--shared"}},
+		Flags:       []git.Option{git.Flag{Name: "--bare"}, git.Flag{Name: "--shared"}},
 		PostSepArgs: []string{objectPoolPath, repositoryPath},
 	})
 	if err != nil {

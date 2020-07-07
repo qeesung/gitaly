@@ -63,7 +63,7 @@ func getRawChanges(stream gitalypb.RepositoryService_GetRawChangesServer, repo *
 
 	diffCmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "diff",
-		Flags: []git.Option{git.Flag{"--raw"}, git.Flag{"-z"}},
+		Flags: []git.Option{git.Flag{Name: "--raw"}, git.Flag{Name: "-z"}},
 		Args:  []string{from, to},
 	})
 	if err != nil {

@@ -59,7 +59,7 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 
 	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{In: stdin, Out: stdout}, env, globalOpts, git.SubCmd{
 		Name:  "receive-pack",
-		Flags: []git.Option{git.Flag{"--stateless-rpc"}},
+		Flags: []git.Option{git.Flag{Name: "--stateless-rpc"}},
 		Args:  []string{repoPath},
 	})
 

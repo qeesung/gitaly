@@ -17,13 +17,13 @@ func TestFlagValidation(t *testing.T) {
 		valid  bool
 	}{
 		// valid Flag inputs
-		{option: git.Flag{"-k"}, valid: true},
-		{option: git.Flag{"-K"}, valid: true},
-		{option: git.Flag{"--asdf"}, valid: true},
-		{option: git.Flag{"--asdf-qwer"}, valid: true},
-		{option: git.Flag{"--asdf=qwerty"}, valid: true},
-		{option: git.Flag{"-D=A"}, valid: true},
-		{option: git.Flag{"-D="}, valid: true},
+		{option: git.Flag{Name: "-k"}, valid: true},
+		{option: git.Flag{Name: "-K"}, valid: true},
+		{option: git.Flag{Name: "--asdf"}, valid: true},
+		{option: git.Flag{Name: "--asdf-qwer"}, valid: true},
+		{option: git.Flag{Name: "--asdf=qwerty"}, valid: true},
+		{option: git.Flag{Name: "-D=A"}, valid: true},
+		{option: git.Flag{Name: "-D="}, valid: true},
 
 		// valid ValueFlag inputs
 		{option: git.ValueFlag{"-k", "adsf"}, valid: true},
@@ -40,11 +40,11 @@ func TestFlagValidation(t *testing.T) {
 		{option: git.ConfigPair{"http.https://user@example.com/repo.git.user", "kitty"}, valid: true},
 
 		// invalid Flag inputs
-		{option: git.Flag{"-*"}},          // invalid character
-		{option: git.Flag{"a"}},           // missing dash
-		{option: git.Flag{"[["}},          // suspicious characters
-		{option: git.Flag{"||"}},          // suspicious characters
-		{option: git.Flag{"asdf=qwerty"}}, // missing dash
+		{option: git.Flag{Name: "-*"}},          // invalid character
+		{option: git.Flag{Name: "a"}},           // missing dash
+		{option: git.Flag{Name: "[["}},          // suspicious characters
+		{option: git.Flag{Name: "||"}},          // suspicious characters
+		{option: git.Flag{Name: "asdf=qwerty"}}, // missing dash
 
 		// invalid ValueFlag inputs
 		{option: git.ValueFlag{"k", "asdf"}}, // missing dash
@@ -85,7 +85,7 @@ func TestSafeCmdInvalidArg(t *testing.T) {
 		{
 			subCmd: git.SubCmd{
 				Name:  "meow",
-				Flags: []git.Option{git.Flag{"woof"}},
+				Flags: []git.Option{git.Flag{Name: "woof"}},
 			},
 			errMsg: `flag "woof" failed regex validation: invalid argument`,
 		},
@@ -138,7 +138,7 @@ func TestSafeCmdValid(t *testing.T) {
 		},
 		{
 			globals: []git.Option{
-				git.Flag{"--aaaa-bbbb"},
+				git.Flag{Name: "--aaaa-bbbb"},
 			},
 			subCmd:     git.SubCmd{Name: "cccc"},
 			expectArgs: []string{"--aaaa-bbbb", "cccc", endOfOptions},
@@ -153,15 +153,15 @@ func TestSafeCmdValid(t *testing.T) {
 		},
 		{
 			globals: []git.Option{
-				git.Flag{"-a"},
+				git.Flag{Name: "-a"},
 				git.ValueFlag{"-b", "c"},
 			},
 			subCmd: git.SubCmd{
 				Name: "d",
 				Flags: []git.Option{
-					git.Flag{"-e"},
+					git.Flag{Name: "-e"},
 					git.ValueFlag{"-f", "g"},
-					git.Flag{"-h=i"},
+					git.Flag{Name: "-h=i"},
 				},
 				Args:        []string{"1", "2"},
 				PostSepArgs: []string{"3", "4", "5"},
@@ -174,14 +174,14 @@ func TestSafeCmdValid(t *testing.T) {
 				Flags: []git.Option{
 					git.SubSubCmd{"verb"},
 					git.OutputToStdout,
-					git.Flag{"--adjective"},
+					git.Flag{Name: "--adjective"},
 				},
 			},
 			expectArgs: []string{"noun", "verb", "-", "--adjective", endOfOptions},
 		},
 		{
 			globals: []git.Option{
-				git.Flag{"--contributing"},
+				git.Flag{Name: "--contributing"},
 				git.ValueFlag{"--author", "a-gopher"},
 			},
 			subCmd: git.SubCmd{

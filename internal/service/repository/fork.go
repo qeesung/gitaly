@@ -45,7 +45,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 
 	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{}, env, nil, git.SubCmd{
 		Name:  "clone",
-		Flags: []git.Option{git.Flag{"--bare"}, git.Flag{"--no-local"}},
+		Flags: []git.Option{git.Flag{Name: "--bare"}, git.Flag{Name: "--no-local"}},
 		PostSepArgs: []string{
 			fmt.Sprintf("%s:%s", gitalyInternalURL, sourceRepository.RelativePath),
 			targetRepositoryFullPath,

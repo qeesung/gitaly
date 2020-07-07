@@ -29,9 +29,9 @@ func init() {
 
 func (*server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest) (*gitalypb.RepackFullResponse, error) {
 	options := []git.Option{
-		git.Flag{"-A"},
-		git.Flag{"--pack-kept-objects"},
-		git.Flag{"-l"},
+		git.Flag{Name: "-A"},
+		git.Flag{Name: "--pack-kept-objects"},
+		git.Flag{Name: "-l"},
 	}
 	if err := repackCommand(ctx, in.GetRepository(), in.GetCreateBitmap(), options...); err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func repackCommand(ctx context.Context, repo repository.GitRepo, bitmap bool, ar
 		repackConfig(ctx, bitmap), // global configs
 		git.SubCmd{
 			Name:  "repack",
-			Flags: append([]git.Option{git.Flag{"-d"}}, args...),
+			Flags: append([]git.Option{git.Flag{Name: "-d"}}, args...),
 		},
 	)
 	if err != nil {

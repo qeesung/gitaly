@@ -65,7 +65,7 @@ func handleInfoRefs(ctx context.Context, service string, req *gitalypb.InfoRefsR
 
 	cmd, err := git.SafeBareCmd(ctx, git.CmdStream{}, env, globalOpts, git.SubCmd{
 		Name:  service,
-		Flags: []git.Option{git.Flag{"--stateless-rpc"}, git.Flag{"--advertise-refs"}},
+		Flags: []git.Option{git.Flag{Name: "--stateless-rpc"}, git.Flag{Name: "--advertise-refs"}},
 		Args:  []string{repoPath},
 	})
 

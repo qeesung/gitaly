@@ -42,7 +42,7 @@ func findRefs(ctx context.Context, writer lines.Sender, repo *gitalypb.Repositor
 	var options []git.Option
 
 	if len(opts.cmdArgs) == 0 {
-		options = append(options, git.Flag{"--format=%(refname)"}) // Default format
+		options = append(options, git.Flag{Name: "--format=%(refname)"}) // Default format
 	} else {
 		options = append(options, opts.cmdArgs...)
 	}
@@ -158,7 +158,7 @@ func _findBranchNames(ctx context.Context, repo *gitalypb.Repository) ([][]byte,
 
 	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "for-each-ref",
-		Flags: []git.Option{git.Flag{"--format=%(refname)"}},
+		Flags: []git.Option{git.Flag{Name: "--format=%(refname)"}},
 		Args:  []string{"refs/heads"}},
 	)
 	if err != nil {
@@ -185,7 +185,7 @@ func _headReference(ctx context.Context, repo *gitalypb.Repository) ([]byte, err
 
 	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "rev-parse",
-		Flags: []git.Option{git.Flag{"--symbolic-full-name"}},
+		Flags: []git.Option{git.Flag{Name: "--symbolic-full-name"}},
 		Args:  []string{"HEAD"},
 	})
 	if err != nil {
@@ -308,8 +308,8 @@ func findLocalBranches(in *gitalypb.FindLocalBranchesRequest, stream gitalypb.Re
 	opts := paginationParamsToOpts(in.GetPaginationParams())
 	opts.cmdArgs = []git.Option{
 		// %00 inserts the null character into the output (see for-each-ref docs)
-		git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
-		git.Flag{"--sort=" + parseSortKey(in.GetSortBy())},
+		git.Flag{Name: "--format=" + strings.Join(localBranchFormatFields, "%00")},
+		git.Flag{Name: "--sort=" + parseSortKey(in.GetSortBy())},
 	}
 
 	return findRefs(ctx, writer, in.Repository, []string{"refs/heads"}, opts)
@@ -326,7 +326,7 @@ func (s *server) FindAllBranches(in *gitalypb.FindAllBranchesRequest, stream git
 func findAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefService_FindAllBranchesServer) error {
 	args := []git.Option{
 		// %00 inserts the null character into the output (see for-each-ref docs)
-		git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
+		git.Flag{Name: "--format=" + strings.Join(localBranchFormatFields, "%00")},
 	}
 
 	patterns := []string{"refs/heads", "refs/remotes"}
@@ -415,7 +415,7 @@ func findTag(ctx context.Context, repository *gitalypb.Repository, tagName []byt
 	tagCmd, err := git.SafeCmd(ctx, repository, nil, git.SubCmd{
 		Name: "tag",
 		Flags: []git.Option{
-			git.Flag{"-l"}, git.ValueFlag{"--format", tagFormat},
+			git.Flag{Name: "-l"}, git.ValueFlag{"--format", tagFormat},
 		},
 		Args: []string{string(tagName)},
 	})

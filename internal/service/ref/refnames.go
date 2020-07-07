@@ -55,7 +55,7 @@ func (ts *findAllTagNamesSender) Send() error {
 
 func listRefNames(ctx context.Context, chunker *chunk.Chunker, prefix string, repo *gitalypb.Repository, extraArgs []string) error {
 	flags := []git.Option{
-		git.Flag{"--format=%(refname)"},
+		git.Flag{Name: "--format=%(refname)"},
 	}
 
 	for _, arg := range extraArgs {

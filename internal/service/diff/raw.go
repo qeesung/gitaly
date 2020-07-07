@@ -18,7 +18,7 @@ func (s *server) RawDiff(in *gitalypb.RawDiffRequest, stream gitalypb.DiffServic
 
 	subCmd := git.SubCmd{
 		Name:  "diff",
-		Flags: []git.Option{git.Flag{"--full-index"}},
+		Flags: []git.Option{git.Flag{Name: "--full-index"}},
 		Args:  []string{in.LeftCommitId, in.RightCommitId},
 	}
 
@@ -36,7 +36,7 @@ func (s *server) RawPatch(in *gitalypb.RawPatchRequest, stream gitalypb.DiffServ
 
 	subCmd := git.SubCmd{
 		Name:  "format-patch",
-		Flags: []git.Option{git.Flag{"--stdout"}, git.ValueFlag{"--signature", "GitLab"}},
+		Flags: []git.Option{git.Flag{Name: "--stdout"}, git.ValueFlag{"--signature", "GitLab"}},
 		Args:  []string{in.LeftCommitId + ".." + in.RightCommitId},
 	}
 

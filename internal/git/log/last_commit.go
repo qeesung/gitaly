@@ -15,7 +15,7 @@ import (
 func LastCommitForPath(ctx context.Context, batch *catfile.Batch, repo *gitalypb.Repository, revision string, path string, options *gitalypb.GlobalOptions) (*gitalypb.GitCommit, error) {
 	cmd, err := git.SafeCmd(ctx, repo, git.ConvertGlobalOptions(options), git.SubCmd{
 		Name:        "log",
-		Flags:       []git.Option{git.Flag{"--format=%H"}, git.Flag{"--max-count=1"}},
+		Flags:       []git.Option{git.Flag{Name: "--format=%H"}, git.Flag{Name: "--max-count=1"}},
 		Args:        []string{revision},
 		PostSepArgs: []string{path}})
 	if err != nil {
@@ -34,7 +34,7 @@ func LastCommitForPath(ctx context.Context, batch *catfile.Batch, repo *gitalypb
 func GitLogCommand(ctx context.Context, repo *gitalypb.Repository, revisions []string, paths []string, options *gitalypb.GlobalOptions, extraArgs ...git.Option) (*command.Command, error) {
 	return git.SafeCmd(ctx, repo, git.ConvertGlobalOptions(options), git.SubCmd{
 		Name:        "log",
-		Flags:       append([]git.Option{git.Flag{"--pretty=%H"}}, extraArgs...),
+		Flags:       append([]git.Option{git.Flag{Name: "--pretty=%H"}}, extraArgs...),
 		Args:        revisions,
 		PostSepArgs: paths,
 	})

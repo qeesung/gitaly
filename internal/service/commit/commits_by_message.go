@@ -40,14 +40,14 @@ func commitsByMessage(in *gitalypb.CommitsByMessageRequest, stream gitalypb.Comm
 	sender := &commitsByMessageSender{stream: stream}
 
 	gitLogExtraOptions := []git.Option{
-		git.Flag{"--grep=" + in.GetQuery()},
-		git.Flag{"--regexp-ignore-case"},
+		git.Flag{Name: "--grep=" + in.GetQuery()},
+		git.Flag{Name: "--regexp-ignore-case"},
 	}
 	if offset := in.GetOffset(); offset > 0 {
-		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{fmt.Sprintf("--skip=%d", offset)})
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{Name: fmt.Sprintf("--skip=%d", offset)})
 	}
 	if limit := in.GetLimit(); limit > 0 {
-		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{fmt.Sprintf("--max-count=%d", limit)})
+		gitLogExtraOptions = append(gitLogExtraOptions, git.Flag{Name: fmt.Sprintf("--max-count=%d", limit)})
 	}
 
 	revision := in.GetRevision()

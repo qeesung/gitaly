@@ -24,7 +24,7 @@ func (s *server) FindAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesReques
 
 func findAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesRequest, stream gitalypb.RefService_FindAllRemoteBranchesServer) error {
 	args := []git.Option{
-		git.Flag{"--format=" + strings.Join(localBranchFormatFields, "%00")},
+		git.Flag{Name: "--format=" + strings.Join(localBranchFormatFields, "%00")},
 	}
 
 	patterns := []string{"refs/remotes/" + req.GetRemoteName()}

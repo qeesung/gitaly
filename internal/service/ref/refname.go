@@ -31,8 +31,8 @@ func (s *server) FindRefName(ctx context.Context, in *gitalypb.FindRefNameReques
 // We assume `repo` and `commitID` and `prefix` are non-empty
 func findRefName(ctx context.Context, repo *gitalypb.Repository, commitID, prefix string) (string, error) {
 	flags := []git.Option{
-		git.Flag{"--format=%(refname)"},
-		git.Flag{"--count=1"},
+		git.Flag{Name: "--format=%(refname)"},
+		git.Flag{Name: "--count=1"},
 	}
 
 	subCmd := ForEachRefCmd{PostArgFlags: []git.Option{

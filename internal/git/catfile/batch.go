@@ -46,7 +46,7 @@ func newBatchProcess(ctx context.Context, repo repository.GitRepo) (*batchProces
 
 	batchCmd, err := git.SafeBareCmd(ctx, git.CmdStream{In: stdinReader}, env,
 		[]git.Option{git.ValueFlag{Name: "--git-dir", Value: repoPath}},
-		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{"--batch"}}})
+		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{Name: "--batch"}}})
 	if err != nil {
 		return nil, err
 	}

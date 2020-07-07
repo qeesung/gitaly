@@ -16,7 +16,7 @@ func (s *server) ReduplicateRepository(ctx context.Context, req *gitalypb.Redupl
 
 	cmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, git.SubCmd{
 		Name:  "repack",
-		Flags: []git.Option{git.Flag{"--quiet"}, git.Flag{"-a"}},
+		Flags: []git.Option{git.Flag{Name: "--quiet"}, git.Flag{Name: "-a"}},
 	})
 	if err != nil {
 		return nil, err

@@ -32,7 +32,7 @@ func newBatchCheck(ctx context.Context, repo repository.GitRepo) (*batchCheck, e
 
 	batchCmd, err := git.SafeBareCmd(ctx, git.CmdStream{In: stdinReader}, env,
 		[]git.Option{git.ValueFlag{Name: "--git-dir", Value: repoPath}},
-		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{"--batch-check"}}})
+		git.SubCmd{Name: "cat-file", Flags: []git.Option{git.Flag{Name: "--batch-check"}}})
 	if err != nil {
 		return nil, err
 	}

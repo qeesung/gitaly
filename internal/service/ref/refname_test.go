@@ -188,7 +188,7 @@ func TestFindRefCmd(t *testing.T) {
 			cmd: ForEachRefCmd{
 				SubCmd: git.SubCmd{
 					Name:  "for-each-ref",
-					Flags: []git.Option{git.Flag{"--tcl"}},
+					Flags: []git.Option{git.Flag{Name: "--tcl"}},
 					Args:  []string{"master"},
 				},
 			},
@@ -200,7 +200,7 @@ func TestFindRefCmd(t *testing.T) {
 			cmd: ForEachRefCmd{
 				SubCmd: git.SubCmd{
 					Name:  "for-each-ref",
-					Flags: []git.Option{git.Flag{"--tcl"}},
+					Flags: []git.Option{git.Flag{Name: "--tcl"}},
 					Args:  []string{"master"},
 				},
 				PostArgFlags: []git.Option{git.ValueFlag{Name: "--contains", Value: "blahblah"}},

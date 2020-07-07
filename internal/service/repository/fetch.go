@@ -49,7 +49,7 @@ func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourc
 		[]git.Option{git.ValueFlag{"--git-dir", repoPath}},
 		git.SubCmd{
 			Name:  "fetch",
-			Flags: []git.Option{git.Flag{"--prune"}},
+			Flags: []git.Option{git.Flag{Name: "--prune"}},
 			Args:  []string{remote, refspec},
 		},
 	)

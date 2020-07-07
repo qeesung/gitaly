@@ -26,7 +26,7 @@ type Updater struct {
 func New(ctx context.Context, repo repository.GitRepo) (*Updater, error) {
 	cmd, err := git.SafeStdinCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "update-ref",
-		Flags: []git.Option{git.Flag{"-z"}, git.Flag{"--stdin"}},
+		Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--stdin"}},
 	})
 	if err != nil {
 		return nil, err

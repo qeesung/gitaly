@@ -53,7 +53,7 @@ func refsToRemove(ctx context.Context, req *gitalypb.DeleteRefsRequest) ([]strin
 
 	cmd, err := git.SafeCmd(ctx, req.GetRepository(), nil, git.SubCmd{
 		Name:  "for-each-ref",
-		Flags: []git.Option{git.Flag{"--format=%(refname)"}},
+		Flags: []git.Option{git.Flag{Name: "--format=%(refname)"}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error setting up for-each-ref command: %v", err)

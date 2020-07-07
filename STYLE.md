@@ -239,15 +239,15 @@ important to mitigate these injection risks:
 
 - When toggling an option, prefer a longer flag over a short flag for
   readability.
-	- Desired: `git.Flag{"--long-flag"}` is easier to read and audit
-	- Undesired: `git.Flag{"-L"}`
+	- Desired: `git.Flag{Name: "--long-flag"}` is easier to read and audit
+	- Undesired: `git.Flag{Name: "-L"}`
 - When providing a variable to configure a flag, make sure to include the
   variable after an equal sign
-	- Desired: `[]git.Flag{"-a="+foo}` prevents flag injection
-	- Undesired: `[]git.Flag("-a"+foo)` allows flag injection
+	- Desired: `[]git.Flag{Name: "-a="+foo}` prevents flag injection
+	- Undesired: `[]git.Flag(Name: "-a"+foo)` allows flag injection
 - Always define a flag's name via a constant, never use a variable:
-	- Desired: `[]git.Flag{"-a"}`
-	- Undesired: `[]git.Flag{foo}` is ambiguous and difficult to audit
+	- Desired: `[]git.Flag{Name: "-a"}`
+	- Undesired: `[]git.Flag{Name: foo}` is ambiguous and difficult to audit
 
 ## Go Imports Style
 

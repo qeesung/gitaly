@@ -152,7 +152,7 @@ func checkRevision(ctx context.Context, repoPath string, env []string, revision 
 func disambiguateRevision(ctx context.Context, repo *gitalypb.Repository, revision string) (string, error) {
 	cmd, err := git.SafeCmd(ctx, repo, nil, git.SubCmd{
 		Name:  "for-each-ref",
-		Flags: []git.Option{git.Flag{"--format=%(refname)"}},
+		Flags: []git.Option{git.Flag{Name: "--format=%(refname)"}},
 		Args:  []string{"**/" + revision},
 	})
 

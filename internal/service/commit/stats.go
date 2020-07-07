@@ -45,7 +45,7 @@ func commitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalyp
 
 	cmd, err := git.SafeCmd(ctx, in.Repository, nil, git.SubCmd{
 		Name:  "diff",
-		Flags: []git.Option{git.Flag{"--numstat"}},
+		Flags: []git.Option{git.Flag{Name: "--numstat"}},
 		Args:  args,
 	})
 	if err != nil {
