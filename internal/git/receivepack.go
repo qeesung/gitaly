@@ -51,7 +51,7 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		fmt.Sprintf("%s=%s", featureflag.GoPreReceiveHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoPreReceiveHook))),
 	}, gitlabshellEnv...)
 
-	transaction, err := metadata.ExtractTransaction(ctx)
+	transaction, err := metadata.TransactionFromContext(ctx)
 	if err == nil {
 		praefect, err := metadata.PraefectFromContext(ctx)
 		if err != nil {

@@ -85,10 +85,10 @@ func InjectTransaction(ctx context.Context, tranasctionID uint64, node string, p
 	return metadata.NewIncomingContext(ctx, md), nil
 }
 
-// ExtractTransaction extracts `Transaction` from an incoming context. In
+// TransactionFromContext extracts `Transaction` from an incoming context. In
 // case the metadata key is not set, the function will return
 // `ErrTransactionNotFound`.
-func ExtractTransaction(ctx context.Context) (Transaction, error) {
+func TransactionFromContext(ctx context.Context) (Transaction, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return Transaction{}, ErrTransactionNotFound
