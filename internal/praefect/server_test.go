@@ -307,7 +307,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	})
 	defer cleanup()
 
-	for _, entry := range hook.Entries {
+	for _, entry := range hook.AllEntries() {
 		require.NotContains(t, entry.Message, "more than one backend node")
 	}
 
@@ -340,7 +340,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	defer cleanup()
 
 	var found bool
-	for _, entry := range hook.Entries {
+	for _, entry := range hook.AllEntries() {
 		if strings.Contains(entry.Message, "more than one backend node") {
 			found = true
 			break
@@ -390,7 +390,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	})
 	defer cleanup()
 
-	for _, entry := range hook.Entries {
+	for _, entry := range hook.AllEntries() {
 		require.NotContains(t, entry.Message, "more than one backend node")
 	}
 }
