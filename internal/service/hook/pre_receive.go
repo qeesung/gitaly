@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -306,6 +307,13 @@ func (s *server) preReceiveHookRuby(firstRequest *gitalypb.PreReceiveHookRequest
 			c,
 			env,
 		)
+		if err != nil {
+			return helper.ErrInternal(err)
+		}
+	} else {
+		// We need to read all of stdin on secondaries so that we
+		// arrive at the same hash as the primary.
+		_, err := io.Copy(ioutil.Discard, stdin)
 		if err != nil {
 			return helper.ErrInternal(err)
 		}

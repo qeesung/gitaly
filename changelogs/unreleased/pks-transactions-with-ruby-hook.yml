@@ -1,0 +1,5 @@
+---
+title: Fix casting wrong votes on secondaries using Ruby pre-receive hook
+merge_request: 2347
+author:
+type: fixed
