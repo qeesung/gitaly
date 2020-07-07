@@ -10,11 +10,8 @@ import (
 	"net/url"
 	"strings"
 
-	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -250,21 +247,4 @@ func (p *PraefectServer) Address() (string, error) {
 	}
 
 	return "", errors.New("no address configured")
-}
-
-// Dial will try to connect to the given Praefect server
-func (p *PraefectServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithBlock(),
-	}
-	if p.Token != "" {
-		opts = append(opts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(p.Token)))
-	}
-
-	address, err := p.Address()
-	if err != nil {
-		return nil, err
-	}
-
-	return client.DialContext(ctx, address, opts)
 }

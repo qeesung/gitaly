@@ -7,10 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -78,19 +75,4 @@ func InjectGitalyServers(ctx context.Context, name, address, token string) (cont
 	}
 
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))), nil
-}
-
-// DialServer creates a client connection for a gitaly server
-func DialServer(gitalyServer map[string]string) (*grpc.ClientConn, error) {
-	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(gitalyServer["token"])),
-	}
-
-	conn, err := client.Dial(gitalyServer["address"], connOpts)
-	if err != nil {
-		return nil, fmt.Errorf("could not dial source: %v", err)
-	}
-
-	return conn, nil
 }

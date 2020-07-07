@@ -68,30 +68,7 @@ func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectS
 	if err != nil {
 		return nil, err
 	}
-
-	s.mutex.RLock()
-	conn, ok := s.praefectConnPool[address]
-	s.mutex.RUnlock()
-
-	if ok {
-		return conn, nil
-	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	conn, ok = s.praefectConnPool[address]
-	if !ok {
-		var err error
-		conn, err = server.Dial(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		s.praefectConnPool[address] = conn
-	}
-
-	return conn, nil
+	return s.conns.Dial(ctx, address, server.Token)
 }
 
 func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookServer, hash []byte, env []string) error {
