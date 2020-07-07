@@ -14,10 +14,10 @@ import (
 const (
 	// TransactionMetadataKey is the key used to store transaction
 	// information in the gRPC metadata.
-	TransactionMetadataKey = "transaction"
+	TransactionMetadataKey = "gitaly-reference-transaction"
 	// TransactionEnvKey is the key used to store transaction information
 	// in environment variables.
-	TransactionEnvKey = "REFERENCE_TRANSACTION"
+	TransactionEnvKey = "GITALY_REFERENCE_TRANSACTION"
 )
 
 var (

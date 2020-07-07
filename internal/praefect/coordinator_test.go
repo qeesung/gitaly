@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	praefect_metadata "gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
@@ -178,7 +179,7 @@ func TestStreamDirectorMutator(t *testing.T) {
 
 	md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
 	require.True(t, ok)
-	require.Contains(t, md, "praefect-server")
+	require.Contains(t, md, praefect_metadata.PraefectMetadataKey)
 
 	mi, err := coordinator.registry.LookupMethod(fullMethod)
 	require.NoError(t, err)
@@ -271,7 +272,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 
 	md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
 	require.True(t, ok)
-	require.Contains(t, md, "praefect-server")
+	require.Contains(t, md, praefect_metadata.PraefectMetadataKey)
 
 	mi, err := coordinator.registry.LookupMethod(fullMethod)
 	require.NoError(t, err)
@@ -365,7 +366,7 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 
 			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
 			require.True(t, ok)
-			require.Contains(t, md, "praefect-server")
+			require.Contains(t, md, praefect_metadata.PraefectMetadataKey)
 
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
@@ -409,7 +410,7 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 
 		md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
 		require.True(t, ok)
-		require.Contains(t, md, "praefect-server")
+		require.Contains(t, md, praefect_metadata.PraefectMetadataKey)
 
 		mi, err := coordinator.registry.LookupMethod(fullMethod)
 		require.NoError(t, err)
@@ -436,7 +437,7 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 
 		md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
 		require.True(t, ok)
-		require.Contains(t, md, "praefect-server")
+		require.Contains(t, md, praefect_metadata.PraefectMetadataKey)
 
 		mi, err := coordinator.registry.LookupMethod(fullMethod)
 		require.NoError(t, err)

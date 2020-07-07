@@ -20,10 +20,10 @@ import (
 const (
 	// PraefectMetadataKey is the key used to store Praefect server
 	// information in the gRPC metadata.
-	PraefectMetadataKey = "praefect-server"
+	PraefectMetadataKey = "gitaly-praefect-server"
 	// PraefectEnvKey is the key used to store Praefect server information
 	// in environment variables.
-	PraefectEnvKey = "PRAEFECT_SERVER"
+	PraefectEnvKey = "GITALY_PRAEFECT_SERVER"
 )
 
 var (
