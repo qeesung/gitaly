@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -65,8 +66,13 @@ type gitlabAPI struct {
 
 // New creates a new GitlabAPI
 func NewGitlabAPI(gitlabCfg config.Gitlab) (GitlabAPI, error) {
+	url, err := url.PathUnescape(gitlabCfg.URL)
+	if err != nil {
+		return nil, err
+	}
+
 	httpClient := client.NewHTTPClient(
-		gitlabCfg.URL,
+		url,
 		gitlabCfg.HTTPSettings.CAFile,
 		gitlabCfg.HTTPSettings.CAPath,
 		gitlabCfg.HTTPSettings.SelfSigned,

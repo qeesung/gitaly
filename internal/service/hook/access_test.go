@@ -3,6 +3,7 @@ package hook_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -99,6 +100,79 @@ func TestAllowedVerifyParams(t *testing.T) {
 		allowed, _, err := c.Allowed(tc.repo, tc.glRepository, tc.glID, tc.protocol, tc.changes)
 		require.NoError(t, err)
 		require.Equal(t, tc.allowed, allowed)
+	}
+}
+
+func TestEscapedURL(t *testing.T) {
+	user, password := "user", "password"
+	secretToken := "topsecret"
+	glID, glRepository := "key-123", "repo-1"
+
+	testRepo, testRepoPath, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+	changes := "changes1\nchanges2\nchanges3"
+	protocol := "protocol"
+
+	testRepo.GitObjectDirectory = "object/dir"
+	testRepo.GitAlternateObjectDirectories = []string{"alt/object/dir1", "alt/object/dir2"}
+
+	gitObjectDirFull := filepath.Join(testRepoPath, testRepo.GitObjectDirectory)
+	var gitAlternateObjectDirsFull []string
+
+	for _, gitAlternateObjectDirRel := range testRepo.GitAlternateObjectDirectories {
+		gitAlternateObjectDirsFull = append(gitAlternateObjectDirsFull, filepath.Join(testRepoPath, gitAlternateObjectDirRel))
+	}
+
+	tempDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+	testhelper.WriteShellSecretFile(t, tempDir, secretToken)
+
+	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
+
+	server := testhelper.NewGitlabTestServer(testhelper.GitlabTestServerOptions{
+		User:                        user,
+		Password:                    password,
+		SecretToken:                 secretToken,
+		GLID:                        glID,
+		GLRepository:                glRepository,
+		Changes:                     changes,
+		PostReceiveCounterDecreased: true,
+		Protocol:                    protocol,
+		GitPushOptions:              nil,
+		GitObjectDir:                gitObjectDirFull,
+		GitAlternateObjectDirs:      gitAlternateObjectDirsFull,
+		RepoPath:                    testRepoPath,
+	})
+
+	testCases := []struct {
+		desc string
+		url  string
+	}{
+		{
+			desc: "unescaped URL",
+			url:  server.URL,
+		},
+		{
+			desc: "escaped URL",
+			url:  url.PathEscape(server.URL),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			c, err := hook.NewGitlabAPI(config.Gitlab{
+				URL:        tc.url,
+				SecretFile: secretFilePath,
+				HTTPSettings: config.HTTPSettings{
+					User:     user,
+					Password: password,
+				},
+			})
+			require.NoError(t, err)
+			allowed, _, err := c.Allowed(testRepo, glRepository, glID, protocol, changes)
+			require.NoError(t, err)
+			require.True(t, allowed)
+		})
 	}
 }
 
