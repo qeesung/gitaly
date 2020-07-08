@@ -105,8 +105,8 @@ func validateGetArchivePrecondition(ctx context.Context, in *gitalypb.GetArchive
 	return nil
 }
 
-func findGetArchivePath(f *commit.TreeEntryFinder, commitId, path string) (ok bool, err error) {
-	treeEntry, err := f.FindByRevisionAndPath(commitId, path)
+func findGetArchivePath(f *commit.TreeEntryFinder, commitID, path string) (ok bool, err error) {
+	treeEntry, err := f.FindByRevisionAndPath(commitID, path)
 	if err != nil {
 		return false, err
 	}

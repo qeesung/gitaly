@@ -330,13 +330,9 @@ func WithReplicator(r Replicator) ReplMgrOpt {
 }
 
 const (
-	logWithReplJobID   = "replication_job_id"
-	logWithReplVirtual = "replication_job_virtual"
-	logWithReplSource  = "replication_job_source"
-	logWithReplTarget  = "replication_job_target"
-	logWithReplChange  = "replication_job_change"
-	logWithReplPath    = "replication_job_path"
-	logWithCorrID      = "replication_correlation_id"
+	logWithReplJobID  = "replication_job_id"
+	logWithReplTarget = "replication_job_target"
+	logWithCorrID     = "replication_correlation_id"
 )
 
 type backoff func() time.Duration

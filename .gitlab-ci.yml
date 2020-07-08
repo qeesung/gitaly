@@ -258,9 +258,6 @@ lint:
   script:
     - go version
     - make lint
-  # TODO: remove the allowing of failures once golangci-lint is fixed
-  # https://gitlab.com/gitlab-org/gitaly/-/issues/2652
-  allow_failure: true
 
 code_navigation:
   allow_failure: true
