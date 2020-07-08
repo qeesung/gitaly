@@ -2,12 +2,10 @@ package operations
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -118,17 +116,10 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserRevertRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
-	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	for _, features := range featureSet {
-		t.Run(features.String(), func(t *testing.T) {
-			ctx = features.WithParent(ctx)
-			testSuccessfulGitHooksForUserRevertRequest(t, ctx)
-		})
-	}
+	testSuccessfulGitHooksForUserRevertRequest(t, ctx)
 }
 
 func testSuccessfulGitHooksForUserRevertRequest(t *testing.T, ctxOuter context.Context) {
@@ -284,24 +275,19 @@ func TestFailedUserRevertRequestDueToPreReceiveError(t *testing.T) {
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
 
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoPreReceiveHook, featureflag.GoUpdateHook)
-	require.NoError(t, err)
-
 	for _, hookName := range GitlabPreHooks {
-		for _, features := range featureSet {
-			t.Run(fmt.Sprintf("%s, features: %v", hookName, features.String()), func(t *testing.T) {
-				remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
-				require.NoError(t, err)
-				defer remove()
+		t.Run(hookName, func(t *testing.T) {
+			remove, err := testhelper.WriteCustomHook(testRepoPath, hookName, hookContent)
+			require.NoError(t, err)
+			defer remove()
 
-				md := testhelper.GitalyServersMetadata(t, serverSocketPath)
-				ctx := metadata.NewOutgoingContext(ctxOuter, md)
+			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+			ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
-				response, err := client.UserRevert(features.WithParent(ctx), request)
-				require.NoError(t, err)
-				require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
-			})
-		}
+			response, err := client.UserRevert(ctx, request)
+			require.NoError(t, err)
+			require.Contains(t, response.PreReceiveError, "GL_ID="+testhelper.TestUser.GlId)
+		})
 	}
 }
 

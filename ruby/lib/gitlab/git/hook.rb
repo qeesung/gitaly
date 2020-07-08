@@ -119,8 +119,8 @@ module Gitlab
           'GIT_DIR' => repo_path,
           'GITALY_REPO' => repository.gitaly_repository.to_json,
           'GITALY_SOCKET' => Gitlab.config.gitaly.internal_socket,
-          'GITALY_GO_UPDATE' => repository.feature_enabled?('go-update-hook').to_s,
-          'GITALY_GO_PRERECEIVE' => repository.feature_enabled?('go-prereceive-hook').to_s
+          'GITALY_GO_UPDATE' => repository.feature_enabled?('go-update-hook', on_by_default: true).to_s,
+          'GITALY_GO_PRERECEIVE' => repository.feature_enabled?('go-prereceive-hook', on_by_default: true).to_s
         }
       end
     end

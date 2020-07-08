@@ -467,7 +467,7 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 	gitlabUser := "gitlab_user-1234"
 	gitlabPassword := "gitlabsecret9887"
 
-	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions, featureflag.GoPreReceiveHook})
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions})
 	require.NoError(t, err)
 
 	for _, features := range featureSets {

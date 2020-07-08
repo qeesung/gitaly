@@ -53,17 +53,10 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
-	featureSet, err := testhelper.NewFeatureSets(nil, featureflag.GoUpdateHook)
-	require.NoError(t, err)
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	for _, features := range featureSet {
-		t.Run(features.String(), func(t *testing.T) {
-			ctx = features.WithParent(ctx)
-			testSuccessfulGitHooksForUserUpdateBranchRequest(t, ctx)
-		})
-	}
+	testSuccessfulGitHooksForUserUpdateBranchRequest(t, ctx)
 }
 
 func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, ctx context.Context) {
