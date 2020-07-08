@@ -365,6 +365,13 @@ func TestToPQString(t *testing.T) {
 			},
 			out: `statement_timeout=0 password=secret\ foo\'bar binary_parameters=yes`,
 		},
+		{
+			desc: "with role defined",
+			in: DB{
+				Role: "praefect-owner",
+			},
+			out: `statement_timeout=0 role=praefect-owner binary_parameters=yes`,
+		},
 	}
 
 	for _, tc := range testCases {

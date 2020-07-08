@@ -178,6 +178,7 @@ type DB struct {
 	Port                         int    `toml:"port"`
 	User                         string `toml:"user"`
 	Password                     string `toml:"password"`
+	Role                         string `toml:"role"`
 	DBName                       string `toml:"dbname"`
 	SSLMode                      string `toml:"sslmode"`
 	SSLCert                      string `toml:"sslcert"`
@@ -191,6 +192,9 @@ func (db DB) ToPQString() string {
 	fields := []string{fmt.Sprintf("statement_timeout=%d", db.StatementTimeoutMilliseconds)}
 	if db.Port > 0 {
 		fields = append(fields, fmt.Sprintf("port=%d", db.Port))
+	}
+	if db.Role != "" {
+		fields = append(fields, fmt.Sprintf("role=%s", db.Role))
 	}
 
 	for _, kv := range []struct{ key, value string }{
