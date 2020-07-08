@@ -12,7 +12,7 @@ var (
 	ErrDuplicateNodes        = errors.New("transactions cannot have duplicate nodes")
 	ErrMissingNodes          = errors.New("transaction requires at least one node")
 	ErrInvalidThreshold      = errors.New("transaction has invalid threshold")
-	ErrTransactionVoteFailed = errors.New("transaction vote failed")
+	ErrTransactionVoteFailed = errors.New("transaction did not reach quorum")
 	ErrTransactionCanceled   = errors.New("transaction was canceled")
 )
 
@@ -179,7 +179,7 @@ func (t *transaction) collectVotes(ctx context.Context, node string) error {
 	// See if our vote crossed the threshold. As there can be only one vote
 	// exceeding it, we know we're the winner in that case.
 	if t.voteCounts[voter.vote] < t.threshold {
-		return ErrTransactionVoteFailed
+		return fmt.Errorf("%w: got %d/%d votes", ErrTransactionVoteFailed, t.voteCounts[voter.vote], t.threshold)
 	}
 
 	return nil
