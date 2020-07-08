@@ -11,6 +11,7 @@ import (
 
 func TestMain(m *testing.M) {
 	testhelper.Configure()
+	testhelper.ConfigureGitalySSH()
 	os.Exit(m.Run())
 }
 

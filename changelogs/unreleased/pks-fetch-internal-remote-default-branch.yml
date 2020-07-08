@@ -1,0 +1,5 @@
+---
+title: Fix getting default branch of remote repo in
+merge_request: 2340
+author:
+type: fixed

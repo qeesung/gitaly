@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/rubyserver"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/server"
 	objectpoolservice "gitlab.com/gitlab-org/gitaly/internal/service/objectpool"
+	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 	"gitlab.com/gitlab-org/gitaly/internal/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/service/repository"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ssh"
@@ -791,6 +792,7 @@ func newReplicationService(tb testing.TB) (*grpc.Server, string) {
 	gitalypb.RegisterObjectPoolServiceServer(svr, objectpoolservice.NewServer(locator))
 	gitalypb.RegisterRemoteServiceServer(svr, remote.NewServer(RubyServer))
 	gitalypb.RegisterSSHServiceServer(svr, ssh.NewServer())
+	gitalypb.RegisterRefServiceServer(svr, ref.NewServer())
 	reflection.Register(svr)
 
 	listener, err := net.Listen("unix", socketName)

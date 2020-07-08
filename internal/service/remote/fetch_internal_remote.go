@@ -3,6 +3,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -53,7 +54,7 @@ func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInt
 		return &gitalypb.FetchInternalRemoteResponse{Result: false}, nil
 	}
 
-	remoteDefaultBranch, err := ref.DefaultBranchName(ctx, req.RemoteRepository)
+	remoteDefaultBranch, err := s.getRemoteDefaultBranch(ctx, req.RemoteRepository)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "FetchInternalRemote: remote default branch: %v", err)
 	}
@@ -70,6 +71,35 @@ func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInt
 	}
 
 	return &gitalypb.FetchInternalRemoteResponse{Result: true}, nil
+}
+
+// getRemoteDefaultBranch gets the default branch of a repository hosted on another Gitaly node
+func (s *server) getRemoteDefaultBranch(ctx context.Context, repo *gitalypb.Repository) ([]byte, error) {
+	server, err := helper.ExtractGitalyServer(ctx, repo.StorageName)
+	if err != nil {
+		return nil, fmt.Errorf("getRemoteDefaultBranch: %w", err)
+	}
+
+	address := server["address"]
+	if address == "" {
+		return nil, errors.New("getRemoteDefaultBranch: empty Gitaly address")
+	}
+	token := server["token"]
+
+	conn, err := s.conns.Dial(ctx, address, token)
+	if err != nil {
+		return nil, fmt.Errorf("getRemoteDefaultBranch: %w", err)
+	}
+
+	cc := gitalypb.NewRefServiceClient(conn)
+	response, err := cc.FindDefaultBranchName(ctx, &gitalypb.FindDefaultBranchNameRequest{
+		Repository: repo,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getRemoteDefaultBranch: %w", err)
+	}
+
+	return response.Name, nil
 }
 
 func validateFetchInternalRemoteRequest(req *gitalypb.FetchInternalRemoteRequest) error {

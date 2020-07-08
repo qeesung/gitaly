@@ -33,10 +33,10 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func runRemoteServiceServer(t *testing.T) (string, func()) {
-	srv := testhelper.NewServer(t, nil, nil)
+func RunRemoteServiceServer(t *testing.T, opts ...testhelper.TestServerOpt) (string, func()) {
+	srv := testhelper.NewServer(t, nil, nil, opts...)
 
-	gitalypb.RegisterRemoteServiceServer(srv.GrpcServer(), &server{ruby: RubyServer})
+	gitalypb.RegisterRemoteServiceServer(srv.GrpcServer(), NewServer(RubyServer))
 	reflection.Register(srv.GrpcServer())
 
 	require.NoError(t, srv.Start())

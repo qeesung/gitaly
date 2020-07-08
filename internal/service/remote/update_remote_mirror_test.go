@@ -13,7 +13,7 @@ import (
 )
 
 func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -117,7 +117,7 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 }
 
 func TestSuccessfulUpdateRemoteMirrorRequestWithLsRemote(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -214,7 +214,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithLsRemote(t *testing.T) {
 }
 
 func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -310,7 +310,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 }
 
 func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -408,7 +408,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) 
 }
 
 func TestFailedUpdateRemoteMirrorRequestDueToValidation(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestFindRemoteRootRefSuccess(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -29,7 +29,7 @@ func TestFindRemoteRootRefSuccess(t *testing.T) {
 }
 
 func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -77,7 +77,7 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 }
 
 func TestFindRemoteRootRefFailedDueToInvalidRemote(t *testing.T) {
-	serverSocketPath, stop := runRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
