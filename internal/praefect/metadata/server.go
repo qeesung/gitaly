@@ -20,10 +20,10 @@ import (
 const (
 	// PraefectMetadataKey is the key used to store Praefect server
 	// information in the gRPC metadata.
-	PraefectMetadataKey = "praefect-server"
+	PraefectMetadataKey = "gitaly-praefect-server"
 	// PraefectEnvKey is the key used to store Praefect server information
 	// in environment variables.
-	PraefectEnvKey = "PRAEFECT_SERVER"
+	PraefectEnvKey = "GITALY_PRAEFECT_SERVER"
 )
 
 var (
@@ -82,7 +82,7 @@ func InjectPraefectServer(ctx context.Context, conf config.Config) (context.Cont
 		*addrBySchema[endpoint.schema] = addr
 	}
 
-	marshalled, err := json.Marshal(praefectServer)
+	serialized, err := praefectServer.serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func InjectPraefectServer(ctx context.Context, conf config.Config) (context.Cont
 	} else {
 		md = md.Copy()
 	}
-	md.Set(PraefectMetadataKey, base64.StdEncoding.EncodeToString(marshalled))
+	md.Set(PraefectMetadataKey, serialized)
 
 	return metadata.NewIncomingContext(ctx, md), nil
 }
@@ -172,19 +172,14 @@ func PraefectFromContext(ctx context.Context) (*PraefectServer, error) {
 		return nil, ErrPraefectServerNotFound
 	}
 
-	encoded := md[PraefectMetadataKey]
-	if len(encoded) == 0 {
+	serialized := md[PraefectMetadataKey]
+	if len(serialized) == 0 {
 		return nil, ErrPraefectServerNotFound
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(encoded[0])
+	praefect, err := praefectFromSerialized(serialized[0])
 	if err != nil {
-		return nil, fmt.Errorf("PraefectFromContext: %w", err)
-	}
-
-	var praefect PraefectServer
-	if err := json.Unmarshal(decoded, &praefect); err != nil {
-		return nil, fmt.Errorf("PraefectFromContext: %w", err)
+		return nil, err
 	}
 
 	peer, ok := peer.FromContext(ctx)
@@ -196,7 +191,31 @@ func PraefectFromContext(ctx context.Context) (*PraefectServer, error) {
 		return nil, err
 	}
 
-	return &praefect, nil
+	return praefect, nil
+}
+
+func (p *PraefectServer) serialize() (string, error) {
+	marshalled, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(marshalled), nil
+}
+
+// praefectFromSerialized creates a Praefect server from a `serialize()`d string.
+func praefectFromSerialized(serialized string) (*PraefectServer, error) {
+	decoded, err := base64.StdEncoding.DecodeString(serialized)
+	if err != nil {
+		return nil, err
+	}
+
+	var server PraefectServer
+	if err := json.Unmarshal(decoded, &server); err != nil {
+		return nil, err
+	}
+
+	return &server, nil
 }
 
 // PraefectFromEnv extracts `PraefectServer` from the environment variable
@@ -215,28 +234,17 @@ func PraefectFromEnv(envvars []string) (*PraefectServer, error) {
 		return nil, ErrPraefectServerNotFound
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(praefectEnv)
-	if err != nil {
-		return nil, fmt.Errorf("failed decoding base64: %w", err)
-	}
-
-	p := PraefectServer{}
-	if err := json.Unmarshal(decoded, &p); err != nil {
-		return nil, err
-	}
-
-	return &p, nil
+	return praefectFromSerialized(praefectEnv)
 }
 
 // Env encodes the `PraefectServer` and returns an environment variable.
 func (p *PraefectServer) Env() (string, error) {
-	marshalled, err := json.Marshal(p)
+	serialized, err := p.serialize()
 	if err != nil {
 		return "", err
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(marshalled)
-	return fmt.Sprintf("%s=%s", PraefectEnvKey, encoded), nil
+	return fmt.Sprintf("%s=%s", PraefectEnvKey, serialized), nil
 }
 
 func (p *PraefectServer) Address() (string, error) {

@@ -14,10 +14,10 @@ import (
 const (
 	// TransactionMetadataKey is the key used to store transaction
 	// information in the gRPC metadata.
-	TransactionMetadataKey = "transaction"
+	TransactionMetadataKey = "gitaly-reference-transaction"
 	// TransactionEnvKey is the key used to store transaction information
 	// in environment variables.
-	TransactionEnvKey = "REFERENCE_TRANSACTION"
+	TransactionEnvKey = "GITALY_REFERENCE_TRANSACTION"
 )
 
 var (
@@ -37,8 +37,8 @@ type Transaction struct {
 	Primary bool `json:"primary"`
 }
 
-// Serialize serializes a `Transaction` into a string.
-func (t Transaction) Serialize() (string, error) {
+// serialize serializes a `Transaction` into a string.
+func (t Transaction) serialize() (string, error) {
 	marshalled, err := json.Marshal(t)
 	if err != nil {
 		return "", err
@@ -46,8 +46,8 @@ func (t Transaction) Serialize() (string, error) {
 	return base64.StdEncoding.EncodeToString(marshalled), nil
 }
 
-// FromSerialized creates a transaction from a `Serialize()`d string.
-func FromSerialized(serialized string) (Transaction, error) {
+// transactionFromSerialized creates a transaction from a `serialize()`d string.
+func transactionFromSerialized(serialized string) (Transaction, error) {
 	decoded, err := base64.StdEncoding.DecodeString(serialized)
 	if err != nil {
 		return Transaction{}, err
@@ -69,7 +69,7 @@ func InjectTransaction(ctx context.Context, tranasctionID uint64, node string, p
 		Primary: primary,
 	}
 
-	serialized, err := transaction.Serialize()
+	serialized, err := transaction.serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +85,10 @@ func InjectTransaction(ctx context.Context, tranasctionID uint64, node string, p
 	return metadata.NewIncomingContext(ctx, md), nil
 }
 
-// ExtractTransaction extracts `Transaction` from an incoming context. In
+// TransactionFromContext extracts `Transaction` from an incoming context. In
 // case the metadata key is not set, the function will return
 // `ErrTransactionNotFound`.
-func ExtractTransaction(ctx context.Context) (Transaction, error) {
+func TransactionFromContext(ctx context.Context) (Transaction, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return Transaction{}, ErrTransactionNotFound
@@ -99,13 +99,13 @@ func ExtractTransaction(ctx context.Context) (Transaction, error) {
 		return Transaction{}, ErrTransactionNotFound
 	}
 
-	return FromSerialized(serialized[0])
+	return transactionFromSerialized(serialized[0])
 }
 
 // Env returns a formatted environment variable mapping `TransactionEnvKey` to
 // the serialized representation of `Transaction`.
 func (t Transaction) Env() (string, error) {
-	serialized, err := t.Serialize()
+	serialized, err := t.serialize()
 	if err != nil {
 		return "", err
 	}
@@ -127,5 +127,5 @@ func TransactionFromEnv(envvars []string) (Transaction, error) {
 		return Transaction{}, ErrTransactionNotFound
 	}
 
-	return FromSerialized(transactionEnv)
+	return transactionFromSerialized(transactionEnv)
 }
