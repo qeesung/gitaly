@@ -400,11 +400,7 @@ out-of-sync branches).
 
 The current implementation of strong consistency via pre-receive hooks is
 guarded by feature flags. In order to make use of it, you thus need to enable
-the following feature flags:
-
-- `gitaly_hooks_rpc`: The reference transaction voting mechanism is only
-  implemented in the Go hooks RPC service and not in the deprecated Ruby
-  hooks.
+the following feature flag:
 
 - `gitaly_reference_transactions`: Enables usage of reference transactions and
   proxying to multiple Gitaly nodes at once for both SSH and HTTPS receive-pack
