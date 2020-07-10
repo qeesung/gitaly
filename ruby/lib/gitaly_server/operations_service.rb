@@ -49,10 +49,11 @@ module GitalyServer
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
       target = get_param!(request, :start_point)
       gitaly_user = get_param!(request, :user)
+      transaction = Praefect::Transaction.from_metadata(call.metadata)
 
       branch_name = request.branch_name
       user = Gitlab::Git::User.from_gitaly(gitaly_user)
-      created_branch = repo.add_branch(branch_name, user: user, target: target)
+      created_branch = repo.add_branch(branch_name, user: user, target: target, transaction: transaction)
       Gitaly::UserCreateBranchResponse.new unless created_branch
 
       rugged_commit = created_branch.dereferenced_target.rugged_commit

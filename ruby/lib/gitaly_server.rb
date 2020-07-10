@@ -14,6 +14,8 @@ require_relative 'gitaly_server/remote_service.rb'
 require_relative 'gitaly_server/health_service.rb'
 require_relative 'gitaly_server/feature_flags.rb'
 
+require_relative 'praefect/transaction.rb'
+
 module GitalyServer
   STORAGE_PATH_HEADER = 'gitaly-storage-path'.freeze
   REPO_PATH_HEADER = 'gitaly-repo-path'.freeze

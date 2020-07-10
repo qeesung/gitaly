@@ -28,13 +28,13 @@ module Gitlab
         File.exist?(path)
       end
 
-      def trigger(gl_id, gl_username, oldrev, newrev, ref, push_options: nil)
+      def trigger(gl_id, gl_username, oldrev, newrev, ref, push_options: nil, transaction: nil)
         return [true, nil] unless exists?
 
         Bundler.with_clean_env do
           case name
           when "pre-receive", "post-receive"
-            call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options)
+            call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options, transaction)
           when "update"
             call_update_hook(gl_id, gl_username, oldrev, newrev, ref)
           end
@@ -43,7 +43,7 @@ module Gitlab
 
       private
 
-      def call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options)
+      def call_receive_hook(gl_id, gl_username, oldrev, newrev, ref, push_options, transaction)
         changes = [oldrev, newrev, ref].join(" ")
 
         exit_status = false
@@ -51,6 +51,7 @@ module Gitlab
 
         vars = env_base_vars(gl_id, gl_username)
         vars.merge!(push_options.env_data) if push_options
+        vars.merge!(transaction.env_vars) if transaction
 
         options = {
           chdir: repo_path

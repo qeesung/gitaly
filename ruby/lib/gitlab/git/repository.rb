@@ -88,11 +88,11 @@ module Gitlab
         @feature_flags.enabled?(flag, on_by_default: on_by_default)
       end
 
-      def add_branch(branch_name, user:, target:)
+      def add_branch(branch_name, user:, target:, transaction: nil)
         target_object = Ref.dereference_object(lookup(target))
         raise InvalidRef, "target not found: #{target}" unless target_object
 
-        OperationService.new(user, self).add_branch(branch_name, target_object.oid)
+        OperationService.new(user, self).add_branch(branch_name, target_object.oid, transaction: transaction)
         find_branch(branch_name)
       rescue Rugged::ReferenceError => ex
         raise InvalidRef, ex

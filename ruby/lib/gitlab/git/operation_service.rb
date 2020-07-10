@@ -25,11 +25,11 @@ module Gitlab
         @repository = new_repository
       end
 
-      def add_branch(branch_name, newrev)
+      def add_branch(branch_name, newrev, transaction: nil)
         ref = Gitlab::Git::BRANCH_REF_PREFIX + branch_name
         oldrev = Gitlab::Git::BLANK_SHA
 
-        update_ref_in_hooks(ref, newrev, oldrev)
+        update_ref_in_hooks(ref, newrev, oldrev, transaction: transaction)
       end
 
       def rm_branch(branch)
@@ -172,20 +172,21 @@ module Gitlab
         end
       end
 
-      def update_ref_in_hooks(ref, newrev, oldrev, push_options: nil)
-        with_hooks(ref, newrev, oldrev, push_options: push_options) do
+      def update_ref_in_hooks(ref, newrev, oldrev, push_options: nil, transaction: nil)
+        with_hooks(ref, newrev, oldrev, push_options: push_options, transaction: transaction) do
           update_ref(ref, newrev, oldrev)
         end
       end
 
-      def with_hooks(ref, newrev, oldrev, push_options: nil)
+      def with_hooks(ref, newrev, oldrev, push_options: nil, transaction: nil)
         Gitlab::Git::HooksService.new.execute(
           user,
           repository,
           oldrev,
           newrev,
           ref,
-          push_options: push_options
+          push_options: push_options,
+          transaction: transaction
         ) do |service|
           yield(service)
         end

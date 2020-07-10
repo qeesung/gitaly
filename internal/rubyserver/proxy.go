@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	praefect_metadata "gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
@@ -62,7 +63,11 @@ func setHeaders(ctx context.Context, repo *gitalypb.Repository, mustExist bool) 
 	)
 
 	// list of http/2 headers that will be forwarded as-is to gitaly-ruby
-	proxyHeaderWhitelist := []string{"gitaly-servers"}
+	proxyHeaderWhitelist := []string{
+		"gitaly-servers",
+		praefect_metadata.TransactionMetadataKey,
+		praefect_metadata.PraefectMetadataKey,
+	}
 
 	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
 		// Automatically whitelist any Ruby-specific feature flag

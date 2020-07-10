@@ -157,9 +157,27 @@ func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCal
 	}, nil, nil, nil), nil
 }
 
-var transactionRPCs = map[string]struct{}{
-	"/gitaly.SmartHTTPService/PostReceivePack": {},
-	"/gitaly.SSHService/SSHReceivePack":        {},
+var transactionRPCs = map[string]featureflag.FeatureFlag{
+	"/gitaly.OperationService/UserCreateBranch": featureflag.ReferenceTransactionsOperationService,
+	"/gitaly.SSHService/SSHReceivePack":         featureflag.ReferenceTransactionsSSHService,
+	"/gitaly.SmartHTTPService/PostReceivePack":  featureflag.ReferenceTransactionsSmartHTTPService,
+}
+
+func shouldUseTransaction(ctx context.Context, method string) bool {
+	if !featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
+		return false
+	}
+
+	flag, ok := transactionRPCs[method]
+	if !ok {
+		return false
+	}
+
+	if !featureflag.IsEnabled(ctx, flag) {
+		return false
+	}
+
+	return true
 }
 
 func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall, targetRepo *gitalypb.Repository) (*proxy.StreamParameters, error) {
@@ -194,7 +212,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 
 	var secondaryDests []proxy.Destination
 
-	if _, ok := transactionRPCs[call.fullMethodName]; ok && featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
+	if shouldUseTransaction(ctx, call.fullMethodName) {
 		// Make sure to only let healthy nodes take part in transactions, otherwise we'll be
 		// completely blocked until they come back.
 		healthySecondaries := shard.GetHealthySecondaries()

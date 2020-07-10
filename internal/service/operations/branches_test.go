@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -75,10 +76,17 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions})
+	require.NoError(t, err)
 
-	testSuccessfulGitHooksForUserCreateBranchRequest(t, ctx)
+	for _, featureSet := range featureSets {
+		ctx, cancel := testhelper.Context()
+		defer cancel()
+
+		ctx = featureSet.WithParent(ctx)
+
+		testSuccessfulGitHooksForUserCreateBranchRequest(t, ctx)
+	}
 }
 
 func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.Context) {
