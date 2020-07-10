@@ -193,14 +193,12 @@ func (db DB) ToPQString() string {
 	if db.Port > 0 {
 		fields = append(fields, fmt.Sprintf("port=%d", db.Port))
 	}
-	if db.Role != "" {
-		fields = append(fields, fmt.Sprintf("role=%s", db.Role))
-	}
 
 	for _, kv := range []struct{ key, value string }{
 		{"host", db.Host},
 		{"user", db.User},
 		{"password", db.Password},
+		{"role", db.Role},
 		{"dbname", db.DBName},
 		{"sslmode", db.SSLMode},
 		{"sslcert", db.SSLCert},
