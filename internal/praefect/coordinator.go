@@ -195,10 +195,13 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	var secondaryDests []proxy.Destination
 
 	if _, ok := transactionRPCs[call.fullMethodName]; ok && featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
+		// Make sure to only let healthy nodes take part in transactions, otherwise we'll be
+		// completely blocked until they come back.
+		healthySecondaries := shard.GetHealthySecondaries()
+
 		var voters []transactions.Voter
 		var threshold uint
-
-		for _, node := range append(shard.Secondaries, shard.Primary) {
+		for _, node := range append(healthySecondaries, shard.Primary) {
 			voters = append(voters, transactions.Voter{
 				Name:  node.GetStorage(),
 				Votes: 1,
@@ -219,7 +222,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 
 		primaryDest.Ctx = helper.IncomingToOutgoing(injectedCtx)
 
-		for _, secondary := range shard.Secondaries {
+		for _, secondary := range healthySecondaries {
 			secondaryMsg, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, secondary.GetStorage())
 			if err != nil {
 				return nil, err

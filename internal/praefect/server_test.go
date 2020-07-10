@@ -727,16 +727,11 @@ func (m *mockSmartHTTP) Called(method string) int {
 }
 
 func newGrpcServer(t *testing.T, srv gitalypb.SmartHTTPServiceServer) (string, *grpc.Server) {
-	grpcSrv := testhelper.NewTestGrpcServer(t, nil, nil)
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
+	grpcSrv, _ := testhelper.NewServerWithHealth(t, socketPath)
 
 	gitalypb.RegisterSmartHTTPServiceServer(grpcSrv, srv)
 	reflection.Register(grpcSrv)
-
-	listener, err := net.Listen("unix", socketPath)
-	require.NoError(t, err)
-
-	go func() { grpcSrv.Serve(listener) }()
 
 	return socketPath, grpcSrv
 }
@@ -799,6 +794,15 @@ func TestProxyWrites(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+
+	shard, err := nodeMgr.GetShard(conf.VirtualStorages[0].Name)
+	require.NoError(t, err)
+
+	for _, storage := range conf.VirtualStorages[0].Nodes {
+		node, err := shard.GetNode(storage.Storage)
+		require.NoError(t, err)
+		waitNodeToChangeHealthStatus(ctx, t, node, true)
+	}
 
 	ctx = featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.ReferenceTransactions)
 

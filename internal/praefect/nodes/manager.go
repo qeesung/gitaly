@@ -51,6 +51,19 @@ func (s Shard) GetNode(storage string) (Node, error) {
 	return nil, fmt.Errorf("node with storage %q does not exist", storage)
 }
 
+// GetHealthySecondaries returns all secondaries of the shard whose which are
+// currently known to be healthy.
+func (s Shard) GetHealthySecondaries() []Node {
+	healthySecondaries := make([]Node, 0, len(s.Secondaries))
+	for _, secondary := range s.Secondaries {
+		if !secondary.IsHealthy() {
+			continue
+		}
+		healthySecondaries = append(healthySecondaries, secondary)
+	}
+	return healthySecondaries
+}
+
 // Manager is responsible for returning shards for virtual storages
 type Manager interface {
 	GetShard(virtualStorageName string) (Shard, error)

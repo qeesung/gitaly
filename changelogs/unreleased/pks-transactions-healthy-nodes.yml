@@ -1,0 +1,5 @@
+---
+title: Only let healthy secondaries take part in transactions
+merge_request: 2365
+author:
+type: fixed
