@@ -6,8 +6,6 @@ type FeatureFlag struct {
 }
 
 var (
-	// LinguistFileCountStats will invoke an additional git-linguist command to get the number of files per language
-	LinguistFileCountStats = FeatureFlag{Name: "linguist_file_count_stats", OnByDefault: false}
 	// GoUpdateHook will bypass the ruby update hook and use the go implementation of custom hooks
 	GoUpdateHook = FeatureFlag{Name: "go_update_hook", OnByDefault: true}
 	// RemoteBranchesLsRemote will use `ls-remote` for remote branches

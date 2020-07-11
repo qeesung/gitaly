@@ -14,7 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/linguist"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/service/ref"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -53,15 +52,6 @@ func (*server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLanguage
 		return nil, err
 	}
 
-	// TODO: remove feature flag when Stats and FileCountStats is executed with one ruby script call
-	fileCountStats := make(linguist.CountPerLanguage)
-	if featureflag.IsEnabled(ctx, featureflag.LinguistFileCountStats) {
-		fileCountStats, err = linguist.FileCountStats(ctx, repoPath, commitID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	resp := &gitalypb.CommitLanguagesResponse{}
 	if len(stats) == 0 {
 		return resp, nil
@@ -78,11 +68,10 @@ func (*server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLanguage
 
 	for lang, count := range stats {
 		l := &gitalypb.CommitLanguagesResponse_Language{
-			Name:      lang,
-			Share:     float32(100*count) / float32(total),
-			Color:     linguist.Color(lang),
-			FileCount: uint32(fileCountStats[lang]),
-			Bytes:     stats[lang],
+			Name:  lang,
+			Share: float32(100*count) / float32(total),
+			Color: linguist.Color(lang),
+			Bytes: stats[lang],
 		}
 		resp.Languages = append(resp.Languages, l)
 	}

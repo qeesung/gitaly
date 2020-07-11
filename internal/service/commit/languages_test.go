@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -28,8 +27,6 @@ func TestLanguages(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	ctx = EnableLinguistFileCountStatsFeatureFlag(ctx)
 
 	resp, err := client.CommitLanguages(ctx, request)
 	require.NoError(t, err)
@@ -87,7 +84,6 @@ func requireLanguageEqual(t *testing.T, expected, actual *gitalypb.CommitLanguag
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Color, actual.Color)
 	require.False(t, (expected.Share-actual.Share)*(expected.Share-actual.Share) >= 1.0, "shares do not match")
-	require.Equal(t, expected.FileCount, actual.FileCount)
 	require.Equal(t, expected.Bytes, actual.Bytes)
 }
 
@@ -162,8 +158,4 @@ func TestAmbiguousRefCommitLanguagesRequestRevision(t *testing.T) {
 		Revision:   []byte("v1.1.0"),
 	})
 	require.NoError(t, err)
-}
-
-func EnableLinguistFileCountStatsFeatureFlag(ctx context.Context) context.Context {
-	return featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.LinguistFileCountStats)
 }
