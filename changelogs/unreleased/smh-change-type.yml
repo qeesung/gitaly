@@ -1,0 +1,5 @@
+---
+title: Include change type as a label on in-flight replication jobs gauge
+merge_request: 2373
+author:
+type: changed

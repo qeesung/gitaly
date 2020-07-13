@@ -245,13 +245,6 @@ func (dr defaultReplicator) confirmChecksums(ctx context.Context, primaryClient,
 	return primaryChecksum == replicaChecksum, nil
 }
 
-// StorageGauge is used to track the in-flight replication jobs by virtual and
-// Gitaly target storage
-type StorageGauge interface {
-	Inc(virtualStorage, gitalyStorage string)
-	Dec(virtualStorage, gitalyStorage string)
-}
-
 // ReplMgr is a replication manager for handling replication jobs
 type ReplMgr struct {
 	log                *logrus.Entry
@@ -259,7 +252,7 @@ type ReplMgr struct {
 	nodeManager        nodes.Manager
 	virtualStorages    []string   // replicas this replicator is responsible for
 	replicator         Replicator // does the actual replication logic
-	replInFlightMetric StorageGauge
+	replInFlightMetric *prometheus.GaugeVec
 	replLatencyMetric  prommetrics.HistogramVec
 	replDelayMetric    prommetrics.HistogramVec
 	replJobTimeout     time.Duration
@@ -269,14 +262,6 @@ type ReplMgr struct {
 
 // ReplMgrOpt allows a replicator to be configured with additional options
 type ReplMgrOpt func(*ReplMgr)
-
-// WithInFlightJobsGauge is an option to set the replication jobs in-flight
-// gauge
-func WithInFlightJobsGauge(sg StorageGauge) ReplMgrOpt {
-	return func(m *ReplMgr) {
-		m.replInFlightMetric = sg
-	}
-}
 
 // WithLatencyMetric is an option to set the latency prometheus metric
 func WithLatencyMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
@@ -296,12 +281,18 @@ func WithDelayMetric(h prommetrics.HistogramVec) func(*ReplMgr) {
 // and options
 func NewReplMgr(log *logrus.Entry, virtualStorages []string, queue datastore.ReplicationEventQueue, nodeMgr nodes.Manager, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
-		log:               log.WithField("component", "replication_manager"),
-		queue:             queue,
-		whitelist:         map[string]struct{}{},
-		replicator:        defaultReplicator{log},
-		virtualStorages:   virtualStorages,
-		nodeManager:       nodeMgr,
+		log:             log.WithField("component", "replication_manager"),
+		queue:           queue,
+		whitelist:       map[string]struct{}{},
+		replicator:      defaultReplicator{log},
+		virtualStorages: virtualStorages,
+		nodeManager:     nodeMgr,
+		replInFlightMetric: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "gitaly_praefect_replication_jobs",
+				Help: "Number of replication jobs in flight.",
+			}, []string{"virtual_storage", "gitaly_storage", "change_type"},
+		),
 		replLatencyMetric: prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
 		replDelayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
 	}
@@ -311,6 +302,14 @@ func NewReplMgr(log *logrus.Entry, virtualStorages []string, queue datastore.Rep
 	}
 
 	return r
+}
+
+func (r ReplMgr) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(r, ch)
+}
+
+func (r ReplMgr) Collect(ch chan<- prometheus.Metric) {
+	r.replInFlightMetric.Collect(ch)
 }
 
 // WithWhitelist will configure a whitelist for repos to allow replication
@@ -524,10 +523,9 @@ func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.Re
 
 	r.replDelayMetric.WithLabelValues(event.Job.Change.String()).Observe(replStart.Sub(event.CreatedAt).Seconds())
 
-	if r.replInFlightMetric != nil {
-		r.replInFlightMetric.Inc(event.Job.VirtualStorage, event.Job.TargetNodeStorage)
-		defer r.replInFlightMetric.Dec(event.Job.VirtualStorage, event.Job.TargetNodeStorage)
-	}
+	inFlightGauge := r.replInFlightMetric.WithLabelValues(event.Job.VirtualStorage, event.Job.TargetNodeStorage, event.Job.Change.String())
+	inFlightGauge.Inc()
+	defer inFlightGauge.Dec()
 
 	switch event.Job.Change {
 	case datastore.UpdateRepo:

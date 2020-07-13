@@ -53,13 +53,6 @@ func RegisterNodeLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
 	return nodeLatency, prometheus.Register(nodeLatency)
 }
 
-// RegisterReplicationJobsInFlightByStorage creates and registers a storage
-// gauge for tracking the in flight replication jobs
-func RegisterReplicationJobsInFlightByStorage() (StorageGauge, error) {
-	sg := newStorageGauge("replication_jobs")
-	return sg, prometheus.Register(sg.gv)
-}
-
 // RegisterTransactionCounter creates and registers a Prometheus counter to
 // track the number of transactions and their outcomes.
 func RegisterTransactionCounter() (*prometheus.CounterVec, error) {

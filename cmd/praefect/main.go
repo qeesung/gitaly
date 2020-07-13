@@ -89,6 +89,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/internal/bootstrap/starter"
@@ -213,11 +214,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return err
 	}
 
-	storageJobs, err := metrics.RegisterReplicationJobsInFlightByStorage()
-	if err != nil {
-		return err
-	}
-
 	var db *sql.DB
 
 	if conf.NeedsSQL() {
@@ -267,7 +263,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			nodeManager,
 			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),
-			praefect.WithInFlightJobsGauge(storageJobs),
 		)
 		srvFactory = praefect.NewServerFactory(
 			conf,
@@ -279,6 +274,8 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			protoregistry.GitalyProtoPreregistered,
 		)
 	)
+
+	prometheus.MustRegister(repl)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

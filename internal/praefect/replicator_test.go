@@ -7,11 +7,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/config"
@@ -130,6 +132,7 @@ func TestProcessReplicationJob(t *testing.T) {
 	for _, secondary := range shard.Secondaries {
 		events = append(events, datastore.ReplicationEvent{
 			Job: datastore.ReplicationJob{
+				VirtualStorage:    "default",
 				Change:            datastore.UpdateRepo,
 				TargetNodeStorage: secondary.GetStorage(),
 				SourceNodeStorage: shard.Primary.GetStorage(),
@@ -149,8 +152,6 @@ func TestProcessReplicationJob(t *testing.T) {
 	var replicator defaultReplicator
 	replicator.log = entry
 
-	mockReplicationGauge := promtest.NewMockStorageGauge()
-
 	var mockReplicationLatencyHistogramVec promtest.MockHistogramVec
 	var mockReplicationDelayHistogramVec promtest.MockHistogramVec
 
@@ -161,7 +162,6 @@ func TestProcessReplicationJob(t *testing.T) {
 		nodeMgr,
 		WithLatencyMetric(&mockReplicationLatencyHistogramVec),
 		WithDelayMetric(&mockReplicationDelayHistogramVec),
-		WithInFlightJobsGauge(mockReplicationGauge),
 	)
 
 	replMgr.replicator = replicator
@@ -176,10 +176,13 @@ func TestProcessReplicationJob(t *testing.T) {
 	testhelper.MustRunCommand(t, nil, "git", "-C", replicatedPath, "gc")
 	require.Less(t, testhelper.GetGitPackfileDirSize(t, replicatedPath), int64(100), "expect a small pack directory")
 
-	require.Equal(t, 1, mockReplicationGauge.IncsCalled())
-	require.Equal(t, 1, mockReplicationGauge.DecsCalled())
 	require.Equal(t, mockReplicationLatencyHistogramVec.LabelsCalled(), [][]string{{"update"}})
 	require.Equal(t, mockReplicationDelayHistogramVec.LabelsCalled(), [][]string{{"update"}})
+	require.NoError(t, testutil.CollectAndCompare(replMgr, strings.NewReader(`
+# HELP gitaly_praefect_replication_jobs Number of replication jobs in flight.
+# TYPE gitaly_praefect_replication_jobs gauge
+gitaly_praefect_replication_jobs{change_type="update",gitaly_storage="backup",virtual_storage="default"} 0
+`)))
 }
 
 func TestPropagateReplicationJob(t *testing.T) {
