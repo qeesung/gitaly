@@ -178,6 +178,7 @@ type DB struct {
 	Port                         int    `toml:"port"`
 	User                         string `toml:"user"`
 	Password                     string `toml:"password"`
+	Role                         string `toml:"role"`
 	DBName                       string `toml:"dbname"`
 	SSLMode                      string `toml:"sslmode"`
 	SSLCert                      string `toml:"sslcert"`
@@ -197,6 +198,7 @@ func (db DB) ToPQString() string {
 		{"host", db.Host},
 		{"user", db.User},
 		{"password", db.Password},
+		{"role", db.Role},
 		{"dbname", db.DBName},
 		{"sslmode", db.SSLMode},
 		{"sslcert", db.SSLCert},
