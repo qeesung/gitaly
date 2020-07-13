@@ -11,41 +11,51 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	serverSocketPath, stop := runOperationServiceServer(t)
-	defer stop()
-
-	client, conn := newOperationClient(t, serverSocketPath)
-	defer conn.Close()
-
-	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
-	tagNameInput := "to-be-deleted-soon-tag"
-
-	defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
-
-	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", tagNameInput)
-
-	request := &gitalypb.UserDeleteTagRequest{
-		Repository: testRepo,
-		TagName:    []byte(tagNameInput),
-		User:       testhelper.TestUser,
-	}
-
-	_, err := client.UserDeleteTag(ctx, request)
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions})
 	require.NoError(t, err)
 
-	tags := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag")
-	require.NotContains(t, string(tags), tagNameInput, "tag name still exists in tags list")
+	for _, featureSet := range featureSets {
+		t.Run(featureSet.String(), func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			ctx = featureSet.WithParent(ctx)
+
+			serverSocketPath, stop := runOperationServiceServer(t)
+			defer stop()
+
+			client, conn := newOperationClient(t, serverSocketPath)
+			defer conn.Close()
+
+			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+			defer cleanupFn()
+
+			tagNameInput := "to-be-deleted-soon-tag"
+
+			defer exec.Command("git", "-C", testRepoPath, "tag", "-d", tagNameInput).Run()
+
+			testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag", tagNameInput)
+
+			request := &gitalypb.UserDeleteTagRequest{
+				Repository: testRepo,
+				TagName:    []byte(tagNameInput),
+				User:       testhelper.TestUser,
+			}
+
+			_, err := client.UserDeleteTag(ctx, request)
+			require.NoError(t, err)
+
+			tags := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag")
+			require.NotContains(t, string(tags), tagNameInput, "tag name still exists in tags list")
+		})
+	}
 }
 
 func TestSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T) {
@@ -91,97 +101,106 @@ func testSuccessfulGitHooksForUserDeleteTagRequest(t *testing.T, ctx context.Con
 }
 
 func TestSuccessfulUserCreateTagRequest(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	serverSocketPath, stop := runOperationServiceServer(t)
-	defer stop()
-
-	client, conn := newOperationClient(t, serverSocketPath)
-	defer conn.Close()
-
-	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
-
-	targetRevision := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
-	targetRevisionCommit, err := log.GetCommit(ctx, testRepo, targetRevision)
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions})
 	require.NoError(t, err)
 
-	inputTagName := "to-be-créated-soon"
-
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	preReceiveHook := filepath.Join(cwd, "testdata/pre-receive-expect-object-type")
-	updateHook := filepath.Join(cwd, "testdata/update-expect-object-type")
-
-	testCases := []struct {
-		desc               string
-		tagName            string
-		message            string
-		targetRevision     string
-		expectedTag        *gitalypb.Tag
-		expectedObjectType string
-	}{
-		{
-			desc:           "lightweight tag",
-			tagName:        inputTagName,
-			targetRevision: targetRevision,
-			expectedTag: &gitalypb.Tag{
-				Name:         []byte(inputTagName),
-				TargetCommit: targetRevisionCommit,
-			},
-			expectedObjectType: "commit",
-		},
-		{
-			desc:           "annotated tag",
-			tagName:        inputTagName,
-			targetRevision: targetRevision,
-			message:        "This is an annotated tag",
-			expectedTag: &gitalypb.Tag{
-				Name:         []byte(inputTagName),
-				TargetCommit: targetRevisionCommit,
-				Message:      []byte("This is an annotated tag"),
-				MessageSize:  24,
-			},
-			expectedObjectType: "tag",
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			for hook, content := range map[string]string{
-				"pre-receive": fmt.Sprintf("#!/bin/sh\n%s %s \"$@\"", preReceiveHook, testCase.expectedObjectType),
-				"update":      fmt.Sprintf("#!/bin/sh\n%s %s \"$@\"", updateHook, testCase.expectedObjectType),
-			} {
-				hookCleanup, err := testhelper.WriteCustomHook(testRepoPath, hook, []byte(content))
-				require.NoError(t, err)
-				defer hookCleanup()
-			}
-
-			request := &gitalypb.UserCreateTagRequest{
-				Repository:     testRepo,
-				TagName:        []byte(testCase.tagName),
-				TargetRevision: []byte(testCase.targetRevision),
-				User:           testhelper.TestUser,
-				Message:        []byte(testCase.message),
-			}
-
+	for _, featureSet := range featureSets {
+		t.Run(featureSet.String(), func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			response, err := client.UserCreateTag(ctx, request)
-			require.NoError(t, err, "error from calling RPC")
-			require.Empty(t, response.PreReceiveError, "PreReceiveError must be empty, signalling the push was accepted")
+			ctx = featureSet.WithParent(ctx)
 
-			defer exec.Command("git", "-C", testRepoPath, "tag", "-d", inputTagName).Run()
+			serverSocketPath, stop := runOperationServiceServer(t)
+			defer stop()
 
-			id := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", inputTagName)
-			testCase.expectedTag.Id = text.ChompBytes(id)
+			client, conn := newOperationClient(t, serverSocketPath)
+			defer conn.Close()
 
-			require.Equal(t, testCase.expectedTag, response.Tag)
+			testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+			defer cleanupFn()
 
-			tag := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag")
-			require.Contains(t, string(tag), inputTagName)
+			targetRevision := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
+			targetRevisionCommit, err := log.GetCommit(ctx, testRepo, targetRevision)
+			require.NoError(t, err)
+
+			inputTagName := "to-be-créated-soon"
+
+			cwd, err := os.Getwd()
+			require.NoError(t, err)
+			preReceiveHook := filepath.Join(cwd, "testdata/pre-receive-expect-object-type")
+			updateHook := filepath.Join(cwd, "testdata/update-expect-object-type")
+
+			testCases := []struct {
+				desc               string
+				tagName            string
+				message            string
+				targetRevision     string
+				expectedTag        *gitalypb.Tag
+				expectedObjectType string
+			}{
+				{
+					desc:           "lightweight tag",
+					tagName:        inputTagName,
+					targetRevision: targetRevision,
+					expectedTag: &gitalypb.Tag{
+						Name:         []byte(inputTagName),
+						TargetCommit: targetRevisionCommit,
+					},
+					expectedObjectType: "commit",
+				},
+				{
+					desc:           "annotated tag",
+					tagName:        inputTagName,
+					targetRevision: targetRevision,
+					message:        "This is an annotated tag",
+					expectedTag: &gitalypb.Tag{
+						Name:         []byte(inputTagName),
+						TargetCommit: targetRevisionCommit,
+						Message:      []byte("This is an annotated tag"),
+						MessageSize:  24,
+					},
+					expectedObjectType: "tag",
+				},
+			}
+
+			for _, testCase := range testCases {
+				t.Run(testCase.desc, func(t *testing.T) {
+					for hook, content := range map[string]string{
+						"pre-receive": fmt.Sprintf("#!/bin/sh\n%s %s \"$@\"", preReceiveHook, testCase.expectedObjectType),
+						"update":      fmt.Sprintf("#!/bin/sh\n%s %s \"$@\"", updateHook, testCase.expectedObjectType),
+					} {
+						hookCleanup, err := testhelper.WriteCustomHook(testRepoPath, hook, []byte(content))
+						require.NoError(t, err)
+						defer hookCleanup()
+					}
+
+					request := &gitalypb.UserCreateTagRequest{
+						Repository:     testRepo,
+						TagName:        []byte(testCase.tagName),
+						TargetRevision: []byte(testCase.targetRevision),
+						User:           testhelper.TestUser,
+						Message:        []byte(testCase.message),
+					}
+
+					ctx, cancel := testhelper.Context()
+					defer cancel()
+
+					response, err := client.UserCreateTag(ctx, request)
+					require.NoError(t, err, "error from calling RPC")
+					require.Empty(t, response.PreReceiveError, "PreReceiveError must be empty, signalling the push was accepted")
+
+					defer exec.Command("git", "-C", testRepoPath, "tag", "-d", inputTagName).Run()
+
+					id := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "rev-parse", inputTagName)
+					testCase.expectedTag.Id = text.ChompBytes(id)
+
+					require.Equal(t, testCase.expectedTag, response.Tag)
+
+					tag := testhelper.MustRunCommand(t, nil, "git", "-C", testRepoPath, "tag")
+					require.Contains(t, string(tag), inputTagName)
+				})
+			}
 		})
 	}
 }

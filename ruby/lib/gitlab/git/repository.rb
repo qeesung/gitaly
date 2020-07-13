@@ -222,7 +222,7 @@ module Gitlab
         false
       end
 
-      def add_tag(tag_name, user:, target:, message: nil)
+      def add_tag(tag_name, user:, target:, message: nil, transaction: nil)
         target_object = Ref.dereference_object(lookup(target))
         raise InvalidRef, "target not found: #{target}" unless target_object
 
@@ -234,10 +234,11 @@ module Gitlab
             tag_name,
             target_oid,
             message: message,
-            tagger: Gitlab::Git.committer_hash(email: user.email, name: user.name)
+            tagger: Gitlab::Git.committer_hash(email: user.email, name: user.name),
+            transaction: transaction
           )
         else
-          operation_service.add_lightweight_tag(tag_name, target_oid)
+          operation_service.add_lightweight_tag(tag_name, target_oid, transaction: transaction)
         end
 
         find_tag(tag_name)
@@ -251,24 +252,24 @@ module Gitlab
         end
       end
 
-      def update_branch(branch_name, user:, newrev:, oldrev:, push_options: nil)
-        OperationService.new(user, self).update_branch(branch_name, newrev, oldrev, push_options: push_options)
+      def update_branch(branch_name, user:, newrev:, oldrev:, push_options: nil, transaction: nil)
+        OperationService.new(user, self).update_branch(branch_name, newrev, oldrev, push_options: push_options, transaction: transaction)
       end
 
-      def rm_branch(branch_name, user:)
+      def rm_branch(branch_name, user:, transaction: nil)
         branch = find_branch(branch_name)
 
         raise InvalidRef, "branch not found: #{branch_name}" unless branch
 
-        OperationService.new(user, self).rm_branch(branch)
+        OperationService.new(user, self).rm_branch(branch, transaction: transaction)
       end
 
-      def rm_tag(tag_name, user:)
+      def rm_tag(tag_name, user:, transaction: nil)
         tag = find_tag(tag_name)
 
         raise InvalidRef, "tag not found: #{tag_name}" unless tag
 
-        Gitlab::Git::OperationService.new(user, self).rm_tag(tag)
+        Gitlab::Git::OperationService.new(user, self).rm_tag(tag, transaction: transaction)
       end
 
       def find_tag(name)

@@ -1,0 +1,5 @@
+---
+title: Transaction support for modification of branches and tags via operations service
+merge_request: 2374
+author:
+type: added

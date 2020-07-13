@@ -1,9 +1,9 @@
 module Praefect
   class Transaction
-    PRAEFECT_SERVER_KEY = "praefect-server".freeze
-    PRAEFECT_SERVER_ENV = "PRAEFECT_SERVER".freeze
-    TRANSACTION_KEY = "transaction".freeze
-    TRANSACTION_ENV = "REFERENCE_TRANSACTION".freeze
+    PRAEFECT_SERVER_KEY = "gitaly-praefect-server".freeze
+    PRAEFECT_SERVER_ENV = "GITALY_PRAEFECT_SERVER".freeze
+    TRANSACTION_KEY = "gitaly-reference-transaction".freeze
+    TRANSACTION_ENV = "GITALY_REFERENCE_TRANSACTION".freeze
 
     def self.from_metadata(metadata)
       new(metadata[PRAEFECT_SERVER_KEY], metadata[TRANSACTION_KEY])

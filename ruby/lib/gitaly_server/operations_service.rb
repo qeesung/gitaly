@@ -4,6 +4,7 @@ module GitalyServer
 
     def user_create_tag(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      transaction = Praefect::Transaction.from_metadata(call.metadata)
 
       gitaly_user = get_param!(request, :user)
       user = Gitlab::Git::User.from_gitaly(gitaly_user)
@@ -12,7 +13,7 @@ module GitalyServer
 
       target_revision = get_param!(request, :target_revision)
 
-      created_tag = repo.add_tag(tag_name, user: user, target: target_revision, message: request.message.presence)
+      created_tag = repo.add_tag(tag_name, user: user, target: target_revision, message: request.message.presence, transaction: transaction)
       Gitaly::UserCreateTagResponse.new unless created_tag
 
       rugged_commit = created_tag.dereferenced_target.rugged_commit
@@ -30,13 +31,14 @@ module GitalyServer
 
     def user_delete_tag(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
+      transaction = Praefect::Transaction.from_metadata(call.metadata)
 
       gitaly_user = get_param!(request, :user)
       user = Gitlab::Git::User.from_gitaly(gitaly_user)
 
       tag_name = get_param!(request, :tag_name)
 
-      repo.rm_tag(tag_name, user: user)
+      repo.rm_tag(tag_name, user: user, transaction: transaction)
 
       Gitaly::UserDeleteTagResponse.new
     rescue Gitlab::Git::PreReceiveError => e
@@ -72,9 +74,10 @@ module GitalyServer
       newrev = get_param!(request, :newrev)
       oldrev = get_param!(request, :oldrev)
       gitaly_user = get_param!(request, :user)
+      transaction = Praefect::Transaction.from_metadata(call.metadata)
 
       user = Gitlab::Git::User.from_gitaly(gitaly_user)
-      repo.update_branch(branch_name, user: user, newrev: newrev, oldrev: oldrev)
+      repo.update_branch(branch_name, user: user, newrev: newrev, oldrev: oldrev, transaction: transaction)
 
       Gitaly::UserUpdateBranchResponse.new
     rescue Gitlab::Git::Repository::InvalidRef, Gitlab::Git::CommitError => ex
@@ -86,8 +89,9 @@ module GitalyServer
     def user_delete_branch(request, call)
       repo = Gitlab::Git::Repository.from_gitaly(request.repository, call)
       user = Gitlab::Git::User.from_gitaly(request.user)
+      transaction = Praefect::Transaction.from_metadata(call.metadata)
 
-      repo.rm_branch(request.branch_name, user: user)
+      repo.rm_branch(request.branch_name, user: user, transaction: transaction)
 
       Gitaly::UserDeleteBranchResponse.new
     rescue Gitlab::Git::PreReceiveError => e

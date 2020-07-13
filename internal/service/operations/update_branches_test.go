@@ -21,35 +21,44 @@ var (
 )
 
 func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{featureflag.ReferenceTransactions})
+	require.NoError(t, err)
 
-	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
-	defer cleanupFn()
+	for _, featureSet := range featureSets {
+		t.Run(featureSet.String(), func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
 
-	serverSocketPath, stop := runOperationServiceServer(t)
-	defer stop()
+			ctx = featureSet.WithParent(ctx)
 
-	client, conn := newOperationClient(t, serverSocketPath)
-	defer conn.Close()
+			testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
+			defer cleanupFn()
 
-	request := &gitalypb.UserUpdateBranchRequest{
-		Repository: testRepo,
-		BranchName: []byte(updateBranchName),
-		Newrev:     newrev,
-		Oldrev:     oldrev,
-		User:       testhelper.TestUser,
+			serverSocketPath, stop := runOperationServiceServer(t)
+			defer stop()
+
+			client, conn := newOperationClient(t, serverSocketPath)
+			defer conn.Close()
+
+			request := &gitalypb.UserUpdateBranchRequest{
+				Repository: testRepo,
+				BranchName: []byte(updateBranchName),
+				Newrev:     newrev,
+				Oldrev:     oldrev,
+				User:       testhelper.TestUser,
+			}
+
+			response, err := client.UserUpdateBranch(ctx, request)
+
+			require.NoError(t, err)
+			require.Empty(t, response.PreReceiveError)
+
+			branchCommit, err := log.GetCommit(ctx, testRepo, updateBranchName)
+
+			require.NoError(t, err)
+			require.Equal(t, string(newrev), branchCommit.Id)
+		})
 	}
-
-	response, err := client.UserUpdateBranch(ctx, request)
-
-	require.NoError(t, err)
-	require.Empty(t, response.PreReceiveError)
-
-	branchCommit, err := log.GetCommit(ctx, testRepo, updateBranchName)
-
-	require.NoError(t, err)
-	require.Equal(t, string(newrev), branchCommit.Id)
 }
 
 func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
