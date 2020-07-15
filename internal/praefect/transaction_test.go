@@ -490,7 +490,7 @@ func TestTransactionCancellation(t *testing.T) {
 				{votes: 1, showsUp: false, shouldSucceed: false},
 			},
 			threshold:       2,
-			expectedMetrics: counterMetrics{registered: 1, committed: 0},
+			expectedMetrics: counterMetrics{registered: 2, committed: 0},
 		},
 		{
 			desc: "two nodes with unweighted node failing",
@@ -499,7 +499,7 @@ func TestTransactionCancellation(t *testing.T) {
 				{votes: 0, showsUp: false, shouldSucceed: false},
 			},
 			threshold:       1,
-			expectedMetrics: counterMetrics{registered: 1, started: 1, committed: 1},
+			expectedMetrics: counterMetrics{registered: 2, started: 1, committed: 1},
 		},
 		{
 			desc: "multiple weighted votes with subset failing",
@@ -509,7 +509,7 @@ func TestTransactionCancellation(t *testing.T) {
 				{votes: 1, showsUp: false, shouldSucceed: false},
 			},
 			threshold:       2,
-			expectedMetrics: counterMetrics{registered: 1, started: 2, committed: 2},
+			expectedMetrics: counterMetrics{registered: 3, started: 2, committed: 2},
 		},
 	}
 
