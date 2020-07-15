@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/config"
-	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/gitlabshell"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -44,20 +43,14 @@ func hookRequestEnv(req hookRequest) ([]string, error) {
 }
 
 func preReceiveEnv(req prePostRequest) ([]string, error) {
-	_, env, err := alternates.PathAndEnv(req.GetRepository())
+	env, err := hookRequestEnv(req)
 	if err != nil {
 		return nil, err
 	}
 
-	hookEnv, err := hookRequestEnv(req)
-	if err != nil {
-		return nil, err
-	}
-
-	env = append(env, hookEnv...)
 	env = append(env, hooks.GitPushOptions(req.GetGitPushOptions())...)
 
-	return append(hookEnv, env...), nil
+	return env, nil
 }
 
 func gitlabShellHook(hookName string) string {
@@ -163,6 +156,31 @@ func isPrimary(env []string) (bool, error) {
 	return tx.Primary, nil
 }
 
+func getRelativeObjectDirs(repoPath, gitObjectDir, gitAlternateObjectDirs string) (string, []string, error) {
+	repoPathReal, err := filepath.EvalSymlinks(repoPath)
+	if err != nil {
+		return "", nil, err
+	}
+
+	gitObjDirRel, err := filepath.Rel(repoPathReal, gitObjectDir)
+	if err != nil {
+		return "", nil, err
+	}
+
+	var gitAltObjDirsRel []string
+
+	for _, gitAltObjDirAbs := range strings.Split(gitAlternateObjectDirs, ":") {
+		gitAltObjDirRel, err := filepath.Rel(repoPathReal, gitAltObjDirAbs)
+		if err != nil {
+			return "", nil, err
+		}
+
+		gitAltObjDirsRel = append(gitAltObjDirsRel, gitAltObjDirRel)
+	}
+
+	return gitObjDirRel, gitAltObjDirsRel, nil
+}
+
 func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {
@@ -177,6 +195,21 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 
 	if !useGoPreReceiveHook(reqEnvVars) {
 		return s.preReceiveHookRuby(firstRequest, stream)
+	}
+
+	if gitObjDir, gitAltObjDirs := getEnvVar("GIT_OBJECT_DIRECTORY", reqEnvVars), getEnvVar("GIT_ALTERNATE_OBJECT_DIRECTORIES", reqEnvVars); gitObjDir != "" && gitAltObjDirs != "" {
+		repoPath, err := helper.GetRepoPath(repository)
+		if err != nil {
+			return helper.ErrInternalf("getting repo path: %v", err)
+		}
+
+		gitObjectDirRel, gitAltObjectDirRel, err := getRelativeObjectDirs(repoPath, gitObjDir, gitAltObjDirs)
+		if err != nil {
+			return helper.ErrInternalf("getting relative git object directories: %v", err)
+		}
+
+		repository.GitObjectDirectory = gitObjectDirRel
+		repository.GitAlternateObjectDirectories = gitAltObjectDirRel
 	}
 
 	stdin := streamio.NewReader(func() ([]byte, error) {
