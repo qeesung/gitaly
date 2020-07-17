@@ -2,31 +2,23 @@ package transactions
 
 import (
 	"context"
-	"crypto/sha1"
 	"errors"
-	"fmt"
 	"sync"
 )
 
 var (
-	ErrDuplicateNodes        = errors.New("transactions cannot have duplicate nodes")
-	ErrMissingNodes          = errors.New("transaction requires at least one node")
-	ErrInvalidThreshold      = errors.New("transaction has invalid threshold")
-	ErrTransactionVoteFailed = errors.New("transaction did not reach quorum")
-	ErrTransactionCanceled   = errors.New("transaction was canceled")
-)
-
-// voteResult represents the outcome of a transaction for a single voter.
-type voteResult int
-
-const (
-	// voteUndecided means that the voter either didn't yet show up or that
-	// the vote couldn't yet be decided due to there being no majority yet.
-	voteUndecided voteResult = iota
-	// voteCommitted means that the voter committed his vote.
-	voteCommitted
-	// voteAborted means that the voter aborted his vote.
-	voteAborted
+	// ErrDuplicateNodes indicates a transaction was registered with two
+	// voters having the same name.
+	ErrDuplicateNodes = errors.New("transactions cannot have duplicate nodes")
+	// ErrMissingNodes indicates a transaction was registered with no voters.
+	ErrMissingNodes = errors.New("transaction requires at least one node")
+	// ErrInvalidThreshold indicates a transaction was registered with an
+	// invalid threshold that may either allow for multiple different
+	// quorums or none at all.
+	ErrInvalidThreshold = errors.New("transaction has invalid threshold")
+	// ErrSubtransactionFailed indicates a vote was cast on a
+	// subtransaction which failed already.
+	ErrSubtransactionFailed = errors.New("subtransaction has failed")
 )
 
 // Voter is a participant in a given transaction that may cast a vote.
@@ -42,32 +34,16 @@ type Voter struct {
 	result voteResult
 }
 
-type vote [sha1.Size]byte
-
-func voteFromHash(hash []byte) (vote, error) {
-	var vote vote
-
-	if len(hash) != sha1.Size {
-		return vote, fmt.Errorf("invalid voting hash: %q", hash)
-	}
-
-	copy(vote[:], hash)
-	return vote, nil
-}
-
-func (v vote) isEmpty() bool {
-	return v == vote{}
-}
-
+// transaction is a session where a set of voters votes on one or more
+// subtransactions. Subtransactions are a sequence of sessions, where each node
+// needs to go through the same sequence and agree on the same thing in the end
+// in order to have the complete transaction succeed.
 type transaction struct {
-	doneCh   chan interface{}
-	cancelCh chan interface{}
-
 	threshold uint
+	voters    []Voter
 
-	lock         sync.RWMutex
-	votersByNode map[string]*Voter
-	voteCounts   map[vote]uint
+	lock            sync.Mutex
+	subtransactions []*subtransaction
 }
 
 func newTransaction(voters []Voter, threshold uint) (*transaction, error) {
@@ -76,15 +52,12 @@ func newTransaction(voters []Voter, threshold uint) (*transaction, error) {
 	}
 
 	var totalVotes uint
-	votersByNode := make(map[string]*Voter, len(voters))
-
+	votersByNode := make(map[string]interface{}, len(voters))
 	for _, voter := range voters {
 		if _, ok := votersByNode[voter.Name]; ok {
 			return nil, ErrDuplicateNodes
 		}
-
-		voter := voter // rescope loop variable
-		votersByNode[voter.Name] = &voter
+		votersByNode[voter.Name] = nil
 		totalVotes += voter.Votes
 	}
 
@@ -102,11 +75,8 @@ func newTransaction(voters []Voter, threshold uint) (*transaction, error) {
 	}
 
 	return &transaction{
-		doneCh:       make(chan interface{}),
-		cancelCh:     make(chan interface{}),
-		threshold:    threshold,
-		votersByNode: votersByNode,
-		voteCounts:   make(map[vote]uint, len(votersByNode)),
+		threshold: threshold,
+		voters:    voters,
 	}, nil
 }
 
@@ -114,109 +84,76 @@ func (t *transaction) cancel() map[string]bool {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	results := make(map[string]bool, len(t.votersByNode))
-	for node, voter := range t.votersByNode {
-		// If a voter didn't yet show up or is still undecided, we need
-		// to mark it as failed so it won't get the idea of committing
-		// the transaction at a later point anymore.
-		if voter.result == voteUndecided {
-			voter.result = voteAborted
-		}
-		results[node] = voter.result == voteCommitted
-	}
+	results := make(map[string]bool, len(t.voters))
 
-	close(t.cancelCh)
+	// We need to collect outcomes of all subtransactions. If any of the
+	// subtransactions failed, then the overall transaction failed for that
+	// node as well. Otherwise, if all subtransactions for the node
+	// succeeded, the transaction did as well.
+	for _, subtransaction := range t.subtransactions {
+		for voter, result := range subtransaction.cancel() {
+			// If there already is an entry indicating failure, keep it.
+			if didSucceed, ok := results[voter]; ok && !didSucceed {
+				continue
+			}
+			results[voter] = result
+		}
+	}
 
 	return results
 }
 
-func (t *transaction) vote(node string, hash []byte) error {
-	vote, err := voteFromHash(hash)
+// getOrCreateSubtransaction gets an ongoing subtransaction on which the given
+// node hasn't yet voted on or creates a new one if the node has succeeded on
+// all subtransactions. In case the node has failed on any of the
+// subtransactions, an error will be returned.
+func (t *transaction) getOrCreateSubtransaction(node string) (*subtransaction, error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	for _, subtransaction := range t.subtransactions {
+		result, err := subtransaction.getResult(node)
+		if err != nil {
+			return nil, err
+		}
+
+		switch result {
+		case voteUndecided:
+			// An undecided vote means we should vote on this one.
+			return subtransaction, nil
+		case voteCommitted:
+			// If we have committed this subtransaction, we're good
+			// to go.
+			continue
+		case voteAborted:
+			// If the subtransaction was aborted, then we need to
+			// fail as we cannot proceed if the path leading to the
+			// end result has intermittent failures.
+			return nil, ErrSubtransactionFailed
+		}
+	}
+
+	// If we arrive here, then we know that all the node has voted and
+	// reached quorum on all subtransactions. We can thus create a new one.
+	subtransaction, err := newSubtransaction(t.voters, t.threshold)
+	if err != nil {
+		return nil, err
+	}
+
+	t.subtransactions = append(t.subtransactions, subtransaction)
+
+	return subtransaction, nil
+}
+
+func (t *transaction) vote(ctx context.Context, node string, hash []byte) error {
+	subtransaction, err := t.getOrCreateSubtransaction(node)
 	if err != nil {
 		return err
 	}
 
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	// Cast our vote. In case the node doesn't exist or has already cast a
-	// vote, we need to abort.
-	voter, ok := t.votersByNode[node]
-	if !ok {
-		return fmt.Errorf("invalid node for transaction: %q", node)
-	}
-	if !voter.vote.isEmpty() {
-		return fmt.Errorf("node already cast a vote: %q", node)
-	}
-	voter.vote = vote
-
-	oldCount := t.voteCounts[vote]
-	newCount := oldCount + voter.Votes
-	t.voteCounts[vote] = newCount
-
-	// If the threshold was reached before already, we mustn't try to
-	// signal the other voters again.
-	if oldCount >= t.threshold {
-		return nil
+	if err := subtransaction.vote(node, hash); err != nil {
+		return err
 	}
 
-	// If we've just crossed the threshold, signal all voters that the
-	// voting has concluded.
-	if newCount >= t.threshold {
-		close(t.doneCh)
-		return nil
-	}
-
-	// If any other vote has already reached the threshold, we mustn't try
-	// to notify voters again.
-	for _, count := range t.voteCounts {
-		if count >= t.threshold {
-			return nil
-		}
-	}
-
-	// If any of the voters didn't yet cast its vote, we need to wait for
-	// them.
-	for _, voter := range t.votersByNode {
-		if voter.vote.isEmpty() {
-			return nil
-		}
-	}
-
-	// Otherwise, signal voters that all votes were gathered.
-	close(t.doneCh)
-	return nil
-}
-
-func (t *transaction) collectVotes(ctx context.Context, node string) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.cancelCh:
-		return ErrTransactionCanceled
-	case <-t.doneCh:
-		break
-	}
-
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	voter, ok := t.votersByNode[node]
-	if !ok {
-		return fmt.Errorf("invalid node for transaction: %q", node)
-	}
-
-	if voter.result != voteUndecided {
-		return fmt.Errorf("voter has already settled on an outcome: %q", node)
-	}
-
-	// See if our vote crossed the threshold. As there can be only one vote
-	// exceeding it, we know we're the winner in that case.
-	if t.voteCounts[voter.vote] < t.threshold {
-		voter.result = voteAborted
-		return fmt.Errorf("%w: got %d/%d votes", ErrTransactionVoteFailed, t.voteCounts[voter.vote], t.threshold)
-	}
-
-	voter.result = voteCommitted
-	return nil
+	return subtransaction.collectVotes(ctx, node)
 }

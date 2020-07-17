@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -439,6 +440,112 @@ func TestTransactionReachesQuorum(t *testing.T) {
 			}
 
 			wg.Wait()
+		})
+	}
+}
+
+func TestTransactionWithMultipleVotes(t *testing.T) {
+	type multiVoter struct {
+		voteCount     uint
+		votes         []string
+		voteSucceeds  []bool
+		shouldSucceed bool
+	}
+
+	tc := []struct {
+		desc      string
+		voters    []multiVoter
+		threshold uint
+	}{
+		{
+			desc: "quorum is reached with multiple votes",
+			voters: []multiVoter{
+				{voteCount: 1, votes: []string{"foo", "bar"}, voteSucceeds: []bool{true, true}, shouldSucceed: true},
+				{voteCount: 1, votes: []string{"foo", "bar"}, voteSucceeds: []bool{true, true}, shouldSucceed: true},
+			},
+			threshold: 2,
+		},
+		{
+			desc: "quorum is not reached with disagreeing votes",
+			voters: []multiVoter{
+				{voteCount: 1, votes: []string{"foo", "bar"}, voteSucceeds: []bool{true, false}, shouldSucceed: false},
+				{voteCount: 1, votes: []string{"foo", "rab"}, voteSucceeds: []bool{true, false}, shouldSucceed: false},
+			},
+			threshold: 2,
+		},
+		{
+			desc: "quorum is reached with unweighted disagreeing voter",
+			voters: []multiVoter{
+				{voteCount: 1, votes: []string{"foo", "bar", "qux"}, voteSucceeds: []bool{true, true, true}, shouldSucceed: true},
+				{voteCount: 0, votes: []string{"foo", "rab"}, voteSucceeds: []bool{true, false}, shouldSucceed: false},
+			},
+			threshold: 1,
+		},
+		{
+			desc: "quorum is reached with outweighed disagreeing voter",
+			voters: []multiVoter{
+				{voteCount: 1, votes: []string{"foo", "bar", "qux"}, voteSucceeds: []bool{true, true, true}, shouldSucceed: true},
+				{voteCount: 1, votes: []string{"foo", "bar", "qux"}, voteSucceeds: []bool{true, true, true}, shouldSucceed: true},
+				{voteCount: 1, votes: []string{"foo", "rab"}, voteSucceeds: []bool{true, false}, shouldSucceed: false},
+			},
+			threshold: 2,
+		},
+	}
+
+	cc, txMgr, cleanup := runPraefectServerAndTxMgr(t)
+	defer cleanup()
+
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	client := gitalypb.NewRefTransactionClient(cc)
+
+	for _, tc := range tc {
+		t.Run(tc.desc, func(t *testing.T) {
+			var voters []transactions.Voter
+
+			for i, voter := range tc.voters {
+				voters = append(voters, transactions.Voter{
+					Name:  fmt.Sprintf("node-%d", i),
+					Votes: voter.voteCount,
+				})
+			}
+
+			transactionID, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			require.NoError(t, err)
+
+			var wg sync.WaitGroup
+			for i, v := range tc.voters {
+				wg.Add(1)
+				go func(i int, v multiVoter) {
+					defer wg.Done()
+
+					for j, vote := range v.votes {
+						name := fmt.Sprintf("node-%d", i)
+						hash := sha1.Sum([]byte(vote))
+
+						response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
+							TransactionId:        transactionID,
+							Node:                 name,
+							ReferenceUpdatesHash: hash[:],
+						})
+						assert.NoError(t, err)
+
+						if v.voteSucceeds[j] {
+							assert.Equal(t, gitalypb.VoteTransactionResponse_COMMIT, response.State, "node should have received COMMIT")
+						} else {
+							assert.Equal(t, gitalypb.VoteTransactionResponse_ABORT, response.State, "node should have received ABORT")
+						}
+					}
+				}(i, v)
+			}
+
+			wg.Wait()
+
+			results, _ := cancel()
+			for i, voter := range tc.voters {
+				require.Equal(t, voter.shouldSucceed, results[fmt.Sprintf("node-%d", i)])
+			}
 		})
 	}
 }

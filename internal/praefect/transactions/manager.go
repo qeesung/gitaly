@@ -158,11 +158,7 @@ func (mgr *Manager) voteTransaction(ctx context.Context, transactionID uint64, n
 		return ErrNotFound
 	}
 
-	if err := transaction.vote(node, hash); err != nil {
-		return err
-	}
-
-	if err := transaction.collectVotes(ctx, node); err != nil {
+	if err := transaction.vote(ctx, node, hash); err != nil {
 		return err
 	}
 
