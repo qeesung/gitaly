@@ -24,9 +24,8 @@ func TestConsistencyCheck(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					0: {
-						DefaultPrimary: true,
-						Storage:        "gitaly-0",
-						Address:        "tcp::/this-doesnt-matter",
+						Storage: "gitaly-0",
+						Address: "tcp::/this-doesnt-matter",
 					},
 					1: {
 						Storage: "gitaly-1",

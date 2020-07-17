@@ -104,9 +104,8 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 		Name: virtualStorageName,
 		Nodes: []*config.Node{
 			{
-				Storage:        primaryStorage,
-				Address:        "unix://" + socket0,
-				DefaultPrimary: true,
+				Storage: primaryStorage,
+				Address: "unix://" + socket0,
 			},
 			{
 				Storage: "praefect-internal-1",
@@ -142,52 +141,6 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 	require.Equal(t, primaryStorage, shard.Primary.GetStorage())
 }
 
-func TestPrimaryIsSecond(t *testing.T) {
-	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(), testhelper.GetTemporaryGitalySocketFileName()
-	_, healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
-	_, healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
-	healthSrv0.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-	healthSrv1.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-
-	virtualStorages := []*config.VirtualStorage{
-		{
-			Name: "virtual-storage-0",
-			Nodes: []*config.Node{
-				{
-					Storage:        "praefect-internal-0",
-					Address:        "unix://" + gitalySocket0,
-					DefaultPrimary: false,
-				},
-				{
-					Storage:        "praefect-internal-1",
-					Address:        "unix://" + gitalySocket1,
-					DefaultPrimary: true,
-				},
-			},
-		},
-	}
-
-	conf := config.Config{
-		VirtualStorages: virtualStorages,
-		Failover:        config.Failover{Enabled: false},
-	}
-
-	mockHistogram := promtest.NewMockHistogramVec()
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, mockHistogram)
-	require.NoError(t, err)
-
-	shard, err := nm.GetShard("virtual-storage-0")
-	require.NoError(t, err)
-	require.False(t, shard.IsReadOnly, "new shard should not be read-only")
-
-	require.Equal(t, virtualStorages[0].Nodes[1].Storage, shard.Primary.GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[1].Address, shard.Primary.GetAddress())
-
-	require.Len(t, shard.Secondaries, 1)
-	require.Equal(t, virtualStorages[0].Nodes[0].Storage, shard.Secondaries[0].GetStorage())
-	require.Equal(t, virtualStorages[0].Nodes[0].Address, shard.Secondaries[0].GetAddress())
-}
-
 func TestBlockingDial(t *testing.T) {
 	storageName := "default"
 	praefectSocket := testhelper.GetTemporaryGitalySocketFileName()
@@ -205,9 +158,8 @@ func TestBlockingDial(t *testing.T) {
 				Name: storageName,
 				Nodes: []*config.Node{
 					{
-						Storage:        "internal-storage",
-						Address:        "unix://" + gitalySocket,
-						DefaultPrimary: true,
+						Storage: "internal-storage",
+						Address: "unix://" + gitalySocket,
 					},
 				},
 			},
@@ -243,9 +195,8 @@ func TestNodeManager(t *testing.T) {
 	defer srv1.Stop()
 
 	node1 := &config.Node{
-		Storage:        "praefect-internal-0",
-		Address:        "unix://" + internalSocket0,
-		DefaultPrimary: true,
+		Storage: "praefect-internal-0",
+		Address: "unix://" + internalSocket0,
 	}
 
 	node2 := &config.Node{
@@ -393,9 +344,8 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 			Name: "virtual-storage-0",
 			Nodes: []*config.Node{
 				{
-					Storage:        "gitaly-0",
-					Address:        vs0Primary,
-					DefaultPrimary: true,
+					Storage: "gitaly-0",
+					Address: vs0Primary,
 				},
 				{
 					Storage: "gitaly-1",
@@ -409,9 +359,8 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 			Nodes: []*config.Node{
 				{
 					// same storage name as in other virtual storage is used intentionally
-					Storage:        "gitaly-1",
-					Address:        "unix://" + sockets[2],
-					DefaultPrimary: true,
+					Storage: "gitaly-1",
+					Address: "unix://" + sockets[2],
 				},
 				{
 					Storage: "gitaly-2",
@@ -609,7 +558,7 @@ func TestNodeStatus_IsHealthy(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, clientConn.Close()) }()
 
-	node := config.Node{Storage: "gitaly-0", Address: address, DefaultPrimary: true}
+	node := config.Node{Storage: "gitaly-0", Address: address}
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()

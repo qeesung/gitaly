@@ -100,9 +100,8 @@ func TestGitalyServerInfo(t *testing.T) {
 				Name: "virtual-storage-1",
 				Nodes: []*config.Node{
 					&config.Node{
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
-						Token:          "abc",
+						Storage: "praefect-internal-1",
+						Token:   "abc",
 					},
 					&config.Node{
 						Storage: "praefect-internal-2",
@@ -164,10 +163,9 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 			&config.VirtualStorage{
 				Nodes: []*config.Node{
 					&config.Node{
-						Storage:        "praefect-internal-1",
-						Address:        "unix://" + gitalySocket,
-						DefaultPrimary: true,
-						Token:          "abc",
+						Storage: "praefect-internal-1",
+						Address: "unix://" + gitalySocket,
+						Token:   "abc",
 					},
 				},
 			},
@@ -193,9 +191,8 @@ func TestGitalyDiskStatistics(t *testing.T) {
 			{
 				Nodes: []*config.Node{
 					{
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
-						Token:          "abc",
+						Storage: "praefect-internal-1",
+						Token:   "abc",
 					},
 					{
 						Storage: "praefect-internal-2",
@@ -241,9 +238,8 @@ func TestRejectBadStorage(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp::/this-doesnt-matter",
+						Storage: "praefect-internal-0",
+						Address: "tcp::/this-doesnt-matter",
 					},
 				},
 			},
@@ -274,9 +270,8 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp://abc",
+						Storage: "praefect-internal-0",
+						Address: "tcp://abc",
 					},
 					&config.Node{
 						Storage: "praefect-internal-1",
@@ -288,9 +283,8 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp://abc",
+						Storage: "praefect-internal-0",
+						Address: "tcp://abc",
 					},
 					&config.Node{
 						Storage: "praefect-internal-1",
@@ -320,9 +314,8 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp::/samesies",
+						Storage: "praefect-internal-0",
+						Address: "tcp::/samesies",
 					},
 					&config.Node{
 						Storage: "praefect-internal-1",
@@ -357,9 +350,8 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp://abc",
+						Storage: "praefect-internal-0",
+						Address: "tcp://abc",
 					},
 					&config.Node{
 						Storage: "praefect-internal-1",
@@ -371,9 +363,8 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "tcp://abc",
+						Storage: "praefect-internal-0",
+						Address: "tcp://abc",
 					},
 					&config.Node{
 						Storage: "praefect-internal-2",
@@ -405,9 +396,8 @@ func TestRepoRemoval(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						DefaultPrimary: true,
-						Storage:        gconfig.Config.Storages[0].Name,
-						Address:        "tcp::/samesies",
+						Storage: gconfig.Config.Storages[0].Name,
+						Address: "tcp::/samesies",
 					},
 					&config.Node{
 						Storage: "praefect-internal-1",
@@ -529,9 +519,8 @@ func TestRepoRename(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					0: {
-						DefaultPrimary: true,
-						Storage:        gconfig.Config.Storages[0].Name,
-						Address:        "tcp::/this-doesnt-matter",
+						Storage: gconfig.Config.Storages[0].Name,
+						Address: "tcp::/this-doesnt-matter",
 					},
 					1: {
 						Storage: "gitaly-1",
@@ -778,9 +767,8 @@ func TestProxyWrites(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					{
-						DefaultPrimary: true,
-						Storage:        "praefect-internal-0",
-						Address:        "unix://" + socket0,
+						Storage: "praefect-internal-0",
+						Address: "unix://" + socket0,
 					},
 					{
 						Storage: "praefect-internal-1",

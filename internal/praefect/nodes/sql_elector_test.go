@@ -264,18 +264,15 @@ func TestElectNewPrimary(t *testing.T) {
 
 	ns := []*nodeStatus{{
 		node: config.Node{
-			Storage:        "gitaly-0",
-			DefaultPrimary: true,
+			Storage: "gitaly-0",
 		},
 	}, {
 		node: config.Node{
-			Storage:        "gitaly-1",
-			DefaultPrimary: true,
+			Storage: "gitaly-1",
 		},
 	}, {
 		node: config.Node{
-			Storage:        "gitaly-2",
-			DefaultPrimary: true,
+			Storage: "gitaly-2",
 		},
 	}}
 

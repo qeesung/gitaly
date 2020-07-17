@@ -61,10 +61,9 @@ func TestServerFactory(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					{
-						DefaultPrimary: true,
-						Storage:        gconfig.Config.Storages[0].Name,
-						Address:        gitalyAddr,
-						Token:          gconfig.Config.Auth.Token,
+						Storage: gconfig.Config.Storages[0].Name,
+						Address: gitalyAddr,
+						Token:   gconfig.Config.Auth.Token,
 					},
 				},
 			},

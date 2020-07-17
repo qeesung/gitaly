@@ -76,10 +76,9 @@ func TestProcessReplicationJob(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					&config.Node{
-						Storage:        "default",
-						Address:        srvSocketPath,
-						Token:          gitaly_config.Config.Auth.Token,
-						DefaultPrimary: true,
+						Storage: "default",
+						Address: srvSocketPath,
+						Token:   gitaly_config.Config.Auth.Token,
 					},
 					&config.Node{
 						Storage: backupStorageName,
@@ -203,9 +202,8 @@ func TestPropagateReplicationJob(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					{
-						Storage:        primaryStorage,
-						Address:        primarySocketPath,
-						DefaultPrimary: true,
+						Storage: primaryStorage,
+						Address: primarySocketPath,
 					},
 					{
 						Storage: secondaryStorage,
@@ -421,9 +419,8 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 	defer cleanupFn()
 
 	primary := config.Node{
-		Storage:        "default",
-		Address:        "unix://" + primarySocket,
-		DefaultPrimary: true,
+		Storage: "default",
+		Address: "unix://" + primarySocket,
 	}
 
 	secondary := config.Node{
@@ -543,9 +540,8 @@ func TestProcessBacklog_Success(t *testing.T) {
 	defer cleanupFn()
 
 	primary := config.Node{
-		Storage:        "default",
-		Address:        "unix://" + primarySocket,
-		DefaultPrimary: true,
+		Storage: "default",
+		Address: "unix://" + primarySocket,
 	}
 
 	secondary := config.Node{

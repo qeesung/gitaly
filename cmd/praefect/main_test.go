@@ -30,10 +30,9 @@ func TestFlattenNodes(t *testing.T) {
 						Name: "meow",
 						Nodes: []*config.Node{
 							{
-								Storage:        "foo",
-								Address:        "tcp://example.com",
-								Token:          "abc",
-								DefaultPrimary: true,
+								Storage: "foo",
+								Address: "tcp://example.com",
+								Token:   "abc",
 							},
 						},
 					},
@@ -41,10 +40,9 @@ func TestFlattenNodes(t *testing.T) {
 						Name: "woof",
 						Nodes: []*config.Node{
 							{
-								Storage:        "bar",
-								Address:        "tcp://example.com",
-								Token:          "abc",
-								DefaultPrimary: true,
+								Storage: "bar",
+								Address: "tcp://example.com",
+								Token:   "abc",
 							},
 						},
 					},

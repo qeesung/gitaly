@@ -54,10 +54,6 @@ func testConfig(backends int) config.Config {
 			Token:   fmt.Sprintf("%d", i),
 		}
 
-		if i == 0 {
-			n.DefaultPrimary = true
-		}
-
 		nodes = append(nodes, n)
 	}
 	cfg := config.Config{
@@ -70,18 +66,6 @@ func testConfig(backends int) config.Config {
 	}
 
 	return cfg
-}
-
-func assertPrimariesExist(t testing.TB, conf config.Config) {
-	for _, vs := range conf.VirtualStorages {
-		var defaultNode *config.Node
-		for _, n := range vs.Nodes {
-			if n.DefaultPrimary {
-				defaultNode = n
-			}
-		}
-		require.NotNil(t, defaultNode)
-	}
 }
 
 // runPraefectServer runs a praefect server with the provided mock servers.
@@ -212,8 +196,6 @@ func defaultNodeMgr(t testing.TB, conf config.Config, queue datastore.Replicatio
 }
 
 func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
-	assertPrimariesExist(t, conf)
-
 	var cleanups []testhelper.Cleanup
 
 	if opt.withQueue == nil {

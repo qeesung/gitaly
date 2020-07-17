@@ -77,9 +77,8 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 						Name: "praefect",
 						Nodes: []*config.Node{
 							&config.Node{
-								Address:        "tcp://gitaly-primary.example.com",
-								Storage:        "praefect-internal-1",
-								DefaultPrimary: true,
+								Address: "tcp://gitaly-primary.example.com",
+								Storage: "praefect-internal-1",
 							},
 						},
 					},
@@ -128,7 +127,7 @@ func TestStreamDirectorMutator(t *testing.T) {
 	defer srv2.Stop()
 
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
-	primaryNode := &config.Node{Address: primaryAddress, Storage: "praefect-internal-1", DefaultPrimary: true}
+	primaryNode := &config.Node{Address: primaryAddress, Storage: "praefect-internal-1"}
 	secondaryNode := &config.Node{Address: secondaryAddress, Storage: "praefect-internal-2"}
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
@@ -256,11 +255,11 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			storageNodes := make([]*config.Node, 0, len(tc.nodes))
-			for i, node := range tc.nodes {
+			for i := range tc.nodes {
 				socket := testhelper.GetTemporaryGitalySocketFileName()
 				server, _ := testhelper.NewServerWithHealth(t, socket)
 				defer server.Stop()
-				node := &config.Node{Address: "unix://" + socket, Storage: fmt.Sprintf("node-%d", i), DefaultPrimary: node.primary}
+				node := &config.Node{Address: "unix://" + socket, Storage: fmt.Sprintf("node-%d", i)}
 				storageNodes = append(storageNodes, node)
 			}
 
@@ -386,9 +385,8 @@ func TestStreamDirectorAccessor(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					{
-						Address:        gitalyAddress,
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
+						Address: gitalyAddress,
+						Storage: "praefect-internal-1",
 					},
 				},
 			},
@@ -450,9 +448,8 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 	defer srv2.Stop()
 
 	primaryNodeConf := config.Node{
-		Address:        "unix://" + gitalySocket0,
-		Storage:        "gitaly-1",
-		DefaultPrimary: true,
+		Address: "unix://" + gitalySocket0,
+		Storage: "gitaly-1",
 	}
 
 	secondaryNodeConf := config.Node{
@@ -647,9 +644,8 @@ func TestAbsentCorrelationID(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						Address:        primaryAddress,
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
+						Address: primaryAddress,
+						Storage: "praefect-internal-1",
 					},
 					&config.Node{
 						Address: secondaryAddress,
@@ -717,9 +713,8 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						Address:        "unix://woof",
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
+						Address: "unix://woof",
+						Storage: "praefect-internal-1",
 					},
 					&config.Node{
 						Address: "unix://meow",
