@@ -115,6 +115,11 @@ func versionLessThan(v1, v2 version) bool {
 	case v1.patch > v2.patch:
 		return false
 
+	case v1.rc && !v2.rc:
+		return true
+	case !v1.rc && v2.rc:
+		return false
+
 	default:
 		// this should only be reachable when versions are equal
 		return false
@@ -123,10 +128,11 @@ func versionLessThan(v1, v2 version) bool {
 
 type version struct {
 	major, minor, patch uint32
+	rc                  bool
 }
 
 func parseVersion(versionStr string) (version, error) {
-	versionSplit := strings.SplitN(versionStr, ".", 3)
+	versionSplit := strings.SplitN(versionStr, ".", 4)
 	if len(versionSplit) < 3 {
 		return version{}, fmt.Errorf("expected major.minor.patch in %q", versionStr)
 	}
@@ -142,6 +148,14 @@ func parseVersion(versionStr string) (version, error) {
 		*v = uint32(n64)
 	}
 
+	if len(versionSplit) == 4 {
+		if strings.HasPrefix(versionSplit[3], "rc") {
+			ver.rc = true
+		} else {
+			return version{}, fmt.Errorf("unknown pre-release identifier %q", versionSplit[3])
+		}
+	}
+
 	return ver, nil
 }
 
@@ -153,7 +167,7 @@ func SupportsDeltaIslands(versionStr string) (bool, error) {
 		return false, err
 	}
 
-	return !versionLessThan(v, version{2, 20, 0}), nil
+	return !versionLessThan(v, version{2, 20, 0, false}), nil
 }
 
 // NoMissingWantErrMessage checks if the git version is before Git 2.22,

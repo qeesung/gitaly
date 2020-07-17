@@ -48,6 +48,7 @@ func TestSupportsDeltaIslands(t *testing.T) {
 		{version: "2.19.8", delta: false},
 		{version: "1.20.8", delta: false},
 		{version: "1.18.0", delta: false},
+		{version: "2.28.0.rc0", delta: true},
 		{version: "2.20", fail: true},
 		{version: "bla bla", fail: true},
 	}
