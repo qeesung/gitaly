@@ -82,6 +82,19 @@ func RegisterTransactionDelay(conf promconfig.Config) (metrics.HistogramVec, err
 	return transactionDelay, prometheus.Register(transactionDelay)
 }
 
+// RegisterSubtransactionsHistogram creates and registers a Prometheus counter to
+// gauge the number of subtransactions per transaction.
+func RegisterSubtransactionsHistogram() (metrics.Histogram, error) {
+	subtransactionsHistogram := prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: "gitaly",
+			Subsystem: "praefect",
+			Name:      "subtransactions_per_transaction_total",
+		},
+	)
+	return subtransactionsHistogram, prometheus.Register(subtransactionsHistogram)
+}
+
 var MethodTypeCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: "gitaly",

@@ -103,6 +103,10 @@ func (t *transaction) cancel() map[string]bool {
 	return results
 }
 
+func (t *transaction) countSubtransactions() int {
+	return len(t.subtransactions)
+}
+
 // getOrCreateSubtransaction gets an ongoing subtransaction on which the given
 // node hasn't yet voted on or creates a new one if the node has succeeded on
 // all subtransactions. In case the node has failed on any of the

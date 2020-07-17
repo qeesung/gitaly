@@ -248,9 +248,15 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		return err
 	}
 
+	subtransactionsHistogram, err := metrics.RegisterSubtransactionsHistogram()
+	if err != nil {
+		return err
+	}
+
 	transactionManager := transactions.NewManager(
 		transactions.WithCounterMetric(transactionCounterMetric),
 		transactions.WithDelayMetric(transactionDelayMetric),
+		transactions.WithSubtransactionsMetric(subtransactionsHistogram),
 	)
 
 	var (

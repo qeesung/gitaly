@@ -22,11 +22,12 @@ var ErrNotFound = errors.New("transaction not found")
 // for Praefect to handle transactions directly instead of having to reach out
 // to reference transaction RPCs.
 type Manager struct {
-	txIDGenerator TransactionIDGenerator
-	lock          sync.Mutex
-	transactions  map[uint64]*transaction
-	counterMetric *prometheus.CounterVec
-	delayMetric   metrics.HistogramVec
+	txIDGenerator         TransactionIDGenerator
+	lock                  sync.Mutex
+	transactions          map[uint64]*transaction
+	counterMetric         *prometheus.CounterVec
+	delayMetric           metrics.HistogramVec
+	subtransactionsMetric metrics.Histogram
 }
 
 // TransactionIDGenerator is an interface for types that can generate transaction IDs.
@@ -73,6 +74,13 @@ func WithDelayMetric(delayMetric metrics.HistogramVec) ManagerOpt {
 	}
 }
 
+// WithSubtransactionsMetric is an option to set the subtransactions Prometheus metric
+func WithSubtransactionsMetric(subtransactionsMetric metrics.Histogram) ManagerOpt {
+	return func(mgr *Manager) {
+		mgr.subtransactionsMetric = subtransactionsMetric
+	}
+}
+
 // WithTransactionIDGenerator is an option to set the transaction ID generator
 func WithTransactionIDGenerator(generator TransactionIDGenerator) ManagerOpt {
 	return func(mgr *Manager) {
@@ -83,10 +91,11 @@ func WithTransactionIDGenerator(generator TransactionIDGenerator) ManagerOpt {
 // NewManager creates a new transactions Manager.
 func NewManager(opts ...ManagerOpt) *Manager {
 	mgr := &Manager{
-		txIDGenerator: newTransactionIDGenerator(),
-		transactions:  make(map[uint64]*transaction),
-		counterMetric: prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
-		delayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
+		txIDGenerator:         newTransactionIDGenerator(),
+		transactions:          make(map[uint64]*transaction),
+		counterMetric:         prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
+		delayMetric:           prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
+		subtransactionsMetric: prometheus.NewHistogram(prometheus.HistogramOpts{}),
 	}
 
 	for _, opt := range opts {
@@ -145,7 +154,11 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, thr
 func (mgr *Manager) cancelTransaction(transactionID uint64, transaction *transaction) (map[string]bool, error) {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
+
 	delete(mgr.transactions, transactionID)
+
+	mgr.subtransactionsMetric.Observe(float64(transaction.countSubtransactions()))
+
 	return transaction.cancel(), nil
 }
 
