@@ -1,6 +1,7 @@
 package hook_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +14,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
+
+type postReceiveRequest struct {
+	GLRepository string   `json:"gl_repository,omitempty"`
+	Identifier   string   `json:"identifier,omitempty"`
+	Changes      string   `json:"changes,omitempty"`
+	PushOptions  []string `json:"push_options,omitempty"`
+}
 
 func TestAllowedVerifyParams(t *testing.T) {
 	user, password := "user", "password"
@@ -394,6 +402,90 @@ func TestPrereceive(t *testing.T) {
 			require.Equal(t, tc.success, success)
 			if err != nil {
 				require.Contains(t, err.Error(), tc.errMsg)
+			}
+		})
+	}
+}
+
+func TestPostReceive(t *testing.T) {
+	tempDir, cleanup := testhelper.TempDir(t)
+	defer cleanup()
+
+	testhelper.WriteShellSecretFile(t, tempDir, "secret_token")
+
+	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
+	var receivedRequest postReceiveRequest
+
+	testCases := []struct {
+		desc               string
+		postReceiveHandler func(w http.ResponseWriter, r *http.Request)
+		pushOptions        []string
+		success            bool
+		errMsg             string
+	}{
+		{
+			desc: "everything ok",
+			postReceiveHandler: func(w http.ResponseWriter, r *http.Request) {
+				err := json.NewDecoder(r.Body).Decode(&receivedRequest)
+				require.NoError(t, err)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"reference_counter_decreased": true}`))
+			},
+			pushOptions: []string{"mr.create", "mr.label=test"},
+			success:     true,
+			errMsg:      "",
+		},
+		{
+			desc: "reference counter not decreased",
+			postReceiveHandler: func(w http.ResponseWriter, r *http.Request) {
+				err := json.NewDecoder(r.Body).Decode(&receivedRequest)
+				require.NoError(t, err)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"reference_counter_increased": false}`))
+			},
+			success: false,
+			errMsg:  "",
+		},
+		{
+			desc: "server unavailable",
+			postReceiveHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				w.Write([]byte(`{"message": "server is down!"}`))
+			},
+			success: false,
+			errMsg:  "server is down!",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			receivedRequest = postReceiveRequest{}
+			server := httptest.NewServer(http.HandlerFunc(tc.postReceiveHandler))
+			defer server.Close()
+
+			c, err := hook.NewGitlabAPI(config.Gitlab{
+				URL:        server.URL,
+				SecretFile: secretFilePath,
+			})
+			require.NoError(t, err)
+
+			repositoryID := "project-123"
+			identifier := "key-123"
+			changes := "000 000 refs/heads/master"
+			success, _, err := c.PostReceive(repositoryID, identifier, changes, tc.pushOptions...)
+			require.Equal(t, tc.success, success)
+			if err != nil {
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.Equal(t, repositoryID, receivedRequest.GLRepository)
+				require.Equal(t, identifier, receivedRequest.Identifier)
+				require.Equal(t, changes, receivedRequest.Changes)
+				require.Equal(t, tc.pushOptions, receivedRequest.PushOptions)
 			}
 		})
 	}

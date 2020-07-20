@@ -212,7 +212,7 @@ type PostReceiveMessage struct {
 
 // PostReceive decreases the reference counter for a push for a given gl_repository through the gitlab internal API /post_receive endpoint
 func (a *gitlabAPI) PostReceive(glRepository, glID, changes string, pushOptions ...string) (bool, []PostReceiveMessage, error) {
-	resp, err := a.client.Post("/post_receive", map[string]interface{}{"gl_repository": glRepository, "identifier": glID, "changes": changes, "push_options[]": pushOptions})
+	resp, err := a.client.Post("/post_receive", map[string]interface{}{"gl_repository": glRepository, "identifier": glID, "changes": changes, "push_options": pushOptions})
 	if err != nil {
 		return false, nil, fmt.Errorf("http post to gitlab api /post_receive endpoint: %w", err)
 	}
