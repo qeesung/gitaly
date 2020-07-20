@@ -430,10 +430,13 @@ func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, t
 		case <-trigger:
 			res, err := rq.qc.ExecContext(ctx, query, jobIDs, lockIDs)
 			if err != nil {
-				if !(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-					return err
+				if pqError, ok := err.(*pq.Error); ok && pqError.Code.Name() == "query_canceled" {
+					return nil
 				}
-				return nil
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil
+				}
+				return err
 			}
 
 			affected, err := res.RowsAffected()

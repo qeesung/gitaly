@@ -5,6 +5,7 @@ package datastore
 import (
 	"context"
 	"testing"
+	"sync"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -927,8 +928,12 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	t.Run("triggers all passed in events", func(t *testing.T) {
 		db.TruncateAll(t)
 
+		var wg sync.WaitGroup
 		ctx, cancel := testhelper.Context()
-		defer cancel()
+		defer func() {
+			cancel()
+			wg.Wait()
+		}()
 
 		queue := PostgresReplicationEventQueue{qc: db}
 		events := []ReplicationEvent{eventType1, eventType2, eventType3, eventType4}
@@ -950,11 +955,13 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 		initialJobLocks := fetchJobLocks(t, ctx, db)
 
 		trigger := make(chan time.Time, 1)
+		wg.Add(1)
 		go func() {
-			trigger <- time.Time{}
+			defer wg.Done()
 			assert.NoError(t, queue.StartHealthUpdate(ctx, trigger, dequeuedEventsToTrigger))
 		}()
 
+		trigger <- time.Time{}
 		time.Sleep(time.Millisecond) // we should sleep as the processing is too fast and won't give different time
 		trigger <- time.Time{}       // once this consumed we are sure that the previous update has been executed
 
