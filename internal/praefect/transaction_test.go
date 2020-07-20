@@ -78,17 +78,18 @@ func TestTransactionSucceeds(t *testing.T) {
 
 	client := gitalypb.NewRefTransactionClient(cc)
 
-	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
+	transaction, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
 		{Name: "node1", Votes: 1},
 	}, 1)
 	require.NoError(t, err)
-	require.NotZero(t, transactionID)
+	require.NotNil(t, transaction)
+	require.NotZero(t, transaction.ID())
 	defer cancelTransaction()
 
 	hash := sha1.Sum([]byte{})
 
 	response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-		TransactionId:        transactionID,
+		TransactionId:        transaction.ID(),
 		Node:                 "node1",
 		ReferenceUpdatesHash: hash[:],
 	})
@@ -184,7 +185,7 @@ func TestTransactionWithMultipleNodes(t *testing.T) {
 				threshold += 1
 			}
 
-			transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters, threshold)
+			transaction, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters, threshold)
 			require.NoError(t, err)
 			defer cancelTransaction()
 
@@ -196,7 +197,7 @@ func TestTransactionWithMultipleNodes(t *testing.T) {
 					defer wg.Done()
 
 					response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-						TransactionId:        transactionID,
+						TransactionId:        transaction.ID(),
 						Node:                 voters[idx].Name,
 						ReferenceUpdatesHash: tc.hashes[idx][:],
 					})
@@ -218,7 +219,7 @@ func TestTransactionWithContextCancellation(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 
-	transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
+	transaction, cancelTransaction, err := txMgr.RegisterTransaction(ctx, []transactions.Voter{
 		{Name: "voter", Votes: 1},
 		{Name: "absent", Votes: 1},
 	}, 2)
@@ -233,7 +234,7 @@ func TestTransactionWithContextCancellation(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		_, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-			TransactionId:        transactionID,
+			TransactionId:        transaction.ID(),
 			Node:                 "voter",
 			ReferenceUpdatesHash: hash[:],
 		})
@@ -407,7 +408,7 @@ func TestTransactionReachesQuorum(t *testing.T) {
 				})
 			}
 
-			transactionID, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			transaction, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
 			require.NoError(t, err)
 			defer cancel()
 
@@ -425,7 +426,7 @@ func TestTransactionReachesQuorum(t *testing.T) {
 					hash := sha1.Sum([]byte(v.vote))
 
 					response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-						TransactionId:        transactionID,
+						TransactionId:        transaction.ID(),
 						Node:                 name,
 						ReferenceUpdatesHash: hash[:],
 					})
@@ -511,7 +512,7 @@ func TestTransactionWithMultipleVotes(t *testing.T) {
 				})
 			}
 
-			transactionID, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			transaction, cancel, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
 			require.NoError(t, err)
 
 			var wg sync.WaitGroup
@@ -525,7 +526,7 @@ func TestTransactionWithMultipleVotes(t *testing.T) {
 						hash := sha1.Sum([]byte(vote))
 
 						response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-							TransactionId:        transactionID,
+							TransactionId:        transaction.ID(),
 							Node:                 name,
 							ReferenceUpdatesHash: hash[:],
 						})
@@ -542,7 +543,8 @@ func TestTransactionWithMultipleVotes(t *testing.T) {
 
 			wg.Wait()
 
-			results, _ := cancel()
+			require.NoError(t, cancel())
+			results := transaction.State()
 			for i, voter := range tc.voters {
 				require.Equal(t, voter.shouldSucceed, results[fmt.Sprintf("node-%d", i)])
 			}
@@ -639,7 +641,7 @@ func TestTransactionCancellation(t *testing.T) {
 				})
 			}
 
-			transactionID, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
+			transaction, cancelTransaction, err := txMgr.RegisterTransaction(ctx, voters, tc.threshold)
 			require.NoError(t, err)
 
 			var wg sync.WaitGroup
@@ -656,7 +658,7 @@ func TestTransactionCancellation(t *testing.T) {
 					hash := sha1.Sum([]byte(v.vote))
 
 					response, err := client.VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{
-						TransactionId:        transactionID,
+						TransactionId:        transaction.ID(),
 						Node:                 name,
 						ReferenceUpdatesHash: hash[:],
 					})
@@ -671,9 +673,9 @@ func TestTransactionCancellation(t *testing.T) {
 			}
 			wg.Wait()
 
-			results, err := cancelTransaction()
-			require.NoError(t, err)
+			require.NoError(t, cancelTransaction())
 
+			results := transaction.State()
 			for i, v := range tc.voters {
 				require.Equal(t, results[fmt.Sprintf("node-%d", i)], v.shouldSucceed, "result mismatches expected node state")
 			}

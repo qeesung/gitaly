@@ -24,7 +24,7 @@ var ErrNotFound = errors.New("transaction not found")
 type Manager struct {
 	txIDGenerator         TransactionIDGenerator
 	lock                  sync.Mutex
-	transactions          map[uint64]*transaction
+	transactions          map[uint64]*Transaction
 	counterMetric         *prometheus.CounterVec
 	delayMetric           metrics.HistogramVec
 	subtransactionsMetric metrics.Histogram
@@ -92,7 +92,7 @@ func WithTransactionIDGenerator(generator TransactionIDGenerator) ManagerOpt {
 func NewManager(opts ...ManagerOpt) *Manager {
 	mgr := &Manager{
 		txIDGenerator:         newTransactionIDGenerator(),
-		transactions:          make(map[uint64]*transaction),
+		transactions:          make(map[uint64]*Transaction),
 		counterMetric:         prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"action"}),
 		delayMetric:           prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"action"}),
 		subtransactionsMetric: prometheus.NewHistogram(prometheus.HistogramOpts{}),
@@ -111,15 +111,14 @@ func (mgr *Manager) log(ctx context.Context) logrus.FieldLogger {
 
 // CancelFunc is the transaction cancellation function returned by
 // `RegisterTransaction`. Calling it will cause the transaction to be removed
-// from the transaction manager. It returns the outcome for each node: `true`
-// if the node committed the transaction, `false` if it aborted.
-type CancelFunc func() (map[string]bool, error)
+// from the transaction manager.
+type CancelFunc func() error
 
 // RegisterTransaction registers a new reference transaction for a set of nodes
 // taking part in the transaction. `threshold` is the threshold at which an
 // election will succeed. It needs to be in the range `weight(voters)/2 <
 // threshold <= weight(voters) to avoid indecidable votes.
-func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, threshold uint) (uint64, CancelFunc, error) {
+func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, threshold uint) (*Transaction, CancelFunc, error) {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
@@ -129,13 +128,13 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, thr
 	// nodes still have in-flight transactions.
 	transactionID := mgr.txIDGenerator.ID()
 
-	transaction, err := newTransaction(voters, threshold)
+	transaction, err := newTransaction(transactionID, voters, threshold)
 	if err != nil {
-		return 0, nil, err
+		return nil, nil, err
 	}
 
 	if _, ok := mgr.transactions[transactionID]; ok {
-		return 0, nil, errors.New("transaction exists already")
+		return nil, nil, errors.New("transaction exists already")
 	}
 	mgr.transactions[transactionID] = transaction
 
@@ -146,20 +145,21 @@ func (mgr *Manager) RegisterTransaction(ctx context.Context, voters []Voter, thr
 
 	mgr.counterMetric.WithLabelValues("registered").Add(float64(len(voters)))
 
-	return transactionID, func() (map[string]bool, error) {
-		return mgr.cancelTransaction(transactionID, transaction)
+	return transaction, func() error {
+		return mgr.cancelTransaction(transaction)
 	}, nil
 }
 
-func (mgr *Manager) cancelTransaction(transactionID uint64, transaction *transaction) (map[string]bool, error) {
+func (mgr *Manager) cancelTransaction(transaction *Transaction) error {
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 
-	delete(mgr.transactions, transactionID)
+	delete(mgr.transactions, transaction.ID())
 
-	mgr.subtransactionsMetric.Observe(float64(transaction.countSubtransactions()))
+	transaction.cancel()
+	mgr.subtransactionsMetric.Observe(float64(transaction.CountSubtransactions()))
 
-	return transaction.cancel(), nil
+	return nil
 }
 
 func (mgr *Manager) voteTransaction(ctx context.Context, transactionID uint64, node string, hash []byte) error {

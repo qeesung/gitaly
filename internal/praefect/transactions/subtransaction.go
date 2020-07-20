@@ -74,22 +74,30 @@ func newSubtransaction(voters []Voter, threshold uint) (*subtransaction, error) 
 	}, nil
 }
 
-func (t *subtransaction) cancel() map[string]bool {
+func (t *subtransaction) cancel() {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	results := make(map[string]bool, len(t.votersByNode))
-	for node, voter := range t.votersByNode {
+	for _, voter := range t.votersByNode {
 		// If a voter didn't yet show up or is still undecided, we need
 		// to mark it as failed so it won't get the idea of committing
 		// the transaction at a later point anymore.
 		if voter.result == voteUndecided {
 			voter.result = voteAborted
 		}
-		results[node] = voter.result == voteCommitted
 	}
 
 	close(t.cancelCh)
+}
+
+func (t *subtransaction) state() map[string]bool {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	results := make(map[string]bool, len(t.votersByNode))
+	for node, voter := range t.votersByNode {
+		results[node] = voter.result == voteCommitted
+	}
 
 	return results
 }

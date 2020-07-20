@@ -231,15 +231,16 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 			threshold += 1
 		}
 
-		transactionID, transactionCleanup, err := c.txMgr.RegisterTransaction(ctx, voters, threshold)
+		transaction, transactionCleanup, err := c.txMgr.RegisterTransaction(ctx, voters, threshold)
 		if err != nil {
 			return nil, fmt.Errorf("registering transactions: %w", err)
 		}
 		finalizers = append(finalizers, func() error {
-			successByNode, err := transactionCleanup()
-			if err != nil {
+			if err := transactionCleanup(); err != nil {
 				return err
 			}
+
+			successByNode := transaction.State()
 
 			// If the primary node failed the transaction, then
 			// there's no sense in trying to replicate from primary
@@ -269,7 +270,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 			return c.createReplicaJobs(ctx, virtualStorage, call.targetRepo, shard.Primary, failedNodes, change, params)()
 		})
 
-		injectedCtx, err := metadata.InjectTransaction(ctx, transactionID, shard.Primary.GetStorage(), true)
+		injectedCtx, err := metadata.InjectTransaction(ctx, transaction.ID(), shard.Primary.GetStorage(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +283,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 				return nil, err
 			}
 
-			injectedCtx, err := metadata.InjectTransaction(ctx, transactionID, secondary.GetStorage(), false)
+			injectedCtx, err := metadata.InjectTransaction(ctx, transaction.ID(), secondary.GetStorage(), false)
 			if err != nil {
 				return nil, err
 			}
