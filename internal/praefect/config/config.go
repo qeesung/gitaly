@@ -189,21 +189,20 @@ func (c *Config) StorageNames() map[string][]string {
 
 // DB holds Postgres client configuration data.
 type DB struct {
-	Host                         string `toml:"host"`
-	Port                         int    `toml:"port"`
-	User                         string `toml:"user"`
-	Password                     string `toml:"password"`
-	DBName                       string `toml:"dbname"`
-	SSLMode                      string `toml:"sslmode"`
-	SSLCert                      string `toml:"sslcert"`
-	SSLKey                       string `toml:"sslkey"`
-	SSLRootCert                  string `toml:"sslrootcert"`
-	StatementTimeoutMilliseconds int    `toml:"default_timeout_ms"`
+	Host        string `toml:"host"`
+	Port        int    `toml:"port"`
+	User        string `toml:"user"`
+	Password    string `toml:"password"`
+	DBName      string `toml:"dbname"`
+	SSLMode     string `toml:"sslmode"`
+	SSLCert     string `toml:"sslcert"`
+	SSLKey      string `toml:"sslkey"`
+	SSLRootCert string `toml:"sslrootcert"`
 }
 
 // ToPQString returns a connection string that can be passed to github.com/lib/pq.
 func (db DB) ToPQString() string {
-	fields := []string{fmt.Sprintf("statement_timeout=%d", db.StatementTimeoutMilliseconds)}
+	var fields []string
 	if db.Port > 0 {
 		fields = append(fields, fmt.Sprintf("port=%d", db.Port))
 	}

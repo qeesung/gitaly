@@ -238,16 +238,21 @@ praefect_sql_connect:
 
 praefect_sql_test:
   <<: *go_test_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.27-pgbouncer-1.14
   services:
-    - postgres:9.6
+    - postgres:11.8
   variables:
-    PGHOST: postgres
+    PGHOST: 0.0.0.0
     PGPORT: 5432
     PGUSER: postgres
     POSTGRES_HOST_AUTH_METHOD: trust
   script:
     - go version
     - git version
+    - pgbouncer --version
+    - adduser --no-create-home --disabled-password --disabled-login --quiet --force-badname --gecos '' pgbouncer-runner
+    - su pgbouncer-runner -c 'pgbouncer internal/praefect/datastore/glsql/testdata/pgbouncer.ini' &
+    - for i in {1..10}; do psql -U $PGUSER -c 'select now()' && break; done || { echo 'pgbouncer awaiting failed' ; exit 1; }
     - make test-postgres
 
 lint:
