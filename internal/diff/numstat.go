@@ -11,6 +11,7 @@ import (
 // NumStat represents a single parsed diff file change
 type NumStat struct {
 	Path      []byte
+	OldPath   []byte
 	Additions int32
 	Deletions int32
 }
@@ -74,8 +75,8 @@ func (parser *NumStatParser) NextNumStat() (*NumStat, error) {
 	}
 
 	// We are in the rename case. There will be two more zero-terminated
-	// strings: old path and new path. We discard the old path.
-	_, err = parser.reader.ReadBytes(numStatDelimiter)
+	// strings: old path and new path.
+	oldPath, err := parser.reader.ReadBytes(numStatDelimiter)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +87,7 @@ func (parser *NumStatParser) NextNumStat() (*NumStat, error) {
 	}
 
 	// Discard trailing zero byte left by ReadBytes
+	result.OldPath = oldPath[:len(oldPath)-1]
 	result.Path = newPath[:len(newPath)-1]
 	return result, nil
 }

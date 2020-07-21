@@ -137,6 +137,7 @@ message DiffStats {
   bytes path = 1;
   int32 additions = 2;
   int32 deletions = 3;
+  bytes old_path = 4;
 }
 
 message DiffStatsResponse {

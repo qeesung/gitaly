@@ -50,6 +50,7 @@ func (s *server) DiffStats(in *gitalypb.DiffStatsRequest, stream gitalypb.DiffSe
 			Additions: stat.Additions,
 			Deletions: stat.Deletions,
 			Path:      stat.Path,
+			OldPath:   stat.OldPath,
 		}
 
 		batch = append(batch, numStat)

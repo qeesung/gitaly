@@ -59,6 +59,12 @@ func TestNumStatParser(t *testing.T) {
 			Additions: 1,
 			Deletions: 5,
 		},
+		{
+			Path:      []byte("files/new.jpg"),
+			OldPath:   []byte("files/original.jpg"),
+			Additions: 0,
+			Deletions: 0,
+		},
 	}
 
 	require.Equal(t, len(expectedStats), len(parsedStats))

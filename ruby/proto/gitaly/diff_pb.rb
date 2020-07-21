@@ -78,6 +78,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :path, :bytes, 1
     optional :additions, :int32, 2
     optional :deletions, :int32, 3
+    optional :old_path, :bytes, 4
   end
   add_message "gitaly.DiffStatsResponse" do
     repeated :stats, :message, 1, "gitaly.DiffStats"
