@@ -38,6 +38,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/version"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
@@ -743,12 +744,20 @@ func (m *mockSmartHTTP) Called(method string) int {
 
 func newGrpcServer(t *testing.T, srv gitalypb.SmartHTTPServiceServer) (string, *grpc.Server) {
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
-	grpcSrv, _ := testhelper.NewServerWithHealth(t, socketPath)
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
 
-	gitalypb.RegisterSmartHTTPServiceServer(grpcSrv, srv)
-	reflection.Register(grpcSrv)
+	grpcServer := testhelper.NewTestGrpcServer(t, nil, nil)
 
-	return socketPath, grpcSrv
+	healthSrvr := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthSrvr)
+	healthSrvr.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	gitalypb.RegisterSmartHTTPServiceServer(grpcServer, srv)
+	reflection.Register(grpcServer)
+
+	go grpcServer.Serve(listener)
+
+	return socketPath, grpcServer
 }
 
 func TestProxyWrites(t *testing.T) {
