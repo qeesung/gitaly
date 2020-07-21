@@ -117,6 +117,10 @@ binaries_go1.13:
   <<: *assemble_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.26
 
+test:go1.14-git-2.28-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.28
+  <<: *test_definition
+
 test:go1.14-git-2.27-ruby-2.6:
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.14-git-2.27
   <<: *test_definition
