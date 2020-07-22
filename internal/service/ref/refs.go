@@ -34,7 +34,7 @@ var (
 
 type findRefsOpts struct {
 	cmdArgs []git.Option
-	delim   []byte
+	delim   byte
 	lines.SenderOpts
 }
 
@@ -463,7 +463,7 @@ func validateFindTagRequest(in *gitalypb.FindTagRequest) error {
 }
 
 func paginationParamsToOpts(p *gitalypb.PaginationParameter) *findRefsOpts {
-	opts := &findRefsOpts{}
+	opts := &findRefsOpts{delim: '\n'}
 	opts.IsPageToken = func(_ []byte) bool { return true }
 	opts.Limit = math.MaxInt32
 

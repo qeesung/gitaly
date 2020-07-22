@@ -12,8 +12,8 @@ import (
 // a line gets fed into the Sender.
 type SenderOpts struct {
 	// Delimiter is the separator used to split the sender's output into
-	// lines. Defaults to "\n".
-	Delimiter []byte
+	// lines. Defaults to an empty byte (0).
+	Delimiter byte
 	// Limit is the upper limit of how many lines will be sent. The zero
 	// value will cause no lines to be sent.
 	Limit int
@@ -93,14 +93,14 @@ func (w *writer) consume(r io.Reader) error {
 
 		for {
 			// delim can be multiple bytes, so we read till the end byte of it ...
-			chunk, err := buf.ReadBytes(w.delimiter()[len(w.delimiter())-1])
+			chunk, err := buf.ReadBytes(w.delimiter())
 			if err != nil && err != io.EOF {
 				return err
 			}
 
 			line = append(line, chunk...)
 			// ... then we check if the last bytes of line are the same as delim
-			if bytes.HasSuffix(line, w.delimiter()) {
+			if bytes.HasSuffix(line, []byte{w.delimiter()}) {
 				break
 			}
 
@@ -110,7 +110,7 @@ func (w *writer) consume(r io.Reader) error {
 			}
 		}
 
-		line = bytes.TrimSuffix(line, w.delimiter())
+		line = bytes.TrimSuffix(line, []byte{w.delimiter()})
 		if len(line) == 0 {
 			break
 		}
@@ -135,16 +135,12 @@ func (w *writer) consume(r io.Reader) error {
 	return w.flush()
 }
 
-func (w *writer) delimiter() []byte      { return w.options.Delimiter }
+func (w *writer) delimiter() byte        { return w.options.Delimiter }
 func (w *writer) filter() *regexp.Regexp { return w.options.Filter }
 
 // Send reads output from `r`, splits it at `opts.Delimiter`, then handles the
 // buffered lines using `sender`.
 func Send(r io.Reader, sender Sender, opts SenderOpts) error {
-	if len(opts.Delimiter) == 0 {
-		opts.Delimiter = []byte{'\n'}
-	}
-
 	if opts.IsPageToken == nil {
 		opts.IsPageToken = func(_ []byte) bool { return true }
 	}

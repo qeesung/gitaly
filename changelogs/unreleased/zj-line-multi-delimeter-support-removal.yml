@@ -1,0 +1,5 @@
+---
+title: lines.Send() only support byte delimiter
+merge_request: 2402
+author:
+type: fixed

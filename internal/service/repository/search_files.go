@@ -143,7 +143,7 @@ func (s *server) SearchFilesByName(req *gitalypb.SearchFilesByNameRequest, strea
 		return stream.Send(&gitalypb.SearchFilesByNameResponse{Files: objs})
 	}
 
-	return lines.Send(cmd, lr, lines.SenderOpts{Delimiter: []byte{'\n'}, Limit: math.MaxInt32, Filter: filter})
+	return lines.Send(cmd, lr, lines.SenderOpts{Delimiter: '\n', Limit: math.MaxInt32, Filter: filter})
 }
 
 type searchFilesRequest interface {

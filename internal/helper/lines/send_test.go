@@ -67,6 +67,7 @@ func TestLinesSend(t *testing.T) {
 				Limit:       tc.limit,
 				IsPageToken: tc.isPageToken,
 				Filter:      tc.filter,
+				Delimiter:   '\n',
 			})
 			require.NoError(t, err)
 			require.Equal(t, tc.output, out)
