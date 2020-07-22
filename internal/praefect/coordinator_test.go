@@ -869,7 +869,7 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 	defer srv2.Stop()
 
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
-	primaryGitaly := &config.Node{Address: primaryAddress, Storage: "gitaly-1", DefaultPrimary: true}
+	primaryGitaly := &config.Node{Address: primaryAddress, Storage: "gitaly-1"}
 	secondaryGitaly := &config.Node{Address: secondaryAddress, Storage: "gitaly-2"}
 	conf := config.Config{
 		Failover: config.Failover{Enabled: true},
