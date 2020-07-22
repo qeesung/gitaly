@@ -136,7 +136,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.
 	for _, virtualStorage := range c.VirtualStorages {
 		log = log.WithField("virtual_storage", virtualStorage.Name)
 
-		ns := []*nodeStatus{}
+		ns := make([]*nodeStatus, 0, len(virtualStorage.Nodes))
 		for _, node := range virtualStorage.Nodes {
 			conn, err := client.DialContext(ctx, node.Address,
 				append(
