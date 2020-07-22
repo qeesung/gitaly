@@ -34,8 +34,10 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 	revertedCommit, err := log.GetCommit(ctxOuter, testRepo, "d59c60028b053793cecfb4022de34602e1a9218e")
 	require.NoError(t, err)
 
-	testRepoCopy, _, cleanup := testhelper.NewTestRepo(t)
+	testRepoCopy, testRepoCopyPath, cleanup := testhelper.NewTestRepo(t) // read-only repo
 	defer cleanup()
+
+	testhelper.MustRunCommand(t, nil, "git", "-C", testRepoCopyPath, "branch", destinationBranch, "master")
 
 	testCases := []struct {
 		desc         string
@@ -90,6 +92,58 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			},
 			branchUpdate: &gitalypb.OperationBranchUpdate{BranchCreated: true},
 		},
+		{
+			desc: "branch exists with dry run",
+			request: &gitalypb.UserRevertRequest{
+				Repository: testRepoCopy,
+				User:       testhelper.TestUser,
+				Commit:     revertedCommit,
+				BranchName: []byte(destinationBranch),
+				Message:    []byte("Reverting " + revertedCommit.Id),
+				DryRun:     true,
+			},
+			branchUpdate: &gitalypb.OperationBranchUpdate{},
+		},
+		{
+			desc: "nonexistent branch + start_repository == repository with dry run",
+			request: &gitalypb.UserRevertRequest{
+				Repository:      testRepoCopy,
+				User:            testhelper.TestUser,
+				Commit:          revertedCommit,
+				BranchName:      []byte("to-be-reverted-into-1"),
+				Message:         []byte("Reverting " + revertedCommit.Id),
+				StartBranchName: []byte("master"),
+				DryRun:          true,
+			},
+			branchUpdate: &gitalypb.OperationBranchUpdate{BranchCreated: true},
+		},
+		{
+			desc: "nonexistent branch + start_repository != repository with dry run",
+			request: &gitalypb.UserRevertRequest{
+				Repository:      testRepoCopy,
+				User:            testhelper.TestUser,
+				Commit:          revertedCommit,
+				BranchName:      []byte("to-be-reverted-into-2"),
+				Message:         []byte("Reverting " + revertedCommit.Id),
+				StartRepository: testRepoCopy,
+				StartBranchName: []byte("master"),
+				DryRun:          true,
+			},
+			branchUpdate: &gitalypb.OperationBranchUpdate{BranchCreated: true},
+		},
+		{
+			desc: "nonexistent branch + empty start_repository with dry run",
+			request: &gitalypb.UserRevertRequest{
+				Repository:      testRepoCopy,
+				User:            testhelper.TestUser,
+				Commit:          revertedCommit,
+				BranchName:      []byte("to-be-reverted-into-3"),
+				Message:         []byte("Reverting " + revertedCommit.Id),
+				StartBranchName: []byte("master"),
+				DryRun:          true,
+			},
+			branchUpdate: &gitalypb.OperationBranchUpdate{BranchCreated: true},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -100,7 +154,7 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			response, err := client.UserRevert(ctx, testCase.request)
 			require.NoError(t, err)
 
-			headCommit, err := log.GetCommit(ctx, testRepo, string(testCase.request.BranchName))
+			headCommit, err := log.GetCommit(ctx, testCase.request.Repository, string(testCase.request.BranchName))
 			require.NoError(t, err)
 
 			expectedBranchUpdate := testCase.branchUpdate
@@ -109,8 +163,14 @@ func TestSuccessfulUserRevertRequest(t *testing.T) {
 			require.Equal(t, expectedBranchUpdate, response.BranchUpdate)
 			require.Empty(t, response.CreateTreeError)
 			require.Empty(t, response.CreateTreeErrorCode)
-			require.Equal(t, testCase.request.Message, headCommit.Subject)
-			require.Equal(t, masterHeadCommit.Id, headCommit.ParentIds[0])
+
+			if testCase.request.DryRun {
+				require.Equal(t, masterHeadCommit.Subject, headCommit.Subject)
+				require.Equal(t, masterHeadCommit.Id, headCommit.Id)
+			} else {
+				require.Equal(t, testCase.request.Message, headCommit.Subject)
+				require.Equal(t, masterHeadCommit.Id, headCommit.ParentIds[0])
+			}
 		})
 	}
 }
