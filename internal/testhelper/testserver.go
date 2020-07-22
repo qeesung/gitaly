@@ -172,10 +172,9 @@ func (p *TestServer) Start() error {
 			Name: storage,
 			Nodes: []*praefectconfig.Node{
 				{
-					Storage:        storage,
-					Address:        "unix:/" + gitalyServerSocketPath,
-					DefaultPrimary: true,
-					Token:          p.token,
+					Storage: storage,
+					Address: "unix:/" + gitalyServerSocketPath,
+					Token:   p.token,
 				},
 			},
 		})

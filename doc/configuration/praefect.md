@@ -35,7 +35,6 @@ name = 'praefect'
 [[virtual_storage.node]]
   storage = "gitaly-0"
   address = "tcp://gitaly-0.internal"
-  primary = true
   token = 'secret_token'
 ```
 

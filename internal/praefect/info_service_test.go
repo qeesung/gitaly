@@ -19,8 +19,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 				Name: "default",
 				Nodes: []*config.Node{
 					{
-						Storage:        "praefect-internal-1",
-						DefaultPrimary: true,
+						Storage: "praefect-internal-1",
 					},
 					{
 						Storage: "praefect-internal-2",

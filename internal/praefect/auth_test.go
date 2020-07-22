@@ -150,10 +150,9 @@ func runServer(t *testing.T, token string, required bool) (*grpc.Server, string,
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						Storage:        "praefect-internal-0",
-						DefaultPrimary: true,
-						Address:        backend,
-						Token:          backendToken,
+						Storage: "praefect-internal-0",
+						Address: backend,
+						Token:   backendToken,
 					},
 				},
 			},

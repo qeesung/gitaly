@@ -15,14 +15,14 @@ import (
 
 func TestConfigValidation(t *testing.T) {
 	vs1Nodes := []*Node{
-		{Storage: "internal-1.0", Address: "localhost:23456", Token: "secret-token-1", DefaultPrimary: true},
+		{Storage: "internal-1.0", Address: "localhost:23456", Token: "secret-token-1"},
 		{Storage: "internal-2.0", Address: "localhost:23457", Token: "secret-token-1"},
 		{Storage: "internal-3.0", Address: "localhost:23458", Token: "secret-token-1"},
 	}
 
 	vs2Nodes := []*Node{
 		// storage can have same name as storage in another virtual storage, but all addresses must be unique
-		{Storage: "internal-1.0", Address: "localhost:33456", Token: "secret-token-2", DefaultPrimary: true},
+		{Storage: "internal-1.0", Address: "localhost:33456", Token: "secret-token-2"},
 		{Storage: "internal-2.1", Address: "localhost:33457", Token: "secret-token-2"},
 		{Storage: "internal-3.1", Address: "localhost:33458", Token: "secret-token-2"},
 	}
@@ -94,35 +94,6 @@ func TestConfigValidation(t *testing.T) {
 			errMsg: `virtual storage "default": internal gitaly storages are not unique`,
 		},
 		{
-			desc: "No designated primaries",
-			config: Config{
-				ListenAddr: "localhost:1234",
-				VirtualStorages: []*VirtualStorage{
-					{Name: "default", Nodes: vs1Nodes[1:]},
-				},
-			},
-			errMsg: `virtual storage "default": no primaries designated`,
-		},
-		{
-			desc: "More than 1 primary",
-			config: Config{
-				ListenAddr: "localhost:1234",
-				VirtualStorages: []*VirtualStorage{
-					{
-						Name: "default",
-						Nodes: append(vs1Nodes,
-							&Node{
-								Storage:        "internal-4",
-								Address:        "localhost:23459",
-								Token:          "secret-token",
-								DefaultPrimary: true,
-							}),
-					},
-				},
-			},
-			errMsg: `virtual storage "default": only 1 node can be designated as a primary`,
-		},
-		{
 			desc: "Node storage has no name",
 			config: Config{
 				ListenAddr: "localhost:1234",
@@ -131,10 +102,9 @@ func TestConfigValidation(t *testing.T) {
 						Name: "default",
 						Nodes: []*Node{
 							{
-								Storage:        "",
-								Address:        "localhost:23456",
-								Token:          "secret-token-1",
-								DefaultPrimary: true,
+								Storage: "",
+								Address: "localhost:23456",
+								Token:   "secret-token-1",
 							},
 						},
 					},
@@ -151,10 +121,9 @@ func TestConfigValidation(t *testing.T) {
 						Name: "default",
 						Nodes: []*Node{
 							{
-								Storage:        "internal",
-								Address:        "",
-								Token:          "secret-token-1",
-								DefaultPrimary: true,
+								Storage: "internal",
+								Address: "",
+								Token:   "secret-token-1",
 							},
 						},
 					},
@@ -250,9 +219,8 @@ func TestConfigParsing(t *testing.T) {
 						Name: "praefect",
 						Nodes: []*Node{
 							&Node{
-								Address:        "tcp://gitaly-internal-1.example.com",
-								Storage:        "praefect-internal-1",
-								DefaultPrimary: true,
+								Address: "tcp://gitaly-internal-1.example.com",
+								Storage: "praefect-internal-1",
 							},
 							{
 								Address: "tcp://gitaly-internal-2.example.com",

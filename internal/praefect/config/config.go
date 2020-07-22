@@ -76,10 +76,8 @@ var (
 	errDuplicateStorage         = errors.New("internal gitaly storages are not unique")
 	errGitalyWithoutAddr        = errors.New("all gitaly nodes must have an address")
 	errGitalyWithoutStorage     = errors.New("all gitaly nodes must have a storage")
-	errMoreThanOnePrimary       = errors.New("only 1 node can be designated as a primary")
 	errNoGitalyServers          = errors.New("no primary gitaly backends configured")
 	errNoListener               = errors.New("no listen address or socket path configured")
-	errNoPrimaries              = errors.New("no primaries designated")
 	errNoVirtualStorages        = errors.New("no virtual storages configured")
 	errStorageAddressDuplicate  = errors.New("multiple storages have the same address")
 	errVirtualStoragesNotUnique = errors.New("virtual storages must have unique names")
@@ -114,16 +112,7 @@ func (c *Config) Validate() error {
 		virtualStorages[virtualStorage.Name] = struct{}{}
 
 		storages := make(map[string]struct{}, len(virtualStorage.Nodes))
-		primaries := 0
 		for _, node := range virtualStorage.Nodes {
-			if node.DefaultPrimary {
-				primaries++
-			}
-
-			if primaries > 1 {
-				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errMoreThanOnePrimary)
-			}
-
 			if node.Storage == "" {
 				return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errGitalyWithoutStorage)
 			}
@@ -141,10 +130,6 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("virtual storage %q: address %q : %w", virtualStorage.Name, node.Address, errStorageAddressDuplicate)
 			}
 			allAddresses[node.Address] = struct{}{}
-		}
-
-		if primaries == 0 {
-			return fmt.Errorf("virtual storage %q: %w", virtualStorage.Name, errNoPrimaries)
 		}
 	}
 

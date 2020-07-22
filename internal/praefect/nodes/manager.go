@@ -136,7 +136,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.
 	for _, virtualStorage := range c.VirtualStorages {
 		log = log.WithField("virtual_storage", virtualStorage.Name)
 
-		ns := make([]*nodeStatus, 1, len(virtualStorage.Nodes))
+		ns := make([]*nodeStatus, 0, len(virtualStorage.Nodes))
 		for _, node := range virtualStorage.Nodes {
 			conn, err := client.DialContext(ctx, node.Address,
 				append(
@@ -160,11 +160,7 @@ func NewManager(log *logrus.Entry, c config.Config, db *sql.DB, queue datastore.
 				return nil, err
 			}
 			cs := newConnectionStatus(*node, conn, log, latencyHistogram)
-			if node.DefaultPrimary {
-				ns[0] = cs
-			} else {
-				ns = append(ns, cs)
-			}
+			ns = append(ns, cs)
 		}
 
 		if c.Failover.Enabled && c.Failover.ElectionStrategy == "sql" {
