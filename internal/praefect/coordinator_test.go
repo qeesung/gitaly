@@ -857,7 +857,14 @@ func TestStreamDirectorServerScope(t *testing.T) {
 		require.Equal(t, "praefect", s)
 		return nodes.Shard{Primary: &nodes.MockNode{}}, nil
 	}}
-	coordinator := NewCoordinator(nil, mgr, nil, conf, registry)
+	coordinator := NewCoordinator(
+		nil,
+		datastore.NewMemoryRepositoryStore(conf.StorageNames()),
+		mgr,
+		nil,
+		conf,
+		registry,
+	)
 
 	fullMethod := "/mock.SimpleService/ServerAccessor"
 	requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeServer, protoregistry.OpAccessor)
@@ -883,6 +890,7 @@ func TestStreamDirectorServerScope_Error(t *testing.T) {
 	require.NoError(t, err)
 
 	conf := config.Config{VirtualStorages: []*config.VirtualStorage{{Name: "fake"}, {Name: "another"}}}
+	rs := datastore.NewMemoryRepositoryStore(conf.StorageNames())
 
 	t.Run("unknown storage provided", func(t *testing.T) {
 		mgr := &nodes.MockManager{
@@ -891,7 +899,7 @@ func TestStreamDirectorServerScope_Error(t *testing.T) {
 				return nodes.Shard{}, nodes.ErrVirtualStorageNotExist
 			},
 		}
-		coordinator := NewCoordinator(nil, mgr, nil, conf, registry)
+		coordinator := NewCoordinator(nil, rs, mgr, nil, conf, registry)
 
 		fullMethod := "/mock.SimpleService/ServerAccessor"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeServer, protoregistry.OpAccessor)
@@ -917,7 +925,7 @@ func TestStreamDirectorServerScope_Error(t *testing.T) {
 				return nodes.Shard{}, nodes.ErrPrimaryNotHealthy
 			},
 		}
-		coordinator := NewCoordinator(nil, mgr, nil, conf, registry)
+		coordinator := NewCoordinator(nil, rs, mgr, nil, conf, registry)
 
 		fullMethod := "/mock.SimpleService/ServerAccessor"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeServer, protoregistry.OpAccessor)
@@ -952,10 +960,12 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 			Nodes: []*config.Node{primaryGitaly, secondaryGitaly},
 		}}}
 
+	rs := datastore.NewMemoryRepositoryStore(conf.StorageNames())
+
 	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec())
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Second)
-	coordinator := NewCoordinator(nil, nodeMgr, nil, conf, protoregistry.GitalyProtoPreregistered)
+	coordinator := NewCoordinator(nil, rs, nodeMgr, nil, conf, protoregistry.GitalyProtoPreregistered)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -1012,7 +1022,14 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 				return nodes.Shard{}, assert.AnError
 			},
 		}
-		coordinator := NewCoordinator(nil, mgr, nil, config.Config{}, protoregistry.GitalyProtoPreregistered)
+		coordinator := NewCoordinator(
+			nil,
+			datastore.NewMemoryRepositoryStore(nil),
+			mgr,
+			nil,
+			config.Config{},
+			protoregistry.GitalyProtoPreregistered,
+		)
 
 		frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{StorageName: "", Name: "stub"})
 		require.NoError(t, err)
@@ -1032,7 +1049,14 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 				return nodes.Shard{}, nodes.ErrVirtualStorageNotExist
 			},
 		}
-		coordinator := NewCoordinator(nil, mgr, nil, config.Config{}, protoregistry.GitalyProtoPreregistered)
+		coordinator := NewCoordinator(
+			nil,
+			datastore.NewMemoryRepositoryStore(nil),
+			mgr,
+			nil,
+			config.Config{},
+			protoregistry.GitalyProtoPreregistered,
+		)
 
 		frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{StorageName: "fake", Name: "stub"})
 		require.NoError(t, err)
@@ -1053,7 +1077,14 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 					return nodes.Shard{}, nodes.ErrPrimaryNotHealthy
 				},
 			}
-			coordinator := NewCoordinator(nil, mgr, nil, config.Config{}, protoregistry.GitalyProtoPreregistered)
+			coordinator := NewCoordinator(
+				nil,
+				datastore.NewMemoryRepositoryStore(nil),
+				mgr,
+				nil,
+				config.Config{},
+				protoregistry.GitalyProtoPreregistered,
+			)
 
 			fullMethod := "/gitaly.NamespaceService/NamespaceExists"
 			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpAccessor)
@@ -1076,7 +1107,14 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 					return nodes.Shard{}, nodes.ErrPrimaryNotHealthy
 				},
 			}
-			coordinator := NewCoordinator(nil, mgr, nil, config.Config{}, protoregistry.GitalyProtoPreregistered)
+			coordinator := NewCoordinator(
+				nil,
+				datastore.NewMemoryRepositoryStore(nil),
+				mgr,
+				nil,
+				config.Config{},
+				protoregistry.GitalyProtoPreregistered,
+			)
 
 			fullMethod := "/gitaly.NamespaceService/RemoveNamespace"
 			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
