@@ -240,8 +240,9 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 	}
 
 	testcases := []struct {
-		desc  string
-		nodes []node
+		desc     string
+		features []featureflag.FeatureFlag
+		nodes    []node
 	}{
 		{
 			desc: "successful vote should not create replication jobs",
@@ -276,6 +277,24 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			nodes: []node{
 				{primary: true, vote: "foobar", shouldSucceed: true, shouldParticipate: true, generation: datastore.GenerationUnknown},
 				{shouldParticipate: false, generation: datastore.GenerationUnknown},
+			},
+		},
+		{
+			desc:     "primary succeeds with primary-wins strategy",
+			features: []featureflag.FeatureFlag{featureflag.ReferenceTransactionsPrimaryWins},
+			nodes: []node{
+				{primary: true, vote: "foo", shouldSucceed: true, shouldGetRepl: false, shouldParticipate: true},
+				{primary: false, vote: "qux", shouldSucceed: false, shouldGetRepl: true, shouldParticipate: true},
+				{primary: false, vote: "bar", shouldSucceed: false, shouldGetRepl: true, shouldParticipate: true},
+			},
+		},
+		{
+			desc:     "only failing secondaries get replication jobs",
+			features: []featureflag.FeatureFlag{featureflag.ReferenceTransactionsPrimaryWins},
+			nodes: []node{
+				{primary: true, vote: "foo", shouldSucceed: true, shouldGetRepl: false, shouldParticipate: true},
+				{primary: false, vote: "qux", shouldSucceed: false, shouldGetRepl: true, shouldParticipate: true},
+				{primary: false, vote: "foo", shouldSucceed: true, shouldGetRepl: false, shouldParticipate: true},
 			},
 		},
 	}
@@ -314,7 +333,11 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
+
 			ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.ReferenceTransactions)
+			for _, feature := range tc.features {
+				ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, feature)
+			}
 
 			nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, queueInterceptor, promtest.NewMockHistogramVec())
 			require.NoError(t, err)
@@ -397,7 +420,7 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			if primaryShouldSucceed {
 				require.NoError(t, err)
 			} else {
-				require.Error(t, err, errors.New("transaction: primary failed vote"))
+				require.Equal(t, errors.New("transaction: primary failed vote"), err)
 			}
 
 			// Nodes that successfully committed should have their generations incremented.

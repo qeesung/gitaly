@@ -190,6 +190,42 @@ func shouldUseTransaction(ctx context.Context, method string) bool {
 	return true
 }
 
+func (c *Coordinator) registerTransaction(ctx context.Context, primary nodes.Node, secondaries []nodes.Node) (*transactions.Transaction, transactions.CancelFunc, error) {
+	var voters []transactions.Voter
+	var threshold uint
+
+	if featureflag.IsEnabled(ctx, featureflag.ReferenceTransactionsPrimaryWins) {
+		// This voting strategy ensures that transactions always go ahead as long as
+		// the primary doesn't fail because of unrelated reasons. Secondaries' votes do
+		// not matter.
+
+		voters = append(voters, transactions.Voter{
+			Name:  primary.GetStorage(),
+			Votes: 1,
+		})
+		threshold = 1
+
+		for _, node := range secondaries {
+			voters = append(voters, transactions.Voter{
+				Name:  node.GetStorage(),
+				Votes: 0,
+			})
+		}
+	} else {
+		// This voting strategy ensures strong consistency: all nodes will agree on the
+		// same result, but any failed node will abort the transaction.
+		for _, node := range append(secondaries, primary) {
+			voters = append(voters, transactions.Voter{
+				Name:  node.GetStorage(),
+				Votes: 1,
+			})
+			threshold += 1
+		}
+	}
+
+	return c.txMgr.RegisterTransaction(ctx, voters, threshold)
+}
+
 func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall, targetRepo *gitalypb.Repository) (*proxy.StreamParameters, error) {
 	virtualStorage := targetRepo.StorageName
 
@@ -239,57 +275,15 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 			}
 		}
 
-		var voters []transactions.Voter
-		var threshold uint
-		for _, node := range append(participatingSecondaries, shard.Primary) {
-			voters = append(voters, transactions.Voter{
-				Name:  node.GetStorage(),
-				Votes: 1,
-			})
-			threshold += 1
-		}
-
-		transaction, transactionCleanup, err := c.txMgr.RegisterTransaction(ctx, voters, threshold)
+		transaction, transactionCleanup, err := c.registerTransaction(ctx, shard.Primary, participatingSecondaries)
 		if err != nil {
-			return nil, fmt.Errorf("registering transactions: %w", err)
+			return nil, err
 		}
-		finalizers = append(finalizers, func() error {
-			if err := transactionCleanup(); err != nil {
-				return err
-			}
-
-			successByNode := transaction.State()
-
-			// If the primary node failed the transaction, then
-			// there's no sense in trying to replicate from primary
-			// to secondaries.
-			if !successByNode[shard.Primary.GetStorage()] {
-				return fmt.Errorf("transaction: primary failed vote")
-			}
-			delete(successByNode, shard.Primary.GetStorage())
-
-			updatedSecondaries := make([]string, 0, len(participatingSecondaries))
-			var outdatedSecondaries []string
-
-			for node, success := range successByNode {
-				if success {
-					updatedSecondaries = append(updatedSecondaries, node)
-					continue
-				}
-
-				outdatedSecondaries = append(outdatedSecondaries, node)
-			}
-
-			return c.newRequestFinalizer(
-				ctx, virtualStorage, call.targetRepo,
-				shard.Primary.GetStorage(), updatedSecondaries, outdatedSecondaries, change, params)()
-		})
 
 		injectedCtx, err := metadata.InjectTransaction(ctx, transaction.ID(), shard.Primary.GetStorage(), true)
 		if err != nil {
 			return nil, err
 		}
-
 		primaryDest.Ctx = helper.IncomingToOutgoing(injectedCtx)
 
 		for _, secondary := range participatingSecondaries {
@@ -309,6 +303,10 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 				Msg:  secondaryMsg,
 			})
 		}
+
+		finalizers = append(finalizers,
+			transactionCleanup, c.createTransactionFinalizer(ctx, transaction, shard, virtualStorage, call.targetRepo, change, params),
+		)
 	} else {
 		finalizers = append(finalizers,
 			c.newRequestFinalizer(
@@ -543,6 +541,44 @@ func protoMessage(mi protoregistry.MethodInfo, frame []byte) (proto.Message, err
 	}
 
 	return m, nil
+}
+
+func (c *Coordinator) createTransactionFinalizer(
+	ctx context.Context,
+	transaction *transactions.Transaction,
+	shard nodes.Shard,
+	virtualStorage string,
+	targetRepo *gitalypb.Repository,
+	change datastore.ChangeType,
+	params datastore.Params,
+) func() error {
+	return func() error {
+		successByNode := transaction.State()
+
+		// If the primary node failed the transaction, then
+		// there's no sense in trying to replicate from primary
+		// to secondaries.
+		if !successByNode[shard.Primary.GetStorage()] {
+			return fmt.Errorf("transaction: primary failed vote")
+		}
+		delete(successByNode, shard.Primary.GetStorage())
+
+		updatedSecondaries := make([]string, 0, len(successByNode))
+		var outdatedSecondaries []string
+
+		for node, success := range successByNode {
+			if success {
+				updatedSecondaries = append(updatedSecondaries, node)
+				continue
+			}
+
+			outdatedSecondaries = append(outdatedSecondaries, node)
+		}
+
+		return c.newRequestFinalizer(
+			ctx, virtualStorage, targetRepo, shard.Primary.GetStorage(),
+			updatedSecondaries, outdatedSecondaries, change, params)()
+	}
 }
 
 func nodesToStorages(nodes []nodes.Node) []string {

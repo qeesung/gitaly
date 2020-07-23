@@ -26,6 +26,9 @@ var (
 	ReferenceTransactionsSmartHTTPService = FeatureFlag{Name: "reference_transactions_smarthttp_service", OnByDefault: true}
 	// ReferenceTransactionsSSHService will enable reference transactions for the SSHService
 	ReferenceTransactionsSSHService = FeatureFlag{Name: "reference_transactions_ssh_service", OnByDefault: true}
+	// ReferenceTranasctiionsPrimaryWins will change transaction registration such that
+	// secondaries will take part in transactions, but not influence their outcome.
+	ReferenceTransactionsPrimaryWins = FeatureFlag{Name: "reference_transactions_primary_wins", OnByDefault: false}
 )
 
 const (
