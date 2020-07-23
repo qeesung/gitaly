@@ -1,0 +1,15 @@
+---
+features:
+  secondary:
+  - name: "Implement support for transactional voting via reference-transaction hooks"
+    available_in: [core, starter, premium, ultimate]
+    gitlab_com: true
+    documentation_link: 'https://docs.gitlab.com/ee/#amazing'
+    image_url: '/images/unreleased/feature-a.png'
+    reporter: jramsay
+    stage: create
+    categories:
+    - Gitaly
+    issue_url: 'https://gitlab.com/gitlab-org/gitaly/-/issues/2956'
+    description: |-
+      The first iteration of transactions uses the `pre-receive` hook which only captures a subset of write operations. This means that we must fall back to async replication regularly.
