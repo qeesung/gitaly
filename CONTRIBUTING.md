@@ -68,11 +68,10 @@ RPC name. So for a change to RPC `FooBar` you would get:
 | Maintainer         |
 |--------------------|
 |@8bitlife|
-|@jacobvosmaer-gitlab|
-|@johncai |
 |@pks-t|
 |@pokstad1 |
 |@proglottis|
+|@samihiltunen|
 |@zj-gitlab |
 
 ## Development Process

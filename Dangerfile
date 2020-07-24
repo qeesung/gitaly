@@ -1,6 +1,5 @@
 GITALY_TEAM = %w[
   8bitlife
-  johncai
   pks-t
   pokstad1
   proglottis
