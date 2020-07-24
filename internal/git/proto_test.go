@@ -94,3 +94,21 @@ func TestVersionComparator(t *testing.T) {
 		require.Equal(t, tc.expect, actual)
 	}
 }
+
+func TestSupportsReferenceTransactionHook(t *testing.T) {
+	for _, tc := range []struct {
+		version string
+		expect  bool
+	}{
+		{"2.20.0", false},
+		{"2.27.2", false},
+		{"2.28.0.rc0", true},
+		{"2.28.0.rc2", true},
+		{"2.28.1", true},
+		{"3.0.0", true},
+	} {
+		actual, err := git.SupportsReferenceTransactionHook(tc.version)
+		require.NoError(t, err)
+		require.Equal(t, tc.expect, actual)
+	}
+}

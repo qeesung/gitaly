@@ -162,6 +162,41 @@ func main() {
 		}, f, os.Stdout, os.Stderr); err != nil {
 			logger.Fatalf("error when receiving data for %q: %v", subCmd, err)
 		}
+	case "reference-transaction":
+		if os.Getenv(featureflag.ReferenceTransactionHookEnvVar) != "true" {
+			os.Exit(0)
+		}
+
+		referenceTransactionHookStream, err := hookClient.ReferenceTransactionHook(ctx)
+		if err != nil {
+			logger.Fatalf("error when getting referenceTransactionHookStream client for %q: %v", subCmd, err)
+		}
+
+		environment := glValues()
+
+		for _, key := range []string{metadata.PraefectEnvKey, metadata.TransactionEnvKey} {
+			if value, ok := os.LookupEnv(key); ok {
+				env := fmt.Sprintf("%s=%s", key, value)
+				environment = append(environment, env)
+			}
+		}
+
+		if err := referenceTransactionHookStream.Send(&gitalypb.ReferenceTransactionHookRequest{
+			Repository:           repository,
+			EnvironmentVariables: environment,
+		}); err != nil {
+			logger.Fatalf("error when sending request for %q: %v", subCmd, err)
+		}
+
+		f := sendFunc(streamio.NewWriter(func(p []byte) error {
+			return referenceTransactionHookStream.Send(&gitalypb.ReferenceTransactionHookRequest{Stdin: p})
+		}), referenceTransactionHookStream, os.Stdin)
+
+		if hookStatus, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
+			return referenceTransactionHookStream.Recv()
+		}, f, os.Stdout, os.Stderr); err != nil {
+			logger.Fatalf("error when receiving data for %q: %v", subCmd, err)
+		}
 	default:
 		logger.Fatalf("subcommand name invalid: %q", subCmd)
 	}

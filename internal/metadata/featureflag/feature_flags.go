@@ -29,10 +29,14 @@ var (
 	// ReferenceTranasctiionsPrimaryWins will change transaction registration such that
 	// secondaries will take part in transactions, but not influence their outcome.
 	ReferenceTransactionsPrimaryWins = FeatureFlag{Name: "reference_transactions_primary_wins", OnByDefault: false}
+	// ReferenceTransactionHook will enable the reference-transaction hook
+	// introduced with Git v2.28.0 for voting on transactions
+	ReferenceTransactionHook = FeatureFlag{Name: "reference_transaction_hook", OnByDefault: false}
 )
 
 const (
-	GoUpdateHookEnvVar      = "GITALY_GO_UPDATE"
-	GoPreReceiveHookEnvVar  = "GITALY_GO_PRERECEIVE"
-	GoPostReceiveHookEnvVar = "GITALY_GO_POSTRECEIVE"
+	GoUpdateHookEnvVar             = "GITALY_GO_UPDATE"
+	GoPreReceiveHookEnvVar         = "GITALY_GO_PRERECEIVE"
+	GoPostReceiveHookEnvVar        = "GITALY_GO_POSTRECEIVE"
+	ReferenceTransactionHookEnvVar = "GITALY_REFERENCE_TRANSACTION_HOOK"
 )

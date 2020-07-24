@@ -40,6 +40,16 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :stderr, :bytes, 2
     optional :exit_status, :message, 3, "gitaly.ExitStatus"
   end
+  add_message "gitaly.ReferenceTransactionHookRequest" do
+    optional :repository, :message, 1, "gitaly.Repository"
+    repeated :environment_variables, :string, 2
+    optional :stdin, :bytes, 3
+  end
+  add_message "gitaly.ReferenceTransactionHookResponse" do
+    optional :stdout, :bytes, 1
+    optional :stderr, :bytes, 2
+    optional :exit_status, :message, 3, "gitaly.ExitStatus"
+  end
 end
 
 module Gitaly
@@ -49,4 +59,6 @@ module Gitaly
   PostReceiveHookResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PostReceiveHookResponse").msgclass
   UpdateHookRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UpdateHookRequest").msgclass
   UpdateHookResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UpdateHookResponse").msgclass
+  ReferenceTransactionHookRequest = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceTransactionHookRequest").msgclass
+  ReferenceTransactionHookResponse = Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceTransactionHookResponse").msgclass
 end

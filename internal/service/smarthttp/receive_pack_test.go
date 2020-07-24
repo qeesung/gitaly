@@ -18,8 +18,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
+	pconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -462,7 +465,7 @@ func runSmartHTTPHookServiceServer(t *testing.T) (*grpc.Server, string) {
 	return server, "unix://" + serverSocketPath
 }
 
-func TestPostReceiveWithTransactions(t *testing.T) {
+func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 	defer func(cfg config.Cfg) {
 		config.Config = cfg
 	}(config.Config)
@@ -549,6 +552,104 @@ func TestPostReceiveWithTransactions(t *testing.T) {
 
 			expectedResponse := "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000"
 			require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+		})
+	}
+}
+
+type testTransactionServer struct {
+	called int
+}
+
+func (t *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
+	t.called++
+	return &gitalypb.VoteTransactionResponse{
+		State: gitalypb.VoteTransactionResponse_COMMIT,
+	}, nil
+}
+
+func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
+	refTransactionServer := &testTransactionServer{}
+
+	gitalyServer := testhelper.NewTestGrpcServer(t, nil, nil)
+	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer, NewServer())
+	gitalypb.RegisterHookServiceServer(gitalyServer, hook.NewServer(hook.GitlabAPIStub, config.Config.Hooks))
+	gitalypb.RegisterRefTransactionServer(gitalyServer, refTransactionServer)
+	reflection.Register(gitalyServer)
+
+	gitalySocketPath := testhelper.GetTemporaryGitalySocketFileName()
+	listener, err := net.Listen("unix", gitalySocketPath)
+	require.NoError(t, err)
+
+	internalListener, err := net.Listen("unix", config.GitalyInternalSocketPath())
+	require.NoError(t, err)
+
+	go gitalyServer.Serve(listener)
+	go gitalyServer.Serve(internalListener)
+	defer gitalyServer.Stop()
+
+	gitlabShellDir, cleanup := testhelper.CreateTemporaryGitlabShellDir(t)
+	defer cleanup()
+
+	defer func(oldValue string) {
+		config.Config.Gitlab.SecretFile = oldValue
+	}(config.Config.Gitlab.SecretFile)
+	config.Config.Gitlab.SecretFile = filepath.Join(gitlabShellDir, ".gitlab_shell_secret")
+	testhelper.WriteShellSecretFile(t, gitlabShellDir, "secret123")
+
+	featureSets, err := testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.ReferenceTransactionHook,
+	})
+	require.NoError(t, err)
+
+	for _, features := range featureSets {
+		t.Run(fmt.Sprintf("features:%s", features), func(t *testing.T) {
+			refTransactionServer.called = 0
+
+			client, conn := newSmartHTTPClient(t, "unix://"+gitalySocketPath)
+			defer conn.Close()
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			ctx, err = metadata.InjectTransaction(ctx, 1234, "primary", true)
+			require.NoError(t, err)
+
+			// As we ain't got a Praefect server setup, we instead hooked up the
+			// RefTransaction server for Gitaly itself. As this is the only Praefect
+			// service required in this context, we can just pretend that
+			// Gitaly is the Praefect server and inject it.
+			ctx, err = metadata.InjectPraefectServer(ctx, pconfig.Config{
+				SocketPath: "unix://" + gitalySocketPath,
+			})
+			require.NoError(t, err)
+
+			ctx = helper.IncomingToOutgoing(ctx)
+			ctx = features.WithParent(ctx)
+
+			stream, err := client.PostReceivePack(ctx)
+			require.NoError(t, err)
+
+			repo, _, cleanup := testhelper.NewTestRepo(t)
+			defer cleanup()
+
+			request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
+			response := doPush(t, stream, request, newTestPush(t, nil).body)
+
+			expectedResponse := "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000"
+			require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+
+			version, err := git.Version()
+			require.NoError(t, err)
+			supported, err := git.SupportsReferenceTransactionHook(version)
+			require.NoError(t, err)
+
+			// If the reference-transaction hook is not supported or the feature flag is
+			// not enabled, voting only happens via the pre-receive hook.
+			if !features.IsEnabled(featureflag.ReferenceTransactionHook) || !supported {
+				require.Equal(t, 1, refTransactionServer.called)
+			} else {
+				require.Equal(t, 3, refTransactionServer.called)
+			}
 		})
 	}
 }

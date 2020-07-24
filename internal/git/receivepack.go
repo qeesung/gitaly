@@ -50,6 +50,7 @@ func ReceivePackHookEnv(ctx context.Context, req ReceivePackRequest) ([]string, 
 		fmt.Sprintf("%s=%s", featureflag.GoUpdateHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoUpdateHook))),
 		fmt.Sprintf("%s=%s", featureflag.GoPreReceiveHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoPreReceiveHook))),
 		fmt.Sprintf("%s=%s", featureflag.GoPostReceiveHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.GoPostReceiveHook))),
+		fmt.Sprintf("%s=%s", featureflag.ReferenceTransactionHookEnvVar, strconv.FormatBool(featureflag.IsEnabled(ctx, featureflag.ReferenceTransactionHook))),
 	}, gitlabshellEnv...)
 
 	transaction, err := metadata.TransactionFromContext(ctx)

@@ -65,7 +65,7 @@ func (s *server) getPraefectConn(ctx context.Context, server *metadata.PraefectS
 	return s.conns.Dial(ctx, address, server.Token)
 }
 
-func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookServer, hash []byte, env []string) error {
+func (s *server) voteOnTransaction(ctx context.Context, hash []byte, env []string) error {
 	tx, err := metadata.TransactionFromEnv(env)
 	if err != nil {
 		if errors.Is(err, metadata.ErrTransactionNotFound) {
@@ -82,7 +82,7 @@ func (s *server) voteOnTransaction(stream gitalypb.HookService_PreReceiveHookSer
 		return fmt.Errorf("could not extract Praefect server: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(stream.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	praefectConn, err := s.getPraefectConn(ctx, praefectServer)
@@ -261,7 +261,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 	}
 
 	hash := sha1.Sum(changes)
-	if err := s.voteOnTransaction(stream, hash[:], reqEnvVars); err != nil {
+	if err := s.voteOnTransaction(stream.Context(), hash[:], reqEnvVars); err != nil {
 		return helper.ErrInternalf("error voting on transaction: %v", err)
 	}
 
@@ -352,7 +352,7 @@ func (s *server) preReceiveHookRuby(firstRequest *gitalypb.PreReceiveHookRequest
 		}
 	}
 
-	if err := s.voteOnTransaction(stream, referenceUpdatesHasher.Sum(nil), env); err != nil {
+	if err := s.voteOnTransaction(stream.Context(), referenceUpdatesHasher.Sum(nil), env); err != nil {
 		return helper.ErrInternalf("error voting on transaction: %w", err)
 	}
 

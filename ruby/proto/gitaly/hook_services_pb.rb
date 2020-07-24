@@ -17,6 +17,7 @@ module Gitaly
       rpc :PreReceiveHook, stream(PreReceiveHookRequest), stream(PreReceiveHookResponse)
       rpc :PostReceiveHook, stream(PostReceiveHookRequest), stream(PostReceiveHookResponse)
       rpc :UpdateHook, UpdateHookRequest, stream(UpdateHookResponse)
+      rpc :ReferenceTransactionHook, stream(ReferenceTransactionHookRequest), stream(ReferenceTransactionHookResponse)
     end
 
     Stub = Service.rpc_stub_class

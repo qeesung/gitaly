@@ -23,6 +23,11 @@ service HookService {
       op: ACCESSOR
     };
   }
+  rpc ReferenceTransactionHook(stream ReferenceTransactionHookRequest) returns (stream ReferenceTransactionHookResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
 }
 
 message PreReceiveHookRequest {
@@ -60,6 +65,18 @@ message UpdateHookRequest {
 }
 
 message UpdateHookResponse{
+  bytes stdout = 1;
+  bytes stderr = 2;
+  ExitStatus exit_status = 3;
+}
+
+message ReferenceTransactionHookRequest {
+  Repository repository = 1 [(target_repository)=true];
+  repeated string environment_variables = 2;
+  bytes stdin = 3;
+}
+
+message ReferenceTransactionHookResponse {
   bytes stdout = 1;
   bytes stderr = 2;
   ExitStatus exit_status = 3;
