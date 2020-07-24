@@ -112,7 +112,6 @@ find_go_packages = $(dir $(call find_go_sources, 's|[^/]*\.go||'))
 
 unexport GOROOT
 export GOBIN        = ${BUILD_DIR}/bin
-export GO111MODULE  = on
 export GOPROXY     ?= https://proxy.golang.org
 export PATH        := ${BUILD_DIR}/bin:${PATH}
 
