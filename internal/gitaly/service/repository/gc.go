@@ -44,9 +44,7 @@ func (s *server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollect
 		return nil, err
 	}
 
-	if err := s.writeCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
-		Repository: in.GetRepository(),
-	}); err != nil {
+	if err := s.writeCommitGraph(ctx, in.GetRepository()); err != nil {
 		return nil, err
 	}
 
