@@ -27,9 +27,9 @@ func TestWriteCommitGraph(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
+	chainPath := filepath.Join(testRepoPath, CommitGraphChainRelPath)
 
-	_, err := os.Stat(commitGraphPath)
+	_, err := os.Stat(chainPath)
 	require.True(t, os.IsNotExist(err))
 
 	gittest.CreateCommit(
@@ -39,11 +39,14 @@ func TestWriteCommitGraph(t *testing.T) {
 		&gittest.CreateCommitOpts{Message: t.Name()},
 	)
 
-	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
+	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
+		Repository:    testRepo,
+		SplitStrategy: gitalypb.WriteCommitGraphRequest_SizeMultiple,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
-	require.FileExists(t, commitGraphPath)
+	require.FileExists(t, chainPath)
 }
 
 func TestUpdateCommitGraph(t *testing.T) {
@@ -64,23 +67,26 @@ func TestUpdateCommitGraph(t *testing.T) {
 		t,
 		testRepoPath,
 		t.Name(),
-		&gittest.CreateCommitOpts{Message: t.Name()},
+		&gittest.CreateCommitOpts{Message: t.Name() + time.Now().String()},
 	)
 
-	commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
+	chainPath := filepath.Join(testRepoPath, CommitGraphChainRelPath)
 
-	_, err := os.Stat(commitGraphPath)
+	_, err := os.Stat(chainPath)
 	require.True(t, os.IsNotExist(err))
 
-	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
+	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
+		Repository:    testRepo,
+		SplitStrategy: gitalypb.WriteCommitGraphRequest_SizeMultiple,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.FileExists(t, commitGraphPath)
+	require.FileExists(t, chainPath)
 
-	// Reset the mtime of commit-graph file to use
+	// Reset the mtime of commit-graph-chain file to use
 	// as basis to detect changes
-	require.NoError(t, os.Chtimes(commitGraphPath, time.Time{}, time.Time{}))
-	info, err := os.Stat(commitGraphPath)
+	require.NoError(t, os.Chtimes(chainPath, time.Time{}, time.Time{}))
+	info, err := os.Stat(chainPath)
 	require.NoError(t, err)
 	mt := info.ModTime()
 
@@ -88,13 +94,16 @@ func TestUpdateCommitGraph(t *testing.T) {
 		t,
 		testRepoPath,
 		t.Name(),
-		&gittest.CreateCommitOpts{Message: t.Name()},
+		&gittest.CreateCommitOpts{Message: t.Name() + time.Now().String()},
 	)
 
-	res, err = c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
+	res, err = c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
+		Repository:    testRepo,
+		SplitStrategy: gitalypb.WriteCommitGraphRequest_SizeMultiple,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.FileExists(t, commitGraphPath)
+	require.FileExists(t, chainPath)
 
-	assertModTimeAfter(t, mt, commitGraphPath)
+	assertModTimeAfter(t, mt, chainPath)
 }

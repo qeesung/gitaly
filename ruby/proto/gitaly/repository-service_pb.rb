@@ -38,6 +38,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.WriteCommitGraphRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
+      optional :splitStrategy, :enum, 2, "gitaly.WriteCommitGraphRequest.SplitStrategy"
+    end
+    add_enum "gitaly.WriteCommitGraphRequest.SplitStrategy" do
+      value :NoSplit, 0
+      value :SizeMultiple, 1
+      value :NoMerge, 2
+      value :Replace, 3
     end
     add_message "gitaly.WriteCommitGraphResponse" do
     end
@@ -346,6 +353,7 @@ module Gitaly
   GarbageCollectRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GarbageCollectRequest").msgclass
   GarbageCollectResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GarbageCollectResponse").msgclass
   WriteCommitGraphRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WriteCommitGraphRequest").msgclass
+  WriteCommitGraphRequest::SplitStrategy = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WriteCommitGraphRequest.SplitStrategy").enummodule
   WriteCommitGraphResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.WriteCommitGraphResponse").msgclass
   CleanupRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CleanupRequest").msgclass
   CleanupResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CleanupResponse").msgclass

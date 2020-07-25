@@ -36,17 +36,15 @@ func (s *server) GarbageCollect(ctx context.Context, in *gitalypb.GarbageCollect
 		return nil, err
 	}
 
-	if err := s.gc(ctx, in); err != nil {
-		return nil, err
-	}
-
 	if err := s.configureCommitGraph(ctx, in); err != nil {
 		return nil, err
 	}
 
-	if err := s.writeCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
-		Repository: in.GetRepository(),
-	}); err != nil {
+	if err := s.gc(ctx, in); err != nil {
+		return nil, err
+	}
+
+	if err := s.combineSplitCommitGraph(ctx, repo); err != nil {
 		return nil, err
 	}
 
@@ -95,7 +93,7 @@ func (s *server) configureCommitGraph(ctx context.Context, in *gitalypb.GarbageC
 	cmd, err := s.gitCmdFactory.New(ctx, in.GetRepository(), git.SubCmd{
 		Name: "config",
 		Flags: []git.Option{
-			git.ConfigPair{Key: "core.commitGraph", Value: "true"},
+			git.ConfigPair{Key: "gc.writeCommitGraph", Value: "false"},
 		},
 	})
 	if err != nil {
