@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
@@ -30,7 +30,7 @@ func TestWriteCommitGraph(t *testing.T) {
 	commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
 
 	_, err := os.Stat(commitGraphPath)
-	assert.True(t, os.IsNotExist(err))
+	require.True(t, os.IsNotExist(err))
 
 	gittest.CreateCommit(
 		t,
@@ -40,10 +40,10 @@ func TestWriteCommitGraph(t *testing.T) {
 	)
 
 	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
+	require.NoError(t, err)
+	require.NotNil(t, res)
 
-	assert.FileExists(t, commitGraphPath)
+	require.FileExists(t, commitGraphPath)
 }
 
 func TestUpdateCommitGraph(t *testing.T) {
@@ -70,18 +70,18 @@ func TestUpdateCommitGraph(t *testing.T) {
 	commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
 
 	_, err := os.Stat(commitGraphPath)
-	assert.True(t, os.IsNotExist(err))
+	require.True(t, os.IsNotExist(err))
 
 	res, err := c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.FileExists(t, commitGraphPath)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.FileExists(t, commitGraphPath)
 
 	// Reset the mtime of commit-graph file to use
 	// as basis to detect changes
-	assert.NoError(t, os.Chtimes(commitGraphPath, time.Time{}, time.Time{}))
+	require.NoError(t, os.Chtimes(commitGraphPath, time.Time{}, time.Time{}))
 	info, err := os.Stat(commitGraphPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mt := info.ModTime()
 
 	gittest.CreateCommit(
@@ -92,9 +92,9 @@ func TestUpdateCommitGraph(t *testing.T) {
 	)
 
 	res, err = c.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: testRepo})
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.FileExists(t, commitGraphPath)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.FileExists(t, commitGraphPath)
 
 	assertModTimeAfter(t, mt, commitGraphPath)
 }
