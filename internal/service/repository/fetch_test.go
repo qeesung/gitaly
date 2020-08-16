@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/config"
 	gitLog "gitlab.com/gitlab-org/gitaly/internal/git/log"
@@ -73,6 +74,68 @@ func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
 			fetchedCommit, err := gitLog.GetCommit(ctx, targetRepo, targetRef)
 			require.NoError(t, err)
 			require.Equal(t, newCommitID, fetchedCommit.GetId())
+		})
+	}
+}
+
+func TestFetchSourceBranchCommitExistsSuccess(t *testing.T) {
+	server, serverSocketPath := runFullServer(t)
+	defer server.Stop()
+
+	client, conn := repository.NewRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	for _, tc := range []struct {
+		desc             string
+		disabledFeatures []featureflag.FeatureFlag
+	}{
+		{
+			desc: "go",
+		},
+		{
+			desc:             "ruby",
+			disabledFeatures: []featureflag.FeatureFlag{featureflag.GoFetchSourceBranch},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+			ctx = testhelper.MergeOutgoingMetadata(ctx, md)
+
+			for _, feature := range tc.disabledFeatures {
+				ctx = featureflag.OutgoingCtxWithFeatureFlagValue(ctx, feature, "true")
+			}
+
+			targetRepo, targetPath, cleanup := newTestRepo(t, "fetch-source-target.git")
+			defer cleanup()
+
+			sourceRepo, sourcePath, cleanup := newTestRepo(t, "fetch-source-source.git")
+			defer cleanup()
+
+			sourceBranch := "fetch-source-branch-test-branch"
+			newCommitIDSource := testhelper.CreateCommit(t, sourcePath, sourceBranch, nil)
+			newCommitIDTarget := testhelper.CreateCommit(t, targetPath, sourceBranch, nil)
+
+			assert.Equal(t, newCommitIDTarget, newCommitIDSource)
+
+			_ = newCommitIDTarget
+			targetRef := "refs/tmp/fetch-source-branch-test"
+			req := &gitalypb.FetchSourceBranchRequest{
+				Repository:       targetRepo,
+				SourceRepository: sourceRepo,
+				SourceBranch:     []byte(sourceBranch),
+				TargetRef:        []byte(targetRef),
+			}
+
+			resp, err := client.FetchSourceBranch(ctx, req)
+			require.NoError(t, err)
+			require.True(t, resp.Result, "response.Result should be true")
+
+			fetchedCommit, err := gitLog.GetCommit(ctx, targetRepo, targetRef)
+			require.NoError(t, err)
+			require.Equal(t, newCommitIDSource, fetchedCommit.GetId())
 		})
 	}
 }
@@ -202,6 +265,61 @@ func TestFetchSourceBranchBranchNotFound(t *testing.T) {
 					require.False(t, resp.Result, "response.Result should be false")
 				})
 			}
+		})
+	}
+}
+
+func TestFetchSourceBranchNotExistingRepo(t *testing.T) {
+	server, serverSocketPath := runFullServer(t)
+	defer server.Stop()
+
+	client, conn := repository.NewRepositoryClient(t, serverSocketPath)
+	defer conn.Close()
+
+	for _, tc := range []struct {
+		desc             string
+		disabledFeatures []featureflag.FeatureFlag
+	}{
+		{
+			desc: "go",
+		},
+		{
+			desc:             "ruby",
+			disabledFeatures: []featureflag.FeatureFlag{featureflag.GoFetchSourceBranch},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			md := testhelper.GitalyServersMetadata(t, serverSocketPath)
+			ctx = testhelper.MergeOutgoingMetadata(ctx, md)
+
+			for _, feature := range tc.disabledFeatures {
+				ctx = featureflag.OutgoingCtxWithFeatureFlagValue(ctx, feature, "false")
+			}
+
+			targetRepo, _, cleanup := newTestRepo(t, "fetch-source-target.git")
+			defer cleanup()
+
+			sourceRepo := &gitalypb.Repository{
+				StorageName:  "default",
+				RelativePath: "not_existing",
+			}
+
+			sourceBranch := "does-not-exist"
+			targetRef := "refs/tmp/fetch-source-branch-test"
+
+			req := &gitalypb.FetchSourceBranchRequest{
+				Repository:       targetRepo,
+				SourceRepository: sourceRepo,
+				SourceBranch:     []byte(sourceBranch),
+				TargetRef:        []byte(targetRef),
+			}
+
+			resp, err := client.FetchSourceBranch(ctx, req)
+			require.NoError(t, err)
+			require.False(t, resp.Result, "response.Result should be false")
 		})
 	}
 }
