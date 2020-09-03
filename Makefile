@@ -144,7 +144,7 @@ export GOBIN                      = ${BUILD_DIR}/bin
 export GOPROXY                   ?= https://proxy.golang.org
 export PATH                      := ${BUILD_DIR}/bin:${PATH}
 export PKG_CONFIG_PATH           := ${LIBGIT2_INSTALL_DIR}/lib/pkgconfig
-export GITALY_TESTING_GIT_BINARY ?= ${GIT}
+export GITALY_TESTING_GIT_BINARY ?= ${GIT_INSTALL_DIR}/bin/git
 
 .NOTPARALLEL:
 
@@ -194,7 +194,7 @@ binaries: assemble
 	${Q}cd ${ASSEMBLY_ROOT} && sha256sum bin/* | tee checksums.sha256.txt
 
 .PHONY: prepare-tests
-prepare-tests: ${GITLAB_SHELL_DIR}/config.yml ${TEST_REPO} ${TEST_REPO_GIT} ${SOURCE_DIR}/.ruby-bundle
+prepare-tests: git ${GITLAB_SHELL_DIR}/config.yml ${TEST_REPO} ${TEST_REPO_GIT} ${SOURCE_DIR}/.ruby-bundle
 
 .PHONY: test
 test: export PATH := ${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}
