@@ -310,11 +310,12 @@ func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state J
 	//  1. The list of event `id`s and corresponding <lock>s retrieved from `replication_queue` table as passed in by the
 	//     user `ids` could not exist in the table or the `state` of the event could differ from `in_progress` (it is
 	//     possible to acknowledge only events previously fetched by the `Dequeue` method)
-	//  2. Based on the list fetched on previous step the update is executed on the `replication_queue` table and it changes
-	//     the `state` column to the passed in value if the event was actually executed or it updates similar events
-	//     (events for the same repository with same change type and a source) that were created before processed events
-	//     were queued for processing. It returns a list of event `id`s and corresponding <lock>s of the affected events
-	//     during the update.
+	//  2. Based on the list fetched on previous step the delete is executed on the `replication_queue` table. In case the
+	//     new state for the entry is 'dead' it will be just deleted, but if the new state is 'completed' the event will
+	//     be delete as well, but all events similar to it (events for the same repository with same change type and a source)
+	//     that were created before processed events were queued for processing will also be deleted.
+	//     In case the new state is something different ('failed') the event will be updated only with a new state.
+	//     It returns a list of event `id`s and corresponding <lock>s of the affected events during this delete/update process.
 	//  3. The removal of records in `replication_queue_job_lock` table happens that were created by step 4. of `Dequeue`
 	//     method call.
 	//  4. Acquisition state of <lock>s in `replication_queue_lock` table updated by comparing amount of existing bindings
@@ -345,33 +346,39 @@ func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state J
 			AND state = 'in_progress'
 			FOR UPDATE
 		)
-		, to_release AS (
+		, deleted AS (
+			DELETE FROM replication_queue AS queue
+			USING existing
+			WHERE ($2::REPLICATION_JOB_STATE = 'dead' AND existing.id = queue.id) OR (
+				$2::REPLICATION_JOB_STATE = 'completed'
+				AND (existing.id = queue.id OR (
+					-- this is an optimization to omit events that won't make any effect as the same event
+					-- was just applied, so we acknowledge similar events:
+					-- only not yet touched events (no attempts to process it)
+					queue.state = 'ready'
+					-- and they were created before current event was consumed for processing
+					AND queue.created_at < existing.updated_at
+					-- they are for the exact same repository
+					AND queue.lock_id = existing.lock_id
+					-- and created to apply exact same replication operation (gc, update, ...)
+					AND queue.job->>'change' = existing.job->>'change'
+					-- from the same source storage (if applicable, as 'gc' has no source)
+					AND COALESCE(queue.job->>'source_node_storage', '') = COALESCE(existing.job->>'source_node_storage', ''))
+				)
+			)
+			RETURNING queue.id, queue.lock_id
+		)
+		, updated AS (
 			UPDATE replication_queue AS queue
-			SET
-				state = CASE WHEN state = 'in_progress' THEN
-						$2::REPLICATION_JOB_STATE
-					ELSE
-						(CASE WHEN $2 = 'completed' THEN 'completed' ELSE queue.state END)::REPLICATION_JOB_STATE
-					END,
-				updated_at = CASE WHEN state = 'in_progress' THEN
-						NOW() AT TIME ZONE 'UTC'
-					ELSE
-						(CASE WHEN $2 = 'completed' THEN NOW() AT TIME ZONE 'UTC' ELSE queue.updated_at END)
-					END
+			SET state = $2::REPLICATION_JOB_STATE,
+				updated_at = NOW() AT TIME ZONE 'UTC'
 			FROM existing
 			WHERE existing.id = queue.id
-				OR (
-					    queue.state = 'ready'
-					AND queue.created_at < existing.updated_at
-					AND queue.lock_id = existing.lock_id
-					AND queue.job->>'change' = existing.job->>'change'
-					AND queue.job->>'source_node_storage' = existing.job->>'source_node_storage'
-				)
 			RETURNING queue.id, queue.lock_id
 		)
 		, removed_job_lock AS (
 			DELETE FROM replication_queue_job_lock AS job_lock
-			USING to_release
+			USING (SELECT * FROM deleted UNION SELECT * FROM updated) AS to_release
 			WHERE job_lock.job_id = to_release.id AND job_lock.lock_id = to_release.lock_id
 			RETURNING to_release.lock_id
 		)

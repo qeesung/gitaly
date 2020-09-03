@@ -556,23 +556,26 @@ func (r ReplMgr) startHealthUpdate(ctx context.Context, logger logrus.FieldLogge
 }
 
 func (r ReplMgr) handleNodeEvent(ctx context.Context, logger logrus.FieldLogger, shard nodes.Shard, target nodes.Node, event datastore.ReplicationEvent) datastore.JobState {
-	logger = logger.WithFields(logrus.Fields{
+	ctxLogger := logger.WithFields(logrus.Fields{
 		logWithReplJobID: event.ID,
 		logWithCorrID:    getCorrelationID(event.Meta),
 	})
-	logger.Info("processing replication job")
-	err := r.processReplicationEvent(ctx, event, shard, target.GetConnection())
-	if err == nil {
-		return datastore.JobStateCompleted
+	ctxLogger.Info("processing replication job")
+
+	if err := r.processReplicationEvent(ctx, event, shard, target.GetConnection()); err != nil {
+		ctxLogger.WithError(err).Error("replication job failed")
+
+		if event.Attempt <= 0 {
+			logger.WithField("event", event).Info("handled event would be deleted")
+			return datastore.JobStateDead
+		}
+
+		return datastore.JobStateFailed
 	}
 
-	logger.WithError(err).Error("replication job failed")
+	logger.WithField("event", event).Info("handled event would be deleted")
 
-	if event.Attempt <= 0 {
-		return datastore.JobStateDead
-	}
-
-	return datastore.JobStateFailed
+	return datastore.JobStateCompleted
 }
 
 func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.ReplicationEvent, shard nodes.Shard, targetCC *grpc.ClientConn) error {

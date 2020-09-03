@@ -451,11 +451,12 @@ func TestPostgresReplicationEventQueue_Acknowledge(t *testing.T) {
 
 	event.State = JobStateCompleted
 	event.Attempt = 2
-	requireEvents(t, ctx, db, []ReplicationEvent{event})
+	// events acknowledged with 'completed' or 'dead' states expected to be removed
+	db.RequireRowsInTable(t, "replication_queue", 0)
+	//all associated with acknowledged event tracking bindings between lock and event must be removed
+	db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
 	// lock must be released as the event was acknowledged and there are no other events left protected under this lock
 	requireLocks(t, ctx, db, []LockRow{{ID: event.LockID, Acquired: false}})
-	// all associated with acknowledged event tracking bindings between lock and event must be removed
-	requireJobLocks(t, ctx, db, nil)
 }
 
 func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
@@ -581,6 +582,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	requireJobLocks(t, ctx, db, []JobLockRow{
 		{JobID: events[2].ID, LockID: events[2].LockID},
 	})
+	db.RequireRowsInTable(t, "replication_queue", 4)
 
 	dequeuedEvents3, err := queue.Dequeue(ctx, "praefect", "gitaly-2", 3)
 	require.NoError(t, err)
@@ -606,6 +608,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 		{ID: events[6].LockID, Acquired: false},
 	})
 	requireJobLocks(t, ctx, db, nil)
+	db.RequireRowsInTable(t, "replication_queue", 1)
 
 	newEvent, err := queue.Enqueue(ctx, eventType1)
 	require.NoError(t, err)
@@ -613,6 +616,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 	acknowledge4, err := queue.Acknowledge(ctx, JobStateCompleted, []uint64{newEvent.ID})
 	require.NoError(t, err)
 	require.Equal(t, ([]uint64)(nil), acknowledge4) // event that was not dequeued can't be acknowledged
+	db.RequireRowsInTable(t, "replication_queue", 2)
 
 	var newEventState string
 	require.NoError(t, db.QueryRow("SELECT state FROM replication_queue WHERE id = $1", newEvent.ID).Scan(&newEventState))
@@ -839,10 +843,9 @@ func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
 		require.NoError(t, source.AcknowledgeStale(ctx, time.Microsecond))
 
 		devents2[0].State = JobStateFailed
-		devents3[0].State = JobStateDead
 		devents4[0].Attempt = 2
 		devents4[0].State = JobStateFailed
-		requireEvents(t, ctx, db, []ReplicationEvent{event1, devents2[0], devents3[0], devents4[0]})
+		requireEvents(t, ctx, db, []ReplicationEvent{event1, devents2[0], devents4[0]})
 	})
 
 	t.Run("stale jobs updated for all virtual storages and storages at once", func(t *testing.T) {
