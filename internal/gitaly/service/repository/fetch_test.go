@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/client"
 	gitLog "gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/gitaly/server"
@@ -20,8 +21,8 @@ import (
 )
 
 func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 
@@ -80,8 +81,8 @@ func TestFetchSourceBranchSourceRepositorySuccess(t *testing.T) {
 }
 
 func TestFetchSourceBranchSameRepositorySuccess(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 
@@ -137,8 +138,8 @@ func TestFetchSourceBranchSameRepositorySuccess(t *testing.T) {
 }
 
 func TestFetchSourceBranchBranchNotFound(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 
@@ -213,8 +214,8 @@ func TestFetchSourceBranchBranchNotFound(t *testing.T) {
 }
 
 func TestFetchSourceBranchWrongRef(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 
@@ -349,8 +350,8 @@ func TestFetchFullServerRequiresAuthentication(t *testing.T) {
 	// we want to be sure that authentication is handled correctly. If the
 	// tests in this file were using a server without authentication we could
 	// not be confident that authentication is done right.
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -383,8 +384,10 @@ func newTestRepo(t *testing.T, locator storage.Locator, relativePath string) (*g
 	return repo, repoPath, func() { require.NoError(t, os.RemoveAll(repoPath)) }
 }
 
-func runFullServer(t *testing.T) (*grpc.Server, string) {
-	server := serverPkg.NewInsecure(repository.RubyServer, nil, config.Config)
+func runFullServer(t *testing.T) (string, func()) {
+	conns := client.NewPool()
+	server := serverPkg.NewInsecure(repository.RubyServer, nil, config.Config, conns)
+
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -397,11 +400,15 @@ func runFullServer(t *testing.T) (*grpc.Server, string) {
 	go server.Serve(internalListener)
 	go server.Serve(listener)
 
-	return server, "unix://" + serverSocketPath
+	return "unix://" + serverSocketPath, func() {
+		conns.Close()
+		server.Stop()
+	}
 }
 
 func runFullSecureServer(t *testing.T) (*grpc.Server, string, testhelper.Cleanup) {
-	server := serverPkg.NewSecure(repository.RubyServer, nil, config.Config)
+	conns := client.NewPool()
+	server := serverPkg.NewSecure(repository.RubyServer, nil, config.Config, conns)
 	listener, addr := testhelper.GetLocalhostListener(t)
 
 	errQ := make(chan error)
@@ -409,6 +416,7 @@ func runFullSecureServer(t *testing.T) (*grpc.Server, string, testhelper.Cleanup
 	go func() { errQ <- server.Serve(listener) }()
 
 	cleanup := func() {
+		conns.Close()
 		server.Stop()
 		require.NoError(t, <-errQ)
 	}

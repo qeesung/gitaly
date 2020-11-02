@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
 	gitaly_config "gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
@@ -67,8 +68,8 @@ func TestReplMgr_ProcessBacklog(t *testing.T) {
 		},
 	)
 
-	srv, srvSocketPath := runFullGitalyServer(t)
-	defer srv.Stop()
+	srvSocketPath, clean := runFullGitalyServer(t)
+	defer clean()
 
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -470,8 +471,8 @@ func TestConfirmReplication(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	srv, srvSocketPath := runFullGitalyServer(t)
-	defer srv.Stop()
+	srvSocketPath, clean := runFullGitalyServer(t)
+	defer clean()
 
 	testRepoA, testRepoAPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
@@ -947,8 +948,9 @@ func TestBackoff(t *testing.T) {
 	require.Equal(t, start, b())
 }
 
-func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
-	server := serverPkg.NewInsecure(RubyServer, hook.NewManager(hook.GitlabAPIStub, gitaly_config.Config), gitaly_config.Config)
+func runFullGitalyServer(t *testing.T) (string, func()) {
+	conns := client.NewPool()
+	server := serverPkg.NewInsecure(RubyServer, hook.NewManager(hook.GitlabAPIStub, gitaly_config.Config), gitaly_config.Config, conns)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
@@ -963,7 +965,10 @@ func runFullGitalyServer(t *testing.T) (*grpc.Server, string) {
 	go server.Serve(listener)
 	go server.Serve(internalListener)
 
-	return server, "unix://" + serverSocketPath
+	return "unix://" + serverSocketPath, func() {
+		conns.Close()
+		server.Stop()
+	}
 }
 
 // newReplicationService is a grpc service that has the SSH, Repository, Remote and ObjectPool services, which

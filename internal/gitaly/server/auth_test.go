@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
@@ -27,8 +28,8 @@ import (
 )
 
 func TestSanity(t *testing.T) {
-	srv, serverSocketPath := runServer(t)
-	defer srv.Stop()
+	serverSocketPath, clean := runServer(t)
+	defer clean()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -41,8 +42,8 @@ func TestSanity(t *testing.T) {
 }
 
 func TestTLSSanity(t *testing.T) {
-	srv, addr := runSecureServer(t)
-	defer srv.Stop()
+	addr, clean := runSecureServer(t)
+	defer clean()
 
 	certPool, err := x509.SystemCertPool()
 	require.NoError(t, err)
@@ -90,8 +91,8 @@ func TestAuthFailures(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			srv, serverSocketPath := runServer(t)
-			defer srv.Stop()
+			serverSocketPath, clean := runServer(t)
+			defer clean()
 
 			connOpts := append(tc.opts, grpc.WithInsecure())
 			conn, err := dial(serverSocketPath, connOpts)
@@ -138,8 +139,8 @@ func TestAuthSuccess(t *testing.T) {
 			config.Config.Auth.Token = tc.token
 			config.Config.Auth.Transitioning = !tc.required
 
-			srv, serverSocketPath := runServer(t)
-			defer srv.Stop()
+			serverSocketPath, clean := runServer(t)
+			defer clean()
 
 			connOpts := append(tc.opts, grpc.WithInsecure())
 			conn, err := dial(serverSocketPath, connOpts)
@@ -183,8 +184,9 @@ func newOperationClient(t *testing.T, serverSocketPath string) (gitalypb.Operati
 	return gitalypb.NewOperationServiceClient(conn), conn
 }
 
-func runServerWithRuby(t *testing.T, ruby *rubyserver.Server) (*grpc.Server, string) {
-	srv := NewInsecure(ruby, nil, config.Config)
+func runServerWithRuby(t *testing.T, ruby *rubyserver.Server) (string, func()) {
+	conns := client.NewPool()
+	srv := NewInsecure(ruby, nil, config.Config, conns)
 
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
@@ -192,27 +194,34 @@ func runServerWithRuby(t *testing.T, ruby *rubyserver.Server) (*grpc.Server, str
 	require.NoError(t, err)
 	go srv.Serve(listener)
 
-	return srv, "unix://" + serverSocketPath
+	return "unix://" + serverSocketPath, func() {
+		conns.Close()
+		srv.Stop()
+	}
 }
 
-func runServer(t *testing.T) (*grpc.Server, string) {
+func runServer(t *testing.T) (string, func()) {
 	return runServerWithRuby(t, nil)
 }
 
-func runSecureServer(t *testing.T) (*grpc.Server, string) {
+func runSecureServer(t *testing.T) (string, func()) {
 	config.Config.TLS = config.TLS{
 		CertPath: "testdata/gitalycert.pem",
 		KeyPath:  "testdata/gitalykey.pem",
 	}
 
-	srv := NewSecure(nil, nil, config.Config)
+	conns := client.NewPool()
+	srv := NewSecure(nil, nil, config.Config, conns)
 
 	listener, err := net.Listen("tcp", "localhost:9999")
 	require.NoError(t, err)
 
 	go srv.Serve(listener)
 
-	return srv, "localhost:9999"
+	return "localhost:9999", func() {
+		conns.Close()
+		srv.Stop()
+	}
 }
 
 func TestUnaryNoAuth(t *testing.T) {
@@ -222,8 +231,8 @@ func TestUnaryNoAuth(t *testing.T) {
 		config.Config.Auth.Token = oldToken
 	}()
 
-	srv, path := runServer(t)
-	defer srv.Stop()
+	path, clean := runServer(t)
+	defer clean()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -250,8 +259,8 @@ func TestStreamingNoAuth(t *testing.T) {
 		config.Config.Auth.Token = oldToken
 	}()
 
-	srv, path := runServer(t)
-	defer srv.Stop()
+	path, clean := runServer(t)
+	defer clean()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -332,8 +341,8 @@ func TestAuthBeforeLimit(t *testing.T) {
 	if err := RubyServer.Start(); err != nil {
 		t.Fatal(err)
 	}
-	server, serverSocketPath := runServerWithRuby(t, &RubyServer)
-	defer server.Stop()
+	serverSocketPath, clean := runServerWithRuby(t, &RubyServer)
+	defer clean()
 
 	client, conn := newOperationClient(t, serverSocketPath)
 	defer conn.Close()

@@ -24,11 +24,12 @@ type GitalyServerFactory struct {
 	ruby             *rubyserver.Server
 	hookManager      hook.Manager
 	secure, insecure []*grpc.Server
+	conns            *client.Pool
 }
 
 // NewGitalyServerFactory allows to create and start secure/insecure 'grpc.Server'-s with gitaly-ruby
 // server shared in between.
-func NewGitalyServerFactory(hookManager hook.Manager) *GitalyServerFactory {
+func NewGitalyServerFactory(hookManager hook.Manager, conns *client.Pool) *GitalyServerFactory {
 	return &GitalyServerFactory{ruby: &rubyserver.Server{}, hookManager: hookManager}
 }
 
@@ -126,11 +127,11 @@ func (s *GitalyServerFactory) create(secure bool) *grpc.Server {
 	defer s.mtx.Unlock()
 
 	if secure {
-		s.secure = append(s.secure, NewSecure(s.ruby, s.hookManager, config.Config))
+		s.secure = append(s.secure, NewSecure(s.ruby, s.hookManager, config.Config, s.conns))
 		return s.secure[len(s.secure)-1]
 	}
 
-	s.insecure = append(s.insecure, NewInsecure(s.ruby, s.hookManager, config.Config))
+	s.insecure = append(s.insecure, NewInsecure(s.ruby, s.hookManager, config.Config, s.conns))
 
 	return s.insecure[len(s.insecure)-1]
 }

@@ -30,7 +30,6 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				server           *grpc.Server
 				serverSocketPath string
 				client           gitalypb.RepositoryServiceClient
 				conn             *grpc.ClientConn
@@ -47,8 +46,9 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 				client, conn = repository.NewSecureRepoClient(t, serverSocketPath, testPool)
 				defer conn.Close()
 			} else {
-				server, serverSocketPath = runFullServer(t)
-				defer server.Stop()
+				var clean func()
+				serverSocketPath, clean = runFullServer(t)
+				defer clean()
 
 				client, conn = repository.NewRepositoryClient(t, serverSocketPath)
 				defer conn.Close()
@@ -94,8 +94,8 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 }
 
 func TestFailedCreateForkRequestDueToExistingTarget(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 

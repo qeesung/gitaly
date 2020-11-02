@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ref"
@@ -14,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -103,8 +103,8 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 }
 
 func TestFailedFetchInternalRemote(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	client, conn := remote.NewRemoteClient(t, serverSocketPath)
 	defer conn.Close()
@@ -132,8 +132,8 @@ func TestFailedFetchInternalRemote(t *testing.T) {
 }
 
 func TestFailedFetchInternalRemoteDueToValidations(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	client, conn := remote.NewRemoteClient(t, serverSocketPath)
 	defer conn.Close()
@@ -167,8 +167,9 @@ func TestFailedFetchInternalRemoteDueToValidations(t *testing.T) {
 	}
 }
 
-func runFullServer(t *testing.T) (*grpc.Server, string) {
-	server := serverPkg.NewInsecure(remote.RubyServer, nil, config.Config)
+func runFullServer(t *testing.T) (string, func()) {
+	conns := client.NewPool()
+	server := serverPkg.NewInsecure(remote.RubyServer, nil, config.Config, conns)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -178,7 +179,10 @@ func runFullServer(t *testing.T) (*grpc.Server, string) {
 
 	go server.Serve(listener)
 
-	return server, "unix://" + serverSocketPath
+	return "unix://" + serverSocketPath, func() {
+		conns.Close()
+		server.Stop()
+	}
 }
 
 func cloneRepoAtStorage(t testing.TB, src *gitalypb.Repository, storageName string) (*gitalypb.Repository, string, func()) {

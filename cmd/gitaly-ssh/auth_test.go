@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
@@ -41,14 +42,14 @@ func TestConnectivity(t *testing.T) {
 	require.NoError(t, os.RemoveAll(relativeSocketPath))
 	require.NoError(t, os.Symlink(socketPath, relativeSocketPath))
 
-	tcpServer, tcpPort := runServer(t, server.NewInsecure, config.Config, "tcp", "localhost:0")
-	defer tcpServer.Stop()
+	tcpPort, cleanTCP := runServer(t, server.NewInsecure, config.Config, "tcp", "localhost:0")
+	defer cleanTCP()
 
-	tlsServer, tlsPort := runServer(t, server.NewSecure, config.Config, "tcp", "localhost:0")
-	defer tlsServer.Stop()
+	tlsPort, cleanTLS := runServer(t, server.NewSecure, config.Config, "tcp", "localhost:0")
+	defer cleanTLS()
 
-	unixServer, _ := runServer(t, server.NewInsecure, config.Config, "unix", socketPath)
-	defer unixServer.Stop()
+	_, cleanUnix := runServer(t, server.NewInsecure, config.Config, "unix", socketPath)
+	defer cleanUnix()
 
 	testCases := []struct {
 		name  string
@@ -118,8 +119,9 @@ func TestConnectivity(t *testing.T) {
 	}
 }
 
-func runServer(t *testing.T, newServer func(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg) *grpc.Server, cfg config.Cfg, connectionType string, addr string) (*grpc.Server, int) {
-	srv := newServer(nil, hook.NewManager(hook.GitlabAPIStub, cfg), cfg)
+func runServer(t *testing.T, newServer func(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg, conns *client.Pool) *grpc.Server, cfg config.Cfg, connectionType string, addr string) (int, func()) {
+	conns := client.NewPool()
+	srv := newServer(nil, hook.NewManager(hook.GitlabAPIStub, cfg), cfg, conns)
 
 	listener, err := net.Listen(connectionType, addr)
 	require.NoError(t, err)
@@ -135,5 +137,8 @@ func runServer(t *testing.T, newServer func(rubyServer *rubyserver.Server, hookM
 		require.NoError(t, err)
 	}
 
-	return srv, port
+	return port, func() {
+		conns.Close()
+		srv.Stop()
+	}
 }

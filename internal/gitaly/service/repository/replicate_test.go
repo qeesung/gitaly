@@ -44,8 +44,8 @@ func TestReplicateRepository(t *testing.T) {
 		},
 	}
 
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	testRepo, testRepoPath, cleanupRepo := testhelper.NewTestRepo(t)
 	defer cleanupRepo()
@@ -218,8 +218,8 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 		},
 	}
 
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	locator := config.NewLocator(config.Config)
 

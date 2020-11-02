@@ -11,6 +11,7 @@ import (
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/client"
 	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
@@ -73,7 +74,7 @@ func init() {
 
 // createNewServer returns a GRPC server with all Gitaly services and interceptors set up.
 // allows for specifying secure = true to enable tls credentials
-func createNewServer(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg, secure bool) *grpc.Server {
+func createNewServer(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg, secure bool, conns *client.Pool) *grpc.Server {
 	ctxTagOpts := []grpc_ctxtags.Option{
 		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}
@@ -135,7 +136,7 @@ func createNewServer(rubyServer *rubyserver.Server, hookManager hook.Manager, cf
 
 	server := grpc.NewServer(opts...)
 
-	service.RegisterAll(server, cfg, rubyServer, hookManager, storageLocator)
+	service.RegisterAll(server, cfg, rubyServer, hookManager, storageLocator, conns)
 	reflection.Register(server)
 
 	grpc_prometheus.Register(server)
@@ -144,13 +145,13 @@ func createNewServer(rubyServer *rubyserver.Server, hookManager hook.Manager, cf
 }
 
 // NewInsecure returns a GRPC server with all Gitaly services and interceptors set up.
-func NewInsecure(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg) *grpc.Server {
-	return createNewServer(rubyServer, hookManager, cfg, false)
+func NewInsecure(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg, conns *client.Pool) *grpc.Server {
+	return createNewServer(rubyServer, hookManager, cfg, false, conns)
 }
 
 // NewSecure returns a GRPC server enabling TLS credentials
-func NewSecure(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg) *grpc.Server {
-	return createNewServer(rubyServer, hookManager, cfg, true)
+func NewSecure(rubyServer *rubyserver.Server, hookManager hook.Manager, cfg config.Cfg, conns *client.Pool) *grpc.Server {
+	return createNewServer(rubyServer, hookManager, cfg, true, conns)
 }
 
 // CleanupInternalSocketDir will clean up the directory for internal sockets if it is a generated temp dir

@@ -5,6 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
@@ -63,7 +64,7 @@ func registerMetrics(cfg config.Cfg) {
 
 // RegisterAll will register all the known grpc services with
 // the specified grpc service instance
-func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server, hookManager gitalyhook.Manager, locator storage.Locator) {
+func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver.Server, hookManager gitalyhook.Manager, locator storage.Locator, conns *client.Pool) {
 	once.Do(func() {
 		registerMetrics(cfg)
 	})
@@ -73,7 +74,7 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer(locator))
 	gitalypb.RegisterDiffServiceServer(grpcServer, diff.NewServer(locator))
 	gitalypb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer(locator))
-	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(cfg, rubyServer, hookManager, locator))
+	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(cfg, rubyServer, hookManager, locator, conns))
 	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer(locator))
 	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(cfg, rubyServer, locator, config.GitalyInternalSocketPath()))
 	gitalypb.RegisterSSHServiceServer(grpcServer, ssh.NewServer(

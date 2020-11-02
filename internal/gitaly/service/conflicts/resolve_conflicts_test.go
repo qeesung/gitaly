@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	serverPkg "gitlab.com/gitlab-org/gitaly/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/conflicts"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
@@ -27,8 +27,8 @@ var (
 )
 
 func TestSuccessfulResolveConflictsRequest(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	client, conn := conflicts.NewConflictsClient(t, serverSocketPath)
 	defer conn.Close()
@@ -109,8 +109,8 @@ func TestSuccessfulResolveConflictsRequest(t *testing.T) {
 }
 
 func TestFailedResolveConflictsRequestDueToResolutionError(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	client, conn := conflicts.NewConflictsClient(t, serverSocketPath)
 	defer conn.Close()
@@ -172,8 +172,8 @@ func TestFailedResolveConflictsRequestDueToResolutionError(t *testing.T) {
 }
 
 func TestFailedResolveConflictsRequestDueToValidation(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	client, conn := conflicts.NewConflictsClient(t, serverSocketPath)
 	defer conn.Close()
@@ -308,8 +308,10 @@ func TestFailedResolveConflictsRequestDueToValidation(t *testing.T) {
 	}
 }
 
-func runFullServer(t *testing.T) (*grpc.Server, string) {
-	server := serverPkg.NewInsecure(conflicts.RubyServer, nil, config.Config)
+func runFullServer(t *testing.T) (string, func()) {
+	conns := client.NewPool()
+
+	server := serverPkg.NewInsecure(conflicts.RubyServer, nil, config.Config, conns)
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName()
 
 	listener, err := net.Listen("unix", serverSocketPath)
@@ -319,5 +321,8 @@ func runFullServer(t *testing.T) (*grpc.Server, string) {
 
 	go server.Serve(listener)
 
-	return server, "unix://" + serverSocketPath
+	return "unix://" + serverSocketPath, func() {
+		conns.Close()
+		server.Stop()
+	}
 }

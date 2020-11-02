@@ -22,13 +22,13 @@ type server struct {
 }
 
 // NewServer creates a new instance of a grpc OperationServiceServer
-func NewServer(cfg config.Cfg, rs *rubyserver.Server, hookManager hook.Manager, locator storage.Locator) gitalypb.OperationServiceServer {
+func NewServer(cfg config.Cfg, rs *rubyserver.Server, hookManager hook.Manager, locator storage.Locator, conns *client.Pool) gitalypb.OperationServiceServer {
 	return &server{
 		ruby:        rs,
 		cfg:         cfg,
 		hookManager: hookManager,
 		locator:     locator,
-		conns:       client.NewPool(),
+		conns:       conns,
 		git2go:      git2go.New(filepath.Join(cfg.BinDir, "gitaly-git2go")),
 	}
 }

@@ -42,8 +42,8 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 
 	socketPath := testhelper.GetTemporaryGitalySocketFileName()
 
-	unixServer, _ := runServer(t, server.NewInsecure, config.Config, "unix", socketPath)
-	defer unixServer.Stop()
+	_, clean := runServer(t, server.NewInsecure, config.Config, "unix", socketPath)
+	defer clean()
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)

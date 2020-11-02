@@ -39,8 +39,8 @@ func getForkDestination(t *testing.T) (*gitalypb.Repository, string, func()) {
 }
 
 func TestCloneFromPoolInternal(t *testing.T) {
-	server, serverSocketPath := runFullServer(t)
-	defer server.Stop()
+	serverSocketPath, clean := runFullServer(t)
+	defer clean()
 
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()

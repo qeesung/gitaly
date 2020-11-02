@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
@@ -88,9 +89,11 @@ func runOperationServiceServerWithRubyServer(t *testing.T, ruby *rubyserver.Serv
 	internalListener, err := net.Listen("unix", internalSocket)
 	require.NoError(t, err)
 
+	conns := client.NewPool()
+
 	hookManager := gitalyhook.NewManager(gitalyhook.GitlabAPIStub, config.Config)
 	locator := config.NewLocator(config.Config)
-	server := NewServer(config.Config, ruby, hookManager, locator)
+	server := NewServer(config.Config, ruby, hookManager, locator, conns)
 
 	gitalypb.RegisterOperationServiceServer(srv.GrpcServer(), server)
 	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hook.NewServer(hookManager))
@@ -103,6 +106,7 @@ func runOperationServiceServerWithRubyServer(t *testing.T, ruby *rubyserver.Serv
 	require.NoError(t, srv.Start())
 
 	go func() {
+		conns.Close()
 		srv.GrpcServer().Serve(internalListener)
 	}()
 
