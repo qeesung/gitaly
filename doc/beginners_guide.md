@@ -199,9 +199,11 @@ You'll need some [test repositories](test_repos.md), you can set these up with `
 - each RPC must have end-to-end tests at the service level
 - optionally, you can add unit tests for functions that need more coverage
 
-A typical set of Go tests for an RPC consists of two or three test
+##### Integration Tests
+
+A typical set of Golang tests for an RPC consists of two or three test
 functions: a success test, a failure test (usually a table driven test
-using t.Run), and sometimes a validation test. Our Go RPC tests use
+using t.Run), and sometimes a validation test. Our Golang RPC tests use
 in-process test servers that only implement the service the current
 RPC belongs to. So if you are working on an RPC in the
 'RepositoryService', your tests would go in
@@ -250,6 +252,90 @@ $ ASDF_DATA_DIR=~/.asdf go test ...
 
 [known issue]: https://gitlab.com/gitlab-org/gitaly/-/issues/2646
 [asdf]: https://asdf-vm.com/
+##### Useful snippets for creating a test
+
+###### testhelper.Context()
+
+The testhelper package includes useful utilities for setting up tests, such as
+creating repositories and commits, as well as providing `Context` which is
+used frequently when performing RPC calls.
+
+```go
+import (
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+)
+
+func TestExample(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+}
+```
+
+`testhelper.Context()` returns a tuple with the current context and the
+cancellation function which can be deferred to the end of the test (and which
+will clear the context).
+
+###### testhelper.NewTestRepo()
+
+```go
+import "gitlab.com/gitlab-org/gitaly/internal/testhelper"
+
+func TestExample(t *testing.T) {
+	testRepo, _, cleanup := testhelper.NewTestRepo(t)
+	defer cleanup()
+}
+```
+
+`testhelper.NewTestRepo()` creates a new repository, and the cleanup can
+be deferred to the end of the test.
+
+If you need to prepare your test repository in a certain way, you can run Git commands
+on the repository:
+
+```go
+testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "for-each-ref", "--format", "%(refname:lstrip=2)")
+```
+
+These can also be batched, for example:
+
+```go
+setupCommands := [][]string{
+	// Preconditions
+	{"config", "user.email", "gitalytest@example.com"},
+	{"remote", "add", remoteName, mirrorPath},
+	{"branch", "11-0-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},
+	{"branch", "11-1-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},                // Add branch
+	{"branch", "ignored-branch", "60ecb67744cb56576c30214ff52294f8ce2def98"},             // Add branch not matching branch list
+	{"update-ref", "refs/heads/some-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
+	{"update-ref", "refs/heads/feature", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"},     // Update branch
+}
+
+for _, args := range setupCommands {
+	gitArgs := []string{"-C", testRepoPath}
+	gitArgs = append(gitArgs, args...)
+	testhelper.MustRunCommand(t, nil, "git", gitArgs...)
+}
+```
+
+###### testhelper_test files
+
+`testhelper_test.go` files in the test directories often contain helper
+methods used prolifically throughout the tests. Examples of this would be
+generic server setup commands which are common to all tests in that directory.
+
+###### config
+
+Import the config directory to provide access to various predefined types
+and settings:
+
+```go
+import (
+	"gitlab.com/gitlab-org/gitaly/internal/config"
+)
+```
+
+This is commonly used for access to the `locator` functions, which are used
+for looking up repositories on disk etc.
 
 #### RSpec tests
 
