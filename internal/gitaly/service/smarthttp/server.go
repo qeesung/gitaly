@@ -8,13 +8,15 @@ import (
 
 type server struct {
 	locator                    storage.Locator
+	infoRefCache               streamer
 	packfileNegotiationMetrics *prometheus.CounterVec
 }
 
 // NewServer creates a new instance of a grpc SmartHTTPServer
-func NewServer(locator storage.Locator, serverOpts ...ServerOpt) gitalypb.SmartHTTPServiceServer {
+func NewServer(locator storage.Locator, infoRefCache streamer, serverOpts ...ServerOpt) gitalypb.SmartHTTPServiceServer {
 	s := &server{
-		locator: locator,
+		locator:      locator,
+		infoRefCache: infoRefCache,
 		packfileNegotiationMetrics: prometheus.NewCounterVec(
 			prometheus.CounterOpts{},
 			[]string{"git_negotiation_feature"},

@@ -59,7 +59,7 @@ func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) 
 		testhelper.WithInternalSocket(config.Config))
 
 	locator := config.NewLocator(config.Config)
-	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(locator, serverOpts...))
+	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(locator, diskcache.NewStreamDB(diskcache.NewLeaseKeyer(locator)), serverOpts...))
 	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hook.NewManager(locator, hook.GitlabAPIStub, config.Config)))
 
 	require.NoError(t, srv.Start())

@@ -43,7 +43,7 @@ const (
 )
 
 // CacheDir returns the path to the cache dir for a storage location
-func CacheDir(storage config.Storage) string { return AppendCacheDir(storage.Path) }
+func CacheDir(storagePath string) string { return AppendCacheDir(storagePath) }
 
 // AppendCacheDir will append the cache directory convention to the storage path
 // provided

@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
@@ -83,6 +84,7 @@ func RegisterAll(grpcServer *grpc.Server, cfg config.Cfg, rubyServer *rubyserver
 	))
 	gitalypb.RegisterSmartHTTPServiceServer(grpcServer, smarthttp.NewServer(
 		locator,
+		cache.NewStreamDB(cache.NewLeaseKeyer(locator)),
 		smarthttp.WithPackfileNegotiationMetrics(smarthttpPackfileNegotiationMetrics),
 	))
 	gitalypb.RegisterWikiServiceServer(grpcServer, wiki.NewServer(rubyServer, locator))

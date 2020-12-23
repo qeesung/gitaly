@@ -31,7 +31,7 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		{"2b/ancient", 24 * time.Hour, true},
 		{"cd/baby", time.Second, false},
 	} {
-		cacheDir := tempdir.CacheDir(config.Config.Storages[0])
+		cacheDir := tempdir.CacheDir(config.Config.Storages[0].Path)
 
 		path := filepath.Join(cacheDir, tt.name)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
@@ -74,7 +74,7 @@ func TestDiskCacheInitialClear(t *testing.T) {
 	cleanup := setupDiskCacheWalker(t)
 	defer cleanup()
 
-	cacheDir := tempdir.CacheDir(config.Config.Storages[0])
+	cacheDir := tempdir.CacheDir(config.Config.Storages[0].Path)
 
 	canary := filepath.Join(cacheDir, "canary.txt")
 	require.NoError(t, os.MkdirAll(filepath.Dir(canary), 0755))

@@ -50,11 +50,18 @@ type Keyer interface {
 	KeyPath(context.Context, *gitalypb.Repository, proto.Message) (string, error)
 }
 
+// NewLeaseKeyer returns new instance of the Keyer.
+func NewLeaseKeyer(locator storage.Locator) LeaseKeyer {
+	return LeaseKeyer{locator: locator}
+}
+
 // LeaseKeyer will try to return a key path for the current generation of
 // the repo's cache. It uses a strategy that avoids file locks in favor of
 // atomically created/renamed files. Read more about LeaseKeyer's design:
 // https://gitlab.com/gitlab-org/gitaly/issues/1745
-type LeaseKeyer struct{}
+type LeaseKeyer struct {
+	locator storage.Locator
+}
 
 type lease struct {
 	pendingPath string
@@ -143,7 +150,7 @@ const staleAge = time.Hour
 // KeyPath will attempt to return the unique keypath for a request in the
 // specified repo for the current generation. The context must contain the gRPC
 // method in its values.
-func (LeaseKeyer) KeyPath(ctx context.Context, repo *gitalypb.Repository, req proto.Message) (string, error) {
+func (lk LeaseKeyer) KeyPath(ctx context.Context, repo *gitalypb.Repository, req proto.Message) (string, error) {
 	pending, err := currentLeases(repo)
 	if err != nil {
 		return "", err
@@ -182,7 +189,7 @@ func (LeaseKeyer) KeyPath(ctx context.Context, repo *gitalypb.Repository, req pr
 		return "", err
 	}
 
-	cDir, err := cacheDir(repo)
+	cDir, err := lk.cacheDir(repo)
 	if err != nil {
 		return "", err
 	}
@@ -227,10 +234,10 @@ func newPendingLease(repo *gitalypb.Repository) (string, error) {
 }
 
 // cacheDir is $STORAGE/+gitaly/cache
-func cacheDir(repo *gitalypb.Repository) (string, error) {
-	s, ok := config.Config.Storage(repo.StorageName)
-	if !ok {
-		return "", fmt.Errorf("storage not found for %v", repo)
+func (lk LeaseKeyer) cacheDir(repo *gitalypb.Repository) (string, error) {
+	s, err := lk.locator.GetStorageByName(repo.StorageName)
+	if err != nil {
+		return "", err
 	}
 
 	return tempdir.CacheDir(s), nil

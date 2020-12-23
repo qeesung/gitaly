@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
@@ -452,7 +453,7 @@ func runSmartHTTPHookServiceServer(t *testing.T) (*grpc.Server, string) {
 	}
 
 	locator := config.NewLocator(config.Config)
-	gitalypb.RegisterSmartHTTPServiceServer(server, NewServer(locator))
+	gitalypb.RegisterSmartHTTPServiceServer(server, NewServer(locator, cache.NewStreamDB(cache.NewLeaseKeyer(locator))))
 	gitalypb.RegisterHookServiceServer(server, hook.NewServer(config.Config, gitalyhook.NewManager(locator, gitalyhook.GitlabAPIStub, config.Config)))
 	reflection.Register(server)
 
@@ -506,7 +507,7 @@ func testPostReceiveWithTransactionsViaPraefect(t *testing.T, ctx context.Contex
 
 	locator := config.NewLocator(config.Config)
 	gitalyServer := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
-	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer.GrpcServer(), NewServer(locator))
+	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer.GrpcServer(), NewServer(locator, cache.NewStreamDB(cache.NewLeaseKeyer(locator))))
 	gitalypb.RegisterHookServiceServer(gitalyServer.GrpcServer(), hook.NewServer(config.Config, gitalyhook.NewManager(locator, gitalyhook.GitlabAPIStub, config.Config)))
 	reflection.Register(gitalyServer.GrpcServer())
 	require.NoError(t, gitalyServer.Start())
@@ -551,7 +552,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 
 	locator := config.NewLocator(config.Config)
 	gitalyServer := testhelper.NewTestGrpcServer(t, nil, nil)
-	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer, NewServer(locator))
+	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer, NewServer(locator, cache.NewStreamDB(cache.NewLeaseKeyer(locator))))
 	gitalypb.RegisterHookServiceServer(gitalyServer, hook.NewServer(config.Config, gitalyhook.NewManager(locator, gitalyhook.GitlabAPIStub, config.Config)))
 	gitalypb.RegisterRefTransactionServer(gitalyServer, refTransactionServer)
 	healthpb.RegisterHealthServer(gitalyServer, health.NewServer())
