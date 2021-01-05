@@ -98,7 +98,7 @@ func newSecureRepoClient(t *testing.T, serverSocketPath string, pool *x509.CertP
 
 var NewSecureRepoClient = newSecureRepoClient
 
-func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locator, opts ...testhelper.TestServerOpt) (string, func()) {
+func buildTestingServer(t *testing.T, cfg config.Cfg, locator storage.Locator, opts ...testhelper.TestServerOpt) *testhelper.TestServer {
 	streamInt := []grpc.StreamServerInterceptor{
 		mcache.StreamInvalidator(dcache.LeaseKeyer{}, protoregistry.GitalyProtoPreregistered),
 	}
@@ -111,6 +111,11 @@ func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locat
 	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(cfg, RubyServer, locator))
 	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hook.NewManager(locator, hook.GitlabAPIStub, cfg)))
 
+	return srv
+}
+
+func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locator, opts ...testhelper.TestServerOpt) (string, func()) {
+	srv := buildTestingServer(t, cfg, locator, opts...)
 	require.NoError(t, srv.Start())
 
 	return "unix://" + srv.Socket(), srv.Stop
