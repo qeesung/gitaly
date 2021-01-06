@@ -5,7 +5,7 @@ exclude (
 	// dialing. It should be avoided until upgraded to a newer fixed
 	// version. More details:
 	// https://github.com/grpc/grpc-go/issues/3990
-	github.com/grpc/grpc-go v1.35.0
+	github.com/grpc/grpc-go v1.34.0
 	github.com/grpc/grpc-go v1.35.0-dev
 )
 
