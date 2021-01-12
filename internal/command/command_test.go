@@ -106,6 +106,27 @@ func TestNewCommandProxyEnv(t *testing.T) {
 	}
 }
 
+func TestPassedInEnvsTakeHigherPriority(t *testing.T) {
+	envValueOs := "foobar_os"
+	envValuePassedIn := "foobar_passed_in"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	oldTZ := os.Getenv("TZ")
+	defer os.Setenv("TZ", oldTZ)
+
+	os.Setenv("TZ", envValueOs)
+
+	buff := &bytes.Buffer{}
+	cmd, err := New(ctx, exec.Command("env"), nil, buff, nil, "TZ="+envValuePassedIn)
+
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	require.Contains(t, strings.Split(buff.String(), "\n"), "TZ="+envValuePassedIn)
+}
+
 func TestRejectEmptyContextDone(t *testing.T) {
 	defer func() {
 		p := recover()
