@@ -10,19 +10,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/log"
 	"gitlab.com/gitlab-org/gitaly/internal/git/lstree"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testSuccessfulUserUpdateSubmoduleRequest)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context) {
 	locator := config.NewLocator(config.Config)
 
 	serverSocketPath, stop := runOperationServiceServer(t)
@@ -89,12 +85,9 @@ func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context)
 }
 
 func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testFailedUserUpdateSubmoduleRequestDueToValidations)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -220,12 +213,9 @@ func testFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T, ctx cont
 }
 
 func TestFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testFailedUserUpdateSubmoduleRequestDueToInvalidBranch)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -250,12 +240,9 @@ func testFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T, ctx co
 }
 
 func TestFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -280,12 +267,9 @@ func testFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T, ctx
 }
 
 func TestFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testFailedUserUpdateSubmoduleRequestDueToSameReference)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -313,12 +297,9 @@ func testFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T, ctx co
 }
 
 func TestFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T) {
-	testhelper.NewFeatureSets(
-		[]featureflag.FeatureFlag{featureflag.GoUserUpdateSubmodule},
-	).Run(t, testFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
