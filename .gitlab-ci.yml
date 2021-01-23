@@ -38,7 +38,22 @@ danger-review:
     - git version
     - danger
 
+.go-cache:
+  variables:
+    GOPATH: ${CI_PROJECT_DIR}/.go
+  before_script:
+    - go env
+    - echo ${CI_PROJECT_DIR}
+    - mkdir -p .go
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - .go/pkg/mod/
+
 .cache: &cache_definition
+  extends: .go-cache
   cache:
     key:
       files:
@@ -186,6 +201,7 @@ nightly:git:
 cover:
   <<: *cache_definition
   <<: *postgres_definition
+  extends: .go-cache
   stage: test
   script:
     - make cover
