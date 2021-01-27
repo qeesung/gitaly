@@ -274,6 +274,7 @@ func TestDial_Tracing(t *testing.T) {
 		opentracing.SetGlobalTracer(tracer)
 
 		span := tracer.StartSpan("unary-check")
+		defer span.Finish()
 		span = span.SetBaggageItem("service", "stub")
 
 		ctx, cancel := testhelper.Context()
@@ -327,6 +328,7 @@ func TestDial_Tracing(t *testing.T) {
 		opentracing.SetGlobalTracer(tracer)
 
 		span := tracer.StartSpan("stream-check")
+		defer span.Finish()
 		span = span.SetBaggageItem("service", "stub")
 
 		ctx, cancel := testhelper.Context()
