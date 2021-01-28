@@ -204,6 +204,7 @@ func TestExecutor_Apply(t *testing.T) {
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, commit{
 				Parent:    tc.parentCommit,
 				Author:    author,
