@@ -95,6 +95,12 @@ var gitCommands = map[string]gitCommand{
 	"ls-tree": gitCommand{
 		flags: scNoRefUpdates | scNoEndOfOptions,
 	},
+	"mailinfo": gitCommand{
+		flags: scNoRefUpdates | scNoEndOfOptions,
+	},
+	"mailsplit": gitCommand{
+		flags: scNoRefUpdates | scNoEndOfOptions,
+	},
 	"merge-base": gitCommand{
 		flags: scNoRefUpdates,
 	},
