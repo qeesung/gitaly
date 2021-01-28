@@ -118,14 +118,14 @@ func (cmd *applySubcommand) applyPatch(
 
 	patchedIndex, err := repo.ApplyToTree(diff, parentTree, nil)
 	if err != nil {
-		if !git.IsErrorCode(err, git.ErrApplyFail) {
-			return nil, fmt.Errorf("apply to tree: %w", err)
-		}
-
 		patchedIndex, err = cmd.threeWayMerge(ctx, repo, parentTree, diff, patch.Diff)
 		if err != nil {
 			return nil, fmt.Errorf("three way merge: %w", err)
 		}
+	}
+
+	if patchedIndex.HasConflicts() {
+		return nil, git2go.ErrMergeConflict
 	}
 
 	patchedTree, err := patchedIndex.WriteTreeTo(repo)
@@ -182,10 +182,6 @@ func (cmd *applySubcommand) threeWayMerge(
 	patchedIndex, err := repo.MergeTrees(ancestorTree, our, patchedTree, nil)
 	if err != nil {
 		return nil, fmt.Errorf("merge trees: %w", err)
-	}
-
-	if patchedIndex.HasConflicts() {
-		return nil, git2go.ErrMergeConflict
 	}
 
 	return patchedIndex, nil
