@@ -154,13 +154,6 @@ func TestExecutor_Apply(t *testing.T) {
 			},
 		},
 		{
-			// This test asserts incorrect behavior due to a bug in libgit2's
-			// git_apply_to_tree function. The correct behavior would be to
-			// return an error about merge conflict but we currently concatenate
-			// the blobs of the two trees together. This test will fail once the
-			// issue is fixed.
-			//
-			// See: https://gitlab.com/gitlab-org/gitaly/-/issues/3325
 			desc: "no common ancestor",
 			patches: []Patch{
 				{
@@ -170,10 +163,7 @@ func TestExecutor_Apply(t *testing.T) {
 				},
 			},
 			parentCommit: parentCommitSHA,
-			// error: ErrMergeConflict, <- correct output
-			tree: []testhelper.TreeEntry{
-				{Path: "file", Mode: "100644", Content: "abase"},
-			},
+			error:        ErrMergeConflict,
 		},
 		{
 			desc: "merge conflict",

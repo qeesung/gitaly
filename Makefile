@@ -62,7 +62,7 @@ PROTOC_VERSION            ?= 3.12.4
 PROTOC_GEN_GO_VERSION     ?= 1.3.2
 GIT_VERSION               ?= v2.29.0
 GIT2GO_VERSION            ?= v30
-LIBGIT2_VERSION       	  ?= v1.0.1
+LIBGIT2_VERSION           ?= apply
 GOCOVER_COBERTURA_VERSION ?= aaee18c8195c3f2d90e5ef80ca918d265463842a
 
 # Dependency downloads
@@ -98,7 +98,7 @@ ifeq (${GIT_BUILD_OPTIONS},)
 endif
 
 # libgit2 target
-LIBGIT2_REPO_URL    ?= https://gitlab.com/libgit2/libgit2
+LIBGIT2_REPO_URL    ?= https://github.com/rbmclean/libgit2.git
 LIBGIT2_SOURCE_DIR  ?= ${BUILD_DIR}/src/libgit2
 LIBGIT2_BUILD_DIR   ?= ${LIBGIT2_SOURCE_DIR}/build
 LIBGIT2_INSTALL_DIR ?= ${BUILD_DIR}/libgit2
