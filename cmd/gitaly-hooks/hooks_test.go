@@ -721,3 +721,30 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 		})
 	}
 }
+
+func TestGitalyHooksPackObjectsFunnyCommand(t *testing.T) {
+	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
+	defer cleanupFn()
+
+	logDir, err := filepath.Abs("testdata")
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(logDir, 0755))
+
+	env := append(
+		envForHooks(t, logDir, testRepo, glHookValues{}, proxyValues{}),
+		"GITALY_GIT_BIN_PATH=git",
+	)
+
+	// This is a funny command that the server won't accept but that the hook should run anyway. Executing this proves that the fallback path works.
+	args := []string{"git", "show", "de78448b0b504f3f60093727bddfda1ceee42345:README.md"}
+	stdout := &bytes.Buffer{}
+
+	cmd := exec.Command(config.Config.BinDir+"/gitaly-hooks", args...)
+	cmd.Dir = testRepoPath
+	cmd.Env = env
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = stdout
+
+	require.NoError(t, cmd.Run())
+	require.Contains(t, string(stdout.Bytes()), `Sample repo for testing gitlab features`)
+}
