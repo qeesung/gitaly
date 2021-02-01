@@ -82,40 +82,59 @@ func TestPackObjectsSuccess(t *testing.T) {
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
-	stdin := `3dd08961455abf80ef9115f4afdc1c6f968b503c
---not
-
-`
-	args := []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"}
-
-	stream, err := client.PackObjectsHook(ctx)
-	require.NoError(t, err)
-
-	require.NoError(t, stream.Send(&gitalypb.PackObjectsHookRequest{
-		Repository: testRepo,
-		Args:       args,
-	}))
-	resp, err := stream.Recv()
-	require.NoError(t, err, "response")
-
-	require.True(t, resp.CommandAccepted, "command accepted")
-
-	require.NoError(t, stream.Send(&gitalypb.PackObjectsHookRequest{
-		Stdin: []byte(stdin),
-	}), "send stdin")
-	require.NoError(t, stream.CloseSend(), "close send")
-
-	var stdout []byte
-	for err == nil {
-		resp, err = stream.Recv()
-		stdout = append(stdout, resp.GetStdout()...)
-		if stderr := resp.GetStderr(); len(stderr) > 0 {
-			t.Log(string(stderr))
-		}
+	testCases := []struct {
+		desc  string
+		stdin string
+		args  []string
+	}{
+		{
+			"clone 1 branch",
+			"3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n",
+			[]string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"},
+		},
+		{
+			"shallow clone 1 branch",
+			"--shallow 1e292f8fedd741b75372e19097c76d327140c312\n1e292f8fedd741b75372e19097c76d327140c312\n--not\n\n",
+			[]string{"--shallow-file", "", "pack-objects", "--revs", "--thin", "--stdout", "--shallow", "--progress", "--delta-base-offset", "--include-tag"},
+		},
 	}
-	require.Equal(t, io.EOF, err)
 
-	testhelper.MustRunCommand(t, bytes.NewReader(stdout), "git", "-C", testRepoPath, "index-pack", "--stdin", "--fix-thin")
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.PackObjectsHook(ctx)
+			require.NoError(t, err)
+
+			require.NoError(t, stream.Send(&gitalypb.PackObjectsHookRequest{
+				Repository: testRepo,
+				Args:       tc.args,
+			}))
+			resp, err := stream.Recv()
+			require.NoError(t, err, "response")
+
+			require.True(t, resp.CommandAccepted, "command accepted")
+
+			require.NoError(t, stream.Send(&gitalypb.PackObjectsHookRequest{
+				Stdin: []byte(tc.stdin),
+			}), "send stdin")
+			require.NoError(t, stream.CloseSend(), "close send")
+
+			var stdout []byte
+			for err == nil {
+				resp, err = stream.Recv()
+				stdout = append(stdout, resp.GetStdout()...)
+				if stderr := resp.GetStderr(); len(stderr) > 0 {
+					t.Log(string(stderr))
+				}
+			}
+			require.Equal(t, io.EOF, err)
+
+			testhelper.MustRunCommand(
+				t,
+				bytes.NewReader(stdout),
+				"git", "-C", testRepoPath, "index-pack", "--stdin", "--fix-thin",
+			)
+		})
+	}
 }
 
 func TestParsePackObjectsArgs(t *testing.T) {
