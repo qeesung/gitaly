@@ -679,6 +679,9 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 		config.Config = cfg
 	}(config.Config)
 
+	config.Config.Auth.Token = "abc123"
+	defer runHookServiceServer(t, config.Config.Auth.Token)()
+
 	testRepo, testRepoPath, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 
@@ -686,10 +689,7 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(logDir, 0755))
 
-	env := append(
-		envForHooks(t, logDir, testRepo, glHookValues{}, proxyValues{}),
-		"GITALY_GIT_BIN_PATH=git",
-	)
+	env := envForHooks(t, logDir, testRepo, glHookValues{}, proxyValues{})
 
 	baseArgs := []string{
 		config.Config.Git.BinPath,

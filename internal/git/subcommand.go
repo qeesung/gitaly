@@ -109,6 +109,9 @@ var gitCommands = map[string]gitCommand{
 	"pack-refs": gitCommand{
 		flags: scNoRefUpdates,
 	},
+	"pack-objects": gitCommand{
+		flags: scReadOnly,
+	},
 	"receive-pack": gitCommand{
 		flags: 0,
 		opts: []GlobalOption{

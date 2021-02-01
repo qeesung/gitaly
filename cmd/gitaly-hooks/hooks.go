@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -201,8 +200,9 @@ func main() {
 		}
 
 		hookStatus = 0
-		if fallBackGit(payload.GitPath, args) != nil {
+		if err := handlePackObjects(ctx, hookClient, payload.Repo, args); err != nil {
 			hookStatus = 1
+			logger.Logger().WithFields(logrus.Fields{"args": args}).WithError(err).Error("PackObjectsHook RPC failed")
 		}
 	default:
 		logger.Fatalf("subcommand name invalid: %q", subCmd)
@@ -292,23 +292,37 @@ func fixFilterQuoteBug(arg string) string {
 	return "--filter=" + filterSpec
 }
 
-func fallBackGit(gitPath string, args []string) error {
-	gitCmd := exec.Command(gitPath, args...)
-	gitCmd.Stdin = os.Stdin
-	gitCmd.Stdout = os.Stdout
-	gitCmd.Stderr = os.Stderr
-
-	entry := logger.Logger().WithFields(logrus.Fields{
-		"args": args,
-	})
-	const message = "local git command"
-
-	err := gitCmd.Run()
+func handlePackObjects(ctx context.Context, hookClient gitalypb.HookServiceClient, repo *gitalypb.Repository, args []string) error {
+	packObjectsStream, err := hookClient.PackObjectsHook(ctx)
 	if err != nil {
-		entry.WithError(err).Error(message)
-	} else {
-		entry.Info(message)
+		return err
 	}
 
+	if err := packObjectsStream.Send(&gitalypb.PackObjectsHookRequest{
+		Repository: repo,
+		Args:       args,
+	}); err != nil {
+		return err
+	}
+
+	stdin := sendFunc(streamio.NewWriter(func(p []byte) error {
+		return packObjectsStream.Send(&gitalypb.PackObjectsHookRequest{Stdin: p})
+	}), packObjectsStream, os.Stdin)
+
+	_, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
+		resp, err := packObjectsStream.Recv()
+		return nopExitStatus{resp}, err
+	}, stdin, os.Stdout, os.Stderr)
 	return err
 }
+
+type stdoutStderr interface {
+	GetStdout() []byte
+	GetStderr() []byte
+}
+
+type nopExitStatus struct {
+	stdoutStderr
+}
+
+func (nopExitStatus) GetExitStatus() *gitalypb.ExitStatus { return nil }
