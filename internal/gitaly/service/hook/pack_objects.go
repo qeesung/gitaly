@@ -78,9 +78,9 @@ func parsePackObjectsArgs(args []string) (*packObjectsArgs, bool) {
 		if !strings.HasPrefix(a, "-") {
 			return nil, false
 		}
+		result.flags = append(result.flags, a)
 	}
 
-	result.flags = args
 	return result, true
 }
 

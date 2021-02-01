@@ -201,7 +201,7 @@ func main() {
 		}
 
 		hookStatus = 0
-		if err, handled := handlePackObjects(ctx, hookClient, payload.Repo, args); handled {
+		if handled, err := handlePackObjects(ctx, hookClient, payload.Repo, args); handled {
 			if err != nil {
 				hookStatus = 1
 				logger.Logger().WithFields(logrus.Fields{"args": args}).WithError(err).Error("PackObjectsHook RPC failed")
@@ -318,21 +318,21 @@ func fallBackGit(args []string) error {
 	return err
 }
 
-func handlePackObjects(ctx context.Context, hookClient gitalypb.HookServiceClient, repo *gitalypb.Repository, args []string) (err error, handled bool) {
+func handlePackObjects(ctx context.Context, hookClient gitalypb.HookServiceClient, repo *gitalypb.Repository, args []string) (handled bool, err error) {
 	packObjectsStream, err := hookClient.PackObjectsHook(ctx)
 	if err != nil {
-		return err, false
+		return false, err
 	}
 
 	if err := packObjectsStream.Send(&gitalypb.PackObjectsHookRequest{
 		Repository: repo,
 		Args:       args,
 	}); err != nil {
-		return err, false
+		return false, err
 	}
 
 	if response, err := packObjectsStream.Recv(); err != nil || !response.CommandAccepted {
-		return err, false
+		return false, err
 	}
 
 	stdin := sendFunc(streamio.NewWriter(func(p []byte) error {
@@ -342,5 +342,5 @@ func handlePackObjects(ctx context.Context, hookClient gitalypb.HookServiceClien
 	_, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
 		return packObjectsStream.Recv()
 	}, stdin, os.Stdout, os.Stderr)
-	return err, true
+	return true, err
 }

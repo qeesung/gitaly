@@ -9,7 +9,6 @@ import (
 type server struct {
 	cfg     config.Cfg
 	manager gitalyhook.Manager
-	gitalypb.UnimplementedHookServiceServer
 }
 
 // NewServer creates a new instance of a gRPC namespace server

@@ -117,3 +117,32 @@ func TestPackObjectsSuccess(t *testing.T) {
 
 	testhelper.MustRunCommand(t, bytes.NewReader(stdout), "git", "-C", testRepoPath, "index-pack", "--stdin", "--fix-thin")
 }
+
+func TestParsePackObjectsArgs(t *testing.T) {
+	testCases := []struct {
+		args []string
+		*packObjectsArgs
+		valid bool
+	}{
+		{[]string{"pack-objects"}, &packObjectsArgs{}, true},
+		{[]string{"--shallow-file", "", "pack-objects"}, &packObjectsArgs{shallowFile: true}, true},
+		{[]string{"pack-objects", "--foo", "-x"}, &packObjectsArgs{flags: []string{"--foo", "-x"}}, true},
+		{[]string{"--shallow-file", "", "pack-objects", "--foo", "-x"}, &packObjectsArgs{shallowFile: true, flags: []string{"--foo", "-x"}}, true},
+		{[]string{"zpack-objects"}, nil, false},
+		{[]string{"--shallow-file", "z", "pack-objects"}, nil, false},
+		{[]string{"-c", "foo=bar", "pack-objects"}, nil, false},
+		{[]string{"pack-objects", "--foo", "x"}, nil, false},
+		{[]string{"--shallow-file", "", "pack-objects", "--foo", "x"}, nil, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
+			args, valid := parsePackObjectsArgs(tc.args)
+			if !tc.valid {
+				require.False(t, valid, "valid")
+			} else {
+				require.Equal(t, *tc.packObjectsArgs, *args)
+			}
+		})
+	}
+}
