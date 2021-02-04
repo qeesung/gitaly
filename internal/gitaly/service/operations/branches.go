@@ -41,7 +41,7 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 	// END TODO
 	if err != nil {
 		if catfile.IsNotFound(err) {
-			return nil, status.Errorf(codes.FailedPrecondition, "revspec '%s' not found", req.StartPoint)
+			return nil, status.Errorf(codes.FailedPrecondition, "revision '%s' not found", req.StartPoint)
 		}
 
 		return nil, err
