@@ -405,7 +405,7 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 			branchName: "new-branch",
 			startPoint: "i-dont-exist",
 			user:       testhelper.TestUser,
-			err:        status.Errorf(codes.FailedPrecondition, "revspec '%s' not found", "i-dont-exist"),
+			err:        status.Errorf(codes.FailedPrecondition, "revision '%s' not found", "i-dont-exist"),
 		},
 
 		{
