@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
+	"gitlab.com/gitlab-org/labkit/log"
 )
 
 type filestore struct {
@@ -59,12 +60,15 @@ func (fs *filestore) Create() (*os.File, error) {
 func (fs *filestore) clean() {
 	sleepLoop(fs.expiry, func() {
 		cutoff := time.Now().Add(-fs.expiry)
-		filepath.Walk(fs.dir, func(path string, info os.FileInfo, err error) error {
+
+		if err := filepath.Walk(fs.dir, func(path string, info os.FileInfo, err error) error {
 			if err == nil && !info.IsDir() && info.ModTime().Before(cutoff) {
 				err = os.Remove(path)
 			}
 
 			return err
-		})
+		}); err != nil {
+			log.WithError(err).Error("streamcache filestore cleanup")
+		}
 	})
 }

@@ -24,6 +24,7 @@ type Cache struct {
 	fs     *filestore
 }
 
+// NewCache returns a new cache instance.
 func NewCache(dir string, expiry time.Duration) (*Cache, error) {
 	fs, err := newFilestore(dir, expiry)
 	if err != nil {
@@ -69,6 +70,7 @@ func sleepLoop(period time.Duration, fn func()) {
 	}
 }
 
+// FindOrCreate finds or creates a cache entry.
 func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadCloser, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
