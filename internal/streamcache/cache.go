@@ -1,39 +1,39 @@
 package streamcache
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 )
 
+// Cache is a cache for large blobs (in the order of gigabytes). Because
+// storing gigabytes of data is slow, cache entries can be streamed on
+// the read end before they have finished on the write end. Because
+// storing gigabytes of data is expensive, cache entries have a back
+// pressure mechanism: if the readers don't make progress reading the
+// data, the writers will block. That way our disk can fill up no faster
+// than our readers can read from the cache.
 type Cache struct {
-	m          sync.Mutex
-	dir        string
-	expiry     time.Duration
-	index      map[string]*entry
-	queue      []*entry
-	numEntries int
-	id         string
+	m      sync.Mutex
+	expiry time.Duration
+	index  map[string]*entry
+	queue  []*entry
+	fs     *filestore
 }
 
 func NewCache(dir string, expiry time.Duration) (*Cache, error) {
-	buf := make([]byte, 10)
-	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+	fs, err := newFilestore(dir, expiry)
+	if err != nil {
 		return nil, err
 	}
 
 	c := &Cache{
-		dir:    dir,
 		expiry: expiry,
 		index:  make(map[string]*entry),
-		id:     string(buf),
+		fs:     fs,
 	}
 
 	dontpanic.GoForever(1*time.Minute, c.clean)
@@ -42,32 +42,30 @@ func NewCache(dir string, expiry time.Duration) (*Cache, error) {
 }
 
 func (c *Cache) clean() {
-	for {
-		sleep := time.Minute
-		if c.expiry < sleep {
-			sleep = c.expiry
-		}
-		time.Sleep(sleep)
+	sleepLoop(c.expiry, func() {
+		c.m.Lock()
+		defer c.m.Unlock()
 
 		cutoff := time.Now().Add(-c.expiry)
-		c.pruneIndex(cutoff)
-		filepath.Walk(c.dir, func(path string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() && info.ModTime().Before(cutoff) {
-				err = os.Remove(path)
+		for len(c.queue) > 0 && c.queue[0].created.Before(cutoff) {
+			if e := c.queue[0]; c.index[e.key] == e {
+				delete(c.index, e.key)
 			}
 
-			return err
-		})
-	}
+			c.queue = c.queue[1:]
+		}
+	})
 }
 
-func (c *Cache) pruneIndex(cutoff time.Time) {
-	c.m.Lock()
-	defer c.m.Unlock()
+func sleepLoop(period time.Duration, fn func()) {
+	sleep := time.Minute
+	if 0 < period && period < sleep {
+		sleep = period
+	}
 
-	for len(c.queue) > 0 && c.queue[0].created.Before(cutoff) {
-		delete(c.index, c.queue[0].key)
-		c.queue = c.queue[1:]
+	for {
+		time.Sleep(sleep)
+		fn()
 	}
 }
 
@@ -92,17 +90,10 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadC
 	return r, nil
 }
 
-func (c *Cache) entryPath(id int) string {
-	h := sha256.New()
-	fmt.Fprintf(h, "%s-%d", c.id, id)
-	name := fmt.Sprintf("%x", h.Sum(nil))
-	return filepath.Join(c.dir, name[0:2], name[2:4], name[4:])
-}
-
 type entry struct {
 	key     string
 	c       *Cache
-	id      int
+	path    string
 	created time.Time
 }
 
@@ -110,20 +101,15 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 	e := &entry{
 		key:     key,
 		c:       c,
-		id:      c.numEntries,
 		created: time.Now(),
 	}
-	c.numEntries++
 
-	path := c.entryPath(e.id)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return nil, nil, err
-	}
-
-	f, err := os.Create(path)
+	f, err := c.fs.Create()
 	if err != nil {
 		return nil, nil, err
 	}
+	e.path = f.Name()
+
 	if err := create(f); err != nil {
 		return nil, nil, err
 	}
@@ -134,4 +120,4 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 	return f, e, nil
 }
 
-func (e *entry) Open() (io.ReadCloser, error) { return os.Open(e.c.entryPath(e.id)) }
+func (e *entry) Open() (io.ReadCloser, error) { return os.Open(e.path) }
