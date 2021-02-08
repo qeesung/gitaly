@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
@@ -17,7 +18,7 @@ func TestWriteOneReadMultiple(t *testing.T) {
 	tmp, cleanTmp := testhelper.TempDir(t)
 	defer cleanTmp()
 
-	c, err := NewCache(tmp, 0)
+	c, err := NewCache(tmp, time.Minute)
 	require.NoError(t, err)
 
 	const (
@@ -28,7 +29,7 @@ func TestWriteOneReadMultiple(t *testing.T) {
 
 	for i := 0; i < N; i++ {
 		t.Run(fmt.Sprintf("read %d", i), func(t *testing.T) {
-			r, err := c.FindOrCreate(key, func(w io.Writer) error { _, err := io.WriteString(w, content(i)); return err })
+			r, err := c.FindOrCreate(key, writeString(content(i)))
 			require.NoError(t, err)
 
 			out, err := ioutil.ReadAll(r)
@@ -38,12 +39,39 @@ func TestWriteOneReadMultiple(t *testing.T) {
 		})
 	}
 
+	requireCacheFiles(t, tmp, 1)
+}
+
+func writeString(s string) func(io.Writer) error {
+	return func(w io.Writer) error {
+		_, err := io.WriteString(w, s)
+		return err
+	}
+}
+
+func requireCacheFiles(t *testing.T, dir string, n int) {
 	cachedFiles := strings.Split(
-		text.ChompBytes(testhelper.MustRunCommand(t, nil, "find", tmp, "-type", "f")),
+		text.ChompBytes(testhelper.MustRunCommand(t, nil, "find", dir, "-type", "f")),
 		"\n",
 	)
-	require.Len(t, cachedFiles, 1, "number of files in cache")
-	require.NotEmpty(t, cachedFiles[0])
+
+	found := 0
+	for _, f := range cachedFiles {
+		if f != "" {
+			found++
+		}
+	}
+
+	if found != n {
+		t.Fatalf("expected %d files, got %v", n, cachedFiles)
+	}
+}
+
+func requireCacheEntries(t *testing.T, c *Cache, n int) {
+	c.m.Lock()
+	defer c.m.Unlock()
+	require.Len(t, c.index, n)
+	require.Len(t, c.queue, n)
 }
 
 func TestCacheScope(t *testing.T) {
@@ -64,13 +92,17 @@ func TestCacheScope(t *testing.T) {
 
 	for i := 0; i < N; i++ {
 		input[i] = fmt.Sprintf("test content %d", i)
-		cache[i], err = NewCache(tmp, 0)
+		cache[i], err = NewCache(tmp, time.Minute)
 		require.NoError(t, err)
 
-		reader[i], err = cache[i].FindOrCreate(key, func(w io.Writer) error { _, err := io.WriteString(w, input[i]); return err })
+		reader[i], err = cache[i].FindOrCreate(key, writeString(input[i]))
 		require.NoError(t, err)
 	}
 
+	// If different cache instances overwrite their entries, the effect may
+	// be order dependent, e.g. "last write wins". By shuffling the order in
+	// which we read back entries we should (eventually) catch such
+	// collisions.
 	rand.Shuffle(N, func(i, j int) {
 		reader[i], reader[j] = reader[j], reader[i]
 		input[i], input[j] = input[j], input[i]
@@ -85,4 +117,46 @@ func TestCacheScope(t *testing.T) {
 
 		require.Equal(t, content, string(out))
 	}
+}
+
+func TestCacheDiskCleanup(t *testing.T) {
+	tmp, cleanTmp := testhelper.TempDir(t)
+	defer cleanTmp()
+
+	const (
+		key    = "test key"
+		expiry = 10 * time.Millisecond
+	)
+
+	c, err := NewCache(tmp, expiry)
+	require.NoError(t, err)
+
+	content := func(i int) string { return fmt.Sprintf("content %d", i) }
+
+	r1, err := c.FindOrCreate(key, writeString(content(1)))
+	require.NoError(t, err)
+
+	_, err = io.Copy(ioutil.Discard, r1)
+	require.NoError(t, err)
+	require.NoError(t, r1.Close())
+
+	requireCacheFiles(t, tmp, 1)
+	requireCacheEntries(t, c, 1)
+
+	time.Sleep(10 * expiry)
+
+	// Sanity check 1: no cache files
+	requireCacheFiles(t, tmp, 0)
+	// Sanity check 2: no index entries
+	requireCacheEntries(t, c, 0)
+
+	r2, err := c.FindOrCreate(key, writeString(content(2)))
+	require.NoError(t, err)
+
+	out2, err := ioutil.ReadAll(r2)
+	require.NoError(t, err)
+	require.NoError(t, r2.Close())
+
+	// Sanity check 3: no stale value returned by the cache
+	require.Equal(t, content(2), string(out2))
 }

@@ -9,12 +9,16 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 )
 
 type Cache struct {
 	m          sync.Mutex
 	dir        string
+	expiry     time.Duration
 	index      map[string]*entry
+	queue      []*entry
 	numEntries int
 	id         string
 }
@@ -25,11 +29,46 @@ func NewCache(dir string, expiry time.Duration) (*Cache, error) {
 		return nil, err
 	}
 
-	return &Cache{
-		dir:   dir,
-		index: make(map[string]*entry),
-		id:    string(buf),
-	}, nil
+	c := &Cache{
+		dir:    dir,
+		expiry: expiry,
+		index:  make(map[string]*entry),
+		id:     string(buf),
+	}
+
+	dontpanic.GoForever(1*time.Minute, c.clean)
+
+	return c, nil
+}
+
+func (c *Cache) clean() {
+	for {
+		sleep := time.Minute
+		if c.expiry < sleep {
+			sleep = c.expiry
+		}
+		time.Sleep(sleep)
+
+		cutoff := time.Now().Add(-c.expiry)
+		c.pruneIndex(cutoff)
+		filepath.Walk(c.dir, func(path string, info os.FileInfo, err error) error {
+			if err == nil && !info.IsDir() && info.ModTime().Before(cutoff) {
+				err = os.Remove(path)
+			}
+
+			return err
+		})
+	}
+}
+
+func (c *Cache) pruneIndex(cutoff time.Time) {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	for len(c.queue) > 0 && c.queue[0].created.Before(cutoff) {
+		delete(c.index, c.queue[0].key)
+		c.queue = c.queue[1:]
+	}
 }
 
 func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadCloser, error) {
@@ -38,11 +77,8 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadC
 
 	if e := c.index[key]; e != nil {
 		if r, err := e.Open(); err == nil {
-			// Cache hit
 			return r, nil
 		}
-
-		// Entry is broken, will be replaced below
 	}
 
 	r, e, err := c.newEntry(key, create)
@@ -51,6 +87,7 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadC
 	}
 
 	c.index[key] = e
+	c.queue = append(c.queue, e)
 
 	return r, nil
 }
@@ -63,13 +100,19 @@ func (c *Cache) entryPath(id int) string {
 }
 
 type entry struct {
-	key string
-	c   *Cache
-	id  int
+	key     string
+	c       *Cache
+	id      int
+	created time.Time
 }
 
 func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadCloser, *entry, error) {
-	e := &entry{key: key, c: c, id: c.numEntries}
+	e := &entry{
+		key:     key,
+		c:       c,
+		id:      c.numEntries,
+		created: time.Now(),
+	}
 	c.numEntries++
 
 	path := c.entryPath(e.id)

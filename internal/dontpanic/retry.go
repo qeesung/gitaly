@@ -41,6 +41,7 @@ func catchAndLog(fn func()) bool {
 
 			if err, ok := recovered.(error); ok {
 				id = sentry.CaptureException(err)
+				logger.WithError(err).Error("dontpanic: recovered error")
 			}
 		}()
 		fn()
