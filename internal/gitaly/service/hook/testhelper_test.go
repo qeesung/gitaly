@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
@@ -45,7 +46,11 @@ func runHooksServer(t *testing.T, cfg config.Cfg) (string, func()) {
 func runHooksServerWithAPI(t *testing.T, gitlabAPI gitalyhook.GitlabAPI, cfg config.Cfg) (string, func()) {
 	srv := testhelper.NewServer(t, nil, nil)
 
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(cfg, gitalyhook.NewManager(config.NewLocator(cfg), transaction.NewManager(cfg), gitlabAPI, cfg)))
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(
+		cfg,
+		gitalyhook.NewManager(config.NewLocator(cfg), transaction.NewManager(cfg), gitlabAPI, cfg),
+		git.NewExecCommandFactory(cfg),
+	))
 	reflection.Register(srv.GrpcServer())
 
 	srv.Start(t)
