@@ -117,7 +117,8 @@ func TestUpdateReferenceWithHooks(t *testing.T) {
 	// git-update-ref(1) spawned by `updateRefWithHooks()`
 	txManager := transaction.NewManager(config.Config)
 	hookManager := hook.NewManager(config.NewLocator(config.Config), txManager, hook.GitlabAPIStub, config.Config)
-	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hookservice.NewServer(config.Config, hookManager))
+	gitCmdFactory := git.NewExecCommandFactory(config.Config)
+	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
 	server.Start(t)
 
 	user := &gitalypb.User{

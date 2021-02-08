@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
@@ -51,6 +52,7 @@ func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) 
 	keyer := diskcache.NewLeaseKeyer(locator)
 	txManager := transaction.NewManager(config.Config)
 	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, config.Config)
+	gitCmdFactory := git.NewExecCommandFactory(config.Config)
 
 	srv := testhelper.NewServer(t,
 		[]grpc.StreamServerInterceptor{
@@ -62,7 +64,7 @@ func runSmartHTTPServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) 
 		testhelper.WithInternalSocket(config.Config))
 
 	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(config.Config, locator, serverOpts...))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager))
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
 	srv.Start(t)
 
 	return "unix://" + srv.Socket(), srv.Stop

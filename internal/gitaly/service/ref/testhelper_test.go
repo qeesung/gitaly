@@ -47,10 +47,11 @@ func runRefServiceServer(t *testing.T) (func(), string) {
 	locator := config.NewLocator(config.Config)
 	txManager := transaction.NewManager(config.Config)
 	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, config.Config)
+	gitCmdFactory := git.NewExecCommandFactory(config.Config)
 
 	srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(config.Config))
-	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), NewServer(config.Config, locator, git.NewExecCommandFactory(config.Config)))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager))
+	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), NewServer(config.Config, locator, gitCmdFactory))
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
 	srv.Start(t)
 
 	return srv.Stop, "unix://" + srv.Socket()

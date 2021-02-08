@@ -2,8 +2,8 @@ package hook
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -70,7 +70,7 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 	var stdoutBytes, stderrBytes int64
 	defer func() {
 		ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
-			"cache_key":    fmt.Sprintf("%x", key),
+			"cache_key":    hex.EncodeToString(key),
 			"stdin_bytes":  stdinSize,
 			"stdout_bytes": atomic.LoadInt64(&stdoutBytes),
 			"stderr_bytes": atomic.LoadInt64(&stderrBytes),
@@ -89,7 +89,7 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 		return stream.Send(&gitalypb.PackObjectsHookResponse{Stderr: p})
 	})
 
-	cmd, err := git.NewCommand(ctx, firstRequest.GetRepository(), args.globals(), args.subcmd(),
+	cmd, err := s.gitCmdFactory.New(ctx, firstRequest.GetRepository(), args.globals(), args.subcmd(),
 		git.WithStdin(stdin),
 		git.WithStdout(stdout),
 		git.WithStderr(stderr),

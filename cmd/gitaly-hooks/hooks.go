@@ -295,25 +295,28 @@ func fixFilterQuoteBug(arg string) string {
 func handlePackObjects(ctx context.Context, hookClient gitalypb.HookServiceClient, repo *gitalypb.Repository, args []string) error {
 	packObjectsStream, err := hookClient.PackObjectsHook(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("initiate rpc: %w", err)
 	}
 
 	if err := packObjectsStream.Send(&gitalypb.PackObjectsHookRequest{
 		Repository: repo,
 		Args:       args,
 	}); err != nil {
-		return err
+		return fmt.Errorf("first request: %w", err)
 	}
 
 	stdin := sendFunc(streamio.NewWriter(func(p []byte) error {
 		return packObjectsStream.Send(&gitalypb.PackObjectsHookRequest{Stdin: p})
 	}), packObjectsStream, os.Stdin)
 
-	_, err = stream.Handler(func() (stream.StdoutStderrResponse, error) {
+	if _, err := stream.Handler(func() (stream.StdoutStderrResponse, error) {
 		resp, err := packObjectsStream.Recv()
 		return nopExitStatus{resp}, err
-	}, stdin, os.Stdout, os.Stderr)
-	return err
+	}, stdin, os.Stdout, os.Stderr); err != nil {
+		return fmt.Errorf("handle stream: %w", err)
+	}
+
+	return nil
 }
 
 type stdoutStderr interface {

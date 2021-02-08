@@ -60,7 +60,7 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 	)
 	gitalypb.RegisterSSHServiceServer(gitaly0Server.GrpcServer(), ssh.NewServer(config.Config, locator, gitCmdFactory))
 	gitalypb.RegisterRefServiceServer(gitaly0Server.GrpcServer(), ref.NewServer(config.Config, locator, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(gitaly0Server.GrpcServer(), hook.NewServer(config.Config, hookManager))
+	gitalypb.RegisterHookServiceServer(gitaly0Server.GrpcServer(), hook.NewServer(config.Config, hookManager, gitCmdFactory))
 	reflection.Register(gitaly0Server.GrpcServer())
 	gitaly0Server.Start(t)
 	defer gitaly0Server.Stop()
