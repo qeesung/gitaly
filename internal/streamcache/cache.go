@@ -1,6 +1,9 @@
 package streamcache
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,15 +12,23 @@ import (
 )
 
 type Cache struct {
-	m     sync.Mutex
-	dir   string
-	index map[string]*entry
+	m          sync.Mutex
+	dir        string
+	index      map[string]*entry
+	numEntries int
+	id         string
 }
 
 func NewCache(dir string, expiry time.Duration) (*Cache, error) {
+	buf := make([]byte, 10)
+	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+		return nil, err
+	}
+
 	return &Cache{
 		dir:   dir,
 		index: make(map[string]*entry),
+		id:    string(buf),
 	}, nil
 }
 
@@ -44,13 +55,29 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (io.ReadC
 	return r, nil
 }
 
+func (c *Cache) entryPath(id int) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "%s-%d", c.id, id)
+	name := fmt.Sprintf("%x", h.Sum(nil))
+	return filepath.Join(c.dir, name[0:2], name[2:4], name[4:])
+}
+
 type entry struct {
 	key string
 	c   *Cache
+	id  int
 }
 
 func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadCloser, *entry, error) {
-	f, err := os.Create(filepath.Join(c.dir, key))
+	e := &entry{key: key, c: c, id: c.numEntries}
+	c.numEntries++
+
+	path := c.entryPath(e.id)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return nil, nil, err
+	}
+
+	f, err := os.Create(path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +88,7 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 		return nil, nil, err
 	}
 
-	return f, &entry{key: key, c: c}, nil
+	return f, e, nil
 }
 
-func (e *entry) Open() (io.ReadCloser, error) { return os.Open(filepath.Join(e.c.dir, e.key)) }
+func (e *entry) Open() (io.ReadCloser, error) { return os.Open(e.c.entryPath(e.id)) }
