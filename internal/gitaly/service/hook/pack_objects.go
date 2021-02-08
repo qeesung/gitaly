@@ -40,9 +40,9 @@ func (s *server) PackObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 		return helper.ErrInvalidArgument(errors.New("repository is empty"))
 	}
 
-	args, valid := parsePackObjectsArgs(firstRequest.Args)
-	if !valid {
-		return helper.ErrInvalidArgumentf("invalid pack-objects command: %v", firstRequest.Args)
+	args, err := parsePackObjectsArgs(firstRequest.Args)
+	if err != nil {
+		return helper.ErrInvalidArgumentf("invalid pack-objects command: %v: %w", firstRequest.Args, err)
 	}
 
 	if err := s.packObjectsHook(stream, firstRequest, args); err != nil {
@@ -101,7 +101,13 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 	return cmd.Wait()
 }
 
-func parsePackObjectsArgs(args []string) (*packObjectsArgs, bool) {
+var (
+	errNoPackObjects = errors.New("missing pack-objects")
+	errNonFlagArg    = errors.New("non-flag argument")
+	errNoStdout      = errors.New("missing --stdout")
+)
+
+func parsePackObjectsArgs(args []string) (*packObjectsArgs, error) {
 	result := &packObjectsArgs{}
 
 	// Check for special argument used with shallow clone:
@@ -112,7 +118,7 @@ func parsePackObjectsArgs(args []string) (*packObjectsArgs, bool) {
 	}
 
 	if len(args) < 1 || args[0] != "pack-objects" {
-		return nil, false
+		return nil, errNoPackObjects
 	}
 	args = args[1:]
 
@@ -122,7 +128,7 @@ func parsePackObjectsArgs(args []string) (*packObjectsArgs, bool) {
 	seenStdout := false
 	for _, a := range args {
 		if !strings.HasPrefix(a, "-") {
-			return nil, false
+			return nil, errNonFlagArg
 		}
 		if a == "--stdout" {
 			seenStdout = true
@@ -132,10 +138,10 @@ func parsePackObjectsArgs(args []string) (*packObjectsArgs, bool) {
 	}
 
 	if !seenStdout {
-		return nil, false
+		return nil, errNoStdout
 	}
 
-	return result, true
+	return result, nil
 }
 
 type packObjectsArgs struct {

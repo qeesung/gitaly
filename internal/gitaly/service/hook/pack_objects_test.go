@@ -2,7 +2,6 @@ package hook
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -27,19 +26,22 @@ func TestPackObjectsInvalidArgument(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	testCases := []*gitalypb.PackObjectsHookRequest{
-		&gitalypb.PackObjectsHookRequest{},
-		&gitalypb.PackObjectsHookRequest{Repository: testRepo},
-		&gitalypb.PackObjectsHookRequest{Repository: testRepo, Args: []string{"rm", "-rf"}},
+	testCases := []struct {
+		desc string
+		req  *gitalypb.PackObjectsHookRequest
+	}{
+		{desc: "emty", req: &gitalypb.PackObjectsHookRequest{}},
+		{desc: "repo, no args", req: &gitalypb.PackObjectsHookRequest{Repository: testRepo}},
+		{desc: "repo, bad args", req: &gitalypb.PackObjectsHookRequest{Repository: testRepo, Args: []string{"rm", "-rf"}}},
 	}
 
-	for i, req := range testCases {
-		t.Run(fmt.Sprintf("%d: %v", i, req), func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
 			stream, err := client.PackObjectsHook(ctx)
-			require.NoError(t, err, "initiate RPC")
-			require.NoError(t, stream.Send(req), "send request")
-			_, err = stream.Recv()
+			require.NoError(t, err)
+			require.NoError(t, stream.Send(tc.req))
 
+			_, err = stream.Recv()
 			testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
 		})
 	}
@@ -64,14 +66,14 @@ func TestPackObjectsSuccess(t *testing.T) {
 		args  []string
 	}{
 		{
-			"clone 1 branch",
-			"3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n",
-			[]string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"},
+			desc:  "clone 1 branch",
+			stdin: "3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n",
+			args:  []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"},
 		},
 		{
-			"shallow clone 1 branch",
-			"--shallow 1e292f8fedd741b75372e19097c76d327140c312\n1e292f8fedd741b75372e19097c76d327140c312\n--not\n\n",
-			[]string{"--shallow-file", "", "pack-objects", "--revs", "--thin", "--stdout", "--shallow", "--progress", "--delta-base-offset", "--include-tag"},
+			desc:  "shallow clone 1 branch",
+			stdin: "--shallow 1e292f8fedd741b75372e19097c76d327140c312\n1e292f8fedd741b75372e19097c76d327140c312\n--not\n\n",
+			args:  []string{"--shallow-file", "", "pack-objects", "--revs", "--thin", "--stdout", "--shallow", "--progress", "--delta-base-offset", "--include-tag"},
 		},
 	}
 
@@ -87,8 +89,8 @@ func TestPackObjectsSuccess(t *testing.T) {
 
 			require.NoError(t, stream.Send(&gitalypb.PackObjectsHookRequest{
 				Stdin: []byte(tc.stdin),
-			}), "send stdin")
-			require.NoError(t, stream.CloseSend(), "close send")
+			}))
+			require.NoError(t, stream.CloseSend())
 
 			var stdout []byte
 			for err == nil {
@@ -112,30 +114,28 @@ func TestPackObjectsSuccess(t *testing.T) {
 
 func TestParsePackObjectsArgs(t *testing.T) {
 	testCases := []struct {
+		desc string
 		args []string
-		*packObjectsArgs
-		valid bool
+		out  *packObjectsArgs
+		err  error
 	}{
-		{[]string{"pack-objects", "--stdout"}, &packObjectsArgs{}, true},
-		{[]string{"--shallow-file", "", "pack-objects", "--stdout"}, &packObjectsArgs{shallowFile: true}, true},
-		{[]string{"pack-objects", "--foo", "-x", "--stdout"}, &packObjectsArgs{flags: []string{"--foo", "-x"}}, true},
-		{[]string{"--shallow-file", "", "pack-objects", "--foo", "--stdout", "-x"}, &packObjectsArgs{shallowFile: true, flags: []string{"--foo", "-x"}}, true},
-		{[]string{"pack-objects"}, nil, false},
-		{[]string{"zpack-objects"}, nil, false},
-		{[]string{"--shallow-file", "z", "pack-objects"}, nil, false},
-		{[]string{"-c", "foo=bar", "pack-objects"}, nil, false},
-		{[]string{"pack-objects", "--foo", "x"}, nil, false},
-		{[]string{"--shallow-file", "", "pack-objects", "--foo", "x"}, nil, false},
+		{desc: "no args", args: []string{"pack-objects", "--stdout"}, out: &packObjectsArgs{}},
+		{desc: "no args shallow", args: []string{"--shallow-file", "", "pack-objects", "--stdout"}, out: &packObjectsArgs{shallowFile: true}},
+		{desc: "with args", args: []string{"pack-objects", "--foo", "-x", "--stdout"}, out: &packObjectsArgs{flags: []string{"--foo", "-x"}}},
+		{desc: "with args shallow", args: []string{"--shallow-file", "", "pack-objects", "--foo", "--stdout", "-x"}, out: &packObjectsArgs{shallowFile: true, flags: []string{"--foo", "-x"}}},
+		{desc: "missing stdout", args: []string{"pack-objects"}, err: errNoStdout},
+		{desc: "no pack objects", args: []string{"zpack-objects"}, err: errNoPackObjects},
+		{desc: "non empty shallow", args: []string{"--shallow-file", "z", "pack-objects"}, err: errNoPackObjects},
+		{desc: "bad global", args: []string{"-c", "foo=bar", "pack-objects"}, err: errNoPackObjects},
+		{desc: "non flag arg", args: []string{"pack-objects", "--foo", "x"}, err: errNonFlagArg},
+		{desc: "non flag arg shallow", args: []string{"--shallow-file", "", "pack-objects", "--foo", "x"}, err: errNonFlagArg},
 	}
 
 	for _, tc := range testCases {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
-			args, valid := parsePackObjectsArgs(tc.args)
-			if !tc.valid {
-				require.False(t, valid, "valid")
-			} else {
-				require.Equal(t, *tc.packObjectsArgs, *args)
-			}
+			args, err := parsePackObjectsArgs(tc.args)
+			require.Equal(t, tc.out, args)
+			require.Equal(t, tc.err, err)
 		})
 	}
 }
