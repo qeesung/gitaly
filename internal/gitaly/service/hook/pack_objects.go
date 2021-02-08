@@ -1,9 +1,11 @@
 package hook
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -21,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
+	"gitlab.com/gitlab-org/labkit/log"
 )
 
 var (
@@ -74,7 +77,7 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 			"stdin_bytes":  stdinSize,
 			"stdout_bytes": atomic.LoadInt64(&stdoutBytes),
 			"stderr_bytes": atomic.LoadInt64(&stderrBytes),
-		}).Info("pack-objects")
+		}).Info("git-pack-objects stats")
 	}()
 
 	m := &sync.Mutex{}
@@ -83,11 +86,15 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 		packObjectsResponseBytes.WithLabelValues("stdout").Add(float64(len(p)))
 		return stream.Send(&gitalypb.PackObjectsHookResponse{Stdout: p})
 	})
-	stderr := streamio.NewSyncWriter(m, func(p []byte) error {
-		atomic.AddInt64(&stderrBytes, int64(len(p)))
-		packObjectsResponseBytes.WithLabelValues("stderr").Add(float64(len(p)))
-		return stream.Send(&gitalypb.PackObjectsHookResponse{Stderr: p})
-	})
+	stderrBuf := &bytes.Buffer{}
+	stderr := io.MultiWriter(
+		stderrBuf,
+		streamio.NewSyncWriter(m, func(p []byte) error {
+			atomic.AddInt64(&stderrBytes, int64(len(p)))
+			packObjectsResponseBytes.WithLabelValues("stderr").Add(float64(len(p)))
+			return stream.Send(&gitalypb.PackObjectsHookResponse{Stderr: p})
+		}),
+	)
 
 	cmd, err := s.gitCmdFactory.New(ctx, firstRequest.GetRepository(), args.globals(), args.subcmd(),
 		git.WithStdin(stdin),
@@ -98,7 +105,13 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 		return err
 	}
 
-	return cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		// stderr is usually 200+lines so use %q to join them
+		log.WithField("stderr", fmt.Sprintf("%q", stderrBuf.Bytes())).Error("git-pack-objects failed")
+		return err
+	}
+
+	return nil
 }
 
 var (
