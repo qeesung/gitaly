@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestPackObjectsInvalidArgument(t *testing.T) {
+func TestServer_PackObjectsHook_invalidArgument(t *testing.T) {
 	serverSocketPath, stop := runHooksServer(t, config.Config)
 	defer stop()
 
@@ -47,7 +47,7 @@ func TestPackObjectsInvalidArgument(t *testing.T) {
 	}
 }
 
-func TestPackObjectsSuccess(t *testing.T) {
+func TestServer_PackObjectsHook(t *testing.T) {
 	serverSocketPath, stop := runHooksServer(t, config.Config)
 	defer stop()
 
