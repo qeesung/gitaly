@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
@@ -46,7 +45,7 @@ func RunRemoteServiceServer(t *testing.T, opts ...testhelper.TestServerOpt) (str
 	gitalypb.RegisterRemoteServiceServer(srv.GrpcServer(), NewServer(cfg, RubyServer, locator, gitCmdFactory))
 	reflection.Register(srv.GrpcServer())
 
-	require.NoError(t, srv.Start())
+	srv.Start(t)
 
 	return "unix://" + srv.Socket(), srv.Stop
 }
