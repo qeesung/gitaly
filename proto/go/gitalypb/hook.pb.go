@@ -715,7 +715,9 @@ type HookServiceClient interface {
 	PostReceiveHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PostReceiveHookClient, error)
 	UpdateHook(ctx context.Context, in *UpdateHookRequest, opts ...grpc.CallOption) (HookService_UpdateHookClient, error)
 	ReferenceTransactionHook(ctx context.Context, opts ...grpc.CallOption) (HookService_ReferenceTransactionHookClient, error)
-	// PackObjectsHook is meant to be called by git-upload-pack via the uploadpack.packObjectsHook mechanism.
+	// PackObjectsHook is meant to be called by git-upload-pack via the
+	// uploadpack.packObjectsHook mechanism. It generates a stream of packed
+	// Git objects.
 	PackObjectsHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PackObjectsHookClient, error)
 }
 
@@ -889,7 +891,9 @@ type HookServiceServer interface {
 	PostReceiveHook(HookService_PostReceiveHookServer) error
 	UpdateHook(*UpdateHookRequest, HookService_UpdateHookServer) error
 	ReferenceTransactionHook(HookService_ReferenceTransactionHookServer) error
-	// PackObjectsHook is meant to be called by git-upload-pack via the uploadpack.packObjectsHook mechanism.
+	// PackObjectsHook is meant to be called by git-upload-pack via the
+	// uploadpack.packObjectsHook mechanism. It generates a stream of packed
+	// Git objects.
 	PackObjectsHook(HookService_PackObjectsHookServer) error
 }
 

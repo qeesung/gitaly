@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -107,8 +106,7 @@ func (s *server) packObjectsHook(stream gitalypb.HookService_PackObjectsHookServ
 	}
 
 	if err := cmd.Wait(); err != nil {
-		// stderr is usually 200+ lines so use %q to join them
-		log.WithField("stderr", fmt.Sprintf("%q", stderrBuf.Bytes())).Error("git-pack-objects failed")
+		log.WithField("stderr", stderrBuf.String()).Error("git-pack-objects failed")
 		return err
 	}
 

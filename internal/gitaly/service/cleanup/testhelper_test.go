@@ -31,7 +31,7 @@ func runCleanupServiceServer(t *testing.T, cfg config.Cfg) (string, func()) {
 	srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(cfg))
 
 	locator := config.NewLocator(cfg)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
+	gitCmdFactory := git.NewExecCommandFactory(cfg)
 	gitalypb.RegisterCleanupServiceServer(srv.GrpcServer(), NewServer(cfg, gitCmdFactory))
 	gitalypb.RegisterHookServiceServer(
 		srv.GrpcServer(),
