@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -20,12 +19,12 @@ func createPipe(t *testing.T) (io.ReadCloser, *pipe, func()) {
 	f, err := ioutil.TempFile("", "gitaly-streamcache-test")
 	require.NoError(t, err)
 
-	pr, p, err := newPipe(f.Name(), f)
+	pr, p, err := newPipe(f)
 	require.NoError(t, err)
 
 	return pr, p, func() {
-		os.Remove(f.Name())
-		f.Close()
+		p.Remove()
+		p.Close()
 	}
 }
 
@@ -129,4 +128,44 @@ func TestPipe_backpressure(t *testing.T) {
 	require.Equal(t, input, string(output))
 
 	require.NoError(t, <-werr)
+}
+
+func TestPipe_closeWhenAllReadersLeave(t *testing.T) {
+	pr1, p, clean := createPipe(t)
+	defer clean()
+	defer p.Close()
+	defer pr1.Close()
+
+	werr := make(chan error, 1)
+	go func() { werr <- writeBytes(p, []byte("hello world"), nil) }()
+
+	pr2, err := p.OpenReader()
+	require.NoError(t, err)
+	defer pr2.Close()
+
+	// Sanity check
+	select {
+	case <-werr:
+		t.Fatal("writer should still be blocked")
+	default:
+	}
+
+	require.NoError(t, pr1.Close())
+	time.Sleep(1 * time.Millisecond)
+
+	select {
+	case <-werr:
+		t.Fatal("writer should still be blocked because there is still an active reader")
+	default:
+	}
+
+	buf := make([]byte, 1)
+	_, err = io.ReadFull(pr2, buf)
+	require.NoError(t, err)
+	require.Equal(t, "h", string(buf))
+
+	require.NoError(t, pr2.Close())
+	time.Sleep(1 * time.Millisecond)
+
+	require.Error(t, <-werr, "writer should see error if all readers close before writer is done")
 }

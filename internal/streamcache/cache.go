@@ -24,44 +24,6 @@ import (
 // readers). A cache entry consists of a key, an expiration time and a
 // pipe.
 //
-// Pipes
-//
-//           +------+
-//           |      | -> reader
-// writer -> | pipe | -> reader
-//           |      | -> reader
-//           +------+
-//             |  ^
-//             v  |
-//           +------+
-//           | file |
-//           +------+
-//
-// Pipes are called so because their interface and behavior somewhat
-// resembles Unix pipes, except there are multiple readers as opposed to
-// just one. Just like with Unix pipes, pipe readers exert backpressure
-// on the writer. When the write end is closed, the readers see EOF, just
-// like they would when reading a file. When the read end is closed
-// before the writer is done, the writer receives an error. This is all
-// like it is with Unix pipes.
-//
-// The differences are as follows. When you create a pipe you get a write
-// end and a read end, just like with Unix pipes. But now you can open an
-// additional reader by calling OpenReader on the write end (the *pipe
-// instance). Under the covers, a Unix pipe is just a buffer, and you
-// cannot "rewind" it. With our pipe, there is an underlying file, so a
-// new reader starts at offset 0 in the file. It can then catch up with
-// the other readers.
-//
-// The way backpressure works is that the writer looks at the fastest
-// reader. More specifically, it looks at the maximum of the file offsets
-// of all the readers. This is useful because imagine what happens when a
-// pipe is created by a reader on a slow network connection, and later a
-// fast reader joins. The fast reader should not have to wait for the
-// slow reader. What will happen is that the fast reader will catch up
-// with the slow reader and overtake it. From that point on, the writer
-// moves faster too, because it feels the backpressure of the fastest
-// reader.
 
 type Cache struct {
 	m        sync.Mutex
@@ -105,11 +67,20 @@ func (c *Cache) clean() {
 		c.m.Lock()
 		defer c.m.Unlock()
 
+		var removed []*entry
 		cutoff := time.Now().Add(-c.expiry)
 		for len(c.queue) > 0 && c.queue[0].created.Before(cutoff) {
-			c.delete(c.queue[0])
+			e := c.queue[0]
+			c.delete(e)
+			removed = append(removed, e)
 			c.queue = c.queue[1:]
 		}
+
+		go func() {
+			for _, e := range removed {
+				e.p.Remove()
+			}
+		}()
 	})
 }
 
@@ -180,7 +151,7 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 	if err != nil {
 		return nil, nil, err
 	}
-	pr, p, err := newPipe(f.Name(), f)
+	pr, p, err := newPipe(f)
 	if err != nil {
 		return nil, nil, err
 	}

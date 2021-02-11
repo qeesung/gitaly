@@ -7,23 +7,44 @@ import (
 	"sync"
 )
 
-func newPipe(name string, w io.WriteCloser) (io.ReadCloser, *pipe, error) {
-	p := &pipe{
-		name:    name,
-		w:       w,
-		woffset: &grower{},
-		roffset: &grower{},
-		closed:  make(chan struct{}),
-	}
-	p.wnotify = p.roffset.Subscribe()
-
-	pr, err := p.OpenReader()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return pr, p, nil
-}
+// Pipes
+//
+//            +-------+
+//            |       | <- *pipeReader <- Read()
+// Write() -> | *pipe |       |
+//            |       |       |
+//            +-------+       |
+//                |           |
+//                v           |
+//           +----------+     |
+//           |   file   | <---+
+//           +----------+
+//
+// Pipes are called so because their interface and behavior somewhat
+// resembles Unix pipes, except there are multiple readers as opposed to
+// just one. Just like with Unix pipes, pipe readers exert backpressure
+// on the writer. When the write end is closed, the readers see EOF, just
+// like they would when reading a file. When the read end is closed
+// before the writer is done, the writer receives an error. This is all
+// like it is with Unix pipes.
+//
+// The differences are as follows. When you create a pipe you get a write
+// end and a read end, just like with Unix pipes. But now you can open an
+// additional reader by calling OpenReader on the write end (the *pipe
+// instance). Under the covers, a Unix pipe is just a buffer, and you
+// cannot "rewind" it. With our pipe, there is an underlying file, so a
+// new reader starts at offset 0 in the file. It can then catch up with
+// the other readers.
+//
+// The way backpressure works is that the writer looks at the fastest
+// reader. More specifically, it looks at the maximum of the file offsets
+// of all the readers. This is useful because imagine what happens when a
+// pipe is created by a reader on a slow network connection. The slow
+// reader slows down the writer. Now a fast reader joins. The fast reader
+// should not have to wait for the slow reader. What will happen is that
+// the fast reader will catch up with the slow reader and overtake it.
+// From that point on, the writer moves faster too, because it feels the
+// backpressure of the fastest reader.
 
 type pipe struct {
 	// Access to underlying file
@@ -42,6 +63,24 @@ type pipe struct {
 	// wnotify is the channel the writer uses to wait for reader progress
 	// notifications.
 	wnotify *notifier
+}
+
+func newPipe(f *os.File) (io.ReadCloser, *pipe, error) {
+	p := &pipe{
+		name:    f.Name(),
+		w:       f,
+		woffset: &grower{},
+		roffset: &grower{},
+		closed:  make(chan struct{}),
+	}
+	p.wnotify = p.roffset.Subscribe()
+
+	pr, err := p.OpenReader()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pr, p, nil
 }
 
 func (p *pipe) Write(b []byte) (int, error) {
@@ -67,6 +106,8 @@ func (p *pipe) Close() error {
 	defer p.m.Unlock()
 	return p.close(false)
 }
+
+func (p *pipe) Remove() error { return os.Remove(p.name) }
 
 func (p *pipe) close(broken bool) error {
 	select {
