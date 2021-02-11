@@ -54,7 +54,7 @@ func NewCache(dir string, expiry time.Duration) (*Cache, error) {
 	return c, nil
 }
 
-// Stop stops the cleanup goroutines.
+// Stop stops the cleanup goroutines. The goroutine does not get garbage collected but it will only sleep.
 func (c *Cache) Stop() {
 	c.stopOnce.Do(func() {
 		c.fs.Stop()
@@ -76,6 +76,7 @@ func (c *Cache) clean() {
 			c.queue = c.queue[1:]
 		}
 
+		// Batch together file removals in a goroutine, without holding the mutex
 		go func() {
 			for _, e := range removed {
 				e.p.Remove()
@@ -127,6 +128,7 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (r io.Rea
 	return r, true, nil
 }
 
+// delete must be called while holding the mutex.
 func (c *Cache) delete(e *entry) {
 	if c.index[e.key] == e {
 		delete(c.index, e.key)
@@ -151,41 +153,37 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 	if err != nil {
 		return nil, nil, err
 	}
-	pr, p, err := newPipe(f)
+
+	var pr io.ReadCloser
+	pr, e.p, err = newPipe(f)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	e.p = p
-
-	go panicToErr(func() (err error) {
-		defer p.Close()
-		defer func() {
-			if err != nil {
-				log.WithError(err).Error("create streamcache entry")
-				c.m.Lock()
-				defer c.m.Unlock()
-				c.delete(e)
-			}
-		}()
-
-		if err := create(p); err != nil {
-			return err
+	go func() {
+		if err := runCreate(e.p, create); err != nil {
+			log.WithError(err).Error("create cache entry")
+			c.m.Lock()
+			defer c.m.Unlock()
+			c.delete(e)
 		}
-		return p.Close()
-	})
+	}()
 
 	return pr, e, nil
 }
 
-func (e *entry) Open() (io.ReadCloser, error) { return e.p.OpenReader() }
-
-func panicToErr(f func() error) (err error) {
+func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic: %v", p)
 		}
 	}()
 
-	return f()
+	defer w.Close()
+	if err := create(w); err != nil {
+		return err
+	}
+	return w.Close()
 }
+
+func (e *entry) Open() (io.ReadCloser, error) { return e.p.OpenReader() }

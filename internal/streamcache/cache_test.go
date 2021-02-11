@@ -1,6 +1,7 @@
 package streamcache
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,7 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-func TestWriteOneReadMultiple(t *testing.T) {
+func TestCache_writeOneReadMultiple(t *testing.T) {
 	tmp, cleanTmp := testhelper.TempDir(t)
 	defer cleanTmp()
 
@@ -32,7 +33,7 @@ func TestWriteOneReadMultiple(t *testing.T) {
 		t.Run(fmt.Sprintf("read %d", i), func(t *testing.T) {
 			r, created, err := c.FindOrCreate(key, writeString(content(i)))
 			require.NoError(t, err)
-			require.Equal(t, i == 0, created, "created?")
+			require.Equal(t, i == 0, created)
 
 			out, err := ioutil.ReadAll(r)
 			require.NoError(t, err)
@@ -76,7 +77,7 @@ func requireCacheEntries(t *testing.T, c *Cache, n int) {
 	require.Len(t, c.queue, n)
 }
 
-func TestCacheScope(t *testing.T) {
+func TestCache_scope(t *testing.T) {
 	tmp, cleanTmp := testhelper.TempDir(t)
 	defer cleanTmp()
 
@@ -101,7 +102,7 @@ func TestCacheScope(t *testing.T) {
 		var created bool
 		reader[i], created, err = cache[i].FindOrCreate(key, writeString(input[i]))
 		require.NoError(t, err)
-		require.True(t, created, "created?")
+		require.True(t, created)
 	}
 
 	// If different cache instances overwrite their entries, the effect may
@@ -124,7 +125,7 @@ func TestCacheScope(t *testing.T) {
 	}
 }
 
-func TestCacheDiskCleanup(t *testing.T) {
+func TestCache_diskCleanup(t *testing.T) {
 	tmp, cleanTmp := testhelper.TempDir(t)
 	defer cleanTmp()
 
@@ -141,7 +142,7 @@ func TestCacheDiskCleanup(t *testing.T) {
 
 	r1, created, err := c.FindOrCreate(key, writeString(content(1)))
 	require.NoError(t, err)
-	require.True(t, created, "created?")
+	require.True(t, created)
 
 	_, err = io.Copy(ioutil.Discard, r1)
 	require.NoError(t, err)
@@ -159,7 +160,7 @@ func TestCacheDiskCleanup(t *testing.T) {
 
 	r2, created, err := c.FindOrCreate(key, writeString(content(2)))
 	require.NoError(t, err)
-	require.True(t, created, "created?")
+	require.True(t, created)
 
 	out2, err := ioutil.ReadAll(r2)
 	require.NoError(t, err)
@@ -167,4 +168,53 @@ func TestCacheDiskCleanup(t *testing.T) {
 
 	// Sanity check 3: no stale value returned by the cache
 	require.Equal(t, content(2), string(out2))
+}
+
+func TestCache_failedWrite(t *testing.T) {
+	tmp, cleanTmp := testhelper.TempDir(t)
+	defer cleanTmp()
+
+	c, err := NewCache(tmp, time.Hour) // use very long expiry to prevent auto expiry
+	require.NoError(t, err)
+	defer c.Stop()
+
+	testCases := []struct {
+		desc   string
+		create func(io.Writer) error
+	}{
+		{
+			desc:   "create returns error",
+			create: func(io.Writer) error { return errors.New("something went wrong") },
+		},
+		{
+			desc:   "create panics",
+			create: func(io.Writer) error { panic("oh no"); return nil },
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			r1, created, err := c.FindOrCreate(tc.desc, tc.create)
+			require.NoError(t, err)
+			require.True(t, created)
+			defer r1.Close()
+
+			_, err = io.Copy(ioutil.Discard, r1)
+			require.NoError(t, err, "errors on the write end are not propagated to readers")
+			require.NoError(t, r1.Close(), "on close, also no error propagation")
+
+			time.Sleep(10 * time.Millisecond)
+
+			const happy = "all is good"
+			r2, created, err := c.FindOrCreate(tc.desc, writeString(happy))
+			require.NoError(t, err)
+			require.True(t, created, "because the previous entry failed, a new one should have been created")
+			defer r2.Close()
+
+			out, err := ioutil.ReadAll(r2)
+			require.NoError(t, err)
+			require.NoError(t, r2.Close())
+			require.Equal(t, happy, string(out))
+		})
+	}
 }
