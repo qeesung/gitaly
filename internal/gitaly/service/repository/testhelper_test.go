@@ -113,11 +113,11 @@ func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locat
 
 	txManager := transaction.NewManager(cfg)
 	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
+	gitCmdFactory := git.NewExecCommandFactory(cfg)
 
 	srv := testhelper.NewServerWithAuth(t, streamInt, unaryInt, cfg.Auth.Token, opts...)
 	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(cfg, RubyServer, locator, txManager, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
+	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(cfg, hookManager, gitCmdFactory))
 	srv.Start(t)
 
 	return "unix://" + srv.Socket(), srv.Stop
