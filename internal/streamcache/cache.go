@@ -17,6 +17,52 @@ import (
 // pressure mechanism: if the readers don't make progress reading the
 // data, the writers will block. That way our disk can fill up no faster
 // than our readers can read from the cache.
+//
+// The cache has 3 main parts: Cache (in-memory index), filestore (files
+// to store the cached data in because it does not fit in memory), and
+// pipe (coordinated access to one file between one writer and multiple
+// readers). A cache entry consists of a key, an expiration time and a
+// pipe.
+//
+// Pipes
+//
+//           +------+
+//           |      | -> reader
+// writer -> | pipe | -> reader
+//           |      | -> reader
+//           +------+
+//             |  ^
+//             v  |
+//           +------+
+//           | file |
+//           +------+
+//
+// Pipes are called so because their interface and behavior somewhat
+// resembles Unix pipes, except there are multiple readers as opposed to
+// just one. Just like with Unix pipes, pipe readers exert backpressure
+// on the writer. When the write end is closed, the readers see EOF, just
+// like they would when reading a file. When the read end is closed
+// before the writer is done, the writer receives an error. This is all
+// like it is with Unix pipes.
+//
+// The differences are as follows. When you create a pipe you get a write
+// end and a read end, just like with Unix pipes. But now you can open an
+// additional reader by calling OpenReader on the write end (the *pipe
+// instance). Under the covers, a Unix pipe is just a buffer, and you
+// cannot "rewind" it. With our pipe, there is an underlying file, so a
+// new reader starts at offset 0 in the file. It can then catch up with
+// the other readers.
+//
+// The way backpressure works is that the writer looks at the fastest
+// reader. More specifically, it looks at the maximum of the file offsets
+// of all the readers. This is useful because imagine what happens when a
+// pipe is created by a reader on a slow network connection, and later a
+// fast reader joins. The fast reader should not have to wait for the
+// slow reader. What will happen is that the fast reader will catch up
+// with the slow reader and overtake it. From that point on, the writer
+// moves faster too, because it feels the backpressure of the fastest
+// reader.
+
 type Cache struct {
 	m        sync.Mutex
 	expiry   time.Duration
