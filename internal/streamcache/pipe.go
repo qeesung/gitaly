@@ -1,7 +1,6 @@
 package streamcache
 
 import (
-	"errors"
 	"io"
 	"os"
 	"sync"
@@ -52,7 +51,6 @@ type pipe struct {
 	w      io.WriteCloser
 	closed chan struct{}
 	m      sync.Mutex
-	broken bool
 
 	// Reader/writer coordination. If woffset > roffset, the writer blocks
 	// (back pressure). If roffset >= woffset, the readers block (waiting for
@@ -104,41 +102,19 @@ func (p *pipe) Write(b []byte) (int, error) {
 func (p *pipe) Close() error {
 	p.m.Lock()
 	defer p.m.Unlock()
-	return p.close(false)
-}
 
-func (p *pipe) Remove() error { return os.Remove(p.name) }
-
-func (p *pipe) close(broken bool) error {
 	select {
 	case <-p.closed:
 		return os.ErrClosed
 	default:
-		p.broken = broken
 		close(p.closed)
 		return p.w.Close()
 	}
 }
 
-func (p *pipe) isBroken() bool {
-	select {
-	case <-p.closed:
-		return p.broken
-	default:
-		return false
-	}
-}
-
-var errBrokenPipe = errors.New("broken pipe: readers closed before writer")
+func (p *pipe) Remove() error { return os.Remove(p.name) }
 
 func (p *pipe) OpenReader() (io.ReadCloser, error) {
-	p.m.Lock()
-	defer p.m.Unlock()
-
-	if p.isBroken() {
-		return nil, errBrokenPipe
-	}
-
 	r, err := os.Open(p.name)
 	if err != nil {
 		return nil, err
@@ -154,12 +130,9 @@ func (p *pipe) OpenReader() (io.ReadCloser, error) {
 }
 
 func (p *pipe) closeReader(pr *pipeReader) {
-	p.m.Lock()
-	defer p.m.Unlock()
-
 	p.woffset.Unsubscribe(pr.n)
 	if !p.woffset.HasSubscribers() {
-		p.close(true)
+		p.Close()
 	}
 }
 
@@ -185,10 +158,6 @@ func (pr *pipeReader) Read(b []byte) (int, error) {
 			pipeclosed = true
 		case <-pr.n.C:
 		}
-	}
-
-	if pr.p.isBroken() {
-		return 0, errBrokenPipe
 	}
 
 	n, err := pr.r.Read(b)

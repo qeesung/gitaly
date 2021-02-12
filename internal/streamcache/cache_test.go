@@ -1,6 +1,7 @@
 package streamcache
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -37,7 +38,7 @@ func TestCache_writeOneReadMultiple(t *testing.T) {
 
 			out, err := ioutil.ReadAll(r)
 			require.NoError(t, err)
-			require.NoError(t, r.Close())
+			require.NoError(t, r.Wait(context.Background()))
 			require.Equal(t, content(0), string(out))
 		})
 	}
@@ -90,7 +91,7 @@ func TestCache_scope(t *testing.T) {
 	// to test that they do not trample on each others files.
 	cache := make([]*Cache, N)
 	input := make([]string, N)
-	reader := make([]io.ReadCloser, N)
+	reader := make([]*ReadWaiter, N)
 	var err error
 
 	for i := 0; i < N; i++ {
@@ -119,7 +120,7 @@ func TestCache_scope(t *testing.T) {
 
 		out, err := ioutil.ReadAll(r)
 		require.NoError(t, err)
-		require.NoError(t, r.Close())
+		require.NoError(t, r.Wait(context.Background()))
 
 		require.Equal(t, content, string(out))
 	}
@@ -146,7 +147,7 @@ func TestCache_diskCleanup(t *testing.T) {
 
 	_, err = io.Copy(ioutil.Discard, r1)
 	require.NoError(t, err)
-	require.NoError(t, r1.Close())
+	require.NoError(t, r1.Wait(context.Background()))
 
 	requireCacheFiles(t, tmp, 1)
 	requireCacheEntries(t, c, 1)
@@ -164,7 +165,7 @@ func TestCache_diskCleanup(t *testing.T) {
 
 	out2, err := ioutil.ReadAll(r2)
 	require.NoError(t, err)
-	require.NoError(t, r2.Close())
+	require.NoError(t, r2.Wait(context.Background()))
 
 	// Sanity check 3: no stale value returned by the cache
 	require.Equal(t, content(2), string(out2))
@@ -197,11 +198,10 @@ func TestCache_failedWrite(t *testing.T) {
 			r1, created, err := c.FindOrCreate(tc.desc, tc.create)
 			require.NoError(t, err)
 			require.True(t, created)
-			defer r1.Close()
 
 			_, err = io.Copy(ioutil.Discard, r1)
-			require.NoError(t, err, "errors on the write end are not propagated to readers")
-			require.NoError(t, r1.Close(), "on close, also no error propagation")
+			require.NoError(t, err, "errors on the write end are not propagated via Read()")
+			require.Error(t, r1.Wait(context.Background()), "error propagation happens via Wait()")
 
 			time.Sleep(10 * time.Millisecond)
 
@@ -209,11 +209,10 @@ func TestCache_failedWrite(t *testing.T) {
 			r2, created, err := c.FindOrCreate(tc.desc, writeString(happy))
 			require.NoError(t, err)
 			require.True(t, created, "because the previous entry failed, a new one should have been created")
-			defer r2.Close()
 
 			out, err := ioutil.ReadAll(r2)
 			require.NoError(t, err)
-			require.NoError(t, r2.Close())
+			require.NoError(t, r2.Wait(context.Background()))
 			require.Equal(t, happy, string(out))
 		})
 	}

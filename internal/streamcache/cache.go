@@ -1,6 +1,7 @@
 package streamcache
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sync"
@@ -20,10 +21,9 @@ import (
 //
 // The cache has 3 main parts: Cache (in-memory index), filestore (files
 // to store the cached data in because it does not fit in memory), and
-// pipe (coordinated access to one file between one writer and multiple
-// readers). A cache entry consists of a key, an expiration time and a
-// pipe.
-//
+// pipe (coordinated IO to one file between one writer and multiple
+// readers). A cache entry consists of a key, an expiration time, a
+// pipe and the error result of the thing writing to the pipe.
 
 type Cache struct {
 	m        sync.Mutex
@@ -106,7 +106,7 @@ func sleepLoop(done chan struct{}, period time.Duration, fn func()) {
 
 // FindOrCreate finds or creates a cache entry. If the create callback
 // runs, it will be asynchronous and created is set to true.
-func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (r io.ReadCloser, created bool, err error) {
+func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (r *ReadWaiter, created bool, err error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -140,13 +140,36 @@ type entry struct {
 	c       *Cache
 	p       *pipe
 	created time.Time
+	w       *waiter
 }
 
-func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadCloser, *entry, error) {
+// ReadWaiter abstracts a stream of bytes (via Read()) plus an error (via
+// Wait()). Callers must always call Wait() to prevent resource leaks.
+type ReadWaiter struct {
+	w *waiter
+	r io.ReadCloser
+}
+
+// Wait returns the error value of the ReadWaiter. If ctx is canceled,
+// Wait unblocks and returns early.
+func (rw *ReadWaiter) Wait(ctx context.Context) error {
+	err := rw.r.Close()
+	errWait := rw.w.Wait(ctx)
+	if err == nil {
+		err = errWait
+	}
+	return err
+}
+
+// Read reads from the underlying stream of the ReadWaiter.
+func (rw *ReadWaiter) Read(p []byte) (int, error) { return rw.r.Read(p) }
+
+func (c *Cache) newEntry(key string, create func(io.Writer) error) (*ReadWaiter, *entry, error) {
 	e := &entry{
 		key:     key,
 		c:       c,
 		created: time.Now(),
+		w:       newWaiter(),
 	}
 
 	f, err := c.fs.Create()
@@ -161,7 +184,9 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 	}
 
 	go func() {
-		if err := runCreate(e.p, create); err != nil {
+		err := runCreate(e.p, create)
+		e.w.SetError(err)
+		if err != nil {
 			log.WithError(err).Error("create cache entry")
 			c.m.Lock()
 			defer c.m.Unlock()
@@ -169,7 +194,11 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (io.ReadClose
 		}
 	}()
 
-	return pr, e, nil
+	return e.wrapReadCloser(pr), e, nil
+}
+
+func (e *entry) wrapReadCloser(r io.ReadCloser) *ReadWaiter {
+	return &ReadWaiter{r: r, w: e.w}
 }
 
 func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
@@ -186,4 +215,31 @@ func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
 	return w.Close()
 }
 
-func (e *entry) Open() (io.ReadCloser, error) { return e.p.OpenReader() }
+func (e *entry) Open() (*ReadWaiter, error) {
+	r, err := e.p.OpenReader()
+	return e.wrapReadCloser(r), err
+}
+
+type waiter struct {
+	done chan struct{}
+	err  error
+	once sync.Once
+}
+
+func newWaiter() *waiter { return &waiter{done: make(chan struct{})} }
+
+func (w *waiter) SetError(err error) {
+	w.once.Do(func() {
+		w.err = err
+		close(w.done)
+	})
+}
+
+func (w *waiter) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-w.done:
+		return w.err
+	}
+}
