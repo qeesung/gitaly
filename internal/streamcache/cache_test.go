@@ -226,3 +226,23 @@ func TestCache_failedWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestWaiter(t *testing.T) {
+	w := newWaiter()
+	errc := make(chan error, 1)
+	go func() { errc <- w.Wait(context.Background()) }()
+
+	err := errors.New("test error")
+	w.SetError(err)
+	require.Equal(t, err, <-errc)
+}
+
+func TestWaiter_cancel(t *testing.T) {
+	w := newWaiter()
+	errc := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { errc <- w.Wait(ctx) }()
+
+	cancel()
+	require.Equal(t, context.Canceled, <-errc)
+}
