@@ -1,3 +1,28 @@
+// Package streamcache provides a cache for large blobs (in the order of
+// gigabytes). Because storing gigabytes of data is slow, cache entries
+// can be streamed on the read end before they have finished on the write
+// end. Because storing gigabytes of data is expensive, cache entries
+// have a back pressure mechanism: if the readers don't make progress
+// reading the data, the writers will block. That way our disk can fill
+// up no faster than our readers can read from the cache.
+//
+// The cache has 3 main parts: Cache (in-memory index), filestore (files
+// to store the cached data in because it does not fit in memory), and
+// pipe (coordinated IO to one file between one writer and multiple
+// readers). A cache entry consists of a key, an expiration time, a
+// pipe and the error result of the thing writing to the pipe.
+//
+// Expiry
+//
+// There are two expiry goroutines: one for Cache and one for filestore.
+// The Cache expiry goroutine expires entry after a set amount of time,
+// and deletes their underlying files too. This is safe because Unix file
+// semantics guarantee that readers/writers that are still using those
+// files can keep using them. In addition to expiring known cache
+// entries, we also have a goroutine at the filestore level which
+// performs a directory walk. This will clean up cache files left behind
+// by other processes.
+//
 package streamcache
 
 import (
@@ -10,20 +35,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/dontpanic"
 	"gitlab.com/gitlab-org/labkit/log"
 )
-
-// Cache is a cache for large blobs (in the order of gigabytes). Because
-// storing gigabytes of data is slow, cache entries can be streamed on
-// the read end before they have finished on the write end. Because
-// storing gigabytes of data is expensive, cache entries have a back
-// pressure mechanism: if the readers don't make progress reading the
-// data, the writers will block. That way our disk can fill up no faster
-// than our readers can read from the cache.
-//
-// The cache has 3 main parts: Cache (in-memory index), filestore (files
-// to store the cached data in because it does not fit in memory), and
-// pipe (coordinated IO to one file between one writer and multiple
-// readers). A cache entry consists of a key, an expiration time, a
-// pipe and the error result of the thing writing to the pipe.
 
 // Cache is a cache for large byte streams.
 type Cache struct {
@@ -87,7 +98,8 @@ func (c *Cache) clean() {
 }
 
 // FindOrCreate finds or creates a cache entry. If the create callback
-// runs, it will be asynchronous and created is set to true.
+// runs, it will be asynchronous and created is set to true. Callers must
+// Close() the returned stream to free underlying resources.
 func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (s *Stream, created bool, err error) {
 	c.m.Lock()
 	defer c.m.Unlock()

@@ -27,9 +27,10 @@ func (g *grower) Unsubscribe(n *notifier) {
 	g.m.Lock()
 	defer g.m.Unlock()
 
-	for i := 0; i < len(g.subscribers); i++ {
+	for i := range g.subscribers {
 		if g.subscribers[i] == n {
 			g.subscribers = append(g.subscribers[:i], g.subscribers[i+1:]...)
+			break
 		}
 	}
 }
@@ -48,8 +49,8 @@ func (g *grower) Grow(v int64) {
 
 	if v > g.v {
 		g.v = v
-		for _, s := range g.subscribers {
-			s.Notify()
+		for _, n := range g.subscribers {
+			n.Notify()
 		}
 	}
 }

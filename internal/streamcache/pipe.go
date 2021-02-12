@@ -83,10 +83,11 @@ func newPipe(f *os.File) (io.ReadCloser, *pipe, error) {
 
 func (p *pipe) Write(b []byte) (int, error) {
 	// Loop (block) until at least one reader catches up with our last write.
+wait:
 	for p.woffset.Value() > p.roffset.Value() {
 		select {
 		case <-p.closed:
-			return 0, io.ErrClosedPipe
+			break wait
 		case <-p.wnotify.C:
 		}
 	}
