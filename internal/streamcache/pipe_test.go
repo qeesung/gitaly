@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -55,13 +56,6 @@ func TestPipe(t *testing.T) {
 		}
 	}()
 
-	input := make([]byte, 4096)
-	n, err := rand.Read(input)
-	require.NoError(t, err)
-	require.Equal(t, len(input), n)
-
-	wg := &sync.WaitGroup{}
-
 	const N = 10
 	for len(readers) < N {
 		r, err := p.OpenReader()
@@ -71,6 +65,7 @@ func TestPipe(t *testing.T) {
 
 	output := make([]bytes.Buffer, N)
 	outErrors := make([]error, N)
+	wg := &sync.WaitGroup{}
 	for i := 0; i < N; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -79,20 +74,46 @@ func TestPipe(t *testing.T) {
 		}(i)
 	}
 
-	werr := make(chan error, 1)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		werr <- writeBytes(p, input, nil)
-	}()
+	input := make([]byte, 4096)
+	n, err := rand.Read(input)
+	require.NoError(t, err)
+	require.Equal(t, len(input), n)
+	require.NoError(t, writeBytes(p, input, nil))
 
-	require.NoError(t, <-werr)
 	wg.Wait()
 
 	for i := 0; i < N; i++ {
 		require.Equal(t, input, output[i].Bytes())
 		require.NoError(t, outErrors[i])
 	}
+}
+
+func TestPipe_readAfterClose(t *testing.T) {
+	pr1, p, clean := createPipe(t)
+	defer clean()
+	defer pr1.Close()
+	defer p.Close()
+
+	input := "hello world"
+	werr := make(chan error, 1)
+	go func() { werr <- writeBytes(p, []byte(input), nil) }()
+
+	out1, err := ioutil.ReadAll(pr1)
+	require.NoError(t, err)
+	require.Equal(t, input, string(out1))
+
+	require.NoError(t, <-werr)
+
+	time.Sleep(1 * time.Millisecond)
+	require.Equal(t, os.ErrClosed, p.Close(), "write end should already have been closed")
+
+	pr2, err := p.OpenReader()
+	require.NoError(t, err)
+	defer pr2.Close()
+
+	out2, err := ioutil.ReadAll(pr2)
+	require.NoError(t, err)
+	require.Equal(t, input, string(out2))
 }
 
 func TestPipe_backpressure(t *testing.T) {
