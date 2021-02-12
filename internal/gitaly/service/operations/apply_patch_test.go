@@ -19,6 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
@@ -27,9 +28,12 @@ import (
 )
 
 func TestUserApplyPatch(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.GoUserApplyPatch,
+	}).Run(t, testUserApplyPatch)
+}
 
+func testUserApplyPatch(t *testing.T, ctx context.Context) {
 	type actionFunc func(testing.TB, *localrepo.Repo) git2go.Action
 
 	createFile := func(filepath string, content string) actionFunc {
@@ -414,10 +418,9 @@ To restore the original branch and stop patching, run "git am --abort".
 }
 
 func TestSuccessfulUserApplyPatch(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	testSuccessfulUserApplyPatch(t, ctx)
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.GoUserApplyPatch,
+	}).Run(t, testSuccessfulUserApplyPatch)
 }
 
 func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
@@ -435,11 +438,12 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 	testPatchFeature := "testdata/0001-This-does-not-apply-to-the-feature-branch.patch"
 
 	testCases := []struct {
-		desc           string
-		branchName     string
-		branchCreated  bool
-		patches        []string
-		commitMessages []string
+		desc             string
+		branchName       string
+		branchCreated    bool
+		patches          []string
+		commitMessages   []string
+		skipGoPortReason string
 	}{
 		{
 			desc:           "a new branch",
@@ -454,6 +458,12 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 			branchCreated:  false,
 			patches:        []string{testPatchReadme},
 			commitMessages: []string{"A commit from a patch"},
+			skipGoPortReason: `
+The patch in the test does not apply cleanly to the target branch in test repository anymore. The patched file
+README has been renamed to README.md. Git's rename detection figures out the file was renamed and applies the patch.
+Libgit2's rename detection does not work on files as small as the README but does work on bigger files. This test
+case has been disabled for the Go port of UserApplyPatch as this is a known deviation in the rename detection
+rather than bug.`,
 		},
 		{
 			desc:           "multiple patches",
@@ -466,6 +476,10 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
+			if testCase.skipGoPortReason != "" && featureflag.IsEnabled(ctx, featureflag.GoUserApplyPatch) {
+				t.Skip(testCase.skipGoPortReason)
+			}
+
 			stream, err := client.UserApplyPatch(ctx)
 			require.NoError(t, err)
 
@@ -533,6 +547,12 @@ func testSuccessfulUserApplyPatch(t *testing.T, ctx context.Context) {
 }
 
 func TestUserApplyPatch_stableID(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.GoUserApplyPatch,
+	}).Run(t, testUserApplyPatch_stableID)
+}
+
+func testUserApplyPatch_stableID(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -542,9 +562,6 @@ func TestUserApplyPatch_stableID(t *testing.T) {
 	repoProto, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
 	repo := localrepo.New(repoProto, config.Config)
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	stream, err := client.UserApplyPatch(ctx)
 	require.NoError(t, err)
@@ -599,6 +616,12 @@ func TestUserApplyPatch_stableID(t *testing.T) {
 }
 
 func TestFailedPatchApplyPatch(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.GoUserApplyPatch,
+	}).Run(t, testFailedPatchApplyPatch)
+}
+
+func testFailedPatchApplyPatch(t *testing.T, ctx context.Context) {
 	serverSocketPath, stop := runOperationServiceServer(t)
 	defer stop()
 
@@ -607,9 +630,6 @@ func TestFailedPatchApplyPatch(t *testing.T) {
 
 	testRepo, _, cleanupFn := testhelper.NewTestRepo(t)
 	defer cleanupFn()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	testPatch, err := ioutil.ReadFile("testdata/0001-This-does-not-apply-to-the-feature-branch.patch")
 	require.NoError(t, err)
