@@ -171,7 +171,7 @@ func TestExecutor_Apply(t *testing.T) {
 				},
 			},
 			parentCommit: parentCommitSHA,
-			error:        ErrMergeConflict,
+			error:        ApplyConflictError{PatchNumber: 1, CommitSubject: "patch 1 subject"},
 		},
 		{
 			desc: "merge conflict",
@@ -189,7 +189,7 @@ func TestExecutor_Apply(t *testing.T) {
 					Diff:    diffBetween(t, parentCommitSHA, updateToB),
 				},
 			},
-			error: ErrMergeConflict,
+			error: ApplyConflictError{PatchNumber: 2, CommitSubject: "patch 2 subject"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

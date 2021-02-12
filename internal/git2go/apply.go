@@ -7,8 +7,18 @@ import (
 	"io"
 )
 
-// ErrMergeConflict is returned when there is a merge conflict.
-var ErrMergeConflict = wrapError{Message: "merge conflict"}
+// ApplyConflictError is returned when applying a patch fails due to a conflict.
+type ApplyConflictError struct {
+	// PatchNumber is the index of the patch that failed to get applied.
+	PatchNumber int
+	// CommitSubject is the subject of the commit message.
+	CommitSubject string
+}
+
+// Error returns the error string describing the conflicting patch.
+func (err ApplyConflictError) Error() string {
+	return fmt.Sprintf("patch %d %q conflicted", err.PatchNumber, err.CommitSubject)
+}
 
 // Patch represents a single patch.
 type Patch struct {

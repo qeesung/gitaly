@@ -19,6 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git2go"
 )
 
+var errApplyConflict = errors.New("patch conflicted")
+
 type patchIterator struct {
 	value   git2go.Patch
 	decoder *gob.Decoder
@@ -82,8 +84,13 @@ func (cmd *applySubcommand) apply(ctx context.Context, params git2go.ApplyParams
 
 	committer := git.Signature(params.Committer)
 	for i := 0; params.Patches.Next(); i++ {
-		commitOID, err = cmd.applyPatch(ctx, repo, &committer, commitOID, params.Patches.Value())
+		patch := params.Patches.Value()
+		commitOID, err = cmd.applyPatch(ctx, repo, &committer, commitOID, patch)
 		if err != nil {
+			if errors.Is(err, errApplyConflict) {
+				return "", git2go.ApplyConflictError{PatchNumber: i + 1, CommitSubject: patch.Subject}
+			}
+
 			return "", fmt.Errorf("apply patch [%d]: %w", i+1, err)
 		}
 	}
@@ -126,7 +133,7 @@ func (cmd *applySubcommand) applyPatch(
 	}
 
 	if patchedIndex.HasConflicts() {
-		return nil, git2go.ErrMergeConflict
+		return nil, errApplyConflict
 	}
 
 	patchedTree, err := patchedIndex.WriteTreeTo(repo)
