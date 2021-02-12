@@ -14,6 +14,8 @@ var ErrMergeConflict = wrapError{Message: "merge conflict"}
 type Patch struct {
 	// Author is the author of the patch.
 	Author Signature
+	// Subject is used as the commit's subject when applying the patch.
+	Subject string
 	// Message is used as the commit message when applying the patch.
 	Message string
 	// Diff contains the diff of the patch.

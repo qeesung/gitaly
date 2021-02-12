@@ -26,6 +26,7 @@ type patchIterator struct {
 }
 
 func (iter *patchIterator) Next() bool {
+	iter.value = git2go.Patch{} // reset the patch
 	if err := iter.decoder.Decode(&iter.value); err != nil {
 		if !errors.Is(err, io.EOF) {
 			iter.error = fmt.Errorf("decode patch: %w", err)
@@ -133,8 +134,21 @@ func (cmd *applySubcommand) applyPatch(
 		return nil, fmt.Errorf("write patched tree: %w", err)
 	}
 
+	var commitMessage string
+	if patch.Subject != "" {
+		commitMessage += patch.Subject + "\n"
+	}
+
+	if patch.Message != "" {
+		if patch.Subject != "" {
+			commitMessage += "\n"
+		}
+
+		commitMessage += patch.Message
+	}
+
 	author := git.Signature(patch.Author)
-	patchedCommitOID, err := repo.CreateCommitFromIds("", &author, committer, patch.Message, patchedTree, parentCommitOID)
+	patchedCommitOID, err := repo.CreateCommitFromIds("", &author, committer, commitMessage, patchedTree, parentCommitOID)
 	if err != nil {
 		return nil, fmt.Errorf("create commit: %w", err)
 	}

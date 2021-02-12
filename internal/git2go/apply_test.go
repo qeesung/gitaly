@@ -102,6 +102,7 @@ func TestExecutor_Apply(t *testing.T) {
 		desc         string
 		patches      []Patch
 		parentCommit string
+		message      string
 		tree         []testhelper.TreeEntry
 		error        error
 	}{
@@ -110,11 +111,13 @@ func TestExecutor_Apply(t *testing.T) {
 			patches: []Patch{
 				{
 					Author:  author,
-					Message: "test commit message",
+					Subject: "patch 1 subject",
+					Message: "patch 1 message",
 					Diff:    diffBetween(t, parentCommitSHA, updateToA),
 				},
 			},
 			parentCommit: parentCommitSHA,
+			message:      "patch 1 subject\n\npatch 1 message",
 			tree: []testhelper.TreeEntry{
 				{Path: "file", Mode: "100644", Content: "a"},
 			},
@@ -129,10 +132,11 @@ func TestExecutor_Apply(t *testing.T) {
 				},
 				{
 					Author:  author,
-					Message: "commit with a -> b",
+					Subject: "patch 2 subject",
 					Diff:    diffBetween(t, updateToA, updateFromAToB),
 				},
 			},
+			message:      "patch 2 subject\n",
 			parentCommit: updateToA,
 			tree: []testhelper.TreeEntry{
 				{Path: "file", Mode: "100644", Content: "b"},
@@ -143,11 +147,12 @@ func TestExecutor_Apply(t *testing.T) {
 			patches: []Patch{
 				{
 					Author:  author,
-					Message: "three-way merged files",
+					Message: "patch 1 message\n",
 					Diff:    diffBetween(t, parentCommitSHA, otherFile),
 				},
 			},
 			parentCommit: parentCommitSHA,
+			message:      "patch 1 message\n",
 			tree: []testhelper.TreeEntry{
 				{Path: "file", Mode: "100644", Content: "base"},
 				{Path: "other-file", Mode: "100644", Content: "a"},
@@ -158,7 +163,8 @@ func TestExecutor_Apply(t *testing.T) {
 			patches: []Patch{
 				{
 					Author:  author,
-					Message: "three-way merged file",
+					Subject: "patch 1 subject",
+					Message: "patch 1 message",
 					Diff:    diffBetween(t, parentCommitSHA, noCommonAncestor),
 				},
 			},
@@ -170,12 +176,14 @@ func TestExecutor_Apply(t *testing.T) {
 			patches: []Patch{
 				{
 					Author:  author,
-					Message: "applies cleanly",
+					Subject: "patch 1 subject",
+					Message: "patch 1 message",
 					Diff:    diffBetween(t, parentCommitSHA, updateToA),
 				},
 				{
 					Author:  author,
-					Message: "conflicts",
+					Subject: "patch 2 subject",
+					Message: "patch 2 message",
 					Diff:    diffBetween(t, parentCommitSHA, updateToB),
 				},
 			},
@@ -195,11 +203,12 @@ func TestExecutor_Apply(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+
 			require.Equal(t, commit{
 				Parent:    tc.parentCommit,
 				Author:    author,
 				Committer: committer,
-				Message:   tc.patches[len(tc.patches)-1].Message,
+				Message:   tc.message,
 			}, getCommit(t, ctx, repo, commitID))
 			testhelper.RequireTree(t, repoPath, commitID, tc.tree)
 		})
