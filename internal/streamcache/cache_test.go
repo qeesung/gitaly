@@ -35,6 +35,7 @@ func TestCache_writeOneReadMultiple(t *testing.T) {
 			r, created, err := c.FindOrCreate(key, writeString(content(i)))
 			require.NoError(t, err)
 			require.Equal(t, i == 0, created)
+			defer r.Close()
 
 			out, err := ioutil.ReadAll(r)
 			require.NoError(t, err)
@@ -94,7 +95,7 @@ func TestCache_scope(t *testing.T) {
 	// to test that they do not trample on each others files.
 	cache := make([]*Cache, N)
 	input := make([]string, N)
-	reader := make([]*ReadWaiter, N)
+	reader := make([]*Stream, N)
 	var err error
 
 	for i := 0; i < N; i++ {
@@ -107,6 +108,7 @@ func TestCache_scope(t *testing.T) {
 		reader[i], created, err = cache[i].FindOrCreate(key, writeString(input[i]))
 		require.NoError(t, err)
 		require.True(t, created)
+		defer func(i int) { reader[i].Close() }(i)
 	}
 
 	// If different cache instances overwrite their entries, the effect may
@@ -147,6 +149,7 @@ func TestCache_diskCleanup(t *testing.T) {
 	r1, created, err := c.FindOrCreate(key, writeString(content(1)))
 	require.NoError(t, err)
 	require.True(t, created)
+	defer r1.Close()
 
 	_, err = io.Copy(ioutil.Discard, r1)
 	require.NoError(t, err)
@@ -165,6 +168,7 @@ func TestCache_diskCleanup(t *testing.T) {
 	r2, created, err := c.FindOrCreate(key, writeString(content(2)))
 	require.NoError(t, err)
 	require.True(t, created)
+	defer r2.Close()
 
 	out2, err := ioutil.ReadAll(r2)
 	require.NoError(t, err)
@@ -204,6 +208,7 @@ func TestCache_failedWrite(t *testing.T) {
 
 			_, err = io.Copy(ioutil.Discard, r1)
 			require.NoError(t, err, "errors on the write end are not propagated via Read()")
+			require.NoError(t, r1.Close(), "errors on the write end are not propagated via Close()")
 			require.Error(t, r1.Wait(context.Background()), "error propagation happens via Wait()")
 
 			time.Sleep(10 * time.Millisecond)
@@ -212,6 +217,7 @@ func TestCache_failedWrite(t *testing.T) {
 			r2, created, err := c.FindOrCreate(tc.desc, writeString(happy))
 			require.NoError(t, err)
 			require.True(t, created, "because the previous entry failed, a new one should have been created")
+			defer r2.Close()
 
 			out, err := ioutil.ReadAll(r2)
 			require.NoError(t, err)

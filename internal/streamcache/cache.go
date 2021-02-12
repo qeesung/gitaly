@@ -54,7 +54,7 @@ func NewCache(dir string, expiry time.Duration) (*Cache, error) {
 	return c, nil
 }
 
-// Stop stops the cleanup goroutines. The goroutine does not get garbage collected but it will only sleep.
+// Stop stops the cleanup goroutines.
 func (c *Cache) Stop() {
 	c.stopOnce.Do(func() {
 		c.fs.Stop()
@@ -85,39 +85,20 @@ func (c *Cache) clean() {
 	})
 }
 
-func sleepLoop(done chan struct{}, period time.Duration, fn func()) {
-	sleep := time.Minute
-	if 0 < period && period < sleep {
-		sleep = period
-	}
-
-	for {
-		time.Sleep(sleep)
-
-		select {
-		case <-done:
-			return
-		default:
-		}
-
-		fn()
-	}
-}
-
 // FindOrCreate finds or creates a cache entry. If the create callback
 // runs, it will be asynchronous and created is set to true.
-func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (r *ReadWaiter, created bool, err error) {
+func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (s *Stream, created bool, err error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	if e := c.index[key]; e != nil {
-		if r, err := e.Open(); err == nil {
-			return r, false, nil
+		if s, err := e.Open(); err == nil {
+			return s, false, nil
 		}
 		c.delete(e) // e is bad
 	}
 
-	r, e, err := c.newEntry(key, create)
+	s, e, err := c.newEntry(key, create)
 	if err != nil {
 		return nil, false, err
 	}
@@ -125,7 +106,7 @@ func (c *Cache) FindOrCreate(key string, create func(io.Writer) error) (r *ReadW
 	c.index[key] = e
 	c.queue = append(c.queue, e)
 
-	return r, true, nil
+	return s, true, nil
 }
 
 // delete must be called while holding the mutex.
@@ -143,28 +124,24 @@ type entry struct {
 	w       *waiter
 }
 
-// ReadWaiter abstracts a stream of bytes (via Read()) plus an error (via
-// Wait()). Callers must always call Wait() to prevent resource leaks.
-type ReadWaiter struct {
+// Stream abstracts a stream of bytes (via Read()) plus an error (via
+// Wait()). Callers must always call Close() to prevent resource leaks.
+type Stream struct {
 	w *waiter
 	r io.ReadCloser
 }
 
-// Wait returns the error value of the ReadWaiter. If ctx is canceled,
+// Wait returns the error value of the Stream. If ctx is canceled,
 // Wait unblocks and returns early.
-func (rw *ReadWaiter) Wait(ctx context.Context) error {
-	err := rw.r.Close()
-	errWait := rw.w.Wait(ctx)
-	if err == nil {
-		err = errWait
-	}
-	return err
-}
+func (s *Stream) Wait(ctx context.Context) error { return s.w.Wait(ctx) }
 
-// Read reads from the underlying stream of the ReadWaiter.
-func (rw *ReadWaiter) Read(p []byte) (int, error) { return rw.r.Read(p) }
+// Read reads from the underlying stream of the stream.
+func (s *Stream) Read(p []byte) (int, error) { return s.r.Read(p) }
 
-func (c *Cache) newEntry(key string, create func(io.Writer) error) (*ReadWaiter, *entry, error) {
+// Close releases the underlying resources of the stream.
+func (s *Stream) Close() error { return s.r.Close() }
+
+func (c *Cache) newEntry(key string, create func(io.Writer) error) (*Stream, *entry, error) {
 	e := &entry{
 		key:     key,
 		c:       c,
@@ -197,8 +174,8 @@ func (c *Cache) newEntry(key string, create func(io.Writer) error) (*ReadWaiter,
 	return e.wrapReadCloser(pr), e, nil
 }
 
-func (e *entry) wrapReadCloser(r io.ReadCloser) *ReadWaiter {
-	return &ReadWaiter{r: r, w: e.w}
+func (e *entry) wrapReadCloser(r io.ReadCloser) *Stream {
+	return &Stream{r: r, w: e.w}
 }
 
 func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
@@ -215,7 +192,7 @@ func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
 	return w.Close()
 }
 
-func (e *entry) Open() (*ReadWaiter, error) {
+func (e *entry) Open() (*Stream, error) {
 	r, err := e.p.OpenReader()
 	return e.wrapReadCloser(r), err
 }
@@ -241,5 +218,24 @@ func (w *waiter) Wait(ctx context.Context) error {
 		return ctx.Err()
 	case <-w.done:
 		return w.err
+	}
+}
+
+func sleepLoop(done chan struct{}, period time.Duration, fn func()) {
+	sleep := time.Minute
+	if 0 < period && period < sleep {
+		sleep = period
+	}
+
+	for {
+		time.Sleep(sleep)
+
+		select {
+		case <-done:
+			return
+		default:
+		}
+
+		fn()
 	}
 }
