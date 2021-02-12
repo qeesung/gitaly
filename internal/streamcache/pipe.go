@@ -151,11 +151,10 @@ func (pr *pipeReader) Close() error {
 func (pr *pipeReader) Read(b []byte) (int, error) {
 	// If pr.off < pr.p.woffset.Value(), then there is unread data for us to
 	// yield. If not, block.
-	pipeclosed := false
-	for !pipeclosed && pr.off >= pr.p.woffset.Value() {
+	for closed := false; !closed && pr.off >= pr.p.woffset.Value(); {
 		select {
 		case <-pr.p.closed:
-			pipeclosed = true
+			closed = true
 		case <-pr.n.C:
 		}
 	}
@@ -166,10 +165,6 @@ func (pr *pipeReader) Read(b []byte) (int, error) {
 	// The writer is subscribed to changes in pr.p.roffset. If it is
 	// currently blocked, this call to Grow() will unblock it.
 	pr.p.roffset.Grow(pr.off)
-
-	if err == io.EOF && !pipeclosed {
-		err = nil
-	}
 
 	return n, err
 }
