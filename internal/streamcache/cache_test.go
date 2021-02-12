@@ -54,6 +54,8 @@ func writeString(s string) func(io.Writer) error {
 }
 
 func requireCacheFiles(t *testing.T, dir string, n int) {
+	t.Helper()
+
 	cachedFiles := strings.Split(
 		text.ChompBytes(testhelper.MustRunCommand(t, nil, "find", dir, "-type", "f")),
 		"\n",
@@ -72,6 +74,7 @@ func requireCacheFiles(t *testing.T, dir string, n int) {
 }
 
 func requireCacheEntries(t *testing.T, c *Cache, n int) {
+	t.Helper()
 	c.m.Lock()
 	defer c.m.Unlock()
 	require.Len(t, c.index, n)
