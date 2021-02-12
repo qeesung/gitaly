@@ -47,10 +47,10 @@ import (
 
 type pipe struct {
 	// Access to underlying file
-	name   string
-	w      io.WriteCloser
-	closed chan struct{}
-	m      sync.Mutex
+	name      string
+	w         io.WriteCloser
+	closed    chan struct{}
+	closeOnce sync.Once
 
 	// Reader/writer coordination. If woffset > roffset, the writer blocks
 	// (back pressure). If roffset >= woffset, the readers block (waiting for
@@ -100,16 +100,12 @@ func (p *pipe) Write(b []byte) (int, error) {
 }
 
 func (p *pipe) Close() error {
-	p.m.Lock()
-	defer p.m.Unlock()
-
-	select {
-	case <-p.closed:
-		return os.ErrClosed
-	default:
+	err := os.ErrClosed
+	p.closeOnce.Do(func() {
 		close(p.closed)
-		return p.w.Close()
-	}
+		err = p.w.Close()
+	})
+	return err
 }
 
 func (p *pipe) Remove() error { return os.Remove(p.name) }
@@ -151,10 +147,11 @@ func (pr *pipeReader) Close() error {
 func (pr *pipeReader) Read(b []byte) (int, error) {
 	// If pr.off < pr.p.woffset.Value(), then there is unread data for us to
 	// yield. If not, block.
-	for closed := false; !closed && pr.off >= pr.p.woffset.Value(); {
+wait:
+	for pr.off >= pr.p.woffset.Value() {
 		select {
 		case <-pr.p.closed:
-			closed = true
+			break wait
 		case <-pr.n.C:
 		}
 	}
