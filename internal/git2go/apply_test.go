@@ -32,8 +32,10 @@ func TestExecutor_Apply(t *testing.T) {
 	oidB, err := repo.WriteBlob(ctx, "file", strings.NewReader("b"))
 	require.NoError(t, err)
 
-	author := NewSignature("Test Author", "test.author@example.com", time.Now())
-	committer := NewSignature("Test Committer", "test.committer@example.com", time.Now())
+	authorTime := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
+	committerTime := authorTime.Add(time.Hour)
+	author := NewSignature("Test Author", "test.author@example.com", authorTime)
+	committer := NewSignature("Test Committer", "test.committer@example.com", committerTime)
 
 	parentCommitSHA, err := executor.Commit(ctx, CommitParams{
 		Repository: repoPath,
@@ -204,12 +206,12 @@ func TestExecutor_Apply(t *testing.T) {
 
 			require.NoError(t, err)
 
-			require.Equal(t, commit{
+			require.Equal(t, CommitAssertion{
 				Parent:    tc.parentCommit,
 				Author:    author,
 				Committer: committer,
 				Message:   tc.message,
-			}, getCommit(t, ctx, repo, commitID))
+			}, GetCommitAssertion(ctx, t, repo, commitID))
 			testhelper.RequireTree(t, repoPath, commitID, tc.tree)
 		})
 	}
