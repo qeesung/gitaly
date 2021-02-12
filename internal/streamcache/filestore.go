@@ -69,7 +69,7 @@ func (fs *filestore) Create() (*os.File, error) {
 	// files: this makes directory walks faster. Use a uniform hash to ensure
 	// files are distributed evenly across nested directories.
 	fs.hasher.Reset()
-	fs.hasher.WriteString(name)
+	_, _ = fs.hasher.WriteString(name)
 	sum := fs.hasher.Sum64()
 	path := filepath.Join(
 		fs.dir,

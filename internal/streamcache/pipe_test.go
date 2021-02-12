@@ -23,7 +23,7 @@ func createPipe(t *testing.T) (io.ReadCloser, *pipe, func()) {
 	require.NoError(t, err)
 
 	return pr, p, func() {
-		p.Remove()
+		_ = p.Remove()
 		p.Close()
 	}
 }

@@ -25,6 +25,7 @@ import (
 // readers). A cache entry consists of a key, an expiration time, a
 // pipe and the error result of the thing writing to the pipe.
 
+// Cache is a cache for large byte streams.
 type Cache struct {
 	m        sync.Mutex
 	expiry   time.Duration
@@ -79,7 +80,7 @@ func (c *Cache) clean() {
 		// Batch together file removals in a goroutine, without holding the mutex
 		go func() {
 			for _, e := range removed {
-				e.p.Remove()
+				_ = e.p.Remove()
 			}
 		}()
 	})

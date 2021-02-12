@@ -196,7 +196,7 @@ func TestCache_failedWrite(t *testing.T) {
 		},
 		{
 			desc:   "create panics",
-			create: func(io.Writer) error { panic("oh no"); return nil },
+			create: func(io.Writer) error { panic("oh no") },
 		},
 	}
 
