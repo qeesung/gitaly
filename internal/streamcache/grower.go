@@ -6,7 +6,7 @@ import (
 
 // grower is a datatype that combines concurrent updates of an int64 with
 // change notifications. The number is only allowed to go up; it is meant
-// to represent the read or write offset in a file that is being read
+// to represent the read or write offset in a file that is being accessed
 // linearly.
 type grower struct {
 	v           int64
