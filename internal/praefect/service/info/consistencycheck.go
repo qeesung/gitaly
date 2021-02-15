@@ -134,6 +134,7 @@ type checksumResult struct {
 	reference        string
 	targetStorage    string
 	referenceStorage string
+	errs             []error
 }
 
 func checksumRepos(ctx context.Context, relpathQ <-chan string, checksumResultQ chan<- checksumResult, target, reference nodes.Node, virtualStorage string) error {
@@ -160,23 +161,34 @@ func checksumRepos(ctx context.Context, relpathQ <-chan string, checksumResultQ 
 
 		g, gctx := errgroup.WithContext(ctx)
 
-		g.Go(func() (err error) {
-			cs.target, err = checksumRepo(gctx, repoRelPath, target)
-			if status.Code(err) == codes.NotFound {
+		var targetErr error
+		g.Go(func() error {
+			cs.target, targetErr = checksumRepo(gctx, repoRelPath, target)
+			if status.Code(targetErr) == codes.NotFound {
 				// missing repo on target is okay, we need to
 				// replicate from reference
+				targetErr = nil
 				return nil
 			}
-			return err
+			return targetErr
 		})
 
-		g.Go(func() (err error) {
-			cs.reference, err = checksumRepo(gctx, repoRelPath, reference)
-			return err
+		var referenceErr error
+		g.Go(func() error {
+			cs.reference, referenceErr = checksumRepo(gctx, repoRelPath, reference)
+			return referenceErr
 		})
 
 		if err := g.Wait(); err != nil {
-			return err
+			// we don't care about err as it is one of the targetErr or referenceErr
+			// and we return it back to the caller to make the opeartion execution more verbose
+			if targetErr != nil {
+				cs.errs = append(cs.errs, targetErr)
+			}
+
+			if referenceErr != nil {
+				cs.errs = append(cs.errs, referenceErr)
+			}
 		}
 
 		select {
@@ -227,10 +239,13 @@ func ensureConsistency(ctx context.Context, disableReconcile bool, checksumResul
 			TargetChecksum:    csr.target,
 			ReferenceStorage:  csr.referenceStorage,
 		}
+		for _, err := range csr.errs {
+			resp.Errors = append(resp.Errors, err.Error())
+		}
 
 		if csr.reference != csr.target && !disableReconcile {
 			if err := scheduleReplication(ctx, csr, q, resp); err != nil {
-				return err
+				resp.Errors = append(resp.Errors, err.Error())
 			}
 		}
 

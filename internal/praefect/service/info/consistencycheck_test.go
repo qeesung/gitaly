@@ -2,12 +2,14 @@ package info
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
@@ -36,8 +38,11 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 	// 1.git exists on both storages and it is the same
 	testhelper.NewTestRepoTo(t, primaryStorageDir, "1.git")
 	testhelper.NewTestRepoTo(t, secondaryStorageDir, "1.git")
-	// 2.git exists only on target storage (where traversal happens)
-	testhelper.NewTestRepoTo(t, secondaryStorageDir, "2.git")
+	// 2.git generates an error, but it should not stop other repositories from being processed
+	const errorRepoPath = "2.git"
+	testhelper.NewTestRepoTo(t, secondaryStorageDir, errorRepoPath)
+	// 3.git exists only on target storage (where traversal happens)
+	testhelper.NewTestRepoTo(t, secondaryStorageDir, "3.git")
 	// not.git is a folder on target storage that should be skipped as it is not a git repository
 	require.NoError(t, os.MkdirAll(filepath.Join(secondaryStorageDir, "not.git"), os.ModePerm))
 
@@ -62,7 +67,9 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 		}},
 	}
 
-	for _, node := range conf.VirtualStorages[0].Nodes {
+	var toTerminate *grpc.Server
+	var addr string
+	for i, node := range conf.VirtualStorages[0].Nodes {
 		gitalyListener, err := net.Listen("unix", node.Address)
 		require.NoError(t, err)
 
@@ -71,6 +78,10 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 		gitalypb.RegisterRepositoryServiceServer(gitalySrv, repository.NewServer(gconfig.Config, nil, gconfig.NewLocator(gconfig.Config), transaction.NewManager(gconfig.Config), git.NewExecCommandFactory(gconfig.Config)))
 		gitalypb.RegisterInternalGitalyServer(gitalySrv, internalgitaly.NewServer(gconfig.Config.Storages))
 		go func() { gitalySrv.Serve(gitalyListener) }()
+		if i+1 == len(conf.VirtualStorages[0].Nodes) {
+			toTerminate = gitalySrv
+			addr = node.Address
+		}
 	}
 
 	ctx, cancel := testhelper.Context()
@@ -111,6 +122,9 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 
 	queue := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 	queue.OnEnqueue(func(ctx context.Context, e datastore.ReplicationEvent, q datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+		if e.Job.RelativePath == errorRepoPath {
+			return datastore.ReplicationEvent{}, assert.AnError
+		}
 		return datastore.ReplicationEvent{ID: 1}, nil
 	})
 
@@ -125,6 +139,26 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 	defer infoConn.Close()
 
 	infoClient := gitalypb.NewPraefectInfoServiceClient(infoConn)
+
+	execAndVerify := func(t *testing.T, req gitalypb.ConsistencyCheckRequest, verify func(*testing.T, []*gitalypb.ConsistencyCheckResponse, error)) {
+		response, err := infoClient.ConsistencyCheck(ctx, &req)
+		require.NoError(t, err)
+
+		var results []*gitalypb.ConsistencyCheckResponse
+		var result *gitalypb.ConsistencyCheckResponse
+		for {
+			result, err = response.Recv()
+			if err != nil {
+				break
+			}
+			results = append(results, result)
+		}
+
+		if err == io.EOF {
+			err = nil
+		}
+		verify(t, results, err)
+	}
 
 	for _, tc := range []struct {
 		desc   string
@@ -150,7 +184,15 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 						ReferenceStorage:  "target",
 					},
 					{
-						RepoRelativePath:  "2.git",
+						RepoRelativePath:  errorRepoPath,
+						TargetChecksum:    "",
+						ReferenceChecksum: "06c4db1a33b2e48dac0bf940c7c20429d00a04ea",
+						ReplJobId:         0,
+						ReferenceStorage:  "target",
+						Errors:            []string{assert.AnError.Error()},
+					},
+					{
+						RepoRelativePath:  "3.git",
 						TargetChecksum:    "",
 						ReferenceChecksum: "06c4db1a33b2e48dac0bf940c7c20429d00a04ea",
 						ReplJobId:         1,
@@ -178,7 +220,14 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 						ReferenceStorage:  "target",
 					},
 					{
-						RepoRelativePath:  "2.git",
+						RepoRelativePath:  errorRepoPath,
+						TargetChecksum:    "",
+						ReferenceChecksum: "06c4db1a33b2e48dac0bf940c7c20429d00a04ea",
+						ReplJobId:         0,
+						ReferenceStorage:  "target",
+					},
+					{
+						RepoRelativePath:  "3.git",
 						TargetChecksum:    "",
 						ReferenceChecksum: "06c4db1a33b2e48dac0bf940c7c20429d00a04ea",
 						ReplJobId:         0,
@@ -266,23 +315,40 @@ func TestServer_ConsistencyCheck(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			response, err := infoClient.ConsistencyCheck(ctx, &tc.req)
-			require.NoError(t, err)
-
-			var results []*gitalypb.ConsistencyCheckResponse
-			var result *gitalypb.ConsistencyCheckResponse
-			for {
-				result, err = response.Recv()
-				if err != nil {
-					break
-				}
-				results = append(results, result)
-			}
-
-			if err == io.EOF {
-				err = nil
-			}
-			tc.verify(t, results, err)
+			execAndVerify(t, tc.req, tc.verify)
 		})
 	}
+
+	t.Run("one of gitalies is unreachable", func(t *testing.T) {
+		toTerminate.Stop()
+
+		req := gitalypb.ConsistencyCheckRequest{
+			VirtualStorage:         "vs",
+			TargetStorage:          "reference",
+			ReferenceStorage:       "target",
+			DisableReconcilliation: true,
+		}
+
+		execAndVerify(t, req, func(t *testing.T, responses []*gitalypb.ConsistencyCheckResponse, err error) {
+			require.NoError(t, err)
+			errs := []string{fmt.Sprintf("rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing dial unix //%s: connect: no such file or directory\"", addr), "rpc error: code = Canceled desc = context canceled"}
+			require.Equal(t, []*gitalypb.ConsistencyCheckResponse{
+				{
+					RepoRelativePath: "1.git",
+					ReferenceStorage: "target",
+					Errors:           errs,
+				},
+				{
+					RepoRelativePath: errorRepoPath,
+					ReferenceStorage: "target",
+					Errors:           errs,
+				},
+				{
+					RepoRelativePath: "3.git",
+					ReferenceStorage: "target",
+					Errors:           errs,
+				},
+			}, responses)
+		})
+	})
 }
