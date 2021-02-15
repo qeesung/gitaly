@@ -95,64 +95,87 @@ func TestAddressUpdatesRoundRobinPool(t *testing.T) {
 }
 
 func TestRemovals(t *testing.T) {
-	okActions := []action{
-		{add: "foo"},
-		{add: "bar"},
-		{add: "qux"},
-		{remove: "bar"},
-		{add: "baz"},
-		{remove: "foo"},
+	now := time.Now()
+	add := func(addr string) func() bool {
+		return func() bool {
+			AddAddress(addr)
+			return true
+		}
 	}
+
+	remove := func(addr string, after time.Duration) func() bool {
+		return func() bool {
+			now = now.Add(after)
+			return RemoveAddress(addr)
+		}
+	}
+
 	numAddr := 3
 	removeDelay := 1 * time.Millisecond
-	ConfigureBuilder(numAddr, removeDelay)
+	ConfigureBuilder(numAddr, removeDelay, func() time.Time { return now })
 
 	testCases := []struct {
 		desc      string
-		actions   []action
+		actions   []func() bool
 		lastFails bool
-		delay     time.Duration
 	}{
 		{
-			desc:    "add then remove",
-			actions: okActions,
-			delay:   2 * removeDelay,
+			desc: "add then remove",
+			actions: []func() bool{
+				add("foo"),
+				add("bar"),
+				add("qux"),
+				remove("bar", 2*removeDelay),
+				add("baz"),
+				remove("foo", 2*removeDelay),
+			},
 		},
 		{
-			desc:      "add then remove but too fast",
-			actions:   okActions,
+			desc: "add then remove but too fast",
+			actions: []func() bool{
+				add("foo"),
+				add("bar"),
+				add("qux"),
+				remove("bar", 0),
+				add("baz"),
+				remove("foo", 0),
+			},
 			lastFails: true,
-			delay:     0,
 		},
 		{
-			desc:      "remove one address too many",
-			actions:   append(okActions, action{remove: "qux"}),
+			desc: "remove one address too many",
+			actions: []func() bool{
+				add("foo"),
+				add("bar"),
+				add("qux"),
+				remove("bar", 2*removeDelay),
+				add("baz"),
+				remove("foo", 2*removeDelay),
+				remove("qux", 2*removeDelay),
+			},
 			lastFails: true,
-			delay:     2 * removeDelay,
 		},
 		{
 			desc: "remove unknown address",
-			actions: []action{
-				{add: "foo"},
-				{add: "qux"},
-				{add: "baz"},
-				{remove: "bar"},
+			actions: []func() bool{
+				add("foo"),
+				add("qux"),
+				add("baz"),
+				remove("bar", 2*removeDelay),
 			},
 			lastFails: true,
-			delay:     2 * removeDelay,
 		},
 		{
 			// This relies on the implementation detail that the first address added
 			// to the balancer is the standby. The standby cannot be removed.
 			desc: "remove standby address",
-			actions: []action{
-				{add: "foo"},
-				{add: "qux"},
-				{add: "baz"},
-				{remove: "foo"},
+			actions: []func() bool{
+				add("foo"),
+				add("qux"),
+				add("baz"),
+				remove("foo", 2*removeDelay),
 			},
 			lastFails: true,
-			delay:     2 * removeDelay,
 		},
 	}
 
@@ -160,29 +183,16 @@ func TestRemovals(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			lbBuilder.testingTriggerRestart <- struct{}{}
 
-			for i, a := range tc.actions {
-				if a.add != "" {
-					AddAddress(a.add)
-				} else {
-					if tc.delay > 0 {
-						time.Sleep(tc.delay)
-					}
-
-					expected := true
-					if i+1 == len(tc.actions) && tc.lastFails {
-						expected = false
-					}
-
-					require.Equal(t, expected, RemoveAddress(a.remove), "expected result from removing %q", a.remove)
+			for i, action := range tc.actions {
+				expected := true
+				if i+1 == len(tc.actions) && tc.lastFails {
+					expected = false
 				}
+
+				require.Equal(t, expected, action())
 			}
 		})
 	}
-}
-
-type action struct {
-	add    string
-	remove string
 }
 
 type testClientConn struct {
@@ -227,7 +237,7 @@ func (tcc *testClientConn) UpdateState(state resolver.State) {}
 // it with addresses. It returns the list of addresses it added.
 func configureBuilderTest(numAddrs int) []string {
 	delay := 1 * time.Millisecond
-	ConfigureBuilder(numAddrs, delay)
+	ConfigureBuilder(numAddrs, delay, time.Now)
 	lbBuilder.testingTriggerRestart <- struct{}{}
 
 	var addrs []string
