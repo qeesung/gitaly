@@ -65,9 +65,11 @@ func (rr *receiveReader) WriteTo(w io.Writer) (int64, error) {
 	var written int64
 
 	// Deal with left-over state in rr.data and rr.err, if any
-	if len(rr.data) > 0 {
+	for len(rr.data) > 0 {
 		n, err := w.Write(rr.data)
 		written += int64(n)
+		rr.data = rr.data[n:]
+
 		if err != nil {
 			return written, err
 		}
@@ -77,22 +79,26 @@ func (rr *receiveReader) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	// Consume the response stream
-	var errRead, errWrite error
-	var n int
-	var buf []byte
-	for errWrite == nil && errRead != io.EOF {
-		buf, errRead = rr.receiver()
-		if errRead != nil && errRead != io.EOF {
+	for {
+		buf, errRead := rr.receiver()
+
+		for len(buf) > 0 {
+			n, errWrite := w.Write(buf)
+			written += int64(n)
+			buf = buf[n:]
+
+			if errWrite != nil {
+				return written, errWrite
+			}
+		}
+
+		if errRead != nil {
+			if errors.Is(errRead, io.EOF) {
+				return written, nil
+			}
 			return written, errRead
 		}
-
-		if len(buf) > 0 {
-			n, errWrite = w.Write(buf)
-			written += int64(n)
-		}
 	}
-
-	return written, errWrite
 }
 
 // NewWriter turns sender into an io.Writer. The sender callback will
