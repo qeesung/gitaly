@@ -55,10 +55,7 @@ func (rr *receiveReader) Read(p []byte) (int, error) {
 	}
 	n := copy(p, rr.data)
 	rr.data = rr.data[n:]
-	if len(rr.data) == 0 {
-		return n, rr.err
-	}
-	return n, nil
+	return n, rr.err
 }
 
 // WriteTo implements io.WriterTo.
