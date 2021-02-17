@@ -83,19 +83,31 @@ func (r *Reconciler) Run(ctx context.Context, ticker helper.Ticker) error {
 
 // job is an internal type for formatting log messages
 type job struct {
-	CorrelationID  string `json:"correlation_id"`
-	VirtualStorage string `json:"virtual_storage"`
-	RelativePath   string `json:"relative_path"`
-	SourceStorage  string `json:"source_storage"`
-	TargetStorage  string `json:"target_storage"`
+	Change         string  `json:"change"`
+	CorrelationID  string  `json:"correlation_id"`
+	VirtualStorage string  `json:"virtual_storage"`
+	RelativePath   string  `json:"relative_path"`
+	SourceStorage  *string `json:"source_storage,omitempty"`
+	TargetStorage  string  `json:"target_storage"`
 }
 
-// reconcile schedules replication jobs to outdated repositories using random up to date
-// replica of the repository as the source. Only outdated repositories on the healthy storages
-// are targeted to avoid unnecessarily scheduling jobs that can't be completed. Source node
-// used is a random healthy storage that contains the latest generation of the repository. If
-// there is an `update` type replication job targeting the outdated repository, no replication
-// job will be scheduled to avoid queuing up multiple redundant jobs.
+// reconcile schedules replication jobs to fix any discrepancies in how the expected state of the
+// virtual storage is compared to the actual state.
+//
+// It currently handles fixing two discrepancies:
+//
+// 1. Assigned storage having an outdated replica of a repository. This is fixed by scheduling
+//    an `update` type job from any healthy storage with an up to date replica. These are only
+//    scheduled if there is no other active `update` type job targeting the outdated replica.
+// 2. Unassigned storage having an unnecessary replica. This is fixed by scheduling a `delete_replica`
+//    type job to remove the unneeded replica from the storage. These are only scheduled if all assigned
+//    storages are up to date and the replica is not used as a source or target storage in any other job.
+//
+// The fixes are only scheduled if the target node is healthy, and if there is a healthy source node
+// available should the job need one.
+//
+// If the repository has no assignments set, reconcile falls back to considering every storage in the
+// virtual storage as assigned.
 func (r *Reconciler) reconcile(ctx context.Context) error {
 	defer prometheus.NewTimer(r.reconciliationSchedulingDuration).ObserveDuration()
 
@@ -124,6 +136,37 @@ func (r *Reconciler) reconcile(ctx context.Context) error {
 WITH healthy_storages AS (
     SELECT unnest($1::text[]) AS virtual_storage,
            unnest($2::text[]) AS storage
+),
+
+delete_jobs AS (
+	SELECT
+		virtual_storage,
+		relative_path,
+		storage
+	FROM storage_repositories
+	JOIN healthy_storages USING (virtual_storage, storage)
+	WHERE (
+		SELECT COUNT(storage) > 0 AND COUNT(storage) FILTER (WHERE storage = storage_repositories.storage) = 0
+		FROM repository_assignments
+		WHERE virtual_storage = storage_repositories.virtual_storage
+		AND   relative_path   = storage_repositories.relative_path
+	)
+	AND generation <= (
+		SELECT MIN(COALESCE(generation, -1))
+		FROM repository_assignments
+		FULL JOIN storage_repositories AS sr USING (virtual_storage, relative_path, storage)
+		WHERE virtual_storage = storage_repositories.virtual_storage
+		AND relative_path = storage_repositories.relative_path
+	) AND NOT EXISTS (
+		SELECT 1 FROM replication_queue
+		WHERE job->>'virtual_storage' = virtual_storage
+		AND   job->>'relative_path' = relative_path
+		AND (
+				job->>'source_node_storage' = storage
+			OR 	job->>'target_node_storage' = storage
+		)
+		AND state NOT IN ('completed', 'dead', 'cancelled')
+	)
 ),
 
 update_jobs AS (
@@ -190,6 +233,14 @@ reconciliation_jobs AS (
 			target_node_storage,
 			'update' AS change
 		FROM update_jobs
+			UNION
+		SELECT
+			virtual_storage,
+			relative_path,
+			NULL AS source_node_storage,
+			storage AS target_node_storage,
+			'delete_replica' AS change
+		FROM delete_jobs
 	) AS reconciliation_jobs
 	RETURNING lock_id, meta, job
 ),
@@ -203,6 +254,7 @@ create_locks AS (
 
 SELECT
 	meta->>'correlation_id',
+	job->>'change',
 	job->>'virtual_storage',
 	job->>'relative_path',
 	job->>'source_node_storage',
@@ -225,6 +277,7 @@ FROM reconciliation_jobs
 		var j job
 		if err := rows.Scan(
 			&j.CorrelationID,
+			&j.Change,
 			&j.VirtualStorage,
 			&j.RelativePath,
 			&j.SourceStorage,

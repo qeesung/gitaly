@@ -498,7 +498,7 @@ func TestReconciler(t *testing.T) {
 			},
 		},
 		{
-			desc:            "unassigned nodes are not targeted",
+			desc:            "unassigned replicas are deleted",
 			healthyStorages: configuredStorages,
 			repositories: repositories{
 				"virtual-storage-1": {
@@ -507,6 +507,14 @@ func TestReconciler(t *testing.T) {
 						"storage-2": {generation: -1, assigned: false},
 						"storage-3": {generation: 0, assigned: false},
 					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-3",
 				},
 			},
 		},
@@ -518,6 +526,275 @@ func TestReconciler(t *testing.T) {
 					"relative-path-1": {
 						"storage-1": {generation: 0, assigned: true},
 					},
+				},
+			},
+		},
+		{
+			desc:            "deletes from unassigned storage if assigned nodes have the same generation",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: true},
+						"storage-3": {generation: 0, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-3",
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if assigned storage has no copy",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: -1, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-2",
+					TargetNodeStorage: "storage-1",
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if unhealthy storage contains later generation",
+			healthyStorages: storages{"virtual-storage-1": {"storage-1", "storage-2"}},
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: -1, assigned: true},
+						"storage-3": {generation: 0, assigned: false},
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if assigned storage has outdated copy",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 1, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-2",
+					TargetNodeStorage: "storage-1",
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by a ready job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by an in-progress job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateInProgress,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by a failed job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateFailed,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in a ready job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in an in-progress job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateInProgress,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in a failed job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateFailed,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "deletes if none of the active jobs are using the unassigned replica",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "wrong-virtual-storage",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "wrong-relative-path",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateDead,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateCompleted,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateCancelled,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-2",
 				},
 			},
 		},
