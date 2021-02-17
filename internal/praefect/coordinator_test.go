@@ -1479,10 +1479,13 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 	type node struct {
 		name  string
 		state transactions.VoteResult
+		err   error
 	}
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+
+	anyErr := errors.New("arbitrary error")
 
 	for _, tc := range []struct {
 		desc             string
@@ -1508,6 +1511,13 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				state: transactions.VoteFailed,
 			},
 			subtransactions: 1,
+		},
+		{
+			desc: "single erred node",
+			primary: node{
+				name: "primary",
+				err:  anyErr,
+			},
 		},
 		{
 			desc: "single node without subtransactions",
@@ -1537,6 +1547,17 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 			expectedOutdated: []string{"replica"},
 		},
 		{
+			desc: "single erred node with replica",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			replicas:         []string{"replica"},
+			subtransactions:  1,
+			expectedOutdated: []string{"replica"},
+		},
+		{
 			desc: "single node without transaction with replica",
 			primary: node{
 				name: "primary",
@@ -1557,6 +1578,34 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 			},
 			subtransactions: 1,
 			expectedUpdated: []string{"s1", "s2"},
+		},
+		{
+			desc: "multiple committed nodes with primary err",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteCommitted},
+				{name: "s2", state: transactions.VoteCommitted},
+			},
+			subtransactions:  1,
+			expectedOutdated: []string{"s1", "s2"},
+		},
+		{
+			desc: "multiple committed nodes with secondary err",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteCommitted, err: anyErr},
+				{name: "s2", state: transactions.VoteCommitted},
+			},
+			subtransactions:  1,
+			expectedUpdated:  []string{"s2"},
+			expectedOutdated: []string{"s1"},
 		},
 		{
 			desc: "partial success",
@@ -1613,11 +1662,29 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 			expectedOutdated: []string{"s1", "r1", "r2"},
 			expectedUpdated:  []string{"s2"},
 		},
+		{
+			desc: "multiple nodes with replica and partial err",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteFailed},
+				{name: "s2", state: transactions.VoteCommitted, err: anyErr},
+			},
+			replicas:         []string{"r1", "r2"},
+			subtransactions:  1,
+			expectedOutdated: []string{"s1", "s2", "r1", "r2"},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			nodes := append(tc.secondaries, tc.primary)
 			voters := make([]transactions.Voter, len(nodes))
+
 			states := make(map[string]transactions.VoteResult)
+			nodeErrors := &nodeErrors{
+				errByNode: make(map[string]error),
+			}
 
 			for i, node := range nodes {
 				voters[i] = transactions.Voter{
@@ -1625,6 +1692,7 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 					Votes: 1,
 				}
 				states[node.name] = node.state
+				nodeErrors.errByNode[node.name] = node.err
 			}
 
 			transaction := mockTransaction{
@@ -1644,7 +1712,7 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 			}
 			route.ReplicationTargets = append(route.ReplicationTargets, tc.replicas...)
 
-			updated, outdated := getUpdatedAndOutdatedSecondaries(ctx, route, transaction)
+			updated, outdated := getUpdatedAndOutdatedSecondaries(ctx, route, transaction, nodeErrors)
 			require.ElementsMatch(t, tc.expectedUpdated, updated)
 			require.ElementsMatch(t, tc.expectedOutdated, outdated)
 		})
