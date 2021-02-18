@@ -477,22 +477,11 @@ func TestReconciler(t *testing.T) {
 			queue := datastore.NewPostgresReplicationEventQueue(db)
 			existingJobs := make(map[uint64]bool, len(tc.existingJobs))
 			for _, existing := range tc.existingJobs {
-				event, err := queue.Enqueue(ctx, existing)
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO replication_queue (state, job)
+					VALUES ($1, $2)
+				`, existing.State, existing.Job)
 				require.NoError(t, err)
-				existingJobs[event.ID] = true
-
-				if existing.State == datastore.JobStateCompleted ||
-					existing.State == datastore.JobStateDead ||
-					existing.State == datastore.JobStateCancelled {
-					// get the event in the correct state.
-					event, err := queue.Dequeue(ctx, existing.Job.VirtualStorage, existing.Job.TargetNodeStorage, 1)
-					require.NoError(t, err)
-					require.Len(t, event, 1)
-
-					acked, err := queue.Acknowledge(ctx, existing.State, []uint64{event[0].ID})
-					require.NoError(t, err)
-					require.Equal(t, []uint64{event[0].ID}, acked)
-				}
 			}
 
 			runCtx, cancelRun := context.WithCancel(ctx)
