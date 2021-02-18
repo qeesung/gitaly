@@ -276,6 +276,82 @@ func TestReconciler(t *testing.T) {
 			}},
 		},
 		{
+			desc:            "repository with scheduled delete is not used as a source",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 1},
+						"storage-2": {generation: 0},
+					},
+				},
+			},
+			existingJobs: existingJobs{{
+				State: datastore.JobStateReady,
+				Job: datastore.ReplicationJob{
+					Change:            datastore.DeleteRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-1",
+				}},
+			},
+		},
+		{
+			desc:            "repository with scheduled delete_replica is not used as a source",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 1},
+						"storage-2": {generation: 0},
+					},
+				},
+			},
+			existingJobs: existingJobs{{
+				State: datastore.JobStateReady,
+				Job: datastore.ReplicationJob{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-1",
+				}},
+			},
+		},
+		{
+			desc:            "inactive deletion jobs do not block from using replica as a source",
+			healthyStorages: configuredStoragesWithout("storage-3"),
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 1},
+						"storage-2": {generation: 0},
+					},
+				},
+			},
+			existingJobs: generateExistingJobs(
+				[]datastore.JobState{
+					datastore.JobStateCompleted,
+					datastore.JobStateCancelled,
+					datastore.JobStateDead,
+				},
+				[]datastore.ChangeType{datastore.DeleteRepo, datastore.DeleteReplica},
+				datastore.ReplicationJob{
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-1",
+				},
+			),
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-1",
+					TargetNodeStorage: "storage-2",
+				},
+			},
+		},
+		{
 			desc:            "repository with only completed update jobs is reconciled",
 			healthyStorages: configuredStoragesWithout("storage-3"),
 			repositories: repositories{
@@ -356,7 +432,7 @@ func TestReconciler(t *testing.T) {
 				"virtual-storage-1": {
 					"relative-path-1": {
 						"storage-1": {generation: 1},
-						"storage-2": {generation: 0},
+						"storage-2": {generation: -1, assigned: true},
 						"storage-3": {generation: 0, assigned: true},
 					},
 					// assert query correctly scopes for relative path
@@ -381,6 +457,13 @@ func TestReconciler(t *testing.T) {
 					VirtualStorage:    "virtual-storage-1",
 					RelativePath:      "relative-path-1",
 					SourceNodeStorage: "storage-1",
+					TargetNodeStorage: "storage-2",
+				},
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-1",
 					TargetNodeStorage: "storage-3",
 				},
 			},
@@ -392,7 +475,7 @@ func TestReconciler(t *testing.T) {
 				"virtual-storage-1": {
 					"relative-path-1": {
 						"storage-1": {generation: 1, assigned: true},
-						"storage-2": {generation: 0},
+						"storage-2": {generation: -1, assigned: true},
 						"storage-3": {generation: 0, assigned: true},
 					},
 				},
@@ -403,6 +486,34 @@ func TestReconciler(t *testing.T) {
 					VirtualStorage:    "virtual-storage-1",
 					RelativePath:      "relative-path-1",
 					SourceNodeStorage: "storage-1",
+					TargetNodeStorage: "storage-2",
+				},
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-1",
+					TargetNodeStorage: "storage-3",
+				},
+			},
+		},
+		{
+			desc:            "unassigned replicas are deleted",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 2, assigned: true},
+						"storage-2": {generation: -1, assigned: false},
+						"storage-3": {generation: 0, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
 					TargetNodeStorage: "storage-3",
 				},
 			},
@@ -418,6 +529,275 @@ func TestReconciler(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:            "deletes from unassigned storage if assigned nodes have the same generation",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: true},
+						"storage-3": {generation: 0, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-3",
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if assigned storage has no copy",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: -1, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-2",
+					TargetNodeStorage: "storage-1",
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if unhealthy storage contains later generation",
+			healthyStorages: storages{"virtual-storage-1": {"storage-1", "storage-2"}},
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: -1, assigned: true},
+						"storage-3": {generation: 0, assigned: false},
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if assigned storage has outdated copy",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 1, assigned: false},
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					SourceNodeStorage: "storage-2",
+					TargetNodeStorage: "storage-1",
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by a ready job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by an in-progress job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateInProgress,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't schedule a deletion if the unassigned replica is targeted by a failed job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateFailed,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						TargetNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in a ready job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in an in-progress job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateInProgress,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "doesn't delete if the unassigned replica is used as a replication source in a failed job",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateFailed,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+		},
+		{
+			desc:            "deletes if none of the active jobs are using the unassigned replica",
+			healthyStorages: configuredStorages,
+			repositories: repositories{
+				"virtual-storage-1": {
+					"relative-path-1": {
+						"storage-1": {generation: 0, assigned: true},
+						"storage-2": {generation: 0, assigned: false},
+					},
+				},
+			},
+			existingJobs: existingJobs{
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "wrong-virtual-storage",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateReady,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "wrong-relative-path",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateDead,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateCompleted,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+				{
+					State: datastore.JobStateCancelled,
+					Job: datastore.ReplicationJob{
+						VirtualStorage:    "virtual-storage-1",
+						RelativePath:      "relative-path-1",
+						SourceNodeStorage: "storage-2",
+					},
+				},
+			},
+			reconciliationJobs: jobs{
+				{
+					Change:            datastore.DeleteReplica,
+					VirtualStorage:    "virtual-storage-1",
+					RelativePath:      "relative-path-1",
+					TargetNodeStorage: "storage-2",
+				},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
@@ -430,8 +810,12 @@ func TestReconciler(t *testing.T) {
 			for virtualStorage, relativePaths := range tc.repositories {
 				for relativePath, storages := range relativePaths {
 					for storage, repo := range storages {
-						require.NoError(t, rs.SetGeneration(ctx, virtualStorage, relativePath, storage, repo.generation))
+						if repo.generation >= 0 {
+							require.NoError(t, rs.SetGeneration(ctx, virtualStorage, relativePath, storage, repo.generation))
+						}
+					}
 
+					for storage, repo := range storages {
 						if repo.assigned {
 							_, err := db.ExecContext(ctx, `
 							INSERT INTO repository_assignments VALUES ($1, $2, $3)
@@ -446,22 +830,11 @@ func TestReconciler(t *testing.T) {
 			queue := datastore.NewPostgresReplicationEventQueue(db)
 			existingJobs := make(map[uint64]bool, len(tc.existingJobs))
 			for _, existing := range tc.existingJobs {
-				event, err := queue.Enqueue(ctx, existing)
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO replication_queue (state, job)
+					VALUES ($1, $2)
+				`, existing.State, existing.Job)
 				require.NoError(t, err)
-				existingJobs[event.ID] = true
-
-				if existing.State == datastore.JobStateCompleted ||
-					existing.State == datastore.JobStateDead ||
-					existing.State == datastore.JobStateCancelled {
-					// get the event in the correct state.
-					event, err := queue.Dequeue(ctx, existing.Job.VirtualStorage, existing.Job.TargetNodeStorage, 1)
-					require.NoError(t, err)
-					require.Len(t, event, 1)
-
-					acked, err := queue.Acknowledge(ctx, existing.State, []uint64{event[0].ID})
-					require.NoError(t, err)
-					require.Equal(t, []uint64{event[0].ID}, acked)
-				}
 			}
 
 			runCtx, cancelRun := context.WithCancel(ctx)
