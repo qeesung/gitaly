@@ -7,6 +7,12 @@ import (
 	"fmt"
 )
 
+// IndexError marks an error that was produced by perfroming an invalid operation on the index.
+type IndexError struct{ Message string }
+
+// Error returns the error message of the index error.
+func (err IndexError) Error() string { return err.Message }
+
 // InvalidArgumentError is returned when an invalid argument is provided.
 type InvalidArgumentError string
 
