@@ -165,41 +165,47 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) (fina
 	// in some cases the client will close the stream, signaling the end of a request/response cycle. If we wait for s2cErrChan, we are effectively
 	// forcing the client to close the stream.
 	var primaryProxied, secondariesProxied bool
+	var clientErr, secondaryErr, primaryErr error
+
 	for !(primaryProxied && secondariesProxied) {
 		select {
-		case c2sErr := <-c2sErrChan:
-			if c2sErr != nil {
+		case clientErr = <-c2sErrChan:
+			if clientErr != nil {
 				// we may have gotten a receive error (stream disconnected, a read error etc) in which case we need
 				// to cancel the clientStream to the backend, let all of its goroutines be freed up by the CancelFunc and
 				// exit with an error to the stack
 				cancelStreams(allStreams)
-				return status.Errorf(codes.Internal, "failed proxying c2s: %v", c2sErr)
 			}
-		case secondaryErr := <-secondaryErrChan:
-			if secondaryErr != nil {
-				return status.Errorf(codes.Internal, "failed proxying to secondary: %v", secondaryErr)
-			}
+		case secondaryErr = <-secondaryErrChan:
 			secondariesProxied = true
-		case p2cErr := <-p2cErrChan:
+		case primaryErr = <-p2cErrChan:
 			// This happens when the clientStream has nothing else to offer (io.EOF), returned a gRPC error. In those two
 			// cases we may have received Trailers as part of the call. In case of other errors (stream closed) the trailers
 			// will be nil.
 			trailer := primaryClientStream.Trailer()
 			serverStream.SetTrailer(trailer)
 			// c2sErr will contain RPC error from client code. If not io.EOF return the RPC error as server stream error.
-			if p2cErr != io.EOF {
+			if primaryErr != io.EOF {
 				// If there is an error from the primary, we want to cancel all streams
 				cancelStreams(allStreams)
-
-				if trailer != nil {
-					// we must not propagate Gitaly errors into Sentry
-					sentryhandler.MarkToSkip(serverStream.Context())
-				}
-				return p2cErr
 			}
 
 			primaryProxied = true
 		}
+	}
+
+	if clientErr != nil {
+		return status.Errorf(codes.Internal, "failed proxying c2s: %v", clientErr)
+	}
+
+	if primaryErr != nil && primaryErr != io.EOF {
+		// we must not propagate Gitaly errors into Sentry
+		sentryhandler.MarkToSkip(serverStream.Context())
+		return primaryErr
+	}
+
+	if secondaryErr != nil {
+		return status.Errorf(codes.Internal, "failed proxying to secondary: %v", secondaryErr)
 	}
 
 	return nil
