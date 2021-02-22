@@ -37,8 +37,9 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
+	gitSetup := testhelper.SetupGit(config.Config, testhelper.WithRepoAt(repoPath))
 	bigMessage := "An empty commit with REALLY BIG message\n\n" + strings.Repeat("MOAR!\n", 20*1024)
-	bigCommitID := testhelper.CreateCommit(t, repoPath, "local-big-commits", &testhelper.CreateCommitOpts{
+	bigCommitID := gitSetup.CreateCommit(t, "local-big-commits", &testhelper.CreateCommitOpts{
 		Message:  bigMessage,
 		ParentID: "60ecb67744cb56576c30214ff52294f8ce2def98",
 	})

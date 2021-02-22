@@ -21,9 +21,58 @@ type CreateCommitOpts struct {
 }
 
 const (
-	committerName  = "Scrooge McDuck"
-	committerEmail = "scrooge@mcduck.com"
+	// CommitterName is pre-defined hardcoded name of the committer.
+	CommitterName = "Scrooge McDuck"
+	// CommitterEmail is pre-defined hardcoded email of the committer.
+	CommitterEmail = "scrooge@mcduck.com"
+	// AuthorName is pre-defined hardcoded name of the commit author.
+	AuthorName = CommitterName
+	// AuthorEmail is pre-defined hardcoded email of the commit author.
+	AuthorEmail = CommitterEmail
+	// DefaultParentCommitHash is a hash of the commit used as a parent for the new commits.
+	DefaultParentCommitHash = "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
+	// DefaultCommitMessage is the message used in the commit if no value provided.
+	DefaultCommitMessage = "message"
 )
+
+// CreateCommit makes a new empty commit and updates the named branch to point to it.
+func (gs GitSetup) CreateCommit(t testing.TB, branchName string, opts *CreateCommitOpts) string {
+	gs.requireRepoPath(t)
+
+	if gs.Stdin != nil {
+		require.FailNow(t, "stdin set in the setup, it will be overridden by commit message")
+	}
+
+	if opts != nil {
+		if opts.Message == "" {
+			opts.Message = DefaultCommitMessage
+		}
+
+		if opts.ParentID == "" {
+			opts.ParentID = DefaultParentCommitHash
+		}
+	} else {
+		opts = &CreateCommitOpts{
+			Message:  DefaultCommitMessage,
+			ParentID: DefaultParentCommitHash,
+		}
+	}
+
+	gitSetup := gs.Configure(
+		// message can be very large, passing it directly in args would blow things up!
+		WithStdin(bytes.NewBufferString(opts.Message)),
+		ByScroogeMcDuck(),
+	)
+
+	// Use 'commit-tree' instead of 'commit' because we are in a bare
+	// repository. What we do here is the same as:
+	//	git commit -m message --allow-empty
+	newCommitID := text.ChompBytes(gitSetup.Exec(t, "commit-tree", "-F", "-", "-p", opts.ParentID, opts.ParentID+"^{tree}"))
+
+	gs.Exec(t, "update-ref", "refs/heads/"+branchName, newCommitID)
+
+	return newCommitID
+}
 
 // CreateCommit makes a new empty commit and updates the named branch to point to it.
 func CreateCommit(t testing.TB, repoPath, branchName string, opts *CreateCommitOpts) string {
@@ -48,8 +97,8 @@ func CreateCommit(t testing.TB, repoPath, branchName string, opts *CreateCommitO
 	// repository. What we do here is the same as "commit -m message
 	// --allow-empty".
 	commitArgs := []string{
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"-c", fmt.Sprintf("user.name=%s", CommitterName),
+		"-c", fmt.Sprintf("user.email=%s", CommitterEmail),
 		"-C", repoPath,
 		"commit-tree", "-F", "-", "-p", parentID, parentID + "^{tree}",
 	}
@@ -99,8 +148,8 @@ func CommitBlobWithName(t testing.TB, testRepoPath, blobID, fileName, commitMess
 
 	return text.ChompBytes(
 		MustRunCommand(t, nil, "git",
-			"-c", fmt.Sprintf("user.name=%s", committerName),
-			"-c", fmt.Sprintf("user.email=%s", committerEmail),
+			"-c", fmt.Sprintf("user.name=%s", CommitterName),
+			"-c", fmt.Sprintf("user.email=%s", CommitterEmail),
 			"-C", testRepoPath, "commit-tree", treeID, "-m", commitMessage),
 	)
 }

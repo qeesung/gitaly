@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -28,8 +29,9 @@ func TestSuccessfulGetCommitMessagesRequest(t *testing.T) {
 	message1 := strings.Repeat("a\n", helper.MaxCommitOrTagMessageSize*2)
 	message2 := strings.Repeat("b\n", helper.MaxCommitOrTagMessageSize*2)
 
-	commit1ID := testhelper.CreateCommit(t, testRepoPath, "local-big-commits", &testhelper.CreateCommitOpts{Message: message1})
-	commit2ID := testhelper.CreateCommit(t, testRepoPath, "local-big-commits", &testhelper.CreateCommitOpts{Message: message2, ParentID: commit1ID})
+	gitSetup := testhelper.SetupGit(config.Config, testhelper.WithRepoAt(testRepoPath))
+	commit1ID := gitSetup.CreateCommit(t, "local-big-commits", &testhelper.CreateCommitOpts{Message: message1})
+	commit2ID := gitSetup.CreateCommit(t, "local-big-commits", &testhelper.CreateCommitOpts{Message: message2, ParentID: commit1ID})
 
 	request := &gitalypb.GetCommitMessagesRequest{
 		Repository: testRepo,
