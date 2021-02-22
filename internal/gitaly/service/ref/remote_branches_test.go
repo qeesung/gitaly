@@ -37,12 +37,14 @@ func TestSuccessfulFindAllRemoteBranchesRequest(t *testing.T) {
 		"from-another-remote": "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
 	}
 
+	gitSetup := testhelper.SetupGit(config.Config, testhelper.WithRepoAt(repoPath))
+
 	for branchName, commitID := range expectedBranches {
-		testhelper.CreateRemoteBranch(t, config.Config.Git.BinPath, repoPath, remoteName, branchName, commitID)
+		gitSetup.CreateRemoteBranch(t, remoteName, branchName, commitID)
 	}
 
 	for branchName, commitID := range excludedBranches {
-		testhelper.CreateRemoteBranch(t, config.Config.Git.BinPath, repoPath, excludedRemote, branchName, commitID)
+		gitSetup.CreateRemoteBranch(t, excludedRemote, branchName, commitID)
 	}
 
 	request := &gitalypb.FindAllRemoteBranchesRequest{Repository: repoProto, RemoteName: remoteName}
