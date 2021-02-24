@@ -6,22 +6,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 )
 
 func TestWithRefHook(t *testing.T) {
-	testRepo, _, cleanup := testhelper.NewTestRepo(t)
-	defer cleanup()
+	cfgBuilder := testcfg.NewGitalyCfgBuilder()
+	defer cfgBuilder.Cleanup()
+	cfg, repos := cfgBuilder.BuildWithRepoAt(t, "repository")
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	const token = "my-super-secure-token"
-	defer func(oldToken string) { config.Config.Auth.Token = oldToken }(config.Config.Auth.Token)
-	config.Config.Auth.Token = token
-
-	opt := WithRefTxHook(ctx, testRepo, config.Config)
+	opt := WithRefTxHook(ctx, repos[0], cfg)
 	subCmd := SubCmd{Name: "update-ref", Args: []string{"refs/heads/master", ZeroOID.String()}}
 
 	for _, tt := range []struct {
@@ -31,7 +28,7 @@ func TestWithRefHook(t *testing.T) {
 		{
 			name: "NewCommand",
 			fn: func() (*command.Command, error) {
-				return NewExecCommandFactory(config.Config).New(ctx, testRepo, nil, subCmd, opt)
+				return NewExecCommandFactory(cfg).New(ctx, repos[0], nil, subCmd, opt)
 			},
 		},
 	} {

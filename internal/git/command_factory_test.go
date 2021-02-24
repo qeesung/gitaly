@@ -9,12 +9,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 )
 
 func TestGitCommandProxy(t *testing.T) {
+	cfgBuilder := testcfg.NewGitalyCfgBuilder()
+	defer cfgBuilder.Cleanup()
+	cfg := cfgBuilder.Build(t)
+
 	requestReceived := false
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +36,7 @@ func TestGitCommandProxy(t *testing.T) {
 	dir, cleanup := testhelper.TempDir(t)
 	defer cleanup()
 
-	gitCmdFactory := NewExecCommandFactory(config.Config)
+	gitCmdFactory := NewExecCommandFactory(cfg)
 	cmd, err := gitCmdFactory.NewWithoutRepo(ctx, nil, SubCmd{
 		Name: "clone",
 		Args: []string{"http://gitlab.com/bogus-repo", dir},
@@ -45,7 +49,11 @@ func TestGitCommandProxy(t *testing.T) {
 }
 
 func TestExecCommandFactory_NewWithDir(t *testing.T) {
-	gitCmdFactory := NewExecCommandFactory(config.Config)
+	cfgBuilder := testcfg.NewGitalyCfgBuilder()
+	defer cfgBuilder.Cleanup()
+	cfg := cfgBuilder.Build(t)
+
+	gitCmdFactory := NewExecCommandFactory(cfg)
 
 	t.Run("no dir specified", func(t *testing.T) {
 		ctx, cancel := testhelper.Context()
