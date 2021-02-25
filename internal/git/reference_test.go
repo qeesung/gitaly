@@ -4,15 +4,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 )
 
 func TestCheckRefFormat(t *testing.T) {
+	cfgBuilder := testcfg.NewGitalyCfgBuilder()
+	defer cfgBuilder.Cleanup()
+	cfg := cfgBuilder.Build(t)
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	gitCmdFactory := NewExecCommandFactory(config.Config)
+	gitCmdFactory := NewExecCommandFactory(cfg)
 
 	for _, tc := range []struct {
 		desc    string
