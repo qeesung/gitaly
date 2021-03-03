@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 )
 
 const (
-	maxPktSize = 0xffff
+	maxPktSize = 65520 // https://gitlab.com/gitlab-org/git/-/blob/v2.30.0/pkt-line.h#L216
 	pktDelim   = "0001"
 )
 
@@ -107,4 +108,67 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 	}
 
 	return pktLength, data[:pktLength], nil
+}
+
+// SidebandWriter multiplexes byte streams into a single sideband64k stream.
+type SidebandWriter struct {
+	W io.Writer
+	m sync.Mutex
+}
+
+func (sw *SidebandWriter) writeBand(band byte, p []byte) (int, error) {
+	sw.m.Lock()
+	defer sw.m.Unlock()
+
+	n := 0
+	for len(p) > 0 {
+		m := len(p)
+		const headerSize = 5
+		if max := maxPktSize - headerSize; m > max {
+			m = max
+		}
+
+		if _, err := fmt.Fprintf(sw.W, "%04x%s", m+headerSize, []byte{band}); err != nil {
+			return n, err
+		}
+
+		if _, err := sw.W.Write(p[:m]); err != nil {
+			return n, err
+		}
+		p = p[m:]
+		n += m
+	}
+
+	return n, nil
+}
+
+// Writer returns an io.Writer that writes into the multiplexed stream.
+// Writers for different bands can be used concurrently.
+func (sw *SidebandWriter) Writer(band byte) io.Writer {
+	return writerFunc(func(p []byte) (int, error) {
+		return sw.writeBand(band, p)
+	})
+}
+
+type writerFunc func([]byte) (int, error)
+
+func (wf writerFunc) Write(p []byte) (int, error) { return wf(p) }
+
+// EachSidebandPacket iterates over a sideband64k pktline stream. For
+// each packet, it will call fn with the band ID and the packet. Fn must
+// not retain the packet.
+func EachSidebandPacket(r io.Reader, fn func(byte, []byte) error) error {
+	scanner := NewScanner(r)
+
+	for scanner.Scan() {
+		data := Data(scanner.Bytes())
+		if len(data) == 0 {
+			return fmt.Errorf("invalid sideband packet: %q", scanner.Text())
+		}
+		if err := fn(data[0], data[1:]); err != nil {
+			return err
+		}
+	}
+
+	return scanner.Err()
 }
