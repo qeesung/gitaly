@@ -288,7 +288,7 @@ module Gitlab
 
           with_worktree(worktree, branch, sparse_checkout_files: diff_files, env: env) do
             run_git!(
-              %W[rebase #{commit.sha}],
+              %W[rebase --rebase-merges #{commit.sha}],
               chdir: worktree.path, env: env, include_stderr: true
             )
 
