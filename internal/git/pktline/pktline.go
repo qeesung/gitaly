@@ -101,7 +101,7 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 		// data contains incomplete packet
 
 		if atEOF {
-			return 0, nil, fmt.Errorf("pktLineSplitter: less than %d bytes in input %q", pktLength, data)
+			return 0, nil, io.ErrUnexpectedEOF
 		}
 
 		return 0, nil, nil // want more data
@@ -110,33 +110,36 @@ func pktLineSplitter(data []byte, atEOF bool) (advance int, token []byte, err er
 	return pktLength, data[:pktLength], nil
 }
 
-// SidebandWriter multiplexes byte streams into a single sideband64k stream.
+// SidebandWriter multiplexes byte streams into a single side-band-64k stream.
 type SidebandWriter struct {
-	W io.Writer
+	w io.Writer
 	m sync.Mutex
 }
 
-func (sw *SidebandWriter) writeBand(band byte, p []byte) (int, error) {
+// NewSidebandWriter instantiates a new SidebandWriter.
+func NewSidebandWriter(w io.Writer) *SidebandWriter { return &SidebandWriter{w: w} }
+
+func (sw *SidebandWriter) writeBand(band byte, data []byte) (int, error) {
 	sw.m.Lock()
 	defer sw.m.Unlock()
 
 	n := 0
-	for len(p) > 0 {
-		m := len(p)
+	for len(data) > 0 {
+		chunkSize := len(data)
 		const headerSize = 5
-		if max := maxPktSize - headerSize; m > max {
-			m = max
+		if max := maxPktSize - headerSize; chunkSize > max {
+			chunkSize = max
 		}
 
-		if _, err := fmt.Fprintf(sw.W, "%04x%s", m+headerSize, []byte{band}); err != nil {
+		if _, err := fmt.Fprintf(sw.w, "%04x%s", chunkSize+headerSize, []byte{band}); err != nil {
 			return n, err
 		}
 
-		if _, err := sw.W.Write(p[:m]); err != nil {
+		if _, err := sw.w.Write(data[:chunkSize]); err != nil {
 			return n, err
 		}
-		p = p[m:]
-		n += m
+		data = data[chunkSize:]
+		n += chunkSize
 	}
 
 	return n, nil
@@ -154,7 +157,11 @@ type writerFunc func([]byte) (int, error)
 
 func (wf writerFunc) Write(p []byte) (int, error) { return wf(p) }
 
-// EachSidebandPacket iterates over a sideband64k pktline stream. For
+type errNotSideband struct{ pkt string }
+
+func (err *errNotSideband) Error() string { return fmt.Sprintf("invalid sideband packet: %q", err.pkt) }
+
+// EachSidebandPacket iterates over a side-band-64k pktline stream. For
 // each packet, it will call fn with the band ID and the packet. Fn must
 // not retain the packet.
 func EachSidebandPacket(r io.Reader, fn func(byte, []byte) error) error {
@@ -163,7 +170,7 @@ func EachSidebandPacket(r io.Reader, fn func(byte, []byte) error) error {
 	for scanner.Scan() {
 		data := Data(scanner.Bytes())
 		if len(data) == 0 {
-			return fmt.Errorf("invalid sideband packet: %q", scanner.Text())
+			return &errNotSideband{scanner.Text()}
 		}
 		if err := fn(data[0], data[1:]); err != nil {
 			return err

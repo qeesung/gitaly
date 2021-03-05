@@ -204,7 +204,7 @@ func TestSidebandWriter_boundaries(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			w := (&SidebandWriter{W: buf}).Writer(tc.band)
+			w := NewSidebandWriter(buf).Writer(tc.band)
 
 			n, err := w.Write([]byte(tc.in))
 			require.NoError(t, err)
@@ -219,7 +219,7 @@ func TestSidebandWriter_concurrency(t *testing.T) {
 	const N = math.MaxUint8 + 1
 
 	buf := &bytes.Buffer{}
-	sw := &SidebandWriter{W: buf}
+	sw := NewSidebandWriter(buf)
 	inputs := make([][]byte, N)
 	writeErrors := make(chan error, N)
 	start := make(chan struct{})
@@ -268,11 +268,13 @@ func TestSidebandWriter_concurrency(t *testing.T) {
 }
 
 func TestEachSidebandPacket(t *testing.T) {
+	callbackError := errors.New("callback failed")
+
 	testCases := []struct {
 		desc     string
 		in       string
 		out      map[byte]string
-		fail     bool
+		err      error
 		callback func(byte, []byte) error
 	}{
 		{
@@ -292,18 +294,18 @@ func TestEachSidebandPacket(t *testing.T) {
 		{
 			desc:     "valid stream, failing callback",
 			in:       "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz",
-			callback: func(byte, []byte) error { return errors.New("some error") },
-			fail:     true,
+			callback: func(byte, []byte) error { return callbackError },
+			err:      callbackError,
 		},
 		{
 			desc: "interrupted stream",
 			in:   "ffff\x10hello world!!",
-			fail: true,
+			err:  io.ErrUnexpectedEOF,
 		},
 		{
 			desc: "stream without band",
 			in:   "0004",
-			fail: true,
+			err:  &errNotSideband{pkt: "0004"},
 		},
 	}
 
@@ -319,8 +321,8 @@ func TestEachSidebandPacket(t *testing.T) {
 			}
 
 			err := EachSidebandPacket(strings.NewReader(tc.in), callback)
-			if tc.fail {
-				require.Error(t, err)
+			if tc.err != nil {
+				require.Equal(t, tc.err, err)
 				return
 			}
 
