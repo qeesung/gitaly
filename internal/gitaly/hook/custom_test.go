@@ -12,10 +12,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
@@ -49,8 +50,17 @@ var successScript = []byte(`#!/bin/bash
 echo "$0"
 exit 0`)
 
+func setup(t *testing.T) (config.Cfg, *gitalypb.Repository, string, testhelper.Cleanup) {
+	cfgBuilder := testcfg.NewGitalyCfgBuilder()
+
+	cfg, repos := cfgBuilder.BuildWithRepoAt(t, t.Name())
+	testRepoPath := filepath.Join(cfg.Storages[0].Path, repos[0].RelativePath)
+
+	return cfg, repos[0], testRepoPath, cfgBuilder.Cleanup
+}
+
 func TestCustomHooksSuccess(t *testing.T) {
-	testRepo, testRepoPath, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, testRepoPath, cleanup := setup(t)
 	defer cleanup()
 
 	testCases := []struct {
@@ -85,23 +95,24 @@ func TestCustomHooksSuccess(t *testing.T) {
 			globalCustomHooksDir, cleanupGlobalDir := testhelper.TempDir(t)
 			defer cleanupGlobalDir()
 
+			locator := config.NewLocator(cfg)
 			// hook is in project custom hook directory <repository>.git/custom_hooks/<hook_name>
 			hookDir := filepath.Join(testRepoPath, "custom_hooks")
-			callAndVerifyHooks(t, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
+			callAndVerifyHooks(t, locator, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
 
 			// hook is in project custom hooks directory <repository>.git/custom_hooks/<hook_name>.d/*
 			hookDir = filepath.Join(testRepoPath, "custom_hooks", fmt.Sprintf("%s.d", tc.hookName))
-			callAndVerifyHooks(t, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
+			callAndVerifyHooks(t, locator, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
 
 			// hook is in global custom hooks directory <global_custom_hooks_dir>/<hook_name>.d/*
 			hookDir = filepath.Join(globalCustomHooksDir, fmt.Sprintf("%s.d", tc.hookName))
-			callAndVerifyHooks(t, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
+			callAndVerifyHooks(t, locator, testRepo, tc.hookName, globalCustomHooksDir, hookDir, tc.stdin, tc.args, tc.env)
 		})
 	}
 }
 
 func TestCustomHookPartialFailure(t *testing.T) {
-	testRepo, testRepoPath, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, testRepoPath, cleanup := setup(t)
 	defer cleanup()
 
 	globalCustomHooksDir, cleanup := testhelper.TempDir(t)
@@ -151,7 +162,7 @@ func TestCustomHookPartialFailure(t *testing.T) {
 			defer cleanup()
 
 			mgr := GitLabHookManager{
-				locator: config.NewLocator(config.Config),
+				locator: config.NewLocator(cfg),
 				hooksConfig: config.Hooks{
 					CustomHooksDir: globalCustomHooksDir,
 				},
@@ -177,7 +188,7 @@ func TestCustomHookPartialFailure(t *testing.T) {
 }
 
 func TestCustomHooksMultipleHooks(t *testing.T) {
-	testRepo, testRepoPath, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, testRepoPath, cleanup := setup(t)
 	defer cleanup()
 
 	globalCustomHooksDir, cleanup := testhelper.TempDir(t)
@@ -206,7 +217,7 @@ func TestCustomHooksMultipleHooks(t *testing.T) {
 	}
 
 	mgr := GitLabHookManager{
-		locator: config.NewLocator(config.Config),
+		locator: config.NewLocator(cfg),
 		hooksConfig: config.Hooks{
 			CustomHooksDir: globalCustomHooksDir,
 		},
@@ -227,7 +238,7 @@ func TestCustomHooksMultipleHooks(t *testing.T) {
 }
 
 func TestCustomHooksWithSymlinks(t *testing.T) {
-	testRepo, _, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, _, cleanup := setup(t)
 	defer cleanup()
 
 	globalCustomHooksDir, cleanup := testhelper.TempDir(t)
@@ -278,7 +289,7 @@ func TestCustomHooksWithSymlinks(t *testing.T) {
 	expectedExecutedScripts := []string{updateHookPath, updateTildePath}
 
 	mgr := GitLabHookManager{
-		locator: config.NewLocator(config.Config),
+		locator: config.NewLocator(cfg),
 		hooksConfig: config.Hooks{
 			CustomHooksDir: globalCustomHooksDir,
 		},
@@ -298,7 +309,7 @@ func TestCustomHooksWithSymlinks(t *testing.T) {
 }
 
 func TestMultilineStdin(t *testing.T) {
-	testRepo, testRepoPath, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, testRepoPath, cleanup := setup(t)
 	defer cleanup()
 
 	globalCustomHooksDir, cleanup := testhelper.TempDir(t)
@@ -311,7 +322,7 @@ func TestMultilineStdin(t *testing.T) {
 
 	writeCustomHook(t, "pre-receive-script", projectHooksPath, printStdinScript)
 	mgr := GitLabHookManager{
-		locator: config.NewLocator(config.Config),
+		locator: config.NewLocator(cfg),
 		hooksConfig: config.Hooks{
 			CustomHooksDir: globalCustomHooksDir,
 		},
@@ -332,7 +343,7 @@ old3 new3 ref3
 }
 
 func TestMultipleScriptsStdin(t *testing.T) {
-	testRepo, testRepoPath, cleanup := gittest.CloneRepo(t)
+	cfg, testRepo, testRepoPath, cleanup := setup(t)
 	defer cleanup()
 
 	globalCustomHooksDir, cleanup := testhelper.TempDir(t)
@@ -350,7 +361,7 @@ func TestMultipleScriptsStdin(t *testing.T) {
 	}
 
 	mgr := GitLabHookManager{
-		locator: config.NewLocator(config.Config),
+		locator: config.NewLocator(cfg),
 		hooksConfig: config.Hooks{
 			CustomHooksDir: globalCustomHooksDir,
 		},
@@ -373,7 +384,7 @@ func TestMultipleScriptsStdin(t *testing.T) {
 	}
 }
 
-func callAndVerifyHooks(t *testing.T, repo *gitalypb.Repository, hookName, globalHooksDir, hookDir, stdin string, args, env []string) {
+func callAndVerifyHooks(t *testing.T, locator storage.Locator, repo *gitalypb.Repository, hookName, globalHooksDir, hookDir, stdin string, args, env []string) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 	var stdout, stderr bytes.Buffer
@@ -382,7 +393,7 @@ func callAndVerifyHooks(t *testing.T, repo *gitalypb.Repository, hookName, globa
 	defer cleanup()
 
 	mgr := GitLabHookManager{
-		locator: config.NewLocator(config.Config),
+		locator: locator,
 		hooksConfig: config.Hooks{
 			CustomHooksDir: globalHooksDir,
 		},
