@@ -22,6 +22,7 @@ SOURCE_DIR       := $(abspath $(dir $(lastword ${MAKEFILE_LIST})))
 BUILD_DIR        := ${SOURCE_DIR}/_build
 COVERAGE_DIR     := ${BUILD_DIR}/cover
 DEPENDENCY_DIR   := ${BUILD_DIR}/deps
+TOOLS_DIR        := ${BUILD_DIR}/tools
 GITALY_RUBY_DIR  := ${SOURCE_DIR}/ruby
 
 # These variables may be overridden at runtime by top-level make
@@ -35,15 +36,15 @@ GIT_PREFIX       ?= ${GIT_INSTALL_DIR}
 
 # Tools
 GIT               := $(shell which git)
-PROTOC            := ${BUILD_DIR}/protoc/bin/protoc
-GOIMPORTS         := ${BUILD_DIR}/tools/goimports
-GITALYFMT         := ${BUILD_DIR}/tools/gitalyfmt
-GOLANGCI_LINT     := ${BUILD_DIR}/tools/golangci-lint
-GO_LICENSES       := ${BUILD_DIR}/tools/go-licenses
-PROTOC_GEN_GO     := ${BUILD_DIR}/tools/protoc-gen-go
-PROTOC_GEN_GITALY := ${BUILD_DIR}/tools/protoc-gen-gitaly
-GO_JUNIT_REPORT   := ${BUILD_DIR}/tools/go-junit-report
-GOCOVER_COBERTURA := ${BUILD_DIR}/tools/gocover-cobertura
+GOIMPORTS         := ${TOOLS_DIR}/goimports
+GITALYFMT         := ${TOOLS_DIR}/gitalyfmt
+GOLANGCI_LINT     := ${TOOLS_DIR}/golangci-lint
+GO_LICENSES       := ${TOOLS_DIR}/go-licenses
+PROTOC            := ${TOOLS_DIR}/protoc/bin/protoc
+PROTOC_GEN_GO     := ${TOOLS_DIR}/protoc-gen-go
+PROTOC_GEN_GITALY := ${TOOLS_DIR}/protoc-gen-gitaly
+GO_JUNIT_REPORT   := ${TOOLS_DIR}/go-junit-report
+GOCOVER_COBERTURA := ${TOOLS_DIR}/gocover-cobertura
 
 # Tool options
 GOLANGCI_LINT_OPTIONS ?=
@@ -391,8 +392,8 @@ ${BUILD_DIR}:
 	${Q}mkdir -p ${BUILD_DIR}
 ${BUILD_DIR}/bin: | ${BUILD_DIR}
 	${Q}mkdir -p ${BUILD_DIR}/bin
-${BUILD_DIR}/tools: | ${BUILD_DIR}
-	${Q}mkdir -p ${BUILD_DIR}/tools
+${TOOLS_DIR}: | ${BUILD_DIR}
+	${Q}mkdir -p ${TOOLS_DIR}
 ${DEPENDENCY_DIR}: | ${BUILD_DIR}
 	${Q}mkdir -p ${DEPENDENCY_DIR}
 
@@ -411,6 +412,8 @@ ${DEPENDENCY_DIR}/libgit2.version: dependency-version | ${DEPENDENCY_DIR}
 	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${LIBGIT2_VERSION}" ] || >$@ echo -n "${LIBGIT2_VERSION}"
 ${DEPENDENCY_DIR}/git.version: dependency-version | ${DEPENDENCY_DIR}
 	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${GIT_VERSION}" ] || >$@ echo -n "${GIT_VERSION}"
+${TOOLS_DIR}/protoc.version: dependency-version | ${TOOLS_DIR}
+	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${PROTOC_VERSION}" ] || >$@ echo -n "${PROTOC_VERSION}"
 
 ${LIBGIT2_INSTALL_DIR}/lib/libgit2.a: ${DEPENDENCY_DIR}/libgit2.version
 	${Q}${GIT} init --initial-branch=master ${GIT_QUIET} ${LIBGIT2_SOURCE_DIR}
@@ -446,32 +449,32 @@ ${GIT_INSTALL_DIR}/bin/git: ${DEPENDENCY_DIR}/git_full_bins.tgz
 	tar -C ${GIT_INSTALL_DIR} -xvzf ${DEPENDENCY_DIR}/git_full_bins.tgz
 endif
 
-${BUILD_DIR}/protoc.zip: ${BUILD_DIR}/Makefile.sha256
+${TOOLS_DIR}/protoc.zip: ${TOOLS_DIR}/protoc.version
 	${Q}if [ -z "${PROTOC_URL}" ]; then echo "Cannot generate protos on unsupported platform ${OS}" && exit 1; fi
 	curl -o $@.tmp --silent --show-error -L ${PROTOC_URL}
 	${Q}printf '${PROTOC_HASH}  $@.tmp' | sha256sum -c -
 	${Q}mv $@.tmp $@
 
-${PROTOC}: ${BUILD_DIR}/protoc.zip | ${BUILD_DIR}
-	${Q}rm -rf ${BUILD_DIR}/protoc
-	${Q}mkdir -p ${BUILD_DIR}/protoc
-	cd ${BUILD_DIR}/protoc && unzip ${BUILD_DIR}/protoc.zip
+${PROTOC}: ${TOOLS_DIR}/protoc.zip
+	${Q}rm -rf ${TOOLS_DIR}/protoc
+	${Q}unzip -q -d ${TOOLS_DIR}/protoc ${TOOLS_DIR}/protoc.zip
+	${Q}touch $@
 
 # We're using per-tool go.mod files in order to avoid conflicts in the graph in
 # case we used a single go.mod file for all tools.
-${BUILD_DIR}/tools/%/go.mod: | ${BUILD_DIR}/tools
+${TOOLS_DIR}/%/go.mod: | ${TOOLS_DIR}
 	${Q}mkdir -p $(dir $@)
 	${Q}cd $(dir $@) && go mod init _build
 
-${BUILD_DIR}/tools/%: GOBIN = ${BUILD_DIR}/tools
-${BUILD_DIR}/tools/%: ${BUILD_DIR}/Makefile.sha256 ${BUILD_DIR}/tools/.%/go.mod
-	${Q}cd ${BUILD_DIR}/tools/.$(notdir $@) && go get ${TOOL_PACKAGE}
+${TOOLS_DIR}/%: GOBIN = ${TOOLS_DIR}
+${TOOLS_DIR}/%: ${BUILD_DIR}/Makefile.sha256 ${TOOLS_DIR}/.%/go.mod
+	${Q}cd ${TOOLS_DIR}/.$(notdir $@) && go get ${TOOL_PACKAGE}
 
 # Tools hosted by Gitaly itself
-${GITALYFMT}: | ${BUILD_DIR}/tools
+${GITALYFMT}: | ${TOOLS_DIR}
 	${Q}go build -o $@ ${SOURCE_DIR}/internal/cmd/gitalyfmt
 
-${PROTOC_GEN_GITALY}: proto | ${BUILD_DIR}/tools
+${PROTOC_GEN_GITALY}: proto | ${TOOLS_DIR}
 	${Q}go build -o $@ ${SOURCE_DIR}/proto/go/internal/cmd/protoc-gen-gitaly
 
 # External tools
