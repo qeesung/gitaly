@@ -457,8 +457,8 @@ ${TOOLS_DIR}/protoc.zip: ${TOOLS_DIR}/protoc.version
 
 ${PROTOC}: ${TOOLS_DIR}/protoc.zip
 	${Q}rm -rf ${TOOLS_DIR}/protoc
-	${Q}mkdir -p ${TOOLS_DIR}/protoc
-	cd ${TOOLS_DIR}/protoc && unzip ${TOOLS_DIR}/protoc.zip
+	${Q}unzip -q -d ${TOOLS_DIR}/protoc ${TOOLS_DIR}/protoc.zip
+	${Q}touch $@
 
 # We're using per-tool go.mod files in order to avoid conflicts in the graph in
 # case we used a single go.mod file for all tools.
