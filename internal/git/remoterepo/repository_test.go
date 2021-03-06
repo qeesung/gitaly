@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/git/remoterepo"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
@@ -19,7 +20,7 @@ func TestRepository(t *testing.T) {
 	cfg, cleanup := testcfg.Build(t)
 	defer cleanup()
 
-	serverSocketPath, cleanup := testserver.RunGitalyServer(t, cfg, nil)
+	serverSocketPath, cleanup := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()

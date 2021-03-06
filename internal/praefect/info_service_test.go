@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	gconfig "gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
@@ -27,7 +28,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 		cfg.Storages[i].Path = storagePath
 	}
 
-	gitalyAddr, cleanupGitaly := testserver.RunGitalyServer(t, cfg, nil)
+	gitalyAddr, cleanupGitaly := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
 	defer cleanupGitaly()
 
 	conf := config.Config{

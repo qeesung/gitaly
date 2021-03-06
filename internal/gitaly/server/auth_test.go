@@ -23,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
@@ -215,13 +216,18 @@ func runServer(t *testing.T, cfg config.Cfg) (string, func()) {
 	conns := client.NewPool()
 	locator := config.NewLocator(cfg)
 	txManager := transaction.NewManager(cfg)
-	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
 
 	srv, err := New(false, cfg, testhelper.DiscardTestEntry(t))
 	require.NoError(t, err)
 
-	service.RegisterAll(srv, cfg, rubyServer, hookManager, txManager, locator, conns, gitCmdFactory)
+	setup.RegisterAll(srv, &service.Dependencies{
+		Cfg:                cfg,
+		GitalyHookManager:  hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg),
+		TransactionManager: txManager,
+		StorageLocator:     locator,
+		ClientPool:         conns,
+		GitCmdFactory:      git.NewExecCommandFactory(cfg),
+	})
 	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(t)
 
 	listener, err := net.Listen("unix", serverSocketPath)

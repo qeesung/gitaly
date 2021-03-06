@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/conflicts"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
@@ -485,5 +486,5 @@ func testFailedResolveConflictsRequestDueToValidation(t *testing.T, ctx context.
 }
 
 func runFullServer(t *testing.T) (string, func()) {
-	return testserver.RunGitalyServer(t, config.Config, conflicts.RubyServer)
+	return testserver.RunGitalyServer(t, config.Config, conflicts.RubyServer, setup.RegisterAll)
 }

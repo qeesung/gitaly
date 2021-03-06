@@ -1,14 +1,10 @@
-package service
+package setup
 
 import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"gitlab.com/gitlab-org/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/blob"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/cleanup"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/commit"
@@ -26,8 +22,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/wiki"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -61,41 +55,35 @@ var (
 // the specified grpc service instance
 func RegisterAll(
 	grpcServer *grpc.Server,
-	cfg config.Cfg,
-	rubyServer *rubyserver.Server,
-	hookManager gitalyhook.Manager,
-	txManager transaction.Manager,
-	locator storage.Locator,
-	conns *client.Pool,
-	gitCmdFactory git.CommandFactory,
+	deps *service.Dependencies,
 ) {
-	gitalypb.RegisterBlobServiceServer(grpcServer, blob.NewServer(rubyServer, cfg, locator, gitCmdFactory))
-	gitalypb.RegisterCleanupServiceServer(grpcServer, cleanup.NewServer(cfg, gitCmdFactory))
-	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterDiffServiceServer(grpcServer, diff.NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer(locator))
-	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(cfg, rubyServer, hookManager, locator, conns, gitCmdFactory))
-	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(cfg, rubyServer, locator, txManager, gitCmdFactory))
+	gitalypb.RegisterBlobServiceServer(grpcServer, blob.NewServer(deps.GetRubyServer(), deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterCleanupServiceServer(grpcServer, cleanup.NewServer(deps.GetCfg(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterCommitServiceServer(grpcServer, commit.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterDiffServiceServer(grpcServer, diff.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterNamespaceServiceServer(grpcServer, namespace.NewServer(deps.GetLocator()))
+	gitalypb.RegisterOperationServiceServer(grpcServer, operations.NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetHookManager(), deps.GetLocator(), deps.GetConnsPool(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterRefServiceServer(grpcServer, ref.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterRepositoryServiceServer(grpcServer, repository.NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetLocator(), deps.GetTxManager(), deps.GetGitCmdFactory()))
 	gitalypb.RegisterSSHServiceServer(grpcServer, ssh.NewServer(
-		cfg,
-		locator,
-		gitCmdFactory,
+		deps.GetCfg(),
+		deps.GetLocator(),
+		deps.GetGitCmdFactory(),
 		ssh.WithPackfileNegotiationMetrics(sshPackfileNegotiationMetrics),
 	))
 	gitalypb.RegisterSmartHTTPServiceServer(grpcServer, smarthttp.NewServer(
-		cfg,
-		locator,
-		gitCmdFactory,
+		deps.GetCfg(),
+		deps.GetLocator(),
+		deps.GetGitCmdFactory(),
 		smarthttp.WithPackfileNegotiationMetrics(smarthttpPackfileNegotiationMetrics),
 	))
-	gitalypb.RegisterWikiServiceServer(grpcServer, wiki.NewServer(rubyServer, locator))
-	gitalypb.RegisterConflictsServiceServer(grpcServer, conflicts.NewServer(rubyServer, cfg, locator, gitCmdFactory))
-	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(cfg, rubyServer, locator, gitCmdFactory))
-	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer(gitCmdFactory, cfg.Storages))
-	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(cfg, hookManager, gitCmdFactory))
-	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(cfg.Storages))
+	gitalypb.RegisterWikiServiceServer(grpcServer, wiki.NewServer(deps.GetRubyServer(), deps.GetLocator()))
+	gitalypb.RegisterConflictsServiceServer(grpcServer, conflicts.NewServer(deps.GetRubyServer(), deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterRemoteServiceServer(grpcServer, remote.NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterServerServiceServer(grpcServer, server.NewServer(deps.GetGitCmdFactory(), deps.GetCfg().Storages))
+	gitalypb.RegisterObjectPoolServiceServer(grpcServer, objectpool.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterHookServiceServer(grpcServer, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterInternalGitalyServer(grpcServer, internalgitaly.NewServer(deps.GetCfg().Storages))
 
 	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 	reflection.Register(grpcServer)

@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
@@ -1041,7 +1042,7 @@ func TestBackoff(t *testing.T) {
 }
 
 func runFullGitalyServer(t *testing.T) (string, func()) {
-	return testserver.RunGitalyServer(t, gitaly_config.Config, RubyServer)
+	return testserver.RunGitalyServer(t, gitaly_config.Config, RubyServer, setup.RegisterAll)
 }
 
 // newReplicationService is a grpc service that has the SSH, Repository, Remote and ObjectPool services, which
