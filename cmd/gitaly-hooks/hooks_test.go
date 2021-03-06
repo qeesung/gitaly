@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -20,13 +21,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"google.golang.org/grpc/reflection"
 )
 
 type glHookValues struct {
@@ -289,25 +290,19 @@ func TestHooksUpdate(t *testing.T) {
 
 	config.Config.GitlabShell.Dir = tempGitlabShellDir
 
-	token := "abc123"
-	stop := runHookServiceServer(t, token)
+	stop := runHookServiceServerWithAPI(t, gitalyhook.GitlabAPIStub)
 	defer stop()
 
 	config.Config.Hooks.CustomHooksDir = customHooksDir
 
-	testHooksUpdate(t, tempGitlabShellDir, token, glHookValues{
+	testHooksUpdate(t, tempGitlabShellDir, glHookValues{
 		GLID:       glID,
 		GLUsername: glUsername,
 		GLProtocol: glProtocol,
 	})
 }
 
-func testHooksUpdate(t *testing.T, gitlabShellDir, token string, glValues glHookValues) {
-	defer func(cfg config.Cfg) {
-		config.Config = cfg
-	}(config.Config)
-	config.Config.Auth.Token = token
-
+func testHooksUpdate(t *testing.T, gitlabShellDir string, glValues glHookValues) {
 	testRepo, testRepoPath, cleanupFn := gittest.CloneRepo(t)
 	defer cleanupFn()
 
@@ -637,21 +632,22 @@ func TestCheckBadCreds(t *testing.T) {
 	require.Regexp(t, `Checking GitLab API access: .* level=error msg="Internal API error" .* error="authorization failed" method=GET status=401 url="http://127.0.0.1:[0-9]+/api/v4/internal/check"\nFAIL`, stdout.String())
 }
 
-func runHookServiceServer(t *testing.T, token string) func() {
-	return runHookServiceServerWithAPI(t, gitalyhook.GitlabAPIStub)
-}
-
 func runHookServiceServerWithAPI(t *testing.T, gitlabAPI gitalyhook.GitlabAPI) func() {
-	txManager := transaction.NewManager(config.Config)
-	hookManager := gitalyhook.NewManager(config.NewLocator(config.Config), txManager, gitlabAPI, config.Config)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
-	server := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token, testhelper.WithInternalSocket(config.Config))
+	cfg := config.Config
+	txManager := transaction.NewManager(cfg)
+	hookManager := gitalyhook.NewManager(config.NewLocator(cfg), txManager, gitlabAPI, cfg)
+	gitCmdFactory := git.NewExecCommandFactory(cfg)
 
-	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hook.NewServer(config.Config, hookManager, gitCmdFactory))
-	reflection.Register(server.GrpcServer())
-	server.Start(t)
+	srv, err := server.New(false, cfg, testhelper.DiscardTestEntry(t))
+	require.NoError(t, err)
 
-	return server.Stop
+	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, hookManager, gitCmdFactory))
+
+	listener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
+	require.NoError(t, err)
+	go srv.Serve(listener)
+
+	return srv.Stop
 }
 
 func requireContainsOnce(t *testing.T, s string, contains string) {
@@ -683,7 +679,7 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 	}(config.Config)
 
 	config.Config.Auth.Token = "abc123"
-	defer runHookServiceServer(t, config.Config.Auth.Token)()
+	defer runHookServiceServerWithAPI(t, gitalyhook.GitlabAPIStub)()
 
 	testRepo, testRepoPath, cleanupFn := gittest.CloneRepo(t)
 	defer cleanupFn()
