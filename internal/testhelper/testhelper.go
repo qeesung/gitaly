@@ -262,20 +262,26 @@ type GitalySSHParams struct {
 }
 
 // ListenGitalySSHCalls creates a script that intercepts 'gitaly-ssh' binary calls.
-// It substitutes execution path of 'gitaly-ssh' with a path to a script and returns a modified configuration to be used.
-// The second return parameter provides the list of parameters used in each invocation of the 'gitaly-ssh'.
-func ListenGitalySSHCalls(t *testing.T, conf config.Cfg) (config.Cfg, func() []GitalySSHParams, Cleanup) {
+// It replaces 'gitaly-ssh' with a interceptor script that calls actual binary after flushing env var and
+// arguments used for the binary invocation. That information will be returned back to the caller
+// after invocation of the returned anonymous function.
+func ListenGitalySSHCalls(t *testing.T, conf config.Cfg) (func() []GitalySSHParams, Cleanup) {
 	t.Helper()
 
 	if conf.BinDir == "" {
 		assert.FailNow(t, "BinDir must be set")
-		return conf, func() []GitalySSHParams { return nil }, func() {}
+		return func() []GitalySSHParams { return nil }, func() {}
 	}
 
 	const envPrefix = "env-"
 	const argsPrefix = "args-"
 
+	initialPath := filepath.Join(conf.BinDir, "gitaly-ssh")
+	updatedPath := initialPath + "-actual"
+	require.NoError(t, os.Rename(initialPath, updatedPath))
+
 	tmpDir, clean := TempDir(t)
+
 	script := fmt.Sprintf(`
 		#!/bin/sh
 
@@ -291,10 +297,9 @@ func ListenGitalySSHCalls(t *testing.T, conf config.Cfg) (config.Cfg, func() []G
 
 		%[4]q "$@" 1>&1 2>&2
 		exit $?`,
-		tmpDir, envPrefix, argsPrefix, filepath.Join(conf.BinDir, "gitaly-ssh"))
+		tmpDir, envPrefix, argsPrefix, updatedPath)
 
-	require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "gitaly-ssh"), []byte(script), 0755))
-	conf.BinDir = tmpDir
+	require.NoError(t, ioutil.WriteFile(initialPath, []byte(script), 0755))
 
 	getSSHParams := func() []GitalySSHParams {
 		var gitalySSHParams []GitalySSHParams
@@ -352,7 +357,7 @@ func ListenGitalySSHCalls(t *testing.T, conf config.Cfg) (config.Cfg, func() []G
 		return gitalySSHParams
 	}
 
-	return conf, getSSHParams, clean
+	return getSSHParams, clean
 }
 
 // AssertPathNotExists asserts true if the path doesn't exist, false otherwise

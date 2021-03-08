@@ -1,95 +1,66 @@
 package remote_test
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/remote"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ssh"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
 )
 
 func TestSuccessfulFetchInternalRemote(t *testing.T) {
-	defer func(oldConf config.Cfg) { config.Config = oldConf }(config.Config)
-
-	conf, getGitalySSHInvocationParams, cleanup := testhelper.ListenGitalySSHCalls(t, config.Config)
+	cfg, gitaly0Repo, gitaly0RepoPath, cleanup := testcfg.BuildWithRepo(t)
 	defer cleanup()
 
-	config.Config = conf
+	testhelper.ConfigureGitalyHooksBin(t, cfg)
 
-	gitaly0Dir, cleanup := testhelper.TempDir(t)
+	gitaly0Addr, cleanup := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterSSHServiceServer(srv, ssh.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterRefServiceServer(srv, ref.NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
 	defer cleanup()
 
-	gitaly1Dir, cleanup := testhelper.TempDir(t)
+	remoteCfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("gitaly-1"))
+	defer remoteCfgBuilder.Cleanup()
+	remoteCfg, gitaly1Repos := remoteCfgBuilder.BuildWithRepoAt(t, "stub")
+	gitaly1Repo := gitaly1Repos[0]
+
+	testhelper.ConfigureGitalySSHBin(t, remoteCfg)
+
+	getGitalySSHInvocationParams, cleanup := testhelper.ListenGitalySSHCalls(t, remoteCfg)
 	defer cleanup()
 
-	config.Config.Storages = append(config.Config.Storages, []config.Storage{
-		{
-			Name: "gitaly-0",
-			Path: gitaly0Dir,
-		},
-		{
-			Name: "gitaly-1",
-			Path: gitaly1Dir,
-		},
-	}...)
-
-	testhelper.ConfigureGitalyHooksBinary(config.Config.BinDir)
-
-	locator := config.NewLocator(config.Config)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
-	txManager := transaction.NewManager(config.Config)
-	hookManager := gitalyhook.NewManager(locator, txManager, gitalyhook.GitlabAPIStub, config.Config)
-	gitaly0Server := testhelper.NewServer(t, nil, nil,
-		testhelper.WithStorages([]string{"gitaly-0"}),
-		testhelper.WithInternalSocket(config.Config),
-	)
-	gitalypb.RegisterSSHServiceServer(gitaly0Server.GrpcServer(), ssh.NewServer(config.Config, locator, gitCmdFactory))
-	gitalypb.RegisterRefServiceServer(gitaly0Server.GrpcServer(), ref.NewServer(config.Config, locator, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(gitaly0Server.GrpcServer(), hook.NewServer(config.Config, hookManager, gitCmdFactory))
-	reflection.Register(gitaly0Server.GrpcServer())
-	gitaly0Server.Start(t)
-	defer gitaly0Server.Stop()
-
-	gitaly1Socket, cleanup := remote.RunRemoteServiceServer(t, testhelper.WithStorages([]string{"gitaly-1"}))
-	defer cleanup()
-
-	repo, _, cleanup := gittest.CloneRepo(t)
-	defer cleanup()
-
-	gitaly0Repo, gitaly0RepoPath, cleanup := cloneRepoAtStorage(t, locator, repo, "gitaly-0")
+	gitaly1Addr, cleanup := remote.RunRemoteServiceServer(t, remoteCfg)
 	defer cleanup()
 
 	gittest.CreateCommit(t, gitaly0RepoPath, "master", nil)
 
-	gitaly1Repo, gitaly1RepoPath, cleanup := cloneRepoAtStorage(t, locator, repo, "gitaly-1")
-	defer cleanup()
-
+	gitaly1RepoPath := filepath.Join(remoteCfg.Storages[0].Path, gitaly1Repo.GetRelativePath())
 	testhelper.MustRunCommand(t, nil, "git", "-C", gitaly1RepoPath, "symbolic-ref", "HEAD", "refs/heads/feature")
 
-	client, conn := remote.NewRemoteClient(t, "unix://"+gitaly1Socket)
+	client, conn := remote.NewRemoteClient(t, gitaly1Addr)
 	defer conn.Close()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ctx, err := helper.InjectGitalyServers(ctx, "gitaly-0", "unix://"+gitaly0Server.Socket(), "")
+	ctx, err := helper.InjectGitalyServers(ctx, cfg.Storages[0].Name, gitaly0Addr, "")
 	require.NoError(t, err)
 
 	c, err := client.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
@@ -113,7 +84,7 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 			"GIT_TERMINAL_PROMPT=0",
 			"GIT_SSH_VARIANT=simple",
 			"LANG=en_US.UTF-8",
-			"GITALY_ADDRESS=unix://" + gitaly0Server.Socket(),
+			"GITALY_ADDRESS=" + gitaly0Addr,
 		},
 	)
 }
@@ -185,21 +156,4 @@ func TestFailedFetchInternalRemoteDueToValidations(t *testing.T) {
 
 func runFullServer(t *testing.T) (string, func()) {
 	return testserver.RunGitalyServer(t, config.Config, remote.RubyServer, setup.RegisterAll)
-}
-
-func cloneRepoAtStorage(t testing.TB, locator storage.Locator, src *gitalypb.Repository, storageName string) (*gitalypb.Repository, string, func()) {
-	dst := *src
-	dst.StorageName = storageName
-
-	dstP, err := locator.GetPath(&dst)
-	require.NoError(t, err)
-
-	srcP, err := locator.GetPath(src)
-	require.NoError(t, err)
-
-	require.NoError(t, os.MkdirAll(dstP, 0755))
-	testhelper.MustRunCommand(t, nil, "git",
-		"clone", "--no-hardlinks", "--dissociate", "--bare", srcP, dstP)
-
-	return &dst, dstP, func() { require.NoError(t, os.RemoveAll(dstP)) }
 }
