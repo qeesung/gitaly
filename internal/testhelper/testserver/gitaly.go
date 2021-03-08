@@ -17,6 +17,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // RunGitalyServer starts gitaly server based on the provided cfg.
@@ -43,6 +45,11 @@ func RunGitalyServer(t *testing.T, cfg config.Cfg, rubyServer *rubyserver.Server
 	deferrer.Add(func() { srv.Stop() })
 
 	registrar(srv, deps)
+	if _, found := srv.GetServiceInfo()["grpc.health.v1.Health"]; !found {
+		// we should register health service as it is used for the health checks
+		// praefect service executes periodically (and on the bootstrap step)
+		healthpb.RegisterHealthServer(srv, health.NewServer())
+	}
 
 	// listen on internal socket
 	internalListener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
