@@ -1,7 +1,10 @@
 package testserver
 
 import (
+	"errors"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -52,6 +55,18 @@ func RunGitalyServer(t *testing.T, cfg config.Cfg, rubyServer *rubyserver.Server
 	}
 
 	// listen on internal socket
+	internalSocketDir := filepath.Dir(cfg.GitalyInternalSocketPath())
+	sds, err := os.Stat(internalSocketDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			require.NoError(t, os.MkdirAll(internalSocketDir, 0700))
+			deferrer.Add(func() { os.RemoveAll(internalSocketDir) })
+		}
+		require.FailNow(t, err.Error())
+	} else {
+		require.True(t, sds.IsDir())
+	}
+
 	internalListener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
 	require.NoError(t, err)
 	deferrer.Add(func() { internalListener.Close() })
