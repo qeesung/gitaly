@@ -339,17 +339,35 @@ func runFullServer(t *testing.T) (string, func()) {
 	return testserver.RunGitalyServer(t, config.Config, repository.RubyServer, setup.RegisterAll)
 }
 
-func runFullSecureServer(t *testing.T, locator storage.Locator) (*grpc.Server, string, testhelper.Cleanup) {
+func runFullSecureServer(t *testing.T, locator storage.Locator) (string, testhelper.Cleanup) {
 	t.Helper()
 
+	var deferrer testhelper.Deferrer
+	defer deferrer.Call()
+
 	conns := client.NewPool()
+	deferrer.Add(func() { conns.Close() })
+
 	cfg := config.Config
+
+	// This creates a secondary GRPC server which isn't "secure". Reusing
+	// the one created above won't work as its internal socket would be
+	// protected by the same TLS certificate.
+	cfgForInternal := cfg             // starts listener on the internal socket
+	cfgForInternal.TLS = config.TLS{} // it should be insecure
+	_, cleanup := testserver.RunGitalyServer(t, cfgForInternal, repository.RubyServer, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	}, testserver.WithLocator(locator))
+	deferrer.Add(cleanup)
+
 	txManager := transaction.NewManager(cfg)
 	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
 
 	server, err := serverPkg.New(true, cfg, testhelper.DiscardTestEntry(t))
 	require.NoError(t, err)
+	deferrer.Add(server.Stop)
+
 	listener, addr := testhelper.GetLocalhostListener(t)
 
 	setup.RegisterAll(server, &service.Dependencies{
@@ -362,21 +380,8 @@ func runFullSecureServer(t *testing.T, locator storage.Locator) (*grpc.Server, s
 	})
 	errQ := make(chan error)
 
-	// This creates a secondary GRPC server which isn't "secure". Reusing
-	// the one created above won't work as its internal socket would be
-	// protected by the same TLS certificate.
-	internalServer := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(cfg))
-	gitalypb.RegisterHookServiceServer(internalServer.GrpcServer(), hookservice.NewServer(cfg, hookManager, gitCmdFactory))
-	internalServer.Start(t)
-
 	go func() { errQ <- server.Serve(listener) }()
 
-	cleanup := func() {
-		conns.Close()
-		server.Stop()
-		internalServer.Stop()
-		require.NoError(t, <-errQ)
-	}
-
-	return server, "tls://" + addr, cleanup
+	cleaner := deferrer.Relocate()
+	return "tls://" + addr, cleaner.Call
 }

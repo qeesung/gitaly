@@ -10,20 +10,20 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -304,41 +304,26 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 	// it available for transactional voting. We cannot use
 	// runOperationServiceServer as it puts a Praefect server in between if
 	// running Praefect tests, which would break our test setup.
-	server := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token, testhelper.WithInternalSocket(config.Config))
-
-	locator := config.NewLocator(config.Config)
-	txManager := transaction.NewManager(config.Config)
-	hookManager := gitalyhook.NewManager(locator, txManager, gitalyhook.GitlabAPIStub, config.Config)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
-	conns := client.NewPool()
-	defer conns.Close()
-
-	operationServer := NewServer(config.Config, RubyServer, hookManager, locator, conns, gitCmdFactory)
-	hookServer := hook.NewServer(config.Config, hookManager, gitCmdFactory)
 	transactionServer := &testTransactionServer{}
+	_, cleanup = testserver.RunGitalyServer(t, config.Config, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterOperationServiceServer(srv, NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetHookManager(), deps.GetLocator(), deps.GetConnsPool(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterRefTransactionServer(srv, transactionServer)
 
-	gitalypb.RegisterOperationServiceServer(server.GrpcServer(), operationServer)
-	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hookServer)
-	gitalypb.RegisterRefTransactionServer(server.GrpcServer(), transactionServer)
+	})
+	defer cleanup()
 
-	server.Start(t)
-	defer server.Stop()
-
-	// We're creating a separate listener here which we use to connect to
-	// the server. This is kind of a hack when running tests with Praefect:
+	// We're using an internal listener here as a kind of a hack when running tests with Praefect:
 	// if we directly connect to the server created above, then our call
 	// would be intercepted by Praefect, which would in turn replace the
 	// transaction information we inject further down below. So we instead
 	// create a separate socket so we can circumvent Praefect and just talk
 	// to Gitaly directly.
-	listener, hostPort := testhelper.GetLocalhostListener(t)
-	go func() { require.NoError(t, server.GrpcServer().Serve(listener)) }()
-
-	client, conn := newOperationClient(t, listener.Addr().String())
+	client, conn := newOperationClient(t, "unix://"+config.Config.GitalyInternalSocketPath())
 	defer conn.Close()
 
 	praefectServer := &metadata.PraefectServer{
-		ListenAddr: "tcp://" + hostPort,
+		SocketPath: "unix://" + config.Config.GitalyInternalSocketPath(),
 		Token:      config.Config.Auth.Token,
 	}
 

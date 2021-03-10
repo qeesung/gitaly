@@ -5,12 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
@@ -41,17 +40,10 @@ func testMain(m *testing.M) int {
 }
 
 func runSSHServer(t *testing.T, serverOpts ...ServerOpt) (string, func()) {
-	locator := config.NewLocator(config.Config)
-	txManager := transaction.NewManager(config.Config)
-	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, config.Config)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
-
-	srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(config.Config))
-	gitalypb.RegisterSSHServiceServer(srv.GrpcServer(), NewServer(config.Config, locator, gitCmdFactory, serverOpts...))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
-	srv.Start(t)
-
-	return "unix://" + srv.Socket(), srv.Stop
+	return testserver.RunGitalyServer(t, config.Config, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterSSHServiceServer(srv, NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory(), serverOpts...))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
 }
 
 func newSSHClient(t *testing.T, serverSocketPath string) (gitalypb.SSHServiceClient, *grpc.ClientConn) {

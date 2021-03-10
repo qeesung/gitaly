@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,12 +15,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -92,28 +93,22 @@ func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 }
 
 func TestApplyGitattributesWithTransaction(t *testing.T) {
-	txManager := transaction.NewManager(config.Config)
-	locator := config.NewLocator(config.Config)
 	transactionServer := &testTransactionServer{}
 
-	srv := testhelper.NewServerWithAuth(t, nil, nil, config.Config.Auth.Token)
-	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(config.Config, RubyServer, locator, txManager, git.NewExecCommandFactory(config.Config)))
-	gitalypb.RegisterRefTransactionServer(srv.GrpcServer(), transactionServer)
-	srv.Start(t)
-	defer srv.Stop()
+	_, cleanup := testserver.RunGitalyServer(t, config.Config, RubyServer, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetLocator(), deps.GetTxManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterRefTransactionServer(srv, transactionServer)
+	})
+	defer cleanup()
 
-	// We're creating a secondary listener in order to route around
+	// We're using an internal listener in order to route around
 	// Praefect in our tests. Otherwise Praefect would replace our
 	// carefully crafted transaction and server information.
-	transactionServerListener, err := net.Listen("unix", testhelper.GetTemporaryGitalySocketFileName(t))
-	require.NoError(t, err)
-	go func() { require.NoError(t, srv.GrpcServer().Serve(transactionServerListener)) }()
-
-	client, conn := newRepositoryClient(t, "unix://"+transactionServerListener.Addr().String())
+	client, conn := newRepositoryClient(t, "unix://"+config.Config.GitalyInternalSocketPath())
 	defer conn.Close()
 
 	praefect := metadata.PraefectServer{
-		SocketPath: "unix://" + transactionServerListener.Addr().String(),
+		SocketPath: "unix://" + config.Config.GitalyInternalSocketPath(),
 		Token:      config.Config.Auth.Token,
 	}
 

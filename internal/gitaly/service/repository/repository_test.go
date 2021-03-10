@@ -31,7 +31,7 @@ func TestRepositoryExists(t *testing.T) {
 	config.Config.Storages = testStorages
 
 	locator := config.NewLocator(config.Config)
-	serverSocketPath, stop := runRepoServer(t, locator, testhelper.WithStorages([]string{"default", "other", "broken"}))
+	serverSocketPath, stop := runRepoServer(t, locator)
 	defer stop()
 
 	testRepo, _, cleanupFn := gittest.CloneRepo(t)

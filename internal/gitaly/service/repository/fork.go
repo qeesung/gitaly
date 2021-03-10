@@ -71,6 +71,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "CreateFork: clone cmd start: %v", err)
 	}
+
 	if err := cmd.Wait(); err != nil {
 		return nil, status.Errorf(codes.Internal, "CreateFork: clone cmd wait: %v", err)
 	}

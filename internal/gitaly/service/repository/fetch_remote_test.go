@@ -42,7 +42,7 @@ func copyRepoWithNewRemote(t *testing.T, repo *gitalypb.Repository, locator stor
 
 func TestFetchRemoteSuccess(t *testing.T) {
 	locator := config.NewLocator(config.Config)
-	serverSocketPath, stop := runRepoServer(t, locator, testhelper.WithInternalSocket(config.Config))
+	serverSocketPath, stop := runRepoServer(t, locator)
 	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
@@ -78,7 +78,7 @@ func TestFetchRemoteSuccess(t *testing.T) {
 
 func TestFetchRemote_withDefaultRefmaps(t *testing.T) {
 	locator := config.NewLocator(config.Config)
-	serverSocketPath, stop := runRepoServer(t, locator, testhelper.WithInternalSocket(config.Config))
+	serverSocketPath, stop := runRepoServer(t, locator)
 	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
@@ -126,7 +126,7 @@ func TestFetchRemote_withDefaultRefmaps(t *testing.T) {
 
 func TestFetchRemote_prune(t *testing.T) {
 	locator := config.NewLocator(config.Config)
-	serverSocketPath, stop := runRepoServer(t, locator, testhelper.WithInternalSocket(config.Config))
+	serverSocketPath, stop := runRepoServer(t, locator)
 	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)
@@ -400,7 +400,7 @@ func getRefnames(t *testing.T, repoPath string) []string {
 }
 
 func TestFetchRemoteOverHTTP(t *testing.T) {
-	serverSocketPath, stop := runRepoServer(t, config.NewLocator(config.Config), testhelper.WithInternalSocket(config.Config))
+	serverSocketPath, stop := runRepoServer(t, config.NewLocator(config.Config))
 	defer stop()
 
 	client, conn := newRepositoryClient(t, serverSocketPath)

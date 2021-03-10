@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -21,13 +20,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/server"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 )
 
 type glHookValues struct {
@@ -634,20 +634,12 @@ func TestCheckBadCreds(t *testing.T) {
 
 func runHookServiceServerWithAPI(t *testing.T, gitlabAPI gitalyhook.GitlabAPI) func() {
 	cfg := config.Config
-	txManager := transaction.NewManager(cfg)
-	hookManager := gitalyhook.NewManager(config.NewLocator(cfg), txManager, gitlabAPI, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
 
-	srv, err := server.New(false, cfg, testhelper.DiscardTestEntry(t))
-	require.NoError(t, err)
+	_, cleanup := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	}, testserver.WithGitLabAPI(gitlabAPI))
 
-	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, hookManager, gitCmdFactory))
-
-	listener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
-	require.NoError(t, err)
-	go srv.Serve(listener)
-
-	return srv.Stop
+	return cleanup
 }
 
 func requireContainsOnce(t *testing.T, s string, contains string) {

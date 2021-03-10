@@ -5,13 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
@@ -44,18 +43,22 @@ func testMain(m *testing.M) int {
 }
 
 func runRefServiceServer(t *testing.T) (func(), string) {
-	cfg := config.Config
-	locator := config.NewLocator(cfg)
-	txManager := transaction.NewManager(cfg)
-	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
+	addr, cleanup := testserver.RunGitalyServer(t, config.Config, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterRefServiceServer(srv, NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
+	//cfg := config.Config
+	//locator := config.NewLocator(cfg)
+	//txManager := transaction.NewManager(cfg)
+	//hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
+	//gitCmdFactory := git.NewExecCommandFactory(cfg)
 
-	srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(cfg))
-	gitalypb.RegisterRefServiceServer(srv.GrpcServer(), NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(cfg, hookManager, gitCmdFactory))
-	srv.Start(t)
+	//srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(cfg))
 
-	return srv.Stop, "unix://" + srv.Socket()
+	//srv.Start(t)
+
+	//return srv.Stop, "unix://" + srv.Socket()
+	return cleanup, addr
 }
 
 func newRefServiceClient(t *testing.T, serverSocketPath string) (gitalypb.RefServiceClient, *grpc.ClientConn) {

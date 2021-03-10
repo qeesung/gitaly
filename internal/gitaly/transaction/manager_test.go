@@ -1,4 +1,4 @@
-package transaction
+package transaction_test
 
 import (
 	"context"
@@ -7,10 +7,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -41,7 +45,7 @@ func TestPoolManager_Vote(t *testing.T) {
 	transactionServer, praefect, stop := runTransactionServer(t, cfg)
 	defer stop()
 
-	manager := NewManager(cfg)
+	manager := transaction.NewManager(cfg)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -114,7 +118,7 @@ func TestPoolManager_Stop(t *testing.T) {
 	transactionServer, praefect, stop := runTransactionServer(t, cfg)
 	defer stop()
 
-	manager := NewManager(cfg)
+	manager := transaction.NewManager(cfg)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -158,17 +162,15 @@ func TestPoolManager_Stop(t *testing.T) {
 func runTransactionServer(t *testing.T, cfg config.Cfg) (*testTransactionServer, metadata.PraefectServer, func()) {
 	transactionServer := &testTransactionServer{}
 
-	server := testhelper.NewServerWithAuth(t, nil, nil, cfg.Auth.Token, testhelper.WithInternalSocket(cfg))
-	gitalypb.RegisterRefTransactionServer(server.GrpcServer(), transactionServer)
-	server.Start(t)
-
-	listener, address := testhelper.GetLocalhostListener(t)
-	go func() { require.NoError(t, server.GrpcServer().Serve(listener)) }()
+	cfg.ListenAddr = ":0"
+	addr, cleanup := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterRefTransactionServer(srv, transactionServer)
+	})
 
 	praefect := metadata.PraefectServer{
-		ListenAddr: "tcp://" + address,
+		ListenAddr: addr,
 		Token:      cfg.Auth.Token,
 	}
 
-	return transactionServer, praefect, server.Stop
+	return transactionServer, praefect, cleanup
 }

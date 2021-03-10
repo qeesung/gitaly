@@ -6,13 +6,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -106,7 +107,7 @@ func TestSuccessfulUpdateRemoteMirrorRequest(t *testing.T) {
 }
 
 func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -184,7 +185,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithWildcards(t *testing.T) {
 }
 
 func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -264,7 +265,7 @@ func TestSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T) 
 }
 
 func TestFailedUpdateRemoteMirrorRequestDueToValidation(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)

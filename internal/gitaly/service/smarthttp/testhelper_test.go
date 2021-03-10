@@ -6,15 +6,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
@@ -37,26 +33,10 @@ func testMain(m *testing.M) int {
 }
 
 func runSmartHTTPServer(t *testing.T, cfg config.Cfg, serverOpts ...ServerOpt) (string, func()) {
-	locator := config.NewLocator(cfg)
-	keyer := diskcache.NewLeaseKeyer(locator)
-	txManager := transaction.NewManager(cfg)
-	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
-
-	srv := testhelper.NewServer(t,
-		[]grpc.StreamServerInterceptor{
-			cache.StreamInvalidator(keyer, protoregistry.GitalyProtoPreregistered),
-		},
-		[]grpc.UnaryServerInterceptor{
-			cache.UnaryInvalidator(keyer, protoregistry.GitalyProtoPreregistered),
-		},
-		testhelper.WithInternalSocket(cfg))
-
-	gitalypb.RegisterSmartHTTPServiceServer(srv.GrpcServer(), NewServer(cfg, locator, gitCmdFactory, serverOpts...))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(cfg, hookManager, gitCmdFactory))
-	srv.Start(t)
-
-	return "unix://" + srv.Socket(), srv.Stop
+	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(cfg, deps.GetLocator(), deps.GetGitCmdFactory(), serverOpts...))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
 }
 
 func newSmartHTTPClient(t *testing.T, serverSocketPath, token string) (gitalypb.SmartHTTPServiceClient, *grpc.ClientConn) {

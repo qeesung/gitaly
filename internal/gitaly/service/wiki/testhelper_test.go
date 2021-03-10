@@ -15,11 +15,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type createWikiPageOpts struct {
@@ -53,6 +54,10 @@ func testMain(m *testing.M) int {
 
 	hooks.Override = tempDir + "/hooks"
 	config.Config.InternalSocketDir = tempDir + "/sock"
+	if err := os.MkdirAll(config.Config.InternalSocketDir, 0700); err != nil {
+		log.Error(err)
+		return 1
+	}
 
 	rubyServer = rubyserver.New(config.Config)
 	if err := rubyServer.Start(); err != nil {
@@ -65,14 +70,16 @@ func testMain(m *testing.M) int {
 }
 
 func runWikiServiceServer(t *testing.T, locator storage.Locator) (func(), string) {
-	srv := testhelper.NewServer(t, nil, nil)
-
-	gitalypb.RegisterWikiServiceServer(srv.GrpcServer(), NewServer(rubyServer, locator))
-	reflection.Register(srv.GrpcServer())
-
-	srv.Start(t)
-
-	return srv.Stop, "unix://" + srv.Socket()
+	addr, cleanup := testserver.RunGitalyServer(
+		t,
+		config.Config,
+		rubyServer,
+		func(srv *grpc.Server, deps *service.Dependencies) {
+			gitalypb.RegisterWikiServiceServer(srv, NewServer(deps.GetRubyServer(), deps.GetLocator()))
+		},
+		testserver.WithLocator(locator),
+	)
+	return cleanup, addr
 }
 
 func newWikiClient(t *testing.T, serverSocketPath string) (gitalypb.WikiServiceClient, *grpc.ClientConn) {

@@ -116,7 +116,7 @@ func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) 
 		cmd.Stdin = stdin
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		stderr := err.(*exec.ExitError).Stderr
 		if t == nil {

@@ -43,7 +43,7 @@ func RunGitalyServer(t *testing.T, cfg config.Cfg, rubyServer *rubyserver.Server
 	deps := gsd.createDependencies(t, cfg, rubyServer)
 	deferrer.Add(func() { gsd.conns.Close() })
 
-	srv, err := server.New(cfg.TLS.CertPath != "", cfg, gsd.logger.WithField("test", t.Name()))
+	srv, err := server.New(cfg.TLS.CertPath != "" && cfg.TLS.KeyPath != "", cfg, gsd.logger.WithField("test", t.Name()))
 	require.NoError(t, err)
 	deferrer.Add(func() { srv.Stop() })
 
@@ -55,32 +55,131 @@ func RunGitalyServer(t *testing.T, cfg config.Cfg, rubyServer *rubyserver.Server
 	}
 
 	// listen on internal socket
-	internalSocketDir := filepath.Dir(cfg.GitalyInternalSocketPath())
-	sds, err := os.Stat(internalSocketDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			require.NoError(t, os.MkdirAll(internalSocketDir, 0700))
-			deferrer.Add(func() { os.RemoveAll(internalSocketDir) })
+	if cfg.InternalSocketDir != "" {
+		internalSocketDir := filepath.Dir(cfg.GitalyInternalSocketPath())
+		sds, err := os.Stat(internalSocketDir)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				require.NoError(t, os.MkdirAll(internalSocketDir, 0700))
+				deferrer.Add(func() { os.RemoveAll(internalSocketDir) })
+			}
+			require.FailNow(t, err.Error())
+		} else {
+			require.True(t, sds.IsDir())
 		}
-		require.FailNow(t, err.Error())
-	} else {
-		require.True(t, sds.IsDir())
+
+		internalListener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
+		require.NoError(t, err)
+		deferrer.Add(func() { internalListener.Close() })
+		go srv.Serve(internalListener)
 	}
 
-	internalListener, err := net.Listen("unix", cfg.GitalyInternalSocketPath())
-	require.NoError(t, err)
-	deferrer.Add(func() { internalListener.Close() })
-	go srv.Serve(internalListener)
+	var listener net.Listener
+	var addr string
+	switch {
+	case cfg.TLSListenAddr != "":
+		listener, err = net.Listen("tcp", cfg.TLSListenAddr)
+		require.NoError(t, err)
+		_, port, err := net.SplitHostPort(listener.Addr().String())
+		require.NoError(t, err)
+		addr = "tls://localhost:" + port
+	case cfg.ListenAddr != "":
+		listener, err = net.Listen("tcp", cfg.ListenAddr)
+		require.NoError(t, err)
+		addr = "tcp://" + listener.Addr().String()
+	default:
+		serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(t)
+		listener, err = net.Listen("unix", serverSocketPath)
+		require.NoError(t, err)
+		addr = "unix://" + serverSocketPath
+	}
 
-	// listen on external socket
-	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(t)
-	listener, err := net.Listen("unix", serverSocketPath)
-	require.NoError(t, err)
 	deferrer.Add(func() { listener.Close() })
 	go srv.Serve(listener)
 
 	cleaner := deferrer.Relocate()
-	return "unix://" + serverSocketPath, cleaner.Call
+	return addr, cleaner.Call
+	/*
+		praefectBinPath, ok := os.LookupEnv("GITALY_TEST_PRAEFECT_BIN")
+		if !ok {
+			p.socket = p.listen(t)
+			return
+		}
+
+		tempDir, cleanup := TempDir(t)
+		defer cleanup()
+
+		praefectServerSocketPath := GetTemporaryGitalySocketFileName(t)
+
+		c := praefectconfig.Config{
+			SocketPath: praefectServerSocketPath,
+			Auth: auth.Config{
+				Token: p.token,
+			},
+			MemoryQueueEnabled: true,
+			Failover: praefectconfig.Failover{
+				Enabled:           true,
+				ElectionStrategy:  praefectconfig.ElectionStrategyLocal,
+				BootstrapInterval: config.Duration(time.Microsecond),
+				MonitorInterval:   config.Duration(time.Second),
+			},
+			Replication: praefectconfig.DefaultReplicationConfig(),
+			Logging: gitalylog.Config{
+				Format: "json",
+				Level:  "panic",
+			},
+		}
+
+		for _, storage := range p.storages {
+			gitalyServerSocketPath := p.listen(t)
+
+			c.VirtualStorages = append(c.VirtualStorages, &praefectconfig.VirtualStorage{
+				Name: storage,
+				Nodes: []*praefectconfig.Node{
+					{
+						Storage: storage,
+						Address: "unix:/" + gitalyServerSocketPath,
+						Token:   p.token,
+					},
+				},
+			})
+		}
+
+		configFilePath := filepath.Join(tempDir, "config.toml")
+		configFile, err := os.Create(configFilePath)
+		require.NoError(t, err)
+		defer MustClose(t, configFile)
+
+		require.NoError(t, toml.NewEncoder(configFile).Encode(&c))
+		require.NoError(t, configFile.Sync())
+
+		cmd := exec.Command(praefectBinPath, "-config", configFilePath)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+
+		p.socket = praefectServerSocketPath
+
+		require.NoError(t, cmd.Start())
+
+		p.waitCh = make(chan struct{})
+		go func() {
+			cmd.Wait()
+			close(p.waitCh)
+		}()
+
+		opts := []grpc.DialOption{grpc.WithInsecure()}
+		if p.token != "" {
+			opts = append(opts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(p.token)))
+		}
+
+		conn, err := grpc.Dial("unix://"+praefectServerSocketPath, opts...)
+		require.NoError(t, err)
+		defer MustClose(t, conn)
+
+		waitHealthy(t, conn, 3, time.Second)
+
+		p.process = cmd.Process
+	*/
 }
 
 type gitalyServerDeps struct {
@@ -148,6 +247,14 @@ func WithLogger(logger *logrus.Logger) GitalyServerOpt {
 func WithLocator(locator storage.Locator) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.locator = locator
+		return deps
+	}
+}
+
+// WithGitLabAPI sets hook.GitlabAPI instance that will be used for gitaly services initialisation.
+func WithGitLabAPI(gitlabAPI hook.GitlabAPI) GitalyServerOpt {
+	return func(deps gitalyServerDeps) gitalyServerDeps {
+		deps.gitlabAPI = gitlabAPI
 		return deps
 	}
 }

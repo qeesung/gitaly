@@ -233,6 +233,8 @@ func TestRepackFullCollectLogStatistics(t *testing.T) {
 }
 
 func mustCountObjectLog(t testing.TB, logData string) {
+	t.Helper()
+
 	msgs := strings.Split(logData, "\n")
 	const key = "count_objects"
 	for _, msg := range msgs {

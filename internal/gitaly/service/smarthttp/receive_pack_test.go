@@ -20,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/helper"
@@ -29,6 +30,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/praefect/metadata"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc"
@@ -512,28 +514,13 @@ func testPostReceiveWithTransactionsViaPraefect(t *testing.T, ctx context.Contex
 
 	testhelper.WriteShellSecretFile(t, gitlabShellDir, secretToken)
 
-	locator := config.NewLocator(cfg)
-	txManager := transaction.NewManager(cfg)
-	hookManager := gitalyhook.NewManager(locator, txManager, gitalyhook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
+	addr, cleanup := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
+	defer cleanup()
 
-	gitalyServer := testhelper.NewServerWithAuth(t, nil, nil, cfg.Auth.Token)
-
-	gitalypb.RegisterSmartHTTPServiceServer(gitalyServer.GrpcServer(), NewServer(cfg, locator, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(gitalyServer.GrpcServer(), hook.NewServer(cfg, hookManager, gitCmdFactory))
-	reflection.Register(gitalyServer.GrpcServer())
-	gitalyServer.Start(t)
-	defer gitalyServer.Stop()
-
-	internalSocket := cfg.GitalyInternalSocketPath()
-	internalListener, err := net.Listen("unix", internalSocket)
-	require.NoError(t, err)
-
-	go func() {
-		gitalyServer.GrpcServer().Serve(internalListener)
-	}()
-
-	client, conn := newSmartHTTPClient(t, "unix://"+gitalyServer.Socket(), cfg.Auth.Token)
+	client, conn := newSmartHTTPClient(t, addr, cfg.Auth.Token)
 	defer conn.Close()
 
 	stream, err := client.PostReceivePack(ctx)

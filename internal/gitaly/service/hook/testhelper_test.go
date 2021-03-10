@@ -6,14 +6,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 func TestMain(m *testing.M) {
@@ -45,23 +44,23 @@ func runHooksServer(t *testing.T, cfg config.Cfg) (string, func()) {
 }
 
 func runHooksServerWithLogger(t *testing.T, cfg config.Cfg, logger *logrus.Logger) (string, func()) {
-	srv := testhelper.NewServerWithLogger(t, logger, nil, nil)
-	return runHooksServerWithAPIAndTestServer(t, srv, gitalyhook.GitlabAPIStub, cfg)
+	return testserver.RunGitalyServer(
+		t,
+		cfg,
+		nil,
+		func(srv *grpc.Server, deps *service.Dependencies) {
+			gitalypb.RegisterHookServiceServer(srv, NewServer(
+				deps.GetCfg(),
+				deps.GetHookManager(),
+				deps.GetGitCmdFactory(),
+			))
+		},
+		testserver.WithLogger(logger),
+	)
 }
 
 func runHooksServerWithAPI(t *testing.T, gitlabAPI gitalyhook.GitlabAPI, cfg config.Cfg) (string, func()) {
-	return runHooksServerWithAPIAndTestServer(t, testhelper.NewServer(t, nil, nil), gitlabAPI, cfg)
-}
-
-func runHooksServerWithAPIAndTestServer(t *testing.T, srv *testhelper.TestServer, gitlabAPI gitalyhook.GitlabAPI, cfg config.Cfg) (string, func()) {
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), NewServer(
-		cfg,
-		gitalyhook.NewManager(config.NewLocator(cfg), transaction.NewManager(cfg), gitlabAPI, cfg),
-		git.NewExecCommandFactory(cfg),
-	))
-	reflection.Register(srv.GrpcServer())
-
-	srv.Start(t)
-
-	return "unix://" + srv.Socket(), srv.Stop
+	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterHookServiceServer(srv, NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	}, testserver.WithGitLabAPI(gitlabAPI))
 }

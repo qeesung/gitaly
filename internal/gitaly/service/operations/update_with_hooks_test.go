@@ -15,8 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
-	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
@@ -111,17 +109,6 @@ func TestUpdateReferenceWithHooks_invalidParameters(t *testing.T) {
 }
 
 func TestUpdateReferenceWithHooks(t *testing.T) {
-	server := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(config.Config))
-	defer server.Stop()
-
-	// We need to set up a separate "real" hook service here, as it will be used in
-	// git-update-ref(1) spawned by `updateRefWithHooks()`
-	txManager := transaction.NewManager(config.Config)
-	hookManager := hook.NewManager(config.NewLocator(config.Config), txManager, hook.GitlabAPIStub, config.Config)
-	gitCmdFactory := git.NewExecCommandFactory(config.Config)
-	gitalypb.RegisterHookServiceServer(server.GrpcServer(), hookservice.NewServer(config.Config, hookManager, gitCmdFactory))
-	server.Start(t)
-
 	user := &gitalypb.User{
 		GlId:       "1234",
 		GlUsername: "Username",
@@ -137,7 +124,8 @@ func TestUpdateReferenceWithHooks(t *testing.T) {
 	repo, repoPath, cleanup := gittest.CloneRepo(t)
 	defer cleanup()
 
-	payload, err := git.NewHooksPayload(config.Config, repo, nil, nil, &git.ReceiveHooksPayload{
+	cfg := config.Config
+	payload, err := git.NewHooksPayload(cfg, repo, nil, nil, &git.ReceiveHooksPayload{
 		UserID:   "1234",
 		Username: "Username",
 		Protocol: "web",
@@ -267,7 +255,8 @@ func TestUpdateReferenceWithHooks(t *testing.T) {
 				referenceTransaction: tc.referenceTransaction,
 			}
 
-			hookServer := NewServer(config.Config, nil, hookManager, nil, nil, gitCmdFactory)
+			gitCmdFactory := git.NewExecCommandFactory(cfg)
+			hookServer := NewServer(cfg, nil, hookManager, nil, nil, gitCmdFactory)
 
 			err := hookServer.updateReferenceWithHooks(ctx, repo, user, "refs/heads/master", git.ZeroOID.String(), oldRev)
 			if tc.expectedErr == "" {
@@ -277,12 +266,12 @@ func TestUpdateReferenceWithHooks(t *testing.T) {
 			}
 
 			if tc.expectedRefDeletion {
-				contained, err := localrepo.New(gitCmdFactory, repo, config.Config).HasRevision(ctx, git.Revision("refs/heads/master"))
+				contained, err := localrepo.New(gitCmdFactory, repo, cfg).HasRevision(ctx, git.Revision("refs/heads/master"))
 				require.NoError(t, err)
 				require.False(t, contained, "branch should have been deleted")
 				testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "branch", "master", oldRev)
 			} else {
-				ref, err := localrepo.New(gitCmdFactory, repo, config.Config).GetReference(ctx, "refs/heads/master")
+				ref, err := localrepo.New(gitCmdFactory, repo, cfg).GetReference(ctx, "refs/heads/master")
 				require.NoError(t, err)
 				require.Equal(t, ref.Target, oldRev)
 			}

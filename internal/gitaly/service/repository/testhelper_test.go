@@ -12,17 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"gitlab.com/gitlab-org/gitaly/client"
-	dcache "gitlab.com/gitlab-org/gitaly/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	mcache "gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -104,28 +100,15 @@ func newSecureRepoClient(t *testing.T, serverSocketPath string, pool *x509.CertP
 
 var NewSecureRepoClient = newSecureRepoClient
 
-func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locator, opts ...testhelper.TestServerOpt) (string, func()) {
-	streamInt := []grpc.StreamServerInterceptor{
-		mcache.StreamInvalidator(dcache.NewLeaseKeyer(locator), protoregistry.GitalyProtoPreregistered),
-	}
-	unaryInt := []grpc.UnaryServerInterceptor{
-		mcache.UnaryInvalidator(dcache.NewLeaseKeyer(locator), protoregistry.GitalyProtoPreregistered),
-	}
-
-	txManager := transaction.NewManager(cfg)
-	hookManager := hook.NewManager(locator, txManager, hook.GitlabAPIStub, cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
-
-	srv := testhelper.NewServerWithAuth(t, streamInt, unaryInt, cfg.Auth.Token, opts...)
-	gitalypb.RegisterRepositoryServiceServer(srv.GrpcServer(), NewServer(cfg, RubyServer, locator, txManager, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(srv.GrpcServer(), hookservice.NewServer(cfg, hookManager, gitCmdFactory))
-	srv.Start(t)
-
-	return "unix://" + srv.Socket(), srv.Stop
+func runRepoServerWithConfig(t *testing.T, cfg config.Cfg, locator storage.Locator) (string, func()) {
+	return testserver.RunGitalyServer(t, cfg, RubyServer, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(deps.GetCfg(), deps.GetRubyServer(), deps.GetLocator(), deps.GetTxManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	}, testserver.WithLocator(locator), testserver.WithLogger(testhelper.NewTestLogger(t)))
 }
 
-func runRepoServer(t *testing.T, locator storage.Locator, opts ...testhelper.TestServerOpt) (string, func()) {
-	return runRepoServerWithConfig(t, config.Config, locator, opts...)
+func runRepoServer(t *testing.T, locator storage.Locator) (string, func()) {
+	return runRepoServerWithConfig(t, config.Config, locator)
 }
 
 func TestRepoNoAuth(t *testing.T) {

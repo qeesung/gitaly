@@ -4,15 +4,13 @@ import (
 	"os"
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 func TestMain(m *testing.M) {
@@ -28,24 +26,12 @@ func testMain(m *testing.M) int {
 }
 
 func runCleanupServiceServer(t *testing.T, cfg config.Cfg) (string, func()) {
-	srv := testhelper.NewServer(t, nil, nil, testhelper.WithInternalSocket(cfg))
+	t.Helper()
 
-	locator := config.NewLocator(cfg)
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
-	gitalypb.RegisterCleanupServiceServer(srv.GrpcServer(), NewServer(cfg, gitCmdFactory))
-	gitalypb.RegisterHookServiceServer(
-		srv.GrpcServer(),
-		hookservice.NewServer(
-			cfg,
-			hook.NewManager(locator, transaction.NewManager(cfg), hook.GitlabAPIStub, cfg),
-			gitCmdFactory,
-		),
-	)
-	reflection.Register(srv.GrpcServer())
-
-	srv.Start(t)
-
-	return "unix://" + srv.Socket(), srv.Stop
+	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterCleanupServiceServer(srv, NewServer(deps.GetCfg(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	})
 }
 
 func newCleanupServiceClient(t *testing.T, serverSocketPath string) (gitalypb.CleanupServiceClient, *grpc.ClientConn) {

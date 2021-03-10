@@ -75,7 +75,7 @@ func TestOptimizeRepository(t *testing.T) {
 	require.True(t, bytes.Contains(confFileData, []byte("https://localhost:51744/60631c8695bf041a808759a05de53e36a73316aacb502824fabbb0c6055637c5.git")))
 
 	locator := config.NewLocator(config.Config)
-	serverSocketPath, stop := runRepoServer(t, locator, testhelper.WithInternalSocket(config.Config))
+	serverSocketPath, stop := runRepoServer(t, locator)
 	defer stop()
 
 	repoClient, conn := NewRepositoryClient(t, serverSocketPath)

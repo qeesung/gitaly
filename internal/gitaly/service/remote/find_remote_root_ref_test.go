@@ -5,13 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
 func TestFindRemoteRootRefSuccess(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -30,7 +31,7 @@ func TestFindRemoteRootRefSuccess(t *testing.T) {
 }
 
 func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
@@ -78,7 +79,7 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 }
 
 func TestFindRemoteRootRefFailedDueToInvalidRemote(t *testing.T) {
-	serverSocketPath, stop := RunRemoteServiceServer(t)
+	serverSocketPath, stop := RunRemoteServiceServer(t, config.Config)
 	defer stop()
 
 	client, conn := NewRemoteClient(t, serverSocketPath)
