@@ -51,7 +51,6 @@ GOLANGCI_LINT_OPTIONS ?=
 GOLANGCI_LINT_CONFIG  ?= ${SOURCE_DIR}/.golangci.yml
 
 # Build information
-BUNDLE_DEPLOYMENT ?= $(shell test -f ${SOURCE_DIR}/../.gdk-install-root && echo false || echo true)
 GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly
 BUILD_TIME        := $(shell date +"%Y%m%d.%H%M%S")
 GITALY_VERSION    := $(shell git describe --match v* 2>/dev/null | sed 's/^v//' || cat ${SOURCE_DIR}/VERSION 2>/dev/null || echo unknown)
@@ -381,7 +380,7 @@ libgit2: ${LIBGIT2_INSTALL_DIR}/lib/libgit2.a
 # step. Both Omnibus and CNG assume it is in the Gitaly root, not in
 # _build. Hence the '../' in front.
 ${SOURCE_DIR}/.ruby-bundle: ${GITALY_RUBY_DIR}/Gemfile.lock ${GITALY_RUBY_DIR}/Gemfile
-	${Q}cd ${GITALY_RUBY_DIR} && bundle config set --local deployment "${BUNDLE_DEPLOYMENT}"
+	${Q}cd ${GITALY_RUBY_DIR} && bundle config set --local path vendor/bundle
 	${Q}cd ${GITALY_RUBY_DIR} && bundle config # for debugging
 	${Q}cd ${GITALY_RUBY_DIR} && bundle install
 	${Q}touch $@
