@@ -81,6 +81,8 @@ endif
 
 # Git target
 GIT_REPO_URL      ?= https://gitlab.com/gitlab-org/gitlab-git.git
+GIT_SOURCE_URL    ?= https://mirrors.edge.kernel.org/pub/software/scm/git/git-${GIT_VERSION:v%=%}.tar.gz
+GIT_SOURCE_HASH   ?= bc6168777883562569144d536e8a855b12d25d46870d95188a3064260d7784ee
 GIT_BINARIES_URL  ?= https://gitlab.com/gitlab-org/gitlab-git/-/jobs/artifacts/${GIT_VERSION}/raw/git_full_bins.tgz?job=build
 GIT_BINARIES_HASH ?= 51c8e1d0b226530b762a144a38be81e64898b8f4ac7e3d64eb4d200bb1eb7806
 GIT_INSTALL_DIR   := ${DEPENDENCY_DIR}/git/install
@@ -433,12 +435,24 @@ ${LIBGIT2_INSTALL_DIR}/lib/libgit2.a: ${DEPENDENCY_DIR}/libgit2.version
 	go install -a github.com/libgit2/git2go/${GIT2GO_VERSION}
 
 ifeq (${GIT_USE_PREBUILT_BINARIES},)
+ifeq (${GIT_USE_SOURCES},)
 ${GIT_SOURCE_DIR}: ${DEPENDENCY_DIR}/git.version
 	${Q}${GIT} init --initial-branch=master ${GIT_QUIET} "$@"
 	${Q}${GIT} -C "$@" config remote.origin.url ${GIT_REPO_URL}
 	${Q}${GIT} -C "$@" config remote.origin.tagOpt --no-tags
 	${Q}${GIT} -C "$@" fetch --depth 1 ${GIT_QUIET} origin ${GIT_VERSION}
 	${Q}${GIT} -C "$@" switch ${GIT_QUIET} --detach FETCH_HEAD
+else
+${DEPENDENCY_DIR}/git.tar.gz: ${DEPENDENCY_DIR}/git.version
+	curl -o "$@".tmp --silent --show-error -L ${GIT_SOURCE_URL}
+	${Q}printf '${GIT_SOURCE_HASH}  $@.tmp' | sha256sum -c -
+	${Q}mv "$@".tmp "$@"
+
+${GIT_SOURCE_DIR}: ${DEPENDENCY_DIR}/git.tar.gz
+	${Q}rm -rf "$@"
+	${Q}mkdir -p "$@"
+	tar --strip-components 1 -C "$@" -xzf "$<"
+endif
 
 ${GIT_INSTALL_DIR}/bin/git: ${GIT_SOURCE_DIR}
 	${Q}rm -rf ${GIT_INSTALL_DIR}
