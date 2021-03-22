@@ -433,12 +433,14 @@ ${LIBGIT2_INSTALL_DIR}/lib/libgit2.a: ${DEPENDENCY_DIR}/libgit2.version
 	go install -a github.com/libgit2/git2go/${GIT2GO_VERSION}
 
 ifeq (${GIT_USE_PREBUILT_BINARIES},)
-${GIT_INSTALL_DIR}/bin/git: ${DEPENDENCY_DIR}/git.version
-	${Q}${GIT} init --initial-branch=master ${GIT_QUIET} ${GIT_SOURCE_DIR}
-	${Q}${GIT} -C "${GIT_SOURCE_DIR}" config remote.origin.url ${GIT_REPO_URL}
-	${Q}${GIT} -C "${GIT_SOURCE_DIR}" config remote.origin.tagOpt --no-tags
-	${Q}${GIT} -C "${GIT_SOURCE_DIR}" fetch --depth 1 ${GIT_QUIET} origin ${GIT_VERSION}
-	${Q}${GIT} -C "${GIT_SOURCE_DIR}" switch ${GIT_QUIET} --detach FETCH_HEAD
+${GIT_SOURCE_DIR}: ${DEPENDENCY_DIR}/git.version
+	${Q}${GIT} init --initial-branch=master ${GIT_QUIET} "$@"
+	${Q}${GIT} -C "$@" config remote.origin.url ${GIT_REPO_URL}
+	${Q}${GIT} -C "$@" config remote.origin.tagOpt --no-tags
+	${Q}${GIT} -C "$@" fetch --depth 1 ${GIT_QUIET} origin ${GIT_VERSION}
+	${Q}${GIT} -C "$@" switch ${GIT_QUIET} --detach FETCH_HEAD
+
+${GIT_INSTALL_DIR}/bin/git: ${GIT_SOURCE_DIR}
 	${Q}rm -rf ${GIT_INSTALL_DIR}
 	${Q}mkdir -p ${GIT_INSTALL_DIR}
 	env -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C ${GIT_SOURCE_DIR} -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
