@@ -96,6 +96,24 @@ func (tlc *TestLoggingCache) Entries() []*TestLogEntry {
 	return tlc.entries
 }
 
+var _ = Cache(NullCache{})
+
+// NullCache is a null implementation of Cache. Every lookup is a miss,
+// and it uses no storage.
+type NullCache struct{}
+
+// FindOrCreate runs create in a goroutine and lets the caller consume
+// the result via the returned stream. The created flag is always true.
+func (NullCache) FindOrCreate(key string, create func(io.Writer) error) (s *Stream, created bool, err error) {
+	pr, pw := io.Pipe()
+	w := newWaiter()
+	go func() { w.SetError(runCreate(pw, create)) }()
+	return &Stream{reader: pr, waiter: w}, true, nil
+}
+
+// Stop is a no-op.
+func (NullCache) Stop() {}
+
 type cache struct {
 	m          sync.Mutex
 	maxAge     time.Duration

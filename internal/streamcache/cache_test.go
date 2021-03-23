@@ -1,6 +1,7 @@
 package streamcache
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -446,4 +447,69 @@ func TestWaiter_cancel(t *testing.T) {
 
 	cancel()
 	require.Equal(t, context.Canceled, <-errc)
+}
+
+func TestNullCache(t *testing.T) {
+	const (
+		N         = 1000
+		inputSize = 4096
+		key       = "key"
+	)
+
+	c := NullCache{}
+	start := make(chan struct{})
+	results := make(chan error, N)
+
+	for i := 0; i < N; i++ {
+		go func() {
+			results <- func() error {
+				input := make([]byte, inputSize)
+				n, err := rand.Read(input)
+				if err != nil {
+					return err
+				}
+				if n != inputSize {
+					return io.ErrShortWrite
+				}
+
+				<-start
+
+				s, created, err := c.FindOrCreate(key, func(w io.Writer) error {
+					for j := 0; j < len(input); j++ {
+						n, err := w.Write(input[j : j+1])
+						if err != nil {
+							return err
+						}
+						if n != 1 {
+							return io.ErrShortWrite
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+				defer s.Close()
+
+				if !created {
+					return errors.New("created should be true")
+				}
+
+				output, err := ioutil.ReadAll(s)
+				if err != nil {
+					return err
+				}
+				if !bytes.Equal(output, input) {
+					return errors.New("output does not match input")
+				}
+
+				return s.Wait(context.Background())
+			}()
+		}()
+	}
+
+	close(start)
+	for i := 0; i < N; i++ {
+		require.NoError(t, <-results)
+	}
 }
