@@ -66,12 +66,8 @@ func NewServer(cfg config.Cfg, manager gitalyhook.Manager, gitCmdFactory git.Com
 		maxAge := 5 * time.Minute
 
 		logger := log.Default()
-		if cache, err := streamcache.New(dir, maxAge, logger); err != nil {
-			logger.WithError(err).Error("instantiate PackObjectsHook cache")
-		} else {
-			srv.packObjectsCache = cache
-			packObjectsCacheEnabled.WithLabelValues(dir, strconv.Itoa(int(maxAge.Seconds()))).Set(1)
-		}
+		srv.packObjectsCache = streamcache.New(dir, maxAge, logger)
+		packObjectsCacheEnabled.WithLabelValues(dir, strconv.Itoa(int(maxAge.Seconds()))).Set(1)
 	}
 
 	return srv

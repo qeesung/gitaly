@@ -108,15 +108,12 @@ type cache struct {
 }
 
 // New returns a new cache instance.
-func New(dir string, maxAge time.Duration, logger logrus.FieldLogger) (Cache, error) {
+func New(dir string, maxAge time.Duration, logger logrus.FieldLogger) Cache {
 	return newCacheWithSleep(dir, maxAge, time.Sleep, logger)
 }
 
-func newCacheWithSleep(dir string, maxAge time.Duration, sleep func(time.Duration), logger logrus.FieldLogger) (Cache, error) {
-	fs, err := newFilestore(dir, maxAge, sleep, logger)
-	if err != nil {
-		return nil, err
-	}
+func newCacheWithSleep(dir string, maxAge time.Duration, sleep func(time.Duration), logger logrus.FieldLogger) Cache {
+	fs := newFilestore(dir, maxAge, sleep, logger)
 
 	c := &cache{
 		maxAge:     maxAge,
@@ -135,7 +132,7 @@ func newCacheWithSleep(dir string, maxAge time.Duration, sleep func(time.Duratio
 		fs.Stop()
 	}()
 
-	return c, nil
+	return c
 }
 
 func (c *cache) Stop() {
