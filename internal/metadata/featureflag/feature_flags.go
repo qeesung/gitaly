@@ -25,6 +25,8 @@ var (
 	TxConfig = FeatureFlag{Name: "tx_config", OnByDefault: false}
 	// TxRemote enables transactional voting for AddRemote and DeleteRemote.
 	TxRemote = FeatureFlag{Name: "tx_remote", OnByDefault: false}
+	// GoFindLicense enables Go implementation of FindLicense
+	GoFindLicense = FeatureFlag{Name: "go_find_license", OnByDefault: false}
 )
 
 // All includes all feature flags.
@@ -37,4 +39,5 @@ var All = []FeatureFlag{
 	FetchInternalRemoteErrors,
 	TxConfig,
 	TxRemote,
+	GoFindLicense,
 }
