@@ -47,6 +47,12 @@ func (s *server) RepackFull(ctx context.Context, in *gitalypb.RepackFullRequest)
 	if err := s.repackCommand(ctx, in.GetRepository(), in.GetCreateBitmap(), options...); err != nil {
 		return nil, err
 	}
+
+	// Please see https://gitlab.com/gitlab-org/gitaly/-/issues/3277 for the details why we write commit graph.
+	if err := s.writeCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: in.GetRepository()}); err != nil {
+		return nil, err
+	}
+
 	return &gitalypb.RepackFullResponse{}, nil
 }
 
@@ -54,6 +60,12 @@ func (s *server) RepackIncremental(ctx context.Context, in *gitalypb.RepackIncre
 	if err := s.repackCommand(ctx, in.GetRepository(), false); err != nil {
 		return nil, err
 	}
+
+	// Please see https://gitlab.com/gitlab-org/gitaly/-/issues/3277 for the details why we write commit graph.
+	if err := s.writeCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{Repository: in.GetRepository()}); err != nil {
+		return nil, err
+	}
+
 	return &gitalypb.RepackIncrementalResponse{}, nil
 }
 
