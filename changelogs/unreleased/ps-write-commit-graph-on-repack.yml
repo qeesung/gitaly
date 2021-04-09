@@ -1,0 +1,5 @@
+---
+title: Write commit graph as part of RepackIncremental and RepackFull
+merge_request: 3328
+author:
+type: performance

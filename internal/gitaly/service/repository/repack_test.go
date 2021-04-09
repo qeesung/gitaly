@@ -29,7 +29,7 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 	client, conn := newRepositoryClient(t, serverSocketPath)
 	defer conn.Close()
 
-	testRepo, _, cleanupFn := gittest.CloneRepo(t)
+	testRepo, testRepoPath, cleanupFn := gittest.CloneRepo(t)
 	defer cleanupFn()
 
 	packPath := filepath.Join(testhelper.GitlabTestStoragePath(), testRepo.GetRelativePath(), "objects", "pack")
@@ -47,6 +47,9 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 
 	// Entire `path`-folder gets updated so this is fine :D
 	assertModTimeAfter(t, testTime, packPath)
+
+	commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
+	assert.FileExists(t, commitGraphPath)
 }
 
 func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
@@ -198,6 +201,9 @@ func TestRepackFullSuccess(t *testing.T) {
 					t.Errorf("Bitmap found: %v", bmPath)
 				}
 			}
+
+			commitGraphPath := filepath.Join(testRepoPath, CommitGraphRelPath)
+			assert.FileExists(t, commitGraphPath)
 		})
 	}
 }
