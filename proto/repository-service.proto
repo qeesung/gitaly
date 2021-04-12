@@ -271,7 +271,14 @@ message GarbageCollectRequest {
 message GarbageCollectResponse {}
 
 message WriteCommitGraphRequest {
-  Repository repository = 1 [(target_repository)=true];
+	enum SplitStrategy {
+		NoSplit      = 0;
+		SizeMultiple = 1;
+		NoMerge      = 2;
+		Replace      = 3;
+	}
+  Repository    repository    = 1 [(target_repository)=true];
+  SplitStrategy splitStrategy = 2;
 }
 
 message WriteCommitGraphResponse {}
