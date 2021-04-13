@@ -215,7 +215,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  activesupport (~> 6.0.3.6)
   factory_bot
   faraday (~> 1.0)
   github-linguist (~> 7.12)
