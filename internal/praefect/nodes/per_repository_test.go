@@ -17,7 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
-// HealthConsensusFunc is an adapter to turn a conforming function in to a HealthChecker.
+// HealthConsensusFunc is an adapter to turn a conforming function in to a HealthConsensus.
 type HealthConsensusFunc func() map[string][]string
 
 func (fn HealthConsensusFunc) HealthConsensus() map[string][]string { return fn() }
