@@ -93,16 +93,40 @@ func TestNewCommandProxyEnv(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.key, func(t *testing.T) {
-			extraVar := fmt.Sprintf("%s=%s", tc.key, tc.value)
+			os.Setenv(tc.key, tc.value)
+			defer os.Unsetenv(tc.key)
+
 			buff := &bytes.Buffer{}
-			cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
+			cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil)
 
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
 
+			extraVar := fmt.Sprintf("%s=%s", tc.key, tc.value)
 			require.Contains(t, strings.Split(buff.String(), "\n"), extraVar)
 		})
 	}
+}
+
+func TestPassedInEnvsTakeHigherPriority(t *testing.T) {
+	envValueOs := "foobar_os"
+	envValuePassedIn := "foobar_passed_in"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	oldTZ := os.Getenv("TZ")
+	defer os.Setenv("TZ", oldTZ)
+
+	os.Setenv("TZ", envValueOs)
+
+	buff := &bytes.Buffer{}
+	cmd, err := New(ctx, exec.Command("env"), nil, buff, nil, "TZ="+envValuePassedIn)
+
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	require.Contains(t, strings.Split(buff.String(), "\n"), "TZ="+envValuePassedIn)
 }
 
 func TestRejectEmptyContextDone(t *testing.T) {
