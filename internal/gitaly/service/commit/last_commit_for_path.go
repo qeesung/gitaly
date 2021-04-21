@@ -29,6 +29,8 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 		path = "."
 	}
 
+	safePath := "./" + path
+
 	repo := in.GetRepository()
 	c, err := catfile.New(ctx, s.gitCmdFactory, repo)
 	if err != nil {
@@ -48,7 +50,7 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 		options.LiteralPathspecs = true
 	}
 
-	commit, err := log.LastCommitForPath(ctx, s.gitCmdFactory, c, repo, git.Revision(in.GetRevision()), path, options)
+	commit, err := log.LastCommitForPath(ctx, s.gitCmdFactory, c, repo, git.Revision(in.GetRevision()), safePath, options)
 	if log.IsNotFound(err) {
 		return &gitalypb.LastCommitForPathResponse{}, nil
 	}
