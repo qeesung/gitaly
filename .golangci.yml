@@ -61,26 +61,6 @@ issues:
       text: "exported function `ParseConfig` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/gitaly/config/config.go"
-      text: "exported function `SkipHooks` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/config/config.go"
-      text: "exported type `HTTPSettings` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/config/ruby.go"
-      text: "exported method `Duration.Duration` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/config/ruby.go"
-      text: "exported method `Duration.UnmarshalText` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/config/ruby.go"
-      text: "exported method `Duration.MarshalText` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/gitaly/hook/check.go"
       text: "exported method `GitLabHookManager.Check` should have comment or be unexported"
     - linters:
