@@ -217,22 +217,6 @@ issues:
       text: "exported function `ParsePackfileNegotiation` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/helper/ticker.go"
-      text: "exported method `ManualTicker.C` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/helper/ticker.go"
-      text: "exported method `ManualTicker.Stop` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/helper/ticker.go"
-      text: "exported method `ManualTicker.Reset` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/helper/ticker.go"
-      text: "exported method `ManualTicker.Tick` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/metadata/featureflag/context.go"
       text: "exported function `OutgoingCtxWithRubyFeatureFlags` should have comment or be unexported"
     - linters:
