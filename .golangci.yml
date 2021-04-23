@@ -73,30 +73,6 @@ issues:
       text: "exported function `ParseConfig` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/cgroups/noop.go"
-      text: "exported method `NoopManager.Setup` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/cgroups/noop.go"
-      text: "exported method `NoopManager.AddCommand` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/cgroups/noop.go"
-      text: "exported method `NoopManager.Cleanup` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/cgroups/v1_linux.go"
-      text: "exported method `CGroupV1Manager.Setup` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/cgroups/v1_linux.go"
-      text: "exported method `CGroupV1Manager.AddCommand` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/cgroups/v1_linux.go"
-      text: "exported method `CGroupV1Manager.Cleanup` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/command/stats.go"
       text: "exported type `Stats` should have comment or be unexported"
     - linters:
@@ -867,7 +843,6 @@ issues:
       text: "at least one file in a package should have a package comment"
     - path: "_test.go"
       linters:
-        - maligned
         - noctx
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0

@@ -27,6 +27,7 @@ func newV1Manager(cfg cgroupscfg.Config) *CGroupV1Manager {
 	}
 }
 
+// Setup creates the CGroups hierarchy with the configured amount of buckets.
 func (cg *CGroupV1Manager) Setup() error {
 	resources := &specs.LinuxResources{}
 
@@ -52,6 +53,8 @@ func (cg *CGroupV1Manager) Setup() error {
 	return nil
 }
 
+// AddCommand puts the given command into a CGroup. The CGroup is chosen by computing the checksum
+// of the command's arguments.
 func (cg *CGroupV1Manager) AddCommand(cmd *command.Command) error {
 	checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd.Args(), "")))
 	groupID := uint(checksum) % cg.cfg.Count
@@ -74,6 +77,7 @@ func (cg *CGroupV1Manager) AddCommand(cmd *command.Command) error {
 	return nil
 }
 
+// Cleanup deletes the configured CGroup hierarchy.
 func (cg *CGroupV1Manager) Cleanup() error {
 	processCgroupPath := cg.currentProcessCgroup()
 
