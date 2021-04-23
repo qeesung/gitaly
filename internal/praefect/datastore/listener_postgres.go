@@ -140,6 +140,7 @@ func (pgl *PostgresListener) connect() error {
 	return <-listenErrChan
 }
 
+// Close closes the listener.
 func (pgl *PostgresListener) Close() error {
 	defer func() {
 		close(pgl.closed)
@@ -217,10 +218,12 @@ func (pgl *PostgresListener) async(f func()) {
 	}()
 }
 
+// Describe describes Prometheus metrics.
 func (pgl *PostgresListener) Describe(descs chan<- *promclient.Desc) {
 	promclient.DescribeByCollect(pgl, descs)
 }
 
+// Collect collects Prometheus metrics.
 func (pgl *PostgresListener) Collect(metrics chan<- promclient.Metric) {
 	pgl.reconnectTotal.Collect(metrics)
 }
