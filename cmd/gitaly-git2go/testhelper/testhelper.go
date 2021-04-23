@@ -17,6 +17,7 @@ var DefaultAuthor = git.Signature{
 	When:  time.Date(2020, 1, 1, 1, 1, 1, 0, time.FixedZone("", 2*60*60)),
 }
 
+// BuildCommit creates a new commit with the given parent commits and file contents.
 func BuildCommit(t testing.TB, repoPath string, parents []*git.Oid, fileContents map[string]string) *git.Oid {
 	repo, err := git.OpenRepository(repoPath)
 	require.NoError(t, err)

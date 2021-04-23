@@ -45,14 +45,6 @@ issues:
     ## golint: Specific issues in non-*_test.go files
     - linters:
         - golint
-      path: "cmd/gitaly-git2go/conflicts/conflicts.go"
-      text: "exported method `Subcommand.Flags` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "cmd/gitaly-git2go/testhelper/testhelper.go"
-      text: "exported function `BuildCommit` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/blackbox/blackbox.go"
       text: "exported function `Run` should have comment or be unexported"
     - linters:
@@ -67,22 +59,6 @@ issues:
         - golint
       path: "internal/blackbox/config.go"
       text: "exported function `ParseConfig` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/conflicts.go"
-      text: "exported type `ConflictError` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported type `RevertConflictError` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported type `RevertCommand` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported method `RevertCommand.Run` should have comment or be unexported"
     - linters:
         - golint
       path: "internal/gitaly/config/config.go"

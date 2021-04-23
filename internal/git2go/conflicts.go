@@ -41,6 +41,8 @@ type Conflict struct {
 	Content []byte `json:"content"`
 }
 
+// ConflictError represents an error which happened when trying to compute conflicts. It's mainly
+// used for serialization of error conditions between gitaly-git2go and Gitaly.
 type ConflictError struct {
 	// Code is the GRPC error code
 	Code codes.Code
