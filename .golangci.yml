@@ -61,30 +61,6 @@ issues:
       text: "exported function `ParseConfig` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/gitaly/hook/check.go"
-      text: "exported method `GitLabHookManager.Check` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/hook/manager.go"
-      text: "exported method `GitLabHookManager.Describe` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/hook/manager.go"
-      text: "exported method `GitLabHookManager.Collect` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/hook/postreceive.go"
-      text: "exported method `GitLabHookManager.PostReceiveHook` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/hook/referencetransaction.go"
-      text: "exported method `GitLabHookManager.ReferenceTransactionHook` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/gitaly/hook/update.go"
-      text: "exported method `GitLabHookManager.UpdateHook` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/gitaly/service/internalgitaly/server.go"
       text: "exported function `NewServer` should have comment or be unexported"
     - linters:
