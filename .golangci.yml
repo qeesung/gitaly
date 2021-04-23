@@ -45,10 +45,6 @@ issues:
     ## golint: Specific issues in non-*_test.go files
     - linters:
         - golint
-      path: "client/pool_options.go"
-      text: "exported type `PoolOption` should have comment or be unexported"
-    - linters:
-        - golint
       path: "cmd/gitaly-git2go/conflicts/conflicts.go"
       text: "exported method `Subcommand.Flags` should have comment or be unexported"
     - linters:
