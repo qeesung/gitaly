@@ -69,30 +69,6 @@ issues:
       text: "exported function `ParseConfig` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/command/stats.go"
-      text: "exported type `Stats` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/command/stats.go"
-      text: "exported method `Stats.RecordSum` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/command/stats.go"
-      text: "exported method `Stats.RecordMax` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/command/stats.go"
-      text: "exported method `Stats.Fields` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/command/stats.go"
-      text: "exported function `StatsFromContext` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/command/stats.go"
-      text: "exported function `InitContextStats` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/git2go/conflicts.go"
       text: "exported type `ConflictError` should have comment or be unexported"
     - linters:
