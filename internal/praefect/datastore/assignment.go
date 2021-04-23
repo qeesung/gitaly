@@ -38,6 +38,8 @@ func NewAssignmentStore(db glsql.Querier, configuredStorages map[string][]string
 	return AssignmentStore{db: db, configuredStorages: configuredStorages}
 }
 
+// GetHostAssignments returns all assigned hosts for the given repository identified by virtual
+// storage and relative paths.
 func (s AssignmentStore) GetHostAssignments(ctx context.Context, virtualStorage, relativePath string) ([]string, error) {
 	configuredStorages, ok := s.configuredStorages[virtualStorage]
 	if !ok {

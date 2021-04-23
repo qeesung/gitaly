@@ -35,10 +35,12 @@ func NewRepositoryStoreCollector(log logrus.FieldLogger, virtualStorages []strin
 	}
 }
 
+// Describe describes Prometheus metrics.
 func (c *RepositoryStoreCollector) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(c, ch)
 }
 
+// Collect collects Prometheus metrics.
 func (c *RepositoryStoreCollector) Collect(ch chan<- prometheus.Metric) {
 	readOnlyCounts, err := c.queryMetrics(context.TODO())
 	if err != nil {
@@ -79,7 +81,7 @@ LEFT JOIN storage_repositories ON
 	repositories.virtual_storage = storage_repositories.virtual_storage AND
 	repositories.relative_path = storage_repositories.relative_path AND
 	shard_primaries.node_name = storage_repositories.storage
-WHERE 
+WHERE
 	COALESCE(storage_repositories.generation, -1) < repositories.generation AND
 	repositories.virtual_storage = ANY($1)
 GROUP BY repositories.virtual_storage;
@@ -88,7 +90,7 @@ GROUP BY repositories.virtual_storage;
 	const repositoryScopedQuery = `
 SELECT repositories.virtual_storage, COUNT(*)
 FROM repositories
-LEFT JOIN storage_repositories ON 
+LEFT JOIN storage_repositories ON
 	repositories.virtual_storage = storage_repositories.virtual_storage AND
 	repositories.relative_path = storage_repositories.relative_path AND
 	repositories.primary = storage_repositories.storage

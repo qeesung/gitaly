@@ -57,6 +57,7 @@ type ReplicationJob struct {
 	Params            Params     `json:"params"`
 }
 
+// Scan fills ReplicationJob fields with values fetched from the database.
 func (job *ReplicationJob) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -70,6 +71,7 @@ func (job *ReplicationJob) Scan(value interface{}) error {
 	return json.Unmarshal(d, job)
 }
 
+// Value converts the ReplicationJob into SQL values.
 func (job ReplicationJob) Value() (driver.Value, error) {
 	data, err := json.Marshal(job)
 	if err != nil {
@@ -197,6 +199,7 @@ type PostgresReplicationEventQueue struct {
 	qc glsql.Querier
 }
 
+// Enqueue inserts the given ReplicationEvent into the event queue.
 func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
 	// When `Enqueue` method is called:
 	//  1. Insertion of the new record into `replication_queue_lock` table, so we are ensured all events have
@@ -229,6 +232,7 @@ func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event Repli
 	return events[0], nil
 }
 
+// Dequeue returns a set of replication events from the replication queue.
 func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStorage, nodeStorage string, count int) ([]ReplicationEvent, error) {
 	// When `Dequeue` method is called:
 	//  1. Events with attempts left that are either in `ready` or `failed` state are candidates for dequeuing.
