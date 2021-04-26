@@ -7,6 +7,7 @@ type poolOptions struct {
 	dialOptions []grpc.DialOption
 }
 
+// PoolOption is an option that can be used with NewPoolWithOptions.
 type PoolOption func(*poolOptions)
 
 func applyPoolOptions(options []PoolOption) *poolOptions {

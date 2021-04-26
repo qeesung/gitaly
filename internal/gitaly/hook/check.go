@@ -49,6 +49,7 @@ func (a *gitlabAPI) Check(ctx context.Context) (*CheckInfo, error) {
 	return &info, nil
 }
 
+// Check checks whether the GitLab API can be connected to.
 func (m *GitLabHookManager) Check(ctx context.Context) (*CheckInfo, error) {
 	return m.gitlabAPI.Check(ctx)
 }

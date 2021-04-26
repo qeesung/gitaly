@@ -24,10 +24,14 @@ type timerTicker struct {
 	interval time.Duration
 }
 
+// C returns the ticker's timer channel. The current tick time will be sent on this channel
+// whenever the ticker expires.
 func (tt *timerTicker) C() <-chan time.Time { return tt.timer.C }
 
+// Reset resets the ticker such that it will again fire after its specified interval.
 func (tt *timerTicker) Reset() { tt.timer.Reset(tt.interval) }
 
+// Stop will stop the ticker such that no new ticks will be generated.
 func (tt *timerTicker) Stop() { tt.timer.Stop() }
 
 // ManualTicker implements a ticker that ticks when Tick is called.
@@ -38,12 +42,17 @@ type ManualTicker struct {
 	ResetFunc func()
 }
 
+// C returns the ticker's timer channel. The current tick time will be sent on this channel
+// whenever the ticker expires.
 func (mt *ManualTicker) C() <-chan time.Time { return mt.c }
 
+// Stop will invoke the ticker's StopFunc.
 func (mt *ManualTicker) Stop() { mt.StopFunc() }
 
+// Reset will invoke the ticker's ResetFunc.
 func (mt *ManualTicker) Reset() { mt.ResetFunc() }
 
+// Tick will send a new tick on the ticker's channel.
 func (mt *ManualTicker) Tick() { mt.c <- time.Now() }
 
 // NewManualTicker returns a Ticker that can be manually controlled.

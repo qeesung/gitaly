@@ -19,6 +19,7 @@ type MockRepositoryStore struct {
 	RepositoryExistsFunc                   func(ctx context.Context, virtualStorage, relativePath string) (bool, error)
 }
 
+// GetGeneration returns the result of GetGenerationFunc or GenerationUnknown.
 func (m MockRepositoryStore) GetGeneration(ctx context.Context, virtualStorage, relativePath, storage string) (int, error) {
 	if m.GetGenerationFunc == nil {
 		return GenerationUnknown, nil
@@ -27,6 +28,7 @@ func (m MockRepositoryStore) GetGeneration(ctx context.Context, virtualStorage, 
 	return m.GetGenerationFunc(ctx, virtualStorage, relativePath, storage)
 }
 
+// IncrementGeneration returns the result of IncrementGenerationFunc or do nothing.
 func (m MockRepositoryStore) IncrementGeneration(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string) error {
 	if m.IncrementGenerationFunc == nil {
 		return nil
@@ -35,6 +37,7 @@ func (m MockRepositoryStore) IncrementGeneration(ctx context.Context, virtualSto
 	return m.IncrementGenerationFunc(ctx, virtualStorage, relativePath, primary, secondaries)
 }
 
+// GetReplicatedGeneration returns the result of GetReplicatedGenerationFunc or do nothing.
 func (m MockRepositoryStore) GetReplicatedGeneration(ctx context.Context, virtualStorage, relativePath, source, target string) (int, error) {
 	if m.GetReplicatedGenerationFunc == nil {
 		return GenerationUnknown, nil
@@ -43,6 +46,7 @@ func (m MockRepositoryStore) GetReplicatedGeneration(ctx context.Context, virtua
 	return m.GetReplicatedGenerationFunc(ctx, virtualStorage, relativePath, source, target)
 }
 
+// SetGeneration returns the result of SetGenerationFunc or do nothing.
 func (m MockRepositoryStore) SetGeneration(ctx context.Context, virtualStorage, relativePath, storage string, generation int) error {
 	if m.SetGenerationFunc == nil {
 		return nil
@@ -51,8 +55,7 @@ func (m MockRepositoryStore) SetGeneration(ctx context.Context, virtualStorage, 
 	return m.SetGenerationFunc(ctx, virtualStorage, relativePath, storage, generation)
 }
 
-//nolint:stylecheck
-//nolint:golint
+// CreateRepository returns the result of CreateRepositoryFunc or do nothing.
 func (m MockRepositoryStore) CreateRepository(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string, storePrimary, storeAssignments bool) error {
 	if m.CreateRepositoryFunc == nil {
 		return nil
@@ -61,6 +64,7 @@ func (m MockRepositoryStore) CreateRepository(ctx context.Context, virtualStorag
 	return m.CreateRepositoryFunc(ctx, virtualStorage, relativePath, primary, secondaries, storePrimary, storeAssignments)
 }
 
+// DeleteRepository returns the result of DeleteRepositoryFunc or do nothing.
 func (m MockRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath, storage string) error {
 	if m.DeleteRepositoryFunc == nil {
 		return nil
@@ -69,7 +73,7 @@ func (m MockRepositoryStore) DeleteRepository(ctx context.Context, virtualStorag
 	return m.DeleteRepositoryFunc(ctx, virtualStorage, relativePath, storage)
 }
 
-// DeleteReplica runs the mock's DeleteReplicaFunc.
+// DeleteReplica returns the result of DeleteReplicaFunc or do nothing.
 func (m MockRepositoryStore) DeleteReplica(ctx context.Context, virtualStorage, relativePath, storage string) error {
 	if m.DeleteReplicaFunc == nil {
 		return nil
@@ -78,6 +82,7 @@ func (m MockRepositoryStore) DeleteReplica(ctx context.Context, virtualStorage, 
 	return m.DeleteReplicaFunc(ctx, virtualStorage, relativePath, storage)
 }
 
+// RenameRepository returns the result of RenameRepositoryFunc or do nothing.
 func (m MockRepositoryStore) RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error {
 	if m.RenameRepositoryFunc == nil {
 		return nil
@@ -86,7 +91,7 @@ func (m MockRepositoryStore) RenameRepository(ctx context.Context, virtualStorag
 	return m.RenameRepositoryFunc(ctx, virtualStorage, relativePath, storage, newRelativePath)
 }
 
-// GetConsistentStorages returns result of execution of the GetConsistentStoragesFunc field if it is set or an empty map.
+// GetConsistentStorages returns the result of GetConsistentStoragesFunc or return an empty map.
 func (m MockRepositoryStore) GetConsistentStorages(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error) {
 	if m.GetConsistentStoragesFunc == nil {
 		return map[string]struct{}{}, nil
@@ -95,6 +100,8 @@ func (m MockRepositoryStore) GetConsistentStorages(ctx context.Context, virtualS
 	return m.GetConsistentStoragesFunc(ctx, virtualStorage, relativePath)
 }
 
+// GetPartiallyReplicatedRepositories returns the result of GetPartiallyReplicatedRepositoriesFunc
+// or do nothing.
 func (m MockRepositoryStore) GetPartiallyReplicatedRepositories(ctx context.Context, virtualStorage string, virtualStorageScopedPrimaries bool) ([]OutdatedRepository, error) {
 	if m.GetPartiallyReplicatedRepositoriesFunc == nil {
 		return nil, nil
@@ -103,6 +110,7 @@ func (m MockRepositoryStore) GetPartiallyReplicatedRepositories(ctx context.Cont
 	return m.GetPartiallyReplicatedRepositoriesFunc(ctx, virtualStorage, virtualStorageScopedPrimaries)
 }
 
+// DeleteInvalidRepository returns the result of DeleteInvalidRepositoryFunc or do nothing.
 func (m MockRepositoryStore) DeleteInvalidRepository(ctx context.Context, virtualStorage, relativePath, storage string) error {
 	if m.DeleteInvalidRepositoryFunc == nil {
 		return nil
@@ -111,6 +119,7 @@ func (m MockRepositoryStore) DeleteInvalidRepository(ctx context.Context, virtua
 	return m.DeleteInvalidRepositoryFunc(ctx, virtualStorage, relativePath, storage)
 }
 
+// RepositoryExists returns the result of RepositoryExistsFunc or return true.
 func (m MockRepositoryStore) RepositoryExists(ctx context.Context, virtualStorage, relativePath string) (bool, error) {
 	if m.RepositoryExistsFunc == nil {
 		return true, nil

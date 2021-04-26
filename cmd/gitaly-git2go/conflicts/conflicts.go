@@ -22,6 +22,7 @@ type Subcommand struct {
 	request string
 }
 
+// Flags returns command flags supported by conflicts subcommand.
 func (cmd *Subcommand) Flags() *flag.FlagSet {
 	flags := flag.NewFlagSet("conflicts", flag.ExitOnError)
 	flags.StringVar(&cmd.request, "request", "", "git2go.ConflictsCommand")

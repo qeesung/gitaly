@@ -11,6 +11,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
+// UpdateHook gets as input the reference that is about to be updated as well as its old and new
+// values and executes custom update hooks with these values.
 func (m *GitLabHookManager) UpdateHook(ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {

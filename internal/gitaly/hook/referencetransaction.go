@@ -18,6 +18,8 @@ var (
 	forceDeletionPrefix = fmt.Sprintf("%[1]s %[1]s ", git.ZeroOID.String())
 )
 
+// ReferenceTransactionHook reads all references which are about to be updated from stdin and
+// casts a vote on them against the transaction manager.
 func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state ReferenceTransactionState, env []string, stdin io.Reader) error {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {

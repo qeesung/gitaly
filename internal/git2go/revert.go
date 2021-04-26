@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 )
 
+// RevertCommand hosts parameters for reverting a commit via git2go.
 type RevertCommand struct {
 	// Repository is the path to execute the revert in.
 	Repository string `json:"repository"`
@@ -27,6 +28,7 @@ type RevertCommand struct {
 	Mainline uint `json:"mainline"`
 }
 
+// Run executes the revert specified via RevertCommand.
 func (r RevertCommand) Run(ctx context.Context, cfg config.Cfg) (git.ObjectID, error) {
 	return runWithGob(ctx, cfg, "revert", r)
 }

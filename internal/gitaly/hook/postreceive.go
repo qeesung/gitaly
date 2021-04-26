@@ -116,6 +116,10 @@ func printAlert(m PostReceiveMessage, w io.Writer) error {
 	return nil
 }
 
+// PostReceiveHook executes post-receive logic for the given repository. This includes both a call
+// to GitLab's PostReceive API and execution of custom post-receive hooks. stdin is supposed to
+// contain all changes which have been executed as part of the git command in the format specified
+// by githooks(5).
 func (m *GitLabHookManager) PostReceiveHook(ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {

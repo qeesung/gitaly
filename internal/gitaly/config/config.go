@@ -103,6 +103,7 @@ type Hooks struct {
 	CustomHooksDir string `toml:"custom_hooks_dir" json:"custom_hooks_dir"`
 }
 
+// HTTPSettings contains settings required to invoke GitLab's HTTP endpoints.
 type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
@@ -377,6 +378,8 @@ func (cfg *Cfg) validateStorages() error {
 	return nil
 }
 
+// SkipHooks determines whether or not hooks should be skipped. This can be configured by setting
+// the environment variable GITALY_TESTING_NO_GIT_HOOKS to "1".
 func SkipHooks() bool {
 	return os.Getenv("GITALY_TESTING_NO_GIT_HOOKS") == "1"
 }
