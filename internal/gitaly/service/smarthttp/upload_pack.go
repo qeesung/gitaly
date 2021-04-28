@@ -1,6 +1,8 @@
 package smarthttp
 
 import (
+	"bufio"
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"io"
@@ -10,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/internal/git"
 	"gitlab.com/gitlab-org/gitaly/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/inspect"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/streamio"
 	"google.golang.org/grpc/codes"
@@ -36,29 +39,29 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		return resp.GetData(), err
 	}), h)
 
-	pr, pw := io.Pipe()
-	defer pw.Close()
-	stdin := io.TeeReader(stdinReader, pw)
-	statsCh := make(chan stats.PackfileNegotiation, 1)
-	go func() {
-		defer close(statsCh)
-
-		stats, err := stats.ParsePackfileNegotiation(pr)
-		if err != nil {
-			ctxlogrus.Extract(stream.Context()).WithError(err).Debug("failed parsing packfile negotiation")
-			return
-		}
-		stats.UpdateMetrics(s.packfileNegotiationMetrics)
-
-		statsCh <- stats
-	}()
+	stdin, collector := s.wrapStatsCollector(stream.Context(), stdinReader)
+	defer collector.stats()
 
 	var respBytes int64
 
-	stdoutWriter := streamio.NewWriter(func(p []byte) error {
-		respBytes += int64(len(p))
-		return stream.Send(&gitalypb.PostUploadPackResponse{Data: p})
-	})
+	stdoutWriter := helper.NewUnbufferedStartWriter(
+		bufio.NewWriterSize(
+			streamio.NewWriter(func(p []byte) error {
+				respBytes += int64(len(p))
+				return stream.Send(&gitalypb.PostUploadPackResponse{Data: p})
+			}),
+			streamio.WriteBufferSize,
+		),
+		// Git's progress messages "Enumerating objects" etc act as keepalives so
+		// they should not be delayed by buffering. This number of bytes should
+		// be large enough to hold the combined progress messages.
+		32*1024,
+	)
+	defer func() {
+		// In case of an early return, the output stream may contain messages for
+		// the user so we should still flush it.
+		_ = stdoutWriter.Flush()
+	}()
 
 	// TODO: it is first step of the https://gitlab.com/gitlab-org/gitaly/issues/1519
 	// needs to be removed after we get some statistics on this
@@ -96,8 +99,7 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 	}
 
 	if err := cmd.Wait(); err != nil {
-		pw.Close() // ensure PackfileNegotiation parser returns
-		stats := <-statsCh
+		stats := collector.stats()
 
 		if _, ok := command.ExitStatus(err); ok && stats.Deepen != "" {
 			// We have seen a 'deepen' message in the request. It is expected that
@@ -109,8 +111,9 @@ func (s *server) PostUploadPack(stream gitalypb.SmartHTTPService_PostUploadPackS
 		return status.Errorf(codes.Unavailable, "PostUploadPack: %v", err)
 	}
 
-	pw.Close() // Ensure PackfileNegotiation parser returns
-	<-statsCh  // Wait for the packfile negotiation parser to finish.
+	if err := stdoutWriter.Flush(); err != nil {
+		return status.Errorf(codes.Unavailable, "PostUploadPack: %v", err)
+	}
 
 	ctxlogrus.Extract(ctx).WithField("request_sha", fmt.Sprintf("%x", h.Sum(nil))).WithField("response_bytes", respBytes).Info("request details")
 
@@ -123,4 +126,37 @@ func validateUploadPackRequest(req *gitalypb.PostUploadPackRequest) error {
 	}
 
 	return nil
+}
+
+type statsCollector struct {
+	c       io.Closer
+	statsCh chan stats.PackfileNegotiation
+}
+
+func (sc *statsCollector) stats() stats.PackfileNegotiation {
+	sc.c.Close()
+	return <-sc.statsCh
+}
+
+func (s *server) wrapStatsCollector(ctx context.Context, r io.Reader) (io.Reader, *statsCollector) {
+	pr, pw := io.Pipe()
+	sc := &statsCollector{
+		c:       pw,
+		statsCh: make(chan stats.PackfileNegotiation, 1),
+	}
+
+	go func() {
+		defer close(sc.statsCh)
+
+		stats, err := stats.ParsePackfileNegotiation(pr)
+		if err != nil {
+			ctxlogrus.Extract(ctx).WithError(err).Debug("failed parsing packfile negotiation")
+			return
+		}
+		stats.UpdateMetrics(s.packfileNegotiationMetrics)
+
+		sc.statsCh <- stats
+	}()
+
+	return io.TeeReader(r, pw), sc
 }
