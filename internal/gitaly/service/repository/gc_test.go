@@ -38,10 +38,8 @@ func TestGarbageCollectCommitGraph(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 
-	assert.FileExistsf(t,
-		filepath.Join(repoPath, "objects/info/commit-graph"),
-		"pre-computed commit-graph should exist after running garbage collect",
-	)
+	chainPath := filepath.Join(repoPath, CommitGraphChainRelPath)
+	require.FileExists(t, chainPath, "pre-computed commit-graph should exist after running garbage collect")
 
 	repoCfgPath := filepath.Join(repoPath, "config")
 
@@ -49,9 +47,9 @@ func TestGarbageCollectCommitGraph(t *testing.T) {
 	require.NoError(t, err)
 	defer cfgF.Close()
 
-	cfgCmd, err := localrepo.NewTestRepo(t, cfg, repo).Config().GetRegexp(ctx, "core.commitgraph", git.ConfigGetRegexpOpts{})
+	cfgCmd, err := localrepo.NewTestRepo(t, cfg, repo).Config().GetRegexp(ctx, "gc.writeCommitGraph", git.ConfigGetRegexpOpts{})
 	require.NoError(t, err)
-	require.Equal(t, []git.ConfigPair{{Key: "core.commitgraph", Value: "true"}}, cfgCmd)
+	require.Equal(t, []git.ConfigPair{{Key: "gc.writecommitgraph", Value: "false"}}, cfgCmd)
 }
 
 func TestGarbageCollectSuccess(t *testing.T) {
