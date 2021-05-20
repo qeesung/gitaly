@@ -526,10 +526,10 @@ func TestPerRepositoryElector(t *testing.T) {
 
 				// Run every step with two concurrent transactions to ensure two Praefect's running
 				// election at the same time do not elect the primary multiple times. We begin both
-				// transactions at the same time to ensure they have they have the same snapshot of the
+				// transactions at the same time to ensure they have the same snapshot of the
 				// database. The second transaction would be blocked until the first transaction commits.
 				// To verify concurrent election runs do not elect the primary multiple times, we assert
-				// the second transaction perfromed no changes and the primary is what the first run elected
+				// the second transaction performed no changes and the primary is what the first run elected
 				// it to be.
 				txFirst, err := db.Begin()
 				require.NoError(t, err)
