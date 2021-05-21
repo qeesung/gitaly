@@ -1,0 +1,5 @@
+---
+title: 'SetConfig: implemented SetConfig using git2go'
+merge_request: 3527
+author: Ivan Bukhtiyarov (van4elotti@gmail.com)
+type: performance

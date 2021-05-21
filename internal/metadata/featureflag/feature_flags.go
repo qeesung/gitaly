@@ -21,6 +21,8 @@ var (
 	GoUserRevert = FeatureFlag{Name: "go_user_revert", OnByDefault: true}
 	// GoUpdateRemoteMirror enables the Go implementation of UpdateRemoteMirror
 	GoUpdateRemoteMirror = FeatureFlag{Name: "go_update_remote_mirror", OnByDefault: false}
+	// GoSetConfig enables Go implementation of SetConfig
+	GoSetConfig = FeatureFlag{Name: "go_set_config", OnByDefault: false}
 	// GrpcTreeEntryNotFound makes the TreeEntry gRPC call return NotFound instead of an empty blob
 	GrpcTreeEntryNotFound = FeatureFlag{Name: "grpc_tree_entry_not_found", OnByDefault: false}
 	// FetchInternalRemoteErrors makes FetchInternalRemote return actual errors instead of a boolean
@@ -34,6 +36,7 @@ var All = []FeatureFlag{
 	GoUserUpdateBranch,
 	GoUserRebaseConfirmable,
 	GoUserRevert,
+	GoSetConfig,
 	GrpcTreeEntryNotFound,
 	GoUpdateRemoteMirror,
 	FetchInternalRemoteErrors,
