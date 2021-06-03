@@ -18,13 +18,10 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WikiServiceClient interface {
-	WikiGetPageVersions(ctx context.Context, in *WikiGetPageVersionsRequest, opts ...grpc.CallOption) (WikiService_WikiGetPageVersionsClient, error)
 	WikiWritePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiWritePageClient, error)
 	WikiUpdatePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiUpdatePageClient, error)
-	WikiDeletePage(ctx context.Context, in *WikiDeletePageRequest, opts ...grpc.CallOption) (*WikiDeletePageResponse, error)
 	// WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
 	WikiFindPage(ctx context.Context, in *WikiFindPageRequest, opts ...grpc.CallOption) (WikiService_WikiFindPageClient, error)
-	WikiFindFile(ctx context.Context, in *WikiFindFileRequest, opts ...grpc.CallOption) (WikiService_WikiFindFileClient, error)
 	WikiGetAllPages(ctx context.Context, in *WikiGetAllPagesRequest, opts ...grpc.CallOption) (WikiService_WikiGetAllPagesClient, error)
 	WikiListPages(ctx context.Context, in *WikiListPagesRequest, opts ...grpc.CallOption) (WikiService_WikiListPagesClient, error)
 }
@@ -37,40 +34,8 @@ func NewWikiServiceClient(cc grpc.ClientConnInterface) WikiServiceClient {
 	return &wikiServiceClient{cc}
 }
 
-func (c *wikiServiceClient) WikiGetPageVersions(ctx context.Context, in *WikiGetPageVersionsRequest, opts ...grpc.CallOption) (WikiService_WikiGetPageVersionsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[0], "/gitaly.WikiService/WikiGetPageVersions", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &wikiServiceWikiGetPageVersionsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type WikiService_WikiGetPageVersionsClient interface {
-	Recv() (*WikiGetPageVersionsResponse, error)
-	grpc.ClientStream
-}
-
-type wikiServiceWikiGetPageVersionsClient struct {
-	grpc.ClientStream
-}
-
-func (x *wikiServiceWikiGetPageVersionsClient) Recv() (*WikiGetPageVersionsResponse, error) {
-	m := new(WikiGetPageVersionsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func (c *wikiServiceClient) WikiWritePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiWritePageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[1], "/gitaly.WikiService/WikiWritePage", opts...)
+	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[0], "/gitaly.WikiService/WikiWritePage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +69,7 @@ func (x *wikiServiceWikiWritePageClient) CloseAndRecv() (*WikiWritePageResponse,
 }
 
 func (c *wikiServiceClient) WikiUpdatePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiUpdatePageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[2], "/gitaly.WikiService/WikiUpdatePage", opts...)
+	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[1], "/gitaly.WikiService/WikiUpdatePage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,17 +102,8 @@ func (x *wikiServiceWikiUpdatePageClient) CloseAndRecv() (*WikiUpdatePageRespons
 	return m, nil
 }
 
-func (c *wikiServiceClient) WikiDeletePage(ctx context.Context, in *WikiDeletePageRequest, opts ...grpc.CallOption) (*WikiDeletePageResponse, error) {
-	out := new(WikiDeletePageResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.WikiService/WikiDeletePage", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *wikiServiceClient) WikiFindPage(ctx context.Context, in *WikiFindPageRequest, opts ...grpc.CallOption) (WikiService_WikiFindPageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[3], "/gitaly.WikiService/WikiFindPage", opts...)
+	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[2], "/gitaly.WikiService/WikiFindPage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,40 +134,8 @@ func (x *wikiServiceWikiFindPageClient) Recv() (*WikiFindPageResponse, error) {
 	return m, nil
 }
 
-func (c *wikiServiceClient) WikiFindFile(ctx context.Context, in *WikiFindFileRequest, opts ...grpc.CallOption) (WikiService_WikiFindFileClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[4], "/gitaly.WikiService/WikiFindFile", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &wikiServiceWikiFindFileClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type WikiService_WikiFindFileClient interface {
-	Recv() (*WikiFindFileResponse, error)
-	grpc.ClientStream
-}
-
-type wikiServiceWikiFindFileClient struct {
-	grpc.ClientStream
-}
-
-func (x *wikiServiceWikiFindFileClient) Recv() (*WikiFindFileResponse, error) {
-	m := new(WikiFindFileResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func (c *wikiServiceClient) WikiGetAllPages(ctx context.Context, in *WikiGetAllPagesRequest, opts ...grpc.CallOption) (WikiService_WikiGetAllPagesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[5], "/gitaly.WikiService/WikiGetAllPages", opts...)
+	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[3], "/gitaly.WikiService/WikiGetAllPages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +167,7 @@ func (x *wikiServiceWikiGetAllPagesClient) Recv() (*WikiGetAllPagesResponse, err
 }
 
 func (c *wikiServiceClient) WikiListPages(ctx context.Context, in *WikiListPagesRequest, opts ...grpc.CallOption) (WikiService_WikiListPagesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[6], "/gitaly.WikiService/WikiListPages", opts...)
+	stream, err := c.cc.NewStream(ctx, &WikiService_ServiceDesc.Streams[4], "/gitaly.WikiService/WikiListPages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,13 +202,10 @@ func (x *wikiServiceWikiListPagesClient) Recv() (*WikiListPagesResponse, error) 
 // All implementations must embed UnimplementedWikiServiceServer
 // for forward compatibility
 type WikiServiceServer interface {
-	WikiGetPageVersions(*WikiGetPageVersionsRequest, WikiService_WikiGetPageVersionsServer) error
 	WikiWritePage(WikiService_WikiWritePageServer) error
 	WikiUpdatePage(WikiService_WikiUpdatePageServer) error
-	WikiDeletePage(context.Context, *WikiDeletePageRequest) (*WikiDeletePageResponse, error)
 	// WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
 	WikiFindPage(*WikiFindPageRequest, WikiService_WikiFindPageServer) error
-	WikiFindFile(*WikiFindFileRequest, WikiService_WikiFindFileServer) error
 	WikiGetAllPages(*WikiGetAllPagesRequest, WikiService_WikiGetAllPagesServer) error
 	WikiListPages(*WikiListPagesRequest, WikiService_WikiListPagesServer) error
 	mustEmbedUnimplementedWikiServiceServer()
@@ -294,23 +215,14 @@ type WikiServiceServer interface {
 type UnimplementedWikiServiceServer struct {
 }
 
-func (UnimplementedWikiServiceServer) WikiGetPageVersions(*WikiGetPageVersionsRequest, WikiService_WikiGetPageVersionsServer) error {
-	return status.Errorf(codes.Unimplemented, "method WikiGetPageVersions not implemented")
-}
 func (UnimplementedWikiServiceServer) WikiWritePage(WikiService_WikiWritePageServer) error {
 	return status.Errorf(codes.Unimplemented, "method WikiWritePage not implemented")
 }
 func (UnimplementedWikiServiceServer) WikiUpdatePage(WikiService_WikiUpdatePageServer) error {
 	return status.Errorf(codes.Unimplemented, "method WikiUpdatePage not implemented")
 }
-func (UnimplementedWikiServiceServer) WikiDeletePage(context.Context, *WikiDeletePageRequest) (*WikiDeletePageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WikiDeletePage not implemented")
-}
 func (UnimplementedWikiServiceServer) WikiFindPage(*WikiFindPageRequest, WikiService_WikiFindPageServer) error {
 	return status.Errorf(codes.Unimplemented, "method WikiFindPage not implemented")
-}
-func (UnimplementedWikiServiceServer) WikiFindFile(*WikiFindFileRequest, WikiService_WikiFindFileServer) error {
-	return status.Errorf(codes.Unimplemented, "method WikiFindFile not implemented")
 }
 func (UnimplementedWikiServiceServer) WikiGetAllPages(*WikiGetAllPagesRequest, WikiService_WikiGetAllPagesServer) error {
 	return status.Errorf(codes.Unimplemented, "method WikiGetAllPages not implemented")
@@ -329,27 +241,6 @@ type UnsafeWikiServiceServer interface {
 
 func RegisterWikiServiceServer(s grpc.ServiceRegistrar, srv WikiServiceServer) {
 	s.RegisterService(&WikiService_ServiceDesc, srv)
-}
-
-func _WikiService_WikiGetPageVersions_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(WikiGetPageVersionsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(WikiServiceServer).WikiGetPageVersions(m, &wikiServiceWikiGetPageVersionsServer{stream})
-}
-
-type WikiService_WikiGetPageVersionsServer interface {
-	Send(*WikiGetPageVersionsResponse) error
-	grpc.ServerStream
-}
-
-type wikiServiceWikiGetPageVersionsServer struct {
-	grpc.ServerStream
-}
-
-func (x *wikiServiceWikiGetPageVersionsServer) Send(m *WikiGetPageVersionsResponse) error {
-	return x.ServerStream.SendMsg(m)
 }
 
 func _WikiService_WikiWritePage_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -404,24 +295,6 @@ func (x *wikiServiceWikiUpdatePageServer) Recv() (*WikiUpdatePageRequest, error)
 	return m, nil
 }
 
-func _WikiService_WikiDeletePage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WikiDeletePageRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WikiServiceServer).WikiDeletePage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.WikiService/WikiDeletePage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WikiServiceServer).WikiDeletePage(ctx, req.(*WikiDeletePageRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _WikiService_WikiFindPage_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(WikiFindPageRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -440,27 +313,6 @@ type wikiServiceWikiFindPageServer struct {
 }
 
 func (x *wikiServiceWikiFindPageServer) Send(m *WikiFindPageResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _WikiService_WikiFindFile_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(WikiFindFileRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(WikiServiceServer).WikiFindFile(m, &wikiServiceWikiFindFileServer{stream})
-}
-
-type WikiService_WikiFindFileServer interface {
-	Send(*WikiFindFileResponse) error
-	grpc.ServerStream
-}
-
-type wikiServiceWikiFindFileServer struct {
-	grpc.ServerStream
-}
-
-func (x *wikiServiceWikiFindFileServer) Send(m *WikiFindFileResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -512,18 +364,8 @@ func (x *wikiServiceWikiListPagesServer) Send(m *WikiListPagesResponse) error {
 var WikiService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "gitaly.WikiService",
 	HandlerType: (*WikiServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "WikiDeletePage",
-			Handler:    _WikiService_WikiDeletePage_Handler,
-		},
-	},
+	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "WikiGetPageVersions",
-			Handler:       _WikiService_WikiGetPageVersions_Handler,
-			ServerStreams: true,
-		},
 		{
 			StreamName:    "WikiWritePage",
 			Handler:       _WikiService_WikiWritePage_Handler,
@@ -537,11 +379,6 @@ var WikiService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "WikiFindPage",
 			Handler:       _WikiService_WikiFindPage_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "WikiFindFile",
-			Handler:       _WikiService_WikiFindFile_Handler,
 			ServerStreams: true,
 		},
 		{

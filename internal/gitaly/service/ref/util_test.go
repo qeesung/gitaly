@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 

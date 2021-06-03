@@ -26,8 +26,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	pconfig "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -497,7 +497,7 @@ func TestPostReceivePackToHooks(t *testing.T) {
 
 	socket := runSmartHTTPServer(t, cfg)
 
-	client, conn := newSmartHTTPClient(t, "unix://"+socket, cfg.Auth.Token)
+	client, conn := newSmartHTTPClient(t, socket, cfg.Auth.Token)
 	defer conn.Close()
 
 	stream, err := client.PostReceivePack(ctx)

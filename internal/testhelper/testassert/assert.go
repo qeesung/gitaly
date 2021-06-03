@@ -1,7 +1,6 @@
 package testassert
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -26,15 +25,4 @@ func GrpcEqualErr(t testing.TB, expected, actual error) {
 	t.Helper()
 	// .Proto() handles nil receiver
 	ProtoEqual(t, status.Convert(expected).Proto(), status.Convert(actual).Proto())
-}
-
-func ContainsGrpcError(t testing.TB, errs []error, err error) {
-	t.Helper()
-	errStatus := status.Convert(err).Proto()
-	for _, e := range errs {
-		if cmp.Equal(status.Convert(e).Proto(), errStatus, protocmp.Transform()) {
-			return
-		}
-	}
-	require.FailNow(t, fmt.Sprintf("%#v does not contain %#v", errs, err))
 }

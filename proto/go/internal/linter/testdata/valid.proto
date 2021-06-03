@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package test;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/internal/linter/testdata";
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
 
 import "lint.proto";
 import "shared.proto";

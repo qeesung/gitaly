@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mwitkow.testproto;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata";
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/testdata";
 
 message Empty {
 }

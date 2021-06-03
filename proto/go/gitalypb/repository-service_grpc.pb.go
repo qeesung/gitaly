@@ -44,6 +44,9 @@ type RepositoryServiceClient interface {
 	CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error)
 	CreateBundle(ctx context.Context, in *CreateBundleRequest, opts ...grpc.CallOption) (RepositoryService_CreateBundleClient, error)
 	CreateRepositoryFromBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateRepositoryFromBundleClient, error)
+	// GetConfig reads the target repository's gitconfig and streams its contents
+	// back. Returns a NotFound error in case no gitconfig was found.
+	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error)
 	SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error)
 	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error)
 	FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error)
@@ -346,6 +349,38 @@ func (x *repositoryServiceCreateRepositoryFromBundleClient) CloseAndRecv() (*Cre
 	return m, nil
 }
 
+func (c *repositoryServiceClient) GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[3], "/gitaly.RepositoryService/GetConfig", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &repositoryServiceGetConfigClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RepositoryService_GetConfigClient interface {
+	Recv() (*GetConfigResponse, error)
+	grpc.ClientStream
+}
+
+type repositoryServiceGetConfigClient struct {
+	grpc.ClientStream
+}
+
+func (x *repositoryServiceGetConfigClient) Recv() (*GetConfigResponse, error) {
+	m := new(GetConfigResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error) {
 	out := new(SetConfigResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/SetConfig", in, out, opts...)
@@ -374,7 +409,7 @@ func (c *repositoryServiceClient) FindLicense(ctx context.Context, in *FindLicen
 }
 
 func (c *repositoryServiceClient) GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[3], "/gitaly.RepositoryService/GetInfoAttributes", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[4], "/gitaly.RepositoryService/GetInfoAttributes", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +459,7 @@ func (c *repositoryServiceClient) Cleanup(ctx context.Context, in *CleanupReques
 }
 
 func (c *repositoryServiceClient) GetSnapshot(ctx context.Context, in *GetSnapshotRequest, opts ...grpc.CallOption) (RepositoryService_GetSnapshotClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[4], "/gitaly.RepositoryService/GetSnapshot", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[5], "/gitaly.RepositoryService/GetSnapshot", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +500,7 @@ func (c *repositoryServiceClient) CreateRepositoryFromSnapshot(ctx context.Conte
 }
 
 func (c *repositoryServiceClient) GetRawChanges(ctx context.Context, in *GetRawChangesRequest, opts ...grpc.CallOption) (RepositoryService_GetRawChangesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[5], "/gitaly.RepositoryService/GetRawChanges", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[6], "/gitaly.RepositoryService/GetRawChanges", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +532,7 @@ func (x *repositoryServiceGetRawChangesClient) Recv() (*GetRawChangesResponse, e
 }
 
 func (c *repositoryServiceClient) SearchFilesByContent(ctx context.Context, in *SearchFilesByContentRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByContentClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[6], "/gitaly.RepositoryService/SearchFilesByContent", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[7], "/gitaly.RepositoryService/SearchFilesByContent", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -529,7 +564,7 @@ func (x *repositoryServiceSearchFilesByContentClient) Recv() (*SearchFilesByCont
 }
 
 func (c *repositoryServiceClient) SearchFilesByName(ctx context.Context, in *SearchFilesByNameRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByNameClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[7], "/gitaly.RepositoryService/SearchFilesByName", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[8], "/gitaly.RepositoryService/SearchFilesByName", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +596,7 @@ func (x *repositoryServiceSearchFilesByNameClient) Recv() (*SearchFilesByNameRes
 }
 
 func (c *repositoryServiceClient) RestoreCustomHooks(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_RestoreCustomHooksClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[8], "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[9], "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +630,7 @@ func (x *repositoryServiceRestoreCustomHooksClient) CloseAndRecv() (*RestoreCust
 }
 
 func (c *repositoryServiceClient) BackupCustomHooks(ctx context.Context, in *BackupCustomHooksRequest, opts ...grpc.CallOption) (RepositoryService_BackupCustomHooksClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[9], "/gitaly.RepositoryService/BackupCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[10], "/gitaly.RepositoryService/BackupCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -719,6 +754,9 @@ type RepositoryServiceServer interface {
 	CreateRepositoryFromURL(context.Context, *CreateRepositoryFromURLRequest) (*CreateRepositoryFromURLResponse, error)
 	CreateBundle(*CreateBundleRequest, RepositoryService_CreateBundleServer) error
 	CreateRepositoryFromBundle(RepositoryService_CreateRepositoryFromBundleServer) error
+	// GetConfig reads the target repository's gitconfig and streams its contents
+	// back. Returns a NotFound error in case no gitconfig was found.
+	GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error
 	SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error)
 	DeleteConfig(context.Context, *DeleteConfigRequest) (*DeleteConfigResponse, error)
 	FindLicense(context.Context, *FindLicenseRequest) (*FindLicenseResponse, error)
@@ -814,6 +852,9 @@ func (UnimplementedRepositoryServiceServer) CreateBundle(*CreateBundleRequest, R
 }
 func (UnimplementedRepositoryServiceServer) CreateRepositoryFromBundle(RepositoryService_CreateRepositoryFromBundleServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateRepositoryFromBundle not implemented")
+}
+func (UnimplementedRepositoryServiceServer) GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
 }
 func (UnimplementedRepositoryServiceServer) SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetConfig not implemented")
@@ -1296,6 +1337,27 @@ func (x *repositoryServiceCreateRepositoryFromBundleServer) Recv() (*CreateRepos
 		return nil, err
 	}
 	return m, nil
+}
+
+func _RepositoryService_GetConfig_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetConfigRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RepositoryServiceServer).GetConfig(m, &repositoryServiceGetConfigServer{stream})
+}
+
+type RepositoryService_GetConfigServer interface {
+	Send(*GetConfigResponse) error
+	grpc.ServerStream
+}
+
+type repositoryServiceGetConfigServer struct {
+	grpc.ServerStream
+}
+
+func (x *repositoryServiceGetConfigServer) Send(m *GetConfigResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _RepositoryService_SetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1835,6 +1897,11 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "CreateRepositoryFromBundle",
 			Handler:       _RepositoryService_CreateRepositoryFromBundle_Handler,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "GetConfig",
+			Handler:       _RepositoryService_GetConfig_Handler,
+			ServerStreams: true,
 		},
 		{
 			StreamName:    "GetInfoAttributes",
