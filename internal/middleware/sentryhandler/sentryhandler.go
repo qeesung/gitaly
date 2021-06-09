@@ -27,6 +27,8 @@ var ignoredCodes = []codes.Code{
 	codes.DeadlineExceeded,
 	// We use FailedPrecondition to signal error conditions that are 'normal'
 	codes.FailedPrecondition,
+	// Returned if e.g. TreeEntry was not found, etc. It's a normal situation.
+	codes.NotFound,
 }
 
 // UnaryLogHandler handles access times and errors for unary RPC's

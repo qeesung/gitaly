@@ -8,6 +8,7 @@ import (
 
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,13 +36,11 @@ func Test_generateSentryEvent(t *testing.T) {
 			wantCulprit: "SSHService::SSHUploadPack",
 		},
 		{
-			name:        "GRPC error",
-			method:      "/gitaly.RepoService/RepoExists",
-			sinceStart:  500 * time.Millisecond,
-			err:         status.Errorf(codes.NotFound, "Something failed"),
-			wantCode:    codes.NotFound,
-			wantMessage: "rpc error: code = NotFound desc = Something failed",
-			wantCulprit: "RepoService::RepoExists",
+			name:       "GRPC error",
+			method:     "/gitaly.RepoService/RepoExists",
+			sinceStart: 500 * time.Millisecond,
+			err:        status.Errorf(codes.NotFound, "Something failed"),
+			wantNil:    true,
 		},
 		{
 			name:       "nil",
@@ -103,6 +102,7 @@ func Test_generateSentryEvent(t *testing.T) {
 				return
 			}
 
+			require.NotNil(t, event)
 			assert.Equal(t, tt.wantCulprit, event.Transaction)
 			assert.Equal(t, tt.wantMessage, event.Message)
 			assert.Equal(t, event.Tags["system"], "grpc")
