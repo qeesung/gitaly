@@ -106,11 +106,21 @@ func DefaultReplicationConfig() Replication {
 
 // Config is a container for everything found in the TOML config file
 type Config struct {
-	AllowLegacyElectors  bool              `toml:"i_understand_my_election_strategy_is_unsupported_and_will_be_removed_without_warning"`
-	Reconciliation       Reconciliation    `toml:"reconciliation"`
-	Replication          Replication       `toml:"replication"`
-	ListenAddr           string            `toml:"listen_addr"`
-	TLSListenAddr        string            `toml:"tls_listen_addr"`
+	AllowLegacyElectors bool           `toml:"i_understand_my_election_strategy_is_unsupported_and_will_be_removed_without_warning"`
+	Reconciliation      Reconciliation `toml:"reconciliation"`
+	Replication         Replication    `toml:"replication"`
+	// ListenAddresses represents list of the addresses service should server on.
+	// Each address should use a schema prefix, one of: unix, tcp or tls.
+	// At least one element expected to be provided (while SocketPath, ListenAddr and TLSListenAddr
+	// still in use they have a higher priority over ListenAddresses and values of the
+	// ListenAddresses won't be taken into account if at least on of the SocketPath, ListenAddr
+	// or TLSListenAddr provided).
+	ListenAddresses []string `toml:"listen_addresses"`
+	// ListenAddr is deprecated. Please use ListenAddresses instead.
+	ListenAddr string `toml:"listen_addr"`
+	// TLSListenAddr is deprecated. Please use ListenAddresses instead.
+	TLSListenAddr string `toml:"tls_listen_addr"`
+	// SocketPath is deprecated. Please use ListenAddresses instead.
 	SocketPath           string            `toml:"socket_path"`
 	VirtualStorages      []*VirtualStorage `toml:"virtual_storage"`
 	Logging              log.Config        `toml:"logging"`

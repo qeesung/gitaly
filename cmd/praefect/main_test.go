@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"testing"
 
@@ -94,14 +93,14 @@ func TestFlattenNodes(t *testing.T) {
 
 func TestGetStarterConfigs(t *testing.T) {
 	for _, tc := range []struct {
-		desc   string
-		conf   config.Config
-		exp    []starter.Config
-		expErr error
+		desc      string
+		conf      config.Config
+		exp       []starter.Config
+		expErrMsg string
 	}{
 		{
-			desc:   "no addresses",
-			expErr: errors.New("no listening addresses were provided, unable to start"),
+			desc:      "no addresses",
+			expErrMsg: "no listening addresses were provided, unable to start",
 		},
 		{
 			desc: "addresses without schema",
@@ -209,13 +208,61 @@ func TestGetStarterConfigs(t *testing.T) {
 				ListenAddr:    "127.0.0.1:2306",
 				TLSListenAddr: "127.0.0.1:2306",
 			},
-			expErr: errors.New(`same address can't be used for different schemas "127.0.0.1:2306"`),
+			expErrMsg: `same address can't be used for different schemas "127.0.0.1:2306"`,
+		},
+		{
+			desc: "multiple addresses",
+			conf: config.Config{
+				ListenAddresses: []string{"tcp://127.0.0.1:2306", "tls://127.0.0.1:2307", "unix:///socket/path"},
+			},
+			exp: []starter.Config{
+				{
+					Name:              starter.TCP,
+					Addr:              "127.0.0.1:2306",
+					HandoverOnUpgrade: true,
+				},
+				{
+					Name:              starter.TLS,
+					Addr:              "127.0.0.1:2307",
+					HandoverOnUpgrade: true,
+				},
+				{
+					Name:              starter.Unix,
+					Addr:              "/socket/path",
+					HandoverOnUpgrade: true,
+				},
+			},
+		},
+		{
+			desc: "addresses should have schemas",
+			conf: config.Config{
+				ListenAddresses: []string{"127.0.0.1:2306"},
+			},
+			expErrMsg: `parse listening address "127.0.0.1:2306": unsupported format: "127.0.0.1:2306": empty schema can't be used`,
+		},
+		{
+			desc: "same addresses should have different schemas",
+			conf: config.Config{
+				ListenAddresses: []string{"tcp://127.0.0.1:2306", "tls://127.0.0.1:2306"},
+			},
+			expErrMsg: `same address can't be used for different schemas "127.0.0.1:2306"`,
+		},
+		{
+			desc: "old config values set, skip values of the new field",
+			conf: config.Config{
+				SocketPath:      "unix:///path/listen.sock",
+				ListenAddresses: []string{"tcp://127.0.0.1:2306", "tls://127.0.0.1:2306"},
+			},
+			exp: []starter.Config{{Name: starter.Unix, Addr: "/path/listen.sock", HandoverOnUpgrade: true}},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			actual, err := getStarterConfigs(tc.conf)
-			require.Equal(t, tc.expErr, err)
-			require.ElementsMatch(t, tc.exp, actual)
+			if tc.expErrMsg != "" {
+				require.EqualError(t, err, tc.expErrMsg)
+			} else {
+				require.ElementsMatch(t, tc.exp, actual)
+			}
 		})
 	}
 }

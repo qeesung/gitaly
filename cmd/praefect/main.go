@@ -512,7 +512,9 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 	var cfgs []starter.Config
-	unique := map[string]struct{}{}
+	unique := map[string]string{}
+
+	var oldConfigInUse bool
 	for schema, addr := range map[string]string{
 		starter.TCP:  conf.ListenAddr,
 		starter.TLS:  conf.TLSListenAddr,
@@ -521,6 +523,8 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 		if addr == "" {
 			continue
 		}
+
+		oldConfigInUse = true
 
 		addrConf, err := starter.ParseEndpoint(addr)
 		if err != nil {
@@ -535,11 +539,34 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 		if _, found := unique[addrConf.Addr]; found {
 			return nil, fmt.Errorf("same address can't be used for different schemas %q", addr)
 		}
-		unique[addrConf.Addr] = struct{}{}
+		unique[addrConf.Addr] = ""
 
 		cfgs = append(cfgs, addrConf)
 
 		logger.WithFields(logrus.Fields{"schema": schema, "address": addr}).Info("listening")
+	}
+
+	if !oldConfigInUse {
+		for _, addr := range conf.ListenAddresses {
+			if addr == "" {
+				continue
+			}
+
+			addrConf, err := starter.ParseEndpoint(addr)
+			if err != nil {
+				return nil, fmt.Errorf("parse listening address %q: %w", addr, err)
+			}
+			addrConf.HandoverOnUpgrade = true
+
+			if schema, found := unique[addrConf.Addr]; found && schema != addrConf.Name {
+				return nil, fmt.Errorf("same address can't be used for different schemas %q", addrConf.Addr)
+			}
+			unique[addrConf.Addr] = addrConf.Name
+
+			cfgs = append(cfgs, addrConf)
+
+			logger.WithFields(logrus.Fields{"schema": addrConf.Name, "address": addrConf.Addr}).Info("listening")
+		}
 	}
 
 	if len(cfgs) == 0 {

@@ -237,7 +237,8 @@ func TestConfigParsing(t *testing.T) {
 			desc:     "check all configuration values",
 			filePath: "testdata/config.toml",
 			expected: Config{
-				TLSListenAddr: "0.0.0.0:2306",
+				TLSListenAddr:   "0.0.0.0:2306",
+				ListenAddresses: []string{"unix://path/to/listen.sock", "tls://0.0.0.0:2306"},
 				TLS: config.TLS{
 					CertPath: "/home/git/cert.cert",
 					KeyPath:  "/home/git/key.pem",
