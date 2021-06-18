@@ -196,6 +196,7 @@ func run(cfg config.Cfg) error {
 	}
 	defer rubySrv.Stop()
 
+	var oldConfigInUse bool
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
 		{Name: starter.Unix, Addr: cfg.GitalyInternalSocketPath(), HandoverOnUpgrade: false},
@@ -205,6 +206,8 @@ func run(cfg config.Cfg) error {
 		if c.Addr == "" {
 			continue
 		}
+
+		oldConfigInUse = true
 
 		var srv *grpc.Server
 		if c.HandoverOnUpgrade {
@@ -232,6 +235,46 @@ func run(cfg config.Cfg) error {
 			DiskCache:          diskCache,
 		})
 		b.RegisterStarter(starter.New(c, srv))
+	}
+
+	if !oldConfigInUse {
+		cs := []starter.Config{{Name: starter.Unix, Addr: cfg.GitalyInternalSocketPath(), HandoverOnUpgrade: false}}
+		for _, addr := range cfg.ListenAddresses {
+			c, err := starter.ParseEndpoint(addr)
+			if err != nil {
+				return fmt.Errorf("parse listening address %q: %w", addr, err)
+			}
+			cs = append(cs, c)
+		}
+
+		for _, c := range cs {
+			var srv *grpc.Server
+			if c.HandoverOnUpgrade {
+				srv, err = gitalyServerFactory.CreateExternal(c.IsSecure())
+				if err != nil {
+					return fmt.Errorf("create external gRPC server: %w", err)
+				}
+			} else {
+				srv, err = gitalyServerFactory.CreateInternal()
+				if err != nil {
+					return fmt.Errorf("create internal gRPC server: %w", err)
+				}
+			}
+
+			setup.RegisterAll(srv, &service.Dependencies{
+				Cfg:                cfg,
+				RubyServer:         rubySrv,
+				GitalyHookManager:  hookManager,
+				TransactionManager: transactionManager,
+				StorageLocator:     locator,
+				ClientPool:         conns,
+				GitCmdFactory:      gitCmdFactory,
+				Linguist:           ling,
+				CatfileCache:       catfileCache,
+				DiskCache:          diskCache,
+			})
+			b.RegisterStarter(starter.New(c, srv))
+		}
 	}
 
 	if addr := cfg.PrometheusListenAddr; addr != "" {

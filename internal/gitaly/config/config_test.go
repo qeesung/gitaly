@@ -418,6 +418,15 @@ value = "second-value"
 	}, cfg.Git)
 }
 
+func TestLoadListenerAddresses(t *testing.T) {
+	tmpFile := strings.NewReader(`listen_addresses = ["unix://path/to/listen.sock" , "tcp://:6454"]`)
+
+	cfg, err := Load(tmpFile)
+	require.NoError(t, err)
+
+	require.ElementsMatch(t, []string{"unix://path/to/listen.sock", "tcp://:6454"}, cfg.ListenAddresses)
+}
+
 func TestSetGitPath(t *testing.T) {
 	var resolvedGitPath string
 	if path, ok := os.LookupEnv("GITALY_TESTING_GIT_BINARY"); ok {
