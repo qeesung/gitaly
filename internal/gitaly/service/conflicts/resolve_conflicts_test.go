@@ -1,4 +1,4 @@
-package conflicts_test
+package conflicts
 
 import (
 	"bytes"
@@ -11,12 +11,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/conflicts"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -51,7 +51,7 @@ var (
 )
 
 func TestSuccessfulResolveConflictsRequest(t *testing.T) {
-	cfg, repoProto, repoPath, client := conflicts.SetupConflictsService(t, true)
+	cfg, repoProto, repoPath, client := SetupConflictsService(t, true)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -172,7 +172,7 @@ func TestSuccessfulResolveConflictsRequest(t *testing.T) {
 }
 
 func TestResolveConflictsWithRemoteRepo(t *testing.T) {
-	cfg, _, _, client := conflicts.SetupConflictsService(t, true)
+	cfg, _, _, client := SetupConflictsService(t, true)
 
 	testhelper.ConfigureGitalySSHBin(t, cfg)
 	testhelper.ConfigureGitalyHooksBin(t, cfg)
@@ -243,7 +243,7 @@ func TestResolveConflictsWithRemoteRepo(t *testing.T) {
 }
 
 func TestResolveConflictsLineEndings(t *testing.T) {
-	cfg, repo, repoPath, client := conflicts.SetupConflictsService(t, true)
+	cfg, repo, repoPath, client := SetupConflictsService(t, true)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -363,7 +363,7 @@ func TestResolveConflictsLineEndings(t *testing.T) {
 }
 
 func TestResolveConflictsNonOIDRequests(t *testing.T) {
-	cfg, repoProto, _, client := conflicts.SetupConflictsService(t, true)
+	cfg, repoProto, _, client := SetupConflictsService(t, true)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -396,11 +396,11 @@ func TestResolveConflictsNonOIDRequests(t *testing.T) {
 	}))
 
 	_, err = stream.CloseAndRecv()
-	require.Equal(t, status.Errorf(codes.Unknown, "Rugged::InvalidError: unable to parse OID - contains invalid characters"), err)
+	testassert.GrpcEqualErr(t, status.Errorf(codes.Unknown, "Rugged::InvalidError: unable to parse OID - contains invalid characters"), err)
 }
 
 func TestResolveConflictsIdenticalContent(t *testing.T) {
-	cfg, repoProto, repoPath, client := conflicts.SetupConflictsService(t, true)
+	cfg, repoProto, repoPath, client := SetupConflictsService(t, true)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -491,13 +491,13 @@ func TestResolveConflictsIdenticalContent(t *testing.T) {
 
 	response, err := stream.CloseAndRecv()
 	require.NoError(t, err)
-	testhelper.ProtoEqual(t, &gitalypb.ResolveConflictsResponse{
+	testassert.ProtoEqual(t, &gitalypb.ResolveConflictsResponse{
 		ResolutionError: "Resolved content has no changes for file files/ruby/popen.rb",
 	}, response)
 }
 
 func TestResolveConflictsStableID(t *testing.T) {
-	cfg, repoProto, _, client := conflicts.SetupConflictsService(t, true)
+	cfg, repoProto, _, client := SetupConflictsService(t, true)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -566,7 +566,7 @@ func TestResolveConflictsStableID(t *testing.T) {
 }
 
 func TestFailedResolveConflictsRequestDueToResolutionError(t *testing.T) {
-	cfg, repo, _, client := conflicts.SetupConflictsService(t, true)
+	cfg, repo, _, client := SetupConflictsService(t, true)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -623,7 +623,7 @@ func TestFailedResolveConflictsRequestDueToResolutionError(t *testing.T) {
 }
 
 func TestFailedResolveConflictsRequestDueToValidation(t *testing.T) {
-	cfg, repo, _, client := conflicts.SetupConflictsService(t, true)
+	cfg, repo, _, client := SetupConflictsService(t, true)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()

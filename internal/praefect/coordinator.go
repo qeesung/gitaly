@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"sync"
 	"time"
 
@@ -11,20 +12,19 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	glerrors "gitlab.com/gitlab-org/gitaly/internal/errors"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	glerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/metrics"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/sync/errgroup"
 	grpc_metadata "google.golang.org/grpc/metadata"
@@ -38,12 +38,6 @@ type transactionsCondition func(context.Context) bool
 
 func transactionsEnabled(context.Context) bool  { return true }
 func transactionsDisabled(context.Context) bool { return false }
-
-func transactionsFlag(flag featureflag.FeatureFlag) transactionsCondition {
-	return func(ctx context.Context) bool {
-		return featureflag.IsEnabled(ctx, flag)
-	}
-}
 
 // transactionRPCs contains the list of repository-scoped mutating calls which may take part in
 // transactions. An optional feature flag can be added to conditionally enable transactional
@@ -79,17 +73,16 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.RepositoryService/CreateRepositoryFromBundle":   transactionsEnabled,
 	"/gitaly.RepositoryService/CreateRepositoryFromSnapshot": transactionsEnabled,
 	"/gitaly.RepositoryService/CreateRepositoryFromURL":      transactionsEnabled,
+	"/gitaly.RepositoryService/DeleteConfig":                 transactionsEnabled,
 	"/gitaly.RepositoryService/FetchRemote":                  transactionsEnabled,
 	"/gitaly.RepositoryService/FetchSourceBranch":            transactionsEnabled,
 	"/gitaly.RepositoryService/ReplicateRepository":          transactionsEnabled,
+	"/gitaly.RepositoryService/SetConfig":                    transactionsEnabled,
 	"/gitaly.RepositoryService/WriteRef":                     transactionsEnabled,
 	"/gitaly.SSHService/SSHReceivePack":                      transactionsEnabled,
 	"/gitaly.SmartHTTPService/PostReceivePack":               transactionsEnabled,
 	"/gitaly.WikiService/WikiUpdatePage":                     transactionsEnabled,
 	"/gitaly.WikiService/WikiWritePage":                      transactionsEnabled,
-
-	"/gitaly.RepositoryService/SetConfig":    transactionsFlag(featureflag.TxConfig),
-	"/gitaly.RepositoryService/DeleteConfig": transactionsFlag(featureflag.TxConfig),
 
 	// The following RPCs don't perform any reference updates and thus
 	// shouldn't use transactions.
@@ -159,10 +152,6 @@ func init() {
 }
 
 func shouldUseTransaction(ctx context.Context, method string) bool {
-	if !featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions) {
-		return false
-	}
-
 	condition, ok := transactionRPCs[method]
 	if !ok {
 		return false
@@ -304,16 +293,9 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 		"relative_path":   call.targetRepo.RelativePath,
 	})
 
-	praefectServer, err := txinfo.PraefectFromConfig(c.conf)
-	if err != nil {
-		return nil, fmt.Errorf("repo scoped: could not create Praefect configuration: %w", err)
-	}
-
-	if ctx, err = praefectServer.Inject(ctx); err != nil {
-		return nil, fmt.Errorf("repo scoped: could not inject Praefect server: %w", err)
-	}
-
+	var err error
 	var ps *proxy.StreamParameters
+
 	switch call.methodInfo.Operation {
 	case protoregistry.OpAccessor:
 		ps, err = c.accessorStreamParameters(ctx, call)
@@ -802,13 +784,21 @@ func getUpdatedAndOutdatedSecondaries(
 	primaryDirtied = transaction.DidCommitAnySubtransaction() ||
 		(transaction.CountSubtransactions() == 0 && primaryErr == nil)
 
+	// If the primary wasn't dirtied, then we never replicate any changes. While this is
+	// duplicates logic defined elsewhere, it's probably good enough given that we only talk
+	// about metrics here.
 	recordReplication := func(reason string, replicationCount int) {
-		// If the primary wasn't dirtied, then we never replicate any changes. While this is
-		// duplicates logic defined elsewhere, it's probably good enough given that we only
-		// talk about metrics here.
 		if primaryDirtied && replicationCount > 0 {
 			replicationCountMetric.WithLabelValues(reason).Add(float64(replicationCount))
 		}
+	}
+
+	// Same as above, we discard log entries in case the primary wasn't dirtied.
+	logReplication := ctxlogrus.Extract(ctx)
+	if !primaryDirtied {
+		discardLogger := logrus.New()
+		discardLogger.Out = ioutil.Discard
+		logReplication = logrus.NewEntry(discardLogger)
 	}
 
 	// Replication targets were not added to the transaction, most likely because they are
@@ -820,7 +810,7 @@ func getUpdatedAndOutdatedSecondaries(
 	// If the primary errored, then we need to assume that it has modified on-disk state and
 	// thus need to replicate those changes to secondaries.
 	if primaryErr != nil {
-		ctxlogrus.Extract(ctx).WithError(primaryErr).Info("primary failed transaction")
+		logReplication.WithError(primaryErr).Info("primary failed transaction")
 		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
 		recordReplication("primary-failed", len(route.Secondaries))
 		return
@@ -831,7 +821,7 @@ func getUpdatedAndOutdatedSecondaries(
 	// no changes were done and the nodes hit an error prior to voting. If the primary processed
 	// the RPC successfully, we assume the RPC is not correctly voting and replicate everywhere.
 	if transaction.CountSubtransactions() == 0 {
-		ctxlogrus.Extract(ctx).Info("transaction did not create subtransactions")
+		logReplication.Info("transaction did not create subtransactions")
 		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
 		recordReplication("no-votes", len(route.Secondaries))
 		return
@@ -841,7 +831,7 @@ func getUpdatedAndOutdatedSecondaries(
 	// safe route and just replicate to all secondaries.
 	nodeStates, err := transaction.State()
 	if err != nil {
-		ctxlogrus.Extract(ctx).WithError(err).Error("could not get transaction state")
+		logReplication.WithError(err).Error("could not get transaction state")
 		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
 		recordReplication("missing-tx-state", len(route.Secondaries))
 		return
@@ -852,7 +842,7 @@ func getUpdatedAndOutdatedSecondaries(
 	// but it's what we got. So in order to ensure a consistent state, we need to replicate.
 	if state := nodeStates[route.Primary.Storage]; state != transactions.VoteCommitted {
 		if state == transactions.VoteFailed {
-			ctxlogrus.Extract(ctx).Error("transaction: primary failed vote")
+			logReplication.Error("transaction: primary failed vote")
 		}
 		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
 		recordReplication("primary-not-committed", len(route.Secondaries))

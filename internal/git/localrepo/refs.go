@@ -9,8 +9,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 )
 
 // HasRevision checks if a revision in the repository exists. This will not
@@ -160,9 +160,51 @@ func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, ne
 	return nil
 }
 
-// GetRemoteReferences lists references of the remote. Multiple patterns can be supplied to filter the references on the
-// remote down to the needed ones. Symbolic references are dereferenced. Peeled tags are not returned.
-func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, patterns ...string) ([]git.Reference, error) {
+type getRemoteReferenceConfig struct {
+	patterns   []string
+	config     []git.ConfigPair
+	sshCommand string
+}
+
+// GetRemoteReferencesOption is an option which can be passed to GetRemoteReferences.
+type GetRemoteReferencesOption func(*getRemoteReferenceConfig)
+
+// WithPatterns sets up a set of patterns which are then used to filter the list of returned
+// references.
+func WithPatterns(patterns ...string) GetRemoteReferencesOption {
+	return func(cfg *getRemoteReferenceConfig) {
+		cfg.patterns = patterns
+	}
+}
+
+// WithSSHCommand sets the SSH invocation to use when communicating with the remote.
+func WithSSHCommand(cmd string) GetRemoteReferencesOption {
+	return func(cfg *getRemoteReferenceConfig) {
+		cfg.sshCommand = cmd
+	}
+}
+
+// WithConfig sets up Git configuration for the git-ls-remote(1) invocation. The config pairs are
+// set up via `WithConfigEnv()` and are thus not exposed via the command line.
+func WithConfig(config ...git.ConfigPair) GetRemoteReferencesOption {
+	return func(cfg *getRemoteReferenceConfig) {
+		cfg.config = config
+	}
+}
+
+// GetRemoteReferences lists references of the remote. Symbolic references are dereferenced. Peeled
+// tags are not returned.
+func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, opts ...GetRemoteReferencesOption) ([]git.Reference, error) {
+	var cfg getRemoteReferenceConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	var env []string
+	if cfg.sshCommand != "" {
+		env = append(env, envGitSSHCommand(cfg.sshCommand))
+	}
+
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	if err := repo.ExecAndWait(ctx,
@@ -171,10 +213,12 @@ func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, patter
 			Flags: []git.Option{
 				git.Flag{Name: "--refs"},
 			},
-			Args: append([]string{remote}, patterns...),
+			Args: append([]string{remote}, cfg.patterns...),
 		},
 		git.WithStdout(stdout),
 		git.WithStderr(stderr),
+		git.WithEnv(env...),
+		git.WithConfigEnv(cfg.config...),
 	); err != nil {
 		return nil, fmt.Errorf("create git ls-remote: %w, stderr: %q", err, stderr)
 	}

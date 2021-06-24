@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func validateMergeBranchRequest(request *gitalypb.UserMergeBranchRequest) error {
@@ -251,7 +251,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		return nil, helper.ErrInvalidArgument(errors.New("Invalid merge source"))
 	}
 
-	sourceRef, err := repo.ResolveRevision(ctx, git.Revision(request.SourceSha))
+	sourceOID, err := repo.ResolveRevision(ctx, git.Revision(request.SourceSha))
 	if err != nil {
 		//nolint:stylecheck
 		return nil, helper.ErrInvalidArgument(errors.New("Invalid merge source"))
@@ -265,9 +265,25 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		}
 	}
 
-	// First, overwrite the reference with the target reference.
-	if err := repo.UpdateRef(ctx, git.ReferenceName(request.TargetRef), oid, ""); err != nil {
-		return nil, updateRefError{reference: string(request.TargetRef)}
+	// Resolve the current state of the target reference. We do not care whether it
+	// exists or not, but what we do want to assert is that the target reference doesn't
+	// change while we compute the merge commit as a small protection against races.
+	var oldTargetOID git.ObjectID
+	if targetRef, err := repo.GetReference(ctx, git.ReferenceName(request.TargetRef)); err == nil {
+		if targetRef.IsSymbolic {
+			return nil, helper.ErrPreconditionFailedf("target reference is symbolic: %q", request.TargetRef)
+		}
+
+		oid, err := git.NewObjectIDFromHex(targetRef.Target)
+		if err != nil {
+			return nil, helper.ErrInternalf("invalid target revision: %v", err)
+		}
+
+		oldTargetOID = oid
+	} else if errors.Is(err, git.ErrReferenceNotFound) {
+		oldTargetOID = git.ZeroOID
+	} else {
+		return nil, helper.ErrInternalf("could not read target reference: %v", err)
 	}
 
 	// Now, we create the merge commit...
@@ -278,14 +294,15 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		AuthorDate:     authorDate,
 		Message:        string(request.Message),
 		Ours:           oid.String(),
-		Theirs:         sourceRef.String(),
+		Theirs:         sourceOID.String(),
 		AllowConflicts: request.AllowConflicts,
 	}.Run(ctx, s.cfg)
 	if err != nil {
 		if errors.Is(err, git2go.ErrInvalidArgument) {
 			return nil, helper.ErrInvalidArgument(err)
 		}
-		return nil, helper.ErrPreconditionFailedf("Failed to create merge commit for source_sha %s and target_sha %s at %s", sourceRef, oid, string(request.TargetRef))
+		return nil, helper.ErrPreconditionFailedf("Failed to create merge commit for source_sha %s and target_sha %s at %s",
+			sourceOID, oid, string(request.TargetRef))
 	}
 
 	mergeOID, err := git.NewObjectIDFromHex(merge.CommitID)
@@ -295,7 +312,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 
 	// ... and move branch from target ref to the merge commit. The Ruby
 	// implementation doesn't invoke hooks, so we don't either.
-	if err := repo.UpdateRef(ctx, git.ReferenceName(request.TargetRef), mergeOID, oid); err != nil {
+	if err := repo.UpdateRef(ctx, git.ReferenceName(request.TargetRef), mergeOID, oldTargetOID); err != nil {
 		//nolint:stylecheck
 		return nil, helper.ErrPreconditionFailed(fmt.Errorf("Could not update %s. Please refresh and try again", string(request.TargetRef)))
 	}

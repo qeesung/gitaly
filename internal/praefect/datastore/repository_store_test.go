@@ -9,8 +9,8 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 )
 
 // repositoryRecord represents Praefect's records related to a repository.
@@ -118,7 +118,7 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 	)
 
 	t.Run("IncrementGeneration", func(t *testing.T) {
-		t.Run("creates a new record for primary", func(t *testing.T) {
+		t.Run("doesn't create a new record for primary", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
 			require.NoError(t, rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"secondary-1"}))
@@ -128,13 +128,7 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 						"repository-1": repositoryRecord{},
 					},
 				},
-				storageState{
-					"virtual-storage-1": {
-						"repository-1": {
-							"primary": 0,
-						},
-					},
-				},
+				storageState{},
 			)
 		})
 

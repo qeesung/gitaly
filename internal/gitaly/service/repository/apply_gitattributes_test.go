@@ -12,15 +12,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -114,11 +115,6 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 		}),
 	)
 
-	praefect := txinfo.PraefectServer{
-		SocketPath: "unix://" + cfg.GitalyInternalSocketPath(),
-		Token:      cfg.Auth.Token,
-	}
-
 	for _, tc := range []struct {
 		desc        string
 		revision    []byte
@@ -180,8 +176,6 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 
 			ctx, err := txinfo.InjectTransaction(ctx, 1, "primary", true)
 			require.NoError(t, err)
-			ctx, err = praefect.Inject(ctx)
-			require.NoError(t, err)
 			ctx = helper.IncomingToOutgoing(ctx)
 
 			transactionServer.vote = func(request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
@@ -192,7 +186,7 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 				Repository: repo,
 				Revision:   tc.revision,
 			})
-			require.Equal(t, tc.expectedErr, err)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
 
 			path := filepath.Join(infoPath, "attributes")
 			if tc.shouldExist {

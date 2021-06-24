@@ -9,15 +9,16 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/repository"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	prommetrics "gitlab.com/gitlab-org/gitaly/v14/internal/prometheus/metrics"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 // Replicator performs the actual replication logic between two nodes
@@ -117,10 +118,10 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 
 	if sourceObjectPool != nil {
 		targetObjectPoolClient := gitalypb.NewObjectPoolServiceClient(targetCC)
-		targetObjectPool := *sourceObjectPool
+		targetObjectPool := proto.Clone(sourceObjectPool).(*gitalypb.ObjectPool)
 		targetObjectPool.GetRepository().StorageName = targetRepository.GetStorageName()
 		if _, err := targetObjectPoolClient.LinkRepositoryToObjectPool(ctx, &gitalypb.LinkRepositoryToObjectPoolRequest{
-			ObjectPool: &targetObjectPool,
+			ObjectPool: targetObjectPool,
 			Repository: targetRepository,
 		}); err != nil {
 			return err

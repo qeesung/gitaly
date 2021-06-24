@@ -1,20 +1,17 @@
 package operations
 
 import (
-	"context"
 	"crypto/sha1"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -25,17 +22,11 @@ var (
 	oldrev           = []byte("0b4bc9a49b562e85de7cc9e834518ea6828729b9")
 )
 
-func testSuccessfulUserUpdateBranchRequest(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-		featureflag.GoUserUpdateBranch,
-	}).Run(t, func(t *testing.T, ctx context.Context) {
-		testSuccessfulUserUpdateBranchRequestFeatured(t, ctx, cfg, rubySrv)
-	})
-}
+func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	ctx, cfg, repoProto, repoPath, client := setupOperationsServiceWithRuby(t, ctx, cfg, rubySrv)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -93,7 +84,7 @@ func testSuccessfulUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Con
 			}
 			response, err := client.UserUpdateBranch(ctx, request)
 			require.NoError(t, err)
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 
 			branchCommit, err := repo.ReadCommit(ctx, git.Revision(testCase.updateBranchName))
 
@@ -106,12 +97,11 @@ func testSuccessfulUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Con
 	}
 }
 
-func testSuccessfulUserUpdateBranchRequestToDelete(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testWithFeature(t, featureflag.GoUserUpdateBranch, cfg, rubySrv, testSuccessfulUserUpdateBranchRequestToDeleteFeatured)
-}
+func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserUpdateBranchRequestToDeleteFeatured(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	ctx, cfg, repoProto, repoPath, client := setupOperationsServiceWithRuby(t, ctx, cfg, rubySrv)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -164,8 +154,8 @@ func testSuccessfulUserUpdateBranchRequestToDeleteFeatured(t *testing.T, ctx con
 				User:       gittest.TestUser,
 			}
 			response, err := client.UserUpdateBranch(ctx, request)
-			require.Nil(t, err)
-			require.Equal(t, responseOk, response)
+			require.NoError(t, err)
+			testassert.ProtoEqual(t, responseOk, response)
 
 			_, err = repo.ReadCommit(ctx, git.Revision(testCase.updateBranchName))
 			require.Equal(t, localrepo.ErrObjectNotFound, err, "expected 'not found' error got %v", err)
@@ -176,12 +166,11 @@ func testSuccessfulUserUpdateBranchRequestToDeleteFeatured(t *testing.T, ctx con
 	}
 }
 
-func testSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testWithFeature(t, featureflag.GoUserUpdateBranch, cfg, rubySrv, testSuccessfulGitHooksForUserUpdateBranchRequestFeatured)
-}
+func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulGitHooksForUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	ctx, cfg, _, _, client := setupOperationsServiceWithRuby(t, ctx, cfg, rubySrv)
+	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
 
 	for _, hookName := range GitlabHooks {
 		t.Run(hookName, func(t *testing.T) {
@@ -203,22 +192,21 @@ func testSuccessfulGitHooksForUserUpdateBranchRequestFeatured(t *testing.T, ctx 
 			require.NoError(t, err)
 			require.Empty(t, response.PreReceiveError)
 
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 			output := string(testhelper.MustReadFile(t, hookOutputTempPath))
 			require.Contains(t, output, "GL_USERNAME="+gittest.TestUser.GlUsername)
 		})
 	}
 }
 
-func testFailedUserUpdateBranchDueToHooks(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testWithFeature(t, featureflag.GoUserUpdateBranch, cfg, rubySrv, testFailedUserUpdateBranchDueToHooksFeatured)
-}
+func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateBranchDueToHooksFeatured(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	ctx, _, repo, repoPath, client := setupOperationsServiceWithRuby(t, ctx, cfg, rubySrv)
+	ctx, _, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	request := &gitalypb.UserUpdateBranchRequest{
-		Repository: repo,
+		Repository: repoProto,
 		BranchName: []byte(updateBranchName),
 		Newrev:     newrev,
 		Oldrev:     oldrev,
@@ -232,25 +220,22 @@ func testFailedUserUpdateBranchDueToHooksFeatured(t *testing.T, ctx context.Cont
 		gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 		response, err := client.UserUpdateBranch(ctx, request)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+gittest.TestUser.GlUsername)
 		require.Contains(t, response.PreReceiveError, "PWD="+repoPath)
 
 		responseOk := &gitalypb.UserUpdateBranchResponse{
 			PreReceiveError: response.PreReceiveError,
 		}
-		require.Equal(t, responseOk, response)
+		testassert.ProtoEqual(t, responseOk, response)
 	}
 }
 
-func testFailedUserUpdateBranchRequest(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testWithFeature(t, featureflag.GoUserUpdateBranch, cfg, rubySrv, testFailedUserUpdateBranchRequestFeatured)
-}
+func TestFailedUserUpdateBranchRequest(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	ctx, cfg, repoProto, _, client := setupOperationsServiceWithRuby(t, ctx, cfg, rubySrv)
-
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
 	revDoesntExist := fmt.Sprintf("%x", sha1.Sum([]byte("we need a non existent sha")))
 
@@ -362,6 +347,7 @@ func testFailedUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Context
 		},
 	}
 
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			request := &gitalypb.UserUpdateBranchRequest{
@@ -373,8 +359,8 @@ func testFailedUserUpdateBranchRequestFeatured(t *testing.T, ctx context.Context
 			}
 
 			response, err := client.UserUpdateBranch(ctx, request)
-			require.Equal(t, testCase.response, response)
-			require.Equal(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
 
 			branchCommit, err := repo.ReadCommit(ctx, git.Revision(testCase.branchName))
 			if testCase.expectNotFoundError {

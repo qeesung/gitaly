@@ -16,26 +16,27 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	gconfig "gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
-	"gitlab.com/gitlab-org/gitaly/internal/storage"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
+	gconfig "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -101,7 +102,7 @@ func TestReplMgr_ProcessBacklog(t *testing.T) {
 
 	// replicate object pool repository to target node
 	poolRepository := pool.ToProto().GetRepository()
-	targetObjectPoolRepo := *poolRepository
+	targetObjectPoolRepo := proto.Clone(poolRepository).(*gitalypb.Repository)
 	targetObjectPoolRepo.StorageName = backupCfg.Storages[0].Name
 
 	ctx, cancel := testhelper.Context()
@@ -111,7 +112,7 @@ func TestReplMgr_ProcessBacklog(t *testing.T) {
 
 	repoClient := newRepositoryClient(t, backupCfg.SocketPath, backupCfg.Auth.Token)
 	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
-		Repository: &targetObjectPoolRepo,
+		Repository: targetObjectPoolRepo,
 		Source:     poolRepository,
 	})
 	require.NoError(t, err)
@@ -494,7 +495,7 @@ func waitForRequest(t *testing.T, ch chan proto.Message, expected proto.Message,
 	defer timer.Stop()
 	select {
 	case req := <-ch:
-		testhelper.ProtoEqual(t, expected, req)
+		testassert.ProtoEqual(t, expected, req)
 		close(ch)
 	case <-timer.C:
 		t.Fatal("timed out")

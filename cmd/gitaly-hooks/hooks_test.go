@@ -15,23 +15,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/auth"
-	internallog "gitlab.com/gitlab-org/gitaly/internal/gitaly/config/log"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/prometheus"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/gitlab"
-	gitalylog "gitlab.com/gitlab-org/gitaly/internal/log"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
+	internallog "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/log"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
+	gitalylog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
 
@@ -55,7 +55,7 @@ func rawFeatureFlags() featureflag.Raw {
 
 // envForHooks generates a set of environment variables for gitaly hooks
 func envForHooks(t testing.TB, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
-	payload, err := git.NewHooksPayload(cfg, repo, nil, nil, &git.ReceiveHooksPayload{
+	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.ReceiveHooksPayload{
 		UserID:   glHookValues.GLID,
 		Username: glHookValues.GLUsername,
 		Protocol: glHookValues.GLProtocol,
@@ -402,10 +402,6 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 					Node:    "node",
 					Primary: tc.primary,
 				},
-				&txinfo.PraefectServer{
-					SocketPath: "/path/to/socket",
-					Token:      "secret",
-				},
 				&git.ReceiveHooksPayload{
 					UserID:   glID,
 					Username: glUsername,
@@ -576,6 +572,7 @@ func runHookServiceServer(t *testing.T, cfg config.Cfg) {
 }
 
 type featureFlagAsserter struct {
+	gitalypb.UnimplementedHookServiceServer
 	t       testing.TB
 	wrapped gitalypb.HookServiceServer
 }
@@ -706,7 +703,7 @@ func TestRequestedHooks(t *testing.T) {
 				testhelper.ConfigureGitalyHooksBin(t, cfg)
 				testhelper.ConfigureGitalySSHBin(t, cfg)
 
-				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, nil, git.AllHooks&^hook, nil).Env()
+				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, git.AllHooks&^hook, nil).Env()
 				require.NoError(t, err)
 
 				cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"), hookName)
@@ -719,7 +716,7 @@ func TestRequestedHooks(t *testing.T) {
 				testhelper.ConfigureGitalyHooksBin(t, cfg)
 				testhelper.ConfigureGitalySSHBin(t, cfg)
 
-				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, nil, hook, nil).Env()
+				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, hook, nil).Env()
 				require.NoError(t, err)
 
 				cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"), hookName)

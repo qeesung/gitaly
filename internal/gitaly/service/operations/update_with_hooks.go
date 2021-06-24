@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 type preReceiveError struct {
@@ -52,12 +52,14 @@ func (s *Server) updateReferenceWithHooks(
 	newrev, oldrev git.ObjectID,
 	pushOptions ...string,
 ) error {
-	transaction, praefect, err := txinfo.FromContext(ctx)
-	if err != nil {
+	var transaction *txinfo.Transaction
+	if tx, err := txinfo.TransactionFromContext(ctx); err == nil {
+		transaction = &tx
+	} else if !errors.Is(err, txinfo.ErrTransactionNotFound) {
 		return err
 	}
 
-	payload, err := git.NewHooksPayload(s.cfg, repo, transaction, praefect, &git.ReceiveHooksPayload{
+	payload, err := git.NewHooksPayload(s.cfg, repo, transaction, &git.ReceiveHooksPayload{
 		UserID:   user.GetGlId(),
 		Username: user.GetGlUsername(),
 		Protocol: "web",

@@ -12,15 +12,16 @@ import (
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver/balancer"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/supervisor"
-	"gitlab.com/gitlab-org/gitaly/internal/version"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/streamio"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver/balancer"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/env"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/supervisor"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
@@ -32,9 +33,9 @@ var (
 )
 
 func init() {
-	timeout64, err := strconv.ParseInt(os.Getenv("GITALY_RUBY_CONNECT_TIMEOUT"), 10, 32)
-	if err == nil && timeout64 > 0 {
-		ConnectTimeout = time.Duration(timeout64) * time.Second
+	timeout, err := env.GetInt("GITALY_RUBY_CONNECT_TIMEOUT", 0)
+	if err == nil && timeout > 0 {
+		ConnectTimeout = time.Duration(timeout) * time.Second
 	}
 }
 
@@ -116,6 +117,11 @@ func (s *Server) start() error {
 	numWorkers := cfg.Ruby.NumWorkers
 	balancer.ConfigureBuilder(numWorkers, 0, time.Now)
 
+	svConfig, err := supervisor.NewConfigFromEnv()
+	if err != nil {
+		return fmt.Errorf("get supervisor configuration: %w", err)
+	}
+
 	for i := 0; i < numWorkers; i++ {
 		name := fmt.Sprintf("gitaly-ruby.%d", i)
 		socketPath := filepath.Join(cfg.InternalSocketDir, fmt.Sprintf("ruby.%d", i))
@@ -127,7 +133,7 @@ func (s *Server) start() error {
 
 		events := make(chan supervisor.Event)
 		check := func() error { return ping(socketPath) }
-		p, err := supervisor.New(name, env, args, cfg.Ruby.Dir, cfg.Ruby.MaxRSS, events, check)
+		p, err := supervisor.New(svConfig, name, env, args, cfg.Ruby.Dir, cfg.Ruby.MaxRSS, events, check)
 		if err != nil {
 			return err
 		}

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 )
 
 type (
@@ -15,6 +15,7 @@ type (
 // mockSvc is an implementation of mock.SimpleServer for testing purposes. The
 // gRPC stub can be updated by running `make proto`.
 type mockSvc struct {
+	mock.UnimplementedSimpleServiceServer
 	repoAccessorUnary repoAccessorUnaryFunc
 	repoMutatorUnary  repoMutatorUnaryFunc
 }

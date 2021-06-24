@@ -10,16 +10,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/gitlab"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 )
 
 func TestHookManager_stopCalled(t *testing.T) {
@@ -27,11 +27,6 @@ func TestHookManager_stopCalled(t *testing.T) {
 
 	expectedTx := txinfo.Transaction{
 		ID: 1234, Node: "primary", Primary: true,
-	}
-
-	expectedPraefect := txinfo.PraefectServer{
-		SocketPath: "socket",
-		Token:      "foo",
 	}
 
 	var mockTxMgr transaction.MockManager
@@ -44,7 +39,6 @@ func TestHookManager_stopCalled(t *testing.T) {
 		cfg,
 		repo,
 		&expectedTx,
-		&expectedPraefect,
 		&git.ReceiveHooksPayload{
 			UserID:   "1234",
 			Username: "user",
@@ -104,9 +98,8 @@ func TestHookManager_stopCalled(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			wasInvoked := false
-			mockTxMgr.StopFn = func(ctx context.Context, tx txinfo.Transaction, praefect txinfo.PraefectServer) error {
+			mockTxMgr.StopFn = func(ctx context.Context, tx txinfo.Transaction) error {
 				require.Equal(t, expectedTx, tx)
-				require.Equal(t, expectedPraefect, praefect)
 				wasInvoked = true
 				return tc.stopErr
 			}
@@ -122,7 +115,7 @@ func TestHookManager_contextCancellationCancelsVote(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
 	mockTxMgr := transaction.MockManager{
-		VoteFn: func(ctx context.Context, tx txinfo.Transaction, praefect txinfo.PraefectServer, vote voting.Vote) error {
+		VoteFn: func(ctx context.Context, tx txinfo.Transaction, vote voting.Vote) error {
 			<-ctx.Done()
 			return fmt.Errorf("mock error: %s", ctx.Err())
 		},
@@ -135,10 +128,6 @@ func TestHookManager_contextCancellationCancelsVote(t *testing.T) {
 		repo,
 		&txinfo.Transaction{
 			ID: 1234, Node: "primary", Primary: true,
-		},
-		&txinfo.PraefectServer{
-			SocketPath: "does_not",
-			Token:      "matter",
 		},
 		nil,
 		git.ReferenceTransactionHook,

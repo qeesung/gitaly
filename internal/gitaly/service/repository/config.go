@@ -7,16 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/streamio"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -133,11 +132,7 @@ func (s *server) SetConfig(ctx context.Context, req *gitalypb.SetConfigRequest) 
 }
 
 func (s *server) voteOnConfig(ctx context.Context, repo *gitalypb.Repository) error {
-	if featureflag.IsDisabled(ctx, featureflag.TxConfig) {
-		return nil
-	}
-
-	return transaction.RunOnContext(ctx, func(tx txinfo.Transaction, praefect txinfo.PraefectServer) error {
+	return transaction.RunOnContext(ctx, func(tx txinfo.Transaction) error {
 		repoPath, err := s.locator.GetPath(repo)
 		if err != nil {
 			return fmt.Errorf("get repo path: %w", err)
@@ -158,7 +153,7 @@ func (s *server) voteOnConfig(ctx context.Context, repo *gitalypb.Repository) er
 			return fmt.Errorf("computing vote: %w", err)
 		}
 
-		if err := s.txManager.Vote(ctx, tx, praefect, vote); err != nil {
+		if err := s.txManager.Vote(ctx, tx, vote); err != nil {
 			return fmt.Errorf("casting vote: %w", err)
 		}
 

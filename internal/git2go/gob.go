@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
 func init() {
@@ -102,7 +102,7 @@ func runWithGob(ctx context.Context, cfg config.Cfg, cmd string, request interfa
 		return "", fmt.Errorf("%s: %w", cmd, err)
 	}
 
-	output, err := run(ctx, binaryPathFromCfg(cfg), input, cmd)
+	output, err := run(ctx, BinaryPath(cfg.BinDir), input, cmd)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", cmd, err)
 	}

@@ -6,23 +6,25 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type testTransactionServer struct {
+	gitalypb.UnimplementedRefTransactionServer
 	vote func(*gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error)
 	stop func(*gitalypb.StopTransactionRequest) (*gitalypb.StopTransactionResponse, error)
 }
@@ -44,16 +46,17 @@ func (s *testTransactionServer) StopTransaction(ctx context.Context, in *gitalyp
 func TestPoolManager_Vote(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	transactionServer, praefect := runTransactionServer(t, cfg)
+	transactionServer, transactionServerAddr := runTransactionServer(t, cfg)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	registry := backchannel.NewRegistry()
-	backchannelConn, err := client.Dial(ctx, praefect.ListenAddr, nil, nil)
+	backchannelConn, err := client.Dial(ctx, transactionServerAddr, nil, nil)
 	require.NoError(t, err)
 	defer backchannelConn.Close()
-	praefect = txinfo.PraefectServer{BackchannelID: registry.RegisterBackchannel(backchannelConn)}
+
+	backchannelID := registry.RegisterBackchannel(backchannelConn)
 
 	manager := transaction.NewManager(cfg, registry)
 
@@ -67,8 +70,9 @@ func TestPoolManager_Vote(t *testing.T) {
 		{
 			desc: "successful vote",
 			transaction: txinfo.Transaction{
-				ID:   1,
-				Node: "node",
+				BackchannelID: backchannelID,
+				ID:            1,
+				Node:          "node",
 			},
 			vote: voting.VoteFromData([]byte("foobar")),
 			voteFn: func(t *testing.T, request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
@@ -83,6 +87,9 @@ func TestPoolManager_Vote(t *testing.T) {
 		},
 		{
 			desc: "aborted vote",
+			transaction: txinfo.Transaction{
+				BackchannelID: backchannelID,
+			},
 			voteFn: func(t *testing.T, request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
 				return &gitalypb.VoteTransactionResponse{
 					State: gitalypb.VoteTransactionResponse_ABORT,
@@ -92,6 +99,9 @@ func TestPoolManager_Vote(t *testing.T) {
 		},
 		{
 			desc: "stopped vote",
+			transaction: txinfo.Transaction{
+				BackchannelID: backchannelID,
+			},
 			voteFn: func(t *testing.T, request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
 				return &gitalypb.VoteTransactionResponse{
 					State: gitalypb.VoteTransactionResponse_STOP,
@@ -101,6 +111,9 @@ func TestPoolManager_Vote(t *testing.T) {
 		},
 		{
 			desc: "erroneous vote",
+			transaction: txinfo.Transaction{
+				BackchannelID: backchannelID,
+			},
 			voteFn: func(t *testing.T, request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
 				return nil, status.Error(codes.Internal, "foobar")
 			},
@@ -112,8 +125,8 @@ func TestPoolManager_Vote(t *testing.T) {
 				return tc.voteFn(t, request)
 			}
 
-			err := manager.Vote(ctx, tc.transaction, praefect, tc.vote)
-			require.Equal(t, tc.expectedErr, err)
+			err := manager.Vote(ctx, tc.transaction, tc.vote)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
 		})
 	}
 }
@@ -121,16 +134,17 @@ func TestPoolManager_Vote(t *testing.T) {
 func TestPoolManager_Stop(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	transactionServer, praefect := runTransactionServer(t, cfg)
+	transactionServer, transactionServerAddr := runTransactionServer(t, cfg)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	registry := backchannel.NewRegistry()
-	backchannelConn, err := client.Dial(ctx, praefect.ListenAddr, nil, nil)
+	backchannelConn, err := client.Dial(ctx, transactionServerAddr, nil, nil)
 	require.NoError(t, err)
 	defer backchannelConn.Close()
-	praefect = txinfo.PraefectServer{BackchannelID: registry.RegisterBackchannel(backchannelConn)}
+
+	backchannelID := registry.RegisterBackchannel(backchannelConn)
 
 	manager := transaction.NewManager(cfg, registry)
 
@@ -143,8 +157,9 @@ func TestPoolManager_Stop(t *testing.T) {
 		{
 			desc: "successful stop",
 			transaction: txinfo.Transaction{
-				ID:   1,
-				Node: "node",
+				BackchannelID: backchannelID,
+				ID:            1,
+				Node:          "node",
 			},
 			stopFn: func(t *testing.T, request *gitalypb.StopTransactionRequest) (*gitalypb.StopTransactionResponse, error) {
 				require.Equal(t, uint64(1), request.TransactionId)
@@ -153,6 +168,9 @@ func TestPoolManager_Stop(t *testing.T) {
 		},
 		{
 			desc: "erroneous stop",
+			transaction: txinfo.Transaction{
+				BackchannelID: backchannelID,
+			},
 			stopFn: func(t *testing.T, request *gitalypb.StopTransactionRequest) (*gitalypb.StopTransactionResponse, error) {
 				return nil, status.Error(codes.Internal, "foobar")
 			},
@@ -164,23 +182,17 @@ func TestPoolManager_Stop(t *testing.T) {
 				return tc.stopFn(t, request)
 			}
 
-			err := manager.Stop(ctx, tc.transaction, praefect)
-			require.Equal(t, tc.expectedErr, err)
+			err := manager.Stop(ctx, tc.transaction)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
 		})
 	}
 }
 
-func runTransactionServer(t *testing.T, cfg config.Cfg) (*testTransactionServer, txinfo.PraefectServer) {
+func runTransactionServer(t *testing.T, cfg config.Cfg) (*testTransactionServer, string) {
 	transactionServer := &testTransactionServer{}
 	cfg.ListenAddr = ":0" // pushes gRPC to listen on the TCP address
 	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterRefTransactionServer(srv, transactionServer)
 	}, testserver.WithDisablePraefect())
-
-	praefect := txinfo.PraefectServer{
-		ListenAddr: addr,
-		Token:      cfg.Auth.Token,
-	}
-
-	return transactionServer, praefect
+	return transactionServer, addr
 }

@@ -19,32 +19,34 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	gconfig "gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes/tracker"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/service/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/internal/version"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	gconfig "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	grpc_metadata "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -56,7 +58,7 @@ func TestNewBackchannelServerFactory(t *testing.T) {
 	logger := testhelper.DiscardTestEntry(t)
 	registry := backchannel.NewRegistry()
 	server := grpc.NewServer(
-		grpc.Creds(backchannel.NewServerHandshaker(logger, backchannel.Insecure(), registry, nil)),
+		grpc.Creds(backchannel.NewServerHandshaker(logger, insecure.NewCredentials(), registry, nil)),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			id, err := backchannel.GetPeerID(stream.Context())
 			if !assert.NoError(t, err) {
@@ -98,7 +100,7 @@ func TestNewBackchannelServerFactory(t *testing.T) {
 	defer nodeSet.Close()
 
 	clientConn := nodeSet["default"]["gitaly-1"].Connection
-	require.Equal(t,
+	testassert.GrpcEqualErr(t,
 		status.Error(codes.NotFound, "transaction not found: 0"),
 		clientConn.Invoke(ctx, "/Service/Method", &gitalypb.CreateBranchRequest{}, &gitalypb.CreateBranchResponse{}),
 	)
@@ -174,7 +176,7 @@ func TestGitalyServerInfo(t *testing.T) {
 						{
 							Storage: cfg.Storages[0].Name,
 							Token:   cfg.Auth.Token,
-							Address: "unix://invalid.addr",
+							Address: "unix:///invalid.addr",
 						},
 					},
 				},
@@ -276,7 +278,7 @@ func TestHealthCheck(t *testing.T) {
 	cc, _, cleanup := runPraefectServer(t, config.Config{VirtualStorages: []*config.VirtualStorage{
 		{
 			Name:  "praefect",
-			Nodes: []*config.Node{{Storage: "stub", Address: "unix://stub-address", Token: ""}},
+			Nodes: []*config.Node{{Storage: "stub", Address: "unix:///stub-address", Token: ""}},
 		},
 	}}, buildOptions{})
 	defer cleanup()
@@ -498,11 +500,11 @@ func TestRemoveRepository(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	virtualRepo := *repos[0][0]
+	virtualRepo := proto.Clone(repos[0][0]).(*gitalypb.Repository)
 	virtualRepo.StorageName = praefectCfg.VirtualStorages[0].Name
 
 	_, err := gitalypb.NewRepositoryServiceClient(cc).RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
-		Repository: &virtualRepo,
+		Repository: virtualRepo,
 	})
 	require.NoError(t, err)
 
@@ -574,7 +576,7 @@ func TestRenameRepository(t *testing.T) {
 	defer cleanup()
 
 	// virtualRepo is a virtual repository all requests to it would be applied to the underline Gitaly nodes behind it
-	virtualRepo := *repo
+	virtualRepo := proto.Clone(repo).(*gitalypb.Repository)
 	virtualRepo.StorageName = praefectCfg.VirtualStorages[0].Name
 
 	repoServiceClient := gitalypb.NewRepositoryServiceClient(cc)
@@ -583,13 +585,13 @@ func TestRenameRepository(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
-		Repository:   &virtualRepo,
+		Repository:   virtualRepo,
 		RelativePath: newName,
 	})
 	require.NoError(t, err)
 
 	resp, err := repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
-		Repository: &virtualRepo,
+		Repository: virtualRepo,
 	})
 	require.NoError(t, err)
 	require.False(t, resp.GetExists(), "repo with old name must gone")
@@ -610,6 +612,7 @@ func TestRenameRepository(t *testing.T) {
 }
 
 type mockSmartHTTP struct {
+	gitalypb.UnimplementedSmartHTTPServiceServer
 	txMgr         *transactions.Manager
 	m             sync.Mutex
 	methodsCalled map[string]int
@@ -967,7 +970,7 @@ func TestErrorThreshold(t *testing.T) {
 				require.True(t, healthy)
 
 				_, err = handler(ctx, &mock.RepoRequest{Repo: repo})
-				require.Equal(t, status.Error(codes.Internal, "something went wrong"), err)
+				testassert.GrpcEqualErr(t, status.Error(codes.Internal, "something went wrong"), err)
 			}
 
 			healthy, err := node.CheckHealth(ctx)

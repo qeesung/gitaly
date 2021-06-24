@@ -3,24 +3,22 @@ package operations
 import (
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/bootstrap/starter"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -136,39 +134,17 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 		// the test requires a TCP listening address.
 	}, testserver.WithDisablePraefect())
 
-	addrConfig, err := starter.ParseEndpoint(addr)
-	require.NoError(t, err)
-	_, port, err := net.SplitHostPort(addrConfig.Addr)
-	require.NoError(t, err)
-
 	testcases := []struct {
 		desc    string
 		address string
-		server  txinfo.PraefectServer
 	}{
 		{
-			desc:    "explicit TCP address",
+			desc:    "TCP address",
 			address: addr,
-			server: txinfo.PraefectServer{
-				ListenAddr: addr,
-				Token:      cfg.Auth.Token,
-			},
-		},
-		{
-			desc:    "catch-all TCP address",
-			address: addr,
-			server: txinfo.PraefectServer{
-				ListenAddr: "tcp://0.0.0.0:" + port,
-				Token:      cfg.Auth.Token,
-			},
 		},
 		{
 			desc:    "Unix socket",
 			address: "unix://" + cfg.GitalyInternalSocketPath(),
-			server: txinfo.PraefectServer{
-				SocketPath: "unix://" + cfg.GitalyInternalSocketPath(),
-				Token:      cfg.Auth.Token,
-			},
 		},
 	}
 
@@ -178,6 +154,9 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
+			ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
+			require.NoError(t, err)
+			ctx = helper.IncomingToOutgoing(ctx)
 
 			client := newMuxedOperationClient(t, ctx, tc.address, cfg.Auth.Token,
 				backchannel.NewClientHandshaker(
@@ -189,12 +168,6 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 					},
 				),
 			)
-
-			ctx, err := tc.server.Inject(ctx)
-			require.NoError(t, err)
-			ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
-			require.NoError(t, err)
-			ctx = helper.IncomingToOutgoing(ctx)
 
 			request := &gitalypb.UserCreateBranchRequest{
 				Repository: repo,
@@ -213,12 +186,9 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulGitHooksForUserCreateBranchRequest)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	branchName := "new-branch"
@@ -311,7 +281,7 @@ func TestSuccessfulCreateBranchRequestWithStartPointRefPrefix(t *testing.T) {
 					TargetCommit: targetCommitOK,
 				},
 			}
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 			branches := gittest.Exec(t, cfg, "-C", repoPath, "for-each-ref", "--", "refs/heads/"+testCase.branchName)
 			require.Contains(t, string(branches), "refs/heads/"+testCase.branchName)
 		})
@@ -397,19 +367,16 @@ func TestFailedUserCreateBranchRequest(t *testing.T) {
 			}
 
 			response, err := client.UserCreateBranch(ctx, request)
-			require.Equal(t, testCase.err, err)
+			testassert.GrpcEqualErr(t, testCase.err, err)
 			require.Empty(t, response)
 		})
 	}
 }
 
 func TestSuccessfulUserDeleteBranchRequest(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulUserDeleteBranchRequest)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserDeleteBranchRequest(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -453,7 +420,7 @@ func testSuccessfulUserDeleteBranchRequest(t *testing.T, ctx context.Context) {
 				User:       testCase.user,
 			})
 			require.NoError(t, err)
-			testhelper.ProtoEqual(t, testCase.response, response)
+			testassert.ProtoEqual(t, testCase.response, response)
 
 			refs := gittest.Exec(t, cfg, "-C", repoPath, "for-each-ref", "--", "refs/heads/"+testCase.branchNameInput)
 			require.NotContains(t, string(refs), testCase.branchCommit, "branch deleted from refs")
@@ -516,17 +483,9 @@ func TestUserDeleteBranch_transaction(t *testing.T) {
 		))
 	})
 
-	praefect := txinfo.PraefectServer{
-		SocketPath: fmt.Sprintf("unix://" + cfg.GitalyInternalSocketPath()),
-		Token:      cfg.Auth.Token,
-	}
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-
-	ctx, err := praefect.Inject(ctx)
-	require.NoError(t, err)
-	ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
+	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
 	ctx = helper.IncomingToOutgoing(ctx)
 
@@ -595,8 +554,8 @@ func TestFailedUserDeleteBranchDueToValidation(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			response, err := client.UserDeleteBranch(ctx, testCase.request)
-			require.Equal(t, testCase.err, err)
-			testhelper.ProtoEqual(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
 		})
 	}
 }

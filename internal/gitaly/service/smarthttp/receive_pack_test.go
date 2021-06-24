@@ -13,24 +13,24 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	pconfig "gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/streamio"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -78,14 +78,12 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 
 	// Compare the repository up front so that we can use require.Equal for
 	// the remaining values.
-	testhelper.ProtoEqual(t, repo, payload.Repo)
+	testassert.ProtoEqual(t, repo, payload.Repo)
 	payload.Repo = nil
 
-	// If running tests with Praefect, then these would be set, but we have
-	// no way of figuring out their actual contents. So let's just remove
-	// that data, too.
+	// If running tests with Praefect, then the transaction would be set, but we have no way of
+	// figuring out their actual contents. So let's just remove it, too.
 	payload.Transaction = nil
-	payload.Praefect = nil
 
 	require.Equal(t, git.HooksPayload{
 		BinDir:              cfg.BinDir,
@@ -328,7 +326,7 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 	client, conn := newSmartHTTPClient(t, serverSocketPath, cfg.Auth.Token)
 	defer conn.Close()
 
-	rpcRequests := []gitalypb.PostReceivePackRequest{
+	rpcRequests := []*gitalypb.PostReceivePackRequest{
 		{Repository: &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}, GlId: "user-123"}, // Repository doesn't exist
 		{Repository: nil, GlId: "user-123"}, // Repository is nil
 		{Repository: &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: "path/to/repo"}, GlId: ""},                               // Empty GlId
@@ -342,7 +340,7 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 			stream, err := client.PostReceivePack(ctx)
 			require.NoError(t, err)
 
-			require.NoError(t, stream.Send(&rpcRequest))
+			require.NoError(t, stream.Send(rpcRequest))
 			require.NoError(t, stream.CloseSend())
 
 			err = drainPostReceivePackResponse(stream)
@@ -496,7 +494,7 @@ func TestPostReceivePackToHooks(t *testing.T) {
 
 	socket := runSmartHTTPServer(t, cfg)
 
-	client, conn := newSmartHTTPClient(t, "unix://"+socket, cfg.Auth.Token)
+	client, conn := newSmartHTTPClient(t, socket, cfg.Auth.Token)
 	defer conn.Close()
 
 	stream, err := client.PostReceivePack(ctx)
@@ -516,12 +514,9 @@ func TestPostReceivePackToHooks(t *testing.T) {
 }
 
 func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testPostReceiveWithTransactionsViaPraefect)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testPostReceiveWithTransactionsViaPraefect(t *testing.T, ctx context.Context) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	testhelper.ConfigureGitalyHooksBin(t, cfg)
@@ -598,23 +593,11 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
 	}, testserver.WithDisablePraefect())
 
-	// As we ain't got a Praefect server setup, we instead hooked up the
-	// RefTransaction server for Gitaly itself. As this is the only Praefect
-	// service required in this context, we can just pretend that
-	// Gitaly is the Praefect server and inject it.
-	praefectServer, err := txinfo.PraefectFromConfig(pconfig.Config{
-		SocketPath: addr,
-	})
-	require.NoError(t, err)
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	ctx, err = txinfo.InjectTransaction(ctx, 1234, "primary", true)
+	ctx, err := txinfo.InjectTransaction(ctx, 1234, "primary", true)
 	require.NoError(t, err)
-	ctx, err = praefectServer.Inject(ctx)
-	require.NoError(t, err)
-
 	ctx = helper.IncomingToOutgoing(ctx)
 
 	client := newMuxedSmartHTTPClient(t, ctx, addr, cfg.Auth.Token, func() backchannel.Server {

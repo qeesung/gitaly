@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
 // Exec runs a git command and returns the standard output, or fails.
@@ -33,6 +33,9 @@ func run(t testing.TB, stdin io.Reader, cfg config.Cfg, args ...string) []byte {
 	cmd.Env = append(cmd.Env,
 		"GIT_AUTHOR_DATE=1572776879 +0100",
 		"GIT_COMMITTER_DATE=1572776879 +0100",
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=init.defaultBranch",
+		"GIT_CONFIG_VALUE_0=master",
 	)
 
 	if stdin != nil {

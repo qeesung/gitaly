@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	testservice "gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/testdata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
+	testservice "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/testdata"
 	"google.golang.org/grpc"
 )
 
@@ -88,6 +88,7 @@ func newProxy(tb testing.TB, ctx context.Context, director proxy.StreamDirector,
 // interceptPinger allows an RPC to be intercepted with a custom
 // function defined in each unit test
 type interceptPinger struct {
+	testservice.UnimplementedTestServiceServer
 	pingStream func(testservice.TestService_PingStreamServer) error
 	pingEmpty  func(context.Context, *testservice.Empty) (*testservice.PingResponse, error)
 	ping       func(context.Context, *testservice.PingRequest) (*testservice.PingResponse, error)

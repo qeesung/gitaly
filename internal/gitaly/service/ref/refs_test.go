@@ -13,15 +13,16 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
@@ -277,9 +278,7 @@ func TestSetDefaultBranchRef(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			gitCmdFactory := git.NewExecCommandFactory(cfg)
-			err := SetDefaultBranchRef(ctx, gitCmdFactory, repoProto, tc.ref, cfg)
-			require.NoError(t, err)
+			require.NoError(t, SetDefaultBranchRef(ctx, repo, tc.ref, cfg))
 
 			newRef, err := DefaultBranchName(ctx, repo)
 			require.NoError(t, err)
@@ -1075,15 +1074,15 @@ func TestInvalidFindAllBranchesRequest(t *testing.T) {
 
 	testCases := []struct {
 		description string
-		request     gitalypb.FindAllBranchesRequest
+		request     *gitalypb.FindAllBranchesRequest
 	}{
 		{
 			description: "Empty request",
-			request:     gitalypb.FindAllBranchesRequest{},
+			request:     &gitalypb.FindAllBranchesRequest{},
 		},
 		{
 			description: "Invalid repo",
-			request: gitalypb.FindAllBranchesRequest{
+			request: &gitalypb.FindAllBranchesRequest{
 				Repository: &gitalypb.Repository{
 					StorageName:  "fake",
 					RelativePath: "repo",
@@ -1096,7 +1095,7 @@ func TestInvalidFindAllBranchesRequest(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
-			c, err := client.FindAllBranches(ctx, &tc.request)
+			c, err := client.FindAllBranches(ctx, tc.request)
 			require.NoError(t, err)
 
 			var recvError error
@@ -1442,7 +1441,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 		resp, err := client.FindTag(ctx, rpcRequest)
 		require.NoError(t, err)
 
-		testhelper.ProtoEqual(t, expectedTag, resp.GetTag())
+		testassert.ProtoEqual(t, expectedTag, resp.GetTag())
 	}
 }
 

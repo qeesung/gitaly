@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -52,7 +52,7 @@ func (s *server) CreateRepository(ctx context.Context, req *gitalypb.CreateRepos
 	// RPC it may be that we already do have some preexisting refs (e.g. CreateRepository is
 	// called for a repo which already exists and has refs). In that case, voting ensures that
 	// all replicas have the same set of preexisting refs.
-	if err := transaction.RunOnContext(ctx, func(tx txinfo.Transaction, server txinfo.PraefectServer) error {
+	if err := transaction.RunOnContext(ctx, func(tx txinfo.Transaction) error {
 		hash := voting.NewVoteHash()
 
 		cmd, err := s.gitCmdFactory.New(ctx, req.GetRepository(), git.SubCmd{
@@ -71,7 +71,7 @@ func (s *server) CreateRepository(ctx context.Context, req *gitalypb.CreateRepos
 			return err
 		}
 
-		if err := s.txManager.Vote(ctx, tx, server, vote); err != nil {
+		if err := s.txManager.Vote(ctx, tx, vote); err != nil {
 			return fmt.Errorf("casting vote: %w", err)
 		}
 

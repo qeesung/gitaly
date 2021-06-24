@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -98,11 +98,6 @@ func (s *server) vote(ctx context.Context, oid git.ObjectID) error {
 		return nil
 	}
 
-	praefect, err := txinfo.PraefectFromContext(ctx)
-	if err != nil {
-		return fmt.Errorf("vote has invalid Praefect info: %w", err)
-	}
-
 	hash, err := oid.Bytes()
 	if err != nil {
 		return fmt.Errorf("vote with invalid object ID: %w", err)
@@ -113,7 +108,7 @@ func (s *server) vote(ctx context.Context, oid git.ObjectID) error {
 		return fmt.Errorf("cannot convert OID to vote: %w", err)
 	}
 
-	if err := s.txManager.Vote(ctx, tx, *praefect, vote); err != nil {
+	if err := s.txManager.Vote(ctx, tx, vote); err != nil {
 		return fmt.Errorf("vote failed: %w", err)
 	}
 

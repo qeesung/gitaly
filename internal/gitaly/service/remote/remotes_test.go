@@ -10,18 +10,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
@@ -103,44 +102,36 @@ func testSuccessfulAddRemote(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.S
 }
 
 func testAddRemoteTransactional(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.TxRemote,
-	}).Run(t, func(t *testing.T, ctx context.Context) {
-		var votes []voting.Vote
-		txManager := transaction.MockManager{
-			VoteFn: func(_ context.Context, _ txinfo.Transaction, _ txinfo.PraefectServer, vote voting.Vote) error {
-				votes = append(votes, vote)
-				return nil
-			},
-		}
+	var votes []voting.Vote
+	txManager := transaction.MockManager{
+		VoteFn: func(_ context.Context, _ txinfo.Transaction, vote voting.Vote) error {
+			votes = append(votes, vote)
+			return nil
+		},
+	}
 
-		_, repo, repoPath, client := setupRemoteServiceWithRuby(t, cfg, rubySrv, testserver.WithTransactionManager(&txManager))
+	_, repo, repoPath, client := setupRemoteServiceWithRuby(t, cfg, rubySrv, testserver.WithTransactionManager(&txManager))
 
-		ctx, err := (&txinfo.PraefectServer{SocketPath: "i-dont-care"}).Inject(ctx)
-		require.NoError(t, err)
-		ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
-		require.NoError(t, err)
-		ctx = helper.IncomingToOutgoing(ctx)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
+	require.NoError(t, err)
+	ctx = helper.IncomingToOutgoing(ctx)
 
-		preimageURL := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "remote", "get-url", "origin"))
+	preimageURL := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "remote", "get-url", "origin"))
 
-		_, err = client.AddRemote(ctx, &gitalypb.AddRemoteRequest{
-			Repository: repo,
-			Name:       "origin",
-			Url:        "foo/bar",
-		})
-		require.NoError(t, err)
-
-		if featureflag.IsEnabled(ctx, featureflag.TxRemote) {
-			preimageVote := fmt.Sprintf("remote.origin.url\t%s\n", preimageURL)
-			require.Equal(t, []voting.Vote{
-				voting.VoteFromData([]byte(preimageVote)),
-				voting.VoteFromData([]byte("remote.origin.url\tfoo/bar\n")),
-			}, votes)
-		} else {
-			require.Len(t, votes, 0)
-		}
+	_, err = client.AddRemote(ctx, &gitalypb.AddRemoteRequest{
+		Repository: repo,
+		Name:       "origin",
+		Url:        "foo/bar",
 	})
+	require.NoError(t, err)
+
+	preimageVote := fmt.Sprintf("remote.origin.url\t%s\n", preimageURL)
+	require.Equal(t, []voting.Vote{
+		voting.VoteFromData([]byte(preimageVote)),
+		voting.VoteFromData([]byte("remote.origin.url\tfoo/bar\n")),
+	}, votes)
 }
 
 func TestFailedAddRemoteDueToValidation(t *testing.T) {
@@ -239,43 +230,35 @@ func TestFailedRemoveRemoteDueToValidation(t *testing.T) {
 }
 
 func TestRemoveRemoteTransactional(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.TxRemote,
-	}).Run(t, func(t *testing.T, ctx context.Context) {
-		var votes []voting.Vote
-		txManager := transaction.MockManager{
-			VoteFn: func(_ context.Context, _ txinfo.Transaction, _ txinfo.PraefectServer, vote voting.Vote) error {
-				votes = append(votes, vote)
-				return nil
-			},
-		}
+	var votes []voting.Vote
+	txManager := transaction.MockManager{
+		VoteFn: func(_ context.Context, _ txinfo.Transaction, vote voting.Vote) error {
+			votes = append(votes, vote)
+			return nil
+		},
+	}
 
-		cfg, repo, repoPath, client := setupRemoteService(t, testserver.WithTransactionManager(&txManager))
+	cfg, repo, repoPath, client := setupRemoteService(t, testserver.WithTransactionManager(&txManager))
 
-		ctx, err := (&txinfo.PraefectServer{SocketPath: "i-dont-care"}).Inject(ctx)
-		require.NoError(t, err)
-		ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
-		require.NoError(t, err)
-		ctx = helper.IncomingToOutgoing(ctx)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
+	require.NoError(t, err)
+	ctx = helper.IncomingToOutgoing(ctx)
 
-		preimageURL := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "remote", "get-url", "origin"))
+	preimageURL := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "remote", "get-url", "origin"))
 
-		_, err = client.RemoveRemote(ctx, &gitalypb.RemoveRemoteRequest{
-			Repository: repo,
-			Name:       "origin",
-		})
-		require.NoError(t, err)
-
-		if featureflag.IsEnabled(ctx, featureflag.TxRemote) {
-			preimageVote := fmt.Sprintf("remote.origin.url\t%s\n", preimageURL)
-			require.Equal(t, []voting.Vote{
-				voting.VoteFromData([]byte(preimageVote)),
-				voting.VoteFromData([]byte{}),
-			}, votes)
-		} else {
-			require.Len(t, votes, 0)
-		}
+	_, err = client.RemoveRemote(ctx, &gitalypb.RemoveRemoteRequest{
+		Repository: repo,
+		Name:       "origin",
 	})
+	require.NoError(t, err)
+
+	preimageVote := fmt.Sprintf("remote.origin.url\t%s\n", preimageURL)
+	require.Equal(t, []voting.Vote{
+		voting.VoteFromData([]byte(preimageVote)),
+		voting.VoteFromData([]byte{}),
+	}, votes)
 }
 
 func TestFindRemoteRepository(t *testing.T) {

@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,14 +14,16 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/chunk"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -70,10 +73,15 @@ var (
 )
 
 func TestListLFSPointers(t *testing.T) {
-	_, repo, _, client := setup(t)
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.LFSPointersPipeline,
+	}).Run(t, func(t *testing.T, ctx context.Context) {
+		testListLFSPointers(t, ctx)
+	})
+}
 
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+func testListLFSPointers(t *testing.T, ctx context.Context) {
+	_, repo, _, client := setup(t)
 
 	for _, tc := range []struct {
 		desc             string
@@ -166,7 +174,7 @@ func TestListLFSPointers(t *testing.T) {
 				if err == io.EOF {
 					break
 				}
-				require.Equal(t, err, tc.expectedErr)
+				testassert.GrpcEqualErr(t, tc.expectedErr, err)
 				if err != nil {
 					break
 				}
@@ -179,6 +187,14 @@ func TestListLFSPointers(t *testing.T) {
 }
 
 func TestListAllLFSPointers(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.LFSPointersPipeline,
+	}).Run(t, func(t *testing.T, ctx context.Context) {
+		testListAllLFSPointers(t, ctx)
+	})
+}
+
+func testListAllLFSPointers(t *testing.T, ctx context.Context) {
 	receivePointers := func(t *testing.T, stream gitalypb.BlobService_ListAllLFSPointersClient) []*gitalypb.LFSPointer {
 		t.Helper()
 
@@ -193,9 +209,6 @@ func TestListAllLFSPointers(t *testing.T) {
 		}
 		return pointers
 	}
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	lfsPointerContents := `version https://git-lfs.github.com/spec/v1
 oid sha256:1111111111111111111111111111111111111111111111111111111111111111
@@ -293,10 +306,15 @@ size 12345`
 }
 
 func TestSuccessfulGetLFSPointersRequest(t *testing.T) {
-	_, repo, _, client := setup(t)
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.LFSPointersPipeline,
+	}).Run(t, func(t *testing.T, ctx context.Context) {
+		testSuccessfulGetLFSPointersRequest(t, ctx)
+	})
+}
 
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+func testSuccessfulGetLFSPointersRequest(t *testing.T, ctx context.Context) {
+	_, repo, _, client := setup(t)
 
 	lfsPointerIds := []string{
 		lfsPointer1,
@@ -338,10 +356,15 @@ func TestSuccessfulGetLFSPointersRequest(t *testing.T) {
 }
 
 func TestFailedGetLFSPointersRequestDueToValidations(t *testing.T) {
-	_, repo, _, client := setup(t)
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.LFSPointersPipeline,
+	}).Run(t, func(t *testing.T, ctx context.Context) {
+		testFailedGetLFSPointersRequestDueToValidations(t, ctx)
+	})
+}
 
-	ctx, cancel := testhelper.Context()
-	defer cancel()
+func testFailedGetLFSPointersRequestDueToValidations(t *testing.T, ctx context.Context) {
+	_, repo, _, client := setup(t)
 
 	testCases := []struct {
 		desc    string
@@ -456,11 +479,6 @@ func TestFindLFSPointersByRevisions(t *testing.T) {
 				lfsPointers[lfsPointer2],
 				lfsPointers[lfsPointer3],
 			},
-		},
-		{
-			desc:        "invalid dashed option",
-			revs:        []string{"master", "--foobar"},
-			expectedErr: fmt.Errorf("invalid revision: \"--foobar\""),
 		},
 		{
 			desc:        "invalid revision",
@@ -682,7 +700,7 @@ func lfsPointersEqual(tb testing.TB, expected, actual []*gitalypb.LFSPointer) {
 
 	require.Equal(tb, len(expected), len(actual))
 	for i := range expected {
-		testhelper.ProtoEqual(tb, expected[i], actual[i])
+		testassert.ProtoEqual(tb, expected[i], actual[i])
 	}
 }
 

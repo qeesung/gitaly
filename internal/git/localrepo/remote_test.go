@@ -12,14 +12,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func setupRepoRemote(t *testing.T, bare bool) (Remote, string) {
@@ -438,13 +438,11 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 }
 
-func TestRepo_Push(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	cfg, sourceRepoPb, _ := testcfg.BuildWithRepo(t)
-
-	tmpDir := testhelper.TempDir(t)
+// captureGitSSHCommand returns a path to a script that wraps the git at the passed in path
+// and records the GIT_SSH_COMMAND that was passed to it. It returns also a path to the file
+// that contains the captured GIT_SSH_COMMAND value.
+func captureGitSSHCommand(t testing.TB, gitBinaryPath string) (string, string) {
+	tmpDir := t.TempDir()
 
 	gitPath := filepath.Join(tmpDir, "git-hook")
 	envPath := filepath.Join(tmpDir, "GIT_SSH_PATH")
@@ -455,34 +453,52 @@ func TestRepo_Push(t *testing.T) {
 if [ -z ${GIT_SSH_COMMAND+x} ];then rm -f %q ;else echo -n "$GIT_SSH_COMMAND" > %q; fi
 %s "$@"`,
 			envPath, envPath,
-			cfg.Git.BinPath,
+			gitBinaryPath,
 		)),
 		os.ModePerm),
 	)
 
-	cfg.Git.BinPath = gitPath
-	gitCmdFactory := git.NewExecCommandFactory(cfg)
-	sourceRepo := New(gitCmdFactory, catfile.NewCache(cfg), sourceRepoPb, cfg)
+	return gitPath, envPath
+}
+
+func TestRepo_Push(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cfg, sourceRepoPb, _ := testcfg.BuildWithRepo(t)
+
+	wrappedGit, gitSSHCommandFile := captureGitSSHCommand(t, cfg.Git.BinPath)
+
+	cfg.Git.BinPath = wrappedGit
+	sourceRepo := NewTestRepo(t, cfg, sourceRepoPb)
+
+	setupPushRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
+		repoProto, repopath, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+		return NewTestRepo(t, cfg, repoProto), repopath, nil
+	}
 
 	for _, tc := range []struct {
 		desc           string
-		invalidRemote  bool
+		setupPushRepo  func(testing.TB) (*Repo, string, []git.ConfigPair)
+		config         []git.ConfigPair
 		sshCommand     string
 		refspecs       []string
-		setupPushRepo  func(testing.TB, *Repo)
 		errorMessage   string
 		expectedFilter []string
 	}{
 		{
-			desc:         "refspecs must be specified",
-			errorMessage: "refspecs to push must be explicitly specified",
+			desc:          "refspecs must be specified",
+			setupPushRepo: setupPushRepo,
+			errorMessage:  "refspecs to push must be explicitly specified",
 		},
 		{
 			desc:           "push two refs",
+			setupPushRepo:  setupPushRepo,
 			refspecs:       []string{"refs/heads/master", "refs/heads/feature"},
 			expectedFilter: []string{"refs/heads/master", "refs/heads/feature"},
 		}, {
 			desc:           "push with custom ssh command",
+			setupPushRepo:  setupPushRepo,
 			sshCommand:     "custom --ssh-command",
 			refspecs:       []string{"refs/heads/master"},
 			expectedFilter: []string{"refs/heads/master"},
@@ -490,64 +506,73 @@ if [ -z ${GIT_SSH_COMMAND+x} ];then rm -f %q ;else echo -n "$GIT_SSH_COMMAND" > 
 		{
 			desc:     "force pushes over diverged refs",
 			refspecs: []string{"refs/heads/master"},
-			setupPushRepo: func(t testing.TB, repo *Repo) {
+			setupPushRepo: func(t testing.TB) (*Repo, string, []git.ConfigPair) {
+				repoProto, repoPath, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+				repo := NewTestRepo(t, cfg, repoProto)
+
 				// set up master as a divergin ref in push repo
 				sourceMaster, err := sourceRepo.GetReference(ctx, "refs/heads/master")
 				require.NoError(t, err)
 
-				pushRepoPath, err := repo.Path()
-				require.NoError(t, err)
-
-				require.NoError(t, sourceRepo.Push(ctx, pushRepoPath, []string{"refs/*"}, PushOptions{}))
-				divergedMaster := gittest.WriteCommit(t, cfg, pushRepoPath,
+				require.NoError(t, sourceRepo.Push(ctx, repoPath, []string{"refs/*"}, PushOptions{}))
+				divergedMaster := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithBranch("master"),
 					gittest.WithParents(git.ObjectID(sourceMaster.Target)),
 				)
 
 				master, err := repo.GetReference(ctx, "refs/heads/master")
 				require.NoError(t, err)
-
 				require.Equal(t, master.Target, divergedMaster.String())
+
+				return repo, repoPath, nil
 			},
 		},
 		{
-			desc:     "push all refs",
-			refspecs: []string{"refs/*"},
+			desc:          "push all refs",
+			setupPushRepo: setupPushRepo,
+			refspecs:      []string{"refs/*"},
 		},
 		{
-			desc:         "push empty refspec",
-			refspecs:     []string{""},
-			errorMessage: `git push: exit status 128, stderr: "fatal: invalid refspec ''\n"`,
+			desc:          "push empty refspec",
+			setupPushRepo: setupPushRepo,
+			refspecs:      []string{""},
+			errorMessage:  `git push: exit status 128, stderr: "fatal: invalid refspec ''\n"`,
 		},
 		{
-			desc:          "invalid remote",
-			refspecs:      []string{"refs/heads/master"},
-			invalidRemote: true,
-			errorMessage:  `git push: exit status 128, stderr: "fatal: no path specified; see 'git help pull' for valid url syntax\n"`,
+			desc: "invalid remote",
+			setupPushRepo: func(t testing.TB) (*Repo, string, []git.ConfigPair) {
+				repoProto, _, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+				return NewTestRepo(t, cfg, repoProto), "", nil
+			},
+			refspecs:     []string{"refs/heads/master"},
+			errorMessage: `git push: exit status 128, stderr: "fatal: no path specified; see 'git help pull' for valid url syntax\n"`,
+		},
+		{
+			desc: "in-memory remote",
+			setupPushRepo: func(testing.TB) (*Repo, string, []git.ConfigPair) {
+				repoProto, repoPath, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+				return NewTestRepo(t, cfg, repoProto), "inmemory", []git.ConfigPair{
+					{Key: "remote.inmemory.url", Value: repoPath},
+				}
+			},
+			refspecs:       []string{"refs/heads/master"},
+			expectedFilter: []string{"refs/heads/master"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			pushRepoPb, pushRepoPath, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-			gitCmdFactory := git.NewExecCommandFactory(cfg)
-			pushRepo := New(gitCmdFactory, catfile.NewCache(cfg), pushRepoPb, cfg)
+			pushRepo, remote, remoteConfig := tc.setupPushRepo(t)
 
-			if tc.setupPushRepo != nil {
-				tc.setupPushRepo(t, pushRepo)
-			}
-
-			remote := pushRepoPath
-			if tc.invalidRemote {
-				remote = ""
-			}
-
-			err := sourceRepo.Push(ctx, remote, tc.refspecs, PushOptions{SSHCommand: tc.sshCommand})
+			err := sourceRepo.Push(ctx, remote, tc.refspecs, PushOptions{
+				SSHCommand: tc.sshCommand,
+				Config:     remoteConfig,
+			})
 			if tc.errorMessage != "" {
 				require.EqualError(t, err, tc.errorMessage)
 				return
 			}
 			require.NoError(t, err)
 
-			gitSSHCommand, err := ioutil.ReadFile(envPath)
+			gitSSHCommand, err := ioutil.ReadFile(gitSSHCommandFile)
 			if !os.IsNotExist(err) {
 				require.NoError(t, err)
 			}

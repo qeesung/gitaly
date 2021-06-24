@@ -8,14 +8,13 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -139,11 +138,7 @@ func validateRemoveRemoteRequest(req *gitalypb.RemoveRemoteRequest) error {
 }
 
 func (s *server) voteOnRemote(ctx context.Context, repo *gitalypb.Repository, remoteName string) error {
-	if featureflag.IsDisabled(ctx, featureflag.TxRemote) {
-		return nil
-	}
-
-	return transaction.RunOnContext(ctx, func(tx txinfo.Transaction, server txinfo.PraefectServer) error {
+	return transaction.RunOnContext(ctx, func(tx txinfo.Transaction) error {
 		localrepo := s.localrepo(repo)
 
 		configEntries, err := localrepo.Config().GetRegexp(ctx, "remote\\."+remoteName+"\\.", git.ConfigGetRegexpOpts{})
@@ -164,7 +159,7 @@ func (s *server) voteOnRemote(ctx context.Context, repo *gitalypb.Repository, re
 			return fmt.Errorf("compute remote config vote: %w", err)
 		}
 
-		if err := s.txManager.Vote(ctx, tx, server, vote); err != nil {
+		if err := s.txManager.Vote(ctx, tx, vote); err != nil {
 			return fmt.Errorf("vote: %w", err)
 		}
 

@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/internal/bootstrap"
-	"gitlab.com/gitlab-org/gitaly/internal/log"
-	"gitlab.com/gitlab-org/gitaly/internal/ps"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/env"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/ps"
 	"golang.org/x/sys/unix"
 )
 
@@ -177,5 +178,6 @@ func pidFile() string {
 }
 
 func jsonLogging() bool {
-	return os.Getenv(envJSONLogging) == "true"
+	enabled, _ := env.GetBool(envJSONLogging, false)
+	return enabled
 }

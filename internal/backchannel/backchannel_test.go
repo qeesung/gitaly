@@ -13,9 +13,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -39,7 +41,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 	registry := NewRegistry()
 	handshaker := NewServerHandshaker(
 		newLogger(),
-		Insecure(),
+		insecure.NewCredentials(),
 		registry,
 		[]grpc.DialOption{
 			grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -97,7 +99,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 			}
 
 			resp, err := gitalypb.NewRefTransactionClient(client).VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{})
-			assert.Equal(t, err, errNonMultiplexed)
+			testassert.GrpcEqualErr(t, errNonMultiplexed, err)
 			assert.Nil(t, resp)
 
 			assert.NoError(t, client.Close())
@@ -112,7 +114,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 				srv := grpc.NewServer()
 				gitalypb.RegisterRefTransactionServer(srv, mockTransactionServer{
 					voteTransactionFunc: func(ctx context.Context, req *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
-						assert.Equal(t, &gitalypb.VoteTransactionRequest{TransactionId: i}, req)
+						testassert.ProtoEqual(t, &gitalypb.VoteTransactionRequest{TransactionId: i}, req)
 						return nil, expectedErr
 					},
 				})
@@ -122,7 +124,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 
 			<-start
 			client, err := grpc.Dial(ln.Addr().String(),
-				grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(Insecure())),
+				grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(insecure.NewCredentials())),
 			)
 			if !assert.NoError(t, err) {
 				return
@@ -136,7 +138,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 				go func() {
 					defer invocations.Done()
 					resp, err := gitalypb.NewRefTransactionClient(client).VoteTransaction(ctx, &gitalypb.VoteTransactionRequest{TransactionId: i})
-					assert.Equal(t, err, expectedErr)
+					testassert.GrpcEqualErr(t, expectedErr, err)
 					assert.Nil(t, resp)
 				}()
 			}
@@ -181,7 +183,7 @@ func Benchmark(b *testing.B) {
 					var serverOpts []grpc.ServerOption
 					if tc.multiplexed {
 						serverOpts = []grpc.ServerOption{
-							grpc.Creds(NewServerHandshaker(newLogger(), Insecure(), NewRegistry(), nil)),
+							grpc.Creds(NewServerHandshaker(newLogger(), insecure.NewCredentials(), NewRegistry(), nil)),
 						}
 					}
 
@@ -212,7 +214,7 @@ func Benchmark(b *testing.B) {
 						clientHandshaker := NewClientHandshaker(newLogger(), func() Server { return grpc.NewServer() })
 						opts = []grpc.DialOption{
 							grpc.WithBlock(),
-							grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(Insecure())),
+							grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(insecure.NewCredentials())),
 						}
 					}
 

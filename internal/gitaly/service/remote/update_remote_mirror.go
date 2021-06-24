@@ -1,19 +1,21 @@
 package remote
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/ref"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 const (
@@ -30,7 +32,7 @@ func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 		return helper.ErrInternalf("receive first request: %v", err)
 	}
 
-	if err = validateUpdateRemoteMirrorRequest(firstRequest); err != nil {
+	if err = validateUpdateRemoteMirrorRequest(stream.Context(), firstRequest); err != nil {
 		return helper.ErrInvalidArgument(err)
 	}
 
@@ -120,7 +122,39 @@ func (s *server) goUpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemote
 	}
 
 	repo := s.localrepo(firstRequest.GetRepository())
-	remoteRefsSlice, err := repo.GetRemoteReferences(ctx, firstRequest.GetRefName(), "refs/heads/*", "refs/tags/*")
+	remoteName := firstRequest.GetRefName()
+	var remoteConfig []git.ConfigPair
+
+	if remote := firstRequest.GetRemote(); remote != nil {
+		remoteSuffix, err := text.RandomHex(8)
+		if err != nil {
+			return fmt.Errorf("generating remote suffix: %w", err)
+		}
+		remoteName = "inmemory-" + remoteSuffix
+
+		remoteConfig = append(remoteConfig, git.ConfigPair{
+			Key: fmt.Sprintf("remote.%s.url", remoteName), Value: remote.GetUrl(),
+		})
+
+		if authHeader := remote.GetHttpAuthorizationHeader(); authHeader != "" {
+			remoteConfig = append(remoteConfig, git.ConfigPair{
+				Key:   fmt.Sprintf("http.%s.extraHeader", remote.GetUrl()),
+				Value: "Authorization: " + authHeader,
+			})
+		}
+	}
+
+	sshCommand, clean, err := git.BuildSSHInvocation(ctx, firstRequest.GetSshKey(), firstRequest.GetKnownHosts())
+	if err != nil {
+		return fmt.Errorf("build ssh invocation: %w", err)
+	}
+	defer clean()
+
+	remoteRefsSlice, err := repo.GetRemoteReferences(ctx, remoteName,
+		localrepo.WithPatterns("refs/heads/*", "refs/tags/*"),
+		localrepo.WithConfig(remoteConfig...),
+		localrepo.WithSSHCommand(sshCommand),
+	)
 	if err != nil {
 		return fmt.Errorf("get remote references: %w", err)
 	}
@@ -230,28 +264,23 @@ func (s *server) goUpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemote
 		}
 	}
 
-	if len(refspecs) > 0 {
-		sshCommand, clean, err := git.BuildSSHInvocation(ctx, firstRequest.GetSshKey(), firstRequest.GetKnownHosts())
-		if err != nil {
-			return fmt.Errorf("build ssh invocation: %w", err)
+	for len(refspecs) > 0 {
+		batch := refspecs
+		if len(refspecs) > pushBatchSize {
+			batch = refspecs[:pushBatchSize]
 		}
-		defer clean()
 
-		for len(refspecs) > 0 {
-			batch := refspecs
-			if len(refspecs) > pushBatchSize {
-				batch = refspecs[:pushBatchSize]
-			}
+		refspecs = refspecs[len(batch):]
 
-			refspecs = refspecs[len(batch):]
-
-			// The refs could have been modified on the mirror during after we fetched them.
-			// This could cause divergent refs to be force pushed over even with keep_divergent_refs set.
-			// This could be addressed by force pushing only if the current ref still matches what
-			// we received in the original fetch. https://gitlab.com/gitlab-org/gitaly/-/issues/3505
-			if err := repo.Push(ctx, firstRequest.GetRefName(), batch, localrepo.PushOptions{SSHCommand: sshCommand}); err != nil {
-				return fmt.Errorf("push to mirror: %w", err)
-			}
+		// The refs could have been modified on the mirror during after we fetched them.
+		// This could cause divergent refs to be force pushed over even with keep_divergent_refs set.
+		// This could be addressed by force pushing only if the current ref still matches what
+		// we received in the original fetch. https://gitlab.com/gitlab-org/gitaly/-/issues/3505
+		if err := repo.Push(ctx, remoteName, batch, localrepo.PushOptions{
+			SSHCommand: sshCommand,
+			Config:     remoteConfig,
+		}); err != nil {
+			return fmt.Errorf("push to mirror: %w", err)
 		}
 	}
 
@@ -290,12 +319,27 @@ func newReferenceMatcher(branchMatchers [][]byte) (*regexp.Regexp, error) {
 	return regexp.Compile(sb.String())
 }
 
-func validateUpdateRemoteMirrorRequest(req *gitalypb.UpdateRemoteMirrorRequest) error {
+func validateUpdateRemoteMirrorRequest(ctx context.Context, req *gitalypb.UpdateRemoteMirrorRequest) error {
 	if req.GetRepository() == nil {
 		return fmt.Errorf("empty Repository")
 	}
-	if req.GetRefName() == "" {
+
+	if req.GetRefName() == "" && req.GetRemote() == nil {
 		return fmt.Errorf("empty RefName")
+	}
+
+	if req.GetRefName() != "" && req.GetRemote() != nil {
+		return fmt.Errorf("both remote name and remote parameters set")
+	}
+
+	if remote := req.GetRemote(); remote != nil {
+		if remote.GetUrl() == "" {
+			return fmt.Errorf("remote is missing URL")
+		}
+
+		if featureflag.IsDisabled(ctx, featureflag.GoUpdateRemoteMirror) {
+			return fmt.Errorf("in-memory remotes require `gitaly_go_update_remote_mirror` feature flag")
+		}
 	}
 
 	return nil

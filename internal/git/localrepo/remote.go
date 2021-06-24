@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 )
 
 // Remote provides functionality of the 'remote' git sub-command.
@@ -274,11 +274,19 @@ func validateNotBlank(val, name string) error {
 	return nil
 }
 
+func envGitSSHCommand(cmd string) string {
+	return "GIT_SSH_COMMAND=" + cmd
+}
+
 // PushOptions are options that can be configured for a push.
 type PushOptions struct {
 	// SSHCommand is the command line to use for git's SSH invocation. The command line is used
 	// as is and must be verified by the caller to be safe.
 	SSHCommand string
+	// Config is the Git configuration which gets passed to the git-push(1) invocation.
+	// Configuration is set up via `WithConfigEnv()`, so potential credentials won't be leaked
+	// via the command line.
+	Config []git.ConfigPair
 }
 
 // Push force pushes the refspecs to the remote.
@@ -289,7 +297,7 @@ func (repo *Repo) Push(ctx context.Context, remote string, refspecs []string, op
 
 	var env []string
 	if options.SSHCommand != "" {
-		env = append(env, "GIT_SSH_COMMAND="+options.SSHCommand)
+		env = append(env, envGitSSHCommand(options.SSHCommand))
 	}
 
 	stderr := &bytes.Buffer{}
@@ -301,6 +309,7 @@ func (repo *Repo) Push(ctx context.Context, remote string, refspecs []string, op
 		},
 		git.WithStderr(stderr),
 		git.WithEnv(env...),
+		git.WithConfigEnv(options.Config...),
 	); err != nil {
 		return fmt.Errorf("git push: %w, stderr: %q", err, stderr)
 	}

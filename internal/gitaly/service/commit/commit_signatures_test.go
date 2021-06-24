@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
@@ -66,7 +67,7 @@ func TestSuccessfulGetCommitSignaturesRequest(t *testing.T) {
 
 	require.Len(t, fetchedSignatures, len(expectedSignatures))
 	for i, expected := range expectedSignatures {
-		testhelper.ProtoEqual(t, expected, fetchedSignatures[i])
+		testassert.ProtoEqual(t, expected, fetchedSignatures[i])
 	}
 }
 

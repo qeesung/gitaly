@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
-	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/log"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 // WithDisabledHooks returns an option that satisfies the requirement to set up
@@ -84,12 +84,14 @@ func (cc *cmdCfg) configureHooks(
 		return errors.New("hooks already configured")
 	}
 
-	transaction, praefect, err := txinfo.FromContext(ctx)
-	if err != nil {
+	var transaction *txinfo.Transaction
+	if tx, err := txinfo.TransactionFromContext(ctx); err == nil {
+		transaction = &tx
+	} else if !errors.Is(err, txinfo.ErrTransactionNotFound) {
 		return err
 	}
 
-	payload, err := NewHooksPayload(cfg, repo, transaction, praefect, receiveHooksPayload, requestedHooks, featureflag.RawFromContext(ctx)).Env()
+	payload, err := NewHooksPayload(cfg, repo, transaction, receiveHooksPayload, requestedHooks, featureflag.RawFromContext(ctx)).Env()
 	if err != nil {
 		return err
 	}

@@ -9,17 +9,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestReplicateRepository(t *testing.T) {
@@ -52,7 +53,7 @@ func TestReplicateRepository(t *testing.T) {
 	configData := testhelper.MustReadFile(t, filepath.Join(repoPath, "config"))
 	require.Contains(t, string(configData), "[please]\n\treplicate = me\n")
 
-	targetRepo := *repo
+	targetRepo := proto.Clone(repo).(*gitalypb.Repository)
 	targetRepo.StorageName = cfg.Storages[1].Name
 
 	ctx, cancel := testhelper.Context()
@@ -61,7 +62,7 @@ func TestReplicateRepository(t *testing.T) {
 	injectedCtx := metadata.NewOutgoingContext(ctx, md)
 
 	_, err = client.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
-		Repository: &targetRepo,
+		Repository: targetRepo,
 		Source:     repo,
 	})
 	require.NoError(t, err)
@@ -80,7 +81,7 @@ func TestReplicateRepository(t *testing.T) {
 	// create another branch
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
 	_, err = client.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
-		Repository: &targetRepo,
+		Repository: targetRepo,
 		Source:     repo,
 	})
 	require.NoError(t, err)
@@ -277,10 +278,10 @@ func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 
 	repoClient := newRepositoryClient(t, cfg, cfg.SocketPath)
 
-	targetRepo := *testRepo
+	targetRepo := proto.Clone(testRepo).(*gitalypb.Repository)
 	targetRepo.StorageName = cfg.Storages[1].Name
 
-	targetRepoPath, err := locator.GetPath(&targetRepo)
+	targetRepoPath, err := locator.GetPath(targetRepo)
 	require.NoError(t, err)
 
 	require.NoError(t, os.MkdirAll(targetRepoPath, 0755))
@@ -293,7 +294,7 @@ func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 	injectedCtx := metadata.NewOutgoingContext(ctx, md)
 
 	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
-		Repository: &targetRepo,
+		Repository: targetRepo,
 		Source:     testRepo,
 	})
 	require.Error(t, err)

@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/internal/git/conflict"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
 // ResolveCommand contains arguments to perform a merge commit and resolve any
@@ -33,7 +33,7 @@ func (r ResolveCommand) Run(ctx context.Context, cfg config.Cfg) (ResolveResult,
 		return ResolveResult{}, fmt.Errorf("resolve: %w", err)
 	}
 
-	stdout, err := run(ctx, binaryPathFromCfg(cfg), input, "resolve")
+	stdout, err := run(ctx, BinaryPath(cfg.BinDir), input, "resolve")
 	if err != nil {
 		return ResolveResult{}, err
 	}

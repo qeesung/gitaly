@@ -1,4 +1,4 @@
-package cache_test
+package cache
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	diskcache "gitlab.com/gitlab-org/gitaly/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/cache/testdata"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	diskcache "gitlab.com/gitlab-org/gitaly/v14/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/cache/testdata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
@@ -34,10 +34,10 @@ func TestInvalidators(t *testing.T) {
 
 	srvr := grpc.NewServer(
 		grpc.StreamInterceptor(
-			cache.StreamInvalidator(mCache, reg),
+			StreamInvalidator(mCache, reg),
 		),
 		grpc.UnaryInterceptor(
-			cache.UnaryInvalidator(mCache, reg),
+			UnaryInvalidator(mCache, reg),
 		),
 	)
 
@@ -76,8 +76,8 @@ func TestInvalidators(t *testing.T) {
 		StorageName:                   "3",
 	}
 
-	expectedSvcRequests := []gitalypb.Repository{*repo1, *repo2, *repo3, *repo1, *repo2}
-	expectedInvalidations := []gitalypb.Repository{*repo2, *repo3, *repo1}
+	expectedSvcRequests := []*gitalypb.Repository{repo1, repo2, repo3, repo1, repo2}
+	expectedInvalidations := []*gitalypb.Repository{repo2, repo3, repo1}
 
 	// Should NOT trigger cache invalidation
 	c, err := cli.ClientStreamRepoAccessor(ctx, &testdata.Request{
@@ -119,28 +119,28 @@ func TestInvalidators(t *testing.T) {
 	hcr := &grpc_health_v1.HealthCheckRequest{Service: "TestService"}
 	_, err = grpc_health_v1.NewHealthClient(cc).Check(ctx, hcr)
 	require.NoError(t, err)
-	require.Equal(t, 0, cache.MethodErrCount.Method["/grpc.health.v1.Health/Check"])
+	require.Equal(t, 0, MethodErrCount.Method["/grpc.health.v1.Health/Check"])
 
 	_, err = testdata.NewInterceptedServiceClient(cc).IgnoredMethod(ctx, &testdata.Request{})
-	require.Equal(t, status.Error(codes.Unimplemented, "method IgnoredMethod not implemented"), err)
-	require.Equal(t, 0, cache.MethodErrCount.Method["/testdata.InterceptedService/IgnoredMethod"])
+	testassert.GrpcEqualErr(t, status.Error(codes.Unimplemented, "method IgnoredMethod not implemented"), err)
+	require.Equal(t, 0, MethodErrCount.Method["/testdata.InterceptedService/IgnoredMethod"])
 
-	require.Equal(t, expectedInvalidations, mCache.(*mockCache).invalidatedRepos)
-	require.Equal(t, expectedSvcRequests, svc.repoRequests)
+	testassert.ProtoEqual(t, expectedInvalidations, mCache.(*mockCache).invalidatedRepos)
+	testassert.ProtoEqual(t, expectedSvcRequests, svc.repoRequests)
 	require.Equal(t, 3, mCache.(*mockCache).endedLeases.count)
 }
 
 // mockCache allows us to relay back via channel which repos are being
 // invalidated in the cache
 type mockCache struct {
-	invalidatedRepos []gitalypb.Repository
+	invalidatedRepos []*gitalypb.Repository
 	endedLeases      *struct {
 		sync.RWMutex
 		count int
 	}
 }
 
-func newMockCache() cache.Invalidator {
+func newMockCache() Invalidator {
 	return &mockCache{
 		endedLeases: &struct {
 			sync.RWMutex
@@ -158,7 +158,7 @@ func (mc *mockCache) EndLease(_ context.Context) error {
 }
 
 func (mc *mockCache) StartLease(repo *gitalypb.Repository) (diskcache.LeaseEnder, error) {
-	mc.invalidatedRepos = append(mc.invalidatedRepos, *repo)
+	mc.invalidatedRepos = append(mc.invalidatedRepos, repo)
 	return mc, nil
 }
 
@@ -201,25 +201,26 @@ func newTestSvc(t testing.TB, ctx context.Context, srvr *grpc.Server, svc testda
 }
 
 type testSvc struct {
-	repoRequests []gitalypb.Repository
+	testdata.UnimplementedTestServiceServer
+	repoRequests []*gitalypb.Repository
 }
 
 func (ts *testSvc) ClientStreamRepoMutator(req *testdata.Request, _ testdata.TestService_ClientStreamRepoMutatorServer) error {
-	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	ts.repoRequests = append(ts.repoRequests, req.GetDestination())
 	return nil
 }
 
 func (ts *testSvc) ClientStreamRepoAccessor(req *testdata.Request, _ testdata.TestService_ClientStreamRepoAccessorServer) error {
-	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	ts.repoRequests = append(ts.repoRequests, req.GetDestination())
 	return nil
 }
 
 func (ts *testSvc) ClientUnaryRepoMutator(_ context.Context, req *testdata.Request) (*testdata.Response, error) {
-	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	ts.repoRequests = append(ts.repoRequests, req.GetDestination())
 	return &testdata.Response{}, nil
 }
 
 func (ts *testSvc) ClientUnaryRepoAccessor(_ context.Context, req *testdata.Request) (*testdata.Response, error) {
-	ts.repoRequests = append(ts.repoRequests, *req.GetDestination())
+	ts.repoRequests = append(ts.repoRequests, req.GetDestination())
 	return &testdata.Response{}, nil
 }

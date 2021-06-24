@@ -11,8 +11,8 @@ import (
 	"os"
 
 	git "github.com/libgit2/git2go/v31"
-	"gitlab.com/gitlab-org/gitaly/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -65,6 +65,18 @@ func Merge(repo *git.Repository, conflict git.IndexConflict) (*git.MergeFileResu
 	merge, err := git.MergeFile(ancestor, our, their, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not compute conflicts: %w", err)
+	}
+
+	// In a case of tree-based conflicts (e.g. no ancestor), fallback to `Path`
+	// of `their` side. If that's also blank, fallback to `Path` of `our` side.
+	// This is to ensure that there's always a `Path` when we try to merge
+	// conflicts.
+	if merge.Path == "" {
+		if their.Path != "" {
+			merge.Path = their.Path
+		} else {
+			merge.Path = our.Path
+		}
 	}
 
 	return merge, nil

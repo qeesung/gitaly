@@ -18,26 +18,26 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/middleware/metadatahandler"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/transactions"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/promtest"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -195,10 +195,6 @@ func TestStreamDirectorMutator(t *testing.T) {
 	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
 	require.NoError(t, err)
 	require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target())
-
-	md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-	require.True(t, ok)
-	require.Contains(t, md, txinfo.PraefectMetadataKey)
 
 	mi, err := coordinator.registry.LookupMethod(fullMethod)
 	require.NoError(t, err)
@@ -439,10 +435,6 @@ func TestStreamDirectorAccessor(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, gitalyAddress, streamParams.Primary().Conn.Target())
 
-			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-			require.True(t, ok)
-			require.Contains(t, md, txinfo.PraefectMetadataKey)
-
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
 			require.Equal(t, protoregistry.ScopeRepository, mi.Scope, "method must be repository scoped")
@@ -544,10 +536,6 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 				secondaryChosen++
 			}
 
-			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-			require.True(t, ok)
-			require.Contains(t, md, txinfo.PraefectMetadataKey)
-
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
 			require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
@@ -592,10 +580,6 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 				nodeConf = secondaryNodeConf
 				secondaryChosen++
 			}
-
-			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-			require.True(t, ok)
-			require.Contains(t, md, txinfo.PraefectMetadataKey)
 
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
@@ -642,10 +626,6 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 				secondaryChosen++
 			}
 
-			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-			require.True(t, ok)
-			require.Contains(t, md, txinfo.PraefectMetadataKey)
-
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
 			require.Equal(t, protoregistry.OpAccessor, mi.Operation, "method must be an accessor")
@@ -685,10 +665,6 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
 		require.NoError(t, err)
 		require.Equal(t, primaryNodeConf.Address, streamParams.Primary().Conn.Target(), "must be redirected to primary")
-
-		md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-		require.True(t, ok)
-		require.Contains(t, md, txinfo.PraefectMetadataKey)
 
 		mi, err := coordinator.registry.LookupMethod(fullMethod)
 		require.NoError(t, err)
@@ -739,10 +715,6 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 		streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
 		require.NoError(t, err)
 		require.Equal(t, primaryNodeConf.Address, streamParams.Primary().Conn.Target(), "must be redirected to primary")
-
-		md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-		require.True(t, ok)
-		require.Contains(t, md, txinfo.PraefectMetadataKey)
 
 		mi, err := coordinator.registry.LookupMethod(fullMethod)
 		require.NoError(t, err)
@@ -924,10 +896,6 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 			}
 			require.Equal(t, secondaryConnPointers, secondaries, "secondary connections did not match expected")
 
-			md, ok := metadata.FromOutgoingContext(streamParams.Primary().Ctx)
-			require.True(t, ok)
-			require.Contains(t, md, txinfo.PraefectMetadataKey)
-
 			mi, err := coordinator.registry.LookupMethod(fullMethod)
 			require.NoError(t, err)
 
@@ -1099,11 +1067,11 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 				Name: "praefect",
 				Nodes: []*config.Node{
 					&config.Node{
-						Address: "unix://woof",
+						Address: "unix:///woof",
 						Storage: "praefect-internal-1",
 					},
 					&config.Node{
-						Address: "unix://meow",
+						Address: "unix:///meow",
 						Storage: "praefect-internal-2",
 					}},
 			},
@@ -1293,7 +1261,7 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 		require.Equal(t, "virtual storage does not exist", result.Message())
 	})
 
-	t.Run("primary is not healthy", func(t *testing.T) {
+	t.Run("primary gitaly is not healthy", func(t *testing.T) {
 		t.Run("accessor", func(t *testing.T) {
 			mgr := &nodes.MockManager{
 				GetShardFunc: func(s string) (nodes.Shard, error) {
@@ -1323,7 +1291,7 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			result, ok := status.FromError(err)
 			require.True(t, ok)
 			require.Equal(t, codes.Internal, result.Code())
-			require.Equal(t, `accessor storage scoped: route storage accessor "fake": primary is not healthy`, result.Message())
+			require.Equal(t, `accessor storage scoped: route storage accessor "fake": primary gitaly is not healthy`, result.Message())
 		})
 
 		t.Run("mutator", func(t *testing.T) {
@@ -1354,25 +1322,21 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			result, ok := status.FromError(err)
 			require.True(t, ok)
 			require.Equal(t, codes.Internal, result.Code())
-			require.Equal(t, `mutator storage scoped: get shard "fake": primary is not healthy`, result.Message())
+			require.Equal(t, `mutator storage scoped: get shard "fake": primary gitaly is not healthy`, result.Message())
 		})
 	})
 }
 
 func TestDisabledTransactionsWithFeatureFlag(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, func(t *testing.T, ctx context.Context) {
-		for rpc, enabledFn := range transactionRPCs {
-			if enabledFn(ctx) {
-				require.Equal(t,
-					featureflag.IsEnabled(ctx, featureflag.ReferenceTransactions),
-					shouldUseTransaction(ctx, rpc),
-				)
-				break
-			}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	for rpc, enabledFn := range transactionRPCs {
+		if enabledFn(ctx) {
+			require.True(t, shouldUseTransaction(ctx, rpc))
+			break
 		}
-	})
+	}
 }
 
 func requireScopeOperation(t *testing.T, registry *protoregistry.Registry, fullMethod string, scope protoregistry.Scope, op protoregistry.OpType) {
@@ -1533,7 +1497,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				&gitalypb.UserCreateBranchRequest{
 					Repository: repoProto,
 				})
-			require.Equal(t, tc.expectedErr, err)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
 
 			for _, node := range gitalies {
 				require.True(t, node.operationServer.called, "expected gitaly %q to have been called", node.mock.GetStorage())

@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,33 +9,30 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulUserDeleteTagRequest)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserDeleteTagRequest(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	tagNameInput := "to-be-deleted-soon-tag"
@@ -156,12 +152,9 @@ end`, cfg.Git.BinPath)
 }
 
 func TestSuccessfulUserCreateTagRequest(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulUserCreateTagRequest)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserCreateTagRequest(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -243,7 +236,7 @@ func testSuccessfulUserCreateTagRequest(t *testing.T, ctx context.Context) {
 				responseOk.Tag.Id = text.ChompBytes(id)
 			}
 
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 
 			tag := gittest.Exec(t, cfg, "-C", repoPath, "tag")
 			require.Contains(t, string(tag), inputTagName)
@@ -310,11 +303,6 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 		),
 	)
 
-	praefectServer := &txinfo.PraefectServer{
-		SocketPath: "unix://" + cfg.GitalyInternalSocketPath(),
-		Token:      cfg.Auth.Token,
-	}
-
 	for i, testCase := range []struct {
 		desc    string
 		primary bool
@@ -364,8 +352,6 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			ctx = helper.OutgoingToIncoming(ctx)
 			ctx, err = txinfo.InjectTransaction(ctx, 1, "node", testCase.primary)
 			require.NoError(t, err)
-			ctx, err = praefectServer.Inject(ctx)
-			require.NoError(t, err)
 			ctx = helper.IncomingToOutgoing(ctx)
 
 			response, err := client.UserCreateTag(ctx, request)
@@ -379,7 +365,7 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			}
 			require.Equal(t, targetOIDOK, targetRevision)
 
-			testhelper.ProtoEqual(t, &gitalypb.UserCreateTagResponse{
+			testassert.ProtoEqual(t, &gitalypb.UserCreateTagResponse{
 				Tag: &gitalypb.Tag{
 					Name:         []byte(tagName),
 					Message:      []byte(testCase.message),
@@ -404,12 +390,9 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 }
 
 func TestSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	preReceiveHook := writeAssertObjectTypePreReceiveHook(t, cfg)
@@ -485,7 +468,7 @@ func testSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *tes
 			response, err := client.UserCreateTag(ctx, request)
 
 			if testCase.err != nil {
-				require.Equal(t, testCase.err, err)
+				testassert.GrpcEqualErr(t, testCase.err, err)
 			} else {
 				defer gittest.Exec(t, cfg, "-C", repoPath, "tag", "-d", tagName)
 				require.NoError(t, err)
@@ -496,12 +479,9 @@ func testSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *tes
 }
 
 func TestSuccessfulUserCreateTagRequestWithParsedTargetRevision(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testSuccessfulUserCreateTagRequestWithParsedTargetRevision)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testSuccessfulUserCreateTagRequestWithParsedTargetRevision(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "branch", "heads/master", "master~1")
@@ -677,7 +657,7 @@ func TestSuccessfulUserCreateTagRequestToNonCommit(t *testing.T) {
 				tagID := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", inputTagName)
 				responseOk.Tag.Id = text.ChompBytes(tagID)
 			}
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 
 			peeledID := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", inputTagName+"^{}")
 			require.Equal(t, testCase.targetRevision, text.ChompBytes(peeledID))
@@ -769,7 +749,7 @@ func TestSuccessfulUserCreateTagNestedTags(t *testing.T) {
 					responseOk.Tag.TargetCommit, err = repo.ReadCommit(ctx, git.Revision(testCase.targetObject))
 					require.NoError(t, err)
 				}
-				require.Equal(t, responseOk, response)
+				testassert.ProtoEqual(t, responseOk, response)
 
 				peeledID := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", tagName+"^{}")
 				peeledIDStr := text.ChompBytes(peeledID)
@@ -804,7 +784,7 @@ func TestSuccessfulUserCreateTagNestedTags(t *testing.T) {
 						MessageSize:  0,
 					},
 				}
-				require.Equal(t, responseOk, response)
+				testassert.ProtoEqual(t, responseOk, response)
 
 				createdIDLight := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", tagNameLight)
 				createdIDLightStr := text.ChompBytes(createdIDLight)
@@ -838,16 +818,10 @@ func TestUserCreateTagStableTagIDs(t *testing.T) {
 	}, response.Tag)
 }
 
-// TODO: Rename to TestUserDeleteTag_successfulDeletionOfPrefixedTag,
-// see
-// https://gitlab.com/gitlab-org/gitaly/-/merge_requests/2839#note_458751929
-func TestUserDeleteTagsuccessfulDeletionOfPrefixedTag(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testUserDeleteTagsuccessfulDeletionOfPrefixedTag)
-}
+func TestUserDeleteTagSuccessfulDeletionOfPrefixedTag(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testUserDeleteTagsuccessfulDeletionOfPrefixedTag(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -879,8 +853,8 @@ func testUserDeleteTagsuccessfulDeletionOfPrefixedTag(t *testing.T, ctx context.
 			}
 
 			response, err := client.UserDeleteTag(ctx, request)
-			require.Equal(t, testCase.err, err)
-			require.Equal(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
 
 			refs := gittest.Exec(t, cfg, "-C", repoPath, "for-each-ref", "--", "refs/tags/"+testCase.tagNameInput)
 			require.NotContains(t, string(refs), testCase.tagCommit, "tag kept because we stripped off refs/tags/*")
@@ -924,7 +898,7 @@ func TestUserCreateTagsuccessfulCreationOfPrefixedTag(t *testing.T) {
 			}
 
 			response, err := client.UserCreateTag(ctx, request)
-			require.Equal(t, testCase.err, err)
+			testassert.GrpcEqualErr(t, testCase.err, err)
 			commitOk, err := repo.ReadCommit(ctx, git.Revision(testCase.tagTargetRevisionInput))
 			require.NoError(t, err)
 
@@ -936,7 +910,7 @@ func TestUserCreateTagsuccessfulCreationOfPrefixedTag(t *testing.T) {
 				},
 			}
 
-			require.Equal(t, responseOk, response)
+			testassert.ProtoEqual(t, responseOk, response)
 
 			refs := gittest.Exec(t, cfg, "-C", repoPath, "for-each-ref", "--", "refs/tags/"+testCase.tagNameInput)
 			require.Contains(t, string(refs), testCase.tagTargetRevisionInput, "tag created, we did not strip off refs/tags/*")
@@ -1044,19 +1018,16 @@ func TestFailedUserDeleteTagRequestDueToValidation(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			response, err := client.UserDeleteTag(ctx, testCase.request)
-			require.Equal(t, testCase.err, err)
-			testhelper.ProtoEqual(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
 		})
 	}
 }
 
 func TestFailedUserDeleteTagDueToHooks(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testFailedUserDeleteTagDueToHooks)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testFailedUserDeleteTagDueToHooks(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	tagNameInput := "to-be-deleted-soon-tag"
@@ -1076,7 +1047,7 @@ func testFailedUserDeleteTagDueToHooks(t *testing.T, ctx context.Context) {
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 			response, err := client.UserDeleteTag(ctx, request)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
 
 			tags := gittest.Exec(t, cfg, "-C", repoPath, "tag")
@@ -1104,7 +1075,7 @@ func TestFailedUserCreateTagDueToHooks(t *testing.T) {
 		gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 		response, err := client.UserCreateTag(ctx, request)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
 	}
 }
@@ -1154,8 +1125,8 @@ func TestFailedUserCreateTagRequestDueToTagExistence(t *testing.T) {
 			}
 
 			response, err := client.UserCreateTag(ctx, request)
-			require.Equal(t, testCase.err, err)
-			require.Equal(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
 		})
 	}
 }
@@ -1272,19 +1243,16 @@ func TestFailedUserCreateTagRequestDueToValidation(t *testing.T) {
 			}
 
 			response, err := client.UserCreateTag(ctx, request)
-			require.Equal(t, testCase.err, err)
-			require.Equal(t, testCase.response, response)
+			testassert.GrpcEqualErr(t, testCase.err, err)
+			testassert.ProtoEqual(t, testCase.response, response)
 		})
 	}
 }
 
 func TestTagHookOutput(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReferenceTransactions,
-	}).Run(t, testTagHookOutput)
-}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-func testTagHookOutput(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -1350,7 +1318,7 @@ func testTagHookOutput(t *testing.T, ctx context.Context) {
 					Exists:          false,
 					PreReceiveError: testCase.output,
 				}
-				require.Equal(t, createResponseOk, createResponse)
+				testassert.ProtoEqual(t, createResponseOk, createResponse)
 
 				defer gittest.Exec(t, cfg, "-C", repoPath, "tag", "-d", tagNameInput)
 				gittest.Exec(t, cfg, "-C", repoPath, "tag", tagNameInput)
@@ -1360,7 +1328,7 @@ func testTagHookOutput(t *testing.T, ctx context.Context) {
 				deleteResponseOk := &gitalypb.UserDeleteTagResponse{
 					PreReceiveError: testCase.output,
 				}
-				require.Equal(t, deleteResponseOk, deleteResponse)
+				testassert.ProtoEqual(t, deleteResponseOk, deleteResponse)
 			})
 		}
 	}

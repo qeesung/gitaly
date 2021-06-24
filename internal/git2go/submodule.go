@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
 // Error strings present in the legacy Ruby implementation
@@ -74,7 +74,7 @@ func (s SubmoduleCommand) Run(ctx context.Context, cfg config.Cfg) (SubmoduleRes
 		return SubmoduleResult{}, err
 	}
 
-	stdout, err := run(ctx, binaryPathFromCfg(cfg), nil, "submodule", "-request", serialized)
+	stdout, err := run(ctx, BinaryPath(cfg.BinDir), nil, "submodule", "-request", serialized)
 	if err != nil {
 		return SubmoduleResult{}, err
 	}

@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -19,7 +19,7 @@ func TestGetConnectionByStorage(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	storageName, address := "default", "unix://fake/address/wont/work"
+	storageName, address := "default", "unix:///fake/address/wont/work"
 	injectedCtx, err := helper.InjectGitalyServers(ctx, storageName, address, "token")
 	require.NoError(t, err)
 

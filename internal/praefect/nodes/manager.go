@@ -11,17 +11,17 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
-	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/grpc-proxy/proxy"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/metrics"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/middleware"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes/tracker"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
-	prommetrics "gitlab.com/gitlab-org/gitaly/internal/prometheus/metrics"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/metrics"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/middleware"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	prommetrics "gitlab.com/gitlab-org/gitaly/v14/internal/prometheus/metrics"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -113,7 +113,7 @@ type leaderElectionStrategy interface {
 
 // ErrPrimaryNotHealthy indicates the primary of a shard is not in a healthy state and hence
 // should not be used for a new request
-var ErrPrimaryNotHealthy = errors.New("primary is not healthy")
+var ErrPrimaryNotHealthy = errors.New("primary gitaly is not healthy")
 
 const dialTimeout = 10 * time.Second
 

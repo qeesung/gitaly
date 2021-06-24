@@ -3,28 +3,29 @@ package remote
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/command"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func testUpdateRemoteMirror(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
@@ -460,7 +461,7 @@ func testUpdateRemoteMirrorFeatured(t *testing.T, ctx context.Context, cfg confi
 			// create identical commits in both repositories so we can use them for
 			// the references
 			commitSignature := git2go.NewSignature("Test Author", "author@example.com", time.Now())
-			executor := git2go.New(filepath.Join(cfg.BinDir, "gitaly-git2go"), cfg.Git.BinPath)
+			executor := git2go.New(cfg.BinDir, cfg.Git.BinPath)
 
 			// construct the starting state of the repositories
 			for repoPath, references := range map[string]refs{
@@ -535,7 +536,7 @@ func testUpdateRemoteMirrorFeatured(t *testing.T, ctx context.Context, cfg confi
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tc.response, resp)
+			testassert.ProtoEqual(t, tc.response, resp)
 
 			// Check that the refs on the mirror now refer to the correct commits.
 			// This is done by checking the commit messages as the commits are otherwise
@@ -755,6 +756,71 @@ func testSuccessfulUpdateRemoteMirrorRequestWithWildcardsFeatured(t *testing.T, 
 	require.NotContains(t, mirrorRefs, "refs/tags/v1.1.0")
 }
 
+func testUpdateRemoteMirrorInmemory(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
+	serverSocketPath := testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterRemoteServiceServer(srv, NewServer(
+			deps.GetCfg(),
+			deps.GetRubyServer(),
+			deps.GetLocator(),
+			deps.GetGitCmdFactory(),
+			deps.GetCatfileCache(),
+			deps.GetTxManager(),
+		))
+	})
+
+	client, conn := newRemoteClient(t, serverSocketPath)
+	defer conn.Close()
+
+	localRepo, localPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "local")
+	defer cleanup()
+	gittest.WriteCommit(t, cfg, localPath)
+
+	_, remotePath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "remote")
+	defer cleanup()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	t.Run("Ruby implementation fails gracefully", func(t *testing.T) {
+		ctx := featureflag.OutgoingCtxWithFeatureFlagValue(ctx, featureflag.GoUpdateRemoteMirror, "false")
+
+		stream, err := client.UpdateRemoteMirror(ctx)
+		require.NoError(t, err)
+
+		require.NoError(t, stream.Send(&gitalypb.UpdateRemoteMirrorRequest{
+			Repository: localRepo,
+			Remote: &gitalypb.UpdateRemoteMirrorRequest_Remote{
+				Url: remotePath,
+			},
+		}))
+
+		_, err = stream.CloseAndRecv()
+		testassert.GrpcEqualErr(t, status.Error(codes.InvalidArgument, "in-memory remotes require `gitaly_go_update_remote_mirror` feature flag"), err)
+	})
+
+	t.Run("Go implementation succeeds", func(t *testing.T) {
+		ctx := featureflag.OutgoingCtxWithFeatureFlags(ctx, featureflag.GoUpdateRemoteMirror)
+
+		stream, err := client.UpdateRemoteMirror(ctx)
+		require.NoError(t, err)
+
+		require.NoError(t, stream.Send(&gitalypb.UpdateRemoteMirrorRequest{
+			Repository: localRepo,
+			Remote: &gitalypb.UpdateRemoteMirrorRequest_Remote{
+				Url: remotePath,
+			},
+		}))
+
+		response, err := stream.CloseAndRecv()
+		require.NoError(t, err)
+		testassert.ProtoEqual(t, &gitalypb.UpdateRemoteMirrorResponse{}, response)
+
+		localRefs := string(gittest.Exec(t, cfg, "-C", localPath, "for-each-ref"))
+		remoteRefs := string(gittest.Exec(t, cfg, "-C", remotePath, "for-each-ref"))
+		require.Equal(t, localRefs, remoteRefs)
+	})
+}
+
 func testSuccessfulUpdateRemoteMirrorRequestWithKeepDivergentRefs(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
 	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
 		featureflag.GoUpdateRemoteMirror,
@@ -890,6 +956,23 @@ func testFailedUpdateRemoteMirrorRequestDueToValidationFeatured(t *testing.T, ct
 			request: &gitalypb.UpdateRemoteMirrorRequest{
 				Repository: testRepo,
 				RefName:    "",
+			},
+		},
+		{
+			desc: "remote is missing URL",
+			request: &gitalypb.UpdateRemoteMirrorRequest{
+				Repository: testRepo,
+				Remote: &gitalypb.UpdateRemoteMirrorRequest_Remote{
+					Url: "",
+				},
+			},
+		},
+		{
+			desc: "both remote name and remote parameters set",
+			request: &gitalypb.UpdateRemoteMirrorRequest{
+				Repository: testRepo,
+				RefName:    "foobar",
+				Remote:     &gitalypb.UpdateRemoteMirrorRequest_Remote{},
 			},
 		},
 	}

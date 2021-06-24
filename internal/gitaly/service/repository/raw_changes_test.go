@@ -7,10 +7,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
@@ -146,7 +146,7 @@ func TestGetRawChangesSpecialCharacters(t *testing.T) {
 	require.Len(t, changes, nChangedFiles)
 
 	specialFileIdx := 11
-	require.Equal(t, "encoding/テスト.txt", changes[specialFileIdx].NewPath)
+	require.Equal(t, "encoding/テスト.txt", changes[specialFileIdx].NewPath) // nolint:staticcheck
 }
 
 func collectChanges(t *testing.T, stream gitalypb.RepositoryService_GetRawChangesClient) []*gitalypb.GetRawChangesResponse_RawChange {
@@ -331,13 +331,13 @@ func TestGetRawChangesInvalidUTF8Paths(t *testing.T) {
 		for _, rawChange := range msg.GetRawChanges() {
 			if string(rawChange.GetOldPathBytes()) == nonUTF8Filename {
 				oldPathFound = true
-				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/issues/1746
+				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/v14/issues/1746
 				require.Equal(t, rawChange.GetOldPath(), InvalidUTF8PathPlaceholder)
 			}
 
 			if string(rawChange.GetNewPathBytes()) == nonUTF8Filename {
 				newPathFound = true
-				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/issues/1746
+				//nolint:staticcheck // gitlab.com/gitlab-org/gitaly/v14/issues/1746
 				require.Equal(t, rawChange.GetNewPath(), InvalidUTF8PathPlaceholder)
 			}
 		}

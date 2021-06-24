@@ -13,21 +13,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/rubyserver"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -208,7 +208,7 @@ type mockTxManager struct {
 	votes int
 }
 
-func (m *mockTxManager) Vote(context.Context, txinfo.Transaction, txinfo.PraefectServer, voting.Vote) error {
+func (m *mockTxManager) Vote(context.Context, txinfo.Transaction, voting.Vote) error {
 	m.votes++
 	return nil
 }
@@ -237,8 +237,6 @@ func TestFetchRemote_transaction(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
-	require.NoError(t, err)
-	ctx, err = (&txinfo.PraefectServer{SocketPath: "i-dont-care"}).Inject(ctx)
 	require.NoError(t, err)
 	ctx = helper.IncomingToOutgoing(ctx)
 
@@ -512,7 +510,7 @@ func TestFetchRemote_force(t *testing.T) {
 
 			tc.request.Repository = targetRepoProto
 			_, err := client.FetchRemote(ctx, tc.request)
-			require.Equal(t, tc.expectedErr, err)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
 
 			updatedBranchOID, err := targetRepo.ResolveRevision(ctx, "refs/heads/master")
 			require.NoError(t, err)
@@ -527,8 +525,8 @@ func TestFetchRemote_force(t *testing.T) {
 	}
 }
 
-func testFetchRemoteFailure(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	_, repo, _, client := setupRepositoryServiceWithRuby(t, cfg, rubySrv)
+func TestFetchRemoteFailure(t *testing.T) {
+	_, repo, _, client := setupRepositoryService(t)
 
 	const remoteName = "test-repo"
 	httpSrv, _ := remoteHTTPServer(t, remoteName, httpToken)
@@ -578,30 +576,16 @@ func testFetchRemoteFailure(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Se
 			errMsg: `blank or empty "remote"`,
 		},
 		{
-			desc: "invalid remote url: bad format",
+			desc: "invalid remote url",
 			req: &gitalypb.FetchRemoteRequest{
 				Repository: repo,
 				RemoteParams: &gitalypb.Remote{
-					Url:                     "not a url",
-					HttpAuthorizationHeader: httpToken,
+					Url: "",
 				},
 				Timeout: 1000,
 			},
 			code:   codes.InvalidArgument,
-			errMsg: `invalid "remote_params.url"`,
-		},
-		{
-			desc: "invalid remote url: no host",
-			req: &gitalypb.FetchRemoteRequest{
-				Repository: repo,
-				RemoteParams: &gitalypb.Remote{
-					Url:                     "/not/a/url",
-					HttpAuthorizationHeader: httpToken,
-				},
-				Timeout: 1000,
-			},
-			code:   codes.InvalidArgument,
-			errMsg: `invalid "remote_params.url"`,
+			errMsg: `blank or empty remote URL`,
 		},
 		{
 			desc: "not existing repo via http",
@@ -616,6 +600,18 @@ func testFetchRemoteFailure(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Se
 			},
 			code:   codes.Unknown,
 			errMsg: "invalid/repo/path.git/' not found",
+		},
+		{
+			desc: "/dev/null",
+			req: &gitalypb.FetchRemoteRequest{
+				Repository: repo,
+				RemoteParams: &gitalypb.Remote{
+					Url: "/dev/null",
+				},
+				Timeout: 1000,
+			},
+			code:   codes.Unknown,
+			errMsg: "'/dev/null' does not appear to be a git repository",
 		},
 	}
 	for _, tc := range tests {
@@ -664,8 +660,8 @@ func getRefnames(t *testing.T, cfg config.Cfg, repoPath string) []string {
 	return strings.Split(text.ChompBytes(result), "\n")
 }
 
-func testFetchRemoteOverHTTP(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) {
-	cfg, _, _, client := setupRepositoryServiceWithRuby(t, cfg, rubySrv)
+func TestFetchRemoteOverHTTP(t *testing.T) {
+	cfg, _, _, client := setupRepositoryService(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -718,6 +714,26 @@ func testFetchRemoteOverHTTP(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.S
 			assert.Equal(t, "master", refs[0])
 		})
 	}
+}
+
+func TestFetchRemoteWithPath(t *testing.T) {
+	cfg, _, sourceRepoPath, client := setupRepositoryService(t)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	mirrorRepo, mirrorRepoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+	defer cleanup()
+
+	_, err := client.FetchRemote(ctx, &gitalypb.FetchRemoteRequest{
+		Repository: mirrorRepo,
+		RemoteParams: &gitalypb.Remote{
+			Url: sourceRepoPath,
+		},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, getRefnames(t, cfg, sourceRepoPath), getRefnames(t, cfg, mirrorRepoPath))
 }
 
 func TestFetchRemoteOverHTTPWithRedirect(t *testing.T) {

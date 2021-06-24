@@ -9,8 +9,8 @@ import (
 	"io"
 	"log"
 
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 type nodeReconciler struct {
@@ -58,7 +58,7 @@ func (s *reconcileSubcommand) Exec(flags *flag.FlagSet, conf config.Config) erro
 func getNodeAddress(cfg config.Config) (string, error) {
 	switch {
 	case cfg.SocketPath != "":
-		return "unix://" + cfg.SocketPath, nil
+		return "unix:" + cfg.SocketPath, nil
 	case cfg.ListenAddr != "":
 		return "tcp://" + cfg.ListenAddr, nil
 	default:

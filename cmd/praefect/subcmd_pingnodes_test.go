@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 type mockServerService struct {
@@ -40,7 +40,7 @@ func TestSubCmdDialNodes(t *testing.T) {
 
 	decorateLogs := func(s []string) []string {
 		for i, ss := range s {
-			s[i] = fmt.Sprintf("[unix:/%s]: %s\n", ln.Addr(), ss)
+			s[i] = fmt.Sprintf("[unix://%s]: %s\n", ln.Addr(), ss)
 		}
 		return s
 	}
@@ -60,7 +60,7 @@ func TestSubCmdDialNodes(t *testing.T) {
 						Nodes: []*config.Node{
 							{
 								Storage: "1",
-								Address: "unix:/" + ln.Addr().String(),
+								Address: "unix://" + ln.Addr().String(),
 							},
 						},
 					},
@@ -69,7 +69,7 @@ func TestSubCmdDialNodes(t *testing.T) {
 						Nodes: []*config.Node{
 							{
 								Storage: "2",
-								Address: "unix:/" + ln.Addr().String(),
+								Address: "unix://" + ln.Addr().String(),
 							},
 						},
 					},

@@ -15,22 +15,23 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/git"
-	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/internal/git/hooks"
-	"gitlab.com/gitlab-org/gitaly/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/internal/git/objectpool"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testserver"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/internal/transaction/voting"
-	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/streamio"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
 )
 
@@ -117,7 +118,7 @@ func TestReceivePackPushSuccess(t *testing.T) {
 
 	// Compare the repository up front so that we can use require.Equal for
 	// the remaining values.
-	testhelper.ProtoEqual(t, &gitalypb.Repository{
+	testassert.ProtoEqual(t, &gitalypb.Repository{
 		StorageName:   cfg.Storages[0].Name,
 		RelativePath:  "gitlab-test-ssh-receive-pack.git",
 		GlProjectPath: glProjectPath,
@@ -125,11 +126,9 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	}, payload.Repo)
 	payload.Repo = nil
 
-	// If running tests with Praefect, then these would be set, but we have
-	// no way of figuring out their actual contents. So let's just remove
-	// that data, too.
+	// If running tests with Praefect, then the transaction would be set, but we have no way of
+	// figuring out their actual contents. So let's just remove it, too.
 	payload.Transaction = nil
-	payload.Praefect = nil
 
 	require.Equal(t, git.HooksPayload{
 		BinDir:              cfg.BinDir,
@@ -266,9 +265,7 @@ func TestReceivePackTransactional(t *testing.T) {
 	var votes int
 	serverSocketPath := runSSHServer(t, cfg, testserver.WithTransactionManager(
 		&transaction.MockManager{
-			VoteFn: func(context.Context, txinfo.Transaction,
-				txinfo.PraefectServer, voting.Vote,
-			) error {
+			VoteFn: func(context.Context, txinfo.Transaction, voting.Vote) error {
 				votes++
 				return nil
 			},
@@ -280,9 +277,7 @@ func TestReceivePackTransactional(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-	ctx, err := (&txinfo.PraefectServer{SocketPath: "whatever"}).Inject(ctx)
-	require.NoError(t, err)
-	ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
+	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
 	ctx = helper.IncomingToOutgoing(ctx)
 
