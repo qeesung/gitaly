@@ -1,6 +1,7 @@
 package glsql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -9,8 +10,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 )
 
@@ -200,4 +205,104 @@ func getEnvFromGDK(t testing.TB) {
 
 		require.NoError(t, os.Setenv(key, value), "set env var %v", key)
 	}
+}
+
+// PostgresContainer provides access to the SQL connection pool and a port number on which the
+// database accepts new connections.
+type PostgresContainer struct {
+	*sql.DB
+	Port  string
+	close func() error
+}
+
+// Close should be called to stop running container.
+func (pc PostgresContainer) Close() error {
+	return pc.close()
+}
+
+// RunPostgres starts a brand new container of the Postgres database and runs migrations on top of it.
+func RunPostgres() (PostgresContainer, error) {
+	const (
+		database = "testcontainer"
+		exposed  = nat.Port("5432/tcp")
+	)
+	waitSQL := wait.ForSQL(exposed, "postgres", func(port nat.Port) string { return "user=postgres sslmode=disable port=" + port.Port() })
+	waitSQL.Timeout(time.Second * 30)
+
+	req := testcontainers.ContainerRequest{
+		Image:        "postgres:11.6-alpine",
+		ExposedPorts: []string{string(exposed)},
+		WaitingFor:   waitSQL,
+		Env:          map[string]string{"POSTGRES_HOST_AUTH_METHOD": "trust"},
+		AutoRemove:   true,
+	}
+
+	ctx := context.Background()
+	postgesCtnr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		return PostgresContainer{}, err
+	}
+
+	terminate := func() error {
+		return postgesCtnr.Terminate(ctx)
+	}
+
+	port, err := postgesCtnr.MappedPort(ctx, exposed)
+	if err != nil {
+		_ = terminate()
+		return PostgresContainer{}, err
+	}
+
+	dbCfg := config.DB{
+		Host:    "localhost",
+		Port:    port.Int(),
+		DBName:  "postgres",
+		User:    "postgres",
+		SSLMode: "disable",
+		SessionPooled: config.DBConnection{
+			Host: "localhost",
+			Port: port.Int(),
+		},
+	}
+
+	postgresDB, err := OpenDB(dbCfg)
+	if err != nil {
+		_ = terminate()
+		return PostgresContainer{}, err
+	}
+
+	if _, err := postgresDB.Exec("CREATE DATABASE " + database + " WITH ENCODING 'UTF8'"); err != nil {
+		_ = terminate()
+		return PostgresContainer{}, err
+	}
+
+	if err := postgresDB.Close(); err != nil {
+		_ = terminate()
+		return PostgresContainer{}, err
+	}
+
+	dbCfg.DBName = database
+	db, err := OpenDB(dbCfg)
+	if err != nil {
+		_ = terminate()
+		return PostgresContainer{}, err
+	}
+
+	clean := func() error {
+		if err := db.Close(); err != nil {
+			_ = terminate()
+			return err
+		}
+		return terminate()
+	}
+
+	if _, err := Migrate(db, false); err != nil {
+		_ = clean()
+		return PostgresContainer{}, err
+	}
+
+	return PostgresContainer{DB: db, Port: port.Port(), close: clean}, nil
 }

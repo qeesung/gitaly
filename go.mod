@@ -11,12 +11,13 @@ exclude (
 
 require (
 	github.com/cloudflare/tableflip v1.2.2
-	github.com/containerd/cgroups v0.0.0-20201118023556-2819c83ced99
+	github.com/containerd/cgroups v0.0.0-20210114181951-8a68de567b68
+	github.com/docker/go-connections v0.4.0
 	github.com/getsentry/sentry-go v0.10.0
 	github.com/git-lfs/git-lfs v1.5.1-0.20210304194248-2e1d981afbe3
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.5
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/golang-lru v0.5.4
@@ -25,13 +26,14 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/libgit2/git2go/v31 v31.4.12
 	github.com/olekukonko/tablewriter v0.0.2
-	github.com/opencontainers/runtime-spec v1.0.2
+	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pelletier/go-toml v1.8.1
 	github.com/prometheus/client_golang v1.10.0
 	github.com/rubenv/sql-migrate v0.0.0-20191213152630-06338513c237
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	github.com/testcontainers/testcontainers-go v0.11.1
 	github.com/uber/jaeger-client-go v2.27.0+incompatible
 	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210608004414-a9c25c17ea0a
 	gitlab.com/gitlab-org/labkit v1.5.0
