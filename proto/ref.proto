@@ -88,6 +88,12 @@ service RefService {
     };
   }
 
+  rpc GetTagSignatures(GetTagSignaturesRequest) returns (stream GetTagSignaturesResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
   rpc GetTagMessages(GetTagMessagesRequest) returns (stream GetTagMessagesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -315,6 +321,18 @@ message ListTagNamesContainingCommitRequest {
 message ListTagNamesContainingCommitResponse {
   reserved 1;
   repeated bytes tag_names = 2;
+}
+
+message GetTagSignaturesRequest {
+  Repository repository = 1 [(target_repository)=true];
+  repeated string tag_ids = 2;
+}
+
+message GetTagSignaturesResponse {
+  // Only present for a new tag signature data.
+  string tag_id = 1;
+  bytes signature = 2;
+  bytes signed_text = 3;
 }
 
 message GetTagMessagesRequest {

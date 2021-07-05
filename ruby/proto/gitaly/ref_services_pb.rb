@@ -32,6 +32,7 @@ module Gitaly
       rpc :DeleteRefs, Gitaly::DeleteRefsRequest, Gitaly::DeleteRefsResponse
       rpc :ListBranchNamesContainingCommit, Gitaly::ListBranchNamesContainingCommitRequest, stream(Gitaly::ListBranchNamesContainingCommitResponse)
       rpc :ListTagNamesContainingCommit, Gitaly::ListTagNamesContainingCommitRequest, stream(Gitaly::ListTagNamesContainingCommitResponse)
+      rpc :GetTagSignatures, Gitaly::GetTagSignaturesRequest, stream(Gitaly::GetTagSignaturesResponse)
       rpc :GetTagMessages, Gitaly::GetTagMessagesRequest, stream(Gitaly::GetTagMessagesResponse)
       # Returns commits that are only reachable from the ref passed
       rpc :ListNewCommits, Gitaly::ListNewCommitsRequest, stream(Gitaly::ListNewCommitsResponse)

@@ -1965,6 +1965,125 @@ func (x *ListTagNamesContainingCommitResponse) GetTagNames() [][]byte {
 	return nil
 }
 
+type GetTagSignaturesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	TagIds     []string    `protobuf:"bytes,2,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+}
+
+func (x *GetTagSignaturesRequest) Reset() {
+	*x = GetTagSignaturesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_ref_proto_msgTypes[34]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetTagSignaturesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTagSignaturesRequest) ProtoMessage() {}
+
+func (x *GetTagSignaturesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ref_proto_msgTypes[34]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTagSignaturesRequest.ProtoReflect.Descriptor instead.
+func (*GetTagSignaturesRequest) Descriptor() ([]byte, []int) {
+	return file_ref_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetTagSignaturesRequest) GetRepository() *Repository {
+	if x != nil {
+		return x.Repository
+	}
+	return nil
+}
+
+func (x *GetTagSignaturesRequest) GetTagIds() []string {
+	if x != nil {
+		return x.TagIds
+	}
+	return nil
+}
+
+type GetTagSignaturesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Only present for a new tag signature data.
+	TagId      string `protobuf:"bytes,1,opt,name=tag_id,json=tagId,proto3" json:"tag_id,omitempty"`
+	Signature  []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	SignedText []byte `protobuf:"bytes,3,opt,name=signed_text,json=signedText,proto3" json:"signed_text,omitempty"`
+}
+
+func (x *GetTagSignaturesResponse) Reset() {
+	*x = GetTagSignaturesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_ref_proto_msgTypes[35]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetTagSignaturesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTagSignaturesResponse) ProtoMessage() {}
+
+func (x *GetTagSignaturesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ref_proto_msgTypes[35]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTagSignaturesResponse.ProtoReflect.Descriptor instead.
+func (*GetTagSignaturesResponse) Descriptor() ([]byte, []int) {
+	return file_ref_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetTagSignaturesResponse) GetTagId() string {
+	if x != nil {
+		return x.TagId
+	}
+	return ""
+}
+
+func (x *GetTagSignaturesResponse) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *GetTagSignaturesResponse) GetSignedText() []byte {
+	if x != nil {
+		return x.SignedText
+	}
+	return nil
+}
+
 type GetTagMessagesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1977,7 +2096,7 @@ type GetTagMessagesRequest struct {
 func (x *GetTagMessagesRequest) Reset() {
 	*x = GetTagMessagesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[34]
+		mi := &file_ref_proto_msgTypes[36]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1990,7 +2109,7 @@ func (x *GetTagMessagesRequest) String() string {
 func (*GetTagMessagesRequest) ProtoMessage() {}
 
 func (x *GetTagMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[34]
+	mi := &file_ref_proto_msgTypes[36]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2003,7 +2122,7 @@ func (x *GetTagMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTagMessagesRequest.ProtoReflect.Descriptor instead.
 func (*GetTagMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{34}
+	return file_ref_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetTagMessagesRequest) GetRepository() *Repository {
@@ -2033,7 +2152,7 @@ type GetTagMessagesResponse struct {
 func (x *GetTagMessagesResponse) Reset() {
 	*x = GetTagMessagesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[35]
+		mi := &file_ref_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2046,7 +2165,7 @@ func (x *GetTagMessagesResponse) String() string {
 func (*GetTagMessagesResponse) ProtoMessage() {}
 
 func (x *GetTagMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[35]
+	mi := &file_ref_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2059,7 +2178,7 @@ func (x *GetTagMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTagMessagesResponse.ProtoReflect.Descriptor instead.
 func (*GetTagMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{35}
+	return file_ref_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetTagMessagesResponse) GetMessage() []byte {
@@ -2088,7 +2207,7 @@ type ListNewCommitsRequest struct {
 func (x *ListNewCommitsRequest) Reset() {
 	*x = ListNewCommitsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[36]
+		mi := &file_ref_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2101,7 +2220,7 @@ func (x *ListNewCommitsRequest) String() string {
 func (*ListNewCommitsRequest) ProtoMessage() {}
 
 func (x *ListNewCommitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[36]
+	mi := &file_ref_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2114,7 +2233,7 @@ func (x *ListNewCommitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNewCommitsRequest.ProtoReflect.Descriptor instead.
 func (*ListNewCommitsRequest) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{36}
+	return file_ref_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListNewCommitsRequest) GetRepository() *Repository {
@@ -2142,7 +2261,7 @@ type ListNewCommitsResponse struct {
 func (x *ListNewCommitsResponse) Reset() {
 	*x = ListNewCommitsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[37]
+		mi := &file_ref_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2155,7 +2274,7 @@ func (x *ListNewCommitsResponse) String() string {
 func (*ListNewCommitsResponse) ProtoMessage() {}
 
 func (x *ListNewCommitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[37]
+	mi := &file_ref_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2168,7 +2287,7 @@ func (x *ListNewCommitsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNewCommitsResponse.ProtoReflect.Descriptor instead.
 func (*ListNewCommitsResponse) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{37}
+	return file_ref_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListNewCommitsResponse) GetCommits() []*GitCommit {
@@ -2190,7 +2309,7 @@ type FindAllRemoteBranchesRequest struct {
 func (x *FindAllRemoteBranchesRequest) Reset() {
 	*x = FindAllRemoteBranchesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[38]
+		mi := &file_ref_proto_msgTypes[40]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2203,7 +2322,7 @@ func (x *FindAllRemoteBranchesRequest) String() string {
 func (*FindAllRemoteBranchesRequest) ProtoMessage() {}
 
 func (x *FindAllRemoteBranchesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[38]
+	mi := &file_ref_proto_msgTypes[40]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2216,7 +2335,7 @@ func (x *FindAllRemoteBranchesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindAllRemoteBranchesRequest.ProtoReflect.Descriptor instead.
 func (*FindAllRemoteBranchesRequest) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{38}
+	return file_ref_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *FindAllRemoteBranchesRequest) GetRepository() *Repository {
@@ -2244,7 +2363,7 @@ type FindAllRemoteBranchesResponse struct {
 func (x *FindAllRemoteBranchesResponse) Reset() {
 	*x = FindAllRemoteBranchesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[39]
+		mi := &file_ref_proto_msgTypes[41]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2257,7 +2376,7 @@ func (x *FindAllRemoteBranchesResponse) String() string {
 func (*FindAllRemoteBranchesResponse) ProtoMessage() {}
 
 func (x *FindAllRemoteBranchesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[39]
+	mi := &file_ref_proto_msgTypes[41]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2270,7 +2389,7 @@ func (x *FindAllRemoteBranchesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindAllRemoteBranchesResponse.ProtoReflect.Descriptor instead.
 func (*FindAllRemoteBranchesResponse) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{39}
+	return file_ref_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *FindAllRemoteBranchesResponse) GetBranches() []*Branch {
@@ -2292,7 +2411,7 @@ type PackRefsRequest struct {
 func (x *PackRefsRequest) Reset() {
 	*x = PackRefsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[40]
+		mi := &file_ref_proto_msgTypes[42]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2305,7 +2424,7 @@ func (x *PackRefsRequest) String() string {
 func (*PackRefsRequest) ProtoMessage() {}
 
 func (x *PackRefsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[40]
+	mi := &file_ref_proto_msgTypes[42]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2318,7 +2437,7 @@ func (x *PackRefsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackRefsRequest.ProtoReflect.Descriptor instead.
 func (*PackRefsRequest) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{40}
+	return file_ref_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *PackRefsRequest) GetRepository() *Repository {
@@ -2344,7 +2463,7 @@ type PackRefsResponse struct {
 func (x *PackRefsResponse) Reset() {
 	*x = PackRefsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[41]
+		mi := &file_ref_proto_msgTypes[43]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2357,7 +2476,7 @@ func (x *PackRefsResponse) String() string {
 func (*PackRefsResponse) ProtoMessage() {}
 
 func (x *PackRefsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[41]
+	mi := &file_ref_proto_msgTypes[43]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2370,7 +2489,7 @@ func (x *PackRefsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackRefsResponse.ProtoReflect.Descriptor instead.
 func (*PackRefsResponse) Descriptor() ([]byte, []int) {
-	return file_ref_proto_rawDescGZIP(), []int{41}
+	return file_ref_proto_rawDescGZIP(), []int{43}
 }
 
 type FindAllBranchesResponse_Branch struct {
@@ -2385,7 +2504,7 @@ type FindAllBranchesResponse_Branch struct {
 func (x *FindAllBranchesResponse_Branch) Reset() {
 	*x = FindAllBranchesResponse_Branch{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ref_proto_msgTypes[42]
+		mi := &file_ref_proto_msgTypes[44]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2398,7 +2517,7 @@ func (x *FindAllBranchesResponse_Branch) String() string {
 func (*FindAllBranchesResponse_Branch) ProtoMessage() {}
 
 func (x *FindAllBranchesResponse_Branch) ProtoReflect() protoreflect.Message {
-	mi := &file_ref_proto_msgTypes[42]
+	mi := &file_ref_proto_msgTypes[44]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2667,7 +2786,21 @@ var file_ref_proto_rawDesc = []byte{
 	0x6e, 0x67, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
 	0x12, 0x1b, 0x0a, 0x09, 0x74, 0x61, 0x67, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x02, 0x20,
 	0x03, 0x28, 0x0c, 0x52, 0x08, 0x74, 0x61, 0x67, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x4a, 0x04, 0x08,
-	0x01, 0x10, 0x02, 0x22, 0x7b, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73,
+	0x01, 0x10, 0x02, 0x22, 0x6c, 0x0a, 0x17, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x53, 0x69, 0x67,
+	0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x38,
+	0x0a, 0x0a, 0x72, 0x65, 0x70, 0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x12, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x70, 0x6f,
+	0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x42, 0x04, 0x98, 0xc6, 0x2c, 0x01, 0x52, 0x0a, 0x72, 0x65,
+	0x70, 0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x12, 0x17, 0x0a, 0x07, 0x74, 0x61, 0x67, 0x5f,
+	0x69, 0x64, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x09, 0x52, 0x06, 0x74, 0x61, 0x67, 0x49, 0x64,
+	0x73, 0x22, 0x70, 0x0a, 0x18, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x53, 0x69, 0x67, 0x6e, 0x61,
+	0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x15, 0x0a,
+	0x06, 0x74, 0x61, 0x67, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x74,
+	0x61, 0x67, 0x49, 0x64, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75,
+	0x72, 0x65, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x5f, 0x74, 0x65, 0x78,
+	0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x54,
+	0x65, 0x78, 0x74, 0x22, 0x7b, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73,
 	0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x38, 0x0a, 0x0a,
 	0x72, 0x65, 0x70, 0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
 	0x32, 0x12, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x70, 0x6f, 0x73, 0x69,
@@ -2712,7 +2845,7 @@ var file_ref_proto_rawDesc = []byte{
 	0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x12, 0x19, 0x0a, 0x08, 0x61, 0x6c, 0x6c, 0x5f, 0x72,
 	0x65, 0x66, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x61, 0x6c, 0x6c, 0x52, 0x65,
 	0x66, 0x73, 0x22, 0x12, 0x0a, 0x10, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65, 0x66, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xa2, 0x0d, 0x0a, 0x0a, 0x52, 0x65, 0x66, 0x53, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x83, 0x0e, 0x0a, 0x0a, 0x52, 0x65, 0x66, 0x53, 0x65,
 	0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x6c, 0x0a, 0x15, 0x46, 0x69, 0x6e, 0x64, 0x44, 0x65, 0x66,
 	0x61, 0x75, 0x6c, 0x74, 0x42, 0x72, 0x61, 0x6e, 0x63, 0x68, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x24,
 	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x46, 0x69, 0x6e, 0x64, 0x44, 0x65, 0x66, 0x61,
@@ -2797,32 +2930,38 @@ var file_ref_proto_rawDesc = []byte{
 	0x74, 0x1a, 0x2c, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x54,
 	0x61, 0x67, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x69, 0x6e,
 	0x67, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x59, 0x0a, 0x0e, 0x47, 0x65, 0x74,
-	0x54, 0x61, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x67, 0x69,
+	0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x5f, 0x0a, 0x10, 0x47, 0x65, 0x74,
+	0x54, 0x61, 0x67, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x12, 0x1f, 0x2e,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x53, 0x69, 0x67,
+	0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20,
+	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x53, 0x69,
+	0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x59, 0x0a, 0x0e, 0x47, 0x65,
+	0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x67,
+	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73, 0x73,
+	0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69,
 	0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74,
-	0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
-	0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02,
-	0x08, 0x02, 0x30, 0x01, 0x12, 0x59, 0x0a, 0x0e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x43,
-	0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x73, 0x12, 0x1d, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
+	0x67, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28,
+	0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x59, 0x0a, 0x0e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77,
+	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x73, 0x12, 0x1d, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
+	0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
 	0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c,
-	0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x73, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12,
-	0x53, 0x0a, 0x0c, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x12,
-	0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77,
-	0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x67,
-	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x42, 0x6c, 0x6f,
-	0x62, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02,
-	0x08, 0x02, 0x30, 0x01, 0x12, 0x45, 0x0a, 0x08, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65, 0x66, 0x73,
-	0x12, 0x17, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65,
-	0x66, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61,
-	0x6c, 0x79, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65, 0x66, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67,
-	0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62,
-	0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x34, 0x2f,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70,
-	0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01,
+	0x12, 0x53, 0x0a, 0x0c, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x42, 0x6c, 0x6f, 0x62, 0x73,
+	0x12, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65,
+	0x77, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x4e, 0x65, 0x77, 0x42, 0x6c,
+	0x6f, 0x62, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28,
+	0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x45, 0x0a, 0x08, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65, 0x66,
+	0x73, 0x12, 0x17, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x52,
+	0x65, 0x66, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x67, 0x69, 0x74,
+	0x61, 0x6c, 0x79, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x52, 0x65, 0x66, 0x73, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x01, 0x42, 0x34, 0x5a, 0x32,
+	0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61,
+	0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x34,
+	0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
+	0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2838,7 +2977,7 @@ func file_ref_proto_rawDescGZIP() []byte {
 }
 
 var file_ref_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ref_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_ref_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_ref_proto_goTypes = []interface{}{
 	(FindLocalBranchesRequest_SortBy)(0),            // 0: gitaly.FindLocalBranchesRequest.SortBy
 	(CreateBranchResponse_Status)(0),                // 1: gitaly.CreateBranchResponse.Status
@@ -2876,102 +3015,107 @@ var file_ref_proto_goTypes = []interface{}{
 	(*ListBranchNamesContainingCommitResponse)(nil), // 33: gitaly.ListBranchNamesContainingCommitResponse
 	(*ListTagNamesContainingCommitRequest)(nil),     // 34: gitaly.ListTagNamesContainingCommitRequest
 	(*ListTagNamesContainingCommitResponse)(nil),    // 35: gitaly.ListTagNamesContainingCommitResponse
-	(*GetTagMessagesRequest)(nil),                   // 36: gitaly.GetTagMessagesRequest
-	(*GetTagMessagesResponse)(nil),                  // 37: gitaly.GetTagMessagesResponse
-	(*ListNewCommitsRequest)(nil),                   // 38: gitaly.ListNewCommitsRequest
-	(*ListNewCommitsResponse)(nil),                  // 39: gitaly.ListNewCommitsResponse
-	(*FindAllRemoteBranchesRequest)(nil),            // 40: gitaly.FindAllRemoteBranchesRequest
-	(*FindAllRemoteBranchesResponse)(nil),           // 41: gitaly.FindAllRemoteBranchesResponse
-	(*PackRefsRequest)(nil),                         // 42: gitaly.PackRefsRequest
-	(*PackRefsResponse)(nil),                        // 43: gitaly.PackRefsResponse
-	(*FindAllBranchesResponse_Branch)(nil),          // 44: gitaly.FindAllBranchesResponse.Branch
-	(*Repository)(nil),                              // 45: gitaly.Repository
-	(*NewBlobObject)(nil),                           // 46: gitaly.NewBlobObject
-	(*PaginationParameter)(nil),                     // 47: gitaly.PaginationParameter
-	(*GitCommit)(nil),                               // 48: gitaly.GitCommit
-	(*timestamppb.Timestamp)(nil),                   // 49: google.protobuf.Timestamp
-	(*Tag)(nil),                                     // 50: gitaly.Tag
-	(*Branch)(nil),                                  // 51: gitaly.Branch
+	(*GetTagSignaturesRequest)(nil),                 // 36: gitaly.GetTagSignaturesRequest
+	(*GetTagSignaturesResponse)(nil),                // 37: gitaly.GetTagSignaturesResponse
+	(*GetTagMessagesRequest)(nil),                   // 38: gitaly.GetTagMessagesRequest
+	(*GetTagMessagesResponse)(nil),                  // 39: gitaly.GetTagMessagesResponse
+	(*ListNewCommitsRequest)(nil),                   // 40: gitaly.ListNewCommitsRequest
+	(*ListNewCommitsResponse)(nil),                  // 41: gitaly.ListNewCommitsResponse
+	(*FindAllRemoteBranchesRequest)(nil),            // 42: gitaly.FindAllRemoteBranchesRequest
+	(*FindAllRemoteBranchesResponse)(nil),           // 43: gitaly.FindAllRemoteBranchesResponse
+	(*PackRefsRequest)(nil),                         // 44: gitaly.PackRefsRequest
+	(*PackRefsResponse)(nil),                        // 45: gitaly.PackRefsResponse
+	(*FindAllBranchesResponse_Branch)(nil),          // 46: gitaly.FindAllBranchesResponse.Branch
+	(*Repository)(nil),                              // 47: gitaly.Repository
+	(*NewBlobObject)(nil),                           // 48: gitaly.NewBlobObject
+	(*PaginationParameter)(nil),                     // 49: gitaly.PaginationParameter
+	(*GitCommit)(nil),                               // 50: gitaly.GitCommit
+	(*timestamppb.Timestamp)(nil),                   // 51: google.protobuf.Timestamp
+	(*Tag)(nil),                                     // 52: gitaly.Tag
+	(*Branch)(nil),                                  // 53: gitaly.Branch
 }
 var file_ref_proto_depIdxs = []int32{
-	45, // 0: gitaly.ListNewBlobsRequest.repository:type_name -> gitaly.Repository
-	46, // 1: gitaly.ListNewBlobsResponse.new_blob_objects:type_name -> gitaly.NewBlobObject
-	45, // 2: gitaly.FindDefaultBranchNameRequest.repository:type_name -> gitaly.Repository
-	45, // 3: gitaly.FindAllBranchNamesRequest.repository:type_name -> gitaly.Repository
-	45, // 4: gitaly.FindAllTagNamesRequest.repository:type_name -> gitaly.Repository
-	45, // 5: gitaly.FindRefNameRequest.repository:type_name -> gitaly.Repository
-	45, // 6: gitaly.FindLocalBranchesRequest.repository:type_name -> gitaly.Repository
+	47, // 0: gitaly.ListNewBlobsRequest.repository:type_name -> gitaly.Repository
+	48, // 1: gitaly.ListNewBlobsResponse.new_blob_objects:type_name -> gitaly.NewBlobObject
+	47, // 2: gitaly.FindDefaultBranchNameRequest.repository:type_name -> gitaly.Repository
+	47, // 3: gitaly.FindAllBranchNamesRequest.repository:type_name -> gitaly.Repository
+	47, // 4: gitaly.FindAllTagNamesRequest.repository:type_name -> gitaly.Repository
+	47, // 5: gitaly.FindRefNameRequest.repository:type_name -> gitaly.Repository
+	47, // 6: gitaly.FindLocalBranchesRequest.repository:type_name -> gitaly.Repository
 	0,  // 7: gitaly.FindLocalBranchesRequest.sort_by:type_name -> gitaly.FindLocalBranchesRequest.SortBy
-	47, // 8: gitaly.FindLocalBranchesRequest.pagination_params:type_name -> gitaly.PaginationParameter
+	49, // 8: gitaly.FindLocalBranchesRequest.pagination_params:type_name -> gitaly.PaginationParameter
 	14, // 9: gitaly.FindLocalBranchesResponse.branches:type_name -> gitaly.FindLocalBranchResponse
 	15, // 10: gitaly.FindLocalBranchResponse.commit_author:type_name -> gitaly.FindLocalBranchCommitAuthor
 	15, // 11: gitaly.FindLocalBranchResponse.commit_committer:type_name -> gitaly.FindLocalBranchCommitAuthor
-	48, // 12: gitaly.FindLocalBranchResponse.commit:type_name -> gitaly.GitCommit
-	49, // 13: gitaly.FindLocalBranchCommitAuthor.date:type_name -> google.protobuf.Timestamp
-	45, // 14: gitaly.FindAllBranchesRequest.repository:type_name -> gitaly.Repository
-	44, // 15: gitaly.FindAllBranchesResponse.branches:type_name -> gitaly.FindAllBranchesResponse.Branch
-	45, // 16: gitaly.FindTagRequest.repository:type_name -> gitaly.Repository
-	50, // 17: gitaly.FindTagResponse.tag:type_name -> gitaly.Tag
-	45, // 18: gitaly.FindAllTagsRequest.repository:type_name -> gitaly.Repository
-	50, // 19: gitaly.FindAllTagsResponse.tags:type_name -> gitaly.Tag
-	45, // 20: gitaly.RefExistsRequest.repository:type_name -> gitaly.Repository
-	45, // 21: gitaly.CreateBranchRequest.repository:type_name -> gitaly.Repository
+	50, // 12: gitaly.FindLocalBranchResponse.commit:type_name -> gitaly.GitCommit
+	51, // 13: gitaly.FindLocalBranchCommitAuthor.date:type_name -> google.protobuf.Timestamp
+	47, // 14: gitaly.FindAllBranchesRequest.repository:type_name -> gitaly.Repository
+	46, // 15: gitaly.FindAllBranchesResponse.branches:type_name -> gitaly.FindAllBranchesResponse.Branch
+	47, // 16: gitaly.FindTagRequest.repository:type_name -> gitaly.Repository
+	52, // 17: gitaly.FindTagResponse.tag:type_name -> gitaly.Tag
+	47, // 18: gitaly.FindAllTagsRequest.repository:type_name -> gitaly.Repository
+	52, // 19: gitaly.FindAllTagsResponse.tags:type_name -> gitaly.Tag
+	47, // 20: gitaly.RefExistsRequest.repository:type_name -> gitaly.Repository
+	47, // 21: gitaly.CreateBranchRequest.repository:type_name -> gitaly.Repository
 	1,  // 22: gitaly.CreateBranchResponse.status:type_name -> gitaly.CreateBranchResponse.Status
-	51, // 23: gitaly.CreateBranchResponse.branch:type_name -> gitaly.Branch
-	45, // 24: gitaly.DeleteBranchRequest.repository:type_name -> gitaly.Repository
-	45, // 25: gitaly.FindBranchRequest.repository:type_name -> gitaly.Repository
-	51, // 26: gitaly.FindBranchResponse.branch:type_name -> gitaly.Branch
-	45, // 27: gitaly.DeleteRefsRequest.repository:type_name -> gitaly.Repository
-	45, // 28: gitaly.ListBranchNamesContainingCommitRequest.repository:type_name -> gitaly.Repository
-	45, // 29: gitaly.ListTagNamesContainingCommitRequest.repository:type_name -> gitaly.Repository
-	45, // 30: gitaly.GetTagMessagesRequest.repository:type_name -> gitaly.Repository
-	45, // 31: gitaly.ListNewCommitsRequest.repository:type_name -> gitaly.Repository
-	48, // 32: gitaly.ListNewCommitsResponse.commits:type_name -> gitaly.GitCommit
-	45, // 33: gitaly.FindAllRemoteBranchesRequest.repository:type_name -> gitaly.Repository
-	51, // 34: gitaly.FindAllRemoteBranchesResponse.branches:type_name -> gitaly.Branch
-	45, // 35: gitaly.PackRefsRequest.repository:type_name -> gitaly.Repository
-	48, // 36: gitaly.FindAllBranchesResponse.Branch.target:type_name -> gitaly.GitCommit
-	4,  // 37: gitaly.RefService.FindDefaultBranchName:input_type -> gitaly.FindDefaultBranchNameRequest
-	6,  // 38: gitaly.RefService.FindAllBranchNames:input_type -> gitaly.FindAllBranchNamesRequest
-	8,  // 39: gitaly.RefService.FindAllTagNames:input_type -> gitaly.FindAllTagNamesRequest
-	10, // 40: gitaly.RefService.FindRefName:input_type -> gitaly.FindRefNameRequest
-	12, // 41: gitaly.RefService.FindLocalBranches:input_type -> gitaly.FindLocalBranchesRequest
-	16, // 42: gitaly.RefService.FindAllBranches:input_type -> gitaly.FindAllBranchesRequest
-	20, // 43: gitaly.RefService.FindAllTags:input_type -> gitaly.FindAllTagsRequest
-	18, // 44: gitaly.RefService.FindTag:input_type -> gitaly.FindTagRequest
-	40, // 45: gitaly.RefService.FindAllRemoteBranches:input_type -> gitaly.FindAllRemoteBranchesRequest
-	22, // 46: gitaly.RefService.RefExists:input_type -> gitaly.RefExistsRequest
-	28, // 47: gitaly.RefService.FindBranch:input_type -> gitaly.FindBranchRequest
-	30, // 48: gitaly.RefService.DeleteRefs:input_type -> gitaly.DeleteRefsRequest
-	32, // 49: gitaly.RefService.ListBranchNamesContainingCommit:input_type -> gitaly.ListBranchNamesContainingCommitRequest
-	34, // 50: gitaly.RefService.ListTagNamesContainingCommit:input_type -> gitaly.ListTagNamesContainingCommitRequest
-	36, // 51: gitaly.RefService.GetTagMessages:input_type -> gitaly.GetTagMessagesRequest
-	38, // 52: gitaly.RefService.ListNewCommits:input_type -> gitaly.ListNewCommitsRequest
-	2,  // 53: gitaly.RefService.ListNewBlobs:input_type -> gitaly.ListNewBlobsRequest
-	42, // 54: gitaly.RefService.PackRefs:input_type -> gitaly.PackRefsRequest
-	5,  // 55: gitaly.RefService.FindDefaultBranchName:output_type -> gitaly.FindDefaultBranchNameResponse
-	7,  // 56: gitaly.RefService.FindAllBranchNames:output_type -> gitaly.FindAllBranchNamesResponse
-	9,  // 57: gitaly.RefService.FindAllTagNames:output_type -> gitaly.FindAllTagNamesResponse
-	11, // 58: gitaly.RefService.FindRefName:output_type -> gitaly.FindRefNameResponse
-	13, // 59: gitaly.RefService.FindLocalBranches:output_type -> gitaly.FindLocalBranchesResponse
-	17, // 60: gitaly.RefService.FindAllBranches:output_type -> gitaly.FindAllBranchesResponse
-	21, // 61: gitaly.RefService.FindAllTags:output_type -> gitaly.FindAllTagsResponse
-	19, // 62: gitaly.RefService.FindTag:output_type -> gitaly.FindTagResponse
-	41, // 63: gitaly.RefService.FindAllRemoteBranches:output_type -> gitaly.FindAllRemoteBranchesResponse
-	23, // 64: gitaly.RefService.RefExists:output_type -> gitaly.RefExistsResponse
-	29, // 65: gitaly.RefService.FindBranch:output_type -> gitaly.FindBranchResponse
-	31, // 66: gitaly.RefService.DeleteRefs:output_type -> gitaly.DeleteRefsResponse
-	33, // 67: gitaly.RefService.ListBranchNamesContainingCommit:output_type -> gitaly.ListBranchNamesContainingCommitResponse
-	35, // 68: gitaly.RefService.ListTagNamesContainingCommit:output_type -> gitaly.ListTagNamesContainingCommitResponse
-	37, // 69: gitaly.RefService.GetTagMessages:output_type -> gitaly.GetTagMessagesResponse
-	39, // 70: gitaly.RefService.ListNewCommits:output_type -> gitaly.ListNewCommitsResponse
-	3,  // 71: gitaly.RefService.ListNewBlobs:output_type -> gitaly.ListNewBlobsResponse
-	43, // 72: gitaly.RefService.PackRefs:output_type -> gitaly.PackRefsResponse
-	55, // [55:73] is the sub-list for method output_type
-	37, // [37:55] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	53, // 23: gitaly.CreateBranchResponse.branch:type_name -> gitaly.Branch
+	47, // 24: gitaly.DeleteBranchRequest.repository:type_name -> gitaly.Repository
+	47, // 25: gitaly.FindBranchRequest.repository:type_name -> gitaly.Repository
+	53, // 26: gitaly.FindBranchResponse.branch:type_name -> gitaly.Branch
+	47, // 27: gitaly.DeleteRefsRequest.repository:type_name -> gitaly.Repository
+	47, // 28: gitaly.ListBranchNamesContainingCommitRequest.repository:type_name -> gitaly.Repository
+	47, // 29: gitaly.ListTagNamesContainingCommitRequest.repository:type_name -> gitaly.Repository
+	47, // 30: gitaly.GetTagSignaturesRequest.repository:type_name -> gitaly.Repository
+	47, // 31: gitaly.GetTagMessagesRequest.repository:type_name -> gitaly.Repository
+	47, // 32: gitaly.ListNewCommitsRequest.repository:type_name -> gitaly.Repository
+	50, // 33: gitaly.ListNewCommitsResponse.commits:type_name -> gitaly.GitCommit
+	47, // 34: gitaly.FindAllRemoteBranchesRequest.repository:type_name -> gitaly.Repository
+	53, // 35: gitaly.FindAllRemoteBranchesResponse.branches:type_name -> gitaly.Branch
+	47, // 36: gitaly.PackRefsRequest.repository:type_name -> gitaly.Repository
+	50, // 37: gitaly.FindAllBranchesResponse.Branch.target:type_name -> gitaly.GitCommit
+	4,  // 38: gitaly.RefService.FindDefaultBranchName:input_type -> gitaly.FindDefaultBranchNameRequest
+	6,  // 39: gitaly.RefService.FindAllBranchNames:input_type -> gitaly.FindAllBranchNamesRequest
+	8,  // 40: gitaly.RefService.FindAllTagNames:input_type -> gitaly.FindAllTagNamesRequest
+	10, // 41: gitaly.RefService.FindRefName:input_type -> gitaly.FindRefNameRequest
+	12, // 42: gitaly.RefService.FindLocalBranches:input_type -> gitaly.FindLocalBranchesRequest
+	16, // 43: gitaly.RefService.FindAllBranches:input_type -> gitaly.FindAllBranchesRequest
+	20, // 44: gitaly.RefService.FindAllTags:input_type -> gitaly.FindAllTagsRequest
+	18, // 45: gitaly.RefService.FindTag:input_type -> gitaly.FindTagRequest
+	42, // 46: gitaly.RefService.FindAllRemoteBranches:input_type -> gitaly.FindAllRemoteBranchesRequest
+	22, // 47: gitaly.RefService.RefExists:input_type -> gitaly.RefExistsRequest
+	28, // 48: gitaly.RefService.FindBranch:input_type -> gitaly.FindBranchRequest
+	30, // 49: gitaly.RefService.DeleteRefs:input_type -> gitaly.DeleteRefsRequest
+	32, // 50: gitaly.RefService.ListBranchNamesContainingCommit:input_type -> gitaly.ListBranchNamesContainingCommitRequest
+	34, // 51: gitaly.RefService.ListTagNamesContainingCommit:input_type -> gitaly.ListTagNamesContainingCommitRequest
+	36, // 52: gitaly.RefService.GetTagSignatures:input_type -> gitaly.GetTagSignaturesRequest
+	38, // 53: gitaly.RefService.GetTagMessages:input_type -> gitaly.GetTagMessagesRequest
+	40, // 54: gitaly.RefService.ListNewCommits:input_type -> gitaly.ListNewCommitsRequest
+	2,  // 55: gitaly.RefService.ListNewBlobs:input_type -> gitaly.ListNewBlobsRequest
+	44, // 56: gitaly.RefService.PackRefs:input_type -> gitaly.PackRefsRequest
+	5,  // 57: gitaly.RefService.FindDefaultBranchName:output_type -> gitaly.FindDefaultBranchNameResponse
+	7,  // 58: gitaly.RefService.FindAllBranchNames:output_type -> gitaly.FindAllBranchNamesResponse
+	9,  // 59: gitaly.RefService.FindAllTagNames:output_type -> gitaly.FindAllTagNamesResponse
+	11, // 60: gitaly.RefService.FindRefName:output_type -> gitaly.FindRefNameResponse
+	13, // 61: gitaly.RefService.FindLocalBranches:output_type -> gitaly.FindLocalBranchesResponse
+	17, // 62: gitaly.RefService.FindAllBranches:output_type -> gitaly.FindAllBranchesResponse
+	21, // 63: gitaly.RefService.FindAllTags:output_type -> gitaly.FindAllTagsResponse
+	19, // 64: gitaly.RefService.FindTag:output_type -> gitaly.FindTagResponse
+	43, // 65: gitaly.RefService.FindAllRemoteBranches:output_type -> gitaly.FindAllRemoteBranchesResponse
+	23, // 66: gitaly.RefService.RefExists:output_type -> gitaly.RefExistsResponse
+	29, // 67: gitaly.RefService.FindBranch:output_type -> gitaly.FindBranchResponse
+	31, // 68: gitaly.RefService.DeleteRefs:output_type -> gitaly.DeleteRefsResponse
+	33, // 69: gitaly.RefService.ListBranchNamesContainingCommit:output_type -> gitaly.ListBranchNamesContainingCommitResponse
+	35, // 70: gitaly.RefService.ListTagNamesContainingCommit:output_type -> gitaly.ListTagNamesContainingCommitResponse
+	37, // 71: gitaly.RefService.GetTagSignatures:output_type -> gitaly.GetTagSignaturesResponse
+	39, // 72: gitaly.RefService.GetTagMessages:output_type -> gitaly.GetTagMessagesResponse
+	41, // 73: gitaly.RefService.ListNewCommits:output_type -> gitaly.ListNewCommitsResponse
+	3,  // 74: gitaly.RefService.ListNewBlobs:output_type -> gitaly.ListNewBlobsResponse
+	45, // 75: gitaly.RefService.PackRefs:output_type -> gitaly.PackRefsResponse
+	57, // [57:76] is the sub-list for method output_type
+	38, // [38:57] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_ref_proto_init() }
@@ -3392,7 +3536,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTagMessagesRequest); i {
+			switch v := v.(*GetTagSignaturesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3404,7 +3548,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTagMessagesResponse); i {
+			switch v := v.(*GetTagSignaturesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3416,7 +3560,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListNewCommitsRequest); i {
+			switch v := v.(*GetTagMessagesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3428,7 +3572,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListNewCommitsResponse); i {
+			switch v := v.(*GetTagMessagesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3440,7 +3584,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FindAllRemoteBranchesRequest); i {
+			switch v := v.(*ListNewCommitsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3452,7 +3596,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FindAllRemoteBranchesResponse); i {
+			switch v := v.(*ListNewCommitsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3464,7 +3608,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PackRefsRequest); i {
+			switch v := v.(*FindAllRemoteBranchesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3476,7 +3620,7 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PackRefsResponse); i {
+			switch v := v.(*FindAllRemoteBranchesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3488,6 +3632,30 @@ func file_ref_proto_init() {
 			}
 		}
 		file_ref_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackRefsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_ref_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackRefsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_ref_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*FindAllBranchesResponse_Branch); i {
 			case 0:
 				return &v.state
@@ -3506,7 +3674,7 @@ func file_ref_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_ref_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   43,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
