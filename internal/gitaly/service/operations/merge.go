@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -59,12 +60,9 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return err
 	}
 
-	authorDate := time.Now()
-	if firstRequest.Timestamp != nil {
-		authorDate, err = ptypes.Timestamp(firstRequest.Timestamp)
-		if err != nil {
-			return helper.ErrInvalidArgument(err)
-		}
+	authorDate, err := dateFromProto(firstRequest)
+	if err != nil {
+		return helper.ErrInvalidArgument(err)
 	}
 
 	merge, err := git2go.MergeCommand{
@@ -103,12 +101,12 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, firstRequest.Repository, firstRequest.User, referenceName, mergeOID, revision); err != nil {
-		var preReceiveError preReceiveError
-		var updateRefError updateRefError
+		var preReceiveError updateref.PreReceiveError
+		var updateRefError updateref.Error
 
 		if errors.As(err, &preReceiveError) {
 			err = stream.Send(&gitalypb.UserMergeBranchResponse{
-				PreReceiveError: preReceiveError.message,
+				PreReceiveError: preReceiveError.Message,
 			})
 		} else if errors.As(err, &updateRefError) {
 			// When an error happens updating the reference, e.g. because of a race
@@ -176,14 +174,14 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, in.Repository, in.User, referenceName, commitID, revision); err != nil {
-		var preReceiveError preReceiveError
+		var preReceiveError updateref.PreReceiveError
 		if errors.As(err, &preReceiveError) {
 			return &gitalypb.UserFFBranchResponse{
-				PreReceiveError: preReceiveError.message,
+				PreReceiveError: preReceiveError.Message,
 			}, nil
 		}
 
-		var updateRefError updateRefError
+		var updateRefError updateref.Error
 		if errors.As(err, &updateRefError) {
 			// When an error happens updating the reference, e.g. because of a race
 			// with another update, then Ruby code didn't send an error but just an
@@ -257,12 +255,9 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		return nil, helper.ErrInvalidArgument(errors.New("Invalid merge source"))
 	}
 
-	authorDate := time.Now()
-	if request.Timestamp != nil {
-		authorDate, err = ptypes.Timestamp(request.Timestamp)
-		if err != nil {
-			return nil, helper.ErrInvalidArgument(err)
-		}
+	authorDate, err := dateFromProto(request)
+	if err != nil {
+		return nil, helper.ErrInvalidArgument(err)
 	}
 
 	// Resolve the current state of the target reference. We do not care whether it
@@ -298,6 +293,14 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		AllowConflicts: request.AllowConflicts,
 	}.Run(ctx, s.cfg)
 	if err != nil {
+		ctxlogrus.Extract(ctx).WithError(err).WithFields(
+			logrus.Fields{
+				"source_sha": sourceOID,
+				"target_sha": oid,
+				"target_ref": string(request.TargetRef),
+			},
+		).Error("unable to create merge commit")
+
 		if errors.Is(err, git2go.ErrInvalidArgument) {
 			return nil, helper.ErrInvalidArgument(err)
 		}

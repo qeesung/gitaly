@@ -31,6 +31,7 @@ var (
 )
 
 func TestSuccessfulMerge(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -96,6 +97,7 @@ func TestSuccessfulMerge(t *testing.T) {
 	author := commit.Author
 	require.Equal(t, gittest.TestUser.Name, author.Name)
 	require.Equal(t, gittest.TestUser.Email, author.Email)
+	require.Equal(t, gittest.TimezoneOffset, string(author.Timezone))
 
 	expectedGlID := "GL_ID=" + gittest.TestUser.GlId
 	for i, h := range hooks {
@@ -112,6 +114,7 @@ func TestSuccessfulMerge(t *testing.T) {
 }
 
 func TestSuccessfulMerge_stableMergeIDs(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -134,7 +137,7 @@ func TestSuccessfulMerge_stableMergeIDs(t *testing.T) {
 	}
 
 	// Because the timestamp is
-	expectedMergeID := "cd66941816adc76cc31fc6620d7b36a3dcb045e5"
+	expectedMergeID := "f0165798887392f9148b55d54a832b005f93a38c"
 
 	require.NoError(t, mergeBidi.Send(firstRequest), "send first request")
 	response, err := mergeBidi.Recv()
@@ -144,7 +147,7 @@ func TestSuccessfulMerge_stableMergeIDs(t *testing.T) {
 	require.NoError(t, mergeBidi.Send(&gitalypb.UserMergeBranchRequest{Apply: true}), "apply merge")
 	response, err = mergeBidi.Recv()
 	require.NoError(t, err, "receive second response")
-	require.Equal(t, response.BranchUpdate.CommitId, expectedMergeID)
+	require.Equal(t, expectedMergeID, response.BranchUpdate.CommitId)
 
 	testhelper.ReceiveEOFWithTimeout(t, func() error {
 		_, err = mergeBidi.Recv()
@@ -168,19 +171,20 @@ func TestSuccessfulMerge_stableMergeIDs(t *testing.T) {
 			Email: gittest.TestUser.Email,
 			// Nanoseconds get ignored because commit timestamps aren't that granular.
 			Date:     &timestamp.Timestamp{Seconds: 12},
-			Timezone: []byte("+0000"),
+			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:  gittest.TestUser.Name,
 			Email: gittest.TestUser.Email,
 			// Nanoseconds get ignored because commit timestamps aren't that granular.
 			Date:     &timestamp.Timestamp{Seconds: 12},
-			Timezone: []byte("+0000"),
+			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	})
 }
 
 func TestAbortedMerge(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -244,6 +248,7 @@ func TestAbortedMerge(t *testing.T) {
 }
 
 func TestFailedMergeConcurrentUpdate(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -287,6 +292,7 @@ func TestFailedMergeConcurrentUpdate(t *testing.T) {
 }
 
 func TestUserMergeBranch_ambiguousReference(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -350,6 +356,7 @@ func TestUserMergeBranch_ambiguousReference(t *testing.T) {
 }
 
 func TestFailedMergeDueToHooks(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -399,6 +406,7 @@ func TestFailedMergeDueToHooks(t *testing.T) {
 }
 
 func TestSuccessfulUserFFBranchRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -430,6 +438,7 @@ func TestSuccessfulUserFFBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserFFBranchRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -517,6 +526,7 @@ func TestFailedUserFFBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserFFBranchDueToHooks(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -547,6 +557,7 @@ func TestFailedUserFFBranchDueToHooks(t *testing.T) {
 }
 
 func TestUserFFBranch_ambiguousReference(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -591,6 +602,7 @@ func TestUserFFBranch_ambiguousReference(t *testing.T) {
 }
 
 func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 
@@ -682,6 +694,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 			author := commit.Author
 			require.Equal(t, gittest.TestUser.Name, author.Name)
 			require.Equal(t, gittest.TestUser.Email, author.Email)
+			require.Equal(t, gittest.TimezoneOffset, string(author.Timezone))
 
 			require.Equal(t, resp.CommitId, commit.Id)
 
@@ -695,6 +708,7 @@ func TestSuccessfulUserMergeToRefRequest(t *testing.T) {
 }
 
 func TestConflictsOnUserMergeToRefRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 
@@ -831,6 +845,7 @@ func buildUserMergeToRefRequest(t testing.TB, cfg config.Cfg, repo *gitalypb.Rep
 }
 
 func TestUserMergeToRef_stableMergeID(t *testing.T) {
+	t.Parallel()
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 
@@ -850,7 +865,7 @@ func TestUserMergeToRef_stableMergeID(t *testing.T) {
 		Timestamp:      &timestamp.Timestamp{Seconds: 12, Nanos: 34},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "a04514f4e6b4e272989b39cca1ebdbb670abdfd6", response.CommitId)
+	require.Equal(t, "c7b65194ce2da804557582408ab94713983d0b70", response.CommitId)
 
 	commit, err := repo.ReadCommit(ctx, git.Revision("refs/merge-requests/x/written"))
 	require.NoError(t, err, "look up git commit after call has finished")
@@ -858,7 +873,7 @@ func TestUserMergeToRef_stableMergeID(t *testing.T) {
 		Subject:  []byte("Merge message"),
 		Body:     []byte("Merge message"),
 		BodySize: 13,
-		Id:       "a04514f4e6b4e272989b39cca1ebdbb670abdfd6",
+		Id:       "c7b65194ce2da804557582408ab94713983d0b70",
 		ParentIds: []string{
 			"281d3a76f31c812dbf48abce82ccf6860adedd81",
 			"1450cd639e0bc6721eb02800169e464f212cde06",
@@ -869,19 +884,20 @@ func TestUserMergeToRef_stableMergeID(t *testing.T) {
 			Email: gittest.TestUser.Email,
 			// Nanoseconds get ignored because commit timestamps aren't that granular.
 			Date:     &timestamp.Timestamp{Seconds: 12},
-			Timezone: []byte("+0000"),
+			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:  gittest.TestUser.Name,
 			Email: gittest.TestUser.Email,
 			// Nanoseconds get ignored because commit timestamps aren't that granular.
 			Date:     &timestamp.Timestamp{Seconds: 12},
-			Timezone: []byte("+0000"),
+			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	}, commit)
 }
 
 func TestFailedUserMergeToRefRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 
@@ -977,6 +993,7 @@ func TestFailedUserMergeToRefRequest(t *testing.T) {
 }
 
 func TestUserMergeToRefIgnoreHooksRequest(t *testing.T) {
+	t.Parallel()
 	ctx, cleanup := testhelper.Context()
 	defer cleanup()
 

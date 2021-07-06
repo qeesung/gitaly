@@ -36,7 +36,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.27.0+incompatible
 	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210608004414-a9c25c17ea0a
-	gitlab.com/gitlab-org/labkit v1.4.1
+	gitlab.com/gitlab-org/labkit v1.5.0
 	go.uber.org/goleak v1.1.10
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
