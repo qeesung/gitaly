@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
@@ -40,10 +42,12 @@ func (s *server) getTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 			return err
 		}
 
-		signatureKey, tagText, err := extractSignature(tagObj.Reader)
+		raw, err := ioutil.ReadAll(tagObj.Reader)
 		if err != nil {
-			return helper.ErrInternal(err)
+			return err
 		}
+
+		signatureKey, tagText := catfile.ExtractTagSignature(raw)
 
 		if err = sendResponse(tagID, signatureKey, tagText, stream); err != nil {
 			return helper.ErrInternal(err)
