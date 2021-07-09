@@ -323,16 +323,19 @@ message ListTagNamesContainingCommitResponse {
   repeated bytes tag_names = 2;
 }
 
+message TagSignature {
+  string tag_id = 1;
+  bytes signature = 2;
+  bytes signed_text = 3;
+}
+
 message GetTagSignaturesRequest {
   Repository repository = 1 [(target_repository)=true];
   repeated string tag_ids = 2;
 }
 
 message GetTagSignaturesResponse {
-  // Only present for a new tag signature data.
-  string tag_id = 1;
-  bytes signature = 2;
-  bytes signed_text = 3;
+  repeated TagSignature signatures = 1;
 }
 
 message GetTagMessagesRequest {

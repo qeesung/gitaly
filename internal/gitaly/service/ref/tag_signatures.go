@@ -1,121 +1,75 @@
 package ref
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gitpipe"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-var signaturePrefix = []byte("-----BEGIN")
 
 func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, stream gitalypb.RefService_GetTagSignaturesServer) error {
 	if err := validateGetTagSignaturesRequest(request); err != nil {
 		return status.Errorf(codes.InvalidArgument, "GetTagSignatures: %v", err)
 	}
 
-	return s.getTagSignatures(request, stream)
-}
-
-func (s *server) getTagSignatures(request *gitalypb.GetTagSignaturesRequest, stream gitalypb.RefService_GetTagSignaturesServer) error {
 	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	chunker := chunk.New(&tagSignatureSender{
+		send: func(signatures []*gitalypb.TagSignature) error {
+			return stream.Send(&gitalypb.GetTagSignaturesResponse{
+				Signatures: signatures,
+			})
+		},
+	})
+
+	catfileProcess, err := s.catfileCache.BatchProcess(ctx, repo)
 	if err != nil {
-		return helper.ErrInternal(err)
+		return helper.ErrInternal(fmt.Errorf("creating catfile process: %w", err))
 	}
 
-	for _, tagID := range request.TagIds {
-		tagObj, err := c.Tag(ctx, git.Revision(tagID))
-		if err != nil {
-			return err
-		}
+	signatures := make([]gitpipe.RevisionResult, len(request.GetTagIds()))
+	for i, signatureID := range request.GetTagIds() {
+		signatures[i] = gitpipe.RevisionResult{OID: git.ObjectID(signatureID)}
+	}
 
-		raw, err := ioutil.ReadAll(tagObj.Reader)
+	catfileInfoIter := gitpipe.CatfileInfo(ctx, catfileProcess, gitpipe.NewRevisionIterator(signatures))
+	catfileObjectIter := gitpipe.CatfileObject(ctx, catfileProcess, catfileInfoIter)
+
+	for catfileObjectIter.Next() {
+		tag := catfileObjectIter.Result()
+
+		raw, err := ioutil.ReadAll(tag.ObjectReader)
 		if err != nil {
-			return err
+			return helper.ErrInternal(err)
 		}
 
 		signatureKey, tagText := catfile.ExtractTagSignature(raw)
 
-		if err = sendResponse(tagID, signatureKey, tagText, stream); err != nil {
-			return helper.ErrInternal(err)
+		if err := chunker.Send(&gitalypb.TagSignature{
+			TagId:      tag.ObjectInfo.Oid.String(),
+			Signature:  signatureKey,
+			SignedText: tagText,
+		}); err != nil {
+			return helper.ErrInternal(fmt.Errorf("sending tag signature chunk: %w", err))
 		}
 	}
 
-	return nil
-}
-
-func extractSignature(reader io.Reader) ([]byte, []byte, error) {
-	tagText := []byte{}
-	signatureKey := []byte{}
-	inSignature := false
-	lineBreak := []byte("\n")
-	whiteSpace := []byte(" ")
-	bufferedReader := bufio.NewReader(reader)
-
-	for {
-		line, err := bufferedReader.ReadBytes('\n')
-
-		if err == io.EOF {
-			tagText = append(tagText, line...)
-			break
-		}
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if !inSignature && bytes.HasPrefix(line, signaturePrefix) {
-			inSignature = true
-		}
-
-		if inSignature && !bytes.Equal(line, lineBreak) {
-			line = bytes.TrimPrefix(line, whiteSpace)
-			signatureKey = append(signatureKey, line...)
-		} else {
-			tagText = append(tagText, line...)
-		}
+	if err := catfileObjectIter.Err(); err != nil {
+		return helper.ErrInternal(err)
 	}
 
-	// Remove last line break from signature and message
-	signatureKey = bytes.TrimSuffix(signatureKey, lineBreak)
-
-	return signatureKey, tagText, nil
-}
-
-func sendResponse(tagID string, signatureKey []byte, tagText []byte, stream gitalypb.RefService_GetTagSignaturesServer) error {
-	if len(signatureKey) <= 0 {
-		return nil
-	}
-
-	err := stream.Send(&gitalypb.GetTagSignaturesResponse{
-		TagId:     tagID,
-		Signature: signatureKey,
-	})
-	if err != nil {
-		return err
-	}
-
-	streamWriter := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&gitalypb.GetTagSignaturesResponse{SignedText: p})
-	})
-
-	msgReader := bytes.NewReader(tagText)
-
-	_, err = io.Copy(streamWriter, msgReader)
-	if err != nil {
-		return fmt.Errorf("failed to send response: %v", err)
+	if err := chunker.Flush(); err != nil {
+		return helper.ErrInternal(err)
 	}
 
 	return nil
@@ -138,4 +92,21 @@ func validateGetTagSignaturesRequest(request *gitalypb.GetTagSignaturesRequest) 
 	}
 
 	return nil
+}
+
+type tagSignatureSender struct {
+	signatures []*gitalypb.TagSignature
+	send       func([]*gitalypb.TagSignature) error
+}
+
+func (t *tagSignatureSender) Reset() {
+	t.signatures = t.signatures[:0]
+}
+
+func (t *tagSignatureSender) Append(m proto.Message) {
+	t.signatures = append(t.signatures, m.(*gitalypb.TagSignature))
+}
+
+func (t *tagSignatureSender) Send() error {
+	return t.send(t.signatures)
 }

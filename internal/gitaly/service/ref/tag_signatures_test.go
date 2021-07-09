@@ -2,6 +2,7 @@ package ref
 
 import (
 	"io"
+	"sort"
 	"strings"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestSuccessfulGetTagSignaturesRequest(t *testing.T) {
 		TagIds:     []string{tag1ID, tag2ID},
 	}
 
-	expectedSignatures := []*gitalypb.GetTagSignaturesResponse{
+	expectedSignatures := []*gitalypb.TagSignature{
 		{
 			TagId:      tag1ID,
 			Signature:  []byte(signature1),
@@ -47,15 +48,21 @@ func TestSuccessfulGetTagSignaturesRequest(t *testing.T) {
 		},
 	}
 
-	c, err := client.GetTagSignatures(ctx, request)
+	stream, err := client.GetTagSignatures(ctx, request)
 	require.NoError(t, err)
 
-	fetchedSignatures := readAllSignaturesFromClient(t, c)
-
-	require.Len(t, fetchedSignatures, len(expectedSignatures))
-	for i, expected := range expectedSignatures {
-		testassert.ProtoEqual(t, expected, fetchedSignatures[i])
+	var receivedSignatures []*gitalypb.TagSignature
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		receivedSignatures = append(receivedSignatures, resp.GetSignatures()...)
 	}
+
+	tagSignaturesEqual(t, receivedSignatures, expectedSignatures)
 }
 
 func TestFailedGetTagSignaturesRequest(t *testing.T) {
@@ -112,30 +119,17 @@ func TestFailedGetTagSignaturesRequest(t *testing.T) {
 	}
 }
 
-func readAllSignaturesFromClient(t *testing.T, c gitalypb.RefService_GetTagSignaturesClient) (signatures []*gitalypb.GetTagSignaturesResponse) {
-	t.Helper()
+func tagSignaturesEqual(tb testing.TB, expected, actual []*gitalypb.TagSignature) {
+	tb.Helper()
 
-	for {
-		resp, err := c.Recv()
-		if err == io.EOF {
-			break
-		}
-		require.NoError(t, err)
-
-		if resp.TagId != "" {
-			signatures = append(signatures, resp)
-			// first message contains either Signature or SignedText so no need to append anything
-			continue
-		}
-
-		currentSignature := signatures[len(signatures)-1]
-
-		if len(resp.Signature) != 0 {
-			currentSignature.Signature = append(currentSignature.Signature, resp.Signature...)
-		} else if len(resp.SignedText) != 0 {
-			currentSignature.SignedText = append(currentSignature.SignedText, resp.SignedText...)
-		}
+	for _, slice := range [][]*gitalypb.TagSignature{expected, actual} {
+		sort.Slice(slice, func(i, j int) bool {
+			return strings.Compare(slice[i].TagId, slice[j].TagId) < 0
+		})
 	}
 
-	return
+	require.Equal(tb, len(expected), len(actual))
+	for i := range expected {
+		testassert.ProtoEqual(tb, expected[i], actual[i])
+	}
 }
