@@ -98,13 +98,14 @@ func newPipe(w namedWriteCloser) (io.ReadCloser, *pipe, error) {
 
 func (p *pipe) Write(b []byte) (int, error) {
 	// Loop (block) until at least one reader catches up with our last write.
-	for done := false; !done && p.wcursor.Position() > p.rcursor.Position(); {
+	for p.wcursor.Position() > p.rcursor.Position() {
 		select {
 		case <-p.wcursor.Done():
-			done = true
+			goto waitWriteDone
 		case <-p.wnotifier.C:
 		}
 	}
+waitWriteDone:
 
 	// Prevent writing bytes no-one will read
 	if p.wcursor.IsDone() {
@@ -190,26 +191,36 @@ func (pr *pipeReader) Close() error {
 	return pr.reader.Close()
 }
 
-func (pr *pipeReader) Read(b []byte) (int, error) {
+func (pr *pipeReader) waitReadable() int64 {
 	// Block until there is data for us to read. Note that it can actually
 	// happen that r.position > pr.pipe.wcursor, so we really want >= here, not
 	// ==. There is a race between the moment the write end finishes writing
 	// a chunk of data to the file and the moment pr.pipe.wcursor gets
 	// updated.
-	for done := false; !done && pr.position >= pr.pipe.wcursor.Position(); {
+	for pr.position >= pr.pipe.wcursor.Position() {
 		select {
 		case <-pr.pipe.rcursor.Done():
-			done = true
+			goto waitReadDone
 		case <-pr.notifier.C:
 		}
 	}
+waitReadDone:
 
-	n, err := pr.reader.Read(b)
+	return pr.pipe.wcursor.Position() - pr.position
+}
+
+func (pr *pipeReader) advancePosition(n int) {
 	pr.position += int64(n)
 
 	// The writer is subscribed to changes in pr.pipe.rcursor. If it is
 	// currently blocked, this call to SetPosition() will unblock it.
 	pr.pipe.rcursor.SetPosition(pr.position)
+}
 
+func (pr *pipeReader) Read(b []byte) (int, error) {
+	pr.waitReadable()
+
+	n, err := pr.reader.Read(b)
+	pr.advancePosition(n)
 	return n, err
 }
