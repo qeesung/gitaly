@@ -2,6 +2,7 @@ package catfile
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -173,7 +174,7 @@ func (bc *BatchCache) monitor() {
 // BatchProcess creates a new Batch process for the given repository.
 func (bc *BatchCache) BatchProcess(ctx context.Context, repo git.RepositoryExecutor) (Batch, error) {
 	if ctx.Done() == nil {
-		panic("empty ctx.Done() in catfile.Batch.New()")
+		return nil, errors.New("empty ctx.Done() in catfile.Batch.New()")
 	}
 
 	sessionID := metadata.GetValue(ctx, SessionIDField)

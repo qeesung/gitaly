@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -61,7 +62,7 @@ type AuthInfo struct {
 // secret.
 func CheckToken(ctx context.Context, secret string, targetTime time.Time) error {
 	if len(secret) == 0 {
-		panic("CheckToken: secret may not be empty")
+		return errors.New("CheckToken: secret may not be empty")
 	}
 
 	authInfo, err := ExtractAuthInfo(ctx)

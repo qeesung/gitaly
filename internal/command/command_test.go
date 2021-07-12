@@ -161,20 +161,8 @@ func TestNewCommandUnexportedEnv(t *testing.T) {
 }
 
 func TestRejectEmptyContextDone(t *testing.T) {
-	defer func() {
-		p := recover()
-		if p == nil {
-			t.Error("expected panic, got none")
-			return
-		}
-
-		if _, ok := p.(contextWithoutDonePanic); !ok {
-			panic(p)
-		}
-	}()
-
 	_, err := New(context.Background(), exec.Command("true"), nil, nil, nil)
-	require.NoError(t, err)
+	require.Error(t, err, "command spawned with context without Done() channel")
 }
 
 func TestNewCommandTimeout(t *testing.T) {

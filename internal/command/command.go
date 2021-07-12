@@ -94,7 +94,7 @@ var SetupStdin io.Reader = stdinSentinel{}
 // Read calls Read() on the stdout pipe of the command.
 func (c *Command) Read(p []byte) (int, error) {
 	if c.reader == nil {
-		panic("command has no reader")
+		return 0, errors.New("command has no reader")
 	}
 
 	return c.reader.Read(p)
@@ -103,7 +103,7 @@ func (c *Command) Read(p []byte) (int, error) {
 // Write calls Write() on the stdin pipe of the command.
 func (c *Command) Write(p []byte) (int, error) {
 	if c.writer == nil {
-		panic("command has no writer")
+		return 0, errors.New("command has no writer")
 	}
 
 	return c.writer.Write(p)
@@ -128,8 +128,6 @@ func WaitAllDone() {
 	wg.Wait()
 }
 
-type contextWithoutDonePanic string
-
 // New creates a Command from an exec.Cmd. On success, the Command
 // contains a running subprocess. When ctx is canceled the embedded
 // process will be terminated and reaped automatically.
@@ -138,7 +136,7 @@ type contextWithoutDonePanic string
 // of the subprocess by calling Write() on the returned Command.
 func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.Writer, env ...string) (*Command, error) {
 	if ctx.Done() == nil {
-		panic(contextWithoutDonePanic("command spawned with context without Done() channel"))
+		return nil, errors.New("command spawned with context without Done() channel")
 	}
 
 	if err := checkNullArgv(cmd); err != nil {
