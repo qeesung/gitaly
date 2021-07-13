@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -12,17 +13,37 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, stream gitalypb.RefService_GetTagSignaturesServer) error {
-	if err := validateGetTagSignaturesRequest(request); err != nil {
-		return status.Errorf(codes.InvalidArgument, "GetTagSignatures: %v", err)
+func verifyGetTagSignaturesRequest(req *gitalypb.GetTagSignaturesRequest) error {
+	if req.GetRepository() == nil {
+		return errors.New("empty repository")
+	}
+
+	if len(req.GetTagRevisions()) == 0 {
+		return errors.New("missing revisions")
+	}
+
+	for _, revision := range req.GetTagRevisions() {
+		if strings.HasPrefix(revision, "-") && revision != "--all" && revision != "--not" {
+			return fmt.Errorf("invalid revision: %q", revision)
+		}
+	}
+	return nil
+}
+
+func (s *server) GetTagSignatures(req *gitalypb.GetTagSignaturesRequest, stream gitalypb.RefService_GetTagSignaturesServer) error {
+	if err := verifyGetTagSignaturesRequest(req); err != nil {
+		return helper.ErrInvalidArgument(err)
 	}
 
 	ctx := stream.Context()
-	repo := s.localrepo(request.GetRepository())
+	repo := s.localrepo(req.GetRepository())
+
+	catfileProcess, err := s.catfileCache.BatchProcess(ctx, repo)
+	if err != nil {
+		return helper.ErrInternal(fmt.Errorf("creating catfile process: %w", err))
+	}
 
 	chunker := chunk.New(&tagSignatureSender{
 		send: func(signatures []*gitalypb.GetTagSignaturesResponse_TagSignature) error {
@@ -32,17 +53,22 @@ func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 		},
 	})
 
-	catfileProcess, err := s.catfileCache.BatchProcess(ctx, repo)
+	gitVersion, err := git.CurrentVersion(ctx, s.gitCmdFactory)
 	if err != nil {
-		return helper.ErrInternal(fmt.Errorf("creating catfile process: %w", err))
+		return helper.ErrInternalf("cannot determine Git version: %v", err)
 	}
 
-	signatures := make([]gitpipe.RevisionResult, len(request.GetTagRevisions()))
-	for i, signatureID := range request.GetTagRevisions() {
-		signatures[i] = gitpipe.RevisionResult{OID: git.ObjectID(signatureID)}
+	revlistOptions := []gitpipe.RevlistOption{
+		gitpipe.WithObjects(),
 	}
 
-	catfileInfoIter := gitpipe.CatfileInfo(ctx, catfileProcess, gitpipe.NewRevisionIterator(signatures))
+	if gitVersion.SupportsObjectTypeFilter() {
+		revlistOptions = append(revlistOptions, gitpipe.WithObjectTypeFilter(gitpipe.ObjectTypeTag))
+	}
+
+	revlistIter := gitpipe.Revlist(ctx, repo, req.GetTagRevisions(), revlistOptions...)
+	catfileInfoIter := gitpipe.CatfileInfo(ctx, catfileProcess, revlistIter)
+
 	catfileObjectIter := gitpipe.CatfileObject(ctx, catfileProcess, catfileInfoIter)
 
 	for catfileObjectIter.Next() {
@@ -70,25 +96,6 @@ func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 
 	if err := chunker.Flush(); err != nil {
 		return helper.ErrInternal(err)
-	}
-
-	return nil
-}
-
-func validateGetTagSignaturesRequest(request *gitalypb.GetTagSignaturesRequest) error {
-	if request.GetRepository() == nil {
-		return errors.New("empty Repository")
-	}
-
-	if len(request.GetTagRevisions()) == 0 {
-		return errors.New("empty TagIds")
-	}
-
-	// Do not support shorthand or invalid tag IDs
-	for _, tagID := range request.GetTagRevisions() {
-		if err := git.ValidateObjectID(tagID); err != nil {
-			return err
-		}
 	}
 
 	return nil
