@@ -25,7 +25,7 @@ func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 	repo := s.localrepo(request.GetRepository())
 
 	chunker := chunk.New(&tagSignatureSender{
-		send: func(signatures []*gitalypb.TagSignature) error {
+		send: func(signatures []*gitalypb.GetTagSignaturesResponse_TagSignature) error {
 			return stream.Send(&gitalypb.GetTagSignaturesResponse{
 				Signatures: signatures,
 			})
@@ -37,8 +37,8 @@ func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 		return helper.ErrInternal(fmt.Errorf("creating catfile process: %w", err))
 	}
 
-	signatures := make([]gitpipe.RevisionResult, len(request.GetTagIds()))
-	for i, signatureID := range request.GetTagIds() {
+	signatures := make([]gitpipe.RevisionResult, len(request.GetTagRevisions()))
+	for i, signatureID := range request.GetTagRevisions() {
 		signatures[i] = gitpipe.RevisionResult{OID: git.ObjectID(signatureID)}
 	}
 
@@ -55,7 +55,7 @@ func (s *server) GetTagSignatures(request *gitalypb.GetTagSignaturesRequest, str
 
 		signatureKey, tagText := catfile.ExtractTagSignature(raw)
 
-		if err := chunker.Send(&gitalypb.TagSignature{
+		if err := chunker.Send(&gitalypb.GetTagSignaturesResponse_TagSignature{
 			TagId:      tag.ObjectInfo.Oid.String(),
 			Signature:  signatureKey,
 			SignedText: tagText,
@@ -80,12 +80,12 @@ func validateGetTagSignaturesRequest(request *gitalypb.GetTagSignaturesRequest) 
 		return errors.New("empty Repository")
 	}
 
-	if len(request.GetTagIds()) == 0 {
+	if len(request.GetTagRevisions()) == 0 {
 		return errors.New("empty TagIds")
 	}
 
-	// Do not support shorthand or invalid tag SHAs
-	for _, tagID := range request.TagIds {
+	// Do not support shorthand or invalid tag IDs
+	for _, tagID := range request.GetTagRevisions() {
 		if err := git.ValidateObjectID(tagID); err != nil {
 			return err
 		}
@@ -95,8 +95,8 @@ func validateGetTagSignaturesRequest(request *gitalypb.GetTagSignaturesRequest) 
 }
 
 type tagSignatureSender struct {
-	signatures []*gitalypb.TagSignature
-	send       func([]*gitalypb.TagSignature) error
+	signatures []*gitalypb.GetTagSignaturesResponse_TagSignature
+	send       func([]*gitalypb.GetTagSignaturesResponse_TagSignature) error
 }
 
 func (t *tagSignatureSender) Reset() {
@@ -104,7 +104,7 @@ func (t *tagSignatureSender) Reset() {
 }
 
 func (t *tagSignatureSender) Append(m proto.Message) {
-	t.signatures = append(t.signatures, m.(*gitalypb.TagSignature))
+	t.signatures = append(t.signatures, m.(*gitalypb.GetTagSignaturesResponse_TagSignature))
 }
 
 func (t *tagSignatureSender) Send() error {

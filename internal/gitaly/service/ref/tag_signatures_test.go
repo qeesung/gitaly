@@ -2,7 +2,6 @@ package ref
 
 import (
 	"io"
-	"sort"
 	"strings"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestSuccessfulGetTagSignaturesRequest(t *testing.T) {
+func TestGetTagSignatures_successful(t *testing.T) {
 	cfg, repo, repoPath, client := setupRefService(t)
 
 	ctx, cancel := testhelper.Context()
@@ -31,11 +30,11 @@ func TestSuccessfulGetTagSignaturesRequest(t *testing.T) {
 	tag2ID := gittest.CreateTag(t, cfg, repoPath, "big-tag-2", "master~", &gittest.CreateTagOpts{Message: message2 + signature2})
 
 	request := &gitalypb.GetTagSignaturesRequest{
-		Repository: repo,
-		TagIds:     []string{tag1ID, tag2ID},
+		Repository:   repo,
+		TagRevisions: []string{tag1ID, tag2ID},
 	}
 
-	expectedSignatures := []*gitalypb.TagSignature{
+	expectedSignatures := []*gitalypb.GetTagSignaturesResponse_TagSignature{
 		{
 			TagId:      tag1ID,
 			Signature:  []byte(signature1),
@@ -51,21 +50,20 @@ func TestSuccessfulGetTagSignaturesRequest(t *testing.T) {
 	stream, err := client.GetTagSignatures(ctx, request)
 	require.NoError(t, err)
 
-	var receivedSignatures []*gitalypb.TagSignature
+	var receivedSignatures []*gitalypb.GetTagSignaturesResponse_TagSignature
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
 			break
-		} else if err != nil {
-			t.Fatal(err)
 		}
+		require.NoError(t, err)
 		receivedSignatures = append(receivedSignatures, resp.GetSignatures()...)
 	}
 
-	tagSignaturesEqual(t, receivedSignatures, expectedSignatures)
+	testassert.ProtoEqual(t, expectedSignatures, receivedSignatures)
 }
 
-func TestFailedGetTagSignaturesRequest(t *testing.T) {
+func TestGetTagSignatures_failure(t *testing.T) {
 	_, repo, _, client := setupRefService(t)
 
 	testCases := []struct {
@@ -76,24 +74,24 @@ func TestFailedGetTagSignaturesRequest(t *testing.T) {
 		{
 			desc: "empty Repository",
 			request: &gitalypb.GetTagSignaturesRequest{
-				Repository: nil,
-				TagIds:     []string{"5937ac0a7beb003549fc5fd26fc247adbce4a52e"},
+				Repository:   nil,
+				TagRevisions: []string{"5937ac0a7beb003549fc5fd26fc247adbce4a52e"},
 			},
 			code: codes.InvalidArgument,
 		},
 		{
 			desc: "empty TagIds",
 			request: &gitalypb.GetTagSignaturesRequest{
-				Repository: repo,
-				TagIds:     []string{},
+				Repository:   repo,
+				TagRevisions: []string{},
 			},
 			code: codes.InvalidArgument,
 		},
 		{
 			desc: "TagIds with shorthand sha",
 			request: &gitalypb.GetTagSignaturesRequest{
-				Repository: repo,
-				TagIds:     []string{"5937ac0a7beb003549fc5fd26fc247adbce4a52e", "a17a9f6"},
+				Repository:   repo,
+				TagRevisions: []string{"5937ac0a7beb003549fc5fd26fc247adbce4a52e", "a17a9f6"},
 			},
 			code: codes.InvalidArgument,
 		},
@@ -116,20 +114,5 @@ func TestFailedGetTagSignaturesRequest(t *testing.T) {
 
 			testhelper.RequireGrpcError(t, err, testCase.code)
 		})
-	}
-}
-
-func tagSignaturesEqual(tb testing.TB, expected, actual []*gitalypb.TagSignature) {
-	tb.Helper()
-
-	for _, slice := range [][]*gitalypb.TagSignature{expected, actual} {
-		sort.Slice(slice, func(i, j int) bool {
-			return strings.Compare(slice[i].TagId, slice[j].TagId) < 0
-		})
-	}
-
-	require.Equal(tb, len(expected), len(actual))
-	for i := range expected {
-		testassert.ProtoEqual(tb, expected[i], actual[i])
 	}
 }
