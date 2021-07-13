@@ -1,6 +1,8 @@
 listen_addr = ""
 tls_listen_addr = "0.0.0.0:2306"
 
+listen_addresses = ["unix://path/to/listen.sock", "tls://0.0.0.0:2306"]
+
 socket_path = ""
 prometheus_listen_addr = ""
 memory_queue_enabled = true

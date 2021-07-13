@@ -47,8 +47,18 @@ type DailyJob struct {
 
 // Cfg is a container for all config derived from config.toml.
 type Cfg struct {
-	SocketPath             string            `toml:"socket_path" split_words:"true"`
-	ListenAddr             string            `toml:"listen_addr" split_words:"true"`
+	// ListenAddresses represents list of the addresses service should server on.
+	// Each address should use a schema prefix, one of: unix, tcp or tls.
+	// At least one element expected to be provided (while SocketPath, ListenAddr and TLSListenAddr
+	// still in use they have a higher priority over ListenAddresses and values of the
+	// ListenAddresses won't be taken into account if at least on of the SocketPath, ListenAddr
+	// or TLSListenAddr provided).
+	ListenAddresses []string `toml:"listen_addresses"`
+	// SocketPath is deprecated. Please use ListenAddresses instead.
+	SocketPath string `toml:"socket_path" split_words:"true"`
+	// ListenAddr is deprecated. Please use ListenAddresses instead.
+	ListenAddr string `toml:"listen_addr" split_words:"true"`
+	// TLSListenAddr is deprecated. Please use ListenAddresses instead.
 	TLSListenAddr          string            `toml:"tls_listen_addr" split_words:"true"`
 	PrometheusListenAddr   string            `toml:"prometheus_listen_addr" split_words:"true"`
 	BinDir                 string            `toml:"bin_dir"`
