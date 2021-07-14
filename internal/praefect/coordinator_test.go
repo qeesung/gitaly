@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -98,8 +99,13 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 				},
 			}
 
+			pgCont, err := glsql.RunPostgres()
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+			queue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
+
 			coordinator := NewCoordinator(
-				datastore.NewMemoryReplicationEventQueue(conf),
+				queue,
 				rs,
 				NewNodeManagerRouter(&nodes.MockManager{GetShardFunc: func(vs string) (nodes.Shard, error) {
 					require.Equal(t, virtualStorage, vs)
@@ -148,9 +154,13 @@ func TestStreamDirectorMutator(t *testing.T) {
 		},
 	}
 
-	var replEventWait sync.WaitGroup
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	pgQueue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(pgQueue)
+	var replEventWait sync.WaitGroup
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -280,8 +290,13 @@ func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
 
 	txMgr := transactions.NewManager(conf)
 
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	queue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
+
 	coordinator := NewCoordinator(
-		datastore.NewMemoryReplicationEventQueue(conf),
+		queue,
 		rs,
 		NewNodeManagerRouter(nodeMgr, rs),
 		txMgr,
@@ -373,7 +388,10 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	queue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -478,7 +496,10 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	queue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -774,8 +795,13 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 				},
 			}
 
+			pgCont, err := glsql.RunPostgres()
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+			pgQueue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
+
+			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(pgQueue)
 			var replEventWait sync.WaitGroup
-			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
 			queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 				defer replEventWait.Done()
 				return queue.Enqueue(ctx, event)
@@ -1002,9 +1028,13 @@ func TestAbsentCorrelationID(t *testing.T) {
 		},
 	}
 
-	var replEventWait sync.WaitGroup
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	pgQueue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	var replEventWait sync.WaitGroup
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(pgQueue)
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -1079,7 +1109,12 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 		},
 	}
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	pgCont, err := glsql.RunPostgres()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pgCont.Close()) })
+	pgQueue := datastore.NewPostgresReplicationEventQueue(pgCont.DB)
+
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(pgQueue)
 	errQ := make(chan error, 1)
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		return datastore.ReplicationEvent{}, <-errQ
