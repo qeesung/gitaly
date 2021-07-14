@@ -117,6 +117,7 @@ func New(
 		// converted to errors and logged
 		panichandler.StreamPanicHandler,
 	)
+
 	serverUnaryInterceptorChain := grpcmw.ChainUnaryServer(
 		grpcmwtags.UnaryServerInterceptor(ctxTagOpts...),
 		grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler

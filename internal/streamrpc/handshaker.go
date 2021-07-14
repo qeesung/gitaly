@@ -102,7 +102,7 @@ type ServerHandshaker struct {
 // initializing the multiplexing session. This handshaker Gitaly's unary server
 // interceptors into the interceptor chain of input StreamRPC server.
 func NewServerHandshaker(server *Server, interceptorChain grpc.UnaryServerInterceptor) *ServerHandshaker {
-	WithServerInterceptor(interceptorChain)(server)
+	server.UseServerInterceptor(interceptorChain)
 
 	return &ServerHandshaker{
 		server: server,

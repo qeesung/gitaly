@@ -243,6 +243,32 @@ func TestCall_serverMiddlewareReject(t *testing.T) {
 	require.Equal(t, &RequestRejectedError{message: "middleware says no"}, err)
 }
 
+func TestCall_serverMiddlewareStack(t *testing.T) {
+	updatedInsideAMiddleware := false
+
+	server := NewServer()
+	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		updatedInsideAMiddleware = true
+
+		return handler(ctx, req)
+	})
+	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		return nil, errors.New("middleware says no")
+	})
+	dial := startServer(t, server, func(ctx context.Context, in *testpb.StreamRequest) (*emptypb.Empty, error) { panic("never reached") })
+
+	err := Call(
+		context.Background(),
+		dial,
+		"/test.streamrpc.Test/Stream",
+		&testpb.StreamRequest{},
+		func(c net.Conn) error { return nil },
+	)
+
+	require.Equal(t, &RequestRejectedError{message: "middleware says no"}, err)
+	require.True(t, updatedInsideAMiddleware)
+}
+
 type testCredentials struct {
 	values map[string]string
 }

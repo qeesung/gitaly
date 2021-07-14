@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -57,6 +58,19 @@ func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl interface{}) {
 			MethodDesc:     m,
 			implementation: impl,
 		}
+	}
+}
+
+// UseServerInterceptor adds a unary gRPC server interceptor for the StreamRPC
+// server to use. The interceptors are stackable.
+func (s *Server) UseServerInterceptor(interceptor grpc.UnaryServerInterceptor) {
+	if s.interceptor == nil {
+		s.interceptor = interceptor
+	} else {
+		s.interceptor = grpcMiddleware.ChainUnaryServer(
+			s.interceptor,
+			interceptor,
+		)
 	}
 }
 
