@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
@@ -87,30 +88,51 @@ func TestTLSSanity(t *testing.T) {
 
 func TestAuthFailures(t *testing.T) {
 	testCases := []struct {
-		desc string
-		opts []grpc.DialOption
-		code codes.Code
+		desc    string
+		creds   credentials.PerRPCCredentials
+		code    codes.Code
+		message string
 	}{
-		{desc: "no auth", opts: nil, code: codes.Unauthenticated},
 		{
-			desc: "invalid auth",
-			opts: []grpc.DialOption{grpc.WithPerRPCCredentials(brokenAuth{})},
-			code: codes.Unauthenticated,
+			desc:    "no auth",
+			creds:   nil,
+			code:    codes.Unauthenticated,
+			message: "rpc error: code = Unauthenticated desc = authentication required",
 		},
 		{
-			desc: "wrong secret",
-			opts: []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2("foobar"))},
-			code: codes.PermissionDenied,
+			desc:    "invalid auth",
+			creds:   brokenAuth{},
+			code:    codes.Unauthenticated,
+			message: "rpc error: code = Unauthenticated desc = authentication required",
+		},
+		{
+			desc:    "wrong secret",
+			creds:   gitalyauth.RPCCredentialsV2("foobar"),
+			code:    codes.PermissionDenied,
+			message: "rpc error: code = PermissionDenied desc = permission denied",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			serverSocketPath := runServer(t, config.Cfg{Auth: auth.Config{Token: "quxbaz"}})
-			connOpts := append(tc.opts, grpc.WithInsecure())
+
+			// Make a healthcheck gRPC call
+			connOpts := []grpc.DialOption{grpc.WithInsecure()}
+			if tc.creds != nil {
+				connOpts = append(connOpts, grpc.WithPerRPCCredentials(tc.creds))
+			}
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
 			testhelper.RequireGrpcError(t, healthCheck(conn), tc.code)
+
+			// // Make a streamRPC call
+			callOpts := []streamrpc.CallOption{}
+			if tc.creds != nil {
+				callOpts = append(callOpts, streamrpc.WithCredentials(tc.creds))
+			}
+			_, _, err = checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), callOpts...)
+			require.EqualError(t, err, tc.message)
 		})
 	}
 }
@@ -120,24 +142,24 @@ func TestAuthSuccess(t *testing.T) {
 
 	testCases := []struct {
 		desc     string
-		opts     []grpc.DialOption
+		creds    credentials.PerRPCCredentials
 		required bool
 		token    string
 	}{
 		{desc: "no auth, not required"},
 		{
 			desc:  "v2 correct auth, not required",
-			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token))},
+			creds: gitalyauth.RPCCredentialsV2(token),
 			token: token,
 		},
 		{
 			desc:  "v2 incorrect auth, not required",
-			opts:  []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2("incorrect"))},
+			creds: gitalyauth.RPCCredentialsV2("incorrect"),
 			token: token,
 		},
 		{
 			desc:     "v2 correct auth, required",
-			opts:     []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token))},
+			creds:    gitalyauth.RPCCredentialsV2(token),
 			token:    token,
 			required: true,
 		},
@@ -149,11 +171,25 @@ func TestAuthSuccess(t *testing.T) {
 			}))
 
 			serverSocketPath := runServer(t, cfg)
-			connOpts := append(tc.opts, grpc.WithInsecure())
+
+			// Make a healthcheck gRPC call
+			connOpts := []grpc.DialOption{grpc.WithInsecure()}
+			if tc.creds != nil {
+				connOpts = append(connOpts, grpc.WithPerRPCCredentials(tc.creds))
+			}
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
 			assert.NoError(t, healthCheck(conn), tc.desc)
+
+			// // Make a streamRPC call
+			callOpts := []streamrpc.CallOption{}
+			if tc.creds != nil {
+				callOpts = append(callOpts, streamrpc.WithCredentials(tc.creds))
+			}
+			in, out, err := checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), callOpts...)
+			require.NoError(t, err)
+			require.Equal(t, in, out)
 		})
 	}
 }
@@ -203,6 +239,9 @@ func runServer(t *testing.T, cfg config.Cfg) string {
 	catfileCache := catfile.NewCache(cfg)
 	diskCache := cache.New(cfg, locator)
 	streamRPCServer := streamrpc.NewServer()
+	gitalypb.RegisterServerServiceServer(streamRPCServer, server.NewServer(
+		git.NewExecCommandFactory(cfg), cfg.Storages,
+	))
 
 	srv, err := New(false, cfg, testhelper.DiscardTestEntry(t), registry, diskCache, streamRPCServer)
 	require.NoError(t, err)

@@ -21,7 +21,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/teststream"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/wiki"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -153,6 +152,8 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 // of StreamRPC Protocol. All the requests following StreamRPC protocol
 // eventually fail if they are handled by a normal Gitaly gRPC server.
 // Therefore, those services should not be registered using RegisterAll.
-func RegisterStreamRPCall(srv *streamrpc.Server) {
-	gitalypb.RegisterTestStreamServiceServer(srv, teststream.NewServer())
+func RegisterStreamRPCall(srv *streamrpc.Server, deps *service.Dependencies) {
+	gitalypb.RegisterServerServiceServer(srv, server.NewServer(
+		deps.GetGitCmdFactory(), deps.GetCfg().Storages,
+	))
 }

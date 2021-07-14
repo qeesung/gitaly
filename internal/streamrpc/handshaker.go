@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -19,13 +20,18 @@ var magicBytes = []byte("streamrpc00")
 // Listemmux peeks into these magic bytes and redirects the request to
 // StreamRPC server.
 // Please visit internal/listenmux/mux.go for more information
-func DialNet(network, address string) DialFunc {
+func DialNet(address string) DialFunc {
 	return func(t time.Duration) (net.Conn, error) {
+		endpoint, err := starter.ParseEndpoint(address)
+		if err != nil {
+			return nil, err
+		}
+
 		// Dial-only deadline
 		deadline := time.Now().Add(t)
 
 		dialer := &net.Dialer{Deadline: deadline}
-		conn, err := dialer.Dial(network, address)
+		conn, err := dialer.Dial(endpoint.Name, endpoint.Addr)
 		if err != nil {
 			return nil, err
 		}
@@ -55,13 +61,13 @@ func DialNet(network, address string) DialFunc {
 // - TCP handshake
 // - TLS handshake
 // - Write streamrpc magic bytes
-func DialTLS(network, address string, cfg *tls.Config) DialFunc {
+func DialTLS(address string, cfg *tls.Config) DialFunc {
 	return func(t time.Duration) (net.Conn, error) {
 		// Dial-only deadline
 		deadline := time.Now().Add(t)
 
 		dialer := &net.Dialer{Deadline: deadline}
-		tlsConn, err := tls.DialWithDialer(dialer, network, address, cfg)
+		tlsConn, err := tls.DialWithDialer(dialer, "tcp", address, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +119,7 @@ func (s *ServerHandshaker) Magic() string { return string(magicBytes) }
 // request is then handled by stream RPC server, and skipped by Gitaly gRPC
 // server.
 func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInfo) (net.Conn, credentials.AuthInfo, error) {
-	s.server.Handle(conn)
+	go s.server.Handle(conn)
 	// At this point, the connection is already closed. If the
 	// TransportCredentials continues its code path, gRPC constructs a HTTP2
 	// server transport to handle the connection. Eventually, it fails and logs

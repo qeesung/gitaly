@@ -16,6 +16,7 @@ module Gitaly
 
       rpc :ServerInfo, Gitaly::ServerInfoRequest, Gitaly::ServerInfoResponse
       rpc :DiskStatistics, Gitaly::DiskStatisticsRequest, Gitaly::DiskStatisticsResponse
+      rpc :TestStream, Gitaly::TestStreamRequest, Google::Protobuf::Empty
     end
 
     Stub = Service.rpc_stub_class

@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"io"
+	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"testing"
@@ -15,10 +19,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -31,65 +38,18 @@ func TestGitalyServerFactory(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	checkHealth := func(t *testing.T, sf *GitalyServerFactory, schema, addr string) healthpb.HealthClient {
-		t.Helper()
-
-		var cc *grpc.ClientConn
-		if schema == starter.TLS {
-			listener, err := net.Listen(starter.TCP, addr)
-			require.NoError(t, err)
-			t.Cleanup(func() { listener.Close() })
-
-			srv, err := sf.CreateExternal(true)
-			require.NoError(t, err)
-			healthpb.RegisterHealthServer(srv, health.NewServer())
-			go srv.Serve(listener)
-
-			certPool, err := x509.SystemCertPool()
-			require.NoError(t, err)
-
-			pem := testhelper.MustReadFile(t, sf.cfg.TLS.CertPath)
-			require.True(t, certPool.AppendCertsFromPEM(pem))
-
-			creds := credentials.NewTLS(&tls.Config{
-				RootCAs:    certPool,
-				MinVersion: tls.VersionTLS12,
-			})
-
-			cc, err = grpc.DialContext(ctx, listener.Addr().String(), grpc.WithTransportCredentials(creds))
-			require.NoError(t, err)
-		} else {
-			listener, err := net.Listen(schema, addr)
-			require.NoError(t, err)
-			t.Cleanup(func() { listener.Close() })
-
-			srv, err := sf.CreateExternal(false)
-			require.NoError(t, err)
-			healthpb.RegisterHealthServer(srv, health.NewServer())
-			go srv.Serve(listener)
-
-			endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
-			require.NoError(t, err)
-
-			cc, err = client.Dial(endpoint, nil)
-			require.NoError(t, err)
-		}
-
-		t.Cleanup(func() { cc.Close() })
-
-		healthClient := healthpb.NewHealthClient(cc)
-
-		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
-		require.NoError(t, err)
-		require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
-		return healthClient
-	}
-
-	t.Run("insecure", func(t *testing.T) {
+	t.Run("insecure over TCP", func(t *testing.T) {
 		cfg := testcfg.Build(t)
-		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), streamrpc.NewServer())
+		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 
-		checkHealth(t, sf, starter.TCP, "localhost:0")
+		check(t, ctx, sf, starter.TCP, "localhost:0")
+	})
+
+	t.Run("insecure over Unix Socket", func(t *testing.T) {
+		cfg := testcfg.Build(t)
+		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
+
+		check(t, ctx, sf, starter.Unix, testhelper.GetTemporaryGitalySocketFileName(t))
 	})
 
 	t.Run("secure", func(t *testing.T) {
@@ -100,23 +60,23 @@ func TestGitalyServerFactory(t *testing.T) {
 			KeyPath:  keyFile,
 		}}))
 
-		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), streamrpc.NewServer())
+		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 		t.Cleanup(sf.Stop)
 
-		checkHealth(t, sf, starter.TLS, "localhost:0")
+		check(t, ctx, sf, starter.TLS, "localhost:0")
 	})
 
 	t.Run("all services must be stopped", func(t *testing.T) {
 		cfg := testcfg.Build(t)
-		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), streamrpc.NewServer())
+		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 		t.Cleanup(sf.Stop)
 
-		tcpHealthClient := checkHealth(t, sf, starter.TCP, "localhost:0")
+		tcpHealthClient := check(t, ctx, sf, starter.TCP, "localhost:0")
 
 		socket := testhelper.GetTemporaryGitalySocketFileName(t)
 		t.Cleanup(func() { require.NoError(t, os.RemoveAll(socket)) })
 
-		socketHealthClient := checkHealth(t, sf, starter.Unix, socket)
+		socketHealthClient := check(t, ctx, sf, starter.Unix, socket)
 
 		sf.GracefulStop() // stops all started servers(listeners)
 
@@ -287,4 +247,117 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 
 	// wait until the graceful shutdown completes
 	<-shutdownCompeleted
+}
+
+func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, schema, addr string) healthpb.HealthClient {
+	t.Helper()
+
+	var grpcConn *grpc.ClientConn
+	var streamRPCDial streamrpc.DialFunc
+
+	if schema == starter.TLS {
+		listener, err := net.Listen(starter.TCP, addr)
+		require.NoError(t, err)
+		t.Cleanup(func() { listener.Close() })
+
+		srv, err := sf.CreateExternal(true)
+		require.NoError(t, err)
+		healthpb.RegisterHealthServer(srv, health.NewServer())
+		go srv.Serve(listener)
+
+		certPool, err := x509.SystemCertPool()
+		require.NoError(t, err)
+
+		pem := testhelper.MustReadFile(t, sf.cfg.TLS.CertPath)
+		require.True(t, certPool.AppendCertsFromPEM(pem))
+
+		tlsConf := &tls.Config{
+			RootCAs:    certPool,
+			MinVersion: tls.VersionTLS12,
+		}
+		creds := credentials.NewTLS(tlsConf)
+
+		streamRPCDial = streamrpc.DialTLS(listener.Addr().String(), tlsConf)
+		grpcConn, err = grpc.DialContext(ctx, listener.Addr().String(), grpc.WithTransportCredentials(creds))
+		require.NoError(t, err)
+	} else {
+		listener, err := net.Listen(schema, addr)
+		require.NoError(t, err)
+		t.Cleanup(func() { listener.Close() })
+
+		srv, err := sf.CreateExternal(false)
+		require.NoError(t, err)
+		healthpb.RegisterHealthServer(srv, health.NewServer())
+		go srv.Serve(listener)
+
+		endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
+		require.NoError(t, err)
+
+		streamRPCDial = streamrpc.DialNet(endpoint)
+		grpcConn, err = client.Dial(endpoint, nil)
+		require.NoError(t, err)
+	}
+
+	// Make a healthcheck gRPC call
+	t.Cleanup(func() { grpcConn.Close() })
+	healthClient := healthpb.NewHealthClient(grpcConn)
+
+	resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
+	require.NoError(t, err)
+	require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
+
+	// Make a streamRPC call
+	in, out, err := checkStreamRPC(t, streamRPCDial)
+	require.NoError(t, err)
+	require.Equal(t, in, out, "byte stream works")
+
+	return healthClient
+}
+
+func newStreamRPCServer(t *testing.T, cfg config.Cfg) *streamrpc.Server {
+	streamRPCServer := streamrpc.NewServer()
+	gitalypb.RegisterServerServiceServer(streamRPCServer, server.NewServer(
+		git.NewExecCommandFactory(cfg), cfg.Storages,
+	))
+	return streamRPCServer
+}
+
+func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, opts ...streamrpc.CallOption) ([]byte, []byte, error) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	size := int64(1024 * 1024)
+
+	in := make([]byte, size)
+	_, err := rand.Read(in)
+	require.NoError(t, err)
+
+	var out []byte
+	require.NotEqual(t, in, out)
+
+	err = streamrpc.Call(
+		ctx,
+		dial,
+		"/gitaly.ServerService/TestStream",
+		&gitalypb.TestStreamRequest{Size: size},
+		func(c net.Conn) error {
+			errC := make(chan error, 1)
+			go func() {
+				var err error
+				out, err = ioutil.ReadAll(c)
+				errC <- err
+			}()
+
+			if _, err := io.Copy(c, bytes.NewReader(in)); err != nil {
+				return err
+			}
+			if err := <-errC; err != nil {
+				return err
+			}
+
+			return c.Close()
+		},
+		opts...,
+	)
+	return in, out, err
 }

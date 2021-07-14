@@ -182,7 +182,6 @@ func run(cfg config.Cfg) error {
 	}
 
 	streamRPCServer := streamrpc.NewServer()
-	setup.RegisterStreamRPCall(streamRPCServer)
 
 	gitalyServerFactory := server.NewGitalyServerFactory(cfg, glog.Default(), registry, diskCache, streamRPCServer)
 	defer gitalyServerFactory.Stop()
@@ -223,7 +222,7 @@ func run(cfg config.Cfg) error {
 			}
 		}
 
-		setup.RegisterAll(srv, &service.Dependencies{
+		deps := &service.Dependencies{
 			Cfg:                cfg,
 			RubyServer:         rubySrv,
 			GitalyHookManager:  hookManager,
@@ -234,7 +233,9 @@ func run(cfg config.Cfg) error {
 			Linguist:           ling,
 			CatfileCache:       catfileCache,
 			DiskCache:          diskCache,
-		})
+		}
+		setup.RegisterAll(srv, deps)
+		setup.RegisterStreamRPCall(streamRPCServer, deps)
 		b.RegisterStarter(starter.New(c, srv))
 	}
 

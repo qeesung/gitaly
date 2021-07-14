@@ -4,6 +4,8 @@
 require 'google/protobuf'
 
 require 'lint_pb'
+require 'shared_pb'
+require 'google/protobuf/empty_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("server.proto", :syntax => :proto3) do
     add_message "gitaly.ServerInfoRequest" do
@@ -31,6 +33,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :available, :int64, 2
       optional :used, :int64, 3
     end
+    add_message "gitaly.TestStreamRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :size, :int64, 2
+    end
   end
 end
 
@@ -41,4 +47,5 @@ module Gitaly
   DiskStatisticsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DiskStatisticsRequest").msgclass
   DiskStatisticsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DiskStatisticsResponse").msgclass
   DiskStatisticsResponse::StorageStatus = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DiskStatisticsResponse.StorageStatus").msgclass
+  TestStreamRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.TestStreamRequest").msgclass
 end
