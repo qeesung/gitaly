@@ -135,6 +135,7 @@ func (s *GitalyServerFactory) GracefulStop() {
 
 		wg.Wait()
 	}
+	s.streamRPCServer.GracefulStop()
 }
 
 // CreateExternal creates a new external gRPC server. The external servers are closed

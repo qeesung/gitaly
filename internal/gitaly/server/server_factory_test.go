@@ -19,9 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/teststream"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -39,23 +38,23 @@ func TestGitalyServerFactory(t *testing.T) {
 	defer cancel()
 
 	t.Run("insecure over TCP", func(t *testing.T) {
-		cfg := testcfg.Build(t)
+		cfg, repo, _ := testcfg.BuildWithRepo(t)
 		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 
-		check(t, ctx, sf, starter.TCP, "localhost:0")
+		check(t, ctx, sf, repo, starter.TCP, "localhost:0")
 	})
 
 	t.Run("insecure over Unix Socket", func(t *testing.T) {
-		cfg := testcfg.Build(t)
+		cfg, repo, _ := testcfg.BuildWithRepo(t)
 		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 
-		check(t, ctx, sf, starter.Unix, testhelper.GetTemporaryGitalySocketFileName(t))
+		check(t, ctx, sf, repo, starter.Unix, testhelper.GetTemporaryGitalySocketFileName(t))
 	})
 
 	t.Run("secure", func(t *testing.T) {
 		certFile, keyFile := testhelper.GenerateCerts(t)
 
-		cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{TLS: config.TLS{
+		cfg, repo, _ := testcfg.BuildWithRepo(t, testcfg.WithBase(config.Cfg{TLS: config.TLS{
 			CertPath: certFile,
 			KeyPath:  keyFile,
 		}}))
@@ -63,20 +62,20 @@ func TestGitalyServerFactory(t *testing.T) {
 		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 		t.Cleanup(sf.Stop)
 
-		check(t, ctx, sf, starter.TLS, "localhost:0")
+		check(t, ctx, sf, repo, starter.TLS, "localhost:0")
 	})
 
 	t.Run("all services must be stopped", func(t *testing.T) {
-		cfg := testcfg.Build(t)
+		cfg, repo, _ := testcfg.BuildWithRepo(t)
 		sf := NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), backchannel.NewRegistry(), cache.New(cfg, config.NewLocator(cfg)), newStreamRPCServer(t, cfg))
 		t.Cleanup(sf.Stop)
 
-		tcpHealthClient := check(t, ctx, sf, starter.TCP, "localhost:0")
+		tcpHealthClient := check(t, ctx, sf, repo, starter.TCP, "localhost:0")
 
 		socket := testhelper.GetTemporaryGitalySocketFileName(t)
 		t.Cleanup(func() { require.NoError(t, os.RemoveAll(socket)) })
 
-		socketHealthClient := check(t, ctx, sf, starter.Unix, socket)
+		socketHealthClient := check(t, ctx, sf, repo, starter.Unix, socket)
 
 		sf.GracefulStop() // stops all started servers(listeners)
 
@@ -249,7 +248,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 	<-shutdownCompeleted
 }
 
-func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, schema, addr string) healthpb.HealthClient {
+func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, repo *gitalypb.Repository, schema, addr string) healthpb.HealthClient {
 	t.Helper()
 
 	var grpcConn *grpc.ClientConn
@@ -307,7 +306,7 @@ func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, schema, a
 	require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
 
 	// Make a streamRPC call
-	in, out, err := checkStreamRPC(t, streamRPCDial)
+	in, out, err := checkStreamRPC(t, streamRPCDial, repo)
 	require.NoError(t, err)
 	require.Equal(t, in, out, "byte stream works")
 
@@ -316,17 +315,15 @@ func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, schema, a
 
 func newStreamRPCServer(t *testing.T, cfg config.Cfg) *streamrpc.Server {
 	streamRPCServer := streamrpc.NewServer()
-	gitalypb.RegisterServerServiceServer(streamRPCServer, server.NewServer(
-		git.NewExecCommandFactory(cfg), cfg.Storages,
-	))
+	gitalypb.RegisterTestStreamServiceServer(streamRPCServer, teststream.NewServer(config.NewLocator(cfg)))
 	return streamRPCServer
 }
 
-func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, opts ...streamrpc.CallOption) ([]byte, []byte, error) {
+func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, repo *gitalypb.Repository, opts ...streamrpc.CallOption) ([]byte, []byte, error) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	size := int64(1024 * 1024)
+	const size = 1024 * 1024
 
 	in := make([]byte, size)
 	_, err := rand.Read(in)
@@ -338,8 +335,11 @@ func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, opts ...streamrpc.Cal
 	err = streamrpc.Call(
 		ctx,
 		dial,
-		"/gitaly.ServerService/TestStream",
-		&gitalypb.TestStreamRequest{Size: size},
+		"/gitaly.TestStreamService/TestStream",
+		&gitalypb.TestStreamRequest{
+			Repository: repo,
+			Size:       size,
+		},
 		func(c net.Conn) error {
 			errC := make(chan error, 1)
 			go func() {
@@ -355,7 +355,7 @@ func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, opts ...streamrpc.Cal
 				return err
 			}
 
-			return c.Close()
+			return nil
 		},
 		opts...,
 	)

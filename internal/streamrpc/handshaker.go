@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -37,19 +37,17 @@ func DialNet(address string) DialFunc {
 			return nil, err
 		}
 
-		err = conn.SetDeadline(deadline)
-		if err != nil {
+		if err = conn.SetDeadline(deadline); err != nil {
 			return nil, err
 		}
 		// Write the magic bytes on the connection so the server knows we're
 		// about to initiate a multiplexing session.
 		if _, err := conn.Write(magicBytes); err != nil {
-			return nil, fmt.Errorf("write backchannel magic bytes: %w", err)
+			return nil, fmt.Errorf("streamrpc client: write backchannel magic bytes: %w", err)
 		}
 
 		// Reset deadline of tls connection for later stages
-		err = conn.SetDeadline(time.Time{})
-		if err != nil {
+		if err = conn.SetDeadline(time.Time{}); err != nil {
 			return nil, err
 		}
 
@@ -80,12 +78,11 @@ func DialTLS(address string, cfg *tls.Config) DialFunc {
 		// Write the magic bytes on the connection so the server knows we're
 		// about to initiate a multiplexing session.
 		if _, err := tlsConn.Write(magicBytes); err != nil {
-			return nil, fmt.Errorf("write backchannel magic bytes: %w", err)
+			return nil, fmt.Errorf("streamrpc client: write backchannel magic bytes: %w", err)
 		}
 
 		// Reset deadline of tls connection for later stages
-		err = tlsConn.SetDeadline(time.Time{})
-		if err != nil {
+		if err = tlsConn.SetDeadline(time.Time{}); err != nil {
 			return nil, err
 		}
 
@@ -96,17 +93,19 @@ func DialTLS(address string, cfg *tls.Config) DialFunc {
 // ServerHandshaker implements the server side handshake of the multiplexed connection.
 type ServerHandshaker struct {
 	server *Server
+	logger logrus.FieldLogger
 }
 
 // NewServerHandshaker returns an implementation of streamrpc server
 // handshaker. The provided TransportCredentials are handshaked prior to
 // initializing the multiplexing session. This handshaker Gitaly's unary server
 // interceptors into the interceptor chain of input StreamRPC server.
-func NewServerHandshaker(server *Server, interceptorChain grpc.UnaryServerInterceptor) *ServerHandshaker {
+func NewServerHandshaker(server *Server, interceptorChain grpc.UnaryServerInterceptor, logger logrus.FieldLogger) *ServerHandshaker {
 	server.UseServerInterceptor(interceptorChain)
 
 	return &ServerHandshaker{
 		server: server,
+		logger: logger,
 	}
 }
 
@@ -120,10 +119,14 @@ func (s *ServerHandshaker) Magic() string { return string(magicBytes) }
 // request is then handled by stream RPC server, and skipped by Gitaly gRPC
 // server.
 func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInfo) (net.Conn, credentials.AuthInfo, error) {
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return nil, nil, err
+	}
+
 	go func() {
 		err := s.server.Handle(conn)
 		if err != nil {
-			log.Errorf("Error handling streamRPC call: %s", err)
+			s.logger.WithError(err).Error("streamrpc: handle call")
 		}
 	}()
 	// At this point, the connection is already closed. If the

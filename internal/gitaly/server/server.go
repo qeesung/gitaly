@@ -147,6 +147,7 @@ func New(
 	lm.Register(streamrpc.NewServerHandshaker(
 		streamRPCServer,
 		serverUnaryInterceptorChain,
+		gitalylog.Default(),
 	))
 
 	opts := []grpc.ServerOption{

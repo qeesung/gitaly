@@ -188,18 +188,20 @@ func TestCall_serverMiddleware(t *testing.T) {
 	)
 
 	interceptorDone := make(chan struct{})
+	server := NewServer()
+	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		defer close(interceptorDone)
+		middlewareMethod = info.FullMethod
+		receivedField = req.(*testpb.StreamRequest).StringField
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			receivedValues = md[testKey]
+		}
+		return handler(ctx, req)
+	})
 
 	dial := startServer(
 		t,
-		NewServer(WithServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-			defer close(interceptorDone)
-			middlewareMethod = info.FullMethod
-			receivedField = req.(*testpb.StreamRequest).StringField
-			if md, ok := metadata.FromIncomingContext(ctx); ok {
-				receivedValues = md[testKey]
-			}
-			return handler(ctx, req)
-		})),
+		server,
 		func(ctx context.Context, in *testpb.StreamRequest) (*emptypb.Empty, error) {
 			_, err := AcceptConnection(ctx)
 			return nil, err
@@ -222,36 +224,7 @@ func TestCall_serverMiddleware(t *testing.T) {
 }
 
 func TestCall_serverMiddlewareReject(t *testing.T) {
-	dial := startServer(
-		t,
-		NewServer(WithServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-			return nil, errors.New("middleware says no")
-		})),
-		func(ctx context.Context, in *testpb.StreamRequest) (*emptypb.Empty, error) {
-			panic("never reached")
-		},
-	)
-
-	err := Call(
-		context.Background(),
-		dial,
-		"/test.streamrpc.Test/Stream",
-		&testpb.StreamRequest{},
-		func(c net.Conn) error { return nil },
-	)
-
-	require.Equal(t, &RequestRejectedError{message: "middleware says no"}, err)
-}
-
-func TestCall_serverMiddlewareStack(t *testing.T) {
-	updatedInsideAMiddleware := make(chan bool, 1)
-
 	server := NewServer()
-	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		updatedInsideAMiddleware <- true
-
-		return handler(ctx, req)
-	})
 	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		return nil, errors.New("middleware says no")
 	})
@@ -266,7 +239,6 @@ func TestCall_serverMiddlewareStack(t *testing.T) {
 	)
 
 	require.Equal(t, &RequestRejectedError{message: "middleware says no"}, err)
-	require.True(t, <-updatedInsideAMiddleware)
 }
 
 type testCredentials struct {
@@ -322,8 +294,8 @@ func TestCall_credentials(t *testing.T) {
 }
 
 func TestCall_serverGracefulShutdown(t *testing.T) {
-	wait := make(chan bool, 1)
-	errors := make(chan error, 1)
+	wait := make(chan struct{}, 1)
+	callError := make(chan error, 1)
 
 	const blobSize = 1024 * 1024
 
@@ -350,7 +322,7 @@ func TestCall_serverGracefulShutdown(t *testing.T) {
 	require.NotEqual(t, in, out)
 
 	pingPong := func(c net.Conn) error {
-		<-wait
+		close(wait)
 		time.Sleep(10 * time.Microsecond)
 
 		errC := make(chan error, 1)
@@ -371,7 +343,7 @@ func TestCall_serverGracefulShutdown(t *testing.T) {
 	}
 
 	go func() {
-		errors <- Call(
+		callError <- Call(
 			context.Background(),
 			dial,
 			"/test.streamrpc.Test/Stream",
@@ -380,10 +352,10 @@ func TestCall_serverGracefulShutdown(t *testing.T) {
 		)
 	}()
 
-	wait <- true
+	<-wait
 	server.GracefulStop()
 
-	require.NoError(t, <-errors)
+	require.NoError(t, <-callError)
 	require.Equal(t, in, out, "byte stream works")
 }
 

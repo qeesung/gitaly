@@ -24,8 +24,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/teststream"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
@@ -114,7 +114,10 @@ func TestAuthFailures(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			serverSocketPath := runServer(t, config.Cfg{Auth: auth.Config{Token: "quxbaz"}})
+			cfg, repo, _ := testcfg.BuildWithRepo(t, testcfg.WithBase(config.Cfg{
+				Auth: auth.Config{Token: "quxbaz"},
+			}))
+			serverSocketPath := runServer(t, cfg)
 
 			// Make a healthcheck gRPC call
 			connOpts := []grpc.DialOption{grpc.WithInsecure()}
@@ -127,11 +130,11 @@ func TestAuthFailures(t *testing.T) {
 			testhelper.RequireGrpcError(t, healthCheck(conn), tc.code)
 
 			// // Make a streamRPC call
-			callOpts := []streamrpc.CallOption{}
+			var callOpts []streamrpc.CallOption
 			if tc.creds != nil {
 				callOpts = append(callOpts, streamrpc.WithCredentials(tc.creds))
 			}
-			_, _, err = checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), callOpts...)
+			_, _, err = checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), repo, callOpts...)
 			require.EqualError(t, err, tc.message)
 		})
 	}
@@ -166,7 +169,7 @@ func TestAuthSuccess(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{
+			cfg, repo, _ := testcfg.BuildWithRepo(t, testcfg.WithBase(config.Cfg{
 				Auth: auth.Config{Token: tc.token, Transitioning: !tc.required},
 			}))
 
@@ -183,11 +186,11 @@ func TestAuthSuccess(t *testing.T) {
 			assert.NoError(t, healthCheck(conn), tc.desc)
 
 			// // Make a streamRPC call
-			callOpts := []streamrpc.CallOption{}
+			var callOpts []streamrpc.CallOption
 			if tc.creds != nil {
 				callOpts = append(callOpts, streamrpc.WithCredentials(tc.creds))
 			}
-			in, out, err := checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), callOpts...)
+			in, out, err := checkStreamRPC(t, streamrpc.DialNet(serverSocketPath), repo, callOpts...)
 			require.NoError(t, err)
 			require.Equal(t, in, out)
 		})
@@ -239,9 +242,7 @@ func runServer(t *testing.T, cfg config.Cfg) string {
 	catfileCache := catfile.NewCache(cfg)
 	diskCache := cache.New(cfg, locator)
 	streamRPCServer := streamrpc.NewServer()
-	gitalypb.RegisterServerServiceServer(streamRPCServer, server.NewServer(
-		git.NewExecCommandFactory(cfg), cfg.Storages,
-	))
+	gitalypb.RegisterTestStreamServiceServer(streamRPCServer, teststream.NewServer(locator))
 
 	srv, err := New(false, cfg, testhelper.DiscardTestEntry(t), registry, diskCache, streamRPCServer)
 	require.NoError(t, err)

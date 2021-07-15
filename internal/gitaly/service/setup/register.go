@@ -21,8 +21,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/smarthttp"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/teststream"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/wiki"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -52,8 +52,8 @@ var (
 	)
 )
 
-// RegisterAll will register all the known gRPC services on  the provided gRPC service instance.
-func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
+// RegisterServices will register all the known gRPC + StreamRPC services on the provided registrar.
+func RegisterServices(srv grpc.ServiceRegistrar, deps *service.Dependencies) {
 	gitalypb.RegisterBlobServiceServer(srv, blob.NewServer(
 		deps.GetCfg(),
 		deps.GetLocator(),
@@ -144,16 +144,16 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 	gitalypb.RegisterInternalGitalyServer(srv, internalgitaly.NewServer(deps.GetCfg().Storages))
 
 	healthpb.RegisterHealthServer(srv, health.NewServer())
-	reflection.Register(srv)
-	grpcprometheus.Register(srv)
+
+	gitalypb.RegisterTestStreamServiceServer(srv, teststream.NewServer(
+		deps.GetLocator(),
+	))
 }
 
-// RegisterStreamRPCall will register all the known gRPC services built on top
-// of StreamRPC Protocol. All the requests following StreamRPC protocol
-// eventually fail if they are handled by a normal Gitaly gRPC server.
-// Therefore, those services should not be registered using RegisterAll.
-func RegisterStreamRPCall(srv *streamrpc.Server, deps *service.Dependencies) {
-	gitalypb.RegisterServerServiceServer(srv, server.NewServer(
-		deps.GetGitCmdFactory(), deps.GetCfg().Storages,
-	))
+// RegisterAll will register all the known gRPC + StreamRPC services, plus
+// services exclusively for gRPC
+func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
+	RegisterServices(srv, deps)
+	reflection.Register(srv)
+	grpcprometheus.Register(srv)
 }

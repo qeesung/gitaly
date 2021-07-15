@@ -5,20 +5,14 @@ package gitaly;
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 import "lint.proto";
-import "shared.proto";
-import "google/protobuf/empty.proto";
 
 service ServerService {
   option (intercepted) = true;
 
   rpc ServerInfo(ServerInfoRequest) returns (ServerInfoResponse);
   rpc DiskStatistics(DiskStatisticsRequest) returns (DiskStatisticsResponse);
-  rpc TestStream(TestStreamRequest) returns (google.protobuf.Empty) {
-    option (op_type) = {
-      op: ACCESSOR
-    };
-  }
 }
+
 message ServerInfoRequest {}
 
 message ServerInfoResponse {
@@ -48,9 +42,4 @@ message DiskStatisticsResponse {
   }
 
   repeated StorageStatus storage_statuses = 1;
-}
-
-message TestStreamRequest {
-  Repository repository = 1 [(target_repository)=true];
-  int64 size = 2;
 }

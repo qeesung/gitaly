@@ -191,16 +191,27 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("linguist instance creation: %w", err)
 	}
 
-	b.StopAction = func() {
-		gitalyServerFactory.GracefulStop()
-		streamRPCServer.GracefulStop()
-	}
+	b.StopAction = gitalyServerFactory.GracefulStop
 
 	rubySrv := rubyserver.New(cfg)
 	if err := rubySrv.Start(); err != nil {
 		return fmt.Errorf("initialize gitaly-ruby: %v", err)
 	}
 	defer rubySrv.Stop()
+
+	deps := &service.Dependencies{
+		Cfg:                cfg,
+		RubyServer:         rubySrv,
+		GitalyHookManager:  hookManager,
+		TransactionManager: transactionManager,
+		StorageLocator:     locator,
+		ClientPool:         conns,
+		GitCmdFactory:      gitCmdFactory,
+		Linguist:           ling,
+		CatfileCache:       catfileCache,
+		DiskCache:          diskCache,
+	}
+	setup.RegisterServices(streamRPCServer, deps)
 
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
@@ -225,20 +236,7 @@ func run(cfg config.Cfg) error {
 			}
 		}
 
-		deps := &service.Dependencies{
-			Cfg:                cfg,
-			RubyServer:         rubySrv,
-			GitalyHookManager:  hookManager,
-			TransactionManager: transactionManager,
-			StorageLocator:     locator,
-			ClientPool:         conns,
-			GitCmdFactory:      gitCmdFactory,
-			Linguist:           ling,
-			CatfileCache:       catfileCache,
-			DiskCache:          diskCache,
-		}
 		setup.RegisterAll(srv, deps)
-		setup.RegisterStreamRPCall(streamRPCServer, deps)
 		b.RegisterStarter(starter.New(c, srv))
 	}
 

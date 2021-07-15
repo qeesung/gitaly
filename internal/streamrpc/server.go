@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -22,7 +21,6 @@ type Server struct {
 	methods     map[string]*method
 	interceptor grpc.UnaryServerInterceptor
 	handleWG    sync.WaitGroup
-	sessions    map[*serverSession]bool
 	mu          sync.Mutex
 	stopped     bool
 }
@@ -36,18 +34,11 @@ type method struct {
 // options to NewServer.
 type ServerOption func(*Server)
 
-// WithServerInterceptor adds a unary gRPC server interceptor.
-func WithServerInterceptor(interceptor grpc.UnaryServerInterceptor) ServerOption {
-	return func(s *Server) { s.interceptor = interceptor }
-}
-
 // NewServer returns a new StreamRPC server. You can pass the result to
 // grpc-go RegisterFooServer functions.
 func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
-		methods:  make(map[string]*method),
-		stopped:  false,
-		sessions: make(map[*serverSession]bool),
+		methods: make(map[string]*method),
 	}
 	for _, o := range opts {
 		o(s)
@@ -69,16 +60,9 @@ func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl interface{}) {
 }
 
 // UseServerInterceptor adds a unary gRPC server interceptor for the StreamRPC
-// server to use. The interceptors are stackable.
+// server to use.
 func (s *Server) UseServerInterceptor(interceptor grpc.UnaryServerInterceptor) {
-	if s.interceptor == nil {
-		s.interceptor = interceptor
-	} else {
-		s.interceptor = grpcMiddleware.ChainUnaryServer(
-			s.interceptor,
-			interceptor,
-		)
-	}
+	s.interceptor = interceptor
 }
 
 // Handle handles an incoming network connection with the StreamRPC
@@ -96,8 +80,8 @@ func (s *Server) Handle(c net.Conn) error {
 		deadline: deadline,
 	}
 
-	s.addSession(session)
-	defer s.removeSession(session)
+	s.handleWG.Add(1)
+	s.handleWG.Done()
 
 	req, err := recvFrame(c, deadline)
 	if err != nil {
@@ -112,7 +96,7 @@ func (s *Server) Handle(c net.Conn) error {
 }
 
 // GracefulStop stops handling new calls and waits until all the on-going
-// session finishes.
+// sessions finish.
 func (s *Server) GracefulStop() {
 	s.mu.Lock()
 	s.stopped = true
@@ -128,20 +112,11 @@ func (s *Server) isStopped() bool {
 	return s.stopped
 }
 
-func (s *Server) addSession(session *serverSession) {
+func (s *Server) getServerInterceptor() grpc.UnaryServerInterceptor {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.handleWG.Add(1)
-	s.sessions[session] = true
-}
-
-func (s *Server) removeSession(session *serverSession) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.handleWG.Done()
-	delete(s.sessions, session)
+	return s.interceptor
 }
 
 func (s *Server) handleSession(session *serverSession, reqBytes []byte) error {
@@ -162,7 +137,7 @@ func (s *Server) handleSession(session *serverSession, reqBytes []byte) error {
 		method.implementation,
 		ctx,
 		func(msg interface{}) error { return proto.Unmarshal(req.Message, msg.(proto.Message)) },
-		s.interceptor,
+		s.getServerInterceptor(),
 	); err != nil {
 		return err
 	}
