@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -119,7 +120,12 @@ func (s *ServerHandshaker) Magic() string { return string(magicBytes) }
 // request is then handled by stream RPC server, and skipped by Gitaly gRPC
 // server.
 func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInfo) (net.Conn, credentials.AuthInfo, error) {
-	go s.server.Handle(conn)
+	go func() {
+		err := s.server.Handle(conn)
+		if err != nil {
+			log.Errorf("Error handling streamRPC call: %s", err)
+		}
+	}()
 	// At this point, the connection is already closed. If the
 	// TransportCredentials continues its code path, gRPC constructs a HTTP2
 	// server transport to handle the connection. Eventually, it fails and logs

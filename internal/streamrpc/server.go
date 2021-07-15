@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -20,6 +21,10 @@ var _ grpc.ServiceRegistrar = &Server{}
 type Server struct {
 	methods     map[string]*method
 	interceptor grpc.UnaryServerInterceptor
+	handleWG    sync.WaitGroup
+	sessions    map[*serverSession]bool
+	mu          sync.Mutex
+	stopped     bool
 }
 
 type method struct {
@@ -40,7 +45,9 @@ func WithServerInterceptor(interceptor grpc.UnaryServerInterceptor) ServerOption
 // grpc-go RegisterFooServer functions.
 func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
-		methods: make(map[string]*method),
+		methods:  make(map[string]*method),
+		stopped:  false,
+		sessions: make(map[*serverSession]bool),
 	}
 	for _, o := range opts {
 		o(s)
@@ -79,22 +86,62 @@ func (s *Server) UseServerInterceptor(interceptor grpc.UnaryServerInterceptor) {
 // (or something equivalent).
 func (s *Server) Handle(c net.Conn) error {
 	defer c.Close()
+	if s.isStopped() {
+		return fmt.Errorf("StreamRPC server already stopped")
+	}
 
 	deadline := time.Now().Add(defaultHandshakeTimeout)
+	session := &serverSession{
+		c:        c,
+		deadline: deadline,
+	}
+
+	s.addSession(session)
+	defer s.removeSession(session)
+
 	req, err := recvFrame(c, deadline)
 	if err != nil {
 		return err
 	}
 
-	session := &serverSession{
-		c:        c,
-		deadline: deadline,
-	}
 	if err := s.handleSession(session, req); err != nil {
 		return session.reject(err)
 	}
 
 	return nil
+}
+
+// GracefulStop stops handling new calls and waits until all the on-going
+// session finishes.
+func (s *Server) GracefulStop() {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
+
+	s.handleWG.Wait()
+}
+
+func (s *Server) isStopped() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.stopped
+}
+
+func (s *Server) addSession(session *serverSession) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.handleWG.Add(1)
+	s.sessions[session] = true
+}
+
+func (s *Server) removeSession(session *serverSession) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.handleWG.Done()
+	delete(s.sessions, session)
 }
 
 func (s *Server) handleSession(session *serverSession, reqBytes []byte) error {

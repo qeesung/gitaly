@@ -75,7 +75,7 @@ func New(
 	logrusEntry *log.Entry,
 	registry *backchannel.Registry,
 	cacheInvalidator diskcache.Invalidator,
-    streamRPCServer *streamrpc.Server,
+	streamRPCServer *streamrpc.Server,
 ) (*grpc.Server, error) {
 	ctxTagOpts := []grpcmwtags.Option{
 		grpcmwtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),

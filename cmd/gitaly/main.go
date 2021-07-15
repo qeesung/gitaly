@@ -191,7 +191,10 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("linguist instance creation: %w", err)
 	}
 
-	b.StopAction = gitalyServerFactory.GracefulStop
+	b.StopAction = func() {
+		gitalyServerFactory.GracefulStop()
+		streamRPCServer.GracefulStop()
+	}
 
 	rubySrv := rubyserver.New(cfg)
 	if err := rubySrv.Start(); err != nil {

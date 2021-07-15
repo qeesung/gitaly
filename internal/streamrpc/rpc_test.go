@@ -244,11 +244,11 @@ func TestCall_serverMiddlewareReject(t *testing.T) {
 }
 
 func TestCall_serverMiddlewareStack(t *testing.T) {
-	updatedInsideAMiddleware := false
+	updatedInsideAMiddleware := make(chan bool, 1)
 
 	server := NewServer()
 	server.UseServerInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		updatedInsideAMiddleware = true
+		updatedInsideAMiddleware <- true
 
 		return handler(ctx, req)
 	})
@@ -266,7 +266,7 @@ func TestCall_serverMiddlewareStack(t *testing.T) {
 	)
 
 	require.Equal(t, &RequestRejectedError{message: "middleware says no"}, err)
-	require.True(t, updatedInsideAMiddleware)
+	require.True(t, <-updatedInsideAMiddleware)
 }
 
 type testCredentials struct {
@@ -319,6 +319,94 @@ func TestCall_credentials(t *testing.T) {
 
 	<-interceptorDone
 	require.Equal(t, inputs, receivedValues)
+}
+
+func TestCall_serverGracefulShutdown(t *testing.T) {
+	wait := make(chan bool, 1)
+	errors := make(chan error, 1)
+
+	const blobSize = 1024 * 1024
+
+	server := NewServer()
+	dial := startServer(
+		t,
+		server,
+		func(ctx context.Context, in *testpb.StreamRequest) (*emptypb.Empty, error) {
+			c, err := AcceptConnection(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = io.CopyN(c, c, blobSize)
+			return nil, err
+		},
+	)
+
+	in := make([]byte, blobSize)
+	_, err := rand.Read(in)
+	require.NoError(t, err)
+
+	var out []byte
+	require.NotEqual(t, in, out)
+
+	pingPong := func(c net.Conn) error {
+		<-wait
+		time.Sleep(10 * time.Microsecond)
+
+		errC := make(chan error, 1)
+		go func() {
+			var err error
+			out, err = ioutil.ReadAll(c)
+			errC <- err
+		}()
+
+		if _, err := io.Copy(c, bytes.NewReader(in)); err != nil {
+			return err
+		}
+		if err := <-errC; err != nil {
+			return err
+		}
+
+		return c.Close()
+	}
+
+	go func() {
+		errors <- Call(
+			context.Background(),
+			dial,
+			"/test.streamrpc.Test/Stream",
+			&testpb.StreamRequest{StringField: "hello world"},
+			pingPong,
+		)
+	}()
+
+	wait <- true
+	server.GracefulStop()
+
+	require.NoError(t, <-errors)
+	require.Equal(t, in, out, "byte stream works")
+}
+
+func TestCall_serverStopsHandlesAfterShutdown(t *testing.T) {
+	server := NewServer()
+	dial := startServer(
+		t,
+		server,
+		func(ctx context.Context, in *testpb.StreamRequest) (*emptypb.Empty, error) {
+			panic("Server should not handle a new session")
+		},
+	)
+
+	server.GracefulStop()
+	require.Error(t, Call(
+		context.Background(),
+		dial,
+		"/test.streamrpc.Test/Stream",
+		&testpb.StreamRequest{StringField: "hello world"},
+		func(c net.Conn) error {
+			panic("Handhshaking should finish after server stops")
+		},
+	))
 }
 
 func startServer(t *testing.T, s *Server, th testHandler) DialFunc {
