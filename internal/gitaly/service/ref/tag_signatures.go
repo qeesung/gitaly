@@ -68,6 +68,9 @@ func (s *server) GetTagSignatures(req *gitalypb.GetTagSignaturesRequest, stream 
 
 	revlistIter := gitpipe.Revlist(ctx, repo, req.GetTagRevisions(), revlistOptions...)
 	catfileInfoIter := gitpipe.CatfileInfo(ctx, catfileProcess, revlistIter)
+	catfileInfoIter = gitpipe.CatfileInfoFilter(ctx, catfileInfoIter, func(r gitpipe.CatfileInfoResult) bool {
+		return r.ObjectInfo.Type == "tag"
+	})
 
 	catfileObjectIter := gitpipe.CatfileObject(ctx, catfileProcess, catfileInfoIter)
 
