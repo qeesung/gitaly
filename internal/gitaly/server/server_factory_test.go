@@ -145,7 +145,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 	}{
 		{
 			createServer: func() *grpc.Server {
-				server, err := sf.CreateInternal()
+				server, _, err := sf.CreateInternal()
 				require.NoError(t, err)
 				return server
 			},
@@ -155,7 +155,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 		},
 		{
 			createServer: func() *grpc.Server {
-				server, err := sf.CreateExternal(false)
+				server, _, err := sf.CreateExternal(false)
 				require.NoError(t, err)
 				return server
 			},
@@ -259,11 +259,11 @@ func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, cfg confi
 		require.NoError(t, err)
 		t.Cleanup(func() { listener.Close() })
 
-		srv, err := sf.CreateExternal(true)
+		grpcSrv, srpcSrv, err := sf.CreateExternal(true)
 		require.NoError(t, err)
-		healthpb.RegisterHealthServer(srv, health.NewServer())
-		registerStreamRPCServers(t, sf, cfg)
-		go srv.Serve(listener)
+		healthpb.RegisterHealthServer(grpcSrv, health.NewServer())
+		registerStreamRPCServers(t, srpcSrv, cfg)
+		go grpcSrv.Serve(listener)
 
 		certPool, err := x509.SystemCertPool()
 		require.NoError(t, err)
@@ -285,11 +285,11 @@ func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, cfg confi
 		require.NoError(t, err)
 		t.Cleanup(func() { listener.Close() })
 
-		srv, err := sf.CreateExternal(false)
+		grpcSrv, srpcSrv, err := sf.CreateExternal(false)
 		require.NoError(t, err)
-		healthpb.RegisterHealthServer(srv, health.NewServer())
-		registerStreamRPCServers(t, sf, cfg)
-		go srv.Serve(listener)
+		healthpb.RegisterHealthServer(grpcSrv, health.NewServer())
+		registerStreamRPCServers(t, srpcSrv, cfg)
+		go grpcSrv.Serve(listener)
 
 		endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
 		require.NoError(t, err)
@@ -315,8 +315,8 @@ func check(t *testing.T, ctx context.Context, sf *GitalyServerFactory, cfg confi
 	return healthClient
 }
 
-func registerStreamRPCServers(t *testing.T, sf *GitalyServerFactory, cfg config.Cfg) {
-	gitalypb.RegisterTestStreamServiceServer(sf.StreamRPCServers[len(sf.StreamRPCServers)-1], teststream.NewServer(config.NewLocator(cfg)))
+func registerStreamRPCServers(t *testing.T, srv *streamrpc.Server, cfg config.Cfg) {
+	gitalypb.RegisterTestStreamServiceServer(srv, teststream.NewServer(config.NewLocator(cfg)))
 }
 
 func checkStreamRPC(t *testing.T, dial streamrpc.DialFunc, repo *gitalypb.Repository, opts ...streamrpc.CallOption) ([]byte, []byte, error) {

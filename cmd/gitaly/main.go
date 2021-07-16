@@ -29,6 +29,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
@@ -219,25 +220,23 @@ func run(cfg config.Cfg) error {
 			continue
 		}
 
-		var srv *grpc.Server
+		var grpcSrv *grpc.Server
+		var srpcSrv *streamrpc.Server
 		if c.HandoverOnUpgrade {
-			srv, err = gitalyServerFactory.CreateExternal(c.IsSecure())
+			grpcSrv, srpcSrv, err = gitalyServerFactory.CreateExternal(c.IsSecure())
 			if err != nil {
 				return fmt.Errorf("create external gRPC server: %w", err)
 			}
 		} else {
-			srv, err = gitalyServerFactory.CreateInternal()
+			grpcSrv, srpcSrv, err = gitalyServerFactory.CreateInternal()
 			if err != nil {
 				return fmt.Errorf("create internal gRPC server: %w", err)
 			}
 		}
 
-		setup.RegisterAll(srv, deps)
-		b.RegisterStarter(starter.New(c, srv))
-	}
-
-	for _, streamRPCServer := range gitalyServerFactory.StreamRPCServers {
-		setup.RegisterServices(streamRPCServer, deps)
+		setup.RegisterAll(grpcSrv, deps)
+		setup.RegisterAll(srpcSrv, deps)
+		b.RegisterStarter(starter.New(c, grpcSrv))
 	}
 
 	if addr := cfg.PrometheusListenAddr; addr != "" {

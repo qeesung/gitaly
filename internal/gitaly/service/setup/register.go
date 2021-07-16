@@ -52,8 +52,8 @@ var (
 	)
 )
 
-// RegisterServices will register all the known gRPC + StreamRPC services on the provided registrar.
-func RegisterServices(srv grpc.ServiceRegistrar, deps *service.Dependencies) {
+// RegisterAll will register all the known gRPC + StreamRPC services
+func RegisterAll(srv grpc.ServiceRegistrar, deps *service.Dependencies) {
 	gitalypb.RegisterBlobServiceServer(srv, blob.NewServer(
 		deps.GetCfg(),
 		deps.GetLocator(),
@@ -148,12 +148,9 @@ func RegisterServices(srv grpc.ServiceRegistrar, deps *service.Dependencies) {
 	gitalypb.RegisterTestStreamServiceServer(srv, teststream.NewServer(
 		deps.GetLocator(),
 	))
-}
 
-// RegisterAll will register all the known gRPC + StreamRPC services, plus
-// services exclusively for gRPC
-func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
-	RegisterServices(srv, deps)
-	reflection.Register(srv)
-	grpcprometheus.Register(srv)
+	if gs, ok := srv.(*grpc.Server); ok {
+		reflection.Register(gs)
+		grpcprometheus.Register(gs)
+	}
 }

@@ -9,14 +9,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	gitalyServer "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/grpc"
 )
 
 func TestTestStreamPingPong(t *testing.T) {
@@ -100,30 +99,9 @@ func runGitalyServer(t *testing.T) (string, *gitalypb.Repository) {
 
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	sf := createServerFactory(t, cfg)
-	addr := "localhost:0"
-	secure := false
+	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv grpc.ServiceRegistrar, deps *service.Dependencies) {
+		gitalypb.RegisterTestStreamServiceServer(srv, NewServer(deps.GetLocator()))
+	})
 
-	listener, err := net.Listen("tcp", addr)
-	require.NoError(t, err)
-	t.Cleanup(func() { listener.Close() })
-
-	srv, err := sf.CreateExternal(secure)
-	for _, streamRPCServer := range sf.StreamRPCServers {
-		gitalypb.RegisterTestStreamServiceServer(streamRPCServer, NewServer(config.NewLocator(cfg)))
-	}
-
-	require.NoError(t, err)
-
-	go srv.Serve(listener)
-
-	return "tcp://" + listener.Addr().String(), repo
-}
-
-func createServerFactory(t *testing.T, cfg config.Cfg) *gitalyServer.GitalyServerFactory {
-	registry := backchannel.NewRegistry()
-	locator := config.NewLocator(cfg)
-	cache := cache.New(cfg, locator)
-
-	return gitalyServer.NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), registry, cache)
+	return addr, repo
 }
