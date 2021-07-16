@@ -57,9 +57,9 @@ func TestGetTagSignatures(t *testing.T) {
 		{
 			desc: "unknown id",
 			revisions: []string{
-				"5937ac0a7beb003549fc5fd26fc247adbce4a52e",
+				"b10ff336f3fbfb131431c4959915cdfd1b49c635",
 			},
-			expectedSignatures: nil,
+			expectedErr: status.Error(codes.Internal, "rev-list pipeline command: exit status 128"),
 		},
 		{
 			desc: "commit id",
