@@ -164,7 +164,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.GetTagSignaturesResponse.TagSignature" do
       optional :tag_id, :string, 1
       optional :signature, :bytes, 2
-      optional :signed_text, :bytes, 3
+      optional :content, :bytes, 3
     end
     add_message "gitaly.GetTagMessagesRequest" do
       optional :repository, :message, 1, "gitaly.Repository"

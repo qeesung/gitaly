@@ -88,6 +88,10 @@ service RefService {
     };
   }
 
+  // GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
+  // which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
+  // result in an error. Tags which are annotated but not signed will return a TagSignature response
+  // which has no signature, but its unsigned contents will still be returned.
   rpc GetTagSignatures(GetTagSignaturesRequest) returns (stream GetTagSignaturesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -344,10 +348,10 @@ message GetTagSignaturesResponse {
     // Signature contains the cryptographic signature of the tag. If the tag is not
     // cryptographically signed, then the signature is unset.
     bytes signature = 2;
-    // SignedText contains the contents which are signed by the signature. Contents
+    // Content contains the contents which are signed by the signature. Contents
     // include both the commit message, but also the commit metadata like author and
     // subject.
-    bytes signed_text = 3;
+    bytes content = 3;
   }
 
   // Signatures is the set of signatures found.

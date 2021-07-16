@@ -36,6 +36,10 @@ type RefServiceClient interface {
 	DeleteRefs(ctx context.Context, in *DeleteRefsRequest, opts ...grpc.CallOption) (*DeleteRefsResponse, error)
 	ListBranchNamesContainingCommit(ctx context.Context, in *ListBranchNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListBranchNamesContainingCommitClient, error)
 	ListTagNamesContainingCommit(ctx context.Context, in *ListTagNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListTagNamesContainingCommitClient, error)
+	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
+	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
+	// result in an error. Tags which are annotated but not signed will return a TagSignature response
+	// which has no signature, but its unsigned contents will still be returned.
 	GetTagSignatures(ctx context.Context, in *GetTagSignaturesRequest, opts ...grpc.CallOption) (RefService_GetTagSignaturesClient, error)
 	GetTagMessages(ctx context.Context, in *GetTagMessagesRequest, opts ...grpc.CallOption) (RefService_GetTagMessagesClient, error)
 	// Returns commits that are only reachable from the ref passed
@@ -521,6 +525,10 @@ type RefServiceServer interface {
 	DeleteRefs(context.Context, *DeleteRefsRequest) (*DeleteRefsResponse, error)
 	ListBranchNamesContainingCommit(*ListBranchNamesContainingCommitRequest, RefService_ListBranchNamesContainingCommitServer) error
 	ListTagNamesContainingCommit(*ListTagNamesContainingCommitRequest, RefService_ListTagNamesContainingCommitServer) error
+	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
+	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
+	// result in an error. Tags which are annotated but not signed will return a TagSignature response
+	// which has no signature, but its unsigned contents will still be returned.
 	GetTagSignatures(*GetTagSignaturesRequest, RefService_GetTagSignaturesServer) error
 	GetTagMessages(*GetTagMessagesRequest, RefService_GetTagMessagesServer) error
 	// Returns commits that are only reachable from the ref passed

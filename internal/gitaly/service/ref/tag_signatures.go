@@ -85,9 +85,9 @@ func (s *server) GetTagSignatures(req *gitalypb.GetTagSignaturesRequest, stream 
 		signatureKey, tagText := catfile.ExtractTagSignature(raw)
 
 		if err := chunker.Send(&gitalypb.GetTagSignaturesResponse_TagSignature{
-			TagId:      tag.ObjectInfo.Oid.String(),
-			Signature:  signatureKey,
-			SignedText: tagText,
+			TagId:     tag.ObjectInfo.Oid.String(),
+			Signature: signatureKey,
+			Content:   tagText,
 		}); err != nil {
 			return helper.ErrInternal(fmt.Errorf("sending tag signature chunk: %w", err))
 		}
