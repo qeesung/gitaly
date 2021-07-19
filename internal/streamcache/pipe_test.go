@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -309,4 +310,125 @@ func TestPipe_concurrency(t *testing.T) {
 	close(start)
 
 	wg.Wait()
+}
+
+type wrappedFile struct{ f *os.File }
+
+func (wf *wrappedFile) Write(p []byte) (int, error) { return wf.f.Write(p) }
+func (wf *wrappedFile) Close() error                { return wf.f.Close() }
+func (wf *wrappedFile) Name() string                { return wf.f.Name() }
+
+func TestPipe_WriteTo(t *testing.T) {
+	data := make([]byte, 10*1024*1024)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		desc   string
+		create func() (namedWriteCloser, error)
+	}{
+		{
+			desc: "os.File",
+			create: func() (namedWriteCloser, error) {
+				f, err := ioutil.TempFile("", "pipe write to")
+				return f, err
+			},
+		},
+		{
+			desc: "non-file writer",
+			create: func() (namedWriteCloser, error) {
+				f, err := ioutil.TempFile("", "pipe write to")
+				return &wrappedFile{f}, err
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			pr, p := createPipe(t)
+			defer pr.Close()
+
+			errC := make(chan error, 1)
+			go func() {
+				errC <- func() error {
+					defer p.Close()
+					r := struct{ io.Reader }{bytes.NewReader(data)} // Hide bytes.Reader.WriteTo
+					if _, err := io.Copy(p, r); err != nil {
+						return err
+					}
+					return p.Close()
+				}()
+			}()
+
+			outW, err := tc.create()
+			require.NoError(t, err)
+			defer outW.Close()
+
+			n, err := io.Copy(outW, pr)
+			require.NoError(t, err)
+			require.Equal(t, int64(len(data)), n)
+
+			require.NoError(t, outW.Close())
+
+			outBytes, err := ioutil.ReadFile(outW.Name())
+			require.NoError(t, err)
+
+			require.Equal(t, len(data), len(outBytes))
+			require.True(t, bytes.Equal(data, outBytes))
+		})
+	}
+}
+
+func TestPipe_WriteTo_EAGAIN(t *testing.T) {
+	data := make([]byte, 10*1024*1024)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+
+	pr, p := createPipe(t)
+	defer pr.Close()
+
+	// A unix pipe cannot accept 10MB at once, so doing sendfile to a pipe should
+	// test our EAGAIN handling code.
+	fr, fw, err := os.Pipe()
+	require.NoError(t, err)
+	defer fr.Close()
+	defer fw.Close()
+
+	const nErr = 2
+	errC := make(chan error, nErr)
+	go func() {
+		errC <- func() error {
+			defer p.Close()
+			if _, err := io.Copy(p, bytes.NewReader(data)); err != nil {
+				return err
+			}
+			return p.Close()
+		}()
+	}()
+
+	go func() {
+		errC <- func() error {
+			defer fw.Close()
+
+			// This Copy will exercise pipeReader.WriteTo and with it, our sendfile
+			// code.
+			_, err := io.Copy(fw, pr)
+			if err != nil {
+				return err
+			}
+
+			return fw.Close()
+		}()
+	}()
+
+	out, err := ioutil.ReadAll(fr)
+	require.NoError(t, err)
+
+	for i := 0; i < nErr; i++ {
+		require.NoError(t, <-errC)
+	}
+
+	// Don't use require.Equal to compare 10MB blobs, we don't want 10MB in
+	// our terminal if the test fails.
+	require.True(t, bytes.Equal(data, out))
 }

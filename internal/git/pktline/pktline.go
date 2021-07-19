@@ -10,6 +10,8 @@ import (
 	"io"
 	"strconv"
 	"sync"
+
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 )
 
 const (
@@ -161,13 +163,17 @@ type errNotSideband struct{ pkt string }
 
 func (err *errNotSideband) Error() string { return fmt.Sprintf("invalid sideband packet: %q", err.pkt) }
 
-// EachSidebandPacket iterates over a side-band-64k pktline stream. For
-// each packet, it will call fn with the band ID and the packet. Fn must
-// not retain the packet.
+// EachSidebandPacket iterates over a side-band-64k pktline stream until
+// it reaches a flush packet. For each packet, it will call fn with the
+// band ID and the packet. Fn must not retain the packet.
 func EachSidebandPacket(r io.Reader, fn func(byte, []byte) error) error {
 	scanner := NewScanner(r)
 
 	for scanner.Scan() {
+		if IsFlush(scanner.Bytes()) {
+			return nil
+		}
+
 		data := Data(scanner.Bytes())
 		if len(data) == 0 {
 			return &errNotSideband{scanner.Text()}
@@ -177,5 +183,44 @@ func EachSidebandPacket(r io.Reader, fn func(byte, []byte) error) error {
 		}
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return io.ErrUnexpectedEOF
+}
+
+// SingleBandReader unwraps a flush-terminated sideband-64k stream. It
+// expects a sequence of sideband packets all for the same band. The
+// returned reader will return EOF when it encounters a flush packet.
+// Anything else in the input stream will result in a read error.
+func SingleBandReader(r io.Reader, band byte) io.Reader {
+	scanner := NewScanner(r)
+
+	return streamio.NewReader(func() ([]byte, error) {
+		if !scanner.Scan() {
+			return nil, io.ErrUnexpectedEOF
+		}
+		data := scanner.Bytes()
+
+		if IsFlush(data) {
+			return nil, io.EOF
+		}
+
+		if len(data) < 5 {
+			return nil, &errNotSideband{string(data)}
+		}
+
+		if b := data[4]; b != band {
+			return nil, errUnexpectedSideband(b)
+		}
+
+		return data[5:], nil
+	})
+}
+
+type errUnexpectedSideband byte
+
+func (b errUnexpectedSideband) Error() string {
+	return fmt.Sprintf("unexpected band: %d", b)
 }

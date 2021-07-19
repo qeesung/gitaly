@@ -30,11 +30,6 @@ type method struct {
 // options to NewServer.
 type ServerOption func(*Server)
 
-// WithServerInterceptor adds a unary gRPC server interceptor.
-func WithServerInterceptor(interceptor grpc.UnaryServerInterceptor) ServerOption {
-	return func(s *Server) { s.interceptor = interceptor }
-}
-
 // NewServer returns a new StreamRPC server. You can pass the result to
 // grpc-go RegisterFooServer functions.
 func NewServer(opts ...ServerOption) *Server {
@@ -60,6 +55,12 @@ func (s *Server) RegisterService(sd *grpc.ServiceDesc, impl interface{}) {
 	}
 }
 
+// UseServerInterceptor adds a unary gRPC server interceptor for the StreamRPC
+// server to use.
+func (s *Server) UseServerInterceptor(interceptor grpc.UnaryServerInterceptor) {
+	s.interceptor = interceptor
+}
+
 // Handle handles an incoming network connection with the StreamRPC
 // protocol. It is intended to be called from a net.Listener.Accept loop
 // (or something equivalent).
@@ -67,15 +68,16 @@ func (s *Server) Handle(c net.Conn) error {
 	defer c.Close()
 
 	deadline := time.Now().Add(defaultHandshakeTimeout)
+	session := &serverSession{
+		c:        c,
+		deadline: deadline,
+	}
+
 	req, err := recvFrame(c, deadline)
 	if err != nil {
 		return err
 	}
 
-	session := &serverSession{
-		c:        c,
-		deadline: deadline,
-	}
 	if err := s.handleSession(session, req); err != nil {
 		return session.reject(err)
 	}

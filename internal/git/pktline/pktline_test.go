@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"strings"
@@ -279,16 +280,23 @@ func TestEachSidebandPacket(t *testing.T) {
 	}{
 		{
 			desc: "empty",
+			in:   "0000",
 			out:  map[byte]string{},
 		},
 		{
 			desc:     "empty with failing callback: callback does not run",
+			in:       "0000",
 			out:      map[byte]string{},
 			callback: func(byte, []byte) error { panic("oh no") },
 		},
 		{
 			desc: "valid stream",
-			in:   "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz",
+			in:   "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz0000",
+			out:  map[byte]string{0: "foo", 1: "bar", 254: "qux", 255: "baz"},
+		},
+		{
+			desc: "valid stream trailing garbage",
+			in:   "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz0000 garbage!!",
 			out:  map[byte]string{0: "foo", 1: "bar", 254: "qux", 255: "baz"},
 		},
 		{
@@ -296,6 +304,11 @@ func TestEachSidebandPacket(t *testing.T) {
 			in:       "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz",
 			callback: func(byte, []byte) error { return callbackError },
 			err:      callbackError,
+		},
+		{
+			desc: "valid stream except missing flush",
+			in:   "0008\x00foo0008\x01bar0008\xfequx0008\xffbaz",
+			err:  io.ErrUnexpectedEOF,
 		},
 		{
 			desc: "interrupted stream",
@@ -331,6 +344,64 @@ func TestEachSidebandPacket(t *testing.T) {
 			if tc.callback == nil {
 				require.Equal(t, tc.out, out)
 			}
+		})
+	}
+}
+
+func TestSingleBandReader(t *testing.T) {
+	testCases := []struct {
+		desc string
+		in   string
+		out  string
+		err  error
+	}{
+		{
+			desc: "empty",
+			in:   "0000",
+			out:  "",
+		},
+		{
+			desc: "valid stream",
+			in:   "0008\x00foo0008\x00bar0008\x00qux0008\x00baz0000",
+			out:  "foobarquxbaz",
+		},
+		{
+			desc: "valid stream trailing garbage",
+			in:   "0008\x00foo0008\x00bar0008\x00qux0008\x00baz0000 garbage!!",
+			out:  "foobarquxbaz",
+		},
+		{
+			desc: "valid stream except missing flush",
+			in:   "0008\x00foo0008\x00bar0008\x00qux0008\x00baz",
+			err:  io.ErrUnexpectedEOF,
+		},
+		{
+			desc: "interrupted stream",
+			in:   "ffff\x00hello world!!",
+			err:  io.ErrUnexpectedEOF,
+		},
+		{
+			desc: "stream without band",
+			in:   "0004",
+			err:  &errNotSideband{pkt: "0004"},
+		},
+		{
+			desc: "stream with wrong band",
+			in:   "0005\x01",
+			err:  errUnexpectedSideband(1),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			out, err := ioutil.ReadAll(SingleBandReader(strings.NewReader(tc.in), 0))
+			if tc.err != nil {
+				require.Equal(t, tc.err, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.out, string(out))
 		})
 	}
 }
