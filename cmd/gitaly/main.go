@@ -29,7 +29,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/streamrpc"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
@@ -181,9 +180,7 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("disk cache walkers: %w", err)
 	}
 
-	streamRPCServer := streamrpc.NewServer()
-
-	gitalyServerFactory := server.NewGitalyServerFactory(cfg, glog.Default(), registry, diskCache, streamRPCServer)
+	gitalyServerFactory := server.NewGitalyServerFactory(cfg, glog.Default(), registry, diskCache)
 	defer gitalyServerFactory.Stop()
 
 	ling, err := linguist.New(cfg)
@@ -211,7 +208,6 @@ func run(cfg config.Cfg) error {
 		CatfileCache:       catfileCache,
 		DiskCache:          diskCache,
 	}
-	setup.RegisterServices(streamRPCServer, deps)
 
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
@@ -238,6 +234,10 @@ func run(cfg config.Cfg) error {
 
 		setup.RegisterAll(srv, deps)
 		b.RegisterStarter(starter.New(c, srv))
+	}
+
+	for _, streamRPCServer := range gitalyServerFactory.StreamRPCServers {
+		setup.RegisterServices(streamRPCServer, deps)
 	}
 
 	if addr := cfg.PrometheusListenAddr; addr != "" {

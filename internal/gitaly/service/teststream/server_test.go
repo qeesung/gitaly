@@ -109,6 +109,10 @@ func runGitalyServer(t *testing.T) (string, *gitalypb.Repository) {
 	t.Cleanup(func() { listener.Close() })
 
 	srv, err := sf.CreateExternal(secure)
+	for _, streamRPCServer := range sf.StreamRPCServers {
+		gitalypb.RegisterTestStreamServiceServer(streamRPCServer, NewServer(config.NewLocator(cfg)))
+	}
+
 	require.NoError(t, err)
 
 	go srv.Serve(listener)
@@ -120,8 +124,6 @@ func createServerFactory(t *testing.T, cfg config.Cfg) *gitalyServer.GitalyServe
 	registry := backchannel.NewRegistry()
 	locator := config.NewLocator(cfg)
 	cache := cache.New(cfg, locator)
-	streamRPCServer := streamrpc.NewServer()
 
-	gitalypb.RegisterTestStreamServiceServer(streamRPCServer, NewServer(locator))
-	return gitalyServer.NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), registry, cache, streamRPCServer)
+	return gitalyServer.NewGitalyServerFactory(cfg, testhelper.DiscardTestEntry(t), registry, cache)
 }
