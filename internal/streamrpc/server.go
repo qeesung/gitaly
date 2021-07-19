@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -20,9 +19,6 @@ var _ grpc.ServiceRegistrar = &Server{}
 type Server struct {
 	methods     map[string]*method
 	interceptor grpc.UnaryServerInterceptor
-	handleWG    sync.WaitGroup
-	mu          sync.Mutex
-	stopped     bool
 }
 
 type method struct {
@@ -70,18 +66,12 @@ func (s *Server) UseServerInterceptor(interceptor grpc.UnaryServerInterceptor) {
 // (or something equivalent).
 func (s *Server) Handle(c net.Conn) error {
 	defer c.Close()
-	if s.isStopped() {
-		return fmt.Errorf("StreamRPC server already stopped")
-	}
 
 	deadline := time.Now().Add(defaultHandshakeTimeout)
 	session := &serverSession{
 		c:        c,
 		deadline: deadline,
 	}
-
-	s.handleWG.Add(1)
-	s.handleWG.Done()
 
 	req, err := recvFrame(c, deadline)
 	if err != nil {
@@ -93,30 +83,6 @@ func (s *Server) Handle(c net.Conn) error {
 	}
 
 	return nil
-}
-
-// GracefulStop stops handling new calls and waits until all the on-going
-// sessions finish.
-func (s *Server) GracefulStop() {
-	s.mu.Lock()
-	s.stopped = true
-	s.mu.Unlock()
-
-	s.handleWG.Wait()
-}
-
-func (s *Server) isStopped() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.stopped
-}
-
-func (s *Server) getServerInterceptor() grpc.UnaryServerInterceptor {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.interceptor
 }
 
 func (s *Server) handleSession(session *serverSession, reqBytes []byte) error {
@@ -137,7 +103,7 @@ func (s *Server) handleSession(session *serverSession, reqBytes []byte) error {
 		method.implementation,
 		ctx,
 		func(msg interface{}) error { return proto.Unmarshal(req.Message, msg.(proto.Message)) },
-		s.getServerInterceptor(),
+		s.interceptor,
 	); err != nil {
 		return err
 	}
