@@ -72,7 +72,7 @@ This would be the body of your commit containing some extra details.
 Changelog: fixed
 ```
 
-the generated changelog would look like:
+The generated changelog entry would look like:
 
 > repository: Fix repo replication with transactions
 
