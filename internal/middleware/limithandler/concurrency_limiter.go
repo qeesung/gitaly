@@ -2,6 +2,7 @@ package limithandler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -55,23 +56,24 @@ func (c *ConcurrencyLimiter) getSemaphore(lockKey string) *semaphoreReference {
 	return c.semaphores[lockKey]
 }
 
-func (c *ConcurrencyLimiter) putSemaphore(lockKey string) {
+func (c *ConcurrencyLimiter) putSemaphore(lockKey string) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	ref := c.semaphores[lockKey]
 	if ref == nil {
-		panic("semaphore should be in the map")
+		return errors.New("semaphore should be in the map")
 	}
 
 	if ref.count <= 0 {
-		panic(fmt.Sprintf("bad semaphore ref count %d", ref.count))
+		return fmt.Errorf("bad semaphore ref count %d", ref.count)
 	}
 
 	ref.count--
 	if ref.count == 0 {
 		delete(c.semaphores, lockKey)
 	}
+	return nil
 }
 
 func (c *ConcurrencyLimiter) countSemaphores() int {
@@ -82,7 +84,7 @@ func (c *ConcurrencyLimiter) countSemaphores() int {
 }
 
 // Limit will limit the concurrency of f
-func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) (interface{}, error) {
+func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) (res interface{}, err error) {
 	if c.max <= 0 {
 		return f()
 	}
@@ -91,9 +93,13 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	c.monitor.Queued(ctx)
 
 	sem := c.getSemaphore(lockKey)
-	defer c.putSemaphore(lockKey)
+	defer func() {
+		if perr := c.putSemaphore(lockKey); perr != nil && err == nil {
+			err = perr
+		}
+	}()
 
-	err := sem.acquire(ctx)
+	err = sem.acquire(ctx)
 	c.monitor.Dequeued(ctx)
 	if err != nil {
 		return nil, err
