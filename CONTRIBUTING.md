@@ -48,7 +48,7 @@ The Gitaly style guide is [documented in it's own file](STYLE.md).
 
 Gitaly keeps a [changelog](CHANGELOG.md) which is generated when a new release
 is created. The changelog is generated from the commit messages where a specific marker is used.
-The marker should have follow format: `Changelog: added` where `added` is one of the allowed options.
+The marker should have the following format: `Changelog: added` where `added` is one of the allowed options.
 Other supported options are:
 - `added`
 - `fixed`
