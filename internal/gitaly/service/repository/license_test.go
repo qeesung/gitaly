@@ -89,6 +89,10 @@ SOFTWARE.`},
 
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"), gittest.WithTreeEntries(treeEntries...), gittest.WithParents())
 
+				if tc.nonExistentRepository {
+					require.NoError(t, os.RemoveAll(repoPath))
+				}
+
 				resp, err := client.FindLicense(ctx, &gitalypb.FindLicenseRequest{Repository: repo})
 				if tc.errorContains != "" {
 					require.Error(t, err)
@@ -116,7 +120,7 @@ func testFindLicenseRequestEmptyRepo(t *testing.T, cfg config.Cfg, rubySrv *ruby
 			StorageName:  cfg.Storages[0].Name,
 		}
 		emptyRepoPath := filepath.Join(cfg.Storages[0].Path, emptyRepo.GetRelativePath())
-		defer os.RemoveAll(emptyRepoPath)
+		defer require.NoError(t, os.RemoveAll(emptyRepoPath))
 
 		_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{Repository: emptyRepo})
 		require.NoError(t, err)
