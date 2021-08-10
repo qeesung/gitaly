@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/go-enry/go-license-detector/v4/licensedb"
-	"github.com/go-enry/go-license-detector/v4/licensedb/api"
 	"github.com/go-enry/go-license-detector/v4/licensedb/filer"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -22,9 +22,6 @@ import (
 
 func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseRequest) (*gitalypb.FindLicenseResponse, error) {
 	if featureflag.GoFindLicense.IsEnabled(ctx) {
-		if req.GetRepository() == nil {
-			return &gitalypb.FindLicenseResponse{}, nil
-		}
 		repo := localrepo.New(s.gitCmdFactory, s.catfileCache, req.GetRepository(), s.cfg)
 
 		hasHeadRevision, err := repo.HasRevision(ctx, "HEAD")
@@ -35,22 +32,32 @@ func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseReque
 			return &gitalypb.FindLicenseResponse{}, nil
 		}
 
-		repoFiler := &gitFiler{ctx, repo}
-		defer repoFiler.Close()
+		repoFiler := &gitFiler{ctx, repo, false}
 
 		licenses, err := licensedb.Detect(repoFiler)
 		if err != nil {
 			if errors.Is(err, licensedb.ErrNoLicenseFound) {
-				return &gitalypb.FindLicenseResponse{}, nil
+				licenseShortName := ""
+				if repoFiler.foundLicense {
+					// The Ruby implementation of FindLicense returned 'other' when a license file
+					// was found and '' when no license file was found. `Detect` method returns ErrNoLicenseFound
+					// if it doesn't identify the license. To retain backwards compatibility, the repoFiler records
+					// whether it encountered any license files. That information is used here to then determine that
+					// we need to send back 'other'.
+					licenseShortName = "other"
+				}
+
+				return &gitalypb.FindLicenseResponse{LicenseShortName: licenseShortName}, nil
 			}
 			return nil, helper.ErrInternal(fmt.Errorf("FindLicense: Err: %w", err))
 		}
 
 		var result string
-		var best api.Match
+		var bestConfidence float32
 		for candidate, match := range licenses {
-			if match.Confidence > best.Confidence {
+			if match.Confidence > bestConfidence {
 				result = candidate
+				bestConfidence = match.Confidence
 			}
 		}
 
@@ -68,33 +75,39 @@ func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseReque
 	return client.FindLicense(clientCtx, req)
 }
 
+var readmeRegexp = regexp.MustCompile(`(readme|guidelines)(\.md|\.rst|\.html|\.txt)?$`)
+
 type gitFiler struct {
-	ctx  context.Context
-	repo *localrepo.Repo
+	ctx          context.Context
+	repo         *localrepo.Repo
+	foundLicense bool
 }
 
-func (f *gitFiler) ReadFile(path string) (content []byte, err error) {
-	if path == "" {
-		return nil, licensedb.ErrNoLicenseFound
-	}
-
+func (f *gitFiler) ReadFile(path string) ([]byte, error) {
 	var stdout, stderr bytes.Buffer
 	if err := f.repo.ExecAndWait(f.ctx, git.SubCmd{
 		Name: "cat-file",
-		Args: []string{"blob", fmt.Sprintf(":%s", path)},
+		Args: []string{"blob", fmt.Sprintf("HEAD:%s", path)},
 	}, git.WithStdout(&stdout), git.WithStderr(&stderr)); err != nil {
 		return nil, fmt.Errorf("cat-file failed: %w, stderr: %q", err, stderr.String())
+	}
+
+	// `licensedb.Detect` only opens files that look like licenses. Failing that, it will
+	// also open readme files to try to identify license files. The RPC handler needs the
+	// knowledge of whether any license files were encountered, so we filter out the
+	// readme files as defined in licensedb.Detect:
+	// https://github.com/go-enry/go-license-detector/blob/4f2ca6af2ab943d9b5fa3a02782eebc06f79a5f4/licensedb/internal/investigation.go#L61
+	//
+	// This doesn't filter out the possible license files identified from the readme files which may infact not
+	// be licenses.
+	if !f.foundLicense {
+		f.foundLicense = !readmeRegexp.MatchString(strings.ToLower(path))
 	}
 
 	return stdout.Bytes(), nil
 }
 
-func (f *gitFiler) ReadDir(path string) ([]filer.File, error) {
-	dotPath := path
-	if dotPath == "" {
-		dotPath = "."
-	}
-
+func (f *gitFiler) ReadDir(string) ([]filer.File, error) {
 	// We're doing a recursive listing returning all files at once such that we do not have to
 	// call git-ls-tree(1) multiple times.
 	var stderr bytes.Buffer
@@ -105,7 +118,7 @@ func (f *gitFiler) ReadDir(path string) ([]filer.File, error) {
 			git.Flag{Name: "-z"},
 			git.Flag{Name: "-r"},
 		},
-		Args: []string{"HEAD", dotPath},
+		Args: []string{"HEAD"},
 	}, git.WithStderr(&stderr))
 	if err != nil {
 		return nil, err
