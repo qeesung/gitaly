@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -103,7 +103,7 @@ func TestAddMetadataTags(t *testing.T) {
 				ctx, cancel = context.WithDeadline(ctx, time.Now().Add(50*time.Millisecond))
 				defer cancel()
 			}
-			require.Equal(t, testCase.expectedMetatags, addMetadataTags(ctx))
+			require.Equal(t, testCase.expectedMetatags, addMetadataTags(ctx, "unary"))
 		})
 	}
 }
@@ -113,10 +113,10 @@ func verifyHandler(ctx context.Context, req interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("unexpected type conversion failure")
 	}
-	metaTags := addMetadataTags(ctx)
+	metaTags := addMetadataTags(ctx, "unary")
 	require.Equal(clientName, metaTags.clientName)
 
-	tags := grpc_ctxtags.Extract(ctx)
+	tags := grpcmwtags.Extract(ctx)
 	require.True(tags.Has(CorrelationIDKey))
 	require.True(tags.Has(ClientNameKey))
 	values := tags.Values()
@@ -140,7 +140,7 @@ func TestGRPCTags(t *testing.T) {
 		metadata.Pairs(),
 	)
 
-	interceptor := grpc_ctxtags.UnaryServerInterceptor()
+	interceptor := grpcmwtags.UnaryServerInterceptor()
 
 	_, err := interceptor(ctx, require, nil, verifyHandler)
 	require.NoError(err)

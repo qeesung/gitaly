@@ -144,13 +144,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.CreateForkResponse" do
     end
-    add_message "gitaly.IsRebaseInProgressRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :rebase_id, :string, 2
-    end
-    add_message "gitaly.IsRebaseInProgressResponse" do
-      optional :in_progress, :bool, 1
-    end
     add_message "gitaly.IsSquashInProgressRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :squash_id, :string, 2
@@ -168,6 +161,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :repository, :message, 1, "gitaly.Repository"
     end
     add_message "gitaly.CreateBundleResponse" do
+      optional :data, :bytes, 1
+    end
+    add_message "gitaly.CreateBundleFromRefListRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      repeated :patterns, :bytes, 2
+    end
+    add_message "gitaly.CreateBundleFromRefListResponse" do
       optional :data, :bytes, 1
     end
     add_message "gitaly.GetConfigRequest" do
@@ -341,6 +341,12 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.OptimizeRepositoryResponse" do
     end
+    add_message "gitaly.SetFullPathRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :path, :string, 2
+    end
+    add_message "gitaly.SetFullPathResponse" do
+    end
   end
 end
 
@@ -383,14 +389,14 @@ module Gitaly
   FindMergeBaseResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindMergeBaseResponse").msgclass
   CreateForkRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateForkRequest").msgclass
   CreateForkResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateForkResponse").msgclass
-  IsRebaseInProgressRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsRebaseInProgressRequest").msgclass
-  IsRebaseInProgressResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsRebaseInProgressResponse").msgclass
   IsSquashInProgressRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsSquashInProgressRequest").msgclass
   IsSquashInProgressResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsSquashInProgressResponse").msgclass
   CreateRepositoryFromURLRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateRepositoryFromURLRequest").msgclass
   CreateRepositoryFromURLResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateRepositoryFromURLResponse").msgclass
   CreateBundleRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleRequest").msgclass
   CreateBundleResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleResponse").msgclass
+  CreateBundleFromRefListRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleFromRefListRequest").msgclass
+  CreateBundleFromRefListResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleFromRefListResponse").msgclass
   GetConfigRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetConfigRequest").msgclass
   GetConfigResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetConfigResponse").msgclass
   SetConfigRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetConfigRequest").msgclass
@@ -437,4 +443,6 @@ module Gitaly
   ReplicateRepositoryResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryResponse").msgclass
   OptimizeRepositoryRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryRequest").msgclass
   OptimizeRepositoryResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryResponse").msgclass
+  SetFullPathRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathRequest").msgclass
+  SetFullPathResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathResponse").msgclass
 end

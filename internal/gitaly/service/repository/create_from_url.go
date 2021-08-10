@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
@@ -49,9 +50,9 @@ func (s *server) cloneFromURLCommand(ctx context.Context, repo *gitalypb.Reposit
 
 	return s.gitCmdFactory.NewWithoutRepo(ctx,
 		git.SubCmd{
-			Name:        "clone",
-			Flags:       cloneFlags,
-			PostSepArgs: []string{u.String(), repositoryFullPath},
+			Name:  "clone",
+			Flags: cloneFlags,
+			Args:  []string{u.String(), repositoryFullPath},
 		},
 		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),
@@ -82,7 +83,9 @@ func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.Crea
 	}
 
 	if err := cmd.Wait(); err != nil {
-		os.RemoveAll(repositoryFullPath)
+		if rerr := os.RemoveAll(repositoryFullPath); rerr != nil {
+			ctxlogrus.Extract(ctx).WithError(rerr).Error("failed to cleanup after failed clone")
+		}
 		return nil, status.Errorf(codes.Internal, "CreateRepositoryFromURL: clone cmd wait: %s: %v", stderr.String(), err)
 	}
 

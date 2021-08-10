@@ -24,8 +24,7 @@ func TestRepositoryExists(t *testing.T) {
 
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 
-	repo, _, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanupFn)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
@@ -119,7 +118,7 @@ func TestSuccessfulHasLocalBranches(t *testing.T) {
 	emptyRepoName := "empty-repo.git"
 	emptyRepoPath := filepath.Join(cfg.Storages[0].Path, emptyRepoName)
 	gittest.Exec(t, cfg, "init", "--bare", emptyRepoPath)
-	defer os.RemoveAll(emptyRepoPath)
+	defer func() { require.NoError(t, os.RemoveAll(emptyRepoPath)) }()
 
 	testCases := []struct {
 		desc      string

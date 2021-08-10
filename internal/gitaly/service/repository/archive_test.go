@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -148,7 +149,7 @@ func TestGetArchiveSuccess(t *testing.T) {
 
 				archiveFile, err := ioutil.TempFile("", "")
 				require.NoError(t, err)
-				defer os.Remove(archiveFile.Name())
+				defer func() { require.NoError(t, os.Remove(archiveFile.Name())) }()
 
 				_, err = archiveFile.Write(data)
 				require.NoError(t, err)
@@ -169,12 +170,12 @@ func TestGetArchiveSuccess(t *testing.T) {
 
 func TestGetArchiveWithLfsSuccess(t *testing.T) {
 	t.Parallel()
-	defaultOptions := testhelper.GitlabTestServerOptions{
+	defaultOptions := gitlab.TestServerOptions{
 		SecretToken: secretToken,
 		LfsBody:     lfsBody,
 	}
 
-	url, cleanup := testhelper.NewGitlabTestServer(t, defaultOptions)
+	url, cleanup := gitlab.NewTestServer(t, defaultOptions)
 	t.Cleanup(cleanup)
 
 	shellDir := testhelper.TempDir(t)
@@ -183,15 +184,14 @@ func TestGetArchiveWithLfsSuccess(t *testing.T) {
 		GitlabShell: config.GitlabShell{Dir: shellDir},
 		Gitlab: config.Gitlab{
 			URL:        url,
-			SecretFile: testhelper.WriteShellSecretFile(t, shellDir, defaultOptions.SecretToken),
+			SecretFile: gitlab.WriteShellSecretFile(t, shellDir, defaultOptions.SecretToken),
 		},
 	}))
 
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	testhelper.ConfigureGitalyLfsSmudge(t, cfg.BinDir)
 
@@ -477,7 +477,7 @@ func TestGetArchiveEnv(t *testing.T) {
 	t.Parallel()
 	tmpFile, err := ioutil.TempFile("", "archive.sh")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { require.NoError(t, os.Remove(tmpFile.Name())) }()
 
 	err = tmpFile.Chmod(0755)
 	require.NoError(t, err)
@@ -502,8 +502,7 @@ env | grep -E "^GL_|CORRELATION|GITALY_"`))
 
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, _, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	commitID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
 

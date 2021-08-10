@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestListAllCommits(t *testing.T) {
@@ -42,8 +42,7 @@ func TestListAllCommits(t *testing.T) {
 	t.Run("empty repo", func(t *testing.T) {
 		cfg, client := setupCommitService(t)
 
-		repo, _, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-		defer cleanup()
+		repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		stream, err := client.ListAllCommits(ctx, &gitalypb.ListAllCommitsRequest{
 			Repository: repo,
@@ -151,13 +150,13 @@ func TestListAllCommits(t *testing.T) {
 			Author: &gitalypb.CommitAuthor{
 				Name:     []byte("John Doe"),
 				Email:    []byte("john.doe@example.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1600000000},
+				Date:     &timestamppb.Timestamp{Seconds: 1600000000},
 				Timezone: []byte("+0200"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:     []byte("John Doe"),
 				Email:    []byte("john.doe@example.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1600000001},
+				Date:     &timestamppb.Timestamp{Seconds: 1600000001},
 				Timezone: []byte("+0200"),
 			},
 		}}, receiveCommits(t, stream))

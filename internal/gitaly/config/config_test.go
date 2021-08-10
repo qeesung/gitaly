@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/cgroups"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/sentry"
 )
 
@@ -28,7 +29,10 @@ func TestLoadEmptyConfig(t *testing.T) {
 	cfg, err := Load(strings.NewReader(``))
 	require.NoError(t, err)
 
-	defaultConf := Cfg{InternalSocketDir: cfg.InternalSocketDir}
+	defaultConf := Cfg{
+		Prometheus:        prometheus.DefaultConfig(),
+		InternalSocketDir: cfg.InternalSocketDir,
+	}
 	require.NoError(t, defaultConf.setDefaults())
 
 	assert.Equal(t, defaultConf, cfg)
@@ -140,12 +144,21 @@ ruby_sentry_dsn = "xyz456"`)
 }
 
 func TestLoadPrometheus(t *testing.T) {
-	tmpFile := strings.NewReader(`prometheus_listen_addr=":9236"`)
+	tmpFile := strings.NewReader(`
+		prometheus_listen_addr=":9236"
+		[prometheus]
+		scrape_timeout       = "1s"
+		grpc_latency_buckets = [0.0, 1.0, 2.0]
+	`)
 
 	cfg, err := Load(tmpFile)
 	require.NoError(t, err)
 
 	assert.Equal(t, ":9236", cfg.PrometheusListenAddr)
+	assert.Equal(t, prometheus.Config{
+		ScrapeTimeout:      time.Second,
+		GRPCLatencyBuckets: []float64{0, 1, 2},
+	}, cfg.Prometheus)
 }
 
 func TestLoadSocketPath(t *testing.T) {
@@ -324,7 +337,7 @@ func setupTempHookDirs(t *testing.T, m map[string]hookFileMode) (string, func())
 		}
 	}
 
-	return tempDir, func() { os.RemoveAll(tempDir) }
+	return tempDir, func() { require.NoError(t, os.RemoveAll(tempDir)) }
 }
 
 var (
@@ -527,7 +540,7 @@ func TestValidateShellPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "bin"), 0755))
 	tmpFile := filepath.Join(tmpDir, "my-file")
-	defer os.RemoveAll(tmpDir)
+	defer func() { require.NoError(t, os.RemoveAll(tmpDir)) }()
 	fp, err := os.Create(tmpFile)
 	require.NoError(t, err)
 	require.NoError(t, fp.Close())
@@ -575,7 +588,7 @@ func TestValidateShellPath(t *testing.T) {
 func TestConfigureRuby(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "gitaly-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { require.NoError(t, os.RemoveAll(tmpDir)) }()
 
 	tmpFile := filepath.Join(tmpDir, "file")
 	require.NoError(t, ioutil.WriteFile(tmpFile, nil, 0644))
@@ -705,7 +718,7 @@ func TestValidateInternalSocketDir(t *testing.T) {
 	// create a valid socket directory
 	tempDir, err := ioutil.TempDir("", t.Name())
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { require.NoError(t, os.RemoveAll(tempDir)) }()
 
 	// create a symlinked socket directory
 	dirName := "internal_socket_dir"
@@ -1002,7 +1015,7 @@ path="/foobar"
 	testCases := []struct {
 		desc string
 		in   string
-		out  PackObjectsCache
+		out  StreamCacheConfig
 		err  error
 	}{
 		{desc: "empty"},
@@ -1011,7 +1024,7 @@ path="/foobar"
 			in: storageConfig + `[pack_objects_cache]
 enabled = true
 `,
-			out: PackObjectsCache{Enabled: true, MaxAge: Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
 		},
 		{
 			desc: "enabled with custom values",
@@ -1020,7 +1033,7 @@ enabled = true
 dir = "/bazqux"
 max_age = "10m"
 `,
-			out: PackObjectsCache{Enabled: true, MaxAge: Duration(10 * time.Minute), Dir: "/bazqux"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(10 * time.Minute), Dir: "/bazqux"},
 		},
 		{
 			desc: "enabled with 0 storages",

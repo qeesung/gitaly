@@ -39,6 +39,12 @@ type Replicator interface {
 	Cleanup(ctx context.Context, event datastore.ReplicationEvent, target *grpc.ClientConn) error
 	// PackRefs will optimize references on the target repository
 	PackRefs(ctx context.Context, event datastore.ReplicationEvent, target *grpc.ClientConn) error
+	// WriteCommitGraph will optimize references on the target repository
+	WriteCommitGraph(ctx context.Context, event datastore.ReplicationEvent, target *grpc.ClientConn) error
+	// MidxRepack will optimize references on the target repository
+	MidxRepack(ctx context.Context, event datastore.ReplicationEvent, target *grpc.ClientConn) error
+	// OptimizeRepository will optimize the target repository
+	OptimizeRepository(ctx context.Context, event datastore.ReplicationEvent, target *grpc.ClientConn) error
 }
 
 type defaultReplicator struct {
@@ -157,7 +163,9 @@ func (dr defaultReplicator) Destroy(ctx context.Context, event datastore.Replica
 	var deleteFunc func(context.Context, string, string, string) error
 	switch event.Job.Change {
 	case datastore.DeleteRepo:
-		deleteFunc = dr.rs.DeleteRepository
+		deleteFunc = func(ctx context.Context, virtualStorage, relativePath, storage string) error {
+			return dr.rs.DeleteRepository(ctx, virtualStorage, relativePath, []string{storage})
+		}
 	case datastore.DeleteReplica:
 		deleteFunc = dr.rs.DeleteReplica
 	default:
@@ -167,7 +175,7 @@ func (dr defaultReplicator) Destroy(ctx context.Context, event datastore.Replica
 	// If the repository was deleted but this fails, we'll know by the repository not having a record in the virtual
 	// storage but having one for the storage. We can later retry the deletion.
 	if err := deleteFunc(ctx, event.Job.VirtualStorage, event.Job.RelativePath, event.Job.TargetNodeStorage); err != nil {
-		if !errors.Is(err, datastore.RepositoryNotExistsError{}) {
+		if !errors.Is(err, datastore.ErrNoRowsAffected) {
 			return err
 		}
 
@@ -227,23 +235,27 @@ func (dr defaultReplicator) GarbageCollect(ctx context.Context, event datastore.
 		RelativePath: event.Job.RelativePath,
 	}
 
-	val, found := event.Job.Params["CreateBitmap"]
-	if !found {
-		return errors.New("no 'CreateBitmap' parameter for garbage collect")
+	createBitmap, err := event.Job.Params.GetBool("CreateBitmap")
+	if err != nil {
+		return fmt.Errorf("getting CreateBitmap parameter for GarbageCollect: %w", err)
 	}
-	createBitmap, ok := val.(bool)
-	if !ok {
-		return fmt.Errorf("parameter 'CreateBitmap' has unexpected type: %T", createBitmap)
+
+	prune, err := event.Job.Params.GetBool("Prune")
+	if err != nil {
+		return fmt.Errorf("getting Purge parameter for GarbageCollect: %w", err)
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
 
-	_, err := repoSvcClient.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{
+	if _, err := repoSvcClient.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{
 		Repository:   targetRepo,
 		CreateBitmap: createBitmap,
-	})
+		Prune:        prune,
+	}); err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (dr defaultReplicator) RepackIncremental(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
@@ -282,13 +294,91 @@ func (dr defaultReplicator) PackRefs(ctx context.Context, event datastore.Replic
 		RelativePath: event.Job.RelativePath,
 	}
 
+	allRefs, err := event.Job.Params.GetBool("AllRefs")
+	if err != nil {
+		return fmt.Errorf("getting AllRefs parameter for PackRefs: %w", err)
+	}
+
 	refSvcClient := gitalypb.NewRefServiceClient(targetCC)
 
-	_, err := refSvcClient.PackRefs(ctx, &gitalypb.PackRefsRequest{
+	if _, err := refSvcClient.PackRefs(ctx, &gitalypb.PackRefsRequest{
 		Repository: targetRepo,
-	})
+		AllRefs:    allRefs,
+	}); err != nil {
+		return err
+	}
 
-	return err
+	return nil
+}
+
+func (dr defaultReplicator) WriteCommitGraph(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  event.Job.TargetNodeStorage,
+		RelativePath: event.Job.RelativePath,
+	}
+
+	val, found := event.Job.Params["SplitStrategy"]
+	if !found {
+		return fmt.Errorf("no SplitStrategy parameter for WriteCommitGraph")
+	}
+
+	// While we store the parameter as the correct type in the in-memory replication queue, the
+	// Postgres queue will serialize parameters into a JSON structure. On deserialization, we'll
+	// thus get a float64 and need to cast it.
+	var splitStrategy gitalypb.WriteCommitGraphRequest_SplitStrategy
+	switch v := val.(type) {
+	case float64:
+		splitStrategy = gitalypb.WriteCommitGraphRequest_SplitStrategy(v)
+	case gitalypb.WriteCommitGraphRequest_SplitStrategy:
+		splitStrategy = v
+	default:
+		return fmt.Errorf("split strategy has wrong type %T", val)
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	if _, err := repoSvcClient.WriteCommitGraph(ctx, &gitalypb.WriteCommitGraphRequest{
+		Repository:    targetRepo,
+		SplitStrategy: splitStrategy,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dr defaultReplicator) MidxRepack(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  event.Job.TargetNodeStorage,
+		RelativePath: event.Job.RelativePath,
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	if _, err := repoSvcClient.MidxRepack(ctx, &gitalypb.MidxRepackRequest{
+		Repository: targetRepo,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dr defaultReplicator) OptimizeRepository(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
+	targetRepo := &gitalypb.Repository{
+		StorageName:  event.Job.TargetNodeStorage,
+		RelativePath: event.Job.RelativePath,
+	}
+
+	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
+
+	if _, err := repoSvcClient.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{
+		Repository: targetRepo,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (dr defaultReplicator) RepackFull(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
@@ -297,23 +387,21 @@ func (dr defaultReplicator) RepackFull(ctx context.Context, event datastore.Repl
 		RelativePath: event.Job.RelativePath,
 	}
 
-	val, found := event.Job.Params["CreateBitmap"]
-	if !found {
-		return errors.New("no 'CreateBitmap' parameter for repack full")
-	}
-	createBitmap, ok := val.(bool)
-	if !ok {
-		return fmt.Errorf("parameter 'CreateBitmap' has unexpected type: %T", createBitmap)
+	createBitmap, err := event.Job.Params.GetBool("CreateBitmap")
+	if err != nil {
+		return fmt.Errorf("getting CreateBitmap parameter for RepackFull: %w", err)
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
 
-	_, err := repoSvcClient.RepackFull(ctx, &gitalypb.RepackFullRequest{
+	if _, err := repoSvcClient.RepackFull(ctx, &gitalypb.RepackFullRequest{
 		Repository:   targetRepo,
 		CreateBitmap: createBitmap,
-	})
+	}); err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
 // ReplMgr is a replication manager for handling replication jobs
@@ -329,8 +417,6 @@ type ReplMgr struct {
 	replDelayMetric    prommetrics.HistogramVec
 	replJobTimeout     time.Duration
 	dequeueBatchSize   uint
-	// allowlist contains the project names of the repos we wish to replicate
-	allowlist map[string]struct{}
 }
 
 // ReplMgrOpt allows a replicator to be configured with additional options
@@ -363,7 +449,6 @@ func NewReplMgr(log *logrus.Entry, virtualStorages []string, queue datastore.Rep
 	r := ReplMgr{
 		log:             log.WithField("component", "replication_manager"),
 		queue:           queue,
-		allowlist:       map[string]struct{}{},
 		replicator:      defaultReplicator{rs: rs, log: log.WithField("component", "replicator")},
 		virtualStorages: virtualStorages,
 		hc:              hc,
@@ -392,22 +477,6 @@ func (r ReplMgr) Describe(ch chan<- *prometheus.Desc) {
 
 func (r ReplMgr) Collect(ch chan<- prometheus.Metric) {
 	r.replInFlightMetric.Collect(ch)
-}
-
-// WithAllowlist will configure a allowlist for repos to allow replication
-func WithAllowlist(allowlistedRepos []string) ReplMgrOpt {
-	return func(r *ReplMgr) {
-		for _, repo := range allowlistedRepos {
-			r.allowlist[repo] = struct{}{}
-		}
-	}
-}
-
-// WithReplicator overrides the default replicator
-func WithReplicator(r Replicator) ReplMgrOpt {
-	return func(rm *ReplMgr) {
-		rm.replicator = r
-	}
 }
 
 const (
@@ -663,6 +732,12 @@ func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.Re
 		err = r.replicator.Cleanup(ctx, event, targetCC)
 	case datastore.PackRefs:
 		err = r.replicator.PackRefs(ctx, event, targetCC)
+	case datastore.WriteCommitGraph:
+		err = r.replicator.WriteCommitGraph(ctx, event, targetCC)
+	case datastore.MidxRepack:
+		err = r.replicator.MidxRepack(ctx, event, targetCC)
+	case datastore.OptimizeRepository:
+		err = r.replicator.OptimizeRepository(ctx, event, targetCC)
 	default:
 		err = fmt.Errorf("unknown replication change type encountered: %q", event.Job.Change)
 	}

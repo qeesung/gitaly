@@ -9,8 +9,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -19,11 +19,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func containsRef(refs [][]byte, ref string) bool {
@@ -230,7 +233,7 @@ func TestHeadReference(t *testing.T) {
 	headRef, err := headReference(ctx, localrepo.NewTestRepo(t, cfg, repo))
 	require.NoError(t, err)
 
-	require.Equal(t, git.DefaultRef, headRef)
+	require.Equal(t, git.LegacyDefaultRef, headRef)
 }
 
 func TestHeadReferenceWithNonExistingHead(t *testing.T) {
@@ -269,7 +272,7 @@ func TestSetDefaultBranchRef(t *testing.T) {
 		{
 			desc:        "unknown ref",
 			ref:         "refs/heads/non_existent_ref",
-			expectedRef: "refs/heads/master",
+			expectedRef: string(git.LegacyDefaultRef),
 		},
 	}
 
@@ -332,7 +335,7 @@ func TestDefaultBranchName(t *testing.T) {
 		},
 		{
 			desc:     "Get `ref/heads/master` when several branches exist",
-			expected: git.DefaultRef,
+			expected: git.LegacyDefaultRef,
 			findBranchNames: func(context.Context, git.RepositoryExecutor) ([][]byte, error) {
 				return [][]byte{[]byte("refs/heads/foo"), []byte("refs/heads/master"), []byte("refs/heads/bar")}, nil
 			},
@@ -363,6 +366,23 @@ func TestDefaultBranchName(t *testing.T) {
 }
 
 func TestSuccessfulFindDefaultBranchName(t *testing.T) {
+	cfg, repo, repoPath, client := setupRefService(t)
+	rpcRequest := &gitalypb.FindDefaultBranchNameRequest{Repository: repo}
+
+	// The testing repository has no main branch, so we create it and update
+	// HEAD to it
+	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/main", "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863")
+	gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/main")
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	r, err := client.FindDefaultBranchName(ctx, rpcRequest)
+	require.NoError(t, err)
+
+	require.Equal(t, r.GetName(), git.DefaultRef)
+}
+
+func TestSuccessfulFindDefaultBranchNameLegacy(t *testing.T) {
 	_, repo, _, client := setupRefService(t)
 	rpcRequest := &gitalypb.FindDefaultBranchNameRequest{Repository: repo}
 
@@ -371,7 +391,7 @@ func TestSuccessfulFindDefaultBranchName(t *testing.T) {
 	r, err := client.FindDefaultBranchName(ctx, rpcRequest)
 	require.NoError(t, err)
 
-	require.Equal(t, r.GetName(), git.DefaultRef)
+	require.Equal(t, r.GetName(), git.LegacyDefaultRef)
 }
 
 func TestEmptyFindDefaultBranchNameRequest(t *testing.T) {
@@ -402,10 +422,15 @@ func TestInvalidRepoFindDefaultBranchNameRequest(t *testing.T) {
 }
 
 func TestSuccessfulFindAllTagsRequest(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.FindAllTagsPipeline,
+	}).Run(t, testSuccessfulFindAllTagsRequest)
+}
+
+func testSuccessfulFindAllTagsRequest(t *testing.T, ctx context.Context) {
 	cfg, client := setupRefServiceWithoutRepo(t)
 
-	repoProto, repoPath, cleanupFn := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer cleanupFn()
+	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	// reconstruct the v1.1.2 tag from patches to test truncated tag message
@@ -420,9 +445,6 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 	commitID := "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"
 
 	gitCommit := testhelper.GitLabTestCommit(commitID)
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	bigCommitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("local-big-commits"),
@@ -478,7 +500,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -491,7 +513,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -504,7 +526,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393491299},
+				Date:     &timestamppb.Timestamp{Seconds: 1393491299},
 				Timezone: []byte("+0200"),
 			},
 		},
@@ -517,7 +539,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393505709},
+				Date:     &timestamppb.Timestamp{Seconds: 1393505709},
 				Timezone: []byte("+0200"),
 			},
 		},
@@ -530,7 +552,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Roger Meier"),
 				Email:    []byte("r.meier@siemens.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1574261780},
+				Date:     &timestamppb.Timestamp{Seconds: 1574261780},
 				Timezone: []byte("+0100"),
 			},
 			SignatureType: gitalypb.SignatureType_X509,
@@ -544,7 +566,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393491261},
+				Date:     &timestamppb.Timestamp{Seconds: 1393491261},
 				Timezone: []byte("+0100"),
 			},
 			SignatureType: gitalypb.SignatureType_PGP,
@@ -557,7 +579,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -589,7 +611,7 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -599,18 +621,157 @@ func TestSuccessfulFindAllTagsRequest(t *testing.T) {
 	require.ElementsMatch(t, expectedTags, receivedTags)
 }
 
-func TestFindAllTagNestedTags(t *testing.T) {
+func TestFindAllTagsNestedTags(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.FindAllTagsPipeline,
+	}).Run(t, testFindAllTagsNestedTags)
+}
+
+func testFindAllTagsNestedTags(t *testing.T, ctx context.Context) {
 	cfg, client := setupRefServiceWithoutRepo(t)
 
-	repoProto, repoPath, cleanupFn := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer cleanupFn()
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(),
+	)
+
+	tagID := gittest.CreateTag(t, cfg, repoPath, "my/nested/tag", commitID.String(), nil)
+
+	stream, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{Repository: repoProto})
+	require.NoError(t, err)
+
+	response, err := stream.Recv()
+	require.NoError(t, err)
+	testassert.ProtoEqual(t, &gitalypb.FindAllTagsResponse{
+		Tags: []*gitalypb.Tag{
+			&gitalypb.Tag{
+				Name: []byte("my/nested/tag"),
+				Id:   tagID,
+				TargetCommit: &gitalypb.GitCommit{
+					Id:       commitID.String(),
+					Body:     []byte("message"),
+					BodySize: 7,
+					Subject:  []byte("message"),
+					TreeId:   git.EmptyTreeOID.String(),
+					Author: &gitalypb.CommitAuthor{
+						Name:     []byte("Scrooge McDuck"),
+						Email:    []byte("scrooge@mcduck.com"),
+						Date:     &timestamppb.Timestamp{Seconds: 1572776879},
+						Timezone: []byte("+0100"),
+					},
+					Committer: &gitalypb.CommitAuthor{
+						Name:     []byte("Scrooge McDuck"),
+						Email:    []byte("scrooge@mcduck.com"),
+						Date:     &timestamppb.Timestamp{Seconds: 1572776879},
+						Timezone: []byte("+0100"),
+					},
+				},
+			},
+		},
+	}, response)
+
+	response, err = stream.Recv()
+	require.Equal(t, io.EOF, err)
+	require.Nil(t, response)
+}
+
+func TestFindAllTags_duplicateAnnotatedTags(t *testing.T) {
+	cfg, client := setupRefServiceWithoutRepo(t)
+
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+	date := time.Unix(12345, 0)
+
+	tagID, err := repo.WriteTag(ctx, commitID, "commit", []byte("annotated"), []byte("message"),
+		gittest.TestUser, date)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", tagID, git.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated-dup", tagID, git.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-1", commitID, git.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-2", commitID, git.ZeroOID))
+
+	c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{Repository: repoProto})
+	require.NoError(t, err)
+
+	var receivedTags []*gitalypb.Tag
+	for {
+		r, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+		receivedTags = append(receivedTags, r.GetTags()...)
+	}
+
+	commitAuthor := &gitalypb.CommitAuthor{
+		Name:     []byte("Scrooge McDuck"),
+		Email:    []byte("scrooge@mcduck.com"),
+		Date:     &timestamppb.Timestamp{Seconds: 1572776879},
+		Timezone: []byte("+0100"),
+	}
+	commit := &gitalypb.GitCommit{
+		Id:        commitID.String(),
+		TreeId:    "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+		Body:      []byte("message"),
+		BodySize:  7,
+		Subject:   []byte("message"),
+		Author:    commitAuthor,
+		Committer: commitAuthor,
+	}
+
+	testassert.ProtoEqual(t, []*gitalypb.Tag{
+		{
+			Name:        []byte("annotated"),
+			Id:          tagID.String(),
+			Message:     []byte("message"),
+			MessageSize: 7,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     gittest.TestUser.Name,
+				Email:    gittest.TestUser.Email,
+				Date:     timestamppb.New(date),
+				Timezone: []byte("+0000"),
+			},
+			TargetCommit: commit,
+		},
+		{
+			Name:        []byte("annotated-dup"),
+			Id:          tagID.String(),
+			Message:     []byte("message"),
+			MessageSize: 7,
+			Tagger: &gitalypb.CommitAuthor{
+				Name:     gittest.TestUser.Name,
+				Email:    gittest.TestUser.Email,
+				Date:     timestamppb.New(date),
+				Timezone: []byte("+0000"),
+			},
+			TargetCommit: commit,
+		},
+		{Name: []byte("lightweight-1"), Id: commitID.String(), TargetCommit: commit},
+		{Name: []byte("lightweight-2"), Id: commitID.String(), TargetCommit: commit},
+	}, receivedTags)
+}
+
+func TestFindAllTagNestedTags(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.FindAllTagsPipeline,
+	}).Run(t, testFindAllTagNestedTags)
+}
+
+func testFindAllTagNestedTags(t *testing.T, ctx context.Context) {
+	cfg, client := setupRefServiceWithoutRepo(t)
+
+	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
 	commitID := "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9"
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	testCases := []struct {
 		description string
@@ -667,13 +828,18 @@ func TestFindAllTagNestedTags(t *testing.T) {
 					Tagger: &gitalypb.CommitAuthor{
 						Name:     []byte("Scrooge McDuck"),
 						Email:    []byte("scrooge@mcduck.com"),
-						Date:     &timestamp.Timestamp{Seconds: 1572776879},
+						Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 						Timezone: []byte("+0100"),
 					},
 				}
 
-				// only expect the TargetCommit to be populated if it is a commit and if its less than 10 tags deep
-				if info.Type == "commit" && depth < catfile.MaxTagReferenceDepth {
+				// With the non-pipeline code, we used to manually peel tags
+				// recursively until we hit a non-tag object. This was hugely
+				// expensive: git can do this for us via `^{}`, which
+				// opportunistically peels any tag objects for us. This is a lot
+				// more efficient, and thus we don't have the previous limitations
+				// anymore with the new code which does use this.
+				if info.Type == "commit" && (depth < catfile.MaxTagReferenceDepth || featureflag.FindAllTagsPipeline.IsEnabled(ctx)) {
 					commit, err := catfile.GetCommit(ctx, batch, git.Revision(tc.originalOid))
 					require.NoError(t, err)
 					expectedTag.TargetCommit = commit
@@ -706,6 +872,12 @@ func TestFindAllTagNestedTags(t *testing.T) {
 }
 
 func TestInvalidFindAllTagsRequest(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.FindAllTagsPipeline,
+	}).Run(t, testInvalidFindAllTagsRequest)
+}
+
+func testInvalidFindAllTagsRequest(t *testing.T, ctx context.Context) {
 	_, client := setupRefServiceWithoutRepo(t)
 
 	testCases := []struct {
@@ -729,8 +901,6 @@ func TestInvalidFindAllTagsRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 			c, err := client.FindAllTags(ctx, tc.request)
 			require.NoError(t, err)
 
@@ -742,6 +912,127 @@ func TestInvalidFindAllTagsRequest(t *testing.T) {
 			testhelper.RequireGrpcError(t, recvError, codes.InvalidArgument)
 		})
 	}
+}
+
+func TestFindAllTagsSorted(t *testing.T) {
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.FindAllTagsPipeline,
+	}).Run(t, testFindAllTagsSorted)
+}
+
+func testFindAllTagsSorted(t *testing.T, ctx context.Context) {
+	cfg, client := setupRefServiceWithoutRepo(t)
+
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+
+	repo := localrepo.New(git.NewExecCommandFactory(cfg), catfile.NewCache(cfg), repoProto, cfg)
+	headCommit, err := repo.ReadCommit(ctx, "HEAD")
+	require.NoError(t, err)
+	annotatedTagID, err := repo.WriteTag(ctx, git.ObjectID(headCommit.Id), "commit", []byte("annotated"), []byte("message"), gittest.TestUser, time.Now())
+	require.NoError(t, err)
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", annotatedTagID, git.ZeroOID))
+
+	require.NoError(t, repo.ExecAndWait(ctx, git.SubCmd{
+		Name: "tag",
+		Args: []string{"not-annotated", headCommit.Id},
+	}, git.WithDisabledHooks()))
+
+	for _, tc := range []struct {
+		desc   string
+		sortBy *gitalypb.FindAllTagsRequest_SortBy
+		exp    []string
+	}{
+		{
+			desc:   "by name",
+			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_REFNAME},
+			exp: []string{
+				annotatedTagID.String(),
+				headCommit.Id,
+				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"8f03acbcd11c53d9c9468078f32a2622005a4841",
+			},
+		},
+		{
+			desc:   "by updated in ascending order",
+			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_CREATORDATE, Direction: gitalypb.SortDirection_ASCENDING},
+			exp: []string{
+				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				headCommit.Id,
+				"8f03acbcd11c53d9c9468078f32a2622005a4841",
+				annotatedTagID.String(),
+			},
+		},
+		{
+			desc:   "by updated in descending order",
+			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_CREATORDATE, Direction: gitalypb.SortDirection_DESCENDING},
+			exp: []string{
+				annotatedTagID.String(),
+				"8f03acbcd11c53d9c9468078f32a2622005a4841",
+				headCommit.Id,
+				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{
+				Repository: repoProto,
+				SortBy:     tc.sortBy,
+			})
+			require.NoError(t, err)
+
+			var tags []string
+			for {
+				r, err := c.Recv()
+				if err == io.EOF {
+					break
+				}
+				require.NoError(t, err)
+				for _, tag := range r.GetTags() {
+					tags = append(tags, tag.Id)
+				}
+			}
+
+			require.Equal(t, tc.exp, tags)
+		})
+	}
+
+	t.Run("by unsupported key", func(t *testing.T) {
+		c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{
+			Repository: repoProto,
+			SortBy:     &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_Key(-1)},
+		})
+		require.NoError(t, err)
+		r, err := c.Recv()
+		testassert.GrpcEqualErr(t, status.Error(codes.InvalidArgument, "unsupported sorting key: -1"), err)
+		require.Nil(t, r)
+	})
+
+	t.Run("by unsupported direction", func(t *testing.T) {
+		c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{
+			Repository: repoProto,
+			SortBy:     &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_REFNAME, Direction: gitalypb.SortDirection(-1)},
+		})
+		require.NoError(t, err)
+		r, err := c.Recv()
+		testassert.GrpcEqualErr(t, status.Error(codes.InvalidArgument, "unsupported sorting direction: -1"), err)
+		require.Nil(t, r)
+	})
+
+	t.Run("no tags", func(t *testing.T) {
+		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{
+			Repository: repoProto,
+			SortBy:     &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_REFNAME},
+		})
+		require.NoError(t, err)
+
+		r, err := c.Recv()
+		require.Equal(t, io.EOF, err)
+		require.Nil(t, r)
+	})
 }
 
 func TestSuccessfulFindLocalBranches(t *testing.T) {
@@ -783,6 +1074,31 @@ func TestSuccessfulFindLocalBranches(t *testing.T) {
 		}
 
 		assertContainsLocalBranch(t, branches, localBranch)
+	}
+}
+
+func TestFindLocalBranches_huge_committer(t *testing.T) {
+	cfg, repo, repoPath, client := setupRefService(t)
+
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("refs/heads/improve/awesome"),
+		gittest.WithCommitterName(strings.Repeat("A", 100000)),
+	)
+
+	rpcRequest := &gitalypb.FindLocalBranchesRequest{Repository: repo}
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	c, err := client.FindLocalBranches(ctx, rpcRequest)
+	require.NoError(t, err)
+
+	for {
+		_, err := c.Recv()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
 	}
 }
 
@@ -943,13 +1259,13 @@ func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
 			Author: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393488896},
+				Date:     &timestamppb.Timestamp{Seconds: 1393488896},
 				Timezone: []byte("+0200"),
 			},
 			Committer: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393488896},
+				Date:     &timestamppb.Timestamp{Seconds: 1393488896},
 				Timezone: []byte("+0200"),
 			},
 			SignatureType: gitalypb.SignatureType_PGP,
@@ -1331,7 +1647,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -1344,7 +1660,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -1357,7 +1673,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393491299},
+				Date:     &timestamppb.Timestamp{Seconds: 1393491299},
 				Timezone: []byte("+0200"),
 			},
 			SignatureType: gitalypb.SignatureType_NONE,
@@ -1371,7 +1687,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Dmitriy Zaporozhets"),
 				Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1393505709},
+				Date:     &timestamppb.Timestamp{Seconds: 1393505709},
 				Timezone: []byte("+0200"),
 			},
 		},
@@ -1384,7 +1700,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Roger Meier"),
 				Email:    []byte("r.meier@siemens.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1574261780},
+				Date:     &timestamppb.Timestamp{Seconds: 1574261780},
 				Timezone: []byte("+0100"),
 			},
 			SignatureType: gitalypb.SignatureType_X509,
@@ -1397,7 +1713,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -1429,7 +1745,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 			Tagger: &gitalypb.CommitAuthor{
 				Name:     []byte("Scrooge McDuck"),
 				Email:    []byte("scrooge@mcduck.com"),
-				Date:     &timestamp.Timestamp{Seconds: 1572776879},
+				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 				Timezone: []byte("+0100"),
 			},
 		},
@@ -1448,8 +1764,7 @@ func TestSuccessfulFindTagRequest(t *testing.T) {
 func TestFindTagNestedTag(t *testing.T) {
 	cfg, client := setupRefServiceWithoutRepo(t)
 
-	repoProto, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	blobID := "faaf198af3a36dbf41961466703cc1d47c61d051"
@@ -1513,7 +1828,7 @@ func TestFindTagNestedTag(t *testing.T) {
 				Tagger: &gitalypb.CommitAuthor{
 					Name:     []byte("Scrooge McDuck"),
 					Email:    []byte("scrooge@mcduck.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1572776879},
+					Date:     &timestamppb.Timestamp{Seconds: 1572776879},
 					Timezone: []byte("+0100"),
 				},
 			}

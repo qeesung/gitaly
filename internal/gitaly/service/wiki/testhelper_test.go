@@ -48,7 +48,11 @@ func testMain(m *testing.M) int {
 		log.Error(err)
 		return 1
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	hooks.Override = tempDir + "/hooks"
 
@@ -146,8 +150,8 @@ func writeWikiPage(t *testing.T, client gitalypb.WikiServiceClient, wikiRepo *gi
 	require.NoError(t, err)
 }
 
-func setupWikiRepo(t *testing.T, cfg config.Cfg) (*gitalypb.Repository, string, func()) {
-	return gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+func setupWikiRepo(t *testing.T, cfg config.Cfg) (*gitalypb.Repository, string) {
+	return gittest.InitRepo(t, cfg, cfg.Storages[0])
 }
 
 func sendBytes(data []byte, chunkSize int, sender func([]byte) error) (int, error) {

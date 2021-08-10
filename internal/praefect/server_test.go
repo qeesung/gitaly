@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -49,8 +47,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	grpc_metadata "google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestNewBackchannelServerFactory(t *testing.T) {
@@ -247,7 +247,7 @@ func TestDiskStatistics(t *testing.T) {
 	for _, name := range []string{"gitaly-1", "gitaly-2"} {
 		gitalyCfg := testcfg.Build(t)
 
-		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll)
+		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 
 		praefectCfg.VirtualStorages[0].Nodes = append(praefectCfg.VirtualStorages[0].Nodes, &config.Node{
 			Storage: name,
@@ -463,7 +463,7 @@ func TestRemoveRepository(t *testing.T) {
 		cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages(name))
 		gitalyCfgs[i], repos[i] = cfgBuilder.BuildWithRepoAt(t, "test-repository")
 
-		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfgs[i], nil, setup.RegisterAll)
+		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfgs[i], nil, setup.RegisterAll, testserver.WithDisablePraefect())
 		gitalyCfgs[i].SocketPath = gitalyAddr
 
 		praefectCfg.VirtualStorages[0].Nodes = append(praefectCfg.VirtualStorages[0].Nodes, &config.Node{
@@ -499,7 +499,24 @@ func TestRemoveRepository(t *testing.T) {
 		return queue.Acknowledge(ctx, state, ids)
 	})
 
-	cc, _, cleanup := runPraefectServer(t, praefectCfg, buildOptions{withQueue: queueInterceptor})
+	repoStore := defaultRepoStore(praefectCfg)
+	txMgr := defaultTxMgr(praefectCfg)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), praefectCfg, nil,
+		repoStore, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered,
+		nil, backchannel.NewClientHandshaker(
+			testhelper.DiscardTestEntry(t),
+			NewBackchannelServerFactory(testhelper.DiscardTestEntry(t), transaction.NewServer(txMgr)),
+		),
+	)
+	require.NoError(t, err)
+	nodeMgr.Start(0, time.Hour)
+
+	cc, _, cleanup := runPraefectServer(t, praefectCfg, buildOptions{
+		withQueue:     queueInterceptor,
+		withRepoStore: repoStore,
+		withNodeMgr:   nodeMgr,
+		withTxMgr:     txMgr,
+	})
 	defer cleanup()
 
 	ctx, cancel := testhelper.Context()
@@ -508,7 +525,7 @@ func TestRemoveRepository(t *testing.T) {
 	virtualRepo := proto.Clone(repos[0][0]).(*gitalypb.Repository)
 	virtualRepo.StorageName = praefectCfg.VirtualStorages[0].Name
 
-	_, err := gitalypb.NewRepositoryServiceClient(cc).RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
+	_, err = gitalypb.NewRepositoryServiceClient(cc).RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
 		Repository: virtualRepo,
 	})
 	require.NoError(t, err)
@@ -554,7 +571,7 @@ func TestRenameRepository(t *testing.T) {
 			repo = repos[0]
 		}
 
-		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll)
+		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 
 		praefectCfg.VirtualStorages[0].Nodes = append(praefectCfg.VirtualStorages[0].Nodes, &config.Node{
 			Storage: storageName,
@@ -834,29 +851,29 @@ func TestProxyWrites(t *testing.T) {
 func TestErrorThreshold(t *testing.T) {
 	backendToken := ""
 	backend, cleanup := newMockDownstream(t, backendToken, &mockSvc{
-		repoMutatorUnary: func(ctx context.Context, req *mock.RepoRequest) (*empty.Empty, error) {
-			md, ok := grpc_metadata.FromIncomingContext(ctx)
+		repoMutatorUnary: func(ctx context.Context, req *mock.RepoRequest) (*emptypb.Empty, error) {
+			md, ok := metadata.FromIncomingContext(ctx)
 			if !ok {
-				return &empty.Empty{}, errors.New("couldn't read metadata")
+				return &emptypb.Empty{}, errors.New("couldn't read metadata")
 			}
 
 			if md.Get("bad-header")[0] == "true" {
-				return &empty.Empty{}, helper.ErrInternalf("something went wrong")
+				return &emptypb.Empty{}, helper.ErrInternalf("something went wrong")
 			}
 
-			return &empty.Empty{}, nil
+			return &emptypb.Empty{}, nil
 		},
-		repoAccessorUnary: func(ctx context.Context, req *mock.RepoRequest) (*empty.Empty, error) {
-			md, ok := grpc_metadata.FromIncomingContext(ctx)
+		repoAccessorUnary: func(ctx context.Context, req *mock.RepoRequest) (*emptypb.Empty, error) {
+			md, ok := metadata.FromIncomingContext(ctx)
 			if !ok {
-				return &empty.Empty{}, errors.New("couldn't read metadata")
+				return &emptypb.Empty{}, errors.New("couldn't read metadata")
 			}
 
 			if md.Get("bad-header")[0] == "true" {
-				return &empty.Empty{}, helper.ErrInternalf("something went wrong")
+				return &emptypb.Empty{}, helper.ErrInternalf("something went wrong")
 			}
 
-			return &empty.Empty{}, nil
+			return &emptypb.Empty{}, nil
 		},
 	})
 	defer cleanup()
@@ -959,7 +976,7 @@ func TestErrorThreshold(t *testing.T) {
 			}
 
 			for i := 0; i < 5; i++ {
-				ctx := grpc_metadata.AppendToOutgoingContext(ctx, "bad-header", "true")
+				ctx := metadata.AppendToOutgoingContext(ctx, "bad-header", "true")
 
 				handler := cli.RepoMutatorUnary
 				if tc.accessor {

@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 )
 
 // Repo represents a local Git repository.
@@ -73,5 +73,8 @@ func (repo *Repo) Remote() Remote {
 }
 
 func errorWithStderr(err error, stderr []byte) error {
+	if len(stderr) == 0 {
+		return err
+	}
 	return fmt.Errorf("%w, stderr: %q", err, stderr)
 }

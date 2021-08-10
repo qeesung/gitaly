@@ -20,6 +20,8 @@ type storages map[string][]string
 // without a generation number.
 const GenerationUnknown = -1
 
+var errWriteToOutdatedNodes = errors.New("write to outdated nodes")
+
 // DowngradeAttemptedError is returned when attempting to get the replicated generation for a source repository
 // that does not upgrade the target repository.
 type DowngradeAttemptedError struct {
@@ -77,11 +79,14 @@ func (err RepositoryExistsError) Error() string {
 	)
 }
 
+// ErrNoRowsAffected is returned when a query did not perform any changes.
+var ErrNoRowsAffected = errors.New("no rows were affected by the query")
+
 // RepositoryStore provides access to repository state.
 type RepositoryStore interface {
 	// GetGeneration gets the repository's generation on a given storage.
 	GetGeneration(ctx context.Context, virtualStorage, relativePath, storage string) (int, error)
-	// IncrementGeneration increments the primary's and the up to date secondaries' generations.
+	// IncrementGeneration increments the generations of up to date nodes.
 	IncrementGeneration(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string) error
 	// SetGeneration sets the repository's generation on the given storage. If the generation is higher
 	// than the virtual storage's generation, it is set to match as well to guarantee monotonic increments.
@@ -100,10 +105,12 @@ type RepositoryStore interface {
 	// storeAssignments should be set when variable replication factor is enabled. When set, the primary and the
 	// secondaries are stored as the assigned hosts of the repository.
 	CreateRepository(ctx context.Context, virtualStorage, relativePath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error
-	// DeleteRepository deletes the repository from the virtual storage and the storage. Returns
-	// RepositoryNotExistsError when trying to delete a repository which has no record in the virtual storage
-	// or the storage.
-	DeleteRepository(ctx context.Context, virtualStorage, relativePath, storage string) error
+	// SetAuthoritativeReplica sets the given replica of a repsitory as the authoritative one by setting its generation as the latest one.
+	SetAuthoritativeReplica(ctx context.Context, virtualStorage, relativePath, storage string) error
+	// DeleteRepository deletes the repository's record from the virtual storage and the storages. Returns
+	// ErrNoRowsAffected when trying to delete a repository which has no record in the virtual storage
+	// or the storages.
+	DeleteRepository(ctx context.Context, virtualStorage, relativePath string, storages []string) error
 	// DeleteReplica deletes a replica of a repository from a storage without affecting other state in the virtual storage.
 	DeleteReplica(ctx context.Context, virtualStorage, relativePath, storage string) error
 	// RenameRepository updates a repository's relative path. It renames the virtual storage wide record as well
@@ -113,10 +120,9 @@ type RepositoryStore interface {
 	ConsistentStoragesGetter
 	// RepositoryExists returns whether the repository exists on a virtual storage.
 	RepositoryExists(ctx context.Context, virtualStorage, relativePath string) (bool, error)
-	// GetPartiallyReplicatedRepositories returns information on repositories which have an outdated copy on an assigned storage.
-	// By default, repository specific primaries are returned in the results. If useVirtualStoragePrimaries is set, virtual storage's
-	// primary is returned instead for each repository.
-	GetPartiallyReplicatedRepositories(ctx context.Context, virtualStorage string, virtualStoragePrimaries bool) ([]OutdatedRepository, error)
+	// GetPartiallyAvailableRepositories returns information on repositories which have assigned replicas which
+	// are not able to serve requests at the moment.
+	GetPartiallyAvailableRepositories(ctx context.Context, virtualStorage string) ([]PartiallyAvailableRepository, error)
 	// DeleteInvalidRepository is a method for deleting records of invalid repositories. It deletes a storage's
 	// record of the invalid repository. If the storage was the only storage with the repository, the repository's
 	// record on the virtual storage is also deleted.
@@ -157,70 +163,62 @@ AND storage = $3
 }
 
 func (rs *PostgresRepositoryStore) IncrementGeneration(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string) error {
-	// The query works as follows:
-	//   1. `next_generation` CTE increments the latest generation by 1. If no previous records exists,
-	//      the generation starts from 0.
-	//   2. `base_generation` CTE gets the primary's current generation. A secondary has to be on the primary's
-	//      generation, otherwise its generation won't be incremented. This avoids any issues where a concurrent
-	//      reference transaction has failed and the secondary is no longer up to date when we are incrementing
-	//      the generations.
-	//   3. `eligible_secondaries` filters out secondaries which participated in a transaction but failed a
-	///     concurrent transaction.
-	//   4. `eligible_storages` CTE combines the primary and the up to date secondaries in a list of storages to
-	//      increment the generation for.
-	//   5. Finally, we update the records in 'storage_repositories' table to match the new generation for the
-	//      eligible storages.
-
 	const q = `
-WITH next_generation AS (
-	INSERT INTO repositories (
-		virtual_storage,
-		relative_path,
-		generation
-	) VALUES ($1, $2, 0)
-	ON CONFLICT (virtual_storage, relative_path) DO
-		UPDATE SET generation = COALESCE(repositories.generation, -1) + 1
-	RETURNING virtual_storage, relative_path, generation
-), base_generation AS (
-	SELECT virtual_storage, relative_path, generation
-	FROM storage_repositories
+WITH repository AS (
+	SELECT generation
+	FROM repositories
 	WHERE virtual_storage = $1
-	AND relative_path = $2
-	AND storage = $3
+	AND   relative_path   = $2
 	FOR UPDATE
-), eligible_secondaries AS (
-	SELECT storage
-	FROM storage_repositories
-	NATURAL JOIN base_generation
-	WHERE storage = ANY($4::text[])
-	FOR UPDATE
-), eligible_storages AS (
-	SELECT storage
-	FROM eligible_secondaries
-		UNION
-	SELECT $3
+),
+
+updated_replicas AS (
+	UPDATE storage_repositories
+	SET generation = generation + 1
+	WHERE virtual_storage = $1
+	AND   relative_path   = $2
+	AND   storage         = ANY($3)
+	AND   generation      = ( SELECT generation FROM repository )
+	RETURNING true AS updated
+),
+
+updated_repository AS (
+	UPDATE repositories
+	SET generation = generation + 1
+	WHERE virtual_storage = $1
+	AND   relative_path   = $2
+	AND   EXISTS ( SELECT FROM updated_replicas )
 )
 
-UPDATE storage_repositories AS sr
-SET generation = ng.generation
-FROM eligible_storages AS es, next_generation AS ng
-WHERE es.storage = sr.storage AND ng.virtual_storage = sr.virtual_storage AND ng.relative_path = sr.relative_path
+SELECT
+	EXISTS ( SELECT FROM repository ) AS repository_exists,
+	EXISTS ( SELECT FROM updated_replicas ) AS repository_updated
 `
-	_, err := rs.db.ExecContext(ctx, q, virtualStorage, relativePath, primary, pq.StringArray(secondaries))
-	return err
+	var repositoryExists, repositoryUpdated bool
+	if err := rs.db.QueryRowContext(
+		ctx, q, virtualStorage, relativePath, pq.StringArray(append(secondaries, primary)),
+	).Scan(&repositoryExists, &repositoryUpdated); err != nil {
+		return fmt.Errorf("scan: %w", err)
+	}
+
+	if !repositoryExists {
+		return commonerr.NewRepositoryNotFoundError(virtualStorage, relativePath)
+	}
+
+	if !repositoryUpdated {
+		return errWriteToOutdatedNodes
+	}
+
+	return nil
 }
 
 func (rs *PostgresRepositoryStore) SetGeneration(ctx context.Context, virtualStorage, relativePath, storage string, generation int) error {
 	const q = `
 WITH repository AS (
-	INSERT INTO repositories (
-		virtual_storage,
-		relative_path,
-		generation
-	) VALUES ($1, $2, $4)
-	ON CONFLICT (virtual_storage, relative_path) DO
-		UPDATE SET generation = EXCLUDED.generation
-		WHERE COALESCE(repositories.generation, -1) < EXCLUDED.generation
+	UPDATE repositories SET generation = $4
+	WHERE virtual_storage = $1
+	AND   relative_path   = $2
+	AND   COALESCE(repositories.generation, -1) < $4
 )
 
 INSERT INTO storage_repositories (
@@ -236,6 +234,36 @@ ON CONFLICT (virtual_storage, relative_path, storage) DO UPDATE SET
 
 	_, err := rs.db.ExecContext(ctx, q, virtualStorage, relativePath, storage, generation)
 	return err
+}
+
+// SetAuthoritativeReplica sets the given replica of a repsitory as the authoritative one by setting its generation as the latest one.
+func (rs *PostgresRepositoryStore) SetAuthoritativeReplica(ctx context.Context, virtualStorage, relativePath, storage string) error {
+	result, err := rs.db.ExecContext(ctx, `
+WITH updated_repository AS (
+	UPDATE repositories
+	SET generation = generation + 1
+	WHERE virtual_storage = $1
+	AND   relative_path   = $2
+	RETURNING virtual_storage, relative_path, generation
+)
+
+INSERT INTO storage_repositories
+SELECT virtual_storage, relative_path, $3, generation
+FROM updated_repository
+ON CONFLICT (virtual_storage, relative_path, storage) DO UPDATE
+	SET generation = EXCLUDED.generation
+	`, virtualStorage, relativePath, storage)
+	if err != nil {
+		return fmt.Errorf("exec: %w", err)
+	}
+
+	if rowsAffected, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	} else if rowsAffected == 0 {
+		return commonerr.NewRepositoryNotFoundError(virtualStorage, relativePath)
+	}
+
+	return nil
 }
 
 func (rs *PostgresRepositoryStore) GetReplicatedGeneration(ctx context.Context, virtualStorage, relativePath, source, target string) (int, error) {
@@ -355,7 +383,7 @@ FROM (
 	return err
 }
 
-func (rs *PostgresRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath, storage string) error {
+func (rs *PostgresRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath string, storages []string) error {
 	return rs.delete(ctx, `
 WITH repo AS (
 	DELETE FROM repositories
@@ -366,24 +394,24 @@ WITH repo AS (
 DELETE FROM storage_repositories
 WHERE virtual_storage = $1
 AND relative_path = $2
-AND storage = $3
-		`, virtualStorage, relativePath, storage,
+AND storage = ANY($3::text[])
+		`, virtualStorage, relativePath, storages,
 	)
 }
 
 // DeleteReplica deletes a record from the `storage_repositories`. See the interface documentation for details.
-func (rs *PostgresRepositoryStore) DeleteReplica(ctx context.Context, virtualStorage, relativePath, storage string) error {
+func (rs *PostgresRepositoryStore) DeleteReplica(ctx context.Context, virtualStorage, relativePath string, storage string) error {
 	return rs.delete(ctx, `
 DELETE FROM storage_repositories
 WHERE virtual_storage = $1
 AND relative_path = $2
-AND storage = $3
-		`, virtualStorage, relativePath, storage,
+AND storage = ANY($3::text[])
+		`, virtualStorage, relativePath, []string{storage},
 	)
 }
 
-func (rs *PostgresRepositoryStore) delete(ctx context.Context, query, virtualStorage, relativePath, storage string) error {
-	result, err := rs.db.ExecContext(ctx, query, virtualStorage, relativePath, storage)
+func (rs *PostgresRepositoryStore) delete(ctx context.Context, query, virtualStorage, relativePath string, storages []string) error {
+	result, err := rs.db.ExecContext(ctx, query, virtualStorage, relativePath, pq.StringArray(storages))
 	if err != nil {
 		return err
 	}
@@ -391,11 +419,7 @@ func (rs *PostgresRepositoryStore) delete(ctx context.Context, query, virtualSto
 	if n, err := result.RowsAffected(); err != nil {
 		return err
 	} else if n == 0 {
-		return RepositoryNotExistsError{
-			virtualStorage: virtualStorage,
-			relativePath:   relativePath,
-			storage:        storage,
-		}
+		return ErrNoRowsAffected
 	}
 
 	return nil
@@ -520,36 +544,45 @@ AND NOT EXISTS (
 	return err
 }
 
-// OutdatedRepositoryStorageDetails represents a storage that contains or should contain a
+// StorageDetails represents a storage that contains or should contain a
 // copy of the repository.
-type OutdatedRepositoryStorageDetails struct {
+type StorageDetails struct {
 	// Name of the storage as configured.
 	Name string
 	// BehindBy indicates how many generations the storage's copy of the repository is missing at maximum.
 	BehindBy int
 	// Assigned indicates whether the storage is an assigned host of the repository.
 	Assigned bool
+	// Healthy indicates whether the replica is considered healthy by the consensus of Praefect nodes.
+	Healthy bool
+	// ValidPrimary indicates whether the replica is ready to serve as the primary if necessary.
+	ValidPrimary bool
 }
 
-// OutdatedRepository is a repository with one or more outdated assigned storages.
-type OutdatedRepository struct {
+// PartiallyAvailableRepository is a repository with one or more assigned replicas which are not
+// able to serve requests at the moment.
+type PartiallyAvailableRepository struct {
 	// RelativePath is the relative path of the repository.
 	RelativePath string
 	// Primary is the current primary of this repository.
 	Primary string
 	// Storages contains information of the repository on each storage that contains the repository
 	// or does not contain the repository but is assigned to host it.
-	Storages []OutdatedRepositoryStorageDetails
+	Storages []StorageDetails
 }
 
-func (rs *PostgresRepositoryStore) GetPartiallyReplicatedRepositories(ctx context.Context, virtualStorage string, useVirtualStoragePrimaries bool) ([]OutdatedRepository, error) {
+// GetPartiallyAvailableRepositories returns information on repositories which have assigned replicas which
+// are not able to serve requests at the moment.
+func (rs *PostgresRepositoryStore) GetPartiallyAvailableRepositories(ctx context.Context, virtualStorage string) ([]PartiallyAvailableRepository, error) {
 	configuredStorages, ok := rs.storages[virtualStorage]
 	if !ok {
 		return nil, fmt.Errorf("unknown virtual storage: %q", virtualStorage)
 	}
 
-	// The query below gets the generations and assignments of every repository
-	// which has one or more outdated assigned nodes. It works as follows:
+	// The query below gets the status of every repository which has one or more assigned replicas that
+	// are not able to serve requests at the moment. The status includes how many changes a replica is behind,
+	// whether the replica is assigned host or not, whether the replica is healthy and whether the replica is
+	// considered a valid primary candidate. It works as follows:
 	//
 	// 1. First we get all the storages which contain the repository from `storage_repositories`. We
 	//    list every copy of the repository as the latest generation could exist on an unassigned
@@ -570,13 +603,17 @@ func (rs *PostgresRepositoryStore) GetPartiallyReplicatedRepositories(ctx contex
 	//    and there can't be any assignments for deleted repositories, this is still needed as long as the
 	//    fallback behavior of no assignments is in place.
 	//
-	// 4. Finally we aggregate each repository's information in to a single row with a JSON object containing
+	// 4. We join the `healthy_storages` view to return the storages current health.
+	//
+	// 5. We join the `valid_primaries` view to return whether the storage is ready to act as a primary in case
+	//    of a failover.
+	//
+	// 6. Finally we aggregate each repository's information in to a single row with a JSON object containing
 	//    the information. This allows us to group the output already in the query and makes scanning easier
-	//    We filter out groups which do not have an outdated assigned storage as the replication factor on those
+	//    We filter out groups which do not have an assigned storage as the replication factor on those
 	//    is reached. Status of unassigned storages does not matter as long as they don't contain a later generation
 	//    than the assigned ones.
 	//
-	// If virtual storage scoped primaries are used, the primary is instead selected from the `shard_primaries` table.
 	rows, err := rs.db.QueryContext(ctx, `
 SELECT
 	json_build_object (
@@ -586,20 +623,21 @@ SELECT
 			json_build_object(
 				'Name', storage,
 				'BehindBy', behind_by,
-				'Assigned', assigned
+				'Assigned', assigned,
+				'Healthy', healthy,
+				'ValidPrimary', valid_primary
 			)
 		)
 	)
 FROM (
 	SELECT
 		relative_path,
-		CASE WHEN $3
-			THEN shard_primaries.node_name
-			ELSE repositories."primary"
-		END AS "primary",
+		repositories.primary,
 		storage,
-		max(storage_repositories.generation) OVER (PARTITION BY virtual_storage, relative_path) - COALESCE(storage_repositories.generation, -1) AS behind_by,
-		repository_assignments.storage IS NOT NULL AS assigned
+		repository_generations.generation - COALESCE(storage_repositories.generation, -1) AS behind_by,
+		repository_assignments.storage IS NOT NULL AS assigned,
+		healthy_storages.storage IS NOT NULL AS healthy,
+		valid_primaries.storage IS NOT NULL AS valid_primary
 	FROM storage_repositories
 	FULL JOIN (
 		SELECT virtual_storage, relative_path, storage
@@ -614,33 +652,35 @@ FROM (
 		)
 	) AS repository_assignments USING (virtual_storage, relative_path, storage)
 	JOIN repositories USING (virtual_storage, relative_path)
-	LEFT JOIN shard_primaries ON $3 AND shard_name = virtual_storage AND NOT demoted
+	JOIN repository_generations USING (virtual_storage, relative_path)
+	LEFT JOIN healthy_storages USING (virtual_storage, storage)
+	LEFT JOIN valid_primaries USING (virtual_storage, relative_path, storage)
 	WHERE virtual_storage = $1
 	ORDER BY relative_path, "primary", storage
 ) AS outdated_repositories
 GROUP BY relative_path, "primary"
-HAVING max(behind_by) FILTER(WHERE assigned) > 0
+HAVING bool_or(NOT valid_primary) FILTER(WHERE assigned)
 ORDER BY relative_path, "primary"
-	`, virtualStorage, pq.StringArray(configuredStorages), useVirtualStoragePrimaries)
+	`, virtualStorage, pq.StringArray(configuredStorages))
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
 	defer rows.Close()
 
-	var outdatedRepos []OutdatedRepository
+	var repos []PartiallyAvailableRepository
 	for rows.Next() {
 		var repositoryJSON string
 		if err := rows.Scan(&repositoryJSON); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 
-		var outdatedRepo OutdatedRepository
-		if err := json.NewDecoder(strings.NewReader(repositoryJSON)).Decode(&outdatedRepo); err != nil {
+		var repo PartiallyAvailableRepository
+		if err := json.NewDecoder(strings.NewReader(repositoryJSON)).Decode(&repo); err != nil {
 			return nil, fmt.Errorf("decode json: %w", err)
 		}
 
-		outdatedRepos = append(outdatedRepos, outdatedRepo)
+		repos = append(repos, repo)
 	}
 
-	return outdatedRepos, rows.Err()
+	return repos, rows.Err()
 }

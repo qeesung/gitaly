@@ -31,7 +31,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
-	gitaly_x509 "gitlab.com/gitlab-org/gitaly/v14/internal/x509"
+	gitalyx509 "gitlab.com/gitlab-org/gitaly/v14/internal/x509"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -182,7 +182,7 @@ func TestFailedCreateForkRequestDueToExistingTarget(t *testing.T) {
 			} else {
 				require.NoError(t, ioutil.WriteFile(forkedRepoPath, nil, 0644))
 			}
-			defer os.RemoveAll(forkedRepoPath)
+			defer func() { require.NoError(t, os.RemoveAll(forkedRepoPath)) }()
 
 			req := &gitalypb.CreateForkRequest{
 				Repository:       forkedRepo,
@@ -201,7 +201,7 @@ func injectCustomCATestCerts(t *testing.T, cfg *config.Cfg) *x509.CertPool {
 	cfg.TLS.CertPath = certFile
 	cfg.TLS.KeyPath = keyFile
 
-	revertEnv := testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, certFile)
+	revertEnv := testhelper.ModifyEnvironment(t, gitalyx509.SSLCertFile, certFile)
 	t.Cleanup(revertEnv)
 
 	caPEMBytes := testhelper.MustReadFile(t, certFile)
@@ -227,7 +227,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 	catfileCache := catfile.NewCache(cfg)
 
 	gitalypb.RegisterRepositoryServiceServer(server, NewServer(cfg, rubySrv, locator, txManager, gitCmdFactory, catfileCache))
-	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(cfg, hookManager, gitCmdFactory))
+	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(cfg, hookManager, gitCmdFactory, nil))
 	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(cfg, rubySrv, locator, gitCmdFactory, catfileCache, txManager))
 	gitalypb.RegisterSSHServiceServer(server, ssh.NewServer(cfg, locator, gitCmdFactory, txManager))
 	gitalypb.RegisterRefServiceServer(server, ref.NewServer(cfg, locator, gitCmdFactory, txManager, catfileCache))
@@ -240,7 +240,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 
 	cfg.TLS.KeyPath = ""
 	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	})
 
 	t.Cleanup(func() { require.NoError(t, <-errQ) })

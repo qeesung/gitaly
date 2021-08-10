@@ -8,13 +8,10 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitalyssh"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,36 +42,18 @@ func FetchInternalRemote(
 	repo *localrepo.Repo,
 	remoteRepo *gitalypb.Repository,
 ) error {
-	env, err := gitalyssh.UploadPackEnv(ctx, cfg, &gitalypb.SSHUploadPackRequest{Repository: remoteRepo})
-	if err != nil {
-		return fmt.Errorf("upload pack environment: %w", err)
-	}
+	var stderr bytes.Buffer
+	if err := repo.FetchInternal(
+		ctx,
+		remoteRepo,
+		[]string{mirrorRefSpec},
+		localrepo.FetchOpts{Prune: true, Stderr: &stderr},
+	); err != nil {
+		if errors.As(err, &localrepo.ErrFetchFailed{}) {
+			return fetchFailedError{stderr.String(), err}
+		}
 
-	stderr := &bytes.Buffer{}
-
-	flags := []git.Option{
-		git.Flag{Name: "--prune"},
-		git.Flag{Name: "--atomic"},
-	}
-	options := []git.CmdOpt{
-		git.WithEnv(env...),
-		git.WithStderr(stderr),
-		git.WithRefTxHook(ctx, repo, cfg),
-	}
-
-	cmd, err := repo.Exec(ctx,
-		git.SubCmd{
-			Name:  "fetch",
-			Flags: flags,
-			Args:  []string{gitalyssh.GitalyInternalURL, mirrorRefSpec},
-		},
-		options...,
-	)
-	if err != nil {
 		return fmt.Errorf("create git fetch: %w", err)
-	}
-	if err := cmd.Wait(); err != nil {
-		return fetchFailedError{stderr.String(), err}
 	}
 
 	remoteDefaultBranch, err := getRemoteDefaultBranch(ctx, remoteRepo, conns)
@@ -107,7 +86,7 @@ func (s *server) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInt
 	if err := FetchInternalRemote(ctx, s.cfg, s.conns, repo, req.RemoteRepository); err != nil {
 		var fetchErr fetchFailedError
 
-		if featureflag.IsDisabled(ctx, featureflag.FetchInternalRemoteErrors) && errors.As(err, &fetchErr) {
+		if errors.As(err, &fetchErr) {
 			// Design quirk: if the fetch fails, this RPC returns Result: false, but no error.
 			ctxlogrus.Extract(ctx).WithError(fetchErr.err).WithField("stderr", fetchErr.stderr).Warn("git fetch failed")
 			return &gitalypb.FetchInternalRemoteResponse{Result: false}, nil

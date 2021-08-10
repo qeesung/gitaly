@@ -1,7 +1,7 @@
 package setup
 
 import (
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
@@ -139,10 +139,15 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
 	))
-	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(
+		deps.GetCfg(),
+		deps.GetHookManager(),
+		deps.GetGitCmdFactory(),
+		deps.GetPackObjectsCache(),
+	))
 	gitalypb.RegisterInternalGitalyServer(srv, internalgitaly.NewServer(deps.GetCfg().Storages))
 
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 	reflection.Register(srv)
-	grpc_prometheus.Register(srv)
+	grpcprometheus.Register(srv)
 }

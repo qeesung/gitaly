@@ -142,8 +142,22 @@ message PaginationParameter {
 	int32 limit = 2;
 }
 
+message PaginationCursor {
+  // To the caller, this is an opaque token to indicate what the caller
+  // should present as a page_token to get subsequent results.
+  string next_cursor = 1;
+}
+
 // https://git-scm.com/docs/git/#_options
 message GlobalOptions {
     // Treat pathspecs literally (i.e. no globbing, no pathspec magic)
     bool literal_pathspecs = 1;
+}
+
+// SortDirection defines the sort direction.
+enum SortDirection {
+  // ASCENDING sorts by the sort key in ascending order.
+  ASCENDING = 0;
+  // DESCENDING sorts by the sort key in descending order.
+  DESCENDING = 1;
 }

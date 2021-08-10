@@ -11,15 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/remoterepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitalyssh"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -141,31 +140,41 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 	}
 
 	ctx := stream.Context()
-	sourceRepo := s.localrepo(header.GetRepository())
 	targetRepo, err := remoterepo.New(ctx, header.GetTargetRepository(), s.pool)
 	if err != nil {
 		return err
 	}
 
+	var quarantineRepo *localrepo.Repo
+	var quarantineDir *quarantine.Dir
+	if featureflag.QuarantinedResolveConflicts.IsEnabled(ctx) {
+		var err error
+		quarantineDir, err = quarantine.New(ctx, header.GetRepository(), s.locator)
+		if err != nil {
+			return helper.ErrInternalf("creating object quarantine: %w", err)
+		}
+
+		quarantineRepo = s.localrepo(quarantineDir.QuarantinedRepo())
+	} else {
+		quarantineRepo = s.localrepo(header.GetRepository())
+	}
+
 	if err := s.repoWithBranchCommit(ctx,
-		sourceRepo,
+		quarantineRepo,
 		targetRepo,
 		header.TargetBranch,
 	); err != nil {
 		return err
 	}
 
-	repoPath, err := s.locator.GetRepoPath(sourceRepo)
+	repoPath, err := s.locator.GetRepoPath(quarantineRepo)
 	if err != nil {
 		return err
 	}
 
 	authorDate := time.Now()
 	if header.Timestamp != nil {
-		authorDate, err = ptypes.Timestamp(header.Timestamp)
-		if err != nil {
-			return helper.ErrInvalidArgument(err)
-		}
+		authorDate = header.Timestamp.AsTime()
 	}
 
 	if git.ValidateObjectID(header.GetOurCommitOid()) != nil ||
@@ -173,7 +182,7 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 		return errors.New("Rugged::InvalidError: unable to parse OID - contains invalid characters")
 	}
 
-	result, err := git2go.ResolveCommand{
+	result, err := s.git2go.Resolve(ctx, quarantineRepo, git2go.ResolveCommand{
 		MergeCommand: git2go.MergeCommand{
 			Repository: repoPath,
 			AuthorName: string(header.User.Name),
@@ -184,7 +193,7 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 			Theirs:     header.GetTheirCommitOid(),
 		},
 		Resolutions: resolutions,
-	}.Run(stream.Context(), s.cfg)
+	})
 	if err != nil {
 		if errors.Is(err, git2go.ErrInvalidArgument) {
 			return helper.ErrInvalidArgument(err)
@@ -197,26 +206,16 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 		return err
 	}
 
-	if featureflag.IsEnabled(ctx, featureflag.ResolveConflictsWithHooks) {
-		if err := s.updater.UpdateReference(
-			ctx,
-			header.Repository,
-			header.User,
-			git.ReferenceName("refs/heads/"+string(header.GetSourceBranch())),
-			commitOID,
-			git.ObjectID(header.OurCommitOid),
-		); err != nil {
-			return err
-		}
-	} else {
-		if err := sourceRepo.UpdateRef(
-			ctx,
-			git.ReferenceName("refs/heads/"+string(header.GetSourceBranch())),
-			commitOID,
-			"",
-		); err != nil {
-			return err
-		}
+	if err := s.updater.UpdateReference(
+		ctx,
+		header.Repository,
+		header.User,
+		quarantineDir,
+		git.ReferenceName("refs/heads/"+string(header.GetSourceBranch())),
+		commitOID,
+		git.ObjectID(header.OurCommitOid),
+	); err != nil {
+		return err
 	}
 
 	return nil
@@ -276,26 +275,13 @@ func (s *server) repoWithBranchCommit(ctx context.Context, sourceRepo *localrepo
 		return nil
 	}
 
-	env, err := gitalyssh.UploadPackEnv(ctx, s.cfg, &gitalypb.SSHUploadPackRequest{
-		Repository:       targetRepo.Repository,
-		GitConfigOptions: []string{"uploadpack.allowAnySHA1InWant=true"},
-	})
-	if err != nil {
-		return err
-	}
-
-	var stderr bytes.Buffer
-	if err := sourceRepo.ExecAndWait(ctx,
-		git.SubCmd{
-			Name:  "fetch",
-			Flags: []git.Option{git.Flag{Name: "--no-tags"}},
-			Args:  []string{gitalyssh.GitalyInternalURL, oid.String()},
-		},
-		git.WithStderr(&stderr),
-		git.WithEnv(env...),
-		git.WithRefTxHook(ctx, sourceRepo, s.cfg),
+	if err := sourceRepo.FetchInternal(
+		ctx,
+		targetRepo.Repository,
+		[]string{oid.String()},
+		localrepo.FetchOpts{Tags: localrepo.FetchOptsTagsNone},
 	); err != nil {
-		return fmt.Errorf("could not fetch target commit: %w, stderr: %q", err, stderr.String())
+		return fmt.Errorf("could not fetch target commit: %w", err)
 	}
 
 	return nil

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
@@ -25,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 )
 
 func getDB(t *testing.T) glsql.DB {
@@ -47,9 +47,10 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 	}
 
 	testcases := []struct {
-		desc         string
-		primaryFails bool
-		nodes        []node
+		desc                                 string
+		primaryFails                         bool
+		nodes                                []node
+		expectedRequestFinalizerErrorMessage string
 	}{
 		{
 			desc: "successful vote should not create replication jobs",
@@ -69,11 +70,11 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			},
 		},
 		{
-			desc: "failing vote should not create replication jobs without committed subtransactions",
+			desc: "failing vote should create replication jobs without committed subtransactions",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "qux", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "bar", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
+				{primary: true, subtransactions: subtransactions{{vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{primary: false, subtransactions: subtransactions{{vote: "qux", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{primary: false, subtransactions: subtransactions{{vote: "bar", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
@@ -109,11 +110,12 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			},
 		},
 		{
-			desc: "secondaries should not participate when primary's generation is unknown",
+			desc: "write is not acknowledged if it only targets outdated nodes",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: datastore.GenerationUnknown, expectedGeneration: 0},
-				{shouldParticipate: false, shouldGetRepl: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
+				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
+				{shouldParticipate: false, shouldGetRepl: false, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
 			},
+			expectedRequestFinalizerErrorMessage: `increment generation: repository "praefect"/"/path/to/hashed/repository" not found`,
 		},
 		{
 			// All transactional RPCs are expected to cast vote if they are successful. If they don't, something is wrong
@@ -125,20 +127,15 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			},
 		},
 		{
-			// If the RPC fails without any subtransactions, the Gitalys would not have performed any changes yet.
-			// We don't have to consider the secondaries outdated.
-			desc:         "unstarted transaction doesn't create replication jobs if the primary fails",
+			desc:         "unstarted transaction does not create replication job",
 			primaryFails: true,
 			nodes: []node{
 				{primary: true, expectedGeneration: 0},
-				{primary: false, expectedGeneration: 0},
+				{primary: false, shouldGetRepl: false, expectedGeneration: 0},
 			},
 		},
 		{
-			// If there were no subtransactions and the RPC failed, the primary should not have performed any changes.
-			// We don't need to schedule replication jobs to replication targets either as they'd have jobs
-			// already scheduled by the earlier RPC that made them outdated or by the reconciler.
-			desc:         "unstarted transaction should not create replication jobs for outdated node if the primary fails",
+			desc:         "unstarted transaction should not create replication jobs for outdated node if the primary does not vote",
 			primaryFails: true,
 			nodes: []node{
 				{primary: true, shouldGetRepl: false, generation: 1, expectedGeneration: 1},
@@ -211,7 +208,18 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 
 			// set up the generations prior to transaction
 			rs := datastore.NewPostgresRepositoryStore(getDB(t), conf.StorageNames())
+
+			repoCreated := false
 			for i, n := range tc.nodes {
+				if n.generation == datastore.GenerationUnknown {
+					continue
+				}
+
+				if !repoCreated {
+					repoCreated = true
+					require.NoError(t, rs.CreateRepository(ctx, repo.StorageName, repo.RelativePath, storageNodes[i].Storage, nil, nil, false, false))
+				}
+
 				require.NoError(t, rs.SetGeneration(ctx, repo.StorageName, repo.RelativePath, storageNodes[i].Storage, n.generation))
 			}
 
@@ -278,7 +286,11 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			}
 
 			err = streamParams.RequestFinalizer()
-			require.NoError(t, err)
+			if tc.expectedRequestFinalizerErrorMessage != "" {
+				require.EqualError(t, err, tc.expectedRequestFinalizerErrorMessage)
+			} else {
+				require.NoError(t, err)
+			}
 
 			// Nodes that successfully committed should have their generations incremented.
 			// Nodes that did not successfully commit or did not participate should remain on their

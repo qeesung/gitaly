@@ -8,18 +8,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -36,16 +37,18 @@ var (
 
 func TestSuccessfulUserSquashRequest(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
-	t.Run("with sparse checkout", func(t *testing.T) {
-		testSuccessfulUserSquashRequest(t, ctx, startSha, endSha)
-	})
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, func(t *testing.T, ctx context.Context) {
+		t.Run("with sparse checkout", func(t *testing.T) {
+			testSuccessfulUserSquashRequest(t, ctx, startSha, endSha)
+		})
 
-	t.Run("without sparse checkout", func(t *testing.T) {
-		// there are no files that could be used for sparse checkout for those two commits
-		testSuccessfulUserSquashRequest(t, ctx, "60ecb67744cb56576c30214ff52294f8ce2def98", "c84ff944ff4529a70788a5e9003c2b7feae29047")
+		t.Run("without sparse checkout", func(t *testing.T) {
+			// there are no files that could be used for sparse checkout for those two commits
+			testSuccessfulUserSquashRequest(t, ctx, "60ecb67744cb56576c30214ff52294f8ce2def98", "c84ff944ff4529a70788a5e9003c2b7feae29047")
+		})
 	})
 }
 
@@ -86,9 +89,13 @@ func testSuccessfulUserSquashRequest(t *testing.T, ctx context.Context, start, e
 
 func TestUserSquash_stableID(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testUserSquashStableID)
+}
+
+func testUserSquashStableID(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -101,7 +108,7 @@ func TestUserSquash_stableID(t *testing.T) {
 		CommitMessage: []byte("Squashed commit"),
 		StartSha:      startSha,
 		EndSha:        endSha,
-		Timestamp:     &timestamp.Timestamp{Seconds: 1234512345},
+		Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
 	})
 	require.NoError(t, err)
 	require.Empty(t, response.GetGitError())
@@ -120,13 +127,13 @@ func TestUserSquash_stableID(t *testing.T) {
 		Author: &gitalypb.CommitAuthor{
 			Name:     author.Name,
 			Email:    author.Email,
-			Date:     &timestamp.Timestamp{Seconds: 1234512345},
+			Date:     &timestamppb.Timestamp{Seconds: 1234512345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:     gittest.TestUser.Name,
 			Email:    gittest.TestUser.Email,
-			Date:     &timestamp.Timestamp{Seconds: 1234512345},
+			Date:     &timestamppb.Timestamp{Seconds: 1234512345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	}, commit)
@@ -147,9 +154,13 @@ func ensureSplitIndexExists(t *testing.T, cfg config.Cfg, repoDir string) bool {
 
 func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testSuccessfulUserSquashRequestWith3wayMerge)
+}
+
+func testSuccessfulUserSquashRequestWith3wayMerge(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -184,22 +195,28 @@ func TestSuccessfulUserSquashRequestWith3wayMerge(t *testing.T) {
 	repoPath, err = filepath.EvalSymlinks(repoPath)
 	require.NoError(t, err)
 
-	// Ensure Git metadata is cleaned up
-	worktreeList := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "worktree", "list", "--porcelain"))
-	expectedOut := fmt.Sprintf("worktree %s\nbare\n", repoPath)
-	require.Equal(t, expectedOut, worktreeList)
+	if featureflag.UserSquashWithoutWorktree.IsDisabled(ctx) {
+		// Ensure Git metadata is cleaned up
+		worktreeList := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "worktree", "list", "--porcelain"))
+		expectedOut := fmt.Sprintf("worktree %s\nbare\n", repoPath)
+		require.Equal(t, expectedOut, worktreeList)
 
-	// Ensure actual worktree is removed
-	files, err := ioutil.ReadDir(filepath.Join(repoPath, "gitlab-worktree"))
-	require.NoError(t, err)
-	require.Equal(t, 0, len(files))
+		// Ensure actual worktree is removed
+		files, err := ioutil.ReadDir(filepath.Join(repoPath, "gitlab-worktree"))
+		require.NoError(t, err)
+		require.Equal(t, 0, len(files))
+	}
 }
 
 func TestSplitIndex(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testSplitIndex)
+}
+
+func testSplitIndex(t *testing.T, ctx context.Context) {
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	require.False(t, ensureSplitIndexExists(t, cfg, repoPath))
@@ -222,13 +239,18 @@ func TestSplitIndex(t *testing.T) {
 
 func TestSquashRequestWithRenamedFiles(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testSquashRequestWithRenamedFiles)
+}
+
+func testSquashRequestWithRenamedFiles(t *testing.T, ctx context.Context) {
 	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
 
-	repoProto, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -283,9 +305,13 @@ func TestSquashRequestWithRenamedFiles(t *testing.T) {
 
 func TestSuccessfulUserSquashRequestWithMissingFileOnTargetBranch(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testSuccessfulUserSquashRequestWithMissingFileOnTargetBranch)
+}
+
+func testSuccessfulUserSquashRequestWithMissingFileOnTargetBranch(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	conflictingStartSha := "bbd36ad238d14e1c03ece0f3358f545092dc9ca3"
@@ -307,9 +333,13 @@ func TestSuccessfulUserSquashRequestWithMissingFileOnTargetBranch(t *testing.T) 
 
 func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testFailedUserSquashRequestDueToValidations)
+}
+
+func testFailedUserSquashRequestDueToValidations(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -432,6 +462,91 @@ func TestFailedUserSquashRequestDueToValidations(t *testing.T) {
 	}
 }
 
+func TestUserSquashWithConflicts(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.UserSquashWithoutWorktree,
+	}).Run(t, testUserSquashWithConflicts)
+}
+
+func testUserSquashWithConflicts(t *testing.T, ctx context.Context) {
+	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
+
+	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "a", Mode: "100644", Content: "unchanged"},
+		gittest.TreeEntry{Path: "b", Mode: "100644", Content: "base"},
+	))
+
+	ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "a", Mode: "100644", Content: "unchanged"},
+		gittest.TreeEntry{Path: "b", Mode: "100644", Content: "ours"},
+	))
+
+	theirs := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "a", Mode: "100644", Content: "unchanged"},
+		gittest.TreeEntry{Path: "b", Mode: "100644", Content: "theirs"},
+	))
+
+	response, err := client.UserSquash(ctx, &gitalypb.UserSquashRequest{
+		Repository:    repo,
+		SquashId:      "1",
+		User:          gittest.TestUser,
+		Author:        gittest.TestUser,
+		CommitMessage: commitMessage,
+		StartSha:      theirs.String(),
+		EndSha:        ours.String(),
+	})
+	require.NoError(t, err)
+
+	if featureflag.UserSquashWithoutWorktree.IsEnabled(ctx) {
+		testassert.ProtoEqual(t, &gitalypb.UserSquashResponse{
+			GitError: fmt.Sprintf("rebase: commit %q: conflicts have not been resolved", ours),
+		}, response)
+	} else {
+		require.NotNil(t, response)
+		// Error messages differ across Git versions, so we can't assert an exact match.
+		require.Contains(t, response.GitError, "Applied patch to 'b' with conflicts.")
+	}
+}
+
+func TestUserSquash_ancestry(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
+
+	// We create an empty parent commit and two commits which both branch off from it. As a
+	// result, they are not direct ancestors of each other.
+	parent := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("p"), gittest.WithTreeEntries(), gittest.WithParents())
+	commit1 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("1"),
+		gittest.WithTreeEntries(gittest.TreeEntry{Path: "a", Mode: "100644", Content: "a-content"}),
+		gittest.WithParents(parent),
+	)
+	commit2 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("2"),
+		gittest.WithTreeEntries(gittest.TreeEntry{Path: "b", Mode: "100644", Content: "b-content"}),
+		gittest.WithParents(parent),
+	)
+
+	response, err := client.UserSquash(ctx, &gitalypb.UserSquashRequest{
+		Repository:    repo,
+		SquashId:      "1",
+		User:          gittest.TestUser,
+		Author:        gittest.TestUser,
+		CommitMessage: commitMessage,
+		StartSha:      commit1.String(),
+		EndSha:        commit2.String(),
+		Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
+	})
+
+	require.Nil(t, err)
+	testassert.ProtoEqual(t, &gitalypb.UserSquashResponse{
+		SquashSha: "b277ddc0aafcba53f23f3d4d4a46dde42c9e7ad2",
+	}, response)
+}
+
 func TestUserSquashWithGitError(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := testhelper.Context()
@@ -440,9 +555,10 @@ func TestUserSquashWithGitError(t *testing.T) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
-		desc     string
-		request  *gitalypb.UserSquashRequest
-		gitError string
+		desc             string
+		request          *gitalypb.UserSquashRequest
+		expectedErr      error
+		expectedResponse *gitalypb.UserSquashResponse
 	}{
 		{
 			desc: "not existing start SHA",
@@ -455,7 +571,9 @@ func TestUserSquashWithGitError(t *testing.T) {
 				StartSha:      "doesntexisting",
 				EndSha:        endSha,
 			},
-			gitError: "fatal: ambiguous argument 'doesntexisting...54cec5282aa9f21856362fe321c800c236a61615'",
+			expectedResponse: &gitalypb.UserSquashResponse{
+				GitError: "fatal: ambiguous argument 'doesntexisting...54cec5282aa9f21856362fe321c800c236a61615': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n",
+			},
 		},
 		{
 			desc: "not existing end SHA",
@@ -468,7 +586,9 @@ func TestUserSquashWithGitError(t *testing.T) {
 				StartSha:      startSha,
 				EndSha:        "doesntexisting",
 			},
-			gitError: "fatal: ambiguous argument 'b83d6e391c22777fca1ed3012fce84f633d7fed0...doesntexisting'",
+			expectedResponse: &gitalypb.UserSquashResponse{
+				GitError: "fatal: ambiguous argument 'b83d6e391c22777fca1ed3012fce84f633d7fed0...doesntexisting': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n",
+			},
 		},
 		{
 			desc: "user has no name set",
@@ -481,7 +601,7 @@ func TestUserSquashWithGitError(t *testing.T) {
 				StartSha:      startSha,
 				EndSha:        endSha,
 			},
-			gitError: "fatal: empty ident name (for <janedoe@gitlab.com>) not allowed",
+			expectedErr: helper.ErrInvalidArgumentf("UserSquash: empty user name"),
 		},
 		{
 			desc: "author has no name set",
@@ -494,18 +614,15 @@ func TestUserSquashWithGitError(t *testing.T) {
 				StartSha:      startSha,
 				EndSha:        endSha,
 			},
-			gitError: "fatal: empty ident name (for <janedoe@gitlab.com>) not allowed",
+			expectedErr: helper.ErrInvalidArgumentf("UserSquash: empty author name"),
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			resp, err := client.UserSquash(ctx, testCase.request)
-			s, ok := status.FromError(err)
-			require.True(t, ok)
-			assert.Equal(t, codes.OK, s.Code())
-			assert.Empty(t, resp.SquashSha)
-			assert.Contains(t, resp.GitError, testCase.gitError)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			response, err := client.UserSquash(ctx, tc.request)
+			testassert.GrpcEqualErr(t, tc.expectedErr, err)
+			testassert.ProtoEqual(t, tc.expectedResponse, response)
 		})
 	}
 }

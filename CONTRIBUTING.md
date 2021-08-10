@@ -1,13 +1,12 @@
-## Developer Certificate of Origin + License
+## Developer Certificate of Origin and License
 
-By contributing to GitLab B.V., You accept and agree to the following terms and
-conditions for Your present and future Contributions submitted to GitLab B.V.
+By contributing to GitLab B.V., you accept and agree to the following terms and
+conditions for your present and future contributions submitted to GitLab B.V.
 Except for the license granted herein to GitLab B.V. and recipients of software
-distributed by GitLab B.V., You reserve all right, title, and interest in and to
-Your Contributions. All Contributions are subject to the following DCO + License
-terms.
+distributed by GitLab B.V., you reserve all right, title, and interest in and to
+your Contributions.
 
-[DCO + License](https://gitlab.com/gitlab-org/dco/blob/master/README.md)
+All contributions are subject to the Developer Certificate of Origin and license set out at [docs.gitlab.com/ce/legal/developer_certificate_of_origin](https://docs.gitlab.com/ce/legal/developer_certificate_of_origin).
 
 _This notice should stay as the first item in the CONTRIBUTING.md file._
 
@@ -47,21 +46,34 @@ The Gitaly style guide is [documented in it's own file](STYLE.md).
 ## Changelog
 
 Gitaly keeps a [changelog](CHANGELOG.md) which is generated when a new release
-is created. The changelog is generated from entries that are included on each
-merge request. To generate an entry on your branch run:
-`_support/changelog "Change descriptions"`.
+is created. The changelog is generated from the commit messages where a specific marker is used.
+The marker should have the following format: `Changelog: added` where `added` is one of the allowed options.
+Other supported options are:
+- `added`
+- `fixed`
+- `changed`
+- `deprecated`
+- `removed`
+- `security`
+- `performance`
+- `other`
 
-After the merge request is created, the ID of the merge request needs to be set
-in the generated file. If you already know the merge request ID, run:
-`_support/changelog -m <ID> "Change descriptions"`.
+The commit title is used to generate a changelog entry.
+Please start your commit title with a specific RPC/component name.
 
-Any new merge request must contain either a new entry or a
-justification in the merge request description why no changelog entry is needed.
+As an example for the commit message:
 
-If a change is specific to an RPC, start the changelog line with the
-RPC name. So for a change to RPC `FooBar` you would get:
+```bash
+repository: Fix repo replication with transactions
 
-> FooBar: Add support for `fluffy_bunnies` parameter
+This would be the body of your commit containing some extra details.
+
+Changelog: fixed
+```
+
+The generated changelog entry would look like:
+
+> repository: Fix repo replication with transactions
 
 ## Gitaly Maintainers
 

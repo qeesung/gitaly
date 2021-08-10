@@ -13,7 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/commit"
-	hook_service "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	hookservice "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -38,7 +38,11 @@ func testMain(m *testing.M) int {
 		log.Error(err)
 		return 1
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	defer func(old string) { hooks.Override = old }(hooks.Override)
 	hooks.Override = filepath.Join(tempDir, "hooks")
@@ -51,16 +55,9 @@ func SetupConfigAndRepo(t testing.TB, bare bool) (config.Cfg, *gitalypb.Reposito
 
 	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
 
-	var repo *gitalypb.Repository
-	var repoPath string
-	var cleanup testhelper.Cleanup
-	if bare {
-		repo, repoPath, cleanup = gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-		t.Cleanup(cleanup)
-	} else {
-		repo, repoPath, cleanup = gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-		t.Cleanup(cleanup)
-	}
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: !bare,
+	})
 
 	return cfg, repo, repoPath
 }
@@ -106,7 +103,7 @@ func runConflictsServer(t testing.TB, cfg config.Cfg, hookManager hook.Manager) 
 			deps.GetGitCmdFactory(),
 			deps.GetTxManager(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook_service.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		gitalypb.RegisterCommitServiceServer(srv, commit.NewServer(
 			deps.GetCfg(),
 			deps.GetLocator(),

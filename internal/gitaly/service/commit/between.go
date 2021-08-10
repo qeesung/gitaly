@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 type commitsBetweenSender struct {
@@ -58,7 +58,9 @@ func normalizedCommitsBetweenParams(req *gitalypb.CommitsBetweenRequest) (string
 	var limit int32 = 2147483647
 
 	if req.PaginationParams != nil {
-		from = req.PaginationParams.GetPageToken() + "~"
+		if req.PaginationParams.GetPageToken() != "" {
+			from = req.PaginationParams.GetPageToken() + "~"
+		}
 
 		if req.PaginationParams.GetLimit() > 0 {
 			limit = req.PaginationParams.GetLimit()

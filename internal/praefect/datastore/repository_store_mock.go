@@ -5,18 +5,19 @@ import "context"
 // MockRepositoryStore allows for mocking a RepositoryStore by parametrizing its behavior. All methods
 // default to what could be considered success if not set.
 type MockRepositoryStore struct {
-	GetGenerationFunc                      func(ctx context.Context, virtualStorage, relativePath, storage string) (int, error)
-	IncrementGenerationFunc                func(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string) error
-	GetReplicatedGenerationFunc            func(ctx context.Context, virtualStorage, relativePath, source, target string) (int, error)
-	SetGenerationFunc                      func(ctx context.Context, virtualStorage, relativePath, storage string, generation int) error
-	CreateRepositoryFunc                   func(ctx context.Context, virtualStorage, relativePath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error
-	DeleteRepositoryFunc                   func(ctx context.Context, virtualStorage, relativePath, storage string) error
-	DeleteReplicaFunc                      func(ctx context.Context, virtualStorage, relativePath, storage string) error
-	RenameRepositoryFunc                   func(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error
-	GetConsistentStoragesFunc              func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error)
-	GetPartiallyReplicatedRepositoriesFunc func(ctx context.Context, virtualStorage string, virtualStorageScopedPrimaries bool) ([]OutdatedRepository, error)
-	DeleteInvalidRepositoryFunc            func(ctx context.Context, virtualStorage, relativePath, storage string) error
-	RepositoryExistsFunc                   func(ctx context.Context, virtualStorage, relativePath string) (bool, error)
+	GetGenerationFunc                     func(ctx context.Context, virtualStorage, relativePath, storage string) (int, error)
+	IncrementGenerationFunc               func(ctx context.Context, virtualStorage, relativePath, primary string, secondaries []string) error
+	GetReplicatedGenerationFunc           func(ctx context.Context, virtualStorage, relativePath, source, target string) (int, error)
+	SetGenerationFunc                     func(ctx context.Context, virtualStorage, relativePath, storage string, generation int) error
+	CreateRepositoryFunc                  func(ctx context.Context, virtualStorage, relativePath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error
+	SetAuthoritativeReplicaFunc           func(ctx context.Context, virtualStorage, relativePath, storage string) error
+	DeleteRepositoryFunc                  func(ctx context.Context, virtualStorage, relativePath string, storages []string) error
+	DeleteReplicaFunc                     func(ctx context.Context, virtualStorage, relativePath, storage string) error
+	RenameRepositoryFunc                  func(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error
+	GetConsistentStoragesFunc             func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error)
+	GetPartiallyAvailableRepositoriesFunc func(ctx context.Context, virtualStorage string) ([]PartiallyAvailableRepository, error)
+	DeleteInvalidRepositoryFunc           func(ctx context.Context, virtualStorage, relativePath, storage string) error
+	RepositoryExistsFunc                  func(ctx context.Context, virtualStorage, relativePath string) (bool, error)
 }
 
 func (m MockRepositoryStore) GetGeneration(ctx context.Context, virtualStorage, relativePath, storage string) (int, error) {
@@ -61,12 +62,21 @@ func (m MockRepositoryStore) CreateRepository(ctx context.Context, virtualStorag
 	return m.CreateRepositoryFunc(ctx, virtualStorage, relativePath, primary, updatedSecondaries, outdatedSecondaries, storePrimary, storeAssignments)
 }
 
-func (m MockRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath, storage string) error {
+// SetAuthoritativeReplica calls the mocked function. If no mock has been provided, it returns a nil error.
+func (m MockRepositoryStore) SetAuthoritativeReplica(ctx context.Context, virtualStorage, relativePath, storage string) error {
+	if m.SetAuthoritativeReplicaFunc == nil {
+		return nil
+	}
+
+	return m.SetAuthoritativeReplicaFunc(ctx, virtualStorage, relativePath, storage)
+}
+
+func (m MockRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath string, storages []string) error {
 	if m.DeleteRepositoryFunc == nil {
 		return nil
 	}
 
-	return m.DeleteRepositoryFunc(ctx, virtualStorage, relativePath, storage)
+	return m.DeleteRepositoryFunc(ctx, virtualStorage, relativePath, storages)
 }
 
 // DeleteReplica runs the mock's DeleteReplicaFunc.
@@ -95,12 +105,13 @@ func (m MockRepositoryStore) GetConsistentStorages(ctx context.Context, virtualS
 	return m.GetConsistentStoragesFunc(ctx, virtualStorage, relativePath)
 }
 
-func (m MockRepositoryStore) GetPartiallyReplicatedRepositories(ctx context.Context, virtualStorage string, virtualStorageScopedPrimaries bool) ([]OutdatedRepository, error) {
-	if m.GetPartiallyReplicatedRepositoriesFunc == nil {
+// GetPartiallyAvailableRepositories returns the result of GetPartiallyAvailableRepositories or nil if it is unset.
+func (m MockRepositoryStore) GetPartiallyAvailableRepositories(ctx context.Context, virtualStorage string) ([]PartiallyAvailableRepository, error) {
+	if m.GetPartiallyAvailableRepositoriesFunc == nil {
 		return nil, nil
 	}
 
-	return m.GetPartiallyReplicatedRepositoriesFunc(ctx, virtualStorage, virtualStorageScopedPrimaries)
+	return m.GetPartiallyAvailableRepositoriesFunc(ctx, virtualStorage)
 }
 
 func (m MockRepositoryStore) DeleteInvalidRepository(ctx context.Context, virtualStorage, relativePath, storage string) error {

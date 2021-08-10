@@ -20,8 +20,7 @@ func setupRepoConfig(t *testing.T) (Config, string) {
 
 	cfg := testcfg.Build(t)
 
-	repoProto, repoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
 	repo := New(gitCmdFactory, catfile.NewCache(cfg), repoProto, cfg)
@@ -29,54 +28,24 @@ func setupRepoConfig(t *testing.T) (Config, string) {
 	return repo.Config(), repoPath
 }
 
-func TestBuildConfigAddOptsFlags(t *testing.T) {
-	for _, tc := range []struct {
-		desc string
-		opts git.ConfigAddOpts
-		exp  []git.Option
-	}{
-		{
-			desc: "none",
-			opts: git.ConfigAddOpts{},
-			exp:  nil,
-		},
-		{
-			desc: "all set",
-			opts: git.ConfigAddOpts{Type: git.ConfigTypeBoolOrInt},
-			exp:  []git.Option{git.Flag{Name: "--bool-or-int"}},
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			require.Equal(t, tc.exp, buildConfigAddOptsFlags(tc.opts))
-		})
-	}
-}
-
-func TestConfig_Add(t *testing.T) {
+func TestConfig_Set(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	repoConfig, repoPath := setupRepoConfig(t)
 
-	t.Run("ok", func(t *testing.T) {
-		require.NoError(t, repoConfig.Add(ctx, "key.one", "1", git.ConfigAddOpts{}))
+	t.Run("setting a new value", func(t *testing.T) {
+		require.NoError(t, repoConfig.Set(ctx, "key.one", "1"))
 
 		actual := text.ChompBytes(gittest.Exec(t, repoConfig.repo.cfg, "-C", repoPath, "config", "key.one"))
 		require.Equal(t, "1", actual)
 	})
 
-	t.Run("appends to an old value", func(t *testing.T) {
-		require.NoError(t, repoConfig.Add(ctx, "key.two", "2", git.ConfigAddOpts{}))
-		require.NoError(t, repoConfig.Add(ctx, "key.two", "3", git.ConfigAddOpts{}))
+	t.Run("overwriting an old value", func(t *testing.T) {
+		require.NoError(t, repoConfig.Set(ctx, "key.two", "2"))
+		require.NoError(t, repoConfig.Set(ctx, "key.two", "3"))
 
 		actual := text.ChompBytes(gittest.Exec(t, repoConfig.repo.cfg, "-C", repoPath, "config", "--get-all", "key.two"))
-		require.Equal(t, "2\n3", actual)
-	})
-
-	t.Run("options are passed", func(t *testing.T) {
-		require.NoError(t, repoConfig.Add(ctx, "key.three", "3", git.ConfigAddOpts{Type: git.ConfigTypeInt}))
-
-		actual := text.ChompBytes(gittest.Exec(t, repoConfig.repo.cfg, "-C", repoPath, "config", "--int", "key.three"))
 		require.Equal(t, "3", actual)
 	})
 
@@ -110,7 +79,7 @@ func TestConfig_Add(t *testing.T) {
 				ctx, cancel := testhelper.Context()
 				defer cancel()
 
-				err := repoConfig.Add(ctx, tc.name, "some", git.ConfigAddOpts{})
+				err := repoConfig.Set(ctx, tc.name, "some")
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tc.expErr), err.Error())
 				require.Contains(t, err.Error(), tc.expMsg)

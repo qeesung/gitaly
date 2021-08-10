@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 // maps a cache path to the number of active writers
@@ -73,6 +73,7 @@ func withDisabledWalker() Option {
 
 // DiskCache stores and retrieves byte streams for repository related RPCs
 type DiskCache struct {
+	locator     storage.Locator
 	storages    []config.Storage
 	keyer       leaseKeyer
 	af          activeFiles
@@ -99,6 +100,7 @@ func New(cfg config.Cfg, locator storage.Locator, opts ...Option) *DiskCache {
 	}
 
 	cache := &DiskCache{
+		locator:  locator,
 		storages: cfg.Storages,
 		af: activeFiles{
 			Mutex: &sync.Mutex{},

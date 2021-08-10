@@ -19,6 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -58,14 +60,19 @@ func TestWithRubySidecar(t *testing.T) {
 	require.NoError(t, rubySrv.Start())
 	t.Cleanup(rubySrv.Stop)
 
-	fs := []func(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server){
+	fs := []func(t *testing.T, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server){
 		testSuccessfulUserApplyPatch,
 		testUserApplyPatchStableID,
 		testFailedPatchApplyPatch,
+		testUserApplyPatch,
 	}
 	for _, f := range fs {
 		t.Run(runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(), func(t *testing.T) {
-			f(t, cfg, rubySrv)
+			testhelper.NewFeatureSets(
+				[]featureflag.FeatureFlag{featureflag.GoUserApplyPatch},
+			).Run(t, func(t *testing.T, ctx context.Context) {
+				f(t, ctx, cfg, rubySrv)
+			})
 		})
 	}
 }
@@ -81,8 +88,7 @@ func setupOperationsService(t testing.TB, ctx context.Context) (context.Context,
 func setupOperationsServiceWithRuby(
 	t testing.TB, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server, options ...testserver.GitalyServerOpt,
 ) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	testhelper.ConfigureGitalySSHBin(t, cfg)
 	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
@@ -113,7 +119,7 @@ func runOperationServiceServer(t testing.TB, cfg config.Cfg, rubySrv *rubyserver
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			deps.GetCfg(),
 			rubySrv,
@@ -165,7 +171,7 @@ func newMuxedOperationClient(t *testing.T, ctx context.Context, serverSocketPath
 }
 
 func setupAndStartGitlabServer(t testing.TB, glID, glRepository string, cfg config.Cfg, gitPushOptions ...string) string {
-	url, cleanup := testhelper.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &testhelper.GitlabTestServerOptions{
+	url, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
 		SecretToken:                 "secretToken",
 		GLID:                        glID,
 		GLRepository:                glRepository,

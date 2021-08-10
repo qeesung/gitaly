@@ -352,10 +352,22 @@ message GetTreeEntriesRequest {
   bytes revision = 2;
   bytes path = 3;
   bool recursive = 4;
+
+  enum SortBy {
+    DEFAULT = 0; // Preserve order of git ls-tree
+    TREES_FIRST = 1; // trees, blobs, submodules
+  }
+
+  SortBy sort = 5;
+  // The page token is the last commit OID that was sent. It's expected to be the
+  // full object ID to guard against ambigious OIDs.
+  PaginationParameter pagination_params = 6;
 }
 
 message GetTreeEntriesResponse {
   repeated TreeEntry entries = 1;
+
+  PaginationCursor pagination_cursor = 2;
 }
 
 message ListFilesRequest {

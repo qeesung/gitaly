@@ -21,7 +21,7 @@ import (
 )
 
 func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseRequest) (*gitalypb.FindLicenseResponse, error) {
-	if featureflag.IsEnabled(ctx, featureflag.GoFindLicense) {
+	if featureflag.GoFindLicense.IsEnabled(ctx) {
 		if req.GetRepository() == nil {
 			return &gitalypb.FindLicenseResponse{}, nil
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/log"
-	gitaly_prometheus "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/sentry"
 )
 
@@ -270,7 +270,8 @@ func TestConfigParsing(t *testing.T) {
 						},
 					},
 				},
-				Prometheus: gitaly_prometheus.Config{
+				Prometheus: prometheus.Config{
+					ScrapeTimeout:      time.Second,
 					GRPCLatencyBuckets: []float64{0.1, 0.2, 0.3},
 				},
 				DB: DB{
@@ -322,6 +323,7 @@ func TestConfigParsing(t *testing.T) {
 					SchedulingInterval: 0,
 					HistogramBuckets:   []float64{1, 2, 3, 4, 5},
 				},
+				Prometheus:  prometheus.DefaultConfig(),
 				Replication: Replication{BatchSize: 1},
 				Failover: Failover{
 					Enabled:           false,
@@ -336,6 +338,7 @@ func TestConfigParsing(t *testing.T) {
 			filePath: "testdata/config.empty.toml",
 			expected: Config{
 				GracefulStopTimeout: config.Duration(time.Minute),
+				Prometheus:          prometheus.DefaultConfig(),
 				Reconciliation:      DefaultReconciliationConfig(),
 				Replication:         DefaultReplicationConfig(),
 				Failover: Failover{

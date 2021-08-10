@@ -95,8 +95,9 @@ func setupRepositoryWithWorkingtreeServiceWithRuby(t testing.TB, cfg config.Cfg,
 	client, serverSocketPath := runRepositoryService(t, cfg, rubySrv)
 	cfg.SocketPath = serverSocketPath
 
-	repo, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	return cfg, repo, repoPath, client
 }
@@ -106,8 +107,7 @@ func setupRepositoryServiceWithRuby(t testing.TB, cfg config.Cfg, rubySrv *rubys
 	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
 	cfg.SocketPath = serverSocketPath
 
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	return cfg, repo, repoPath, client
 }
@@ -138,7 +138,7 @@ func runRepositoryServerWithConfig(t testing.TB, cfg config.Cfg, rubySrv *rubyse
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		gitalypb.RegisterRemoteServiceServer(srv, remote.NewServer(
 			cfg,
 			rubySrv,
@@ -179,8 +179,7 @@ func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Serv
 
 func setupRepositoryService(t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t, opts...)
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	return cfg, repo, repoPath, client
 }
 
@@ -199,8 +198,9 @@ func setupRepositoryServiceWithoutRepo(t testing.TB, opts ...testserver.GitalySe
 func setupRepositoryServiceWithWorktree(t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
-	repo, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	return cfg, repo, repoPath, client
 }

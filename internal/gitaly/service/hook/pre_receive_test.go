@@ -102,12 +102,12 @@ func TestPreReceiveHook_GitlabAPIAccess(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	secretFilePath := filepath.Join(tmpDir, ".gitlab_shell_secret")
-	testhelper.WriteShellSecretFile(t, tmpDir, secretToken)
+	gitlab.WriteShellSecretFile(t, tmpDir, secretToken)
 
 	repo.GitObjectDirectory = gitObjectDirRel
 	repo.GitAlternateObjectDirectories = gitAlternateObjectRelDirs
 
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	serverURL, cleanup := gitlab.NewTestServer(t, gitlab.TestServerOptions{
 		User:                        user,
 		Password:                    password,
 		SecretToken:                 secretToken,
@@ -133,7 +133,7 @@ func TestPreReceiveHook_GitlabAPIAccess(t *testing.T) {
 		SecretFile: secretFilePath,
 	}
 
-	gitlabClient, err := gitlab.NewHTTPClient(gitlabConfig, cfg.TLS, prometheus.Config{})
+	gitlabClient, err := gitlab.NewHTTPClient(testhelper.NewTestLogger(t), gitlabConfig, cfg.TLS, prometheus.Config{})
 	require.NoError(t, err)
 
 	serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))
@@ -233,7 +233,7 @@ func TestPreReceive_APIErrors(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	secretFilePath := filepath.Join(tmpDir, ".gitlab_shell_secret")
-	testhelper.WriteShellSecretFile(t, tmpDir, "token")
+	gitlab.WriteShellSecretFile(t, tmpDir, "token")
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -248,7 +248,7 @@ func TestPreReceive_APIErrors(t *testing.T) {
 				SecretFile: secretFilePath,
 			}
 
-			gitlabClient, err := gitlab.NewHTTPClient(gitlabConfig, cfg.TLS, prometheus.Config{})
+			gitlabClient, err := gitlab.NewHTTPClient(testhelper.NewTestLogger(t), gitlabConfig, cfg.TLS, prometheus.Config{})
 			require.NoError(t, err)
 
 			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))
@@ -305,7 +305,7 @@ func TestPreReceiveHook_CustomHookErrors(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	secretFilePath := filepath.Join(tmpDir, ".gitlab_shell_secret")
-	testhelper.WriteShellSecretFile(t, tmpDir, "token")
+	gitlab.WriteShellSecretFile(t, tmpDir, "token")
 
 	customHookReturnCode := int32(128)
 	customHookReturnMsg := "custom hook error"
@@ -320,7 +320,7 @@ exit %d
 		SecretFile: secretFilePath,
 	}
 
-	gitlabClient, err := gitlab.NewHTTPClient(gitlabConfig, cfg.TLS, prometheus.Config{})
+	gitlabClient, err := gitlab.NewHTTPClient(testhelper.NewTestLogger(t), gitlabConfig, cfg.TLS, prometheus.Config{})
 	require.NoError(t, err)
 
 	serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))
@@ -426,10 +426,9 @@ func TestPreReceiveHook_Primary(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			testRepo, testRepoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], fmt.Sprintf("repo-%d", i))
-			defer cleanupFn()
+			testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			mux := http.NewServeMux()
 			mux.Handle("/api/v4/internal/allowed", tc.allowedHandler)
@@ -440,14 +439,19 @@ func TestPreReceiveHook_Primary(t *testing.T) {
 			tmpDir := testhelper.TempDir(t)
 
 			secretFilePath := filepath.Join(tmpDir, ".gitlab_shell_secret")
-			testhelper.WriteShellSecretFile(t, tmpDir, "token")
+			gitlab.WriteShellSecretFile(t, tmpDir, "token")
 
 			gittest.WriteCustomHook(t, testRepoPath, "pre-receive", []byte(fmt.Sprintf("#!/bin/bash\nexit %d", tc.hookExitCode)))
 
-			gitlabClient, err := gitlab.NewHTTPClient(config.Gitlab{
-				URL:        srv.URL,
-				SecretFile: secretFilePath,
-			}, cfg.TLS, prometheus.Config{})
+			gitlabClient, err := gitlab.NewHTTPClient(
+				testhelper.NewTestLogger(t),
+				config.Gitlab{
+					URL:        srv.URL,
+					SecretFile: secretFilePath,
+				},
+				cfg.TLS,
+				prometheus.Config{},
+			)
 			require.NoError(t, err)
 
 			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))

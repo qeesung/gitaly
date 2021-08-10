@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -140,7 +141,10 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 	gitlabUser, gitlabPassword := "gitlab_user-1234", "gitlabsecret9887"
 	httpProxy, httpsProxy, noProxy := "http://test.example.com:8080", "https://test.example.com:8080", "*"
 
-	c := testhelper.GitlabTestServerOptions{
+	defer func(old *gitalylog.HookLogger) { logger = old }(logger)
+	logger = gitalylog.NewHookLogger()
+
+	c := gitlab.TestServerOptions{
 		User:                        gitlabUser,
 		Password:                    gitlabPassword,
 		SecretToken:                 secretToken,
@@ -155,10 +159,10 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 		RepoPath:                    repoPath,
 	}
 
-	gitlabURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+	gitlabURL, cleanup := gitlab.NewTestServer(t, c)
 	defer cleanup()
 	cfg.Gitlab.URL = gitlabURL
-	cfg.Gitlab.SecretFile = testhelper.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
+	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
 	cfg.Gitlab.HTTPSettings.User = gitlabUser
 	cfg.Gitlab.HTTPSettings.Password = gitlabPassword
 
@@ -171,7 +175,7 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 		t.Run(fmt.Sprintf("hookName: %s", hookName), func(t *testing.T) {
 			customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, hookName)
 
-			gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, prometheus.Config{})
+			gitlabClient, err := gitlab.NewHTTPClient(logger.Logger(), cfg.Gitlab, cfg.TLS, prometheus.Config{})
 			require.NoError(t, err)
 
 			runHookServiceWithGitlabClient(t, cfg, gitlabClient)
@@ -257,7 +261,7 @@ func TestHooksUpdate(t *testing.T) {
 
 	require.NoError(t, os.Symlink(filepath.Join(cfg.GitlabShell.Dir, "config.yml"), filepath.Join(cfg.GitlabShell.Dir, "config.yml")))
 
-	cfg.Gitlab.SecretFile = testhelper.WriteShellSecretFile(t, cfg.GitlabShell.Dir, "the wrong token")
+	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, "the wrong token")
 
 	runHookServiceServer(t, cfg)
 
@@ -269,8 +273,7 @@ func TestHooksUpdate(t *testing.T) {
 }
 
 func testHooksUpdate(t *testing.T, cfg config.Cfg, glValues glHookValues) {
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	refval, oldval, newval := "refval", strings.Repeat("a", 40), strings.Repeat("b", 40)
 	updateHookPath, err := filepath.Abs("../../ruby/git-hooks/update")
@@ -324,6 +327,9 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	glProtocol := "ssh"
 	changes := "oldhead newhead"
 
+	defer func(old *gitalylog.HookLogger) { logger = old }(logger)
+	logger = gitalylog.NewHookLogger()
+
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "abc123"}}))
 	testhelper.ConfigureGitalyHooksBin(t, cfg)
 	testhelper.ConfigureGitalySSHBin(t, cfg)
@@ -332,7 +338,7 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	// send back {"reference_counter_increased": false}, indicating something went wrong
 	// with the call
 
-	c := testhelper.GitlabTestServerOptions{
+	c := gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -342,12 +348,12 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 		PostReceiveCounterDecreased: false,
 		Protocol:                    "ssh",
 	}
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+	serverURL, cleanup := gitlab.NewTestServer(t, c)
 	defer cleanup()
 	cfg.Gitlab.URL = serverURL
-	cfg.Gitlab.SecretFile = testhelper.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
+	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
 
-	gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, prometheus.Config{})
+	gitlabClient, err := gitlab.NewHTTPClient(logger.Logger(), cfg.Gitlab, cfg.TLS, prometheus.Config{})
 	require.NoError(t, err)
 
 	customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, "post-receive")
@@ -434,11 +440,14 @@ func TestHooksNotAllowed(t *testing.T) {
 	glProtocol := "ssh"
 	changes := "oldhead newhead"
 
+	defer func(old *gitalylog.HookLogger) { logger = old }(logger)
+	logger = gitalylog.NewHookLogger()
+
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "abc123"}}))
 	testhelper.ConfigureGitalyHooksBin(t, cfg)
 	testhelper.ConfigureGitalySSHBin(t, cfg)
 
-	c := testhelper.GitlabTestServerOptions{
+	c := gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -448,15 +457,15 @@ func TestHooksNotAllowed(t *testing.T) {
 		PostReceiveCounterDecreased: true,
 		Protocol:                    "ssh",
 	}
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+	serverURL, cleanup := gitlab.NewTestServer(t, c)
 	defer cleanup()
 
 	cfg.Gitlab.URL = serverURL
-	cfg.Gitlab.SecretFile = testhelper.WriteShellSecretFile(t, cfg.GitlabShell.Dir, "the wrong token")
+	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, "the wrong token")
 
 	customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, "post-receive")
 
-	gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, prometheus.Config{})
+	gitlabClient, err := gitlab.NewHTTPClient(logger.Logger(), cfg.Gitlab, cfg.TLS, prometheus.Config{})
 	require.NoError(t, err)
 
 	runHookServiceWithGitlabClient(t, cfg, gitlabClient)
@@ -487,7 +496,7 @@ func TestHooksNotAllowed(t *testing.T) {
 func TestCheckOK(t *testing.T) {
 	user, password := "user123", "password321"
 
-	c := testhelper.GitlabTestServerOptions{
+	c := gitlab.TestServerOptions{
 		User:                        user,
 		Password:                    password,
 		SecretToken:                 "",
@@ -496,7 +505,7 @@ func TestCheckOK(t *testing.T) {
 		PostReceiveCounterDecreased: false,
 		Protocol:                    "ssh",
 	}
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+	serverURL, cleanup := gitlab.NewTestServer(t, c)
 	defer cleanup()
 
 	tempDir := testhelper.TempDir(t)
@@ -504,8 +513,8 @@ func TestCheckOK(t *testing.T) {
 	gitlabShellDir := filepath.Join(tempDir, "gitlab-shell")
 	require.NoError(t, os.MkdirAll(gitlabShellDir, 0755))
 
-	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, serverURL, user, password, path.Join(gitlabShellDir, ".gitlab_shell_secret"))
+	gitlab.WriteShellSecretFile(t, gitlabShellDir, "the secret")
+	configPath, cleanup := writeTemporaryGitalyConfigFile(t, tempDir, serverURL, user, password, path.Join(gitlabShellDir, ".gitlab_shell_secret"))
 	defer cleanup()
 
 	cfg := testcfg.Build(t)
@@ -530,7 +539,7 @@ func TestCheckOK(t *testing.T) {
 func TestCheckBadCreds(t *testing.T) {
 	user, password := "user123", "password321"
 
-	c := testhelper.GitlabTestServerOptions{
+	c := gitlab.TestServerOptions{
 		User:                        user,
 		Password:                    password,
 		SecretToken:                 "",
@@ -540,16 +549,16 @@ func TestCheckBadCreds(t *testing.T) {
 		Protocol:                    "ssh",
 		GitPushOptions:              nil,
 	}
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+	serverURL, cleanup := gitlab.NewTestServer(t, c)
 	defer cleanup()
 
 	tempDir := testhelper.TempDir(t)
 
 	gitlabShellDir := filepath.Join(tempDir, "gitlab-shell")
 	require.NoError(t, os.MkdirAll(gitlabShellDir, 0755))
-	testhelper.WriteShellSecretFile(t, gitlabShellDir, "the secret")
+	gitlab.WriteShellSecretFile(t, gitlabShellDir, "the secret")
 
-	configPath, cleanup := testhelper.WriteTemporaryGitalyConfigFile(t, tempDir, serverURL, "wrong", password, path.Join(gitlabShellDir, ".gitlab_shell_secret"))
+	configPath, cleanup := writeTemporaryGitalyConfigFile(t, tempDir, serverURL, "wrong", password, path.Join(gitlabShellDir, ".gitlab_shell_secret"))
 	defer cleanup()
 
 	cfg := testcfg.Build(t)
@@ -578,8 +587,8 @@ type featureFlagAsserter struct {
 }
 
 func (svc featureFlagAsserter) assertFlags(ctx context.Context) {
-	assert.True(svc.t, featureflag.IsEnabled(ctx, enabledFeatureFlag))
-	assert.True(svc.t, featureflag.IsDisabled(ctx, disabledFeatureFlag))
+	assert.True(svc.t, enabledFeatureFlag.IsEnabled(ctx))
+	assert.True(svc.t, disabledFeatureFlag.IsDisabled(ctx))
 }
 
 func (svc featureFlagAsserter) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer) error {
@@ -610,7 +619,7 @@ func (svc featureFlagAsserter) PackObjectsHook(stream gitalypb.HookService_PackO
 func runHookServiceWithGitlabClient(t *testing.T, cfg config.Cfg, gitlabClient gitlab.Client) {
 	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterHookServiceServer(srv, featureFlagAsserter{
-			t: t, wrapped: hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()),
+			t: t, wrapped: hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()),
 		})
 	}, testserver.WithGitLabClient(gitlabClient))
 }
@@ -729,5 +738,24 @@ func TestRequestedHooks(t *testing.T) {
 				require.Error(t, cmd.Run(), "hook should have run and failed due to incomplete setup")
 			})
 		})
+	}
+}
+
+// writeTemporaryGitalyConfigFile writes a gitaly toml file into a temporary directory. It returns the path to
+// the file as well as a cleanup function
+func writeTemporaryGitalyConfigFile(t testing.TB, tempDir, gitlabURL, user, password, secretFile string) (string, func()) {
+	path := filepath.Join(tempDir, "config.toml")
+	contents := fmt.Sprintf(`
+[gitlab]
+  url = "%s"
+  secret_file = "%s"
+  [gitlab.http-settings]
+    user = %q
+    password = %q
+`, gitlabURL, secretFile, user, password)
+
+	require.NoError(t, ioutil.WriteFile(path, []byte(contents), 0644))
+	return path, func() {
+		require.NoError(t, os.RemoveAll(path))
 	}
 }

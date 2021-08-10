@@ -1,7 +1,6 @@
 package gitpipe
 
 import (
-	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -9,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -16,18 +16,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
 
-func TestPipeline(t *testing.T) {
+func TestPipeline_revlist(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	repoProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	defer cleanup()
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	for _, tc := range []struct {
 		desc              string
 		revisions         []string
 		revlistOptions    []RevlistOption
-		revlistFilter     func(RevlistResult) bool
+		revisionFilter    func(RevisionResult) bool
 		catfileInfoFilter func(CatfileInfoResult) bool
 		expectedResults   []CatfileObjectResult
 		expectedErr       error
@@ -77,7 +76,7 @@ func TestPipeline(t *testing.T) {
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
-			revlistFilter: func(r RevlistResult) bool {
+			revisionFilter: func(r RevisionResult) bool {
 				return r.OID == lfsPointer2
 			},
 			expectedResults: []CatfileObjectResult{
@@ -157,7 +156,7 @@ func TestPipeline(t *testing.T) {
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
-			revlistFilter: func(r RevlistResult) bool {
+			revisionFilter: func(r RevisionResult) bool {
 				// Let through two LFS pointers and a tree.
 				return r.OID == "b95c0fad32f4361845f91d9ce4c1721b52b82793" ||
 					r.OID == lfsPointer1 || r.OID == lfsPointer2
@@ -192,7 +191,7 @@ func TestPipeline(t *testing.T) {
 			revisions: []string{
 				"doesnotexist",
 			},
-			revlistFilter: func(r RevlistResult) bool {
+			revisionFilter: func(r RevisionResult) bool {
 				require.Fail(t, "filter should not be invoked on errors")
 				return true
 			},
@@ -214,8 +213,8 @@ func TestPipeline(t *testing.T) {
 			require.NoError(t, err)
 
 			revlistIter := Revlist(ctx, repo, tc.revisions, tc.revlistOptions...)
-			if tc.revlistFilter != nil {
-				revlistIter = RevlistFilter(ctx, revlistIter, tc.revlistFilter)
+			if tc.revisionFilter != nil {
+				revlistIter = RevisionFilter(ctx, revlistIter, tc.revisionFilter)
 			}
 
 			catfileInfoIter := CatfileInfo(ctx, catfileProcess, revlistIter)
@@ -264,16 +263,11 @@ func TestPipeline(t *testing.T) {
 		catfileProcess, err := catfileCache.BatchProcess(ctx, repo)
 		require.NoError(t, err)
 
-		// We need to create a separate child context because otherwise we'd kill the batch
-		// process.
-		childCtx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		revlistIter := Revlist(childCtx, repo, []string{"--all"})
-		revlistIter = RevlistFilter(childCtx, revlistIter, func(RevlistResult) bool { return true })
-		catfileInfoIter := CatfileInfo(childCtx, catfileProcess, revlistIter)
-		catfileInfoIter = CatfileInfoFilter(childCtx, catfileInfoIter, func(CatfileInfoResult) bool { return true })
-		catfileObjectIter := CatfileObject(childCtx, catfileProcess, catfileInfoIter)
+		revlistIter := Revlist(ctx, repo, []string{"--all"})
+		revlistIter = RevisionFilter(ctx, revlistIter, func(RevisionResult) bool { return true })
+		catfileInfoIter := CatfileInfo(ctx, catfileProcess, revlistIter)
+		catfileInfoIter = CatfileInfoFilter(ctx, catfileInfoIter, func(CatfileInfoResult) bool { return true })
+		catfileObjectIter := CatfileObject(ctx, catfileProcess, catfileInfoIter)
 
 		i := 0
 		for catfileObjectIter.Next() {
@@ -335,4 +329,68 @@ func TestPipeline(t *testing.T) {
 		// harder than necessary to change the test repo's contents.
 		require.Greater(t, i, 1000)
 	})
+}
+
+func TestPipeline_forEachRef(t *testing.T) {
+	cfg := testcfg.Build(t)
+
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	catfileProcess, err := catfileCache.BatchProcess(ctx, repo)
+	require.NoError(t, err)
+
+	forEachRefIter := ForEachRef(ctx, repo, nil, "")
+	catfileInfoIter := CatfileInfo(ctx, catfileProcess, forEachRefIter)
+	catfileObjectIter := CatfileObject(ctx, catfileProcess, catfileInfoIter)
+
+	type object struct {
+		oid     git.ObjectID
+		content []byte
+	}
+
+	objectsByRef := make(map[git.ReferenceName]object)
+	for catfileObjectIter.Next() {
+		result := catfileObjectIter.Result()
+
+		// While we could also assert object data, let's not do
+		// this: it would just be too annoying.
+		require.NotNil(t, result.ObjectReader)
+
+		objectData, err := ioutil.ReadAll(result.ObjectReader)
+		require.NoError(t, err)
+		require.Len(t, objectData, int(result.ObjectInfo.Size))
+
+		objectsByRef[git.ReferenceName(result.ObjectName)] = object{
+			oid:     result.ObjectInfo.Oid,
+			content: objectData,
+		}
+	}
+	require.NoError(t, catfileObjectIter.Err())
+	require.Greater(t, len(objectsByRef), 90)
+
+	// We certainly don't want to hard-code all the references, so we just cross-check with the
+	// localrepo implementation to verify that both return the same data.
+	refs, err := repo.GetReferences(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(refs), len(objectsByRef))
+
+	expectedObjectsByRef := make(map[git.ReferenceName]object)
+	for _, ref := range refs {
+		oid := git.ObjectID(ref.Target)
+		content, err := repo.ReadObject(ctx, oid)
+		require.NoError(t, err)
+
+		expectedObjectsByRef[ref.Name] = object{
+			oid:     oid,
+			content: content,
+		}
+	}
+	require.Equal(t, expectedObjectsByRef, objectsByRef)
 }

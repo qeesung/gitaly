@@ -118,25 +118,29 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 	)
 
 	t.Run("IncrementGeneration", func(t *testing.T) {
-		t.Run("doesn't create a new record for primary", func(t *testing.T) {
+		t.Run("doesn't create new records", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
-			require.NoError(t, rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"secondary-1"}))
+			require.Equal(t,
+				rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"secondary-1"}),
+				commonerr.NewRepositoryNotFoundError(vs, repo),
+			)
 			requireState(t, ctx,
-				virtualStorageState{
-					"virtual-storage-1": {
-						"repository-1": repositoryRecord{},
-					},
-				},
+				virtualStorageState{},
 				storageState{},
 			)
 		})
 
-		t.Run("increments existing record for primary", func(t *testing.T) {
+		t.Run("write to outdated nodes", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "primary", 0))
-			require.NoError(t, rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"secondary-1"}))
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "latest-node", []string{"outdated-primary", "outdated-secondary"}, nil, false, false))
+			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "latest-node", 1))
+
+			require.Equal(t,
+				rs.IncrementGeneration(ctx, vs, repo, "outdated-primary", []string{"outdated-secondary"}),
+				errWriteToOutdatedNodes,
+			)
 			requireState(t, ctx,
 				virtualStorageState{
 					"virtual-storage-1": {
@@ -146,18 +150,20 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 				storageState{
 					"virtual-storage-1": {
 						"repository-1": {
-							"primary": 1,
+							"latest-node":        1,
+							"outdated-primary":   0,
+							"outdated-secondary": 0,
 						},
 					},
 				},
 			)
 		})
 
-		t.Run("increments existing for up to date secondary", func(t *testing.T) {
+		t.Run("increments generation for up to date nodes", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "primary", 1))
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "up-to-date-secondary", 1))
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "primary", []string{"up-to-date-secondary"}, nil, false, false))
+			require.NoError(t, rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"up-to-date-secondary"}))
 			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "outdated-secondary", 0))
 			requireState(t, ctx,
 				virtualStorageState{
@@ -198,17 +204,13 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 	})
 
 	t.Run("SetGeneration", func(t *testing.T) {
-		t.Run("creates a record", func(t *testing.T) {
+		t.Run("creates a record for the replica", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
 			err := rs.SetGeneration(ctx, vs, repo, stor, 1)
 			require.NoError(t, err)
 			requireState(t, ctx,
-				virtualStorageState{
-					"virtual-storage-1": {
-						"repository-1": repositoryRecord{},
-					},
-				},
+				virtualStorageState{},
 				storageState{
 					"virtual-storage-1": {
 						"repository-1": {
@@ -222,6 +224,7 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 		t.Run("updates existing record", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "storage-1", nil, nil, false, false))
 			require.NoError(t, rs.SetGeneration(ctx, vs, repo, stor, 1))
 			require.NoError(t, rs.SetGeneration(ctx, vs, repo, stor, 0))
 			requireState(t, ctx,
@@ -234,6 +237,53 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 					"virtual-storage-1": {
 						"repository-1": {
 							"storage-1": 0,
+						},
+					},
+				},
+			)
+		})
+	})
+
+	t.Run("SetAuthoritativeReplica", func(t *testing.T) {
+		rs, requireState := newStore(t, nil)
+
+		t.Run("fails when repository doesnt exist", func(t *testing.T) {
+			require.Equal(t,
+				commonerr.NewRepositoryNotFoundError(vs, repo),
+				rs.SetAuthoritativeReplica(ctx, vs, repo, stor),
+			)
+		})
+
+		t.Run("sets the given replica as the latest", func(t *testing.T) {
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "storage-1", []string{"storage-2"}, nil, false, false))
+			requireState(t, ctx,
+				virtualStorageState{
+					"virtual-storage-1": {
+						"repository-1": repositoryRecord{},
+					},
+				},
+				storageState{
+					"virtual-storage-1": {
+						"repository-1": {
+							"storage-1": 0,
+							"storage-2": 0,
+						},
+					},
+				},
+			)
+
+			require.NoError(t, rs.SetAuthoritativeReplica(ctx, vs, repo, "storage-1"))
+			requireState(t, ctx,
+				virtualStorageState{
+					"virtual-storage-1": {
+						"repository-1": repositoryRecord{},
+					},
+				},
+				storageState{
+					"virtual-storage-1": {
+						"repository-1": {
+							"storage-1": 1,
+							"storage-2": 0,
 						},
 					},
 				},
@@ -410,22 +460,16 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 		t.Run("delete non-existing", func(t *testing.T) {
 			rs, _ := newStore(t, nil)
 
-			require.Equal(t,
-				RepositoryNotExistsError{vs, repo, stor},
-				rs.DeleteRepository(ctx, vs, repo, stor),
-			)
+			require.Equal(t, ErrNoRowsAffected, rs.DeleteRepository(ctx, vs, repo, []string{stor}))
 		})
 
 		t.Run("delete existing", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
-			require.NoError(t, rs.SetGeneration(ctx, "deleted", "deleted", "deleted", 0))
-
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "other-storages-remain", "deleted-storage", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "other-storages-remain", "remaining-storage", 0))
-
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-2", "deleted-repo", "deleted-storage", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-2", "other-repo-remains", "remaining-storage", 0))
+			require.NoError(t, rs.CreateRepository(ctx, "deleted", "deleted", "deleted", nil, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-1", "other-storages-remain", "deleted-storage", []string{"remaining-storage"}, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-2", "deleted-repo", "deleted-storage", nil, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-2", "other-repo-remains", "remaining-storage", nil, nil, false, false))
 
 			requireState(t, ctx,
 				virtualStorageState{
@@ -463,9 +507,9 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 				},
 			)
 
-			require.NoError(t, rs.DeleteRepository(ctx, "deleted", "deleted", "deleted"))
-			require.NoError(t, rs.DeleteRepository(ctx, "virtual-storage-1", "other-storages-remain", "deleted-storage"))
-			require.NoError(t, rs.DeleteRepository(ctx, "virtual-storage-2", "deleted-repo", "deleted-storage"))
+			require.NoError(t, rs.DeleteRepository(ctx, "deleted", "deleted", []string{"deleted"}))
+			require.NoError(t, rs.DeleteRepository(ctx, "virtual-storage-1", "other-storages-remain", []string{"deleted-storage"}))
+			require.NoError(t, rs.DeleteRepository(ctx, "virtual-storage-2", "deleted-repo", []string{"deleted-storage"}))
 
 			requireState(t, ctx,
 				virtualStorageState{
@@ -487,23 +531,53 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 				},
 			)
 		})
+
+		t.Run("transactional delete", func(t *testing.T) {
+			rs, requireState := newStore(t, nil)
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-1", "repository-1", "replica-1", []string{"replica-2", "replica-3"}, nil, false, false))
+
+			requireState(t, ctx,
+				virtualStorageState{
+					"virtual-storage-1": {
+						"repository-1": repositoryRecord{},
+					},
+				},
+				storageState{
+					"virtual-storage-1": {
+						"repository-1": {
+							"replica-1": 0,
+							"replica-2": 0,
+							"replica-3": 0,
+						},
+					},
+				},
+			)
+
+			require.NoError(t, rs.DeleteRepository(ctx, "virtual-storage-1", "repository-1", []string{"replica-1", "replica-2"}))
+			requireState(t, ctx,
+				virtualStorageState{},
+				storageState{
+					"virtual-storage-1": {
+						"repository-1": {
+							"replica-3": 0,
+						},
+					},
+				},
+			)
+		})
 	})
 
 	t.Run("DeleteReplica", func(t *testing.T) {
 		rs, requireState := newStore(t, nil)
 
 		t.Run("delete non-existing", func(t *testing.T) {
-			require.Equal(t,
-				RepositoryNotExistsError{"virtual-storage-1", "relative-path-1", "storage-1"},
-				rs.DeleteReplica(ctx, "virtual-storage-1", "relative-path-1", "storage-1"),
-			)
+			require.Equal(t, ErrNoRowsAffected, rs.DeleteReplica(ctx, "virtual-storage-1", "relative-path-1", "storage-1"))
 		})
 
 		t.Run("delete existing", func(t *testing.T) {
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-1", "storage-1", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-1", "storage-2", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-2", "storage-1", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-2", "relative-path-1", "storage-1", 0))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-1", "relative-path-1", "storage-1", []string{"storage-2"}, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-1", "relative-path-2", "storage-1", nil, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage-2", "relative-path-1", "storage-1", nil, nil, false, false))
 
 			requireState(t, ctx,
 				virtualStorageState{
@@ -577,9 +651,8 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 		t.Run("rename existing", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
 
-			require.NoError(t, rs.SetGeneration(ctx, vs, "renamed-all", "storage-1", 0))
-			require.NoError(t, rs.SetGeneration(ctx, vs, "renamed-some", "storage-1", 0))
-			require.NoError(t, rs.SetGeneration(ctx, vs, "renamed-some", "storage-2", 0))
+			require.NoError(t, rs.CreateRepository(ctx, vs, "renamed-all", "storage-1", nil, nil, false, false))
+			require.NoError(t, rs.CreateRepository(ctx, vs, "renamed-some", "storage-1", []string{"storage-2"}, nil, false, false))
 
 			requireState(t, ctx,
 				virtualStorageState{
@@ -639,8 +712,8 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 			require.Empty(t, secondaries)
 		})
 
-		require.NoError(t, rs.SetGeneration(ctx, vs, repo, "primary", 1))
-		require.NoError(t, rs.SetGeneration(ctx, vs, repo, "consistent-secondary", 1))
+		require.NoError(t, rs.CreateRepository(ctx, vs, repo, "primary", []string{"consistent-secondary"}, nil, false, false))
+		require.NoError(t, rs.IncrementGeneration(ctx, vs, repo, "primary", []string{"consistent-secondary"}))
 		require.NoError(t, rs.SetGeneration(ctx, vs, repo, "inconsistent-secondary", 0))
 		requireState(t, ctx,
 			virtualStorageState{
@@ -700,7 +773,7 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 		})
 
 		t.Run("returns not found for deleted repositories", func(t *testing.T) {
-			require.NoError(t, rs.DeleteRepository(ctx, vs, repo, "primary"))
+			require.NoError(t, rs.DeleteRepository(ctx, vs, repo, []string{"primary"}))
 			requireState(t, ctx,
 				virtualStorageState{},
 				storageState{
@@ -723,15 +796,14 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 	t.Run("DeleteInvalidRepository", func(t *testing.T) {
 		t.Run("only replica", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "invalid-storage", 0))
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "invalid-storage", nil, nil, false, false))
 			require.NoError(t, rs.DeleteInvalidRepository(ctx, vs, repo, "invalid-storage"))
 			requireState(t, ctx, virtualStorageState{}, storageState{})
 		})
 
 		t.Run("another replica", func(t *testing.T) {
 			rs, requireState := newStore(t, nil)
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "invalid-storage", 0))
-			require.NoError(t, rs.SetGeneration(ctx, vs, repo, "other-storage", 0))
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, "invalid-storage", []string{"other-storage"}, nil, false, false))
 			require.NoError(t, rs.DeleteInvalidRepository(ctx, vs, repo, "invalid-storage"))
 			requireState(t, ctx,
 				virtualStorageState{
@@ -757,220 +829,261 @@ func testRepositoryStore(t *testing.T, newStore repositoryStoreFactory) {
 		require.NoError(t, err)
 		require.False(t, exists)
 
-		require.NoError(t, rs.SetGeneration(ctx, vs, repo, stor, 0))
+		require.NoError(t, rs.CreateRepository(ctx, vs, repo, stor, nil, nil, false, false))
 		exists, err = rs.RepositoryExists(ctx, vs, repo)
 		require.NoError(t, err)
 		require.True(t, exists)
 
-		require.NoError(t, rs.DeleteRepository(ctx, vs, repo, stor))
+		require.NoError(t, rs.DeleteRepository(ctx, vs, repo, []string{stor}))
 		exists, err = rs.RepositoryExists(ctx, vs, repo)
 		require.NoError(t, err)
 		require.False(t, exists)
 	})
 }
 
-func TestPostgresRepositoryStore_GetPartiallyReplicatedRepositories(t *testing.T) {
-	for _, scope := range []struct {
-		desc                       string
-		useVirtualStoragePrimaries bool
-		primary                    string
+func TestPostgresRepositoryStore_GetPartiallyAvailableRepositories(t *testing.T) {
+	for _, tc := range []struct {
+		desc                  string
+		nonExistentRepository bool
+		unhealthyStorages     map[string]struct{}
+		existingGenerations   map[string]int
+		existingAssignments   []string
+		storageDetails        []StorageDetails
 	}{
-		{desc: "virtual storage primaries", useVirtualStoragePrimaries: true, primary: "virtual-storage-primary"},
-		{desc: "repository primaries", useVirtualStoragePrimaries: false, primary: "repository-primary"},
+		{
+			desc:                "all up to date without assignments",
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
+		},
+		{
+			desc:                "unconfigured node outdated without assignments",
+			existingGenerations: map[string]int{"primary": 1, "secondary-1": 1, "unconfigured": 0},
+		},
+		{
+			desc:                "unconfigured node contains the latest",
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0, "unconfigured": 1},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "unconfigured", BehindBy: 0, Assigned: false},
+			},
+		},
+		{
+			desc:                "node has no repository without assignments",
+			existingGenerations: map[string]int{"primary": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                "node has outdated repository without assignments",
+			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                "node with no repository heavily outdated",
+			existingGenerations: map[string]int{"primary": 10},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 11, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                "node with a heavily outdated repository",
+			existingGenerations: map[string]int{"primary": 10, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 10, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                  "outdated nodes ignored when repository should not exist",
+			nonExistentRepository: true,
+			existingGenerations:   map[string]int{"primary": 1, "secondary-1": 0},
+		},
+		{
+			desc:                "unassigned node has no repository",
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"primary": 0},
+		},
+		{
+			desc:                "unassigned node has an outdated repository",
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
+		},
+		{
+			desc:                "assigned node has no repository",
+			existingAssignments: []string{"primary", "secondary-1"},
+			existingGenerations: map[string]int{"primary": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                "assigned node has outdated repository",
+			existingAssignments: []string{"primary", "secondary-1"},
+			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+			},
+		},
+		{
+			desc:                "unassigned node contains the latest repository",
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 1},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "secondary-1", BehindBy: 0, Assigned: false, Healthy: true, ValidPrimary: true},
+			},
+		},
+		{
+			desc:                "unassigned node contains the only repository",
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "secondary-1", BehindBy: 0, Assigned: false, Healthy: true, ValidPrimary: true},
+			},
+		},
+		{
+			desc:                "unassigned unconfigured node contains the only repository",
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"unconfigured": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "unconfigured", BehindBy: 0, Assigned: false},
+			},
+		},
+		{
+			desc:                "assigned unconfigured node has no repository",
+			existingAssignments: []string{"primary", "unconfigured"},
+			existingGenerations: map[string]int{"primary": 1},
+		},
+		{
+			desc:                "assigned unconfigured node is outdated",
+			existingAssignments: []string{"primary", "unconfigured"},
+			existingGenerations: map[string]int{"primary": 1, "unconfigured": 0},
+		},
+		{
+			desc:                "unconfigured node is the only assigned node",
+			existingAssignments: []string{"unconfigured"},
+			existingGenerations: map[string]int{"unconfigured": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "secondary-1", BehindBy: 1, Assigned: true, Healthy: true},
+				{Name: "unconfigured", BehindBy: 0, Assigned: false},
+			},
+		},
+		{
+			desc:                "repository is fully replicated but unavailable",
+			unhealthyStorages:   map[string]struct{}{"primary": {}, "secondary-1": {}},
+			existingAssignments: []string{"primary", "secondary-1"},
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", Assigned: true},
+				{Name: "secondary-1", Assigned: true},
+			},
+		},
+		{
+			desc:                "assigned replicas unavailable but a valid unassigned primary candidate",
+			unhealthyStorages:   map[string]struct{}{"primary": {}},
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", Assigned: true},
+				{Name: "secondary-1", Healthy: true, ValidPrimary: true},
+			},
+		},
+		{
+			desc:                "assigned replicas available but unassigned replica unavailable",
+			unhealthyStorages:   map[string]struct{}{"secondary-1": {}},
+			existingAssignments: []string{"primary"},
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
+		},
+		{
+			desc:                "one assigned replica unavailable",
+			unhealthyStorages:   map[string]struct{}{"secondary-1": {}},
+			existingAssignments: []string{"primary", "secondary-1"},
+			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
+			storageDetails: []StorageDetails{
+				{Name: "primary", Assigned: true, Healthy: true, ValidPrimary: true},
+				{Name: "secondary-1", Assigned: true},
+			},
+		},
 	} {
-		t.Run(scope.desc, func(t *testing.T) {
-			for _, tc := range []struct {
-				desc                  string
-				nonExistentRepository bool
-				existingGenerations   map[string]int
-				existingAssignments   []string
-				storageDetails        []OutdatedRepositoryStorageDetails
-			}{
-				{
-					desc:                "all up to date without assignments",
-					existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
-				},
-				{
-					desc:                "unconfigured node outdated without assignments",
-					existingGenerations: map[string]int{"primary": 1, "secondary-1": 1, "unconfigured": 0},
-				},
-				{
-					desc:                "unconfigured node contains the latest",
-					existingGenerations: map[string]int{"primary": 0, "secondary-1": 0, "unconfigured": 1},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 1, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-						{Name: "unconfigured", BehindBy: 0, Assigned: false},
-					},
-				},
-				{
-					desc:                "node has no repository without assignments",
-					existingGenerations: map[string]int{"primary": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-					},
-				},
-				{
-					desc:                "node has outdated repository without assignments",
-					existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-					},
-				},
-				{
-					desc:                "node with no repository heavily outdated",
-					existingGenerations: map[string]int{"primary": 10},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 11, Assigned: true},
-					},
-				},
-				{
-					desc:                "node with a heavily outdated repository",
-					existingGenerations: map[string]int{"primary": 10, "secondary-1": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 10, Assigned: true},
-					},
-				},
-				{
-					desc:                  "outdated nodes ignored when repository should not exist",
-					nonExistentRepository: true,
-					existingGenerations:   map[string]int{"primary": 1, "secondary-1": 0},
-				},
-				{
-					desc:                "unassigned node has no repository",
-					existingAssignments: []string{"primary"},
-					existingGenerations: map[string]int{"primary": 0},
-				},
-				{
-					desc:                "unassigned node has an outdated repository",
-					existingAssignments: []string{"primary"},
-					existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
-				},
-				{
-					desc:                "assigned node has no repository",
-					existingAssignments: []string{"primary", "secondary-1"},
-					existingGenerations: map[string]int{"primary": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-					},
-				},
-				{
-					desc:                "assigned node has outdated repository",
-					existingAssignments: []string{"primary", "secondary-1"},
-					existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 0, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-					},
-				},
-				{
-					desc:                "unassigned node contains the latest repository",
-					existingAssignments: []string{"primary"},
-					existingGenerations: map[string]int{"primary": 0, "secondary-1": 1},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 1, Assigned: true},
-						{Name: "secondary-1", BehindBy: 0, Assigned: false},
-					},
-				},
-				{
-					desc:                "unassigned node contains the only repository",
-					existingAssignments: []string{"primary"},
-					existingGenerations: map[string]int{"secondary-1": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 1, Assigned: true},
-						{Name: "secondary-1", BehindBy: 0, Assigned: false},
-					},
-				},
-				{
-					desc:                "unassigned unconfigured node contains the only repository",
-					existingAssignments: []string{"primary"},
-					existingGenerations: map[string]int{"unconfigured": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 1, Assigned: true},
-						{Name: "unconfigured", BehindBy: 0, Assigned: false},
-					},
-				},
-				{
-					desc:                "assigned unconfigured node has no repository",
-					existingAssignments: []string{"primary", "unconfigured"},
-					existingGenerations: map[string]int{"primary": 1},
-				},
-				{
-					desc:                "assigned unconfigured node is outdated",
-					existingAssignments: []string{"primary", "unconfigured"},
-					existingGenerations: map[string]int{"primary": 1, "unconfigured": 0},
-				},
-				{
-					desc:                "unconfigured node is the only assigned node",
-					existingAssignments: []string{"unconfigured"},
-					existingGenerations: map[string]int{"unconfigured": 0},
-					storageDetails: []OutdatedRepositoryStorageDetails{
-						{Name: "primary", BehindBy: 1, Assigned: true},
-						{Name: "secondary-1", BehindBy: 1, Assigned: true},
-						{Name: "unconfigured", BehindBy: 0, Assigned: false},
-					},
-				},
-			} {
-				t.Run(tc.desc, func(t *testing.T) {
-					ctx, cancel := testhelper.Context()
-					defer cancel()
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
 
-					db := getDB(t)
+			tx, err := getDB(t).Begin()
+			require.NoError(t, err)
+			defer tx.Rollback()
 
-					configuredStorages := map[string][]string{"virtual-storage": {"primary", "secondary-1"}}
+			configuredStorages := map[string][]string{"virtual-storage": {"primary", "secondary-1"}}
 
-					if !tc.nonExistentRepository {
-						_, err := db.ExecContext(ctx, `
+			var healthyStorages []string
+			for _, storage := range configuredStorages["virtual-storage"] {
+				if _, ok := tc.unhealthyStorages[storage]; ok {
+					continue
+				}
+
+				healthyStorages = append(healthyStorages, storage)
+			}
+
+			testhelper.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{
+				"praefect-0": {"virtual-storage": healthyStorages},
+			})
+
+			if !tc.nonExistentRepository {
+				_, err := tx.ExecContext(ctx, `
 							INSERT INTO repositories (virtual_storage, relative_path, "primary")
 							VALUES ('virtual-storage', 'relative-path', 'repository-primary')
 						`)
-						require.NoError(t, err)
-					}
+				require.NoError(t, err)
+			}
 
-					for storage, generation := range tc.existingGenerations {
-						_, err := db.ExecContext(ctx, `
+			for storage, generation := range tc.existingGenerations {
+				_, err := tx.ExecContext(ctx, `
 							INSERT INTO storage_repositories VALUES ('virtual-storage', 'relative-path', $1, $2)
 						`, storage, generation)
-						require.NoError(t, err)
-					}
+				require.NoError(t, err)
+			}
 
-					for _, storage := range tc.existingAssignments {
-						_, err := db.ExecContext(ctx, `
+			for _, storage := range tc.existingAssignments {
+				_, err := tx.ExecContext(ctx, `
 							INSERT INTO repository_assignments VALUES ('virtual-storage', 'relative-path', $1)
 						`, storage)
-						require.NoError(t, err)
-					}
+				require.NoError(t, err)
+			}
 
-					_, err := db.ExecContext(ctx, `
+			_, err = tx.ExecContext(ctx, `
 						INSERT INTO shard_primaries (shard_name, node_name, elected_by_praefect, elected_at)
 						VALUES ('virtual-storage', 'virtual-storage-primary', 'ignored', now())
 					`)
-					require.NoError(t, err)
+			require.NoError(t, err)
 
-					store := NewPostgresRepositoryStore(db, configuredStorages)
-					outdated, err := store.GetPartiallyReplicatedRepositories(ctx, "virtual-storage", scope.useVirtualStoragePrimaries)
-					require.NoError(t, err)
+			store := NewPostgresRepositoryStore(tx, configuredStorages)
+			outdated, err := store.GetPartiallyAvailableRepositories(ctx, "virtual-storage")
+			require.NoError(t, err)
 
-					expected := []OutdatedRepository{
-						{
-							RelativePath: "relative-path",
-							Primary:      scope.primary,
-							Storages:     tc.storageDetails,
-						},
-					}
-
-					if tc.storageDetails == nil {
-						expected = nil
-					}
-
-					require.Equal(t, expected, outdated)
-				})
+			expected := []PartiallyAvailableRepository{
+				{
+					RelativePath: "relative-path",
+					Primary:      "repository-primary",
+					Storages:     tc.storageDetails,
+				},
 			}
+
+			if tc.storageDetails == nil {
+				expected = nil
+			}
+
+			require.Equal(t, expected, outdated)
 		})
 	}
 }

@@ -67,7 +67,7 @@ type Cfg struct {
 	InternalSocketDir      string            `toml:"internal_socket_dir"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
-	PackObjectsCache       PackObjectsCache  `toml:"pack_objects_cache"`
+	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
 }
 
 // TLS configuration
@@ -140,8 +140,8 @@ type Concurrency struct {
 	MaxPerRepo int    `toml:"max_per_repo"`
 }
 
-// PackObjectsCache contains settings for the pack-objects cache.
-type PackObjectsCache struct {
+// StreamCacheConfig contains settings for a streamcache instance.
+type StreamCacheConfig struct {
 	Enabled bool     `toml:"enabled"` // Default: false
 	Dir     string   `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
 	MaxAge  Duration `toml:"max_age"` // Default: 5m
@@ -150,7 +150,9 @@ type PackObjectsCache struct {
 // Load initializes the Config variable from file and the environment.
 //  Environment variables take precedence over the file.
 func Load(file io.Reader) (Cfg, error) {
-	var cfg Cfg
+	cfg := Cfg{
+		Prometheus: prometheus.DefaultConfig(),
+	}
 
 	if err := toml.NewDecoder(file).Decode(&cfg); err != nil {
 		return Cfg{}, fmt.Errorf("load toml: %v", err)
@@ -487,7 +489,7 @@ func trySocketCreation(dir string) error {
 	}
 
 	socketPath := filepath.Join(dir, fmt.Sprintf("test-%s.sock", b))
-	defer os.Remove(socketPath)
+	defer func() { _ = os.Remove(socketPath) }()
 
 	// Attempt to create an actual socket and not just a file to catch socket path length problems
 	l, err := net.Listen("unix", socketPath)

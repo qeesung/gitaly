@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -78,7 +77,7 @@ func TestParseCommit(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Jane Doe"),
 					Email:    []byte("janedoe@example.com"),
-					Date:     &timestamp.Timestamp{Seconds: 9223371974719179007},
+					Date:     &timestamppb.Timestamp{Seconds: 9223371974719179007},
 					Timezone: []byte("+0200"),
 				},
 			},
@@ -91,8 +90,18 @@ func TestParseCommit(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Jane Doe"),
 					Email:    []byte("janedoe@example.com"),
-					Date:     &timestamp.Timestamp{Seconds: 9223371974719179007},
+					Date:     &timestamppb.Timestamp{Seconds: 9223371974719179007},
 					Timezone: []byte("+0200"),
+				},
+			},
+		},
+		{
+			desc: "huge",
+			in:   append([]byte("author "), bytes.Repeat([]byte("A"), 100000)...),
+			out: &gitalypb.GitCommit{
+				Id: info.Oid.String(),
+				Author: &gitalypb.CommitAuthor{
+					Name: bytes.Repeat([]byte("A"), 100000),
 				},
 			},
 		},
@@ -101,7 +110,7 @@ func TestParseCommit(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			info.Size = int64(len(tc.in))
-			out, err := ParseCommit(bytes.NewBuffer(tc.in), info)
+			out, err := ParseCommit(bytes.NewBuffer(tc.in), info.Oid)
 			require.NoError(t, err, "parse error")
 			require.Equal(t, tc.out, out)
 		})

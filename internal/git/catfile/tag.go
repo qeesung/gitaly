@@ -30,18 +30,25 @@ func GetTag(ctx context.Context, c Batch, tagID git.Revision, tagName string, tr
 		return nil, err
 	}
 
-	header, body, err := splitRawTag(tagObj.Reader, trimRightNewLine)
-	if err != nil {
-		return nil, err
-	}
-
-	// the tagID is the oid of the tag object
-	tag, err := buildAnnotatedTag(ctx, c, tagID.String(), tagName, header, body, trimLen, trimRightNewLine)
+	tag, err := buildAnnotatedTag(ctx, c, tagObj, []byte(tagName), trimLen, trimRightNewLine)
 	if err != nil {
 		return nil, err
 	}
 
 	return tag, nil
+}
+
+// ExtractTagSignature extracts the signature from a content and returns both the signature
+// and the remaining content. If no signature is found, nil as the signature and the entire
+// content are returned. note: tags contain the signature block at the end of the message
+// https://github.com/git/git/blob/master/Documentation/technical/signature-format.txt#L12
+func ExtractTagSignature(content []byte) ([]byte, []byte) {
+	index := bytes.Index(content, []byte("-----BEGIN"))
+
+	if index > 0 {
+		return bytes.TrimSuffix(content[index:], []byte("\n")), content[:index]
+	}
+	return nil, content
 }
 
 type tagHeader struct {
@@ -93,10 +100,27 @@ func splitRawTag(r io.Reader, trimRightNewLine bool) (*tagHeader, []byte, error)
 	return &header, body, nil
 }
 
-func buildAnnotatedTag(ctx context.Context, b Batch, tagID, name string, header *tagHeader, body []byte, trimLen, trimRightNewLine bool) (*gitalypb.Tag, error) {
+// ParseTag parses the tag from the given Reader. The tag's tagged commit is not populated. The
+// given object ID shall refer to the tag itself such that the returned Tag structure has the
+// correct OID.
+func ParseTag(r io.Reader, oid git.ObjectID) (*gitalypb.Tag, error) {
+	tag, _, err := parseTag(r, oid, nil, true, true)
+	return tag, err
+}
+
+func parseTag(r io.Reader, oid git.ObjectID, name []byte, trimLen, trimRightNewLine bool) (*gitalypb.Tag, *tagHeader, error) {
+	header, body, err := splitRawTag(r, trimRightNewLine)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(name) == 0 {
+		name = []byte(header.tag)
+	}
+
 	tag := &gitalypb.Tag{
-		Id:          tagID,
-		Name:        []byte(name),
+		Id:          oid.String(),
+		Name:        name,
 		MessageSize: int64(len(body)),
 		Message:     body,
 	}
@@ -105,7 +129,27 @@ func buildAnnotatedTag(ctx context.Context, b Batch, tagID, name string, header 
 		tag.Message = tag.Message[:max]
 	}
 
-	var err error
+	signature, _ := ExtractTagSignature(body)
+	if signature != nil {
+		length := bytes.Index(signature, []byte("\n"))
+
+		if length > 0 {
+			signature := string(signature[:length])
+			tag.SignatureType = detectSignatureType(signature)
+		}
+	}
+
+	tag.Tagger = parseCommitAuthor(header.tagger)
+
+	return tag, header, nil
+}
+
+func buildAnnotatedTag(ctx context.Context, b Batch, object *Object, name []byte, trimLen, trimRightNewLine bool) (*gitalypb.Tag, error) {
+	tag, header, err := parseTag(object.Reader, object.ObjectInfo.Oid, name, trimLen, trimRightNewLine)
+	if err != nil {
+		return nil, err
+	}
+
 	switch header.tagType {
 	case "commit":
 		tag.TargetCommit, err = GetCommit(ctx, b, git.Revision(header.oid))
@@ -119,21 +163,6 @@ func buildAnnotatedTag(ctx context.Context, b Batch, tagID, name string, header 
 			return nil, fmt.Errorf("buildAnnotatedTag error when dereferencing tag: %v", err)
 		}
 	}
-
-	// tags contain the signature block in the message:
-	// https://github.com/git/git/blob/master/Documentation/technical/signature-format.txt#L12
-	index := bytes.Index(body, []byte("-----BEGIN"))
-
-	if index > 0 {
-		length := bytes.Index(body[index:], []byte("\n"))
-
-		if length > 0 {
-			signature := string(body[index : length+index])
-			tag.SignatureType = detectSignatureType(signature)
-		}
-	}
-
-	tag.Tagger = parseCommitAuthor(header.tagger)
 
 	return tag, nil
 }

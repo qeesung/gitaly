@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
@@ -55,8 +56,7 @@ func TestExecutor_Commit(t *testing.T) {
 	cfg := testcfg.Build(t)
 	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
 
-	repoProto, repoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -66,7 +66,7 @@ func TestExecutor_Commit(t *testing.T) {
 	updatedFile, err := repo.WriteBlob(ctx, "file", bytes.NewBufferString("updated"))
 	require.NoError(t, err)
 
-	executor := New(cfg.BinDir, cfg.Git.BinPath)
+	executor := NewExecutor(cfg, config.NewLocator(cfg))
 
 	for _, tc := range []struct {
 		desc  string
@@ -468,7 +468,7 @@ func TestExecutor_Commit(t *testing.T) {
 			var parentCommit git.ObjectID
 			for i, step := range tc.steps {
 				message := fmt.Sprintf("commit %d", i+1)
-				commitID, err := executor.Commit(ctx, CommitParams{
+				commitID, err := executor.Commit(ctx, repo, CommitParams{
 					Repository: repoPath,
 					Author:     author,
 					Committer:  committer,

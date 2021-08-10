@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -22,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -33,6 +33,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
@@ -486,7 +487,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	cloneDetails, cleanup := setupSSHClone(t, cfg, cfg.Storages[0].Path, repo)
 	defer cleanup()
 
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	serverURL, cleanup := gitlab.NewTestServer(t, gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -498,7 +499,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	})
 	defer cleanup()
 
-	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
+	gitlab.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	cfg.Gitlab.URL = serverURL
 	cfg.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
@@ -555,8 +556,8 @@ func setupSSHClone(t *testing.T, cfg config.Cfg, storagePath string, testRepo *g
 			RemoteRepoPath: remoteRepoPath,
 			TempRepo:       tempRepo,
 		}, func() {
-			os.RemoveAll(remoteRepoPath)
-			os.RemoveAll(localRepoPath)
+			require.NoError(t, os.RemoveAll(remoteRepoPath))
+			require.NoError(t, os.RemoveAll(localRepoPath))
 		}
 }
 
@@ -567,8 +568,7 @@ func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverS
 		GlProjectPath: params.glProjectPath,
 		GlRepository:  params.glRepository,
 	}
-	pbMarshaler := &jsonpb.Marshaler{}
-	payload, err := pbMarshaler.MarshalToString(&gitalypb.SSHReceivePackRequest{
+	payload, err := protojson.Marshal(&gitalypb.SSHReceivePackRequest{
 		Repository:       pbTempRepo,
 		GlRepository:     params.glRepository,
 		GlId:             params.glID,

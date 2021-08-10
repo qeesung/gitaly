@@ -2,7 +2,10 @@ package backup
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +54,74 @@ func TestPipeline_Restore(t *testing.T) {
 
 func TestParallelCreatePipeline(t *testing.T) {
 	testPipelineCreate(t, func(strategy Strategy) CreatePipeline {
-		return NewParallelCreatePipeline(NewPipeline(logrus.StandardLogger(), strategy), 2)
+		return NewParallelCreatePipeline(NewPipeline(logrus.StandardLogger(), strategy), 2, 0)
+	})
+
+	t.Run("parallelism", func(t *testing.T) {
+		for _, tc := range []struct {
+			parallel            int
+			parallelStorage     int
+			expectedMaxParallel int64
+		}{
+			{
+				parallel:            2,
+				parallelStorage:     0,
+				expectedMaxParallel: 2,
+			},
+			{
+				parallel:            2,
+				parallelStorage:     3,
+				expectedMaxParallel: 2,
+			},
+			{
+				parallel:            0,
+				parallelStorage:     3,
+				expectedMaxParallel: 6, // 2 storages * 3 workers per storage
+			},
+		} {
+			t.Run(fmt.Sprintf("parallel:%d,parallelStorage:%d", tc.parallel, tc.parallelStorage), func(t *testing.T) {
+				var calls int64
+				strategy := MockStrategy{
+					CreateFunc: func(ctx context.Context, req *CreateRequest) error {
+						currentCalls := atomic.AddInt64(&calls, 1)
+						defer atomic.AddInt64(&calls, -1)
+
+						assert.LessOrEqual(t, currentCalls, tc.expectedMaxParallel)
+
+						time.Sleep(time.Millisecond)
+						return nil
+					},
+				}
+				var p CreatePipeline
+				p = NewPipeline(logrus.StandardLogger(), strategy)
+				p = NewParallelCreatePipeline(p, tc.parallel, tc.parallelStorage)
+
+				ctx, cancel := testhelper.Context()
+				defer cancel()
+
+				for i := 0; i < 10; i++ {
+					p.Create(ctx, &CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage1"}})
+					p.Create(ctx, &CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage2"}})
+				}
+				require.NoError(t, p.Done())
+			})
+		}
+	})
+
+	t.Run("context done", func(t *testing.T) {
+		var p CreatePipeline
+		p = NewPipeline(logrus.StandardLogger(), MockStrategy{})
+		p = NewParallelCreatePipeline(p, 0, 0) // make sure worker channels always block
+
+		ctx, cancel := testhelper.Context()
+
+		cancel()
+		<-ctx.Done()
+
+		p.Create(ctx, &CreateRequest{Repository: &gitalypb.Repository{StorageName: "default"}})
+
+		err := p.Done()
+		require.EqualError(t, err, "pipeline: context canceled")
 	})
 }
 

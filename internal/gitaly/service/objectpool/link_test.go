@@ -2,6 +2,7 @@ package objectpool
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -177,8 +178,7 @@ func TestUnlink(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	deletedRepo, deletedRepoPath, removeDeletedRepo := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "todelete")
-	defer removeDeletedRepo()
+	deletedRepo, deletedRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
 	pool, err := objectpool.NewObjectPool(cfg, locator, gitCmdFactory, nil, repo.GetStorageName(), gittest.NewObjectPoolName(t))
@@ -191,7 +191,7 @@ func TestUnlink(t *testing.T) {
 	require.NoError(t, pool.Link(ctx, repo))
 	require.NoError(t, pool.Link(ctx, deletedRepo))
 
-	removeDeletedRepo()
+	require.NoError(t, os.RemoveAll(deletedRepoPath))
 	require.NoFileExists(t, deletedRepoPath)
 
 	pool2, err := objectpool.NewObjectPool(cfg, locator, gitCmdFactory, nil, repo.GetStorageName(), gittest.NewObjectPoolName(t))

@@ -34,30 +34,6 @@
 //
 //     praefect -config PATH_TO_CONFIG dial-nodes
 //
-// Reconcile
-//
-// The subcommand "reconcile" performs a consistency check of a backend storage
-// against the primary or another storage in the same virtual storage group.
-//
-//     praefect -config PATH_TO_CONFIG reconcile -virtual <vstorage> -target
-//     <t-storage> [-reference <r-storage>] [-f]
-//
-// "-virtual" specifies which virtual storage the target and reference
-// belong to.
-//
-// "-target" specifies the storage name of the backend Gitaly you wish to
-// reconcile.
-//
-// "-reference" is an optional argument that specifies which storage location to
-// check the target against. If an inconsistency is found, the target will
-// attempt to repair itself using the reference as the source of truth. If the
-// reference storage is omitted, Praefect will perform the check against the
-// current primary. If the primary is the same as the target, an error will
-// occur.
-//
-// By default, a dry-run is performed where no replications are scheduled. When
-// the flag "-f" is provided, the replications will actually schedule.
-//
 // Dataloss
 //
 // The subcommand "dataloss" identifies Gitaly nodes which are missing data from the
@@ -103,7 +79,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/importer"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
@@ -325,15 +300,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		}()
 		healthChecker = hm
 
-		elector := nodes.NewPerRepositoryElector(logger, db)
-
-		if conf.Failover.Enabled {
-			go func() {
-				if err := elector.Run(ctx, hm.Updated()); err != nil {
-					logger.WithError(err).Error("primary elector exited")
-				}
-			}()
-		}
+		elector := nodes.NewPerRepositoryElector(db)
 
 		primaryGetter = elector
 		assignmentStore = datastore.NewAssignmentStore(db, conf.StorageNames())
@@ -409,12 +376,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
 	if db != nil {
 		prometheus.MustRegister(
-			datastore.NewRepositoryStoreCollector(
-				logger,
-				conf.VirtualStorageNames(),
-				db,
-				conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository,
-			),
+			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout),
 		)
 	}
 	prometheus.MustRegister(metricsCollectors...)
@@ -452,34 +414,6 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 			return nil
 		})
-	}
-
-	if db != nil && nodeManager != nil {
-		go func() {
-			virtualStorages := conf.VirtualStorageNames()
-			finished := make(map[string]bool, len(virtualStorages))
-			for _, virtualStorage := range virtualStorages {
-				finished[virtualStorage] = true
-			}
-
-			for result := range importer.New(nodeManager, virtualStorages, db).Run(ctx) {
-				if result.Error != nil {
-					logger.WithFields(logrus.Fields{
-						"virtual_storage": result.VirtualStorage,
-						logrus.ErrorKey:   result.Error,
-					}).Error("importing repositories to database failed")
-					finished[result.VirtualStorage] = false
-					continue
-				}
-
-				logger.WithFields(logrus.Fields{
-					"virtual_storage": result.VirtualStorage,
-					"relative_paths":  result.RelativePaths,
-				}).Info("imported repositories to database")
-			}
-
-			logger.WithField("virtual_storages", finished).Info("repository importer finished")
-		}()
 	}
 
 	if err := b.Start(); err != nil {

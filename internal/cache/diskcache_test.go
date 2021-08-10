@@ -22,8 +22,8 @@ import (
 func TestStreamDBNaiveKeyer(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	testRepo1, _, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "repository-1")
-	testRepo2, _, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "repository-2")
+	testRepo1, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	testRepo2, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	locator := config.NewLocator(cfg)
 
@@ -88,7 +88,7 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 
 	// enabled feature flags affect caching
 	oldCtx := ctx
-	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.FeatureFlag{"meow", false})
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.FeatureFlag{Name: "meow", OnByDefault: false})
 	expectGetMiss(req1)
 	ctx = oldCtx
 	expectGetHit(expectStream2, req1)

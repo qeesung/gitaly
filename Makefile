@@ -33,11 +33,14 @@ GITALY_RUBY_DIR  := ${SOURCE_DIR}/ruby
 MODULE_VERSION   := $(notdir $(shell go list -m))
 
 # These variables may be overridden at runtime by top-level make
+## The prefix where Gitaly binaries will be installed to. Binaries will end up
+## in ${PREFIX}/bin by default.
 PREFIX           ?= /usr/local
 prefix           ?= ${PREFIX}
 exec_prefix      ?= ${prefix}
 bindir           ?= ${exec_prefix}/bin
 INSTALL_DEST_DIR := ${DESTDIR}${bindir}
+## The prefix where Git will be installed to.
 GIT_PREFIX       ?= ${GIT_INSTALL_DIR}
 
 # Tools
@@ -77,9 +80,16 @@ PROTOC_VERSION            ?= 3.17.3
 PROTOC_GEN_GO_VERSION     ?= 1.26.0
 # https://pkg.go.dev/google.golang.org/grpc/cmd/protoc-gen-go-grpc
 PROTOC_GEN_GO_GRPC_VERSION?= 1.1.0
-GIT_VERSION               ?= v2.32.0
 GIT2GO_VERSION            ?= v31
 LIBGIT2_VERSION           ?= v1.1.0
+
+# Support both vX.Y.Z and X.Y.Z version patterns, since callers across
+# GitLab use both.
+ifndef GIT_VERSION
+  GIT_VERSION := v2.32.0
+else
+  GIT_VERSION := $(shell echo ${GIT_VERSION} | awk '/^[0-9]\.[0-9]+\.[0-9]+$$/ { printf "v" } { print $$1 }')
+endif
 
 # Dependency downloads
 ifeq (${OS},Darwin)
@@ -103,10 +113,12 @@ ifndef GIT_PATCHES
     # Before adding custom patches, please read doc/PROCESS.md#Patching-git
     # first to make sure your patches meet our acceptance criteria. Patches
     # must be put into `_support/git-patches`.
-    #GIT_PATCHES +=
+    GIT_PATCHES += 0001-fetch-pack-speed-up-loading-of-refs-via-commit-graph.patch
 endif
 
 ifndef GIT_BUILD_OPTIONS
+    ## Build options for Git.
+    GIT_BUILD_OPTIONS ?=
     # activate developer checks
     GIT_BUILD_OPTIONS += DEVELOPER=1
     # but don't cause warnings to fail the build
@@ -127,6 +139,8 @@ LIBGIT2_BUILD_DIR   ?= ${DEPENDENCY_DIR}/libgit2/build
 LIBGIT2_INSTALL_DIR ?= ${DEPENDENCY_DIR}/libgit2/install
 
 ifndef LIBGIT2_BUILD_OPTIONS
+    ## Build options for libgit2.
+    LIBGIT2_BUILD_OPTIONS ?=
     LIBGIT2_BUILD_OPTIONS += -DTHREADSAFE=ON
     LIBGIT2_BUILD_OPTIONS += -DBUILD_CLAR=OFF
     LIBGIT2_BUILD_OPTIONS += -DBUILD_SHARED_LIBS=OFF
@@ -145,13 +159,17 @@ ifndef LIBGIT2_BUILD_OPTIONS
 endif
 
 # These variables control test options and artifacts
+## List of Go packages which shall be tested.
+## Go packages to test when using the test-go target.
 TEST_PACKAGES    ?= ${SOURCE_DIR}/...
+## Test options passed to `go test`.
 TEST_OPTIONS     ?= -v -count=1
 TEST_REPORT_DIR  ?= ${BUILD_DIR}/reports
 TEST_OUTPUT_NAME ?= go-${GO_VERSION}-git-${GIT_VERSION}
 TEST_OUTPUT      ?= ${TEST_REPORT_DIR}/go-tests-output-${TEST_OUTPUT_NAME}.txt
 TEST_REPORT      ?= ${TEST_REPORT_DIR}/go-tests-report-${TEST_OUTPUT_NAME}.xml
 TEST_EXIT        ?= ${TEST_REPORT_DIR}/go-tests-exit-${TEST_OUTPUT_NAME}.txt
+## Directory where all runtime test data is being created.
 TEST_TMP_DIR     ?=
 TEST_REPO_DIR    := ${BUILD_DIR}/testrepos
 TEST_REPO        := ${TEST_REPO_DIR}/gitlab-test.git
@@ -196,18 +214,43 @@ export CGO_LDFLAGS_ALLOW          = -D_THREAD_SAFE
 .SECONDARY:
 
 .PHONY: all
+## Default target which builds and installs Gitaly binaries into the root
+## source directory.
 all: INSTALL_DEST_DIR = ${SOURCE_DIR}
 all: install
 
+## Print help about available targets and variables.
+help:
+	@echo "usage: make [<target>...] [<variable>=<value>...]"
+	@echo ""
+	@echo "These are the available targets:"
+	@echo ""
+
+	${Q}# Match all targets which have preceding `## ` comments.
+	${Q}awk '/^## / { sub(/^##/, "", $$0) ; desc = desc $$0 ; next } \
+		 /^[[:alpha:]][[:alnum:]_-]+:/ && desc { print "  " $$1 desc } \
+		 { desc = "" }' $(MAKEFILE_LIST) | sort | column -s: -t
+
+	${Q}echo ""
+	${Q}echo "These are common variables which can be overridden in config.mak:"
+	${Q}echo ""
+
+	${Q}# Match all variables which have preceding `## ` comments and which are assigned via `?=`.
+	${Q}awk '/^[[:space:]]*## / { sub(/^[[:space:]]*##/,"",$$0) ; desc = desc $$0 ; next } \
+		 /^[[:space:]]*[[:alpha:]][[:alnum:]_-]+[[:space:]]*\?=/ && desc { print "  "$$1 ":" desc } \
+		 { desc = "" }' $(MAKEFILE_LIST) | sort | column -s: -t
+
 .PHONY: build
+## Build Go binaries and install required Ruby Gems.
 build: ${SOURCE_DIR}/.ruby-bundle libgit2
 	go install ${GO_LDFLAGS} -tags "${GO_BUILD_TAGS}" $(addprefix ${GITALY_PACKAGE}/cmd/, $(call find_commands))
 	# We use version suffix for the gitaly-git2go binary to support compatibility contract between
 	# gitaly and gitaly-git2go during upgrade deployment.
 	# For more information refer to https://gitlab.com/gitlab-org/gitaly/-/issues/3647#note_599082033
-	cp ${BUILD_DIR}/bin/gitaly-git2go "${BUILD_DIR}/bin/gitaly-git2go-${MODULE_VERSION}"
+	mv ${BUILD_DIR}/bin/gitaly-git2go "${BUILD_DIR}/bin/gitaly-git2go-${MODULE_VERSION}"
 
 .PHONY: install
+## Install Gitaly binaries. The target directory can be modified by setting PREFIX and DESTDIR.
 install: build
 	${Q}mkdir -p ${INSTALL_DEST_DIR}
 	install $(call find_command_binaries) ${INSTALL_DEST_DIR}
@@ -219,9 +262,14 @@ prepare-tests: git libgit2 prepare-test-repos ${SOURCE_DIR}/.ruby-bundle
 prepare-test-repos: ${TEST_REPO} ${TEST_REPO_GIT}
 
 .PHONY: test
-test: test-go rspec
+## Run Go and Ruby tests.
+test: test-go test-ruby
+
+.PHONY: test-ruby
+test-ruby: prepare-tests rspec
 
 .PHONY: test-go
+## Run Go tests.
 test-go: prepare-tests ${GO_JUNIT_REPORT}
 	${Q}mkdir -p ${TEST_REPORT_DIR}
 	${Q}echo 0 >${TEST_EXIT}
@@ -230,6 +278,7 @@ test-go: prepare-tests ${GO_JUNIT_REPORT}
 	${Q}exit `cat ${TEST_EXIT}`
 
 .PHONY: test
+## Run Go benchmarks.
 bench: TEST_OPTIONS := ${TEST_OPTIONS} -bench=. -run=^$
 bench: ${BENCHMARK_REPO} test-go
 
@@ -240,24 +289,29 @@ test-with-proxies: prepare-tests
 	${Q}$(call run_go_tests)
 
 .PHONY: test-with-praefect
+## Run Go tests with Praefect.
 test-with-praefect: build prepare-tests
 	${Q}GITALY_TEST_PRAEFECT_BIN=${BUILD_DIR}/bin/praefect $(call run_go_tests)
 
 .PHONY: test-postgres
+## Run Go tests with Postgres.
 test-postgres: GO_BUILD_TAGS := ${GO_BUILD_TAGS},postgres
 test-postgres: TEST_PACKAGES := gitlab.com/gitlab-org/gitaly/v14/internal/praefect/...
 test-postgres: prepare-tests
 	${Q}$(call run_go_tests)
 
 .PHONY: race-go
+## Run Go tests with race detection enabled.
 race-go: TEST_OPTIONS := ${TEST_OPTIONS} -race
 race-go: test-go
 
 .PHONY: rspec
+## Run Ruby tests.
 rspec: build prepare-tests
 	${Q}cd ${GITALY_RUBY_DIR} && PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}' bundle exec rspec
 
 .PHONY: verify
+## Verify that various files conform to our expectations.
 verify: check-mod-tidy check-formatting notice-up-to-date check-proto rubocop
 
 .PHONY: check-mod-tidy
@@ -267,6 +321,7 @@ check-mod-tidy:
 	${Q}${GIT} diff --quiet --exit-code go.mod go.sum || (echo "error: uncommitted changes in go.mod or go.sum" && exit 1)
 
 .PHONY: lint
+## Run Go linter.
 lint: ${GOLANGCI_LINT} libgit2
 	${Q}${GOLANGCI_LINT} run --build-tags "${GO_BUILD_TAGS}" --out-format tab --config ${GOLANGCI_LINT_CONFIG} ${GOLANGCI_LINT_OPTIONS}
 
@@ -280,6 +335,7 @@ check-formatting: ${GOIMPORTS} ${GITALYFMT}
 	${Q}${GITALYFMT} $(call find_go_sources) | awk '{ print } END { if(NR>0) { print "Formatting error, run make format"; exit(1) } }'
 
 .PHONY: format
+## Run Go formatter and adjust imports.
 format: ${GOIMPORTS} ${GITALYFMT}
 	${Q}${GOIMPORTS} -w -l $(call find_go_sources)
 	${Q}${GITALYFMT} -w $(call find_go_sources)
@@ -290,9 +346,11 @@ notice-up-to-date: ${BUILD_DIR}/NOTICE
 	${Q}(cmp ${BUILD_DIR}/NOTICE ${SOURCE_DIR}/NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
 
 .PHONY: notice
+## Regenerate the NOTICE file.
 notice: ${SOURCE_DIR}/NOTICE
 
 .PHONY: clean
+## Clean up build artifacts.
 clean:
 	rm -rf ${BUILD_DIR} ${SOURCE_DIR}/internal/testhelper/testdata/data/ ${SOURCE_DIR}/ruby/.bundle/ ${SOURCE_DIR}/ruby/vendor/bundle/ $(addprefix ${SOURCE_DIR}/, $(notdir $(call find_commands)))
 
@@ -304,10 +362,12 @@ clean-ruby-vendor-go:
 check-proto: proto no-proto-changes lint-proto
 
 .PHONY: rubocop
+## Run Rubocop.
 rubocop: ${SOURCE_DIR}/.ruby-bundle
 	${Q}cd ${GITALY_RUBY_DIR} && bundle exec rubocop --parallel
 
 .PHONY: cover
+## Generate coverage report via Go tests.
 cover: GO_BUILD_TAGS := ${GO_BUILD_TAGS},postgres
 cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${COVERAGE_DIR}/all.merged"
 cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
@@ -324,6 +384,7 @@ cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
 	${Q}go tool cover -func "${COVERAGE_DIR}/all.merged"
 
 .PHONY: proto
+## Regenerate protobuf definitions.
 proto: SHARED_PROTOC_OPTS = --plugin=${PROTOC_GEN_GO} --plugin=${PROTOC_GEN_GO_GRPC} --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
 proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${SOURCE_DIR}/.ruby-bundle
 	${Q}mkdir -p ${SOURCE_DIR}/proto/go/gitalypb
@@ -336,7 +397,8 @@ proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${SOURCE_DIR}/.ruby-bund
 		${SOURCE_DIR}/internal/praefect/mock/mock.proto \
 		${SOURCE_DIR}/internal/middleware/cache/testdata/stream.proto \
 		${SOURCE_DIR}/internal/helper/chunk/testdata/test.proto \
-		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto
+		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto \
+		${SOURCE_DIR}/internal/streamrpc/testdata/test.proto
 	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto --go_out=${SOURCE_DIR}/proto --go-grpc_out=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto/go/internal/linter/testdata/*.proto
 
 .PHONY: lint-proto
@@ -363,9 +425,11 @@ upgrade-module:
 	${Q}${MAKE} proto
 
 .PHONY: git
+## Build Git.
 git: ${GIT_INSTALL_DIR}/bin/git
 
 .PHONY: libgit2
+## Build libgit2.
 libgit2: ${LIBGIT2_INSTALL_DIR}/lib/libgit2.a
 
 # This file is used by Omnibus and CNG to skip the "bundle install"

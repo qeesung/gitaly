@@ -3,9 +3,9 @@ package proxy
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/encoding"
-	proto_codec "google.golang.org/grpc/encoding/proto"
+	grpcproto "google.golang.org/grpc/encoding/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // NewCodec returns a proxying encoding.Codec with the default protobuf codec as parent.
@@ -66,5 +66,5 @@ func (protoCodec) Unmarshal(data []byte, v interface{}) error {
 }
 
 func (protoCodec) Name() string {
-	return proto_codec.Name
+	return grpcproto.Name
 }

@@ -21,7 +21,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -165,7 +164,7 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 			deps.GetTxManager(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	}, testserver.WithDisablePraefect())
 
 	gittest.WriteCommit(t, remoteCfg, remoteRepoPath, gittest.WithBranch("master"))
@@ -190,7 +189,7 @@ func TestSuccessfulFetchInternalRemote(t *testing.T) {
 			deps.GetCatfileCache(),
 			deps.GetTxManager(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	}, testserver.WithHookManager(hookManager), testserver.WithDisablePraefect())
 
 	localRepoPath := filepath.Join(localCfg.Storages[0].Path, localRepo.GetRelativePath())
@@ -250,18 +249,9 @@ func TestFailedFetchInternalRemote(t *testing.T) {
 		RemoteRepository: remoteRepo,
 	}
 
-	t.Run("fetch_internal_remote_errors enabled", func(t *testing.T) {
-		_, err := client.FetchInternalRemote(ctx, request)
-		require.Error(t, err, "FetchInternalRemote is supposed to return an error when 'git fetch' fails")
-	})
-
-	t.Run("fetch_internal_remote_errors disabled", func(t *testing.T) {
-		ctx := featureflag.OutgoingCtxWithDisabledFeatureFlags(ctx, featureflag.FetchInternalRemoteErrors)
-
-		c, err := client.FetchInternalRemote(ctx, request)
-		require.NoError(t, err, "FetchInternalRemote is not supposed to return an error when 'git fetch' fails")
-		require.False(t, c.GetResult())
-	})
+	c, err := client.FetchInternalRemote(ctx, request)
+	require.NoError(t, err, "FetchInternalRemote is not supposed to return an error when 'git fetch' fails")
+	require.False(t, c.GetResult())
 }
 
 func TestFailedFetchInternalRemoteDueToValidations(t *testing.T) {

@@ -2,25 +2,32 @@ package operations
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/lstree"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testSuccessfulUserUpdateSubmoduleRequest)
+}
+
+func testSuccessfulUserUpdateSubmoduleRequest(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -101,9 +108,13 @@ func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
 
 func TestUserUpdateSubmoduleStableID(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testUserUpdateSubmoduleStableID)
+}
+
+func testUserUpdateSubmoduleStableID(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -114,7 +125,7 @@ func TestUserUpdateSubmoduleStableID(t *testing.T) {
 		CommitSha:     "41fa1bc9e0f0630ced6a8a211d60c2af425ecc2d",
 		Branch:        []byte("master"),
 		CommitMessage: []byte("Update Submodule message"),
-		Timestamp:     &timestamp.Timestamp{Seconds: 12345},
+		Timestamp:     &timestamppb.Timestamp{Seconds: 12345},
 	})
 	require.NoError(t, err)
 	require.Empty(t, response.GetCommitError())
@@ -134,23 +145,67 @@ func TestUserUpdateSubmoduleStableID(t *testing.T) {
 		Author: &gitalypb.CommitAuthor{
 			Name:     gittest.TestUser.Name,
 			Email:    gittest.TestUser.Email,
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:     gittest.TestUser.Name,
 			Email:    gittest.TestUser.Email,
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	}, commit)
 }
 
+func TestUserUpdateSubmoduleQuarantine(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testUserUpdateSubmoduleQuarantine)
+}
+
+func testUserUpdateSubmoduleQuarantine(t *testing.T, ctx context.Context) {
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	// Set up a hook that parses the new object and then aborts the update. Like this, we can
+	// assert that the object does not end up in the main repository.
+	hookScript := fmt.Sprintf("#!/bin/sh\n%s rev-parse $3^{commit} && exit 1", cfg.Git.BinPath)
+	gittest.WriteCustomHook(t, repoPath, "update", []byte(hookScript))
+
+	response, err := client.UserUpdateSubmodule(ctx, &gitalypb.UserUpdateSubmoduleRequest{
+		Repository:    repoProto,
+		User:          gittest.TestUser,
+		Submodule:     []byte("gitlab-grack"),
+		CommitSha:     "41fa1bc9e0f0630ced6a8a211d60c2af425ecc2d",
+		Branch:        []byte("master"),
+		CommitMessage: []byte("Update Submodule message"),
+		Timestamp:     &timestamppb.Timestamp{Seconds: 12345},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	require.NotEmpty(t, response.GetPreReceiveError())
+
+	oid, err := git.NewObjectIDFromHex(strings.TrimSpace(response.PreReceiveError))
+	require.NoError(t, err)
+	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
+	require.NoError(t, err)
+
+	// The new commit will be in the target repository in case quarantines are disabled.
+	// Otherwise, it should've been discarded.
+	require.Equal(t, !featureflag.Quarantine.IsEnabled(ctx), exists)
+}
+
 func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testFailedUserUpdateSubmoduleRequestDueToValidations)
+}
+
+func testFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -267,9 +322,13 @@ func TestFailedUserUpdateSubmoduleRequestDueToValidations(t *testing.T) {
 
 func TestFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testFailedUserUpdateSubmoduleRequestDueToInvalidBranch)
+}
+
+func testFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
@@ -288,9 +347,13 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidBranch(t *testing.T) {
 
 func TestFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule)
+}
+
+func testFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
@@ -309,9 +372,13 @@ func TestFailedUserUpdateSubmoduleRequestDueToInvalidSubmodule(t *testing.T) {
 
 func TestFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testFailedUserUpdateSubmoduleRequestDueToSameReference)
+}
+
+func testFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T, ctx context.Context) {
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
@@ -333,13 +400,16 @@ func TestFailedUserUpdateSubmoduleRequestDueToSameReference(t *testing.T) {
 
 func TestFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
+	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
+		featureflag.Quarantine,
+	}).Run(t, testFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty)
+}
+
+func testFailedUserUpdateSubmoduleRequestDueToRepositoryEmpty(t *testing.T, ctx context.Context) {
 	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
 
-	repo, _, cleanup := gittest.InitRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	request := &gitalypb.UserUpdateSubmoduleRequest{
 		Repository:    repo,

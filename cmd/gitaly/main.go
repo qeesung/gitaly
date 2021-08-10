@@ -26,10 +26,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
@@ -141,8 +142,6 @@ func preloadLicenseDatabase() {
 }
 
 func run(cfg config.Cfg) error {
-	tempdir.StartCleaning(cfg.Storages, time.Hour)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -159,10 +158,12 @@ func run(cfg config.Cfg) error {
 
 	locator := config.NewLocator(cfg)
 
+	tempdir.StartCleaning(locator, cfg.Storages, time.Hour)
+
 	if config.SkipHooks() {
 		log.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
 	} else {
-		gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, cfg.Prometheus)
+		gitlabClient, err := gitlab.NewHTTPClient(glog.Default(), cfg.Gitlab, cfg.TLS, cfg.Prometheus)
 		if err != nil {
 			return fmt.Errorf("could not create GitLab API client: %w", err)
 		}
@@ -242,6 +243,7 @@ func run(cfg config.Cfg) error {
 			Linguist:           ling,
 			CatfileCache:       catfileCache,
 			DiskCache:          diskCache,
+			PackObjectsCache:   streamcache.New(cfg.PackObjectsCache, glog.Default()),
 		})
 		b.RegisterStarter(starter.New(c, srv))
 	}

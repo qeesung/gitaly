@@ -27,10 +27,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	praefectconfig "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -50,6 +51,11 @@ func RunGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server
 	}
 
 	praefectAddr, _ := runPraefectProxy(t, cfg, gitalyAddr, praefectBinPath)
+
+	// In case we're running with a Praefect proxy, it will use Gitaly's health information to
+	// inform routing decisions. The Gitaly node thus must be healthy.
+	waitHealthy(t, cfg, gitalyAddr, 3, time.Second)
+
 	return praefectAddr
 }
 
@@ -104,16 +110,7 @@ func runPraefectProxy(t testing.TB, cfg config.Cfg, gitalyAddr, praefectBinPath 
 
 	require.NoError(t, cmd.Start())
 
-	grpcOpts := []grpc.DialOption{grpc.WithInsecure()}
-	if cfg.Auth.Token != "" {
-		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)))
-	}
-
-	conn, err := grpc.Dial(praefectServerSocketPath, grpcOpts...)
-	require.NoError(t, err)
-	t.Cleanup(func() { conn.Close() })
-
-	waitHealthy(t, conn, 3, time.Second)
+	waitHealthy(t, cfg, praefectServerSocketPath, 3, time.Second)
 
 	t.Cleanup(func() { _ = cmd.Wait() })
 	shutdown := func() { _ = cmd.Process.Kill() }
@@ -163,7 +160,16 @@ func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Serv
 // waitHealthy executes health check request `retries` times and awaits each `timeout` period to respond.
 // After `retries` unsuccessful attempts it returns an error.
 // Returns immediately without an error once get a successful health check response.
-func waitHealthy(t testing.TB, conn *grpc.ClientConn, retries int, timeout time.Duration) {
+func waitHealthy(t testing.TB, cfg config.Cfg, addr string, retries int, timeout time.Duration) {
+	grpcOpts := []grpc.DialOption{grpc.WithInsecure()}
+	if cfg.Auth.Token != "" {
+		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)))
+	}
+
+	conn, err := grpc.Dial(addr, grpcOpts...)
+	require.NoError(t, err)
+	defer conn.Close()
+
 	for i := 0; i < retries; i++ {
 		if IsHealthy(conn, timeout) {
 			return
@@ -228,7 +234,7 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				require.NoError(t, os.MkdirAll(internalSocketDir, 0700))
-				t.Cleanup(func() { os.RemoveAll(internalSocketDir) })
+				t.Cleanup(func() { require.NoError(t, os.RemoveAll(internalSocketDir)) })
 			} else {
 				require.FailNow(t, err.Error())
 			}
@@ -267,18 +273,19 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 }
 
 type gitalyServerDeps struct {
-	disablePraefect bool
-	logger          *logrus.Logger
-	conns           *client.Pool
-	locator         storage.Locator
-	txMgr           transaction.Manager
-	hookMgr         hook.Manager
-	gitlabClient    gitlab.Client
-	gitCmdFactory   git.CommandFactory
-	linguist        *linguist.Instance
-	backchannelReg  *backchannel.Registry
-	catfileCache    catfile.Cache
-	diskCache       cache.Cache
+	disablePraefect  bool
+	logger           *logrus.Logger
+	conns            *client.Pool
+	locator          storage.Locator
+	txMgr            transaction.Manager
+	hookMgr          hook.Manager
+	gitlabClient     gitlab.Client
+	gitCmdFactory    git.CommandFactory
+	linguist         *linguist.Instance
+	backchannelReg   *backchannel.Registry
+	catfileCache     catfile.Cache
+	diskCache        cache.Cache
+	packObjectsCache streamcache.Cache
 }
 
 func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server) *service.Dependencies {
@@ -330,6 +337,10 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 		gsd.diskCache = cache.New(cfg, gsd.locator)
 	}
 
+	if gsd.packObjectsCache == nil {
+		gsd.packObjectsCache = streamcache.New(cfg.PackObjectsCache, gsd.logger)
+	}
+
 	return &service.Dependencies{
 		Cfg:                 cfg,
 		RubyServer:          rubyServer,
@@ -343,6 +354,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 		GitlabClient:        gsd.gitlabClient,
 		CatfileCache:        gsd.catfileCache,
 		DiskCache:           gsd.diskCache,
+		PackObjectsCache:    gsd.packObjectsCache,
 	}
 }
 
@@ -401,14 +413,6 @@ func WithDisablePraefect() GitalyServerOpt {
 func WithBackchannelRegistry(backchannelReg *backchannel.Registry) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.backchannelReg = backchannelReg
-		return deps
-	}
-}
-
-// WithCatfileCache sets catfile.Cache instance that will be used for gitaly services initialisation.
-func WithCatfileCache(catfileCache catfile.Cache) GitalyServerOpt {
-	return func(deps gitalyServerDeps) gitalyServerDeps {
-		deps.catfileCache = catfileCache
 		return deps
 	}
 }

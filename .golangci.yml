@@ -105,22 +105,6 @@ issues:
       text: "exported function `InitContextStats` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/git2go/conflicts.go"
-      text: "exported type `ConflictError` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported type `RevertConflictError` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported type `RevertCommand` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/git2go/revert.go"
-      text: "exported method `RevertCommand.Run` should have comment or be unexported"
-    - linters:
-        - golint
       path: "internal/gitaly/config/config.go"
       text: "exported function `SkipHooks` should have comment or be unexported"
     - linters:
@@ -267,14 +251,6 @@ issues:
         - golint
       path: "internal/helper/ticker.go"
       text: "exported method `ManualTicker.Tick` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/metadata/featureflag/context.go"
-      text: "exported function `OutgoingCtxWithRubyFeatureFlags` should have comment or be unexported"
-    - linters:
-        - golint
-      path: "internal/metadata/featureflag/feature_flags.go"
-      text: "exported type `FeatureFlag` should have comment or be unexported"
     - linters:
         - golint
       path: "internal/praefect/config/config.go"
@@ -569,7 +545,7 @@ issues:
       text: "exported var `ErrNotFound` should have comment or be unexported"
     - linters:
         - golint
-      path: "internal/storage/locator.go"
+      path: "internal/gitaly/storage/locator.go"
       text: "exported var `ErrRelativePathEscapesRoot` should have comment or be unexported"
     - linters:
         - golint
@@ -595,9 +571,6 @@ issues:
     - linters:
         - errcheck
       text: "Error return value of `[^`]+.(Close|Serve)` is not checked"
-    - linters:
-        - errcheck
-      text: "Error return value of `(io\\.Copy|out\\.Flush|os\\.Remove(All)?)` is not checked"
     ## errcheck: Specific issues in non-*_test.go files
     - linters:
         - errcheck
@@ -681,7 +654,7 @@ issues:
       text: "Error return value of `stream.CloseSend` is not checked"
     - linters:
         - errcheck
-      path: "internal/storage/locator.go"
+      path: "internal/gitaly/storage/locator.go"
       text: "Error return value of `os.Stat` is not checked"
     - linters:
         - errcheck
@@ -729,28 +702,10 @@ issues:
     ## BEGIN staticcheck exclusions
     - linters:
         - staticcheck
-      text: "package github.com/golang/protobuf/proto is deprecated"
-    - linters:
-        - staticcheck
-      text: "package github.com/golang/protobuf/jsonpb is deprecated"
-    - linters:
-        - staticcheck
-      text: "package github.com/golang/protobuf/ptypes is deprecated"
-    - linters:
-        - staticcheck
-      text: "proto.MessageName is deprecated"
-    - linters:
-        - staticcheck
-      text: "ptypes.Timestamp is deprecated"
-    - linters:
-        - staticcheck
       text: "resp.OldPath is deprecated"
     - linters:
         - staticcheck
       text: "resp.NewPath is deprecated"
-    - linters:
-        - staticcheck
-      text: "proto.MessageType is deprecated"
     ## END staticcheck exclusions
     # govet checks all struct initializations must be keyed by field names
     - linters:

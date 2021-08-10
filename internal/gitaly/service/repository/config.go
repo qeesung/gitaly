@@ -76,7 +76,8 @@ func (s *server) DeleteConfig(ctx context.Context, req *gitalypb.DeleteConfigReq
 		// We assume k does not contain any secrets; it is leaked via 'ps'.
 		cmd, err := s.gitCmdFactory.New(ctx, req.Repository, git.SubCmd{
 			Name:  "config",
-			Flags: []git.Option{git.ValueFlag{"--unset-all", k}},
+			Flags: []git.Option{git.Flag{Name: "--unset-all"}},
+			Args:  []string{k},
 		})
 		if err != nil {
 			return nil, err
@@ -133,8 +134,7 @@ func (s *server) setConfigGit2Go(ctx context.Context, req *gitalypb.SetConfigReq
 		return nil, helper.ErrInternalf("preimage vote on config: %v", err)
 	}
 
-	cmd := git2go.SetConfigCommand{Repository: path, Entries: entries}
-	if err := cmd.Run(ctx, s.cfg); err != nil {
+	if err := s.git2go.SetConfig(ctx, reqRepo, git2go.SetConfigCommand{Repository: path, Entries: entries}); err != nil {
 		return nil, status.Errorf(codes.Internal, "SetConfig git2go error")
 	}
 
@@ -151,7 +151,7 @@ func (s *server) SetConfig(ctx context.Context, req *gitalypb.SetConfigRequest) 
 	// can't use `git config foo.bar secret` because that leaks secrets.
 	// Also we can use git2go implementation of SetConfig
 
-	if featureflag.IsEnabled(ctx, featureflag.GoSetConfig) {
+	if featureflag.GoSetConfig.IsEnabled(ctx) {
 		return s.setConfigGit2Go(ctx, req)
 	}
 
@@ -192,19 +192,24 @@ func (s *server) voteOnConfig(ctx context.Context, repo *gitalypb.Repository) er
 			return fmt.Errorf("get repo path: %w", err)
 		}
 
+		var vote voting.Vote
+
 		config, err := os.Open(filepath.Join(repoPath, "config"))
-		if err != nil {
+		switch {
+		case err == nil:
+			hash := voting.NewVoteHash()
+			if _, err := io.Copy(hash, config); err != nil {
+				return fmt.Errorf("seeding vote: %w", err)
+			}
+
+			vote, err = hash.Vote()
+			if err != nil {
+				return fmt.Errorf("computing vote: %w", err)
+			}
+		case os.IsNotExist(err):
+			vote = voting.VoteFromData([]byte("notfound"))
+		default:
 			return fmt.Errorf("open repo config: %w", err)
-		}
-
-		hash := voting.NewVoteHash()
-		if _, err := io.Copy(hash, config); err != nil {
-			return fmt.Errorf("seeding vote: %w", err)
-		}
-
-		vote, err := hash.Vote()
-		if err != nil {
-			return fmt.Errorf("computing vote: %w", err)
 		}
 
 		if err := s.txManager.Vote(ctx, tx, vote); err != nil {

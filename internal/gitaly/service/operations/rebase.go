@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
@@ -33,9 +32,9 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 	}
 
 	ctx := stream.Context()
+	repo := s.localrepo(header.GetRepository())
 
-	repo := header.Repository
-	repoPath, err := s.locator.GetPath(repo)
+	repoPath, err := repo.Path()
 	if err != nil {
 		return err
 	}
@@ -47,25 +46,22 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 	}
 
 	remoteFetch := rebaseRemoteFetch{header: header}
-	startRevision, err := s.fetchStartRevision(ctx, remoteFetch)
+	startRevision, err := s.fetchStartRevision(ctx, repo, remoteFetch)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
 	committer := git2go.NewSignature(string(header.User.Name), string(header.User.Email), time.Now())
 	if header.Timestamp != nil {
-		committer.When, err = ptypes.Timestamp(header.Timestamp)
-		if err != nil {
-			return helper.ErrInvalidArgumentf("parse timestamp: %w", err)
-		}
+		committer.When = header.Timestamp.AsTime()
 	}
 
-	newrev, err := git2go.RebaseCommand{
+	newrev, err := s.git2go.Rebase(ctx, repo, git2go.RebaseCommand{
 		Repository:       repoPath,
 		Committer:        committer,
 		BranchName:       string(header.Branch),
 		UpstreamRevision: startRevision.String(),
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		return stream.Send(&gitalypb.UserRebaseConfirmableResponse{
 			GitError: err.Error(),
@@ -86,13 +82,14 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 	}
 
 	if !secondRequest.GetApply() {
-		return helper.ErrPreconditionFailedf("rebase aborted by client")
+		return helper.ErrFailedPreconditionf("rebase aborted by client")
 	}
 
 	if err := s.updateReferenceWithHooks(
 		ctx,
-		header.Repository,
+		header.GetRepository(),
 		header.User,
+		nil,
 		branch,
 		newrev,
 		oldrev,

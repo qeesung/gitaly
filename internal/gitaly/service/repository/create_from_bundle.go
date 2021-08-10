@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +10,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
@@ -36,7 +34,7 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 	}
 
 	if !isDirEmpty(repoPath) {
-		return helper.ErrPreconditionFailed(errors.New("CreateRepositoryFromBundle: target directory is non-empty"))
+		return helper.ErrFailedPreconditionf("CreateRepositoryFromBundle: target directory is non-empty")
 	}
 
 	firstRead := false
@@ -52,22 +50,22 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 
 	ctx := stream.Context()
 
-	tmpDir, err := tempdir.New(ctx, repo, s.locator)
+	tmpDir, err := tempdir.New(ctx, repo.GetStorageName(), s.locator)
 	if err != nil {
-		cleanError := sanitizedError(tmpDir, "CreateRepositoryFromBundle: tmp dir failed: %v", err)
+		cleanError := sanitizedError(tmpDir.Path(), "CreateRepositoryFromBundle: tmp dir failed: %v", err)
 		return status.Error(codes.Internal, cleanError)
 	}
 
-	bundlePath := filepath.Join(tmpDir, "repo.bundle")
+	bundlePath := filepath.Join(tmpDir.Path(), "repo.bundle")
 	file, err := os.Create(bundlePath)
 	if err != nil {
-		cleanError := sanitizedError(tmpDir, "CreateRepositoryFromBundle: new bundle file failed: %v", err)
+		cleanError := sanitizedError(tmpDir.Path(), "CreateRepositoryFromBundle: new bundle file failed: %v", err)
 		return status.Error(codes.Internal, cleanError)
 	}
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
-		cleanError := sanitizedError(tmpDir, "CreateRepositoryFromBundle: new bundle file failed: %v", err)
+		cleanError := sanitizedError(tmpDir.Path(), "CreateRepositoryFromBundle: new bundle file failed: %v", err)
 		return status.Error(codes.Internal, cleanError)
 	}
 
@@ -79,7 +77,7 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 				git.Flag{Name: "--bare"},
 				git.Flag{Name: "--quiet"},
 			},
-			PostSepArgs: []string{bundlePath, repoPath},
+			Args: []string{bundlePath, repoPath},
 		},
 		git.WithStderr(&stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),
@@ -93,18 +91,16 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return status.Error(codes.Internal, cleanError)
 	}
 
-	fetchFlags := []git.Option{git.Flag{Name: "--quiet"}}
-	if featureflag.IsEnabled(ctx, featureflag.CreateRepositoryFromBundleAtomicFetch) {
-		fetchFlags = append(fetchFlags, git.Flag{Name: "--atomic"})
-	}
-
 	// We do a fetch to get all refs including keep-around refs
 	stderr.Reset()
 	cmd, err = s.gitCmdFactory.NewWithDir(ctx, repoPath,
 		git.SubCmd{
-			Name:  "fetch",
-			Flags: fetchFlags,
-			Args:  []string{bundlePath, "refs/*:refs/*"},
+			Name: "fetch",
+			Flags: []git.Option{
+				git.Flag{Name: "--quiet"},
+				git.Flag{Name: "--atomic"},
+			},
+			Args: []string{bundlePath, "refs/*:refs/*"},
 		},
 		git.WithStderr(&stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),

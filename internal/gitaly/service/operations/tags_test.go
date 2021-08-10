@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
@@ -285,7 +286,7 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	})
 
 	ctx, cancel := testhelper.Context()
@@ -393,6 +394,54 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			transactionServer.called = 0
 		})
 	}
+}
+
+func TestUserCreateTagQuarantine(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	// We set up a custom "update" hook which simply prints the new tag to stdout and then exits
+	// with an error. Like this, we can both assert that the hook can see the quarantined tag,
+	// and it allows us to fail the RPC before we migrate quarantined objects. Furthermore, we
+	// also try whether we can print the tag's tagged object to assert that we can see objects
+	// which are not part of the object quarantine.
+	script := fmt.Sprintf(`#!/bin/sh
+	%s cat-file -p $3^{commit} >/dev/null &&
+	%s cat-file -p $3^{tag} &&
+	exit 1`, cfg.Git.BinPath, cfg.Git.BinPath)
+	gittest.WriteCustomHook(t, repoPath, "update", []byte(script))
+
+	response, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
+		Repository:     repoProto,
+		TagName:        []byte("quarantined-tag"),
+		TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
+		User:           gittest.TestUser,
+		Timestamp:      timestamppb.New(time.Unix(1600000000, 0)),
+		Message:        []byte("message"),
+	})
+	require.NoError(t, err)
+
+	// Conveniently, the pre-receive error will now contain output from our custom hook and thus
+	// the tag's contents.
+	testassert.ProtoEqual(t, &gitalypb.UserCreateTagResponse{
+		PreReceiveError: `object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+type commit
+tag quarantined-tag
+tagger Jane Doe <janedoe@gitlab.com> 1600000000 +0800
+
+message`,
+	}, response)
+
+	// In case we use an object quarantine directory, the tag should not exist in the target
+	// repository because the RPC failed to update the revision.
+	tagExists, err := repo.HasRevision(ctx, "85d279b2cc85df37992e08f84707987321e8ef47^{tag}")
+	require.NoError(t, err)
+	require.False(t, tagExists, "tag should not have been migrated")
 }
 
 func TestSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *testing.T) {
@@ -819,12 +868,12 @@ func TestUserCreateTagStableTagIDs(t *testing.T) {
 		TargetRevision: []byte("dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82"),
 		Message:        []byte("my message"),
 		User:           gittest.TestUser,
-		Timestamp:      &timestamp.Timestamp{Seconds: 12345},
+		Timestamp:      &timestamppb.Timestamp{Seconds: 12345},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, &gitalypb.Tag{
-		Id:          "c0dd712fb40073c287bc69a39ed5e6b6aa524c6c",
+		Id:          "123b02f05cc249a7da87aae583babb8e4871cd65",
 		Name:        []byte("happy-tag"),
 		Message:     []byte("my message"),
 		MessageSize: 10,

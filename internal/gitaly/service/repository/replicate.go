@@ -14,10 +14,9 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/remote"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
@@ -99,12 +98,12 @@ func validateReplicateRepository(in *gitalypb.ReplicateRepositoryRequest) error 
 func (s *server) create(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest, repoPath string) error {
 	// if the directory exists, remove it
 	if _, err := os.Stat(repoPath); err == nil {
-		tempDir, err := tempdir.ForDeleteAllRepositories(s.locator, in.GetRepository().GetStorageName())
+		tempDir, err := tempdir.NewWithoutContext(in.GetRepository().GetStorageName(), s.locator)
 		if err != nil {
 			return err
 		}
 
-		if err = os.Rename(repoPath, filepath.Join(tempDir, filepath.Base(repoPath))); err != nil {
+		if err = os.Rename(repoPath, filepath.Join(tempDir.Path(), filepath.Base(repoPath))); err != nil {
 			return fmt.Errorf("error deleting invalid repo: %v", err)
 		}
 
@@ -119,7 +118,7 @@ func (s *server) create(ctx context.Context, in *gitalypb.ReplicateRepositoryReq
 }
 
 func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	tempRepo, tempPath, err := tempdir.NewAsRepository(ctx, in.GetRepository(), s.locator)
+	tempRepo, tempDir, err := tempdir.NewRepository(ctx, in.GetRepository().GetStorageName(), s.locator)
 	if err != nil {
 		return fmt.Errorf("create temporary directory: %w", err)
 	}
@@ -166,7 +165,7 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 	)
 
 	stderr := &bytes.Buffer{}
-	cmd, err := command.New(ctx, exec.Command("tar", "-C", tempPath, "-xvf", "-"), snapshotReader, nil, stderr)
+	cmd, err := command.New(ctx, exec.Command("tar", "-C", tempDir.Path(), "-xvf", "-"), snapshotReader, nil, stderr)
 	if err != nil {
 		return fmt.Errorf("create tar command: %w", err)
 	}
@@ -184,7 +183,7 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		return fmt.Errorf("create parent directories: %w", err)
 	}
 
-	if err := os.Rename(tempPath, targetPath); err != nil {
+	if err := os.Rename(tempDir.Path(), targetPath); err != nil {
 		return fmt.Errorf("move temporary directory to target path: %w", err)
 	}
 
@@ -192,31 +191,10 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 }
 
 func (s *server) syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	if featureflag.IsEnabled(ctx, featureflag.ReplicateRepositoryDirectFetch) {
-		repo := s.localrepo(in.GetRepository())
+	repo := s.localrepo(in.GetRepository())
 
-		if err := remote.FetchInternalRemote(ctx, s.cfg, s.conns, repo, in.GetSource()); err != nil {
-			return fmt.Errorf("fetch internal remote: %w", err)
-		}
-
-		return nil
-	}
-
-	remoteClient, err := s.newRemoteClient(ctx)
-	if err != nil {
-		return fmt.Errorf("new client: %w", err)
-	}
-
-	resp, err := remoteClient.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
-		Repository:       in.GetRepository(),
-		RemoteRepository: in.GetSource(),
-	})
-	if err != nil {
+	if err := remote.FetchInternalRemote(ctx, s.cfg, s.conns, repo, in.GetSource()); err != nil {
 		return fmt.Errorf("fetch internal remote: %w", err)
-	}
-
-	if !resp.Result {
-		return errors.New("FetchInternalRemote failed")
 	}
 
 	return nil
@@ -317,16 +295,6 @@ func writeFile(path string, mode os.FileMode, reader io.Reader) error {
 	}
 
 	return nil
-}
-
-// newRemoteClient creates a new RemoteClient that talks to the same gitaly server
-func (s *server) newRemoteClient(ctx context.Context) (gitalypb.RemoteServiceClient, error) {
-	conn, err := s.conns.Dial(ctx, fmt.Sprintf("unix:%s", s.cfg.GitalyInternalSocketPath()), s.cfg.Auth.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return gitalypb.NewRemoteServiceClient(conn), nil
 }
 
 // newRepoClient creates a new RepositoryClient that talks to the gitaly of the source repository

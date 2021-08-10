@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -40,8 +39,7 @@ func TestReplicateRepository(t *testing.T) {
 
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	// create a loose object to ensure snapshot replication is used
 	blobData, err := text.RandomHex(10)
@@ -99,13 +97,7 @@ func TestReplicateRepository(t *testing.T) {
 	gittest.Exec(t, cfg, "-C", targetRepoPath, "cat-file", "-p", blobID)
 }
 
-func TestReplicateRepository_transactional(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReplicateRepositoryDirectFetch,
-	}).Run(t, testReplicateRepositoryTransactional)
-}
-
-func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
+func TestReplicateRepositoryTransactional(t *testing.T) {
 	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "replica"))
 	cfg := cfgBuilder.Build(t)
 
@@ -115,8 +107,7 @@ func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = serverSocketPath
 
-	sourceRepo, sourceRepoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-	t.Cleanup(cleanup)
+	sourceRepo, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	targetRepo := proto.Clone(sourceRepo).(*gitalypb.Repository)
 	targetRepo.StorageName = cfg.Storages[1].Name
@@ -131,6 +122,8 @@ func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
 		},
 	}
 
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "primary", true)
 	require.NoError(t, err)
 	ctx = helper.IncomingToOutgoing(ctx)
@@ -167,19 +160,8 @@ func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
 		Source:     sourceRepo,
 	})
 
-	if featureflag.IsEnabled(ctx, featureflag.ReplicateRepositoryDirectFetch) {
-		require.NoError(t, err)
-		require.Equal(t, 2, votes)
-	} else {
-		// This is failing because we do a nested mutating RPC in `ReplicateRepository()` to
-		// `FetchInternalRemote()`. Because we simply pass along the incoming context as an
-		// outgoing one, the server would try to vote on the backchannel. But given that the
-		// connection is not to Praefect but to Gitaly now, it's trying to cast votes on a
-		// non-multiplexed Gitaly connection instead of against the expected Praefect peer.
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "ref updates aborted by hook")
-		require.Equal(t, 0, votes)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 2, votes)
 }
 
 func TestReplicateRepositoryInvalidArguments(t *testing.T) {
@@ -309,11 +291,10 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 
 			client := newRepositoryClient(t, cfg, serverSocketPath)
 
-			sourceRepo, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-			t.Cleanup(cleanup)
-
-			targetRepo, targetRepoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[1], sourceRepo.RelativePath)
-			t.Cleanup(cleanup)
+			sourceRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			targetRepo, targetRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[1], gittest.CloneRepoOpts{
+				RelativePath: sourceRepo.RelativePath,
+			})
 
 			var invalidRepos []*gitalypb.Repository
 			if tc.invalidSource {
@@ -364,8 +345,7 @@ func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 
 	locator := config.NewLocator(cfg)
 
-	testRepo, _, cleanupRepo := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanupRepo)
+	testRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	repoClient := newRepositoryClient(t, cfg, cfg.SocketPath)
 

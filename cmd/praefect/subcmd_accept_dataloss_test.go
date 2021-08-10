@@ -38,9 +38,16 @@ func TestAcceptDatalossSubcommand(t *testing.T) {
 
 	rs := datastore.NewPostgresRepositoryStore(getDB(t), conf.StorageNames())
 	startingGenerations := map[string]int{st1: 1, st2: 0, st3: datastore.GenerationUnknown}
+
+	repoCreated := false
 	for storage, generation := range startingGenerations {
 		if generation == datastore.GenerationUnknown {
 			continue
+		}
+
+		if !repoCreated {
+			repoCreated = true
+			require.NoError(t, rs.CreateRepository(ctx, vs, repo, storage, nil, nil, false, false))
 		}
 
 		require.NoError(t, rs.SetGeneration(ctx, vs, repo, storage, generation))
@@ -61,7 +68,7 @@ func TestAcceptDatalossSubcommand(t *testing.T) {
 		},
 	}
 
-	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(info.NewServer(nil, conf, q, rs, nil, nil, nil))})
+	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(info.NewServer(conf, q, rs, nil, nil, nil))})
 	defer clean()
 
 	conf.SocketPath = ln.Addr().String()

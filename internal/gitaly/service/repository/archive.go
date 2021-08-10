@@ -13,9 +13,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/commit"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -151,7 +151,7 @@ func (s *server) validateGetArchivePrecondition(
 		if ok, err := findGetArchivePath(ctx, f, commitID, path); err != nil {
 			return err
 		} else if !ok {
-			return helper.ErrPreconditionFailedf("path doesn't exist")
+			return helper.ErrFailedPreconditionf("path doesn't exist")
 		}
 	}
 
@@ -159,7 +159,7 @@ func (s *server) validateGetArchivePrecondition(
 		if ok, err := findGetArchivePath(ctx, f, commitID, exclude); err != nil {
 			return err
 		} else if !ok {
-			return helper.ErrPreconditionFailedf("exclude[%d] doesn't exist", i)
+			return helper.ErrFailedPreconditionf("exclude[%d] doesn't exist", i)
 		}
 	}
 
@@ -215,7 +215,7 @@ func (s *server) handleArchive(p archiveParams) error {
 
 	archiveCommand, err := s.gitCmdFactory.New(p.ctx, p.in.GetRepository(), git.SubCmd{
 		Name:        "archive",
-		Flags:       []git.Option{git.ValueFlag{"--format", p.format}, git.ValueFlag{"--prefix", p.in.GetPrefix() + "/"}},
+		Flags:       []git.Option{git.ValueFlag{Name: "--format", Value: p.format}, git.ValueFlag{Name: "--prefix", Value: p.in.GetPrefix() + "/"}},
 		Args:        args,
 		PostSepArgs: pathspecs,
 	}, git.WithEnv(env...), git.WithConfig(config...))

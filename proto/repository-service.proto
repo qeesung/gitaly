@@ -99,11 +99,6 @@ service RepositoryService {
       op: MUTATOR
     };
   }
-  rpc IsRebaseInProgress(IsRebaseInProgressRequest) returns (IsRebaseInProgressResponse) {
-    option (op_type) = {
-      op: ACCESSOR
-    };
-  }
   rpc IsSquashInProgress(IsSquashInProgressRequest) returns (IsSquashInProgressResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -115,11 +110,21 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // CreateBundle creates a bundle from all refs
   rpc CreateBundle(CreateBundleRequest) returns (stream CreateBundleResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // CreateBundleFromRefList creates a bundle from a stream of ref patterns
+  rpc CreateBundleFromRefList(stream CreateBundleFromRefListRequest) returns (stream CreateBundleFromRefListResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
   rpc CreateRepositoryFromBundle(stream CreateRepositoryFromBundleRequest) returns (CreateRepositoryFromBundleResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -235,6 +240,16 @@ service RepositoryService {
     };
   }
   rpc OptimizeRepository(OptimizeRepositoryRequest) returns (OptimizeRepositoryResponse) {
+    option (op_type)  = {
+      op: MUTATOR
+    };
+  }
+
+  // SetFullPath writes the "gitlab.fullpath" configuration into the
+  // repository's gitconfig. This is mainly to help debugging purposes in case
+  // an admin inspects the repository's gitconfig such that he can easily see
+  // what the repository name is.
+  rpc SetFullPath(SetFullPathRequest) returns (SetFullPathResponse) {
     option (op_type)  = {
       op: MUTATOR
     };
@@ -458,15 +473,6 @@ message CreateForkRequest {
 
 message CreateForkResponse {}
 
-message IsRebaseInProgressRequest {
-  Repository repository = 1 [(target_repository)=true];
-  string rebase_id = 2;
-}
-
-message IsRebaseInProgressResponse {
-  bool in_progress = 1;
-}
-
 message IsSquashInProgressRequest {
   Repository repository = 1 [(target_repository)=true];
   string squash_id = 2;
@@ -488,6 +494,20 @@ message CreateBundleRequest {
 }
 
 message CreateBundleResponse {
+  bytes data = 1;
+}
+
+message CreateBundleFromRefListRequest {
+  // Repository is the repository that the bundle is created from.
+  Repository repository = 1 [(target_repository)=true];
+
+  // Patterns contains all patterns which shall be bundled. Patterns should be
+  // in the format accepted by git-rev-list(1). Patterns which don't match any
+  // reference will be silently ignored.
+  repeated bytes patterns = 2;
+}
+
+message CreateBundleFromRefListResponse {
   bytes data = 1;
 }
 
@@ -739,3 +759,14 @@ message OptimizeRepositoryRequest {
 }
 
 message OptimizeRepositoryResponse{}
+
+// SetFullPathRequest is a request for the SetFullPath RPC.
+message SetFullPathRequest {
+  // Repository is the repository whose gitconfig should be written to.
+  Repository repository = 1 [(target_repository)=true];
+  // Path is the path that shall be written into the "gitlab.fullpath" config key.
+  string path = 2;
+}
+
+// SetFullPathResponse is a response fqor the SetFullPath RPC.
+message SetFullPathResponse {}
