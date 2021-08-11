@@ -13,7 +13,9 @@ require (
 	github.com/cloudflare/tableflip v1.2.2
 	github.com/containerd/cgroups v0.0.0-20201118023556-2819c83ced99
 	github.com/getsentry/sentry-go v0.10.0
+	github.com/gin-gonic/gin v1.7.3 // indirect
 	github.com/git-lfs/git-lfs v1.5.1-0.20210304194248-2e1d981afbe3
+	github.com/go-playground/validator/v10 v10.9.0 // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.2.0
@@ -21,6 +23,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/yamux v0.0.0-20210316155119-a95892c5f864
+	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/lib/pq v1.10.1
@@ -36,6 +39,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.27.0+incompatible
+	github.com/ugorji/go v1.2.6 // indirect
 	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210720163109-50da611814d2
 	gitlab.com/gitlab-org/labkit v1.5.0
 	go.uber.org/goleak v1.1.10
