@@ -89,7 +89,10 @@ func (pgl *PostgresListener) connect() error {
 	firstConnectionAttempt := true
 	connectErrChan := make(chan error, 1)
 
+	listenerSetUpChan := make(chan struct{})
 	connectionLifecycle := func(eventType pq.ListenerEventType, err error) {
+		<-listenerSetUpChan
+
 		pgl.reconnectTotal.WithLabelValues(listenerEventTypeToString(eventType)).Inc()
 
 		switch eventType {
@@ -123,6 +126,10 @@ func (pgl *PostgresListener) connect() error {
 	}
 
 	pgl.listener = pq.NewListener(pgl.opts.Addr, pgl.opts.MinReconnectInterval, pgl.opts.MaxReconnectInterval, connectionLifecycle)
+
+	// We need to synchronize setting the listener field of the struct and startup of the
+	// `connectionLifecycle` Goroutine, which makes use of this field.
+	close(listenerSetUpChan)
 
 	listenErrChan := make(chan error, 1)
 	pgl.async(func() {
