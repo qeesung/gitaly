@@ -63,8 +63,8 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-			testhelper.ConfigureGitalyHooksBin(t, cfg)
-			testhelper.ConfigureGitalySSHBin(t, cfg)
+			testhelper.BuildGitalyHooks(t, cfg)
+			testhelper.BuildGitalySSH(t, cfg)
 
 			var (
 				client gitalypb.RepositoryServiceClient
@@ -228,7 +228,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 
 	gitalypb.RegisterRepositoryServiceServer(server, NewServer(cfg, rubySrv, locator, txManager, gitCmdFactory, catfileCache))
 	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(cfg, hookManager, gitCmdFactory, nil))
-	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(cfg, rubySrv, locator, gitCmdFactory, catfileCache, txManager))
+	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(cfg, locator, gitCmdFactory, catfileCache, txManager))
 	gitalypb.RegisterSSHServiceServer(server, ssh.NewServer(cfg, locator, gitCmdFactory, txManager))
 	gitalypb.RegisterRefServiceServer(server, ref.NewServer(cfg, locator, gitCmdFactory, txManager, catfileCache))
 	gitalypb.RegisterCommitServiceServer(server, commit.NewServer(cfg, locator, gitCmdFactory, nil, catfileCache))

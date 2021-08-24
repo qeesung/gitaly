@@ -19,7 +19,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/lines"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/protobuf/proto"
 )
@@ -89,52 +88,6 @@ func (t *tagSender) Send() error {
 	})
 }
 
-func (s *server) parseAndReturnTags(ctx context.Context, repo git.RepositoryExecutor, sortField string, stream gitalypb.RefService_FindAllTagsServer) error {
-	flags := []git.Option{
-		git.ValueFlag{Name: "--format", Value: tagFormat},
-	}
-	if sortField != "" {
-		flags = append(flags, git.ValueFlag{Name: "--sort", Value: sortField})
-	}
-	tagsCmd, err := repo.Exec(ctx, git.SubCmd{
-		Name:  "for-each-ref",
-		Flags: flags,
-		Args:  []string{"refs/tags/"},
-	})
-	if err != nil {
-		return fmt.Errorf("for-each-ref error: %v", err)
-	}
-
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("error creating catfile: %v", err)
-	}
-
-	tagChunker := chunk.New(&tagSender{stream: stream})
-
-	scanner := bufio.NewScanner(tagsCmd)
-	for scanner.Scan() {
-		tag, err := parseTagLine(ctx, c, scanner.Text())
-		if err != nil {
-			return fmt.Errorf("parsing tag: %v", err)
-		}
-
-		if err := tagChunker.Send(tag); err != nil {
-			return fmt.Errorf("sending to chunker: %v", err)
-		}
-	}
-
-	if err := tagsCmd.Wait(); err != nil {
-		return fmt.Errorf("tag command: %v", err)
-	}
-
-	if err := tagChunker.Flush(); err != nil {
-		return fmt.Errorf("flushing chunker: %v", err)
-	}
-
-	return nil
-}
-
 func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.RefService_FindAllTagsServer) error {
 	ctx := stream.Context()
 
@@ -149,14 +102,8 @@ func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.Re
 
 	repo := s.localrepo(in.GetRepository())
 
-	if featureflag.FindAllTagsPipeline.IsEnabled(ctx) {
-		if err := s.findAllTags(ctx, repo, sortField, stream); err != nil {
-			return helper.ErrInternal(err)
-		}
-	} else {
-		if err := s.parseAndReturnTags(ctx, repo, sortField, stream); err != nil {
-			return helper.ErrInternal(err)
-		}
+	if err := s.findAllTags(ctx, repo, sortField, stream); err != nil {
+		return helper.ErrInternal(err)
 	}
 
 	return nil
@@ -183,6 +130,51 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 	)
 
 	catfileInfoIter := gitpipe.CatfileInfo(ctx, c, forEachRefIter)
+
+	// In the previous pipeline step, we request information about both the object and the
+	// peeled object in case the object is a tag. Given that we now know about object types, we
+	// can filter out the second request in case the object is not a tag: peeling a non-tag
+	// object to a non-tag object is always going to end up with the same object anyway. And
+	// requesting the same object twice is moot.
+	type state int
+	const (
+		// stateTag indicates that the next object is going to be a tag.
+		stateTag = state(iota)
+		// statePeeledTag indicates that the next object is going to be the peeled object of
+		// the preceding tag.
+		statePeeledTag
+		// stateSkip indicates that the next object shall be skipped because it is the
+		// peeled version of a non-tag object, which is the same object anyway.
+		stateSkip
+	)
+
+	currentState := stateTag
+	catfileInfoIter = gitpipe.CatfileInfoFilter(ctx, catfileInfoIter,
+		func(r gitpipe.CatfileInfoResult) bool {
+			switch currentState {
+			case stateTag:
+				// If we've got a tag, then we want to also see its peeled object.
+				// Otherwise, we can skip over the peeled object.
+				currentState = statePeeledTag
+				if r.ObjectInfo.Type != "tag" {
+					currentState = stateSkip
+				}
+				return true
+			case statePeeledTag:
+				currentState = stateTag
+				return true
+			case stateSkip:
+				currentState = stateTag
+				return false
+			}
+
+			// We could try to gracefully handle this, but I don't see much of a point
+			// given that we can see above that it's never going to be anything else but
+			// a known state.
+			panic("invalid state")
+		},
+	)
+
 	catfileObjectsIter := gitpipe.CatfileObject(ctx, c, catfileInfoIter)
 
 	chunker := chunk.New(&tagSender{stream: stream})
@@ -197,6 +189,28 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 			result, err = catfile.ParseTag(tag.ObjectReader, tag.ObjectInfo.Oid)
 			if err != nil {
 				return fmt.Errorf("parsing annotated tag: %w", err)
+			}
+
+			// For each tag, we expect both the tag itself as well as its
+			// potentially-peeled tagged object.
+			if !catfileObjectsIter.Next() {
+				return errors.New("expected peeled tag")
+			}
+
+			peeledTag := catfileObjectsIter.Result()
+
+			// We only need to parse the tagged object in case we have an annotated tag
+			// which refers to a commit object. Otherwise, we discard the object's
+			// contents.
+			if peeledTag.ObjectInfo.Type == "commit" {
+				result.TargetCommit, err = catfile.ParseCommit(peeledTag.ObjectReader, peeledTag.ObjectInfo.Oid)
+				if err != nil {
+					return fmt.Errorf("parsing tagged commit: %w", err)
+				}
+			} else {
+				if _, err := io.Copy(ioutil.Discard, peeledTag.ObjectReader); err != nil {
+					return fmt.Errorf("discarding tagged object contents: %w", err)
+				}
 			}
 		case "commit":
 			commit, err := catfile.ParseCommit(tag.ObjectReader, tag.ObjectInfo.Oid)
@@ -224,27 +238,6 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 		// of the reference such that we can discern multiple refs pointing to the same tag.
 		if tagName := bytes.TrimPrefix(tag.ObjectName, []byte("refs/tags/")); len(tagName) > 0 {
 			result.Name = tagName
-		}
-
-		// For each tag, we expect both the tag itself as well as its potentially-peeled
-		// tagged object.
-		if !catfileObjectsIter.Next() {
-			return errors.New("expected peeled tag")
-		}
-
-		peeledTag := catfileObjectsIter.Result()
-
-		// We only need to parse the tagged object in case we have an annotated tag which
-		// refers to a commit object. Otherwise, we discard the object's contents.
-		if tag.ObjectInfo.Type == "tag" && peeledTag.ObjectInfo.Type == "commit" {
-			result.TargetCommit, err = catfile.ParseCommit(peeledTag.ObjectReader, peeledTag.ObjectInfo.Oid)
-			if err != nil {
-				return fmt.Errorf("parsing tagged commit: %w", err)
-			}
-		} else {
-			if _, err := io.Copy(ioutil.Discard, peeledTag.ObjectReader); err != nil {
-				return fmt.Errorf("discarding tagged object contents: %w", err)
-			}
 		}
 
 		if err := chunker.Send(result); err != nil {

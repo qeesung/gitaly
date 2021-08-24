@@ -1,5 +1,3 @@
-// +build postgres
-
 package glsql
 
 import (
@@ -63,7 +61,8 @@ func TestUint64Provider(t *testing.T) {
 }
 
 func TestScanAll(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := NewDB(t)
 
 	var ids Uint64Provider
 	notEmptyRows, err := db.Query("SELECT id FROM (VALUES (1), (200), (300500)) AS t(id)")

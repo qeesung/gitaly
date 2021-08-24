@@ -1,5 +1,3 @@
-// +build postgres
-
 package main
 
 import (
@@ -16,10 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-func getDB(t *testing.T) glsql.DB {
-	return glsql.GetDB(t, "cmd_praefect")
-}
-
 func registerPraefectInfoServer(impl gitalypb.PraefectInfoServiceServer) svcRegistrar {
 	return func(srv *grpc.Server) {
 		gitalypb.RegisterPraefectInfoServiceServer(srv, impl)
@@ -27,6 +21,7 @@ func registerPraefectInfoServer(impl gitalypb.PraefectInfoServiceServer) svcRegi
 }
 
 func TestDatalossSubcommand(t *testing.T) {
+	t.Parallel()
 	cfg := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
@@ -46,9 +41,8 @@ func TestDatalossSubcommand(t *testing.T) {
 		},
 	}
 
-	tx, err := getDB(t).Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
+	tx := glsql.NewDB(t).Begin(t)
+	defer tx.Rollback(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -86,7 +80,7 @@ func TestDatalossSubcommand(t *testing.T) {
 	require.NoError(t, gs.SetGeneration(ctx, "virtual-storage-1", "repository-2", "gitaly-3", 0))
 
 	ln, clean := listenAndServe(t, []svcRegistrar{
-		registerPraefectInfoServer(info.NewServer(cfg, nil, gs, nil, nil, nil))})
+		registerPraefectInfoServer(info.NewServer(cfg, gs, nil, nil, nil))})
 	defer clean()
 	for _, tc := range []struct {
 		desc            string

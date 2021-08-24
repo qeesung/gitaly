@@ -1,5 +1,3 @@
-// +build postgres
-
 package nodes
 
 import (
@@ -26,6 +24,7 @@ func (m mockHealthClient) Check(ctx context.Context, r *grpc_health_v1.HealthChe
 }
 
 func TestHealthManager(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -38,6 +37,8 @@ func TestHealthManager(t *testing.T) {
 		Updated         bool
 		HealthConsensus map[string][]string
 	}
+
+	db := glsql.NewDB(t)
 
 	for _, tc := range []struct {
 		desc         string
@@ -472,7 +473,7 @@ func TestHealthManager(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			db := getDB(t)
+			db.TruncateAll(t)
 
 			healthStatus := map[string]grpc_health_v1.HealthCheckResponse_ServingStatus{}
 			// healthManagers are cached in order to keep the internal state intact between different
@@ -486,7 +487,7 @@ func TestHealthManager(t *testing.T) {
 					clients := make(HealthClients, len(hc.LocalStatus))
 					for virtualStorage, nodeHealths := range hc.LocalStatus {
 						clients[virtualStorage] = make(map[string]grpc_health_v1.HealthClient, len(nodeHealths))
-						for node, _ := range nodeHealths {
+						for node := range nodeHealths {
 							virtualStorage, node := virtualStorage, node
 							clients[virtualStorage][node] = mockHealthClient{
 								CheckFunc: func(context.Context, *grpc_health_v1.HealthCheckRequest, ...grpc.CallOption) (*grpc_health_v1.HealthCheckResponse, error) {

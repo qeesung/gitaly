@@ -1,5 +1,3 @@
-// +build postgres
-
 package nodes
 
 import (
@@ -30,7 +28,8 @@ import (
 var shardName string = "test-shard-0"
 
 func TestGetPrimaryAndSecondaries(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	logger := testhelper.NewTestLogger(t).WithField("test", t.Name())
 	praefectSocket := testhelper.GetTemporaryGitalySocketFileName(t)
@@ -62,9 +61,10 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 	err = elector.checkNodes(ctx)
+	require.NoError(t, err)
 	db.RequireRowsInTable(t, "shard_primaries", 1)
 
-	elector.demotePrimary(ctx, db)
+	require.NoError(t, elector.demotePrimary(ctx, db))
 	shard, err := elector.GetShard(ctx)
 	db.RequireRowsInTable(t, "shard_primaries", 1)
 	require.Equal(t, ErrPrimaryNotHealthy, err)
@@ -72,7 +72,8 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 }
 
 func TestSqlElector_slow_execution(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	praefectSocket := "unix://" + testhelper.GetTemporaryGitalySocketFileName(t)
 	logger := testhelper.NewTestLogger(t).WithField("test", t.Name())
@@ -109,7 +110,8 @@ func TestSqlElector_slow_execution(t *testing.T) {
 }
 
 func TestBasicFailover(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	logger := testhelper.NewTestLogger(t).WithField("test", t.Name())
 	praefectSocket := testhelper.GetTemporaryGitalySocketFileName(t)
@@ -217,17 +219,15 @@ func TestBasicFailover(t *testing.T) {
 }
 
 func TestElectDemotedPrimary(t *testing.T) {
-	db := getDB(t)
-
-	tx, err := db.Begin()
-	require.NoError(t, err)
-	defer func() { require.NoError(t, tx.Commit()) }()
+	t.Parallel()
+	tx := glsql.NewDB(t).Begin(t)
+	defer tx.Rollback(t)
 
 	node := config.Node{Storage: "gitaly-0"}
 	elector := newSQLElector(
 		shardName,
 		config.Config{},
-		db.DB,
+		nil,
 		testhelper.DiscardTestLogger(t),
 		[]*nodeStatus{{node: node}},
 	)
@@ -236,7 +236,7 @@ func TestElectDemotedPrimary(t *testing.T) {
 	defer cancel()
 
 	candidates := []*sqlCandidate{{Node: &nodeStatus{node: node}}}
-	require.NoError(t, elector.electNewPrimary(ctx, tx, candidates))
+	require.NoError(t, elector.electNewPrimary(ctx, tx.Tx, candidates))
 
 	primary, err := elector.lookupPrimary(ctx, tx)
 	require.NoError(t, err)
@@ -250,7 +250,7 @@ func TestElectDemotedPrimary(t *testing.T) {
 
 	predateElection(t, ctx, tx, shardName, failoverTimeout+time.Microsecond)
 	require.NoError(t, err)
-	require.NoError(t, elector.electNewPrimary(ctx, tx, candidates))
+	require.NoError(t, elector.electNewPrimary(ctx, tx.Tx, candidates))
 
 	primary, err = elector.lookupPrimary(ctx, tx)
 	require.NoError(t, err)
@@ -285,7 +285,8 @@ func predateElection(t testing.TB, ctx context.Context, db glsql.Querier, shardN
 }
 
 func TestElectNewPrimary(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ns := []*nodeStatus{{
 		node: config.Node{
@@ -397,13 +398,10 @@ func TestElectNewPrimary(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			db.TruncateAll(t)
+			tx := db.Begin(t)
+			defer tx.Rollback(t)
 
-			tx, err := db.Begin()
-			require.NoError(t, err)
-			defer func() { require.NoError(t, tx.Commit()) }()
-
-			_, err = tx.Exec(testCase.initialReplQueueInsert)
+			_, err := tx.Exec(testCase.initialReplQueueInsert)
 			require.NoError(t, err)
 
 			logger, hook := test.NewNullLogger()
@@ -413,7 +411,7 @@ func TestElectNewPrimary(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			require.NoError(t, elector.electNewPrimary(ctx, tx, candidates))
+			require.NoError(t, elector.electNewPrimary(ctx, tx.Tx, candidates))
 			primary, err := elector.lookupPrimary(ctx, tx)
 
 			require.NoError(t, err)
@@ -426,6 +424,7 @@ func TestElectNewPrimary(t *testing.T) {
 }
 
 func TestConnectionMultiplexing(t *testing.T) {
+	t.Parallel()
 	errNonMuxed := status.Error(codes.Internal, "non-muxed connection")
 	errMuxed := status.Error(codes.Internal, "muxed connection")
 
@@ -456,6 +455,7 @@ func TestConnectionMultiplexing(t *testing.T) {
 
 	go srv.Serve(ln)
 
+	db := glsql.NewDB(t)
 	mgr, err := NewManager(
 		testhelper.DiscardTestEntry(t),
 		config.Config{
@@ -473,13 +473,14 @@ func TestConnectionMultiplexing(t *testing.T) {
 				},
 			},
 		},
-		getDB(t).DB,
+		db.DB,
 		nil,
 		promtest.NewMockHistogramVec(),
 		protoregistry.GitalyProtoPreregistered,
 		nil,
 		backchannel.NewClientHandshaker(logger, func() backchannel.Server { return grpc.NewServer() }),
 	)
+	require.NoError(t, err)
 
 	// check the shard to get the primary in a healthy state
 	mgr.checkShards()

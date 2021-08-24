@@ -85,7 +85,6 @@ func TestNewProtoRegistry(t *testing.T) {
 			"FindDefaultBranchName":           protoregistry.OpAccessor,
 			"FindAllBranchNames":              protoregistry.OpAccessor,
 			"FindAllTagNames":                 protoregistry.OpAccessor,
-			"FindRefName":                     protoregistry.OpAccessor,
 			"FindLocalBranches":               protoregistry.OpAccessor,
 			"FindAllBranches":                 protoregistry.OpAccessor,
 			"FindAllTags":                     protoregistry.OpAccessor,
@@ -101,9 +100,7 @@ func TestNewProtoRegistry(t *testing.T) {
 			"PackRefs":                        protoregistry.OpMutator,
 		},
 		"RemoteService": map[string]protoregistry.OpType{
-			"AddRemote":            protoregistry.OpMutator,
 			"FetchInternalRemote":  protoregistry.OpMutator,
-			"RemoveRemote":         protoregistry.OpMutator,
 			"UpdateRemoteMirror":   protoregistry.OpAccessor,
 			"FindRemoteRepository": protoregistry.OpAccessor,
 			"FindRemoteRootRef":    protoregistry.OpAccessor,

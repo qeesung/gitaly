@@ -1,5 +1,3 @@
-// +build postgres
-
 package main
 
 import (
@@ -10,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/info"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
@@ -18,6 +17,9 @@ import (
 )
 
 func TestSetReplicationFactorSubcommand(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
+
 	for _, tc := range []struct {
 		desc   string
 		args   []string
@@ -81,7 +83,7 @@ func TestSetReplicationFactorSubcommand(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			db := getDB(t)
+			db.TruncateAll(t)
 
 			store := tc.store
 			if tc.store == nil {
@@ -94,7 +96,7 @@ func TestSetReplicationFactorSubcommand(t *testing.T) {
 			)
 
 			ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(
-				info.NewServer(config.Config{}, nil, nil, store, nil, nil),
+				info.NewServer(config.Config{}, nil, store, nil, nil),
 			)})
 			defer clean()
 

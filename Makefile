@@ -295,10 +295,8 @@ test-with-praefect: build prepare-tests
 
 .PHONY: test-postgres
 ## Run Go tests with Postgres.
-test-postgres: GO_BUILD_TAGS := ${GO_BUILD_TAGS},postgres
 test-postgres: TEST_PACKAGES := gitlab.com/gitlab-org/gitaly/v14/internal/praefect/...
-test-postgres: prepare-tests
-	${Q}$(call run_go_tests)
+test-postgres: test-go
 
 .PHONY: race-go
 ## Run Go tests with race detection enabled.
@@ -368,7 +366,6 @@ rubocop: ${SOURCE_DIR}/.ruby-bundle
 
 .PHONY: cover
 ## Generate coverage report via Go tests.
-cover: GO_BUILD_TAGS := ${GO_BUILD_TAGS},postgres
 cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${COVERAGE_DIR}/all.merged"
 cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
 	${Q}echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
@@ -397,8 +394,7 @@ proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${SOURCE_DIR}/.ruby-bund
 		${SOURCE_DIR}/internal/praefect/mock/mock.proto \
 		${SOURCE_DIR}/internal/middleware/cache/testdata/stream.proto \
 		${SOURCE_DIR}/internal/helper/chunk/testdata/test.proto \
-		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto \
-		${SOURCE_DIR}/internal/streamrpc/testdata/test.proto
+		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto
 	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto --go_out=${SOURCE_DIR}/proto --go-grpc_out=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto/go/internal/linter/testdata/*.proto
 
 .PHONY: lint-proto

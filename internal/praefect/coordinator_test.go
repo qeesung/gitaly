@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -59,6 +60,8 @@ func TestSecondaryRotation(t *testing.T) {
 }
 
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
 	for _, tc := range []struct {
 		desc     string
 		readOnly bool
@@ -67,6 +70,8 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 		{desc: "read-only", readOnly: true},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			db.TruncateAll(t)
+
 			const (
 				virtualStorage = "test-virtual-storage"
 				relativePath   = "test-repository"
@@ -99,7 +104,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 			}
 
 			coordinator := NewCoordinator(
-				datastore.NewMemoryReplicationEventQueue(conf),
+				datastore.NewPostgresReplicationEventQueue(db),
 				rs,
 				NewNodeManagerRouter(&nodes.MockManager{GetShardFunc: func(vs string) (nodes.Shard, error) {
 					require.Equal(t, virtualStorage, vs)
@@ -132,6 +137,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 }
 
 func TestStreamDirectorMutator(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, gitalySocket0)
 	testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -150,7 +156,7 @@ func TestStreamDirectorMutator(t *testing.T) {
 
 	var replEventWait sync.WaitGroup
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)))
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -236,6 +242,7 @@ func TestStreamDirectorMutator(t *testing.T) {
 }
 
 func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
+	t.Parallel()
 	socket := testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, socket)
 
@@ -281,7 +288,7 @@ func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
 	txMgr := transactions.NewManager(conf)
 
 	coordinator := NewCoordinator(
-		datastore.NewMemoryReplicationEventQueue(conf),
+		datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)),
 		rs,
 		NewNodeManagerRouter(nodeMgr, rs),
 		txMgr,
@@ -355,6 +362,7 @@ func (m mockRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage,
 }
 
 func TestStreamDirectorAccessor(t *testing.T) {
+	t.Parallel()
 	gitalySocket := testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, gitalySocket)
 
@@ -373,7 +381,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -452,6 +460,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 }
 
 func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	primaryHealthSrv := testhelper.NewServerWithHealth(t, gitalySocket0)
 	healthSrv := testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -478,7 +487,7 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -731,6 +740,13 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 }
 
 func TestStreamDirector_repo_creation(t *testing.T) {
+	t.Parallel()
+	// For the test-with-praefect execution we disable a special case when repository
+	// records need to be created in the database.
+	defer testhelper.ModifyEnvironment(t, "GITALY_TEST_PRAEFECT_BIN", "")()
+
+	db := glsql.NewDB(t)
+
 	for _, tc := range []struct {
 		desc              string
 		electionStrategy  config.ElectionStrategy
@@ -760,6 +776,7 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			db.TruncateAll(t)
 			primaryNode := &config.Node{Storage: "praefect-internal-1"}
 			healthySecondaryNode := &config.Node{Storage: "praefect-internal-2"}
 			unhealthySecondaryNode := &config.Node{Storage: "praefect-internal-3"}
@@ -775,7 +792,7 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 			}
 
 			var replEventWait sync.WaitGroup
-			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(db))
 			queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 				defer replEventWait.Done()
 				return queue.Enqueue(ctx, event)
@@ -977,6 +994,7 @@ func (m *mockPeeker) Modify(payload []byte) error {
 }
 
 func TestAbsentCorrelationID(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
 	healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -1004,7 +1022,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	var replEventWait sync.WaitGroup
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)))
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		defer replEventWait.Done()
 		return queue.Enqueue(ctx, event)
@@ -1062,6 +1080,7 @@ func TestAbsentCorrelationID(t *testing.T) {
 }
 
 func TestCoordinatorEnqueueFailure(t *testing.T) {
+	t.Parallel()
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
@@ -1079,10 +1098,16 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 		},
 	}
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(nil)
 	errQ := make(chan error, 1)
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		return datastore.ReplicationEvent{}, <-errQ
+	})
+	queueInterceptor.OnDequeue(func(context.Context, string, string, int, datastore.ReplicationEventQueue) ([]datastore.ReplicationEvent, error) {
+		return nil, nil
+	})
+	queueInterceptor.OnAcknowledge(func(context.Context, datastore.JobState, []uint64, datastore.ReplicationEventQueue) ([]uint64, error) {
+		return nil, nil
 	})
 
 	ms := &mockSvc{
@@ -1094,7 +1119,10 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 	r, err := protoregistry.NewFromPaths("praefect/mock/mock.proto")
 	require.NoError(t, err)
 
-	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 		withAnnotations: r,
 		withQueue:       queueInterceptor,
 		withBackends: withMockBackends(t, map[string]mock.SimpleServiceServer{
@@ -1103,9 +1131,6 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 		}),
 	})
 	defer cleanup()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	mcli := mock.NewSimpleServiceClient(cc)
 
@@ -1389,9 +1414,7 @@ func (c *mockDiskCache) StartLease(*gitalypb.Repository) (cache.LeaseEnder, erro
 // fails. Most importantly, we want to make sure to only ever forward errors from the primary and
 // never from the secondaries.
 func TestCoordinator_grpcErrorHandling(t *testing.T) {
-	ctx, cleanup := testhelper.Context()
-	defer cleanup()
-
+	t.Parallel()
 	praefectConfig := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
@@ -1439,6 +1462,9 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cleanup := testhelper.Context()
+			defer cleanup()
+
 			var wg sync.WaitGroup
 			gitalies := make(map[string]gitalyNode)
 			for _, gitaly := range []string{"primary", "secondary-1", "secondary-2"} {
@@ -1453,7 +1479,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 
 				addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 					gitalypb.RegisterOperationServiceServer(srv, operationServer)
-				}, testserver.WithDiskCache(&mockDiskCache{}))
+				}, testserver.WithDiskCache(&mockDiskCache{}), testserver.WithDisablePraefect())
 
 				conn, err := client.DialContext(ctx, addr, []grpc.DialOption{
 					grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())),
@@ -1476,7 +1502,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				})
 			}
 
-			praefectConn, _, cleanup := runPraefectServer(t, praefectConfig, buildOptions{
+			praefectConn, _, cleanup := runPraefectServer(t, ctx, praefectConfig, buildOptions{
 				// Set up a mock manager which sets up primary/secondaries and pretends that all nodes are
 				// healthy. We need fixed roles and unhealthy nodes will not take part in transactions.
 				withNodeMgr: &nodes.MockManager{

@@ -1,5 +1,3 @@
-// +build postgres
-
 package datastore
 
 import (
@@ -13,10 +11,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 )
 
 func TestRepositoryStoreCollector(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -30,6 +30,8 @@ func TestRepositoryStoreCollector(t *testing.T) {
 		relativePath string
 		replicas     replicas
 	}
+
+	db := glsql.NewDB(t)
 
 	for _, tc := range []struct {
 		desc         string
@@ -146,9 +148,8 @@ func TestRepositoryStoreCollector(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			tx, err := getDB(t).Begin()
-			require.NoError(t, err)
-			defer tx.Rollback()
+			tx := db.Begin(t)
+			defer tx.Rollback(t)
 
 			testhelper.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{
 				"praefect-0": {"virtual-storage-1": tc.healthyNodes},
@@ -190,7 +191,7 @@ func TestRepositoryStoreCollector(t *testing.T) {
 
 			logger, hook := test.NewNullLogger()
 			c := NewRepositoryStoreCollector(logger, []string{"virtual-storage-1", "virtual-storage-2"}, tx, timeout)
-			err = testutil.CollectAndCompare(c, strings.NewReader(fmt.Sprintf(`
+			err := testutil.CollectAndCompare(c, strings.NewReader(fmt.Sprintf(`
 # HELP gitaly_praefect_read_only_repositories Number of repositories in read-only mode within a virtual storage.
 # TYPE gitaly_praefect_read_only_repositories gauge
 gitaly_praefect_read_only_repositories{virtual_storage="virtual-storage-1"} %d

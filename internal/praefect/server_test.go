@@ -27,6 +27,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -112,6 +113,7 @@ func TestNewBackchannelServerFactory(t *testing.T) {
 }
 
 func TestGitalyServerInfo(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -144,7 +146,7 @@ func TestGitalyServerInfo(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(nodeSet.Close)
 
-		cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+		cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 			withConnections: nodeSet.Connections(),
 		})
 		t.Cleanup(cleanup)
@@ -192,7 +194,7 @@ func TestGitalyServerInfo(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(nodeSet.Close)
 
-		cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+		cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 			withConnections: nodeSet.Connections(),
 		})
 		t.Cleanup(cleanup)
@@ -205,6 +207,7 @@ func TestGitalyServerInfo(t *testing.T) {
 }
 
 func TestGitalyServerInfoBadNode(t *testing.T) {
+	t.Parallel()
 	gitalySocket := testhelper.GetTemporaryGitalySocketFileName(t)
 	healthSrv := testhelper.NewServerWithHealth(t, gitalySocket)
 	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_UNKNOWN)
@@ -230,7 +233,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	require.NoError(t, err)
 	defer nodes.Close()
 
-	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 		withConnections: nodes.Connections(),
 	})
 	defer cleanup()
@@ -243,6 +246,7 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 }
 
 func TestDiskStatistics(t *testing.T) {
+	t.Parallel()
 	praefectCfg := config.Config{VirtualStorages: []*config.VirtualStorage{{Name: "praefect"}}}
 	for _, name := range []string{"gitaly-1", "gitaly-2"} {
 		gitalyCfg := testcfg.Build(t)
@@ -263,7 +267,7 @@ func TestDiskStatistics(t *testing.T) {
 	require.NoError(t, err)
 	defer nodes.Close()
 
-	cc, _, cleanup := runPraefectServer(t, praefectCfg, buildOptions{
+	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
 		withConnections: nodes.Connections(),
 	})
 	defer cleanup()
@@ -280,7 +284,11 @@ func TestDiskStatistics(t *testing.T) {
 }
 
 func TestHealthCheck(t *testing.T) {
-	cc, _, cleanup := runPraefectServer(t, config.Config{VirtualStorages: []*config.VirtualStorage{
+	t.Parallel()
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cc, _, cleanup := runPraefectServer(t, ctx, config.Config{VirtualStorages: []*config.VirtualStorage{
 		{
 			Name:  "praefect",
 			Nodes: []*config.Node{{Storage: "stub", Address: "unix:///stub-address", Token: ""}},
@@ -288,7 +296,8 @@ func TestHealthCheck(t *testing.T) {
 	}}, buildOptions{})
 	defer cleanup()
 
-	ctx, cancel := testhelper.Context(testhelper.ContextWithTimeout(time.Second))
+	// setup timeout only after praefect setup as db migration may require some time
+	ctx, cancel = context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	client := grpc_health_v1.NewHealthClient(cc)
@@ -297,6 +306,7 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestRejectBadStorage(t *testing.T) {
+	t.Parallel()
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
@@ -311,11 +321,11 @@ func TestRejectBadStorage(t *testing.T) {
 		},
 	}
 
-	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{})
-	defer cleanup()
-
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+
+	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{})
+	defer cleanup()
 
 	req := &gitalypb.GarbageCollectRequest{
 		Repository: &gitalypb.Repository{
@@ -329,6 +339,7 @@ func TestRejectBadStorage(t *testing.T) {
 }
 
 func TestWarnDuplicateAddrs(t *testing.T) {
+	t.Parallel()
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			&config.VirtualStorage{
@@ -360,10 +371,13 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 		},
 	}
 
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	tLogger, hook := test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup := runPraefectServer(t, conf, buildOptions{
+	_, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 		withLogger:  logrus.NewEntry(tLogger),
 		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
@@ -394,7 +408,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	tLogger, hook = test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup = runPraefectServer(t, conf, buildOptions{
+	_, _, cleanup = runPraefectServer(t, ctx, conf, buildOptions{
 		withLogger:  logrus.NewEntry(tLogger),
 		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
@@ -443,7 +457,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	tLogger, hook = test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup = runPraefectServer(t, conf, buildOptions{
+	_, _, cleanup = runPraefectServer(t, ctx, conf, buildOptions{
 		withLogger:  logrus.NewEntry(tLogger),
 		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
@@ -455,6 +469,7 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 }
 
 func TestRemoveRepository(t *testing.T) {
+	t.Parallel()
 	gitalyCfgs := make([]gconfig.Cfg, 3)
 	repos := make([][]*gitalypb.Repository, 3)
 	praefectCfg := config.Config{VirtualStorages: []*config.VirtualStorage{{Name: "praefect"}}}
@@ -487,7 +502,7 @@ func TestRemoveRepository(t *testing.T) {
 
 	// TODO: once https://gitlab.com/gitlab-org/gitaly/-/issues/2703 is done and the replication manager supports
 	// graceful shutdown, we can remove this code that waits for jobs to be complete
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(praefectCfg))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)))
 	jobsDoneCh := make(chan struct{}, 2)
 	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
 		defer func() {
@@ -511,16 +526,16 @@ func TestRemoveRepository(t *testing.T) {
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Hour)
 
-	cc, _, cleanup := runPraefectServer(t, praefectCfg, buildOptions{
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
 		withQueue:     queueInterceptor,
 		withRepoStore: repoStore,
 		withNodeMgr:   nodeMgr,
 		withTxMgr:     txMgr,
 	})
 	defer cleanup()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	virtualRepo := proto.Clone(repos[0][0]).(*gitalypb.Repository)
 	virtualRepo.StorageName = praefectCfg.VirtualStorages[0].Name
@@ -554,6 +569,7 @@ func pollUntilRemoved(t testing.TB, path string, deadline <-chan time.Time) {
 }
 
 func TestRenameRepository(t *testing.T) {
+	t.Parallel()
 	gitalyStorages := []string{"gitaly-1", "gitaly-2", "gitaly-3"}
 	repoPaths := make([]string, len(gitalyStorages))
 	praefectCfg := config.Config{
@@ -585,7 +601,7 @@ func TestRenameRepository(t *testing.T) {
 	var canCheckRepo sync.WaitGroup
 	canCheckRepo.Add(2)
 
-	evq := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(praefectCfg))
+	evq := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)))
 	evq.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
 		defer canCheckRepo.Done()
 		return queue.Acknowledge(ctx, state, ids)
@@ -594,7 +610,7 @@ func TestRenameRepository(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	cc, _, cleanup := runPraefectServer(t, praefectCfg, buildOptions{withQueue: evq})
+	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{withQueue: evq})
 	defer cleanup()
 
 	// virtualRepo is a virtual repository all requests to it would be applied to the underline Gitaly nodes behind it
@@ -730,6 +746,7 @@ func newSmartHTTPGrpcServer(t *testing.T, cfg gconfig.Cfg, smartHTTPService gita
 }
 
 func TestProxyWrites(t *testing.T) {
+	t.Parallel()
 	txMgr := transactions.NewManager(config.Config{})
 
 	smartHTTP0, smartHTTP1, smartHTTP2 := &mockSmartHTTP{txMgr: txMgr}, &mockSmartHTTP{txMgr: txMgr}, &mockSmartHTTP{txMgr: txMgr}
@@ -765,7 +782,7 @@ func TestProxyWrites(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 	entry := testhelper.DiscardTestEntry(t)
 
 	nodeMgr, err := nodes.NewManager(entry, conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
@@ -849,6 +866,7 @@ func TestProxyWrites(t *testing.T) {
 }
 
 func TestErrorThreshold(t *testing.T) {
+	t.Parallel()
 	backendToken := ""
 	backend, cleanup := newMockDownstream(t, backendToken, &mockSvc{
 		repoMutatorUnary: func(ctx context.Context, req *mock.RepoRequest) (*emptypb.Empty, error) {
@@ -899,7 +917,7 @@ func TestErrorThreshold(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 	entry := testhelper.DiscardTestEntry(t)
 
 	testCases := []struct {

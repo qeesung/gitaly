@@ -16,6 +16,7 @@ variables:
   GIT_VERSION: "v2.32.0"
   GO_VERSION: "1.16"
   RUBY_VERSION: "2.7"
+  POSTGRES_VERSION: "12.6-alpine"
 
 include:
   - template: Workflows/MergeRequest-Pipelines.gitlab-ci.yml
@@ -26,7 +27,7 @@ include:
   - template: Security/Secret-Detection.gitlab-ci.yml
 
 danger-review:
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
+  image: ruby:2.7
   allow_failure: true
   stage: build
   only:
@@ -34,9 +35,20 @@ danger-review:
   except:
     - tags
     - master
+  variables:
+    BUNDLE_GEMFILE: danger/Gemfile
+  before_script:
+    - bundle install
   script:
-    - git version
-    - danger
+    - >
+      if [ -z "$DANGER_GITLAB_API_TOKEN" ]; then
+        # Force danger to skip CI source GitLab and fallback to "local only git repo".
+        unset GITLAB_CI
+        # We need access to the base SHA to help danger determine the base commit for this shallow clone.
+        bundle exec danger dry_run --fail-on-errors=true --verbose --base='$CI_MERGE_REQUEST_DIFF_BASE_SHA'
+      else
+        bundle exec danger --fail-on-errors=true --verbose
+      fi
 
 .cache: &cache_definition
   cache:
@@ -72,14 +84,24 @@ danger-review:
     expire_in: 1 week
 
 .postgres_template: &postgres_definition
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31-pgbouncer-1.14
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31
   services:
-    - postgres:11.8
-  variables:
+    - postgres:${POSTGRES_VERSION}
+  variables: &postgres_variables
     PGHOST: postgres
     PGPORT: "5432"
     PGUSER: postgres
     POSTGRES_HOST_AUTH_METHOD: trust
+  before_script:
+    - go version
+    - git version
+    - while ! psql -h $PGHOST -U $PGUSER -c 'SELECT 1' > /dev/null; do echo "awaiting Postgres service to be ready..." && sleep 1 ; done && echo "Postgres service is ready!"
+
+.pgbouncer_template: &pgbouncer_definition
+  <<: *postgres_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31-pgbouncer-1.14
+  variables:
+    <<: *postgres_variables
     PGHOST_PGBOUNCER: 0.0.0.0
     PGPORT_PGBOUNCER: "6432"
   before_script:
@@ -146,9 +168,9 @@ binaries:
 
 test:
   <<: *test_definition
+  <<: *postgres_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31
   script:
-    - go version
     - _build/deps/git/install/bin/git version
     # This command will make all directories except of our build directory and Ruby code unwritable.
     # The purpose is to verify that there is no test which writes into those directories anymore, as
@@ -173,6 +195,7 @@ test:
 
 nightly:git:
   <<: *test_definition
+  <<: *postgres_definition
   image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31
   script:
     - go version
@@ -239,7 +262,7 @@ secret_detection:
 praefect_sql_connect:
   <<: *test_definition
   services:
-    - postgres:11.8
+    - postgres:${POSTGRES_VERSION}
   variables:
     POSTGRES_DB: praefect_test
     POSTGRES_USER: praefect
@@ -252,13 +275,16 @@ praefect_sql_connect:
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
 
-praefect_sql_test:
+pgbouncer_test:
+  # This job verifies all operations run without issues if PgBouncer is set in between service and PostgreSQL database.
   <<: *test_definition
-  <<: *postgres_definition
+  <<: *pgbouncer_definition
   script:
     - make test-postgres
 
 backwards_compatibility_test:
+  # The job verifies the old version of the service could run its database migration on the database where the
+  # migration of the newest service version was already applied.
   <<: *test_definition
   <<: *postgres_definition
   rules:

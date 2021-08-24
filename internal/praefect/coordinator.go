@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -61,9 +62,7 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.OperationService/UserUpdateBranch":              transactionsEnabled,
 	"/gitaly.OperationService/UserUpdateSubmodule":           transactionsEnabled,
 	"/gitaly.RefService/DeleteRefs":                          transactionsEnabled,
-	"/gitaly.RemoteService/AddRemote":                        transactionsEnabled,
 	"/gitaly.RemoteService/FetchInternalRemote":              transactionsEnabled,
-	"/gitaly.RemoteService/RemoveRemote":                     transactionsEnabled,
 	"/gitaly.RepositoryService/ApplyGitattributes":           transactionsEnabled,
 	"/gitaly.RepositoryService/CloneFromPool":                transactionsEnabled,
 	"/gitaly.RepositoryService/CloneFromPoolInternal":        transactionsEnabled,
@@ -324,6 +323,18 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 
 	var err error
 	var ps *proxy.StreamParameters
+
+	if os.Getenv("GITALY_TEST_PRAEFECT_BIN") != "" {
+		// This is a hack for the tests: during execution of the gitaly tests under praefect proxy
+		// the repositories are created directly on the filesystem. There is no call for the
+		// CreateRepository that creates records in the database that is why we do it artificially
+		// before redirecting the calls.
+		if err := c.rs.CreateRepository(ctx, call.targetRepo.StorageName, call.targetRepo.RelativePath, call.targetRepo.StorageName, nil, nil, true, true); err != nil {
+			if !errors.Is(err, datastore.RepositoryExistsError{}) {
+				return nil, err
+			}
+		}
+	}
 
 	switch call.methodInfo.Operation {
 	case protoregistry.OpAccessor:

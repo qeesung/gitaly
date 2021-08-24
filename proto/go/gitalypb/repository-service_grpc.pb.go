@@ -39,6 +39,8 @@ type RepositoryServiceClient interface {
 	WriteRef(ctx context.Context, in *WriteRefRequest, opts ...grpc.CallOption) (*WriteRefResponse, error)
 	FindMergeBase(ctx context.Context, in *FindMergeBaseRequest, opts ...grpc.CallOption) (*FindMergeBaseResponse, error)
 	CreateFork(ctx context.Context, in *CreateForkRequest, opts ...grpc.CallOption) (*CreateForkResponse, error)
+	// Deprecated: Do not use.
+	// IsSquashInProgress is deprecated and will always return false.
 	IsSquashInProgress(ctx context.Context, in *IsSquashInProgressRequest, opts ...grpc.CallOption) (*IsSquashInProgressResponse, error)
 	CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error)
 	// CreateBundle creates a bundle from all refs
@@ -49,7 +51,17 @@ type RepositoryServiceClient interface {
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error)
+	// Deprecated: Do not use.
+	// SetConfig writes a set of config entries into the target repository's
+	// gitconfig. This RPC is deprecated with no general replacement: modifying
+	// the on-disk gitconfig is not supported anymore. The only usecase that is
+	// still supported is writing "gitlab.fullpath" via the new `SetFullPath()`
+	// RPC.
 	SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error)
+	// Deprecated: Do not use.
+	// DeleteConfig deletes a set of config entries from the target repository's
+	// gitconfig. This RPC is deprecated with no replacement: modifying the
+	// on-disk gitconfig is not supported anymore.
 	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error)
 	FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error)
 	GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error)
@@ -263,6 +275,7 @@ func (c *repositoryServiceClient) CreateFork(ctx context.Context, in *CreateFork
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *repositoryServiceClient) IsSquashInProgress(ctx context.Context, in *IsSquashInProgressRequest, opts ...grpc.CallOption) (*IsSquashInProgressResponse, error) {
 	out := new(IsSquashInProgressResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/IsSquashInProgress", in, out, opts...)
@@ -410,6 +423,7 @@ func (x *repositoryServiceGetConfigClient) Recv() (*GetConfigResponse, error) {
 	return m, nil
 }
 
+// Deprecated: Do not use.
 func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error) {
 	out := new(SetConfigResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/SetConfig", in, out, opts...)
@@ -419,6 +433,7 @@ func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRe
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *repositoryServiceClient) DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error) {
 	out := new(DeleteConfigResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/DeleteConfig", in, out, opts...)
@@ -787,6 +802,8 @@ type RepositoryServiceServer interface {
 	WriteRef(context.Context, *WriteRefRequest) (*WriteRefResponse, error)
 	FindMergeBase(context.Context, *FindMergeBaseRequest) (*FindMergeBaseResponse, error)
 	CreateFork(context.Context, *CreateForkRequest) (*CreateForkResponse, error)
+	// Deprecated: Do not use.
+	// IsSquashInProgress is deprecated and will always return false.
 	IsSquashInProgress(context.Context, *IsSquashInProgressRequest) (*IsSquashInProgressResponse, error)
 	CreateRepositoryFromURL(context.Context, *CreateRepositoryFromURLRequest) (*CreateRepositoryFromURLResponse, error)
 	// CreateBundle creates a bundle from all refs
@@ -797,7 +814,17 @@ type RepositoryServiceServer interface {
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error
+	// Deprecated: Do not use.
+	// SetConfig writes a set of config entries into the target repository's
+	// gitconfig. This RPC is deprecated with no general replacement: modifying
+	// the on-disk gitconfig is not supported anymore. The only usecase that is
+	// still supported is writing "gitlab.fullpath" via the new `SetFullPath()`
+	// RPC.
 	SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error)
+	// Deprecated: Do not use.
+	// DeleteConfig deletes a set of config entries from the target repository's
+	// gitconfig. This RPC is deprecated with no replacement: modifying the
+	// on-disk gitconfig is not supported anymore.
 	DeleteConfig(context.Context, *DeleteConfigRequest) (*DeleteConfigResponse, error)
 	FindLicense(context.Context, *FindLicenseRequest) (*FindLicenseResponse, error)
 	GetInfoAttributes(*GetInfoAttributesRequest, RepositoryService_GetInfoAttributesServer) error
