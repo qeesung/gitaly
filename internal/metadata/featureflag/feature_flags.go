@@ -8,10 +8,13 @@ var (
 	GoSetConfig = FeatureFlag{Name: "go_set_config", OnByDefault: true}
 	// GoUserApplyPatch enables the Go implementation of UserApplyPatch
 	GoUserApplyPatch = FeatureFlag{Name: "go_user_apply_patch", OnByDefault: true}
+	// GoFindLicense enables Go implementation of FindLicense
+	GoFindLicense = FeatureFlag{Name: "go_find_license", OnByDefault: false}
 )
 
 // All includes all feature flags.
 var All = []FeatureFlag{
 	GoSetConfig,
 	GoUserApplyPatch,
+	GoFindLicense,
 }
