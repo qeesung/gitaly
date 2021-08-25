@@ -1,6 +1,29 @@
 # frozen_string_literal: true
 
 require 'net/http'
+require 'json'
+
+MESSAGE = <<~MARKDOWN
+  ## UnReview
+
+  UnReview is a code reviewer recommendation system designed to find appropriate code reviewers
+  in the most efficient way. To make recommendations, UnReview considers the reviewer's experience
+  in the part of the source code proposed by a merge request. For a given project, UnReview automatically
+  collects the commit history and merge requests. Using that information, UnReview then trains the model
+  that is able to make appropriate recommendations.
+
+  At the moment, UnReview is an early-stage technology. If you have any questions or suggestions,
+  feel free to contact us in our `#g_applied_ml` Slack channel. More information on the UnReview
+  technology can be found on the
+  [project page](https://about.gitlab.com/handbook/engineering/development/modelops/appliedml/projects/unreview/).
+
+  Changes that require review have been detected! Once you've decided who will review this
+  merge request, mention them as you normally would! Danger and UnReview does not automatically
+  notify them for you.
+
+  | Reviewer |
+  | -------- |
+MARKDOWN
 
 UNREVIEW_ENGINE_URL = ENV['UNREVIEW_ENGINE_URL']
 UNREVIEW_ENGINE_TOP_N = ENV['UNREVIEW_ENGINE_TOP_N'] || 3
@@ -31,9 +54,15 @@ if unreview_can_be_run?
     version: UNREVIEW_ENGINE_VERSION,
     n: UNREVIEW_ENGINE_TOP_N
   }
+
   response = query_recommendations(uri, parameters)
   if response.is_a?(Net::HTTPSuccess)
-    recommendations = response.body
-    message recommendations
+    reviewers = JSON.parse(response.body, symbolize_names: true)[:reviewers] || []
+
+    markdown_rows = reviewers.map do |reviewer|
+      "| `@#{reviewer}` |"
+    end
+
+    markdown MESSAGE + markdown_rows.join("\n") unless reviewers.empty?
   end
 end
