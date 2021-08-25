@@ -1,0 +1,39 @@
+# frozen_string_literal: true
+
+require 'net/http'
+
+UNREVIEW_ENGINE_URL = ENV['UNREVIEW_ENGINE_URL']
+UNREVIEW_ENGINE_TOP_N = ENV['UNREVIEW_ENGINE_TOP_N'] || 3
+UNREVIEW_ENGINE_VERSION = 'v0.1.0'
+
+MR_PROJECT = project_helper.project_name.freeze
+MR_IID = helper.mr_iid.to_i.freeze
+MR_CHANGED_FILES = helper.all_changed_files.freeze
+
+def unreview_can_be_run?
+  !(UNREVIEW_ENGINE_URL.nil? || MR_CHANGED_FILES.empty?)
+end
+
+def query_recommendations(uri, parameters)
+  Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+    request.body = parameters.to_json
+    http.request(request)
+  end
+end
+
+if unreview_can_be_run?
+  uri = URI.join(UNREVIEW_ENGINE_URL, '/api/model/recommendations/reviewers')
+  parameters = {
+    project: MR_PROJECT,
+    number: MR_IID,
+    files: MR_CHANGED_FILES,
+    version: UNREVIEW_ENGINE_VERSION,
+    n: UNREVIEW_ENGINE_TOP_N
+  }
+  response = query_recommendations(uri, parameters)
+  if response.is_a?(Net::HTTPSuccess)
+    recommendations = response.body
+    message recommendations
+  end
+end
