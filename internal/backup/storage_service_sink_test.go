@@ -40,4 +40,8 @@ func TestStorageServiceSink(t *testing.T) {
 		require.Equal(t, fmt.Errorf(`storage service sink: new reader for "not-existing": %w`, ErrDoesntExist), err)
 		require.Nil(t, reader)
 	})
+
+	t.Run("List", func(t *testing.T) {
+		testSinkList(ctx, t, sss)
+	})
 }

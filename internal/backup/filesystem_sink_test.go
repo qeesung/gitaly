@@ -109,3 +109,13 @@ func TestFilesystemSink_Write(t *testing.T) {
 		require.EqualError(t, err, fmt.Sprintf(`create directory structure %[1]q: mkdir %[1]s: not a directory`, filepath.Join(dir, "nested")))
 	})
 }
+
+func TestFilesystemSink_List(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	dir := testhelper.TempDir(t)
+	fsSink := NewFilesystemSink(dir)
+
+	testSinkList(ctx, t, fsSink)
+}
