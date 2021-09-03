@@ -11,18 +11,14 @@ LOG_MR_NO_CHANGES = 'MR provides no changes'
 LOG_SKIP_RECOMMENDATIONS = 'Skipping UnReview recommendations'
 LOG_FAILED_HTTP_REQUEST = 'HTTP request to the UnReview server failed. Response code %d.'
 
-MESSAGE = <<~MARKDOWN
-  ## UnReview
+UNREVIEW_MESSAGE = <<~MARKDOWN
+  ## UnReview (experimental)
 
-  UnReview is a code reviewer recommendation system designed to find appropriate code reviewers
-  in the most efficient way. To make recommendations, UnReview considers the reviewer's experience
-  in the part of the source code proposed by a merge request. For a given project, UnReview automatically
-  collects the commit history and merge requests. Using that information, UnReview then trains the model
-  that is able to make appropriate recommendations.
-
-  At the moment, UnReview is an early-stage technology. If you have any questions or suggestions,
-  feel free to contact us in our `#g_applied_ml` Slack channel. More information on the UnReview
-  technology can be found on the
+  UnReview is an ML-based code reviewer recommendation system.
+  UnReview is currently an early-stage technology and runs in experimental mode.
+  If you have any questions or suggestions, feel free to
+  [contact us](https://about.gitlab.com/handbook/engineering/development/modelops/appliedml/#how-to-contact-us).
+  More information on the UnReview technology can be found on the
   [project page](https://about.gitlab.com/handbook/engineering/development/modelops/appliedml/projects/unreview/).
 
   Changes that require review have been detected! Once you've decided who will review this
@@ -79,8 +75,8 @@ unless response.is_a?(Net::HTTPSuccess)
 end
 
 reviewers = JSON.parse(response.body, symbolize_names: true)[:reviewers] || []
-markdown_rows = reviewers.map do |reviewer|
-  "| `@#{reviewer}` |"
-end
+markdown_reviewers = reviewers
+                     .map { |reviewer| "`@#{reviewer}`" }
+                     .join(', ')
 
-markdown MESSAGE + markdown_rows.join("\n") unless reviewers.empty?
+markdown UNREVIEW_MESSAGE + "|#{markdown_reviewers}|" unless reviewers.empty?
