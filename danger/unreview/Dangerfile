@@ -2,6 +2,14 @@
 
 require 'net/http'
 require 'json'
+require 'logger'
+
+@logger = Logger.new($stdout)
+
+LOG_UNREVIEW_ENGINE_URL_UNSET = 'Env. variable UNREVIEW_ENGINE_URL is unset'
+LOG_MR_NO_CHANGES = 'MR provides no changes'
+LOG_SKIP_RECOMMENDATIONS = 'Skipping UnReview recommendations'
+LOG_FAILED_HTTP_REQUEST = 'HTTP request to the UnReview server failed. Response code %d.'
 
 MESSAGE = <<~MARKDOWN
   ## UnReview
@@ -34,6 +42,8 @@ MR_IID = helper.mr_iid.to_i.freeze
 MR_CHANGED_FILES = helper.all_changed_files.freeze
 
 def unreview_can_be_run?
+  @logger.error LOG_UNREVIEW_ENGINE_URL_UNSET if UNREVIEW_ENGINE_URL.nil?
+  @logger.warn LOG_MR_NO_CHANGES if MR_CHANGED_FILES.empty?
   !(UNREVIEW_ENGINE_URL.nil? || MR_CHANGED_FILES.empty?)
 end
 
@@ -45,24 +55,32 @@ def query_recommendations(uri, parameters)
   end
 end
 
-if unreview_can_be_run?
-  uri = URI.join(UNREVIEW_ENGINE_URL, '/api/model/recommendations/reviewers')
-  parameters = {
-    project: MR_PROJECT,
-    number: MR_IID,
-    files: MR_CHANGED_FILES,
-    version: UNREVIEW_ENGINE_VERSION,
-    n: UNREVIEW_ENGINE_TOP_N
-  }
-
-  response = query_recommendations(uri, parameters)
-  if response.is_a?(Net::HTTPSuccess)
-    reviewers = JSON.parse(response.body, symbolize_names: true)[:reviewers] || []
-
-    markdown_rows = reviewers.map do |reviewer|
-      "| `@#{reviewer}` |"
-    end
-
-    markdown MESSAGE + markdown_rows.join("\n") unless reviewers.empty?
-  end
+# Skip running UnReview Dangerbot if condition is not met
+unless unreview_can_be_run?
+  @logger.warn LOG_SKIP_RECOMMENDATIONS
+  return
 end
+
+uri = URI.join(UNREVIEW_ENGINE_URL, '/api/model/recommendations/reviewers')
+parameters = {
+  project: MR_PROJECT,
+  number: MR_IID,
+  files: MR_CHANGED_FILES,
+  version: UNREVIEW_ENGINE_VERSION,
+  n: UNREVIEW_ENGINE_TOP_N
+}
+
+# Skip running UnReview Dangerbot if http request fails
+response = query_recommendations(uri, parameters)
+unless response.is_a?(Net::HTTPSuccess)
+  @logger.error LOG_FAILED_HTTP_REQUEST % response.code
+  @logger.warn LOG_SKIP_RECOMMENDATIONS
+  return
+end
+
+reviewers = JSON.parse(response.body, symbolize_names: true)[:reviewers] || []
+markdown_rows = reviewers.map do |reviewer|
+  "| `@#{reviewer}` |"
+end
+
+markdown MESSAGE + markdown_rows.join("\n") unless reviewers.empty?
