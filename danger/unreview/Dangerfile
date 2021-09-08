@@ -21,9 +21,9 @@ UNREVIEW_MESSAGE = <<~MARKDOWN
   More information on the UnReview technology can be found on the
   [project page](https://about.gitlab.com/handbook/engineering/development/modelops/appliedml/projects/unreview/).
 
-  Changes that require review have been detected! Once you've decided who will review this
-  merge request, mention them as you normally would! Danger and UnReview does not automatically
-  notify them for you.
+  UnReview has determined that the individuals below may be good candidates to participate
+  in the review based on various factors. After you review all recommendations, please assign reviewers
+  manually as this is not done automatically.
 
   | Reviewer |
   | -------- |
