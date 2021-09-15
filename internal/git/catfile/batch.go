@@ -32,8 +32,9 @@ type batch struct {
 	sync.Mutex
 	*batchCheckProcess
 	*batchProcess
-	cancel func()
-	closed bool
+	cancel   func()
+	closed   bool
+	batchCtx context.Context
 }
 
 // Info returns an ObjectInfo if spec exists. If the revision does not exist
@@ -105,11 +106,16 @@ func (simulatedBatchSpawnError) Error() string { return "simulated spawn error" 
 func (bc *BatchCache) newBatch(ctx context.Context, repo git.RepositoryExecutor) (*batch, context.Context, error) {
 	var err error
 
+	// trace for the creation of the batch process, as seen from the caller
+	// in RPC context
+	span, ctx := opentracing.StartSpanFromContext(ctx, "catfile.newBatch")
+	defer span.Finish()
+
 	// batch processes are long-lived and reused across RPCs,
 	// so we de-correlate the process from the RPC
-	ctx = correlation.ContextWithCorrelation(ctx, "")
-	ctx = opentracing.ContextWithSpan(ctx, nil)
-	span, ctx := opentracing.StartSpanFromContext(ctx, "catfile.Batch")
+	batchCtx := correlation.ContextWithCorrelation(ctx, "")
+	batchCtx = opentracing.ContextWithSpan(batchCtx, nil)
+	span2, batchCtx := opentracing.StartSpanFromContext(batchCtx, "catfile.Batch")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
@@ -120,7 +126,7 @@ func (bc *BatchCache) newBatch(ctx context.Context, repo git.RepositoryExecutor)
 
 	go func() {
 		<-ctx.Done()
-		span.Finish()
+		span2.Finish()
 	}()
 
 	batchProcess, err := bc.newBatchProcess(ctx, repo)
@@ -133,7 +139,7 @@ func (bc *BatchCache) newBatch(ctx context.Context, repo git.RepositoryExecutor)
 		return nil, ctx, err
 	}
 
-	return &batch{batchProcess: batchProcess, batchCheckProcess: batchCheckProcess}, ctx, nil
+	return &batch{batchProcess: batchProcess, batchCheckProcess: batchCheckProcess, batchCtx: batchCtx}, ctx, nil
 }
 
 func newInstrumentedBatch(ctx context.Context, c Batch, catfileLookupCounter *prometheus.CounterVec) Batch {

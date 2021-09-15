@@ -63,13 +63,13 @@ func getSpawnToken(ctx context.Context) (putToken func(), err error) {
 
 	select {
 	case spawnTokens <- struct{}{}:
-		logTime(ctx, start, "spawn token acquired")
+		logTime(ctx, start, "spawn token acquired", span)
 
 		return func() {
 			<-spawnTokens
 		}, nil
 	case <-time.After(spawnConfig.Timeout):
-		logTime(ctx, start, "spawn token timeout")
+		logTime(ctx, start, "spawn token timeout", span)
 		spawnTimeoutCount.Inc()
 
 		return nil, fmt.Errorf("process spawn timed out after %v", spawnConfig.Timeout)
@@ -78,11 +78,14 @@ func getSpawnToken(ctx context.Context) (putToken func(), err error) {
 	}
 }
 
-func logTime(ctx context.Context, start time.Time, msg string) {
+func logTime(ctx context.Context, start time.Time, msg string, span opentracing.Span) {
 	delta := time.Since(start)
-	if delta < logDurationThreshold {
-		return
+	if delta >= logDurationThreshold {
+		ctxlogrus.Extract(ctx).WithField("spawn_queue_ms", delta.Seconds()*1000).Info(msg)
 	}
 
-	ctxlogrus.Extract(ctx).WithField("spawn_queue_ms", delta.Seconds()*1000).Info(msg)
+	span.LogKV(
+		"spawn_queue_ms", delta.Seconds()*1000,
+		"msg", msg,
+	)
 }
