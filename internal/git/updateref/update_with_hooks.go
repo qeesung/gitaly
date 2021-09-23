@@ -1,7 +1,6 @@
 package updateref
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -129,8 +128,13 @@ func (u *UpdaterWithHooks) UpdateReference(
 		return err
 	}
 
-	var stdout, stderr bytes.Buffer
-	if err := u.hookManager.PreReceiveHook(ctx, quarantinedRepo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
+	if err := u.hookManager.PreReceiveHook(ctx, quarantinedRepo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), stdout, stderr); err != nil {
 		return HookError{err: err, stdout: stdout.String(), stderr: stderr.String()}
 	}
 
@@ -152,7 +156,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 		}
 	}
 
-	if err := u.hookManager.UpdateHook(ctx, quarantinedRepo, reference.String(), oldrev.String(), newrev.String(), []string{hooksPayload}, &stdout, &stderr); err != nil {
+	if err := u.hookManager.UpdateHook(ctx, quarantinedRepo, reference.String(), oldrev.String(), newrev.String(), []string{hooksPayload}, stdout, stderr); err != nil {
 		return HookError{err: err, stdout: stdout.String(), stderr: stderr.String()}
 	}
 
@@ -196,7 +200,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 		return HookError{err: err}
 	}
 
-	if err := u.hookManager.PostReceiveHook(ctx, repo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
+	if err := u.hookManager.PostReceiveHook(ctx, repo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), stdout, stderr); err != nil {
 		return HookError{err: err, stdout: stdout.String(), stderr: stderr.String()}
 	}
 

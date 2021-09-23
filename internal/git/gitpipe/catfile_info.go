@@ -2,7 +2,6 @@ package gitpipe
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 )
 
 // CatfileInfoResult is a result for the CatfileInfo pipeline step.
@@ -75,7 +75,8 @@ func CatfileInfoAllObjects(ctx context.Context, repo *localrepo.Repo) CatfileInf
 	go func() {
 		defer close(resultChan)
 
-		var stderr bytes.Buffer
+		stderr, relStderr := helper.Buffer()
+		defer relStderr()
 		cmd, err := repo.Exec(ctx, git.SubCmd{
 			Name: "cat-file",
 			Flags: []git.Option{
@@ -84,7 +85,7 @@ func CatfileInfoAllObjects(ctx context.Context, repo *localrepo.Repo) CatfileInf
 				git.Flag{Name: "--buffer"},
 				git.Flag{Name: "--unordered"},
 			},
-		}, git.WithStderr(&stderr))
+		}, git.WithStderr(stderr))
 		if err != nil {
 			sendCatfileInfoResult(ctx, resultChan, CatfileInfoResult{
 				err: fmt.Errorf("spawning cat-file failed: %w", err),

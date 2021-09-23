@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
@@ -23,8 +24,12 @@ var ErrObjectNotFound = errors.New("object not found")
 // returns its object ID. Path is used by git to decide which filters to
 // run on the content.
 func (repo *Repo) WriteBlob(ctx context.Context, path string, content io.Reader) (git.ObjectID, error) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
 
 	cmd, err := repo.Exec(ctx,
 		git.SubCmd{
@@ -133,8 +138,12 @@ func (repo *Repo) WriteTag(
 	committer *gitalypb.User,
 	committerDate time.Time,
 ) (git.ObjectID, error) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
 
 	tagBuf, err := FormatTag(objectID, objectType, tagName, tagBody, committer, committerDate)
 	if err != nil {
@@ -178,7 +187,9 @@ func (repo *Repo) ReadObject(ctx context.Context, oid git.ObjectID) ([]byte, err
 	const msgInvalidObject = "fatal: Not a valid object name "
 
 	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	cmd, err := repo.Exec(ctx,
 		git.SubCmd{
 			Name:  "cat-file",
@@ -260,7 +271,8 @@ func (err InvalidCommitError) Error() string {
 func (repo *Repo) IsAncestor(ctx context.Context, parent, child git.Revision) (bool, error) {
 	const notValidCommitName = "fatal: Not a valid commit name"
 
-	stderr := &bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
 			Name:  "merge-base",

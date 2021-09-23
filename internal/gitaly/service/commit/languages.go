@@ -2,7 +2,6 @@ package commit
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -105,12 +104,17 @@ func (s *server) lookupRevision(ctx context.Context, repo git.RepositoryExecutor
 }
 
 func (s *server) checkRevision(ctx context.Context, repo git.RepositoryExecutor, revision string) (string, error) {
-	var stdout, stderr bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
 
 	revParse, err := repo.Exec(ctx,
 		git.SubCmd{Name: "rev-parse", Args: []string{revision}},
-		git.WithStdout(&stdout),
-		git.WithStderr(&stderr),
+		git.WithStdout(stdout),
+		git.WithStderr(stderr),
 	)
 	if err != nil {
 		return "", err

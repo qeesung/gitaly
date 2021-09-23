@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -69,7 +68,9 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 		return status.Error(codes.Internal, cleanError)
 	}
 
-	stderr := bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	cmd, err := s.gitCmdFactory.NewWithoutRepo(ctx,
 		git.SubCmd{
 			Name: "clone",
@@ -79,7 +80,7 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 			},
 			Args: []string{bundlePath, repoPath},
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),
 	)
 	if err != nil {
@@ -102,7 +103,7 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 			},
 			Args: []string{bundlePath, "refs/*:refs/*"},
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),
 	)
 	if err != nil {

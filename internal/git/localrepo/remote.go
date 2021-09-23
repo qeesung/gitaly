@@ -11,6 +11,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitalyssh"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -29,7 +30,8 @@ func (remote Remote) Add(ctx context.Context, name, url string, opts git.RemoteA
 		return err
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := remote.repo.ExecAndWait(ctx,
 		git.SubSubCmd{
 			Name:   "remote",
@@ -37,7 +39,7 @@ func (remote Remote) Add(ctx context.Context, name, url string, opts git.RemoteA
 			Flags:  buildRemoteAddOptsFlags(opts),
 			Args:   []string{name, url},
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, remote.repo, remote.repo.cfg),
 	); err != nil {
 		switch {
@@ -86,14 +88,15 @@ func (remote Remote) Remove(ctx context.Context, name string) error {
 		return err
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := remote.repo.ExecAndWait(ctx,
 		git.SubSubCmd{
 			Name:   "remote",
 			Action: "remove",
 			Args:   []string{name},
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, remote.repo, remote.repo.cfg),
 	); err != nil {
 		switch {
@@ -121,7 +124,8 @@ func (remote Remote) SetURL(ctx context.Context, name, url string, opts git.SetU
 		return err
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := remote.repo.ExecAndWait(ctx,
 		git.SubSubCmd{
 			Name:   "remote",
@@ -129,7 +133,7 @@ func (remote Remote) SetURL(ctx context.Context, name, url string, opts git.SetU
 			Flags:  buildSetURLOptsFlags(opts),
 			Args:   []string{name, url},
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, remote.repo, remote.repo.cfg),
 	); err != nil {
 		switch {
@@ -216,7 +220,10 @@ type FetchOpts struct {
 	// https://git-scm.com/docs/git-fetch#Documentation/git-fetch.txt---no-tags
 	Tags FetchOptsTags
 	// Stderr if set it would be used to redirect stderr stream into it.
-	Stderr io.Writer
+	Stderr interface {
+		io.Writer
+		Bytes() []byte
+	}
 }
 
 // ErrFetchFailed indicates that the fetch has failed.
@@ -236,9 +243,10 @@ func (repo *Repo) FetchRemote(ctx context.Context, remoteName string, opts Fetch
 		return err
 	}
 
-	var stderr bytes.Buffer
 	if opts.Stderr == nil {
-		opts.Stderr = &stderr
+		stderr, relStderr := helper.Buffer()
+		defer relStderr()
+		opts.Stderr = stderr
 	}
 
 	commandOptions := []git.CmdOpt{
@@ -261,7 +269,7 @@ func (repo *Repo) FetchRemote(ctx context.Context, remoteName string, opts Fetch
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return ErrFetchFailed{errorWithStderr(err, stderr.Bytes())}
+		return ErrFetchFailed{errorWithStderr(err, opts.Stderr.Bytes())}
 	}
 
 	return nil
@@ -287,9 +295,10 @@ func (repo *Repo) FetchInternal(
 		return fmt.Errorf("fetch internal: %w", err)
 	}
 
-	var stderr bytes.Buffer
 	if opts.Stderr == nil {
-		opts.Stderr = &stderr
+		stderr, relStderr := helper.Buffer()
+		defer relStderr()
+		opts.Stderr = stderr
 	}
 
 	commandOptions := []git.CmdOpt{
@@ -315,7 +324,7 @@ func (repo *Repo) FetchInternal(
 		},
 		commandOptions...,
 	); err != nil {
-		return ErrFetchFailed{errorWithStderr(err, stderr.Bytes())}
+		return ErrFetchFailed{errorWithStderr(err, opts.Stderr.Bytes())}
 	}
 
 	return nil
@@ -383,7 +392,8 @@ func (repo *Repo) Push(ctx context.Context, remote string, refspecs []string, op
 		flags = append(flags, git.Flag{Name: "--force"})
 	}
 
-	stderr := &bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
 			Name:  "push",
