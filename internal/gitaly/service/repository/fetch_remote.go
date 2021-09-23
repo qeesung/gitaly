@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -24,9 +23,11 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 		return nil, err
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	opts := localrepo.FetchOpts{
-		Stderr:  &stderr,
+		Stderr:  stderr,
 		Force:   req.Force,
 		Prune:   !req.NoPrune,
 		Tags:    localrepo.FetchOptsTagsAll,
@@ -85,8 +86,8 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 			return nil, err
 		}
 
-		errMsg := stderr.String()
-		if errMsg != "" {
+		errMsg := stderr.Bytes()
+		if len(errMsg) > 0 {
 			return nil, fmt.Errorf("fetch remote: %q: %w", errMsg, err)
 		}
 
@@ -124,7 +125,7 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 
 	out := &gitalypb.FetchRemoteResponse{TagsChanged: true}
 	if req.GetCheckTagsChanged() {
-		out.TagsChanged = didTagsChange(&stderr)
+		out.TagsChanged = didTagsChange(stderr)
 	}
 
 	return out, nil

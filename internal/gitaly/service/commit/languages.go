@@ -105,23 +105,28 @@ func (s *server) lookupRevision(ctx context.Context, repo git.RepositoryExecutor
 }
 
 func (s *server) checkRevision(ctx context.Context, repo git.RepositoryExecutor, revision string) (string, error) {
-	var stdout, stderr bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
 
 	revParse, err := repo.Exec(ctx,
 		git.SubCmd{Name: "rev-parse", Args: []string{revision}},
-		git.WithStdout(&stdout),
-		git.WithStderr(&stderr),
+		git.WithStdout(stdout),
+		git.WithStderr(stderr),
 	)
 	if err != nil {
 		return "", err
 	}
 
 	if err = revParse.Wait(); err != nil {
-		errMsg := strings.Split(stderr.String(), "\n")[0]
-		return "", fmt.Errorf("%v: %v", err, errMsg)
+		errMsg := bytes.Split(stderr.Bytes(), []byte{'\n'})[0]
+		return "", fmt.Errorf("%v: %s", err, errMsg)
 	}
 
-	if strings.HasSuffix(stderr.String(), "refname '"+revision+"' is ambiguous.\n") {
+	if bytes.HasSuffix(stderr.Bytes(), []byte("refname '"+revision+"' is ambiguous.\n")) {
 		return "", errAmbigRef
 	}
 

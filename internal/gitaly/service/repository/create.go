@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -26,7 +25,9 @@ func (s *server) CreateRepository(ctx context.Context, req *gitalypb.CreateRepos
 		return nil, helper.ErrInternalf("create directories: %w", err)
 	}
 
-	stderr := &bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	cmd, err := s.gitCmdFactory.NewWithoutRepo(ctx,
 		git.SubCmd{
 			Name: "init",

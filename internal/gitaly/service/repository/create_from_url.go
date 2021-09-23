@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -76,8 +75,10 @@ func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.Crea
 		return nil, status.Errorf(codes.InvalidArgument, "CreateRepositoryFromURL: dest dir exists")
 	}
 
-	stderr := bytes.Buffer{}
-	cmd, err := s.cloneFromURLCommand(ctx, repository, req.GetUrl(), repositoryFullPath, &stderr)
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
+	cmd, err := s.cloneFromURLCommand(ctx, repository, req.GetUrl(), repositoryFullPath, stderr)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}

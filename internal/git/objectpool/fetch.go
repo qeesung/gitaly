@@ -64,7 +64,8 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 	}
 
 	refSpec := fmt.Sprintf("+refs/*:%s/*", sourceRefNamespace)
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	if err := o.poolRepo.ExecAndWait(ctx,
 		git.SubCmd{
 			Name: "fetch",
@@ -75,7 +76,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 			Args: []string{sourceRemote, refSpec},
 		},
 		git.WithRefTxHook(ctx, o.poolRepo, o.cfg),
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 	); err != nil {
 		return helper.ErrInternalf("fetch into object pool: %w, stderr: %q", err,
 			stderr.String())

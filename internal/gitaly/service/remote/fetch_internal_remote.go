@@ -1,7 +1,6 @@
 package remote
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,12 +42,14 @@ func FetchInternalRemote(
 	repo *localrepo.Repo,
 	remoteRepo *gitalypb.Repository,
 ) error {
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	if err := repo.FetchInternal(
 		ctx,
 		remoteRepo,
 		[]string{mirrorRefSpec},
-		localrepo.FetchOpts{Prune: true, Stderr: &stderr},
+		localrepo.FetchOpts{Prune: true, Stderr: stderr},
 	); err != nil {
 		if errors.As(err, &localrepo.ErrFetchFailed{}) {
 			return fetchFailedError{stderr.String(), err}

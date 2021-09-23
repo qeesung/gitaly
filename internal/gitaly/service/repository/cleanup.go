@@ -9,13 +9,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -99,7 +99,9 @@ func (s *server) cleanStaleWorktrees(ctx context.Context, repo *localrepo.Repo, 
 var errUnknownWorktree = errors.New("unknown worktree")
 
 func removeWorktree(ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, name string) error {
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	err := repo.ExecAndWait(ctx, git.SubSubCmd{
 		Name:   "worktree",
 		Action: "remove",
@@ -107,9 +109,9 @@ func removeWorktree(ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, n
 		Args:   []string{name},
 	},
 		git.WithRefTxHook(ctx, repo, cfg),
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 	)
-	if isExitWithCode(err, 128) && strings.HasPrefix(stderr.String(), "fatal: '"+name+"' is not a working tree") {
+	if isExitWithCode(err, 128) && bytes.HasPrefix(stderr.Bytes(), []byte("fatal: '"+name+"' is not a working tree")) {
 		return errUnknownWorktree
 	} else if err != nil {
 		return fmt.Errorf("remove worktree: %w, stderr: %q", err, stderr.String())

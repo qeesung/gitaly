@@ -2,7 +2,6 @@ package commit
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -70,7 +70,8 @@ func extractEntryInfoFromTreeData(treeData io.Reader, commitOid, rootOid, rootPa
 	bufReader := bufio.NewReader(treeData)
 
 	var entries []*gitalypb.TreeEntry
-	oidBuf := &bytes.Buffer{}
+	oidBuf, relOIDBuf := helper.Buffer()
+	defer relOIDBuf()
 
 	for {
 		modeBytes, err := bufReader.ReadBytes(' ')

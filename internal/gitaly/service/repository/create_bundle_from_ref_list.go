@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
@@ -43,7 +44,8 @@ func (s *server) CreateBundleFromRefList(stream gitalypb.RepositoryService_Creat
 		return append(bytes.Join(request.GetPatterns(), []byte("\n")), '\n'), nil
 	})
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 
 	repo := s.localrepo(firstRequest.GetRepository())
 	cmd, err := repo.Exec(ctx,
@@ -53,7 +55,7 @@ func (s *server) CreateBundleFromRefList(stream gitalypb.RepositoryService_Creat
 			Flags:  []git.Option{git.OutputToStdout, git.Flag{Name: "--stdin"}},
 		},
 		git.WithStdin(reader),
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 	)
 	if err != nil {
 		return status.Errorf(codes.Internal, "cmd start failed: %v", err)

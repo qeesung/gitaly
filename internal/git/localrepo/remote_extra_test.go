@@ -130,7 +130,7 @@ func TestRepo_FetchInternal(t *testing.T) {
 			ctx, remoteRepoProto, []string{"refs/does/not/exist"},
 			localrepo.FetchOpts{Stderr: &stderr},
 		)
-		require.EqualError(t, err, "exit status 128")
+		require.EqualError(t, err, "exit status 128, stderr: \"fatal: couldn't find remote ref refs/does/not/exist\\nfatal: the remote end hung up unexpectedly\\n\"")
 		require.IsType(t, err, localrepo.ErrFetchFailed{})
 		require.Equal(t, "fatal: couldn't find remote ref refs/does/not/exist\nfatal: the remote end hung up unexpectedly\n", stderr.String())
 	})

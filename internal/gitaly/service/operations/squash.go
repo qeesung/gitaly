@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -175,14 +174,20 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		},
 	}
 
-	var stdout, stderr bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
+
 	if err := repo.ExecAndWait(ctx, git.SubCmd{
 		Name:  "commit-tree",
 		Flags: flags,
 		Args: []string{
 			treeID.String(),
 		},
-	}, git.WithStdout(&stdout), git.WithStderr(&stderr), git.WithEnv(commitEnv...)); err != nil {
+	}, git.WithStdout(stdout), git.WithStderr(stderr), git.WithEnv(commitEnv...)); err != nil {
 		return "", fmt.Errorf("creating commit: %w", gitError{
 			Err:    err,
 			ErrMsg: stderr.String(),

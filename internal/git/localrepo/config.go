@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
 )
@@ -36,7 +37,12 @@ func (cfg Config) GetRegexp(ctx context.Context, nameRegexp string, opts git.Con
 }
 
 func (cfg Config) getRegexp(ctx context.Context, nameRegexp string, opts git.ConfigGetRegexpOpts) ([]byte, error) {
-	var stderr, stdout bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
 
 	if err := cfg.repo.ExecAndWait(ctx,
 		git.SubCmd{
@@ -45,8 +51,8 @@ func (cfg Config) getRegexp(ctx context.Context, nameRegexp string, opts git.Con
 			Flags: append(buildConfigGetRegexpOptsFlags(opts), git.Flag{Name: "--null"}, git.Flag{Name: "--get-regexp"}),
 			Args:  []string{nameRegexp},
 		},
-		git.WithStderr(&stderr),
-		git.WithStdout(&stdout),
+		git.WithStderr(stderr),
+		git.WithStdout(stdout),
 	); err != nil {
 		switch {
 		case isExitWithCode(err, 1):
@@ -56,8 +62,8 @@ func (cfg Config) getRegexp(ctx context.Context, nameRegexp string, opts git.Con
 			// use of invalid regexp
 			return nil, fmt.Errorf("%w: regexp has a bad format", git.ErrInvalidArg)
 		default:
-			if strings.Contains(stderr.String(), "invalid unit") ||
-				strings.Contains(stderr.String(), "bad boolean config value") {
+			if bytes.Contains(stderr.Bytes(), []byte("invalid unit")) ||
+				bytes.Contains(stderr.Bytes(), []byte("bad boolean config value")) {
 				return nil, fmt.Errorf("%w: fetched result doesn't correspond to requested type", git.ErrInvalidArg)
 			}
 		}
@@ -65,7 +71,7 @@ func (cfg Config) getRegexp(ctx context.Context, nameRegexp string, opts git.Con
 		return nil, err
 	}
 
-	return stdout.Bytes(), nil
+	return append([]byte(nil), stdout.Bytes()...), nil
 }
 
 func buildConfigGetRegexpOptsFlags(opts git.ConfigGetRegexpOpts) []git.Option {
@@ -262,7 +268,8 @@ func (repo *Repo) UnsetMatchingConfig(
 
 	// There is no way to directly unset all keys matching a given regular expression, so we
 	// need to go the indirect route and first discover all matching keys via `--get-regex`.
-	var stdout bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	defer relStdout()
 	if err := repo.ExecAndWait(ctx, git.SubCmd{
 		Name: "config",
 		Flags: []git.Option{
@@ -271,7 +278,7 @@ func (repo *Repo) UnsetMatchingConfig(
 			git.ValueFlag{Name: "--file", Value: writer.Path()},
 		},
 		Args: []string{regex},
-	}, git.WithStdout(&stdout)); err != nil {
+	}, git.WithStdout(stdout)); err != nil {
 		switch {
 		case isExitWithCode(err, 1):
 			return fmt.Errorf("%w: no matching keys", git.ErrNotFound)

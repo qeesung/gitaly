@@ -1,13 +1,13 @@
 package git2go
 
 import (
-	"bytes"
 	"context"
 	"encoding/gob"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 )
 
 // ResolveCommand contains arguments to perform a merge commit and resolve any
@@ -28,7 +28,9 @@ func (b Executor) Resolve(ctx context.Context, repo repository.GitRepo, r Resolv
 		return ResolveResult{}, fmt.Errorf("resolve: %w: %s", ErrInvalidArgument, err.Error())
 	}
 
-	input := &bytes.Buffer{}
+	input, relInput := helper.Buffer()
+	defer relInput()
+
 	if err := gob.NewEncoder(input).Encode(r); err != nil {
 		return ResolveResult{}, fmt.Errorf("resolve: %w", err)
 	}
