@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 )
 
@@ -52,8 +53,10 @@ func (b Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Rea
 
 	env := alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
 
-	var stderr, stdout bytes.Buffer
-	cmd, err := command.New(ctx, exec.Command(b.binaryPath, args...), stdin, &stdout, &stderr, env...)
+	var stdout bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+	cmd, err := command.New(ctx, exec.Command(b.binaryPath, args...), stdin, &stdout, stderr, env...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +74,9 @@ func (b Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Rea
 // runWithGob runs the specified gitaly-git2go cmd with the request gob-encoded
 // as input and returns the commit ID as string or an error.
 func (b Executor) runWithGob(ctx context.Context, repo repository.GitRepo, cmd string, request interface{}) (git.ObjectID, error) {
-	input := &bytes.Buffer{}
+	input, relInput := helper.Buffer()
+	defer relInput()
+
 	if err := gob.NewEncoder(input).Encode(request); err != nil {
 		return "", fmt.Errorf("%s: %w", cmd, err)
 	}

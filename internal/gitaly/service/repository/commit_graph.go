@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -74,14 +73,16 @@ func (s *server) writeCommitGraph(
 		return helper.ErrInvalidArgumentf("unsupported split strategy: %v", splitStrategy)
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	cmd, err := s.gitCmdFactory.New(ctx, repo,
 		git.SubSubCmd{
 			Name:   "commit-graph",
 			Action: "write",
 			Flags:  flags,
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 	)
 	if err != nil {
 		return helper.ErrInternal(err)

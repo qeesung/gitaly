@@ -1,13 +1,13 @@
 package git2go
 
 import (
-	"bytes"
 	"context"
 	"encoding/gob"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 )
 
 // IndexError is an error that was produced by performing an invalid operation on the index.
@@ -61,7 +61,9 @@ type CommitParams struct {
 // Commit builds a commit from the actions, writes it to the object database and
 // returns its object id.
 func (b Executor) Commit(ctx context.Context, repo repository.GitRepo, params CommitParams) (git.ObjectID, error) {
-	input := &bytes.Buffer{}
+	input, relInput := helper.Buffer()
+	defer relInput()
+
 	if err := gob.NewEncoder(input).Encode(params); err != nil {
 		return "", err
 	}

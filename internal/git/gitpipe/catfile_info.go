@@ -75,7 +75,7 @@ func CatfileInfoAllObjects(ctx context.Context, repo *localrepo.Repo) CatfileInf
 	go func() {
 		defer close(resultChan)
 
-		var stderr bytes.Buffer
+		stderr := &bytes.Buffer{}
 		cmd, err := repo.Exec(ctx, git.SubCmd{
 			Name: "cat-file",
 			Flags: []git.Option{
@@ -84,7 +84,7 @@ func CatfileInfoAllObjects(ctx context.Context, repo *localrepo.Repo) CatfileInf
 				git.Flag{Name: "--buffer"},
 				git.Flag{Name: "--unordered"},
 			},
-		}, git.WithStderr(&stderr))
+		}, git.WithStderr(stderr))
 		if err != nil {
 			sendCatfileInfoResult(ctx, resultChan, CatfileInfoResult{
 				err: fmt.Errorf("spawning cat-file failed: %w", err),

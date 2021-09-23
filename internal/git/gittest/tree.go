@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 )
 
@@ -77,7 +78,8 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 
 	require.NotEmpty(t, entries)
 
-	var tree bytes.Buffer
+	tree, relTree := helper.Buffer()
+	defer relTree()
 	for _, entry := range entries {
 		var entryType string
 		switch entry.Mode {
@@ -104,7 +106,7 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 		require.NoError(t, err)
 	}
 
-	stdout := ExecStream(t, cfg, &tree, "-C", repoPath, "mktree", "-z", "--missing")
+	stdout := ExecStream(t, cfg, tree, "-C", repoPath, "mktree", "-z", "--missing")
 	treeOID, err := git.NewObjectIDFromHex(text.ChompBytes(stdout))
 	require.NoError(t, err)
 

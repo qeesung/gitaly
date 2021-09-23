@@ -167,7 +167,8 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		}),
 	)
 
-	stderr := &bytes.Buffer{}
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	cmd, err := command.New(ctx, exec.Command("tar", "-C", tempDir.Path(), "-xvf", "-"), snapshotReader, nil, stderr)
 	if err != nil {
 		return fmt.Errorf("create tar command: %w", err)

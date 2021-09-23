@@ -11,6 +11,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 )
 
 // HasRevision checks if a revision in the repository exists. This will not
@@ -36,7 +37,8 @@ func (repo *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (g
 		return "", errors.New("repository cannot contain empty reference name")
 	}
 
-	var stdout bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	defer relStdout()
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
 			Name:  "rev-parse",
@@ -44,7 +46,7 @@ func (repo *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (g
 			Args:  []string{revision.String()},
 		},
 		git.WithStderr(io.Discard),
-		git.WithStdout(&stdout),
+		git.WithStdout(stdout),
 	); err != nil {
 		if _, ok := command.ExitStatus(err); ok {
 			return "", git.ErrReferenceNotFound
@@ -143,7 +145,8 @@ func (repo *Repo) GetBranches(ctx context.Context) ([]git.Reference, error) {
 // that revision. If newValue is the ZeroOID, the reference will be deleted.
 // If oldValue is the ZeroOID, the reference will created.
 func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, newValue, oldValue git.ObjectID) error {
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
@@ -151,7 +154,7 @@ func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, ne
 			Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--stdin"}},
 		},
 		git.WithStdin(strings.NewReader(fmt.Sprintf("update %s\x00%s\x00%s\x00", reference, newValue.String(), oldValue.String()))),
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, repo, repo.cfg),
 	); err != nil {
 		return fmt.Errorf("UpdateRef: failed updating reference %q from %q to %q: %w", reference, oldValue, newValue, errorWithStderr(err, stderr.Bytes()))
@@ -204,8 +207,13 @@ func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, opts .
 		env = append(env, envGitSSHCommand(cfg.sshCommand))
 	}
 
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
+
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
 			Name: "ls-remote",

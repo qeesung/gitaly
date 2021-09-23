@@ -193,7 +193,8 @@ func (s *server) runPackObjects(ctx context.Context, w io.Writer, repo *gitalypb
 	sw := pktline.NewSidebandWriter(w)
 	stdoutBufWriter := bufio.NewWriterSize(sw.Writer(bandStdout), pktline.MaxSidebandData)
 	stdout := &countingWriter{W: stdoutBufWriter}
-	stderrBuf := &bytes.Buffer{}
+	stderrBuf, relStderrBuf := helper.Buffer()
+	defer relStderrBuf()
 	stderr := &countingWriter{W: io.MultiWriter(sw.Writer(bandStderr), stderrBuf)}
 
 	defer func() {

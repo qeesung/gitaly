@@ -96,7 +96,13 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 		}
 	}()
 
-	var stdout, stderr bytes.Buffer
+	stdout, relStdout := helper.Buffer()
+	stderr, relStderr := helper.Buffer()
+	defer func() {
+		relStdout()
+		relStderr()
+	}()
+
 	cmd, err := s.gitCmdFactory.NewWithDir(ctx, worktreePath,
 		git.SubCmd{
 			Name: "am",
@@ -114,8 +120,8 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 			req, err := stream.Recv()
 			return req.GetPatches(), err
 		})),
-		git.WithStdout(&stdout),
-		git.WithStderr(&stderr),
+		git.WithStdout(stdout),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, header.Repository, s.cfg),
 	)
 	if err != nil {
@@ -132,10 +138,16 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 			return status.Error(codes.FailedPrecondition, stdout.String())
 		}
 
-		return fmt.Errorf("apply patch: %w, stderr: %q", err, &stderr)
+		return fmt.Errorf("apply patch: %w, stderr: %q", err, stderr)
 	}
 
-	var revParseStdout, revParseStderr bytes.Buffer
+	revParseStdout, relRevParseStdout := helper.Buffer()
+	revParseStderr, relRevParseStderr := helper.Buffer()
+	defer func() {
+		relRevParseStdout()
+		relRevParseStderr()
+	}()
+
 	revParseCmd, err := s.gitCmdFactory.NewWithDir(ctx, worktreePath,
 		git.SubCmd{
 			Name: "rev-parse",
@@ -145,8 +157,8 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 			},
 			Args: []string{"HEAD^{commit}"},
 		},
-		git.WithStdout(&revParseStdout),
-		git.WithStderr(&revParseStderr),
+		git.WithStdout(revParseStdout),
+		git.WithStderr(revParseStderr),
 	)
 	if err != nil {
 		return fmt.Errorf("create git rev-parse: %w", gitError{ErrMsg: revParseStderr.String(), Err: err})
@@ -219,7 +231,8 @@ func (s *Server) addWorktree(ctx context.Context, repo *gitalypb.Repository, wor
 		flags = append(flags, git.Flag{Name: "--no-checkout"})
 	}
 
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	cmd, err := s.gitCmdFactory.New(ctx, repo,
 		git.SubSubCmd{
 			Name:   "worktree",
@@ -227,7 +240,7 @@ func (s *Server) addWorktree(ctx context.Context, repo *gitalypb.Repository, wor
 			Flags:  flags,
 			Args:   args,
 		},
-		git.WithStderr(&stderr),
+		git.WithStderr(stderr),
 		git.WithRefTxHook(ctx, repo, s.cfg),
 	)
 	if err != nil {
@@ -269,8 +282,9 @@ func newWorktreePath(repoPath, prefix string) string {
 }
 
 func (s *Server) runCmd(ctx context.Context, repo *gitalypb.Repository, cmd string, opts []git.Option, args []string) error {
-	var stderr bytes.Buffer
-	safeCmd, err := s.gitCmdFactory.New(ctx, repo, git.SubCmd{Name: cmd, Flags: opts, Args: args}, git.WithStderr(&stderr))
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+	safeCmd, err := s.gitCmdFactory.New(ctx, repo, git.SubCmd{Name: cmd, Flags: opts, Args: args}, git.WithStderr(stderr))
 	if err != nil {
 		return fmt.Errorf("create safe cmd %q: %w", cmd, gitError{ErrMsg: stderr.String(), Err: err})
 	}

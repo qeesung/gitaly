@@ -84,12 +84,15 @@ type gitFiler struct {
 }
 
 func (f *gitFiler) ReadFile(path string) ([]byte, error) {
-	var stdout, stderr bytes.Buffer
+	var stdout bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
+
 	if err := f.repo.ExecAndWait(f.ctx, git.SubCmd{
 		Name: "cat-file",
 		Args: []string{"blob", fmt.Sprintf("HEAD:%s", path)},
-	}, git.WithStdout(&stdout), git.WithStderr(&stderr)); err != nil {
-		return nil, fmt.Errorf("cat-file failed: %w, stderr: %q", err, stderr.String())
+	}, git.WithStdout(&stdout), git.WithStderr(stderr)); err != nil {
+		return nil, fmt.Errorf("cat-file failed: %w, stderr: %q", err, stderr)
 	}
 
 	// `licensedb.Detect` only opens files that look like licenses. Failing that, it will
@@ -110,7 +113,8 @@ func (f *gitFiler) ReadFile(path string) ([]byte, error) {
 func (f *gitFiler) ReadDir(string) ([]filer.File, error) {
 	// We're doing a recursive listing returning all files at once such that we do not have to
 	// call git-ls-tree(1) multiple times.
-	var stderr bytes.Buffer
+	stderr, relStderr := helper.Buffer()
+	defer relStderr()
 	cmd, err := f.repo.Exec(f.ctx, git.SubCmd{
 		Name: "ls-tree",
 		Flags: []git.Option{
@@ -118,7 +122,7 @@ func (f *gitFiler) ReadDir(string) ([]filer.File, error) {
 			git.Flag{Name: "-z"},
 		},
 		Args: []string{"HEAD"},
-	}, git.WithStderr(&stderr))
+	}, git.WithStderr(stderr))
 	if err != nil {
 		return nil, err
 	}

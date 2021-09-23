@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,7 +75,9 @@ func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateCh
 }
 
 func (s *server) isValidRepo(ctx context.Context, repo *gitalypb.Repository) bool {
-	stdout := &bytes.Buffer{}
+	stdout, relStdout := helper.Buffer()
+	defer relStdout()
+
 	cmd, err := s.gitCmdFactory.New(ctx, repo,
 		git.SubCmd{
 			Name: "rev-parse",
