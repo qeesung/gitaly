@@ -86,8 +86,8 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 			return nil, err
 		}
 
-		errMsg := stderr.String()
-		if errMsg != "" {
+		errMsg := stderr.Bytes()
+		if len(errMsg) > 0 {
 			return nil, fmt.Errorf("fetch remote: %q: %w", errMsg, err)
 		}
 

@@ -2,13 +2,13 @@ package repository
 
 //nolint:depguard
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
@@ -111,7 +111,7 @@ func removeWorktree(ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, n
 		git.WithRefTxHook(ctx, repo, cfg),
 		git.WithStderr(stderr),
 	)
-	if isExitWithCode(err, 128) && strings.HasPrefix(stderr.String(), "fatal: '"+name+"' is not a working tree") {
+	if isExitWithCode(err, 128) && bytes.HasPrefix(stderr.Bytes(), []byte("fatal: '"+name+"' is not a working tree")) {
 		return errUnknownWorktree
 	} else if err != nil {
 		return fmt.Errorf("remove worktree: %w, stderr: %q", err, stderr.String())
