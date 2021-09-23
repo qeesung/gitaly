@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -121,11 +122,11 @@ func (s *server) checkRevision(ctx context.Context, repo git.RepositoryExecutor,
 	}
 
 	if err = revParse.Wait(); err != nil {
-		errMsg := strings.Split(stderr.String(), "\n")[0]
-		return "", fmt.Errorf("%v: %v", err, errMsg)
+		errMsg := bytes.Split(stderr.Bytes(), []byte{'\n'})[0]
+		return "", fmt.Errorf("%v: %s", err, errMsg)
 	}
 
-	if strings.HasSuffix(stderr.String(), "refname '"+revision+"' is ambiguous.\n") {
+	if bytes.HasSuffix(stderr.Bytes(), []byte("refname '"+revision+"' is ambiguous.\n")) {
 		return "", errAmbigRef
 	}
 

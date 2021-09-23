@@ -269,7 +269,7 @@ func (err InvalidCommitError) Error() string {
 // IsAncestor returns whether the parent is an ancestor of the child. InvalidCommitError is returned
 // if either revision does not point to a commit in the repository.
 func (repo *Repo) IsAncestor(ctx context.Context, parent, child git.Revision) (bool, error) {
-	const notValidCommitName = "fatal: Not a valid commit name"
+	notValidCommitName := []byte("fatal: Not a valid commit name")
 
 	stderr, relStderr := helper.Buffer()
 	defer relStderr()
@@ -284,8 +284,8 @@ func (repo *Repo) IsAncestor(ctx context.Context, parent, child git.Revision) (b
 		status, ok := command.ExitStatus(err)
 		if ok && status == 1 {
 			return false, nil
-		} else if ok && strings.HasPrefix(stderr.String(), notValidCommitName) {
-			commitOID := strings.TrimSpace(strings.TrimPrefix(stderr.String(), notValidCommitName))
+		} else if ok && bytes.HasPrefix(stderr.Bytes(), notValidCommitName) {
+			commitOID := bytes.TrimSpace(bytes.TrimPrefix(stderr.Bytes(), notValidCommitName))
 			return false, InvalidCommitError(commitOID)
 		}
 

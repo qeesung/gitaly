@@ -103,7 +103,7 @@ func (remote Remote) Remove(ctx context.Context, name string) error {
 		case isExitWithCode(err, 2):
 			// In Git v2.30.0 and newer (https://gitlab.com/git-vcs/git/commit/9144ba4cf52)
 			return git.ErrNotFound
-		case isExitWithCode(err, 128) && strings.HasPrefix(stderr.String(), "fatal: No such remote"):
+		case isExitWithCode(err, 128) && bytes.HasPrefix(stderr.Bytes(), []byte("fatal: No such remote")):
 			// ..in older versions we parse stderr
 			return git.ErrNotFound
 		}
@@ -140,7 +140,7 @@ func (remote Remote) SetURL(ctx context.Context, name, url string, opts git.SetU
 		case isExitWithCode(err, 2):
 			// In Git v2.30.0 and newer (https://gitlab.com/git-vcs/git/commit/9144ba4cf52)
 			return git.ErrNotFound
-		case isExitWithCode(err, 128) && strings.HasPrefix(stderr.String(), "fatal: No such remote"):
+		case isExitWithCode(err, 128) && bytes.HasPrefix(stderr.Bytes(), []byte("fatal: No such remote")):
 			// ..in older versions we parse stderr
 			return git.ErrNotFound
 		}
