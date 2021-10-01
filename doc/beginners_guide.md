@@ -271,10 +271,6 @@ func TestExample(t *testing.T) {
 }
 ```
 
-`testhelper.Context()` returns a tuple with the current context and the
-cancellation function which can be deferred to the end of the test (and which
-will clear the context).
-
 ###### testhelper.NewTestRepo()
 
 ```go
