@@ -8,16 +8,16 @@ module Gitaly
   module ObjectPoolService
     class Service
 
-      include GRPC::GenericService
+      include ::GRPC::GenericService
 
       self.marshal_class_method = :encode
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.ObjectPoolService'
 
-      rpc :CreateObjectPool, Gitaly::CreateObjectPoolRequest, Gitaly::CreateObjectPoolResponse
-      rpc :DeleteObjectPool, Gitaly::DeleteObjectPoolRequest, Gitaly::DeleteObjectPoolResponse
+      rpc :CreateObjectPool, ::Gitaly::CreateObjectPoolRequest, ::Gitaly::CreateObjectPoolResponse
+      rpc :DeleteObjectPool, ::Gitaly::DeleteObjectPoolRequest, ::Gitaly::DeleteObjectPoolResponse
       # Repositories are assumed to be stored on the same disk
-      rpc :LinkRepositoryToObjectPool, Gitaly::LinkRepositoryToObjectPoolRequest, Gitaly::LinkRepositoryToObjectPoolResponse
+      rpc :LinkRepositoryToObjectPool, ::Gitaly::LinkRepositoryToObjectPoolRequest, ::Gitaly::LinkRepositoryToObjectPoolResponse
       # UnlinkRepositoryFromObjectPool does not unlink the repository from the
       # object pool as you'd think, but all it really does is to remove the object
       # pool's remote pointing to the repository. And even this is a no-op given
@@ -28,11 +28,11 @@ module Gitaly
       #
       # This function is never called by anyone and highly misleading. It's thus
       # deprecated and will be removed in v14.4.
-      rpc :UnlinkRepositoryFromObjectPool, Gitaly::UnlinkRepositoryFromObjectPoolRequest, Gitaly::UnlinkRepositoryFromObjectPoolResponse
-      rpc :ReduplicateRepository, Gitaly::ReduplicateRepositoryRequest, Gitaly::ReduplicateRepositoryResponse
-      rpc :DisconnectGitAlternates, Gitaly::DisconnectGitAlternatesRequest, Gitaly::DisconnectGitAlternatesResponse
-      rpc :FetchIntoObjectPool, Gitaly::FetchIntoObjectPoolRequest, Gitaly::FetchIntoObjectPoolResponse
-      rpc :GetObjectPool, Gitaly::GetObjectPoolRequest, Gitaly::GetObjectPoolResponse
+      rpc :UnlinkRepositoryFromObjectPool, ::Gitaly::UnlinkRepositoryFromObjectPoolRequest, ::Gitaly::UnlinkRepositoryFromObjectPoolResponse
+      rpc :ReduplicateRepository, ::Gitaly::ReduplicateRepositoryRequest, ::Gitaly::ReduplicateRepositoryResponse
+      rpc :DisconnectGitAlternates, ::Gitaly::DisconnectGitAlternatesRequest, ::Gitaly::DisconnectGitAlternatesResponse
+      rpc :FetchIntoObjectPool, ::Gitaly::FetchIntoObjectPoolRequest, ::Gitaly::FetchIntoObjectPoolResponse
+      rpc :GetObjectPool, ::Gitaly::GetObjectPoolRequest, ::Gitaly::GetObjectPoolResponse
     end
 
     Stub = Service.rpc_stub_class
