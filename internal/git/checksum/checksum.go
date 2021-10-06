@@ -18,11 +18,26 @@ import (
 
 var refWhitelist = regexp.MustCompile(`HEAD|(refs/(heads|tags|keep-around|merge-requests|environments|notes)/)`)
 
-// CalculateChecksum calculates a checksum of a repository by iterating through all refs, computing
+// Checksum handles the calculation of a repository checksum.
+type Checksum interface {
+	Calculate(ctx context.Context) ([]byte, error)
+}
+
+type checksum struct {
+	factory git.CommandFactory
+	repo    *gitalypb.Repository
+}
+
+// New returns a new Checksum.
+func New(factory git.CommandFactory, repo *gitalypb.Repository) Checksum {
+	return &checksum{factory: factory, repo: repo}
+}
+
+// Checksum calculates a checksum of a repository by iterating through all refs, computing
 // SHA1(ref, commit ID) for a set of allowed refs, and XOR'ing the result.
-func CalculateChecksum(ctx context.Context, factory git.CommandFactory, repo *gitalypb.Repository) ([]byte, error) {
+func (c *checksum) Calculate(ctx context.Context) ([]byte, error) {
 	// Get checksum here and send it along to the committed hook
-	cmd, err := factory.New(ctx, repo, git.SubCmd{Name: "show-ref", Flags: []git.Option{git.Flag{Name: "--head"}}})
+	cmd, err := c.factory.New(ctx, c.repo, git.SubCmd{Name: "show-ref", Flags: []git.Option{git.Flag{Name: "--head"}}})
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +71,7 @@ func CalculateChecksum(ctx context.Context, factory git.CommandFactory, repo *gi
 	}
 
 	if err := cmd.Wait(); checksum == nil || err != nil {
-		if isValidRepo(ctx, factory, repo) {
+		if isValidRepo(ctx, c.factory, c.repo) {
 			return nil, nil
 		}
 

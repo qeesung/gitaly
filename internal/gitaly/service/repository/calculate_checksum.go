@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/hex"
-	"regexp"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/checksum"
@@ -11,8 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-var refWhitelist = regexp.MustCompile(`HEAD|(refs/(heads|tags|keep-around|merge-requests|environments|notes)/)`)
 
 func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateChecksumRequest) (*gitalypb.CalculateChecksumResponse, error) {
 	repo := in.GetRepository()
@@ -22,7 +19,8 @@ func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateCh
 		return nil, err
 	}
 
-	hash, err := checksum.CalculateChecksum(ctx, s.gitCmdFactory, repo)
+	checksum := checksum.New(s.gitCmdFactory, repo)
+	hash, err := checksum.Calculate(ctx)
 
 	if hash == nil && err == nil {
 		return &gitalypb.CalculateChecksumResponse{Checksum: git.ZeroOID.String()}, nil
