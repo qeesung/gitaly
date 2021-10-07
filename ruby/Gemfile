@@ -31,3 +31,5 @@ group :development, :test do
 
   gem 'grpc-tools', '= 1.30.2'
 end
+
+gem 'nokogiri', '1.11.7'
