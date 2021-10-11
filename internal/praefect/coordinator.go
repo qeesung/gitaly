@@ -576,6 +576,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 				change,
 				params,
 				call.fullMethodName,
+				nil,
 			))
 	}
 
@@ -849,7 +850,7 @@ func (c *Coordinator) createTransactionFinalizer(
 
 		return c.newRequestFinalizer(
 			ctx, route.RepositoryID, virtualStorage, targetRepo, route.Primary.Storage,
-			updated, outdated, change, params, cause)()
+			updated, outdated, change, params, cause, transaction.Checksums())()
 	}
 }
 
@@ -989,6 +990,7 @@ func (c *Coordinator) newRequestFinalizer(
 	change datastore.ChangeType,
 	params datastore.Params,
 	cause string,
+	checksums map[string]string,
 ) func() error {
 	return func() error {
 		// Use a separate timeout for the database operations. If the request times out, the passed in context is
@@ -1010,6 +1012,8 @@ func (c *Coordinator) newRequestFinalizer(
 			log = log.WithField("replication.outdated", outdatedSecondaries)
 		}
 		log.Info("queueing replication jobs")
+
+		c.rs.UpdateChecksums(ctx, virtualStorage, targetRepo.GetRelativePath(), checksums)
 
 		switch change {
 		case datastore.UpdateRepo:
