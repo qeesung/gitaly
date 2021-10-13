@@ -8,11 +8,16 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/cancelhandler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -41,6 +46,7 @@ func TestSidechannel(t *testing.T) {
 			}
 			return &healthpb.HealthCheckResponse{}, conn.Close()
 		},
+		nil,
 	)
 
 	conn, registry := dial(t, addr)
@@ -98,6 +104,7 @@ func TestSidechannelConcurrency(t *testing.T) {
 
 			return &healthpb.HealthCheckResponse{}, conn.Close()
 		},
+		nil,
 	)
 
 	conn, registry := dial(t, addr)
@@ -141,15 +148,62 @@ func TestSidechannelConcurrency(t *testing.T) {
 	}
 }
 
-func startServer(t *testing.T, th testHandler, opts ...grpc.ServerOption) string {
+func TestSidechannelCancelled(t *testing.T) {
+	addr := startServer(
+		t,
+		func(context context.Context, request *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
+			conn, err := OpenSidechannel(context)
+			if err != nil {
+				return nil, err
+			}
+			defer conn.Close()
+
+			if _, err := io.Copy(io.Discard, conn); err != nil {
+				return nil, err
+			}
+
+			responseData := make([]byte, 64*1024)
+			for {
+				// Write into yamux connection until reaching error.
+				if _, err = conn.Write(responseData); err != nil {
+					return nil, err
+				}
+			}
+		},
+		[]grpc.ServerOption{
+			grpc.UnaryInterceptor(cancelhandler.Unary),
+			grpc.StreamInterceptor(cancelhandler.Stream),
+		},
+		withYamuxCfgFastTimeout(),
+	)
+
+	conn, registry := dial(t, addr, withYamuxCfgFastTimeout())
+	client := healthpb.NewHealthClient(conn)
+
+	ctxOut, waiter := RegisterSidechannel(context.Background(), registry, func(conn *ClientConn) error {
+		// Send data to the server but not wait for the response
+		return conn.CloseWrite()
+	})
+	defer waiter.Close()
+
+	_, err := client.Check(ctxOut, &healthpb.HealthCheckRequest{})
+	testhelper.RequireGrpcError(t, err, codes.Canceled)
+}
+
+func startServer(t *testing.T, th testHandler, grpcOpts []grpc.ServerOption, sidechannelOpts ...Option) string {
 	t.Helper()
 
+	options := defaultSidechannelOptions(logrus.StandardLogger().Writer())
+	for _, opt := range sidechannelOpts {
+		opt(options)
+	}
+
 	lm := listenmux.New(insecure.NewCredentials())
-	lm.Register(backchannel.NewServerHandshaker(newLogger(), backchannel.NewRegistry(), nil))
+	lm.Register(backchannel.NewServerHandshaker(newLogger(), backchannel.NewRegistry(), nil, backchannel.WithYamuxConfig(options.yamuxConfig)))
 
-	opts = append(opts, grpc.Creds(lm))
+	grpcOpts = append(grpcOpts, grpc.Creds(lm))
 
-	s := grpc.NewServer(opts...)
+	s := grpc.NewServer(grpcOpts...)
 	t.Cleanup(func() { s.Stop() })
 
 	handler := &server{testHandler: th}
@@ -164,9 +218,9 @@ func startServer(t *testing.T, th testHandler, opts ...grpc.ServerOption) string
 	return lis.Addr().String()
 }
 
-func dial(t *testing.T, addr string) (*grpc.ClientConn, *Registry) {
+func dial(t *testing.T, addr string, opts ...Option) (*grpc.ClientConn, *Registry) {
 	registry := NewRegistry()
-	clientHandshaker := NewClientHandshaker(newLogger(), registry)
+	clientHandshaker := NewClientHandshaker(newLogger(), registry, opts...)
 	dialOpt := grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(insecure.NewCredentials()))
 
 	conn, err := grpc.Dial(addr, dialOpt)
@@ -202,4 +256,10 @@ type server struct {
 
 func (s *server) Check(context context.Context, request *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
 	return s.testHandler(context, request)
+}
+
+func withYamuxCfgFastTimeout() Option {
+	return func(options *options) {
+		options.yamuxConfig.StreamCloseTimeout = 10 * time.Millisecond
+	}
 }
