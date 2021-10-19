@@ -146,6 +146,8 @@ func TestStorageCleanup_AcquireNextStorage(t *testing.T) {
 	})
 
 	t.Run("acquired for long time triggers update loop", func(t *testing.T) {
+		testhelper.Quarantine(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/3828")
+
 		db.TruncateAll(t)
 		require.NoError(t, storageCleanup.Populate(ctx, "vs", "g1"))
 		start := time.Now().UTC()
@@ -172,6 +174,12 @@ func TestStorageCleanup_AcquireNextStorage(t *testing.T) {
 		check3 := getAllStoragesCleanup(t, db)
 		require.Len(t, check3, 1)
 		require.False(t, check3[0].TriggeredAt.Valid)
+	})
+
+	t.Run("fail in quarantine", func(t *testing.T) {
+		testhelper.Quarantine(t, "issue-xyz")
+
+		require.True(t, false, "this is supposed to fail in quarantine only")
 	})
 }
 
