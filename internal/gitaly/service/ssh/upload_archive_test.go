@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -107,12 +109,14 @@ func TestUploadArchiveSuccess(t *testing.T) {
 
 	testcfg.BuildGitalySSH(t, cfg)
 
-	serverSocketPath := runSSHServer(t, cfg)
+	logger, hook := test.NewNullLogger()
+	serverSocketPath := runSSHServer(t, cfg, testserver.WithLogger(logger))
 
 	cmd := exec.Command(cfg.Git.BinPath, "archive", "master", "--remote=git@localhost:test/test.git")
 
 	err := testArchive(t, cfg, serverSocketPath, repo, cmd)
 	require.NoError(t, err)
+	requireProcessingDetailsLogged(t, hook)
 }
 
 func testArchive(t *testing.T, cfg config.Cfg, serverSocketPath string, testRepo *gitalypb.Repository, cmd *exec.Cmd) error {

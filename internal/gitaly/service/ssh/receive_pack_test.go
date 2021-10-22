@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -99,7 +100,8 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	hookOutputFile, cleanup := gittest.CaptureHookEnv(t)
 	defer cleanup()
 
-	serverSocketPath := runSSHServer(t, cfg)
+	logger, hook := test.NewNullLogger()
+	serverSocketPath := runSSHServer(t, cfg, testserver.WithLogger(logger))
 
 	glRepository := "project-456"
 	glProjectPath := "project/path"
@@ -162,6 +164,7 @@ func TestReceivePackPushSuccess(t *testing.T) {
 		RequestedHooks: git.ReceivePackHooks,
 		FeatureFlags:   expectedFeatureFlags,
 	}, payload)
+	requireProcessingDetailsLogged(t, hook)
 }
 
 func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {

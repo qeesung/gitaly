@@ -46,18 +46,20 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitalypb.SSHReceivePackRequest) error {
 	ctx := stream.Context()
 
-	stdin := streamio.NewReader(func() ([]byte, error) {
+	stdin := streamio.NewReadBytes(streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
 		return request.GetStdin(), err
-	})
+	}))
 
 	var m sync.Mutex
-	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
+	stdout := streamio.NewWrittenBytes(streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stdout: p})
-	})
+	}))
 	stderr := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stderr: p})
 	})
+
+	defer logTransferredBytes(ctx, stdin, stdout)
 
 	repoPath, err := s.locator.GetRepoPath(req.Repository)
 	if err != nil {

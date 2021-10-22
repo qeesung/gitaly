@@ -1,14 +1,18 @@
 package ssh
 
 import (
+	"context"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 )
 
 var (
@@ -76,4 +80,11 @@ func WithPackfileNegotiationMetrics(c *prometheus.CounterVec) ServerOpt {
 	return func(s *server) {
 		s.packfileNegotiationMetrics = c
 	}
+}
+
+func logTransferredBytes(ctx context.Context, stdin *streamio.ReadBytes, stdout *streamio.WrittenBytes) {
+	ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
+		"in_bytes":  stdin.Total(),
+		"out_bytes": stdout.Total(),
+	}).Info("transferred bytes")
 }

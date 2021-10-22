@@ -13,6 +13,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -21,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -219,8 +221,14 @@ func testUploadPackCloneSuccess(t *testing.T, opts ...testcfg.Option) {
 	testcfg.BuildGitalySSH(t, cfg)
 
 	negotiationMetrics := prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"feature"})
+	logger, hook := test.NewNullLogger()
 
-	serverSocketPath := runSSHServerWithOptions(t, cfg, []ServerOpt{WithPackfileNegotiationMetrics(negotiationMetrics)})
+	serverSocketPath := runSSHServerWithOptions(
+		t,
+		cfg,
+		[]ServerOpt{WithPackfileNegotiationMetrics(negotiationMetrics)},
+		testserver.WithLogger(logger),
+	)
 
 	localRepoPath := testhelper.TempDir(t)
 
@@ -244,6 +252,7 @@ func testUploadPackCloneSuccess(t *testing.T, opts ...testcfg.Option) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			negotiationMetrics.Reset()
+			hook.Reset()
 
 			cmd := cloneCommand{
 				repository: repo,
@@ -257,6 +266,7 @@ func testUploadPackCloneSuccess(t *testing.T, opts ...testcfg.Option) {
 			metric, err := negotiationMetrics.GetMetricWithLabelValues("deepen")
 			require.NoError(t, err)
 			require.Equal(t, tc.deepen, promtest.ToFloat64(metric))
+			requireProcessingDetailsLogged(t, hook)
 		})
 	}
 }

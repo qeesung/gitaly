@@ -49,18 +49,18 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 	ctx, cancelCtx := context.WithCancel(stream.Context())
 	defer cancelCtx()
 
-	stdin := streamio.NewReader(func() ([]byte, error) {
+	receive := streamio.NewReadBytes(streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
 		return request.GetStdin(), err
-	})
+	}))
 
 	// gRPC doesn't allow concurrent writes to a stream, so we need to
 	// synchronize writing stdout and stderrr.
 	var m sync.Mutex
 
-	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
+	stdout := streamio.NewWrittenBytes(streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadPackResponse{Stdout: p})
-	})
+	}))
 
 	stderr := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadPackResponse{Stderr: p})
@@ -80,7 +80,7 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 
 	pr, pw := io.Pipe()
 	defer pw.Close()
-	stdin = io.TeeReader(stdin, pw)
+	stdin := io.TeeReader(receive, pw)
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
@@ -118,7 +118,13 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 	// "flush" tells the server it can terminate, while "done" tells it to start
 	// generating a packfile. Add a timeout to the second case to mitigate
 	// use-after-check attacks.
-	go monitor.Monitor(pktline.PktDone(), s.uploadPackRequestTimeout, cancelCtx)
+	stdinReadDone := make(chan struct{})
+	go func() {
+		monitor.Monitor(pktline.PktDone(), s.uploadPackRequestTimeout, cancelCtx)
+		<-stdinReadDone
+		logTransferredBytes(ctx, receive, stdout)
+		close(stdinReadDone)
+	}()
 
 	if err := cmd.Wait(); err != nil {
 		pw.Close()
@@ -134,7 +140,8 @@ func (s *server) sshUploadPack(stream gitalypb.SSHService_SSHUploadPackServer, r
 
 	pw.Close()
 	wg.Wait()
-
+	stdinReadDone <- struct{}{}
+	<-stdinReadDone
 	return nil
 }
 
