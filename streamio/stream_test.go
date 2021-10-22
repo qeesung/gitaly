@@ -38,7 +38,8 @@ func TestReadSizes(t *testing.T) {
 		for n := 1; n < 100; n *= 3 {
 			desc := fmt.Sprintf("reads of size %d", n)
 			result := &bytes.Buffer{}
-			reader := &opaqueReader{NewReader(receiverFromReader(newReader(testData)))}
+			receiveReader := NewReader(receiverFromReader(newReader(testData)))
+			reader := &opaqueReader{receiveReader}
 			n, err := io.CopyBuffer(&opaqueWriter{result}, reader, make([]byte, n))
 
 			require.NoError(t, err, desc)
@@ -126,4 +127,36 @@ func (ts *testSender) send(p []byte) error {
 	copy(buf, p)
 	ts.sends = append(ts.sends, buf)
 	return nil
+}
+
+func TestReadBytes(t *testing.T) {
+	dst := make([]byte, 3)
+	reader := NewReadBytes(strings.NewReader("hello"))
+	n, err := reader.Read(dst)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, n)
+	require.EqualValues(t, n, reader.Total())
+	require.EqualValues(t, "hel", dst[:n])
+
+	n, err = reader.Read(dst)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+	require.EqualValues(t, 5, reader.Total())
+	require.EqualValues(t, "lo", dst[:n])
+}
+
+func TestWrittenBytes(t *testing.T) {
+	dst := &bytes.Buffer{}
+	writer := NewWrittenBytes(dst)
+	n, err := io.Copy(writer, strings.NewReader("hel"))
+	require.NoError(t, err)
+	require.EqualValues(t, n, 3)
+	require.EqualValues(t, n, writer.Total())
+	require.EqualValues(t, "hel", dst.String())
+
+	n, err = io.Copy(writer, strings.NewReader("lo"))
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+	require.EqualValues(t, 5, writer.Total())
+	require.EqualValues(t, "hello", dst.String())
 }
