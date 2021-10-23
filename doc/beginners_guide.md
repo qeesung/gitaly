@@ -196,10 +196,13 @@ You'll need some [test repositories](test_repos.md), you can set these up with `
 ##### Integration Tests
 
 A typical set of Golang tests for an RPC consists of two or three test
-functions: a success test, a failure test (usually a table driven test
-using t.Run), and sometimes a validation test. Our Golang RPC tests use
-in-process test servers that only implement the service the current
-RPC belongs to.
+functions:
+
+- a success test
+- a failure test (usually a table driven test using t.Run)
+- sometimes a validation test.
+
+Our Golang RPC tests use in-process test servers that only implement the service the current RPC belongs to.
 
 For example, if you are working on an RPC in the 'RepositoryService', your tests would go in `internal/gitaly/service/repository/your_rpc_test.go`.
 
@@ -225,28 +228,6 @@ called on `testing.T`.
 [require]: https://github.com/stretchr/testify/tree/master/require
 [assert]: https://github.com/stretchr/testify/tree/master/assert
 
-##### Troubleshooting
-
-There is a [known issue][] running Golang tests while using the [asdf version
-manager][asdf].
-
-In order to avoid polluting local configurations during testing, a test may
-redefine the location of `$HOME`, which interferes with asdf's `$ASDF_DATA_DIR`
-definition of `$HOME/.asdf`. You may see errors like this:
-
-```
-unknown command: bundle. Perhaps you have to reshim?
-```
-
-As a workaround, explicitly define the variable prior to executing tests:
-
-```sh
-$ ASDF_DATA_DIR=~/.asdf go test ...
-```
-
-[known issue]: https://gitlab.com/gitlab-org/gitaly/-/issues/2646
-[asdf]: https://asdf-vm.com/
-
 ##### Useful snippets for creating a test
 
 ###### testhelper.Context()
@@ -268,6 +249,9 @@ func TestExample(t *testing.T) {
 
 ###### testhelper.NewTestRepo()
 
+`testhelper.NewTestRepo()` creates a new repository, and the cleanup can
+be deferred to the end of the test.
+
 ```go
 import "gitlab.com/gitlab-org/gitaly/internal/testhelper"
 
@@ -277,19 +261,12 @@ func TestExample(t *testing.T) {
 }
 ```
 
-`testhelper.NewTestRepo()` creates a new repository, and the cleanup can
-be deferred to the end of the test.
-
-If you need to prepare your test repository in a certain way, you can run Git commands
-on the repository:
+If you need to prepare your test repository in a certain way, you can run Git commands on the repository:
 
 ```go
 testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "for-each-ref", "--format", "%(refname:lstrip=2)")
 ```
 
-These can also be batched, for example:
-
-```go
 ###### testhelper_test files
 
 `testhelper_test.go` files in the test directories often contain helper
@@ -332,8 +309,6 @@ bundle exec rspec
 To use your custom Gitaly when running Rails tests in GDK, go to the
 `gitlab` directory in your GDK and follow the instructions at
 [Running tests with a locally modified version of Gitaly][custom-gitaly].
-
-### References
 
 [custom-gitaly]: https://docs.gitlab.com/ee/development/gitaly.html#running-tests-with-a-locally-modified-version-of-gitaly
 [gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
