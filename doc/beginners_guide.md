@@ -4,33 +4,31 @@
 
 #### GitLab
 
-Before you can develop on Gitaly, it's required to have a
+Before you can develop on Gitaly, it's required to have the
 [GitLab Development Kit][gdk] properly installed. After installing GitLab, verify
 it to be working by starting the required servers and visiting GitLab on
 `http://localhost:3000`.
 
 #### Gitaly Proto
 
-GitLab will want to read and manipulate Git data, to do this it needs to talk
-to Gitaly. For GitLab and Gitaly it's important to have a set protocol. This
-protocol defines what requests can be made and what data the requester has to
-send with the request. For each request the response is defined too.
+Data is shared between GitLab Rails and Gitaly using the [Google Protocol Buffers](https://developers.google.com/protocol-buffers) to provide a shared format for serializing the exchanged data. They are also referred to as _protobuf_.
+
+Protocol buffers define which requests can be made and what data the requester must provide with the request. The response to each request is likewise defined using the Protocol buffers format.
 
 The protocol definitions can be found in `proto/*.proto`.
 
 #### Gitaly
 
-Gitaly is a component that calls procedure on the Git data when it's requested
-to do so.
+Gitaly provides high-level RPC access to Git repositories. It is controls access to the `git` binary and is used by GitLab to read and write Git data. Gitaly is present in every GitLab installation and coordinates Git repository storage and retrieval.
 
-You can find a clone of the gitaly repository in
+Within the GDK, you can find a clone of the Gitaly repository in
 `/path/to/gdk/gitaly`. You can check out your working branch here, but
-be aware that `gdk update` will reset it to the tag specified by
+please be aware that `gdk update` will reset it to the tag specified by
 `/path/to/gdk/gitlab/GITALY_SERVER_VERSION`.
 
-If you do a lot of Gitaly development this can get annoying. If you
-want to stop `gdk update` from messing with your Gitaly checkout, put
-the following in `/path/to/gdk/gdk.yml`:
+This can be ineffective if you do a lot of Gitaly development, so if you
+want to stop `gdk update` from overwriting your Gitaly checkout, add
+the following to `/path/to/gdk/gdk.yml`:
 
 ```yaml
 gitaly:
@@ -43,20 +41,20 @@ gitaly:
 
 ##### Using the Makefile
 
-Gitaly uses make to manage its build process, where all targets are defined in
+Gitaly uses [Make](https://en.wikipedia.org/wiki/Make_(software)) to manage its build process, and all targets are defined in
 our top-level [Makefile](../Makefile). By default, simply running `make` will
 build our "all" target, which installs Gitaly into the top-level directory so
 that it's easily picked up by the GDK. The following is a list of the most
 frequently used targets:
 
-- build: Build Gitaly, but do not install it.
+- `build`: Build Gitaly, but do not install it.
 
-- install: Build and install Gitaly. The destination directory can be modified
+- `install`: Build and install Gitaly. The destination directory can be modified
   by modifying a set of variables, most importantly `PREFIX`.
 
-- test: Execute both Go and Ruby tests.
+- `test`: Execute both Golang and Ruby tests.
 
-- clean: Remove all generated build artifacts.
+- `clean`: Remove all generated build artifacts.
 
 You can modify some parts of the build process by setting up various variables.
 For example, by executing `make V=1` you can do a verbose build or by overriding
@@ -100,7 +98,7 @@ make gitaly-setup
 gdk restart gitaly
 ```
 
-#### Process
+#### Development Process
 
 In general there are a couple of stages to go through, in order:
 1. Add a request/response combination to [Gitaly Proto][gitaly-proto], or edit
@@ -111,8 +109,7 @@ In general there are a couple of stages to go through, in order:
 
 ##### Configuration changes
 
-When modifying Gitaly's or Praefect's configuration, the changes should be propagated to other GitLab projects that
-rely on them:
+When modifying the Gitaly or Praefect configuration, the changes should be propagated to other GitLab projects that rely on them:
 
 1. [gitlab/omnibus-gitlab](https://gitlab.com/gitlab-org/omnibus-gitlab) contains template files that are used to generate Gitaly's and Praefect's configuration.
 2. [gitlab/CNG](https://gitlab.com/gitlab-org/build/CNG) contains configuration required to run Gitaly in a container.
@@ -135,26 +132,24 @@ If proto is updated, run `make`. This should compile successfully.
 
 ##### Gitaly-ruby
 
-Gitaly is mostly written in Go but it also uses a pool of Ruby helper
+Gitaly is mostly written in Golang but it also uses a pool of Ruby helper
 processes. This helper application is called gitaly-ruby and its code
 is in the `ruby` subdirectory of Gitaly. Gitaly-ruby is a gRPC server,
-just like its Go parent process. The Go parent proxies certain
+just like its Golang parent process. The Golang parent proxies certain
 requests to gitaly-ruby.
 
-Currently (GitLab 10.8) it is our experience that gitaly-ruby is
-unsuitable for RPC's that are slow, or that are called at a high rate.
-It should only be used for:
+It is our experience that gitaly-ruby is unsuitable for RPC's that are slow, or that are called with a high frequency. It should only be used for:
 
-- legacy GitLab application code that is too complex or subtle to rewrite in Go
-- prototyping (if you the contributor are uncomfortable writing Go)
+- legacy GitLab application code that is too complex or subtle to rewrite in Golang
+- prototyping (if you the contributor are uncomfortable writing Golang)
 
 Note that for any changes to `gitaly-ruby` to be used by GDK, you need to
 run `make gitaly-setup` in your GDK root and restart your processes.
 
 ###### Gitaly-ruby boilerplate
 
-To create the Ruby endpoint, some Go is required as the go code receives the
-requests and proxies it to the Go server. In general this is boilerplate code
+To create the Ruby endpoint, some Golang is required as the go code receives the
+requests and proxies it to the Golang server. In general this is boilerplate code
 where only method and variable names are different.
 
 Examples:
@@ -175,10 +170,10 @@ add a `require` statement in `ruby/lib/gitlab/git.rb` or `ruby/lib/gitaly_server
 
 ### Testing
 
-Gitaly's tests are mostly written in Go but it is possible to write RSpec tests too.
+Gitaly's tests are mostly written in Golang but it is possible to write RSpec tests too.
 
-Generally, you should always write new tests in Go even when testing Ruby code,
-since we're planning to gradually rewrite everything in Go and want to avoid
+Generally, you should always write new tests in Golang even when testing Ruby code,
+since we're planning to gradually rewrite everything in Golang and want to avoid
 having to rewrite the tests as well.
 
 Because praefect lives in the same repository we need to provide database connection
@@ -194,7 +189,7 @@ docker run --name praefect-pg -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -d
 To run the full test suite, use `make test`.
 You'll need some [test repositories](test_repos.md), you can set these up with `make prepare-tests`.
 
-#### Go tests
+#### Golang tests
 
 - each RPC must have end-to-end tests at the service level
 - optionally, you can add unit tests for functions that need more coverage
@@ -209,7 +204,7 @@ RPC belongs to. So if you are working on an RPC in the
 'RepositoryService', your tests would go in
 `internal/gitaly/service/repository/your_rpc_test.go`.
 
-##### Running one specific Go test
+##### Running one specific Golang test
 
 When you are trying to fix a specific test failure it is inefficient
 to run `make test` all the time. To run just one test you need to know
@@ -233,7 +228,7 @@ called on `testing.T`.
 
 ##### Troubleshooting
 
-There is a [known issue][] running Go tests while using the [asdf version
+There is a [known issue][] running Golang tests while using the [asdf version
 manager][asdf].
 
 In order to avoid polluting local configurations during testing, a test may
@@ -252,6 +247,7 @@ $ ASDF_DATA_DIR=~/.asdf go test ...
 
 [known issue]: https://gitlab.com/gitlab-org/gitaly/-/issues/2646
 [asdf]: https://asdf-vm.com/
+
 ##### Useful snippets for creating a test
 
 ###### testhelper.Context()
@@ -337,11 +333,11 @@ for looking up repositories on disk etc.
 
 It is possible to write end-to-end RSpec tests that run against a full
 Gitaly server. This is more or less equivalent to the service-level
-tests we write in Go. You can also write unit tests for Ruby code in
+tests we write in Golang. You can also write unit tests for Ruby code in
 RSpec.
 
 Because the RSpec tests use a full Gitaly server you must re-compile
-Gitaly every time you change the Go code. Run `make` to recompile.
+Gitaly every time you change the Golang code. Run `make` to recompile.
 
 Then, you can run RSpec tests in the `ruby` subdirectory.
 
@@ -356,6 +352,7 @@ To use your custom Gitaly when running Rails tests in GDK, go to the
 `gitlab` directory in your GDK and follow the instructions at
 [Running tests with a locally modified version of Gitaly][custom-gitaly].
 
+### References
 
 [custom-gitaly]: https://docs.gitlab.com/ee/development/gitaly.html#running-tests-with-a-locally-modified-version-of-gitaly
 [gdk]: https://gitlab.com/gitlab-org/gitlab-development-kit/#getting-started
