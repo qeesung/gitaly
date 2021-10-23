@@ -6,7 +6,7 @@
 
 Before you can develop on Gitaly, it's required to have the
 [GitLab Development Kit][gdk] properly installed. After installing GitLab, verify
-it to be working by starting the required servers and visiting GitLab on
+it to be working by starting the required servers and visiting GitLab at
 `http://localhost:3000`.
 
 #### Gitaly Proto
@@ -43,7 +43,7 @@ gitaly:
 
 Gitaly uses [Make](https://en.wikipedia.org/wiki/Make_(software)) to manage its build process, and all targets are defined in
 our top-level [Makefile](../Makefile). By default, simply running `make` will
-build our "all" target, which installs Gitaly into the top-level directory so
+build our `all` target, which installs Gitaly into the top-level directory so
 that it's easily picked up by the GDK. The following is a list of the most
 frequently used targets:
 
@@ -64,7 +64,7 @@ will be used for generating code.
 If you wish to persist your configuration, you may create a `config.mak` file
 next to the Makefile and put all variables you wish to override in there.
 
-##### Editing code and seeing what happens
+##### Experimenting with editing code
 
 If you're used to Ruby on Rails development you may be used to a "edit
 code and reload" cycle where you keep editing and reloading until you
@@ -75,22 +75,27 @@ At some point you will know which Gitaly RPC you need to work on. This
 is where you probably want to stop using `localhost:3000` and zoom in on
 the RPC instead.
 
+###### A suggested workflow
+
 To experiment with changing an RPC you should use the Gitaly service
 tests. The RPC you want to work on will have tests somewhere in
-`internal/gitaly/service/...`. Find the tests for your RPC. Next, before you
-edit any code, make sure the tests pass when you run them:
-`go test ./internal/gitaly/service/foobar -count 1 -run MyRPC`. In this
-command, `MyRPC` is a regex that will match functions like
-`TestMyRPCSuccess` and `TestMyRPCValidationFailure`. Once you have found
-your tests and your test command, you can start tweaking the
-implementation or adding test cases and re-running the tests. The cycle
-is "edit code, run tests".
+`internal/gitaly/service/...`.
 
-This is many times faster than "edit gitaly, reinstall Gitaly into GDK,
+Before you edit any code, make sure the tests pass when you run them:
+
+```
+go test ./internal/gitaly/service/foobar -count 1 -run MyRPC
+```
+
+In this command, `MyRPC` is a regex that will match functions like
+`TestMyRPCSuccess` and `TestMyRPCValidationFailure`. 
+
+Once you have found your tests and your test command, you can start tweaking the implementation or adding test cases and re-running the tests.
+
+This approach is many times faster than "edit gitaly, reinstall Gitaly into GDK,
 restart, reload `localhost:3000`".
 
-Regardless, if you do want to see your locally changed Gitaly in
-action on `localhost:3000`, you can. Run the following commands in
+To see the changes, run the following commands in
 your GDK directory:
 
 ```shell
@@ -100,7 +105,7 @@ gdk restart gitaly
 
 #### Development Process
 
-In general there are a couple of stages to go through, in order:
+The general approach is:
 1. Add a request/response combination to [Gitaly Proto][gitaly-proto], or edit
   an existing one
 1. Change [Gitaly][gitaly] accordingly
@@ -116,15 +121,9 @@ When modifying the Gitaly or Praefect configuration, the changes should be propa
 
 ##### Gitaly Proto
 
-The [Protocol buffer documentation][proto-docs] combined with the
-`*.proto` files in the `proto/` directory should
-be enough to get you started. A service needs to be picked that can
-receive the procedure call. A general rule of thumb is that the
-service is named either after the Git CLI command, or after the Git
-object type.
+The [Protocol buffer documentation][proto-docs] combined with the `*.proto` files in the `proto/` directory should be enough to get you started. A service needs to be picked that can receive the procedure call. A general rule of thumb is that the service is named either after the Git CLI command, or after the Git object type.
 
-If either your request or response data can exceed 100KB you need to use the
-`stream` keyword. To generate the server and client code, run `make proto`.
+If either your request or response data can exceed 100KB you need to use the `stream` keyword. To generate the server and client code, run `make proto`.
 
 ##### Gitaly
 
@@ -165,8 +164,7 @@ The method name should match the name defined by the `gitaly` gem. To be sure
 run `bundle open gitaly`. The return value of the method should be an
 instance of the response object.
 
-There is no autoloader in gitaly-ruby. If you add new ruby files, you need to manually
-add a `require` statement in `ruby/lib/gitlab/git.rb` or `ruby/lib/gitaly_server.rb.`
+There is no autoloader in gitaly-ruby. If you add new ruby files, you need to manually add a `require` statement in `ruby/lib/gitlab/git.rb` or `ruby/lib/gitaly_server.rb.`
 
 ### Testing
 
@@ -176,11 +174,12 @@ Generally, you should always write new tests in Golang even when testing Ruby co
 since we're planning to gradually rewrite everything in Golang and want to avoid
 having to rewrite the tests as well.
 
-Because praefect lives in the same repository we need to provide database connection
+Because Praefect lives in the same repository we need to provide database connection
 information in order to run tests for it successfully. To get more info check out
 [glsql](../internal/praefect/datastore/glsql/doc.go) package documentation.
-The easiest way to set up a Postgres database instance is to run it as a Docker container.
-You can do it using command:
+
+The easiest way to set up a Postgres database instance is to run it as a Docker container:
+
 ```bash
 docker rm -f $(docker ps -q --all -f name=praefect-pg) > /dev/null 2>1; \
 docker run --name praefect-pg -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -d postgres:12.6
@@ -200,11 +199,11 @@ A typical set of Golang tests for an RPC consists of two or three test
 functions: a success test, a failure test (usually a table driven test
 using t.Run), and sometimes a validation test. Our Golang RPC tests use
 in-process test servers that only implement the service the current
-RPC belongs to. So if you are working on an RPC in the
-'RepositoryService', your tests would go in
-`internal/gitaly/service/repository/your_rpc_test.go`.
+RPC belongs to.
 
-##### Running one specific Golang test
+For example, if you are working on an RPC in the 'RepositoryService', your tests would go in `internal/gitaly/service/repository/your_rpc_test.go`.
+
+##### Running a specific test
 
 When you are trying to fix a specific test failure it is inefficient
 to run `make test` all the time. To run just one test you need to know
@@ -291,24 +290,6 @@ testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "for-each-ref", "--form
 These can also be batched, for example:
 
 ```go
-setupCommands := [][]string{
-	// Preconditions
-	{"config", "user.email", "gitalytest@example.com"},
-	{"remote", "add", remoteName, mirrorPath},
-	{"branch", "11-0-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},
-	{"branch", "11-1-stable", "60ecb67744cb56576c30214ff52294f8ce2def98"},                // Add branch
-	{"branch", "ignored-branch", "60ecb67744cb56576c30214ff52294f8ce2def98"},             // Add branch not matching branch list
-	{"update-ref", "refs/heads/some-branch", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"}, // Update branch
-	{"update-ref", "refs/heads/feature", "0b4bc9a49b562e85de7cc9e834518ea6828729b9"},     // Update branch
-}
-
-for _, args := range setupCommands {
-	gitArgs := []string{"-C", testRepoPath}
-	gitArgs = append(gitArgs, args...)
-	testhelper.MustRunCommand(t, nil, "git", gitArgs...)
-}
-```
-
 ###### testhelper_test files
 
 `testhelper_test.go` files in the test directories often contain helper
