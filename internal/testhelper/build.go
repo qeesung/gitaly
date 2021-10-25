@@ -1,7 +1,6 @@
 package testhelper
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,42 +16,38 @@ var buildOnceByName sync.Map
 
 // BuildGitalyGit2Go builds the gitaly-git2go command and installs it into the binary directory.
 func BuildGitalyGit2Go(t testing.TB, cfg config.Cfg) {
-	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go"))
-	// The link is needed because gitaly uses version-named binary.
-	// Please check out https://gitlab.com/gitlab-org/gitaly/-/issues/3647 for more info.
-	if err := os.Link(filepath.Join(cfg.BinDir, "gitaly-git2go"), filepath.Join(cfg.BinDir, "gitaly-git2go-"+version.GetModuleVersion())); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return
-		}
-		require.NoError(t, err)
-	}
+	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go"), func(t testing.TB) {
+		// The link is needed because gitaly uses version-named binary.
+		// Please check out https://gitlab.com/gitlab-org/gitaly/-/issues/3647 for more info.
+		require.NoError(t, os.Link(filepath.Join(cfg.BinDir, "gitaly-git2go"), filepath.Join(cfg.BinDir, "gitaly-git2go-"+version.GetModuleVersion())))
+	})
 }
 
 // BuildGitalyLFSSmudge builds the gitaly-lfs-smudge command and installs it into the binary
 // directory.
 func BuildGitalyLFSSmudge(t *testing.T, cfg config.Cfg) {
-	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-lfs-smudge"))
+	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-lfs-smudge"), nil)
 }
 
 // BuildGitalyHooks builds the gitaly-hooks command and installs it into the binary directory.
 func BuildGitalyHooks(t testing.TB, cfg config.Cfg) {
-	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-hooks"))
+	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-hooks"), nil)
 }
 
 // BuildGitalySSH builds the gitaly-ssh command and installs it into the binary directory.
 func BuildGitalySSH(t testing.TB, cfg config.Cfg) {
-	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-ssh"))
+	BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-ssh"), nil)
 }
 
 // BuildPraefect builds the praefect command and installs it into the binary directory.
 func BuildPraefect(t testing.TB, cfg config.Cfg) {
-	BuildBinary(t, cfg.BinDir, gitalyCommandPath("praefect"))
+	BuildBinary(t, cfg.BinDir, gitalyCommandPath("praefect"), nil)
 }
 
 // BuildBinary builds a Go binary once and copies it into the target directory. The source path can
 // either be a ".go" file or a directory containing Go files. Returns the path to the executable in
 // the destination directory.
-func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
+func BuildBinary(t testing.TB, targetDir, sourcePath string, postBuild func(testing.TB)) string {
 	require.NotEmpty(t, testDirectory, "you must call testhelper.Configure() first")
 
 	var (
@@ -82,6 +77,9 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 			"-o", sharedBinaryPath,
 			sourcePath,
 		)
+		if postBuild != nil {
+			postBuild(t)
+		}
 	})
 
 	require.FileExists(t, sharedBinaryPath, "%s does not exist", executableName)
