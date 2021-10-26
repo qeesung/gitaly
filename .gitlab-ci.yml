@@ -314,12 +314,28 @@ objectinfo_fuzz_test:
     - clang-7 -fsanitize=fuzzer objectinfo_fuzzer.a -o objectinfo_fuzzer
     - ./gitlab-cov-fuzz run -- ./objectinfo_fuzzer -max_total_time=300
 
-trigger-qa:
+.qa_template: &qa_definition
   stage: qa
-  when: manual
   trigger:
     project: gitlab-org/build/omnibus-gitlab-mirror
-  variables:
+  variables: &qa_variables
     ALTERNATIVE_SOURCES: "true"
-    GITALY_SERVER_VERSION: $CI_COMMIT_SHA
+    GITALY_SERVER_ALTERNATIVE_REPO: $CI_PROJECT_URL
     ee: "true"
+
+trigger-qa:
+  <<: *qa_definition
+  variables:
+    <<: *qa_variables
+    GITALY_SERVER_VERSION: $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
+
+qa:
+  <<: *qa_definition
+  variables:
+    <<: *qa_variables
+    GITALY_SERVER_VERSION: $CI_COMMIT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
