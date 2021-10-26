@@ -238,5 +238,5 @@ func buildPidServer(t *testing.T) string {
 	sourcePath, err := filepath.Abs("test-scripts/pid-server.go")
 	require.NoError(t, err)
 
-	return testhelper.BuildBinary(t, testhelper.TempDir(t), sourcePath)
+	return testhelper.BuildBinary(t, testhelper.TempDir(t), sourcePath, nil)
 }
