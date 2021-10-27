@@ -316,10 +316,21 @@ objectinfo_fuzz_test:
 
 trigger-qa:
   stage: qa
-  when: manual
   trigger:
     project: gitlab-org/build/omnibus-gitlab-mirror
   variables:
     ALTERNATIVE_SOURCES: "true"
     GITALY_SERVER_VERSION: $CI_COMMIT_SHA
+    GITALY_SERVER_ALTERNATIVE_REPO: $CI_PROJECT_URL
     ee: "true"
+  rules:
+    - if: $CI_MERGE_REQUEST_EVENT_TYPE == "merge_train"
+      variables:
+        GITALY_SERVER_VERSION: $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+    - if: $CI_MERGE_REQUEST_EVENT_TYPE == "merged_result"
+      when: manual
+      variables:
+        GITALY_SERVER_VERSION: $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
