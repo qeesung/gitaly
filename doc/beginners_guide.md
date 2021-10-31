@@ -170,7 +170,7 @@ There is no autoloader in gitaly-ruby. If you add new ruby files, you need to ma
 
 Gitaly's tests are mostly written in Golang but it is possible to write RSpec tests too.
 
-Generally, you should always write new tests in Golang even when testing Ruby code,
+Generally, you should always write new tests in Go even when testing Ruby code,
 since we're planning to gradually rewrite everything in Go and want to avoid
 having to rewrite the tests as well.
 
