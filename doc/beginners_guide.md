@@ -195,7 +195,7 @@ You'll need some [test repositories](test_repos.md), you can set these up with `
 
 ##### Integration Tests
 
-A typical set of Golang tests for an RPC consists of two or three test
+A typical set of Go tests for an RPC consists of two or three test
 functions:
 
 - a success test
