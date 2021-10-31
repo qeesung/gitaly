@@ -291,7 +291,7 @@ for looking up repositories on disk etc.
 
 It is possible to write end-to-end RSpec tests that run against a full
 Gitaly server. This is more or less equivalent to the service-level
-tests we write in Golang. You can also write unit tests for Ruby code in
+tests we write in Go. You can also write unit tests for Ruby code in
 RSpec.
 
 Because the RSpec tests use a full Gitaly server you must re-compile
