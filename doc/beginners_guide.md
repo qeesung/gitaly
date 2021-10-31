@@ -238,12 +238,14 @@ used frequently when performing RPC calls.
 
 ```go
 import (
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestExample(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
+	require.NoError(t, Example(ctx))
 }
 ```
 
