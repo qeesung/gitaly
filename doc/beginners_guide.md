@@ -188,7 +188,7 @@ docker run --name praefect-pg -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -d
 To run the full test suite, use `make test`.
 You'll need some [test repositories](test_repos.md), you can set these up with `make prepare-tests`.
 
-#### Golang tests
+#### Go tests
 
 - each RPC must have end-to-end tests at the service level
 - optionally, you can add unit tests for functions that need more coverage
