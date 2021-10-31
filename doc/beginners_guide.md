@@ -202,7 +202,7 @@ functions:
 - a failure test (usually a table driven test using t.Run)
 - sometimes a validation test.
 
-Our Golang RPC tests use in-process test servers that only implement the service the current RPC belongs to.
+Our Go RPC tests use in-process test servers that only implement the service the current RPC belongs to.
 
 For example, if you are working on an RPC in the 'RepositoryService', your tests would go in `internal/gitaly/service/repository/your_rpc_test.go`.
 
