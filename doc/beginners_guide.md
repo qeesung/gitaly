@@ -131,7 +131,7 @@ If proto is updated, run `make`. This should compile successfully.
 
 ##### Gitaly-ruby
 
-Gitaly is mostly written in Golang but it also uses a pool of Ruby helper
+Gitaly is mostly written in Go but it also uses a pool of Ruby helper
 processes. This helper application is called gitaly-ruby and its code
 is in the `ruby` subdirectory of Gitaly. Gitaly-ruby is a gRPC server,
 just like its Go parent process. The Go parent proxies certain
