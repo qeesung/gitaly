@@ -140,7 +140,7 @@ requests to gitaly-ruby.
 It is our experience that gitaly-ruby is unsuitable for RPC's that are slow, or that are called with a high frequency. It should only be used for:
 
 - legacy GitLab application code that is too complex or subtle to rewrite in Go
-- prototyping (if you the contributor are uncomfortable writing Golang)
+- prototyping (if you the contributor are uncomfortable writing Go)
 
 Note that for any changes to `gitaly-ruby` to be used by GDK, you need to
 run `make gitaly-setup` in your GDK root and restart your processes.
