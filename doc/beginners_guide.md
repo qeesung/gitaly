@@ -295,7 +295,7 @@ tests we write in Golang. You can also write unit tests for Ruby code in
 RSpec.
 
 Because the RSpec tests use a full Gitaly server you must re-compile
-Gitaly every time you change the Golang code. Run `make` to recompile.
+Gitaly every time you change the Go code. Run `make` to recompile.
 
 Then, you can run RSpec tests in the `ruby` subdirectory.
 
