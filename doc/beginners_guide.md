@@ -148,7 +148,7 @@ run `make gitaly-setup` in your GDK root and restart your processes.
 ###### Gitaly-ruby boilerplate
 
 To create the Ruby endpoint, some Golang is required as the go code receives the
-requests and proxies it to the Golang server. In general this is boilerplate code
+requests and proxies it to the Go server. In general this is boilerplate code
 where only method and variable names are different.
 
 Examples:
