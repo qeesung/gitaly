@@ -52,7 +52,7 @@ frequently used targets:
 - `install`: Build and install Gitaly. The destination directory can be modified
   by modifying a set of variables, most importantly `PREFIX`.
 
-- `test`: Execute both Golang and Ruby tests.
+- `test`: Execute both Go and Ruby tests.
 
 - `clean`: Remove all generated build artifacts.
 
