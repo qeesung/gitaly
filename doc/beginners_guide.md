@@ -249,26 +249,6 @@ func TestExample(t *testing.T) {
 }
 ```
 
-###### testhelper.NewTestRepo()
-
-`testhelper.NewTestRepo()` creates a new repository, and the cleanup can
-be deferred to the end of the test.
-
-```go
-import "gitlab.com/gitlab-org/gitaly/internal/testhelper"
-
-func TestExample(t *testing.T) {
-	testRepo, _, cleanup := testhelper.NewTestRepo(t)
-	defer cleanup()
-}
-```
-
-If you need to prepare your test repository in a certain way, you can run Git commands on the repository:
-
-```go
-testhelper.MustRunCommand(t, nil, "git", "-C", repoPath, "for-each-ref", "--format", "%(refname:lstrip=2)")
-```
-
 ###### testhelper_test files
 
 `testhelper_test.go` files in the test directories often contain helper
