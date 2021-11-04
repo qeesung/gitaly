@@ -84,7 +84,7 @@ tests. The RPC you want to work on will have tests somewhere in
 Before you edit any code, make sure the tests pass when you run them:
 
 ```
-go test ./internal/gitaly/service/foobar -count 1 -run MyRPC
+TEST_PACKAGES=./internal/gitaly/service/foobar TEST_OPTIONS="-count=1 -run=MyRPC" make test
 ```
 
 In this command, `MyRPC` is a regex that will match functions like
@@ -217,7 +217,7 @@ To run the test you need a terminal window with working directory
 `/path/to/gdk/gitaly`. To run just the one test you're interested in:
 
 ```
-go test ./internal/gitaly/service/repository -count 1 -run TestRepositoryExists
+TEST_PACKAGES=./internal/gitaly/service/repository TEST_OPTIONS="-count=1 -run=TestRepositoryExists" make test-go
 ```
 
 When writing tests, prefer using [testify]'s [require], and [assert] as
