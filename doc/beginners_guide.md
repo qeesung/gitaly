@@ -43,7 +43,7 @@ gitaly:
 
 Gitaly uses [Make](https://en.wikipedia.org/wiki/Make_(software)) to manage its build process, and all targets are defined in
 our top-level [Makefile](../Makefile). By default, simply running `make` will
-build our `all` target, which installs Gitaly into the top-level directory so
+build our `all` target, which installs Gitaly into the `./_build/bin` directory so
 that it's easily picked up by the GDK. The following is a list of the most
 frequently used targets:
 
