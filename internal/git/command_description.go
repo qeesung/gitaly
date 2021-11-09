@@ -89,6 +89,7 @@ var commandDescriptions = map[string]commandDescription{
 			// description with regards to why we ignore some checks.
 			ConfigPair{Key: "fetch.fsckObjects", Value: "true"},
 			ConfigPair{Key: "fetch.fsck.badTimezone", Value: "ignore"},
+			ConfigPair{Key: "fetch.fsck.zeroPaddedFilemode", Value: "ignore"},
 			ConfigPair{Key: "fetch.fsck.missingSpaceBeforeDate", Value: "ignore"},
 			// While git-fetch(1) by default won't write commit graphs, both CNG and
 			// Omnibus set this value to true. This has caused performance issues when
@@ -194,6 +195,14 @@ var commandDescriptions = map[string]commandDescription{
 			// a commit will be rejected. As this is a mostly harmless
 			// issue, we add the following flag to ignore this check.
 			ConfigPair{Key: "receive.fsck.badTimezone", Value: "ignore"},
+
+			// Some repositories such as
+			// https://github.com/robbyrussell/oh-my-zsh.git and
+			// https://github.com/Modernizr/Modernizr have commits that
+			// have extra padding in the file modes. As this is a mostly
+			// harmless issue, we add the following flag to ignore this
+			// check.
+			ConfigPair{Key: "receive.fsck.zeroPaddedFilemode", Value: "ignore"},
 
 			// git-fsck(1) complains in case a signature does not have a space
 			// between mail and date. The most common case where this can be hit
