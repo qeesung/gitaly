@@ -88,7 +88,7 @@ TEST_PACKAGES=./internal/gitaly/service/foobar TEST_OPTIONS="-count=1 -run=MyRPC
 ```
 
 In this command, `MyRPC` is a regex that will match functions like
-`TestMyRPCSuccess` and `TestMyRPCValidationFailure`. 
+`TestMyRPCSuccess` and `TestMyRPCValidationFailure`.
 
 Once you have found your tests and your test command, you can start tweaking the implementation or adding test cases and re-running the tests.
 
@@ -248,12 +248,6 @@ func TestExample(t *testing.T) {
 	require.NoError(t, Example(ctx))
 }
 ```
-
-###### testhelper_test files
-
-`testhelper_test.go` files in the test directories often contain helper
-methods used prolifically throughout the tests. Examples of this would be
-generic server setup commands which are common to all tests in that directory.
 
 ###### config
 
