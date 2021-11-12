@@ -1,4 +1,4 @@
-package backup
+package git_test
 
 import (
 	"bytes"
@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	. "gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
 
-func TestRefsDecoder(t *testing.T) {
+func TestRefsDecoder_gitShowRef(t *testing.T) {
 	cfg := testcfg.Build(t)
 
 	ctx, cancel := testhelper.Context()
@@ -31,11 +31,11 @@ func TestRefsDecoder(t *testing.T) {
 	output := gittest.Exec(t, cfg, "-C", repoPath, "show-ref")
 	stream := bytes.NewBuffer(output)
 
-	d := NewRefsDecoder(stream)
+	d := NewShowRefDecoder(stream)
 
-	var refs []git.Reference
+	var refs []Reference
 	for {
-		var ref git.Reference
+		var ref Reference
 
 		err := d.Decode(&ref)
 		if err == io.EOF {

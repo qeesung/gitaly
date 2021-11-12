@@ -93,7 +93,7 @@ func (repo *Repo) GetReferences(ctx context.Context, patterns ...string) ([]git.
 }
 
 func (repo *Repo) getReferences(ctx context.Context, limit uint, patterns ...string) ([]git.Reference, error) {
-	flags := []git.Option{git.Flag{Name: "--format=%(refname)%00%(objectname)%00%(symref)"}}
+	flags := []git.Option{git.ValueFlag{Name: "--format", Value: git.ForEachRefSymbolicFormat}}
 	if limit > 0 {
 		flags = append(flags, git.Flag{Name: fmt.Sprintf("--count=%d", limit)})
 	}
@@ -107,25 +107,20 @@ func (repo *Repo) getReferences(ctx context.Context, limit uint, patterns ...str
 		return nil, err
 	}
 
-	scanner := bufio.NewScanner(cmd)
+	decoder := git.NewForEachRefDecoder(cmd)
 
 	var refs []git.Reference
-	for scanner.Scan() {
-		line := bytes.SplitN(scanner.Bytes(), []byte{0}, 3)
-		if len(line) != 3 {
-			return nil, errors.New("unexpected reference format")
+	for {
+		var ref git.Reference
+		err := decoder.Decode(&ref)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("reading standard input: %v", err)
 		}
-
-		if len(line[2]) == 0 {
-			refs = append(refs, git.NewReference(git.ReferenceName(line[0]), string(line[1])))
-		} else {
-			refs = append(refs, git.NewSymbolicReference(git.ReferenceName(line[0]), string(line[1])))
-		}
+		refs = append(refs, ref)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading standard input: %v", err)
-	}
 	if err := cmd.Wait(); err != nil {
 		return nil, err
 	}
