@@ -19,7 +19,7 @@ The protocol definitions can be found in `proto/*.proto`.
 
 #### Gitaly
 
-Gitaly provides high-level RPC access to Git repositories. It is controls access to the `git` binary and is used by GitLab to read and write Git data. Gitaly is present in every GitLab installation and coordinates Git repository storage and retrieval.
+Gitaly provides high-level RPC access to Git repositories. It controls access to the `git` binary and is used by GitLab to read and write Git data. Gitaly is present in every GitLab installation and coordinates Git repository storage and retrieval.
 
 Within the GDK, you can find a clone of the Gitaly repository in
 `/path/to/gdk/gitaly`. You can check out your working branch here, but
