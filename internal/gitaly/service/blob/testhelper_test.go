@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,25 +15,15 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	testhelper.Run(m)
 }
 
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
+func setup(tb testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.BlobServiceClient) {
+	cfg := testcfg.Build(tb)
 
-	cleanup := testhelper.Configure()
-	defer cleanup()
+	repo, repoPath := gittest.CloneRepo(tb, cfg, cfg.Storages[0])
 
-	return m.Run()
-}
-
-func setup(t *testing.T) (config.Cfg, *gitalypb.Repository, string, gitalypb.BlobServiceClient) {
-	cfg := testcfg.Build(t)
-
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
-
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+	addr := testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterBlobServiceServer(srv, NewServer(
 			deps.GetCfg(),
 			deps.GetLocator(),
@@ -44,8 +33,8 @@ func setup(t *testing.T) (config.Cfg, *gitalypb.Repository, string, gitalypb.Blo
 	})
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	require.NoError(t, err)
-	t.Cleanup(func() { conn.Close() })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { conn.Close() })
 
 	return cfg, repo, repoPath, gitalypb.NewBlobServiceClient(conn)
 }

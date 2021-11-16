@@ -1,7 +1,6 @@
 package hook
 
 import (
-	"os"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -15,14 +14,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-	cleanup := testhelper.Configure()
-	defer cleanup()
-	return m.Run()
+	testhelper.Run(m)
 }
 
 func setupHookService(t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.HookServiceClient) {
@@ -60,6 +52,7 @@ func runHooksServer(t testing.TB, cfg config.Cfg, opts []serverOption, serverOpt
 			deps.GetCfg(),
 			gitalyhook.NewManager(deps.GetLocator(), deps.GetTxManager(), deps.GetGitlabClient(), deps.GetCfg()),
 			deps.GetGitCmdFactory(),
+			deps.GetPackObjectsCache(),
 		)
 		for _, opt := range opts {
 			opt(hookServer.(*server))

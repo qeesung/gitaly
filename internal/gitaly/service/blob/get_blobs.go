@@ -3,7 +3,6 @@ package blob
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
@@ -17,12 +16,18 @@ import (
 var treeEntryToObjectType = map[gitalypb.TreeEntry_EntryType]gitalypb.ObjectType{
 	gitalypb.TreeEntry_BLOB:   gitalypb.ObjectType_BLOB,
 	gitalypb.TreeEntry_TREE:   gitalypb.ObjectType_TREE,
-	gitalypb.TreeEntry_COMMIT: gitalypb.ObjectType_COMMIT}
+	gitalypb.TreeEntry_COMMIT: gitalypb.ObjectType_COMMIT,
+}
 
-func sendGetBlobsResponse(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobService_GetBlobsServer, c catfile.Batch) error {
+func sendGetBlobsResponse(
+	req *gitalypb.GetBlobsRequest,
+	stream gitalypb.BlobService_GetBlobsServer,
+	objectReader catfile.ObjectReader,
+	objectInfoReader catfile.ObjectInfoReader,
+) error {
 	ctx := stream.Context()
 
-	tef := commit.NewTreeEntryFinder(c)
+	tef := commit.NewTreeEntryFinder(objectReader, objectInfoReader)
 
 	for _, revisionPath := range req.RevisionPaths {
 		revision := revisionPath.Revision
@@ -61,7 +66,7 @@ func sendGetBlobsResponse(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 			continue
 		}
 
-		objectInfo, err := c.Info(ctx, git.Revision(treeEntry.Oid))
+		objectInfo, err := objectInfoReader.Info(ctx, git.Revision(treeEntry.Oid))
 		if err != nil {
 			return status.Errorf(codes.Internal, "GetBlobs: %v", err)
 		}
@@ -82,7 +87,7 @@ func sendGetBlobsResponse(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 			continue
 		}
 
-		if err = sendBlobTreeEntry(response, stream, c, req.GetLimit()); err != nil {
+		if err = sendBlobTreeEntry(response, stream, objectReader, req.GetLimit()); err != nil {
 			return err
 		}
 	}
@@ -90,7 +95,12 @@ func sendGetBlobsResponse(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 	return nil
 }
 
-func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.BlobService_GetBlobsServer, c catfile.Batch, limit int64) error {
+func sendBlobTreeEntry(
+	response *gitalypb.GetBlobsResponse,
+	stream gitalypb.BlobService_GetBlobsServer,
+	objectReader catfile.ObjectReader,
+	limit int64,
+) (returnedErr error) {
 	ctx := stream.Context()
 
 	var readLimit int64
@@ -110,9 +120,17 @@ func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.Blob
 		return nil
 	}
 
-	blobObj, err := c.Blob(ctx, git.Revision(response.Oid))
+	blobObj, err := objectReader.Object(ctx, git.Revision(response.Oid))
 	if err != nil {
 		return status.Errorf(codes.Internal, "GetBlobs: %v", err)
+	}
+	defer func() {
+		if _, err := io.Copy(io.Discard, blobObj); err != nil && returnedErr == nil {
+			returnedErr = status.Errorf(codes.Internal, "GetBlobs: discarding data: %v", err)
+		}
+	}()
+	if blobObj.Type != "blob" {
+		return status.Errorf(codes.Internal, "blob got unexpected type %q", blobObj.Type)
 	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
@@ -127,13 +145,9 @@ func sendBlobTreeEntry(response *gitalypb.GetBlobsResponse, stream gitalypb.Blob
 		return stream.Send(msg)
 	})
 
-	_, err = io.CopyN(sw, blobObj.Reader, readLimit)
+	_, err = io.CopyN(sw, blobObj, readLimit)
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "GetBlobs: send: %v", err)
-	}
-
-	if _, err := io.Copy(ioutil.Discard, blobObj.Reader); err != nil {
-		return status.Errorf(codes.Unavailable, "GetBlobs: discarding data: %v", err)
 	}
 
 	return nil
@@ -146,12 +160,17 @@ func (s *server) GetBlobs(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 
 	repo := s.localrepo(req.GetRepository())
 
-	c, err := s.catfileCache.BatchProcess(stream.Context(), repo)
+	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
 
-	return sendGetBlobsResponse(req, stream, c)
+	objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+	if err != nil {
+		return err
+	}
+
+	return sendGetBlobsResponse(req, stream, objectReader, objectInfoReader)
 }
 
 func validateGetBlobsRequest(req *gitalypb.GetBlobsRequest) error {

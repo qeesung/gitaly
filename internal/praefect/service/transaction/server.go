@@ -8,14 +8,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 )
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 type Server struct {
 	gitalypb.UnimplementedRefTransactionServer
 	txMgr *transactions.Manager
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func NewServer(txMgr *transactions.Manager) gitalypb.RefTransactionServer {
 	return &Server{
 		txMgr: txMgr,
@@ -36,7 +37,7 @@ func (s *Server) VoteTransaction(ctx context.Context, in *gitalypb.VoteTransacti
 		case errors.Is(err, transactions.ErrNotFound):
 			return nil, helper.ErrNotFound(err)
 		case errors.Is(err, transactions.ErrTransactionCanceled):
-			return nil, helper.DecorateError(codes.Canceled, err)
+			return nil, helper.ErrCanceled(err)
 		case errors.Is(err, transactions.ErrTransactionStopped):
 			return &gitalypb.VoteTransactionResponse{
 				State: gitalypb.VoteTransactionResponse_STOP,
@@ -65,7 +66,7 @@ func (s *Server) StopTransaction(ctx context.Context, in *gitalypb.StopTransacti
 		case errors.Is(err, transactions.ErrNotFound):
 			return nil, helper.ErrNotFound(err)
 		case errors.Is(err, transactions.ErrTransactionCanceled):
-			return nil, helper.DecorateError(codes.Canceled, err)
+			return nil, helper.ErrCanceled(err)
 		case errors.Is(err, transactions.ErrTransactionStopped):
 			return &gitalypb.StopTransactionResponse{}, nil
 		default:

@@ -16,10 +16,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
-var (
-	// ErrObjectNotFound is returned in case an object could not be found.
-	ErrObjectNotFound = errors.New("object not found")
-)
+// ErrObjectNotFound is returned in case an object could not be found.
+var ErrObjectNotFound = errors.New("object not found")
 
 // WriteBlob writes a blob to the repository's object database and
 // returns its object ID. Path is used by git to decide which filters to
@@ -85,7 +83,8 @@ func (e FormatTagError) Error() string {
 func FormatTag(
 	objectID git.ObjectID,
 	objectType string,
-	tagName, userName, userEmail, tagBody []byte,
+	tagName, tagBody []byte,
+	committer *gitalypb.User,
 	committerDate time.Time,
 ) (string, error) {
 	if committerDate.IsZero() {
@@ -95,8 +94,8 @@ func FormatTag(
 	tagHeaderFormat := "object %s\n" +
 		"type %s\n" +
 		"tag %s\n" +
-		"tagger %s <%s> %d +0000\n"
-	tagBuf := fmt.Sprintf(tagHeaderFormat, objectID.String(), objectType, tagName, userName, userEmail, committerDate.Unix())
+		"tagger %s <%s> %d %s\n"
+	tagBuf := fmt.Sprintf(tagHeaderFormat, objectID.String(), objectType, tagName, committer.GetName(), committer.GetEmail(), committerDate.Unix(), committerDate.Format("-0700"))
 
 	maxHeaderLines := 4
 	actualHeaderLines := strings.Count(tagBuf, "\n")
@@ -130,13 +129,14 @@ func (repo *Repo) WriteTag(
 	ctx context.Context,
 	objectID git.ObjectID,
 	objectType string,
-	tagName, userName, userEmail, tagBody []byte,
+	tagName, tagBody []byte,
+	committer *gitalypb.User,
 	committerDate time.Time,
 ) (git.ObjectID, error) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	tagBuf, err := FormatTag(objectID, objectType, tagName, userName, userEmail, tagBody, committerDate)
+	tagBuf, err := FormatTag(objectID, objectType, tagName, tagBody, committer, committerDate)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +182,7 @@ func (repo *Repo) ReadObject(ctx context.Context, oid git.ObjectID) ([]byte, err
 	cmd, err := repo.Exec(ctx,
 		git.SubCmd{
 			Name:  "cat-file",
-			Flags: []git.Option{git.Flag{"-p"}},
+			Flags: []git.Option{git.Flag{Name: "-p"}},
 			Args:  []string{oid.String()},
 		},
 		git.WithStdout(stdout),
@@ -226,16 +226,16 @@ func (repo *Repo) ReadCommit(ctx context.Context, revision git.Revision, opts ..
 		opt(&cfg)
 	}
 
-	c, err := repo.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := repo.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 
 	var commit *gitalypb.GitCommit
 	if cfg.withTrailers {
-		commit, err = catfile.GetCommitWithTrailers(ctx, repo.gitCmdFactory, repo, c, revision)
+		commit, err = catfile.GetCommitWithTrailers(ctx, repo.gitCmdFactory, repo, objectReader, revision)
 	} else {
-		commit, err = catfile.GetCommit(ctx, c, revision)
+		commit, err = catfile.GetCommit(ctx, objectReader, revision)
 	}
 
 	if err != nil {

@@ -44,7 +44,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 		}
 	}
 
-	if err := os.MkdirAll(targetRepositoryFullPath, 0770); err != nil {
+	if err := os.MkdirAll(targetRepositoryFullPath, 0o770); err != nil {
 		return nil, status.Errorf(codes.Internal, "CreateFork: create dest dir: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 				git.Flag{Name: "--bare"},
 				git.Flag{Name: "--no-local"},
 			},
-			PostSepArgs: []string{
+			Args: []string{
 				fmt.Sprintf("%s:%s", gitalyssh.GitalyInternalURL, sourceRepository.RelativePath),
 				targetRepositoryFullPath,
 			},
@@ -77,11 +77,6 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 
 	if err := s.removeOriginInRepo(ctx, targetRepository); err != nil {
 		return nil, status.Errorf(codes.Internal, "CreateFork: %v", err)
-	}
-
-	// CreateRepository is harmless on existing repositories with the side effect that it creates the hook symlink.
-	if _, err := s.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{Repository: targetRepository}); err != nil {
-		return nil, status.Errorf(codes.Internal, "CreateFork: create hooks failed: %v", err)
 	}
 
 	return &gitalypb.CreateForkResponse{}, nil

@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,9 +16,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
@@ -40,14 +38,14 @@ func TestServer_CreateRepositoryFromBundle_successful(t *testing.T) {
 	defer cancel()
 
 	locator := config.NewLocator(cfg)
-	tmpdir, err := tempdir.New(ctx, repo, locator)
+	tmpdir, err := tempdir.New(ctx, repo.GetStorageName(), locator)
 	require.NoError(t, err)
-	bundlePath := filepath.Join(tmpdir, "original.bundle")
+	bundlePath := filepath.Join(tmpdir.Path(), "original.bundle")
 
 	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/custom-refs/ref1", "HEAD")
 
 	gittest.Exec(t, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
-	defer os.RemoveAll(bundlePath)
+	defer func() { require.NoError(t, os.RemoveAll(bundlePath)) }()
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
 	require.NoError(t, err)
@@ -59,7 +57,7 @@ func TestServer_CreateRepositoryFromBundle_successful(t *testing.T) {
 	importedRepo := localrepo.NewTestRepo(t, cfg, importedRepoProto)
 	importedRepoPath, err := locator.GetPath(importedRepoProto)
 	require.NoError(t, err)
-	defer os.RemoveAll(importedRepoPath)
+	defer func() { require.NoError(t, os.RemoveAll(importedRepoPath)) }()
 
 	request := &gitalypb.CreateRepositoryFromBundleRequest{Repository: importedRepoProto}
 	writer := streamio.NewWriter(func(p []byte) error {
@@ -86,22 +84,15 @@ func TestServer_CreateRepositoryFromBundle_successful(t *testing.T) {
 
 	gittest.Exec(t, cfg, "-C", importedRepoPath, "fsck")
 
-	info, err := os.Lstat(filepath.Join(importedRepoPath, "hooks"))
-	require.NoError(t, err)
-	require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
+	_, err = os.Lstat(filepath.Join(importedRepoPath, "hooks"))
+	require.True(t, os.IsNotExist(err), "hooks directory should not have been created")
 
 	commit, err := importedRepo.ReadCommit(ctx, "refs/custom-refs/ref1")
 	require.NoError(t, err)
 	require.NotNil(t, commit)
 }
 
-func TestServer_CreateRepositoryFromBundle_transactional(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.CreateRepositoryFromBundleAtomicFetch,
-	}).Run(t, testServerCreateRepositoryFromBundleTransactional)
-}
-
-func testServerCreateRepositoryFromBundleTransactional(t *testing.T, ctx context.Context) {
+func TestServerCreateRepositoryFromBundleTransactional(t *testing.T) {
 	var votes []voting.Vote
 	txManager := &transaction.MockManager{
 		VoteFn: func(ctx context.Context, tx txinfo.Transaction, vote voting.Vote) error {
@@ -123,9 +114,11 @@ func testServerCreateRepositoryFromBundleTransactional(t *testing.T, ctx context
 		gittest.Exec(t, cfg, "-C", repoPath, "update-ref", keepAroundRef, masterOID)
 	}
 
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "primary", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
 	require.NoError(t, err)
@@ -164,33 +157,12 @@ func testServerCreateRepositoryFromBundleTransactional(t *testing.T, ctx context
 
 	// Keep-around references are not fetched via git-clone(1) because non-mirror clones only
 	// fetch branches and tags. These additional references are thus obtained via git-fetch(1).
-	// If the following feature flag is enabled, then we'll use the `--atomic` flag for
-	// git-fetch(1) and thus bundle all reference updates into a single transaction. Otherwise,
-	// the old behaviour will create one transaction per reference.
-	if featureflag.IsEnabled(ctx, featureflag.CreateRepositoryFromBundleAtomicFetch) {
-		votingInput = append(votingInput,
-			fmt.Sprintf("%s %s refs/keep-around/2\n%s %s refs/keep-around/1\n", git.ZeroOID, masterOID, git.ZeroOID, masterOID),
-			fmt.Sprintf("%s %s refs/keep-around/2\n%s %s refs/keep-around/1\n", git.ZeroOID, masterOID, git.ZeroOID, masterOID),
-		)
-	} else {
-		votingInput = append(votingInput,
-			fmt.Sprintf("%s %s refs/keep-around/2\n", git.ZeroOID, masterOID),
-			fmt.Sprintf("%s %s refs/keep-around/2\n", git.ZeroOID, masterOID),
-			fmt.Sprintf("%s %s refs/keep-around/1\n", git.ZeroOID, masterOID),
-			fmt.Sprintf("%s %s refs/keep-around/1\n", git.ZeroOID, masterOID),
-		)
-	}
-
-	// And this is the final vote in Create(), which does a git-for-each-ref(1) in the target
-	// repository and then manually invokes the hook. The format is thus different from above
-	// votes.
+	// Given that we use the `--atomic` flag for git-fetch(1), all reference updates will be in
+	// a single transaction and we thus expect exactly two votes (once for "prepare", once for
+	// "commit").
 	votingInput = append(votingInput,
-		strings.Join([]string{
-			featureOID + " commit\trefs/heads/feature",
-			masterOID + " commit\trefs/heads/master",
-			masterOID + " commit\trefs/keep-around/1",
-			masterOID + " commit\trefs/keep-around/2",
-		}, "\n")+"\n",
+		fmt.Sprintf("%s %s refs/keep-around/2\n%s %s refs/keep-around/1\n", git.ZeroOID, masterOID, git.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/keep-around/2\n%s %s refs/keep-around/1\n", git.ZeroOID, masterOID, git.ZeroOID, masterOID),
 	)
 
 	var expectedVotes []voting.Vote
@@ -216,7 +188,7 @@ func TestServer_CreateRepositoryFromBundle_failed_invalid_bundle(t *testing.T) {
 		RelativePath: "a-repo-from-bundle",
 	}
 	importedRepoPath := filepath.Join(cfg.Storages[0].Path, importedRepo.GetRelativePath())
-	defer os.RemoveAll(importedRepoPath)
+	defer func() { require.NoError(t, os.RemoveAll(importedRepoPath)) }()
 
 	request := &gitalypb.CreateRepositoryFromBundleRequest{Repository: importedRepo}
 	writer := streamio.NewWriter(func(p []byte) error {

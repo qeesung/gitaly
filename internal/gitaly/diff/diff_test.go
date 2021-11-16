@@ -44,9 +44,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 	diffs := getDiffs(t, rawDiff, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
@@ -55,9 +55,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 			Collapsed: true,
 			lineCount: 100000,
 		},
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
@@ -66,6 +66,114 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 			Collapsed: false,
 			Patch:     []byte("@@ -0,0 +1 @@\n+Lorem ipsum\n"),
 			lineCount: 1,
+		},
+	}
+
+	require.Equal(t, expectedDiffs, diffs)
+}
+
+func TestDiffParserWithIgnoreWhitespaceChangeAndFirstPatchEmpty(t *testing.T) {
+	rawDiff := `:100644 100644 3be11c69355948412925fa5e073d76d58ff3afd2 2b3087b18e944130456ac0a6857e36b70cd33c79 M	file-00.txt
+:100644 100644 3be11c69355948412925fa5e073d76d58ff3afd2 20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42 M	file-01.txt
+
+diff --git a/file-01.txt b/file-01.txt
+index 3be11c69355948412925fa5e073d76d58ff3afd2..20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42 100644
+--- a/file-01.txt
++++ b/file-01.txt
+@@ -1 +1,2 @@
+ Lorem ipsum
++Lorem ipsum
+`
+	limits := Limits{
+		EnforceLimits: true,
+		SafeMaxFiles:  3,
+		SafeMaxBytes:  200,
+		SafeMaxLines:  200,
+		MaxFiles:      5,
+		MaxBytes:      10000000,
+		MaxLines:      10000000,
+		MaxPatchBytes: 100000,
+		CollapseDiffs: false,
+	}
+
+	diffs := getDiffs(t, rawDiff, limits)
+	expectedDiffs := []*Diff{
+		{
+			OldMode:   0o100644,
+			NewMode:   0o100644,
+			FromID:    "3be11c69355948412925fa5e073d76d58ff3afd2",
+			ToID:      "2b3087b18e944130456ac0a6857e36b70cd33c79",
+			FromPath:  []byte("file-00.txt"),
+			ToPath:    []byte("file-00.txt"),
+			Status:    'M',
+			Collapsed: false,
+			lineCount: 0,
+		},
+		{
+			OldMode:   0o100644,
+			NewMode:   0o100644,
+			FromID:    "3be11c69355948412925fa5e073d76d58ff3afd2",
+			ToID:      "20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42",
+			FromPath:  []byte("file-01.txt"),
+			ToPath:    []byte("file-01.txt"),
+			Status:    'M',
+			Collapsed: false,
+			Patch:     []byte("@@ -1 +1,2 @@\n Lorem ipsum\n+Lorem ipsum\n"),
+			lineCount: 2,
+		},
+	}
+
+	require.Equal(t, expectedDiffs, diffs)
+}
+
+func TestDiffParserWithIgnoreWhitespaceChangeAndLastPatchEmpty(t *testing.T) {
+	rawDiff := `:100644 100644 3be11c69355948412925fa5e073d76d58ff3afd2 20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42 M	file-00.txt
+:100644 100644 3be11c69355948412925fa5e073d76d58ff3afd2 2b3087b18e944130456ac0a6857e36b70cd33c79 M	file-01.txt
+
+diff --git a/file-00.txt b/file-00.txt
+index 3be11c69355948412925fa5e073d76d58ff3afd2..20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42 100644
+--- a/file-00.txt
++++ b/file-00.txt
+@@ -1 +1,2 @@
+ Lorem ipsum
++Lorem ipsum
+`
+	limits := Limits{
+		EnforceLimits: true,
+		SafeMaxFiles:  3,
+		SafeMaxBytes:  200,
+		SafeMaxLines:  200,
+		MaxFiles:      5,
+		MaxBytes:      10000000,
+		MaxLines:      10000000,
+		MaxPatchBytes: 100000,
+		CollapseDiffs: false,
+	}
+
+	diffs := getDiffs(t, rawDiff, limits)
+	expectedDiffs := []*Diff{
+		{
+			OldMode:   0o100644,
+			NewMode:   0o100644,
+			FromID:    "3be11c69355948412925fa5e073d76d58ff3afd2",
+			ToID:      "20c4507e1acc7c7ddfd1fc995cfaf4c80a7c2d42",
+			FromPath:  []byte("file-00.txt"),
+			ToPath:    []byte("file-00.txt"),
+			Status:    'M',
+			Collapsed: false,
+			Patch:     []byte("@@ -1 +1,2 @@\n Lorem ipsum\n+Lorem ipsum\n"),
+			lineCount: 2,
+		},
+		{
+			OldMode:   0o100644,
+			NewMode:   0o100644,
+			FromID:    "3be11c69355948412925fa5e073d76d58ff3afd2",
+			ToID:      "2b3087b18e944130456ac0a6857e36b70cd33c79",
+			FromPath:  []byte("file-01.txt"),
+			ToPath:    []byte("file-01.txt"),
+			Status:    'M',
+			Collapsed: false,
+			lineCount: 0,
 		},
 	}
 
@@ -103,9 +211,9 @@ index 000000000..3a62d28e3
 	diffs := getDiffs(t, rawDiff, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    "0000000000000000000000000000000000000000",
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
@@ -155,9 +263,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 	diffs := getDiffs(t, rawDiff, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
@@ -167,9 +275,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 			lineCount: 100000,
 			TooLarge:  true,
 		},
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
@@ -218,9 +326,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 	diffs := getDiffs(t, rawDiff, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
@@ -231,9 +339,9 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 			lineCount: 1000,
 			TooLarge:  false,
 		},
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
@@ -281,9 +389,9 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 	diffs := getDiffs(t, rawDiff, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-0.txt"),
@@ -293,9 +401,9 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 			Patch:     []byte(patch),
 			lineCount: 5,
 		},
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-1.txt"),
@@ -305,9 +413,9 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 			Patch:     []byte(patch),
 			lineCount: 5,
 		},
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-2.txt"),
@@ -339,9 +447,9 @@ index 0000000000000000000000000000000000000000..c3ae147b03a2d1fd89b25198b3fc5302
 	diffs := getDiffs(t, header+patch, limits)
 
 	expectedDiffs := []*Diff{
-		&Diff{
+		{
 			OldMode:   0,
-			NewMode:   0100644,
+			NewMode:   0o100644,
 			FromID:    git.ZeroOID.String(),
 			ToID:      "c3ae147b03a2d1fd89b25198b3fc53028c5b0d53",
 			FromPath:  []byte("file-0"),

@@ -10,11 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
-	internalauth "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
+	gitalycfgauth "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -43,7 +44,7 @@ func testConfig(backends int) config.Config {
 	}
 	cfg := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name:  "praefect",
 				Nodes: nodes,
 			},
@@ -53,7 +54,9 @@ func testConfig(backends int) config.Config {
 	return cfg
 }
 
-func noopBackoffFunc() (backoff, backoffReset) {
+type noopBackoffFactory struct{}
+
+func (noopBackoffFactory) Create() (Backoff, BackoffReset) {
 	return func() time.Duration {
 		return 0
 	}, func() {}
@@ -88,6 +91,7 @@ type buildOptions struct {
 	withAssignmentStore AssignmentStore
 	withConnections     Connections
 	withPrimaryGetter   PrimaryGetter
+	withRouter          Router
 }
 
 func withMockBackends(t testing.TB, backends map[string]mock.SimpleServiceServer) func([]*config.VirtualStorage) []testhelper.Cleanup {
@@ -114,8 +118,8 @@ func withMockBackends(t testing.TB, backends map[string]mock.SimpleServiceServer
 	}
 }
 
-func defaultQueue(conf config.Config) datastore.ReplicationEventQueue {
-	return datastore.NewMemoryReplicationEventQueue(conf)
+func defaultQueue(t testing.TB) datastore.ReplicationEventQueue {
+	return datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 }
 
 func defaultTxMgr(conf config.Config) *transactions.Manager {
@@ -123,9 +127,10 @@ func defaultTxMgr(conf config.Config) *transactions.Manager {
 }
 
 func defaultNodeMgr(t testing.TB, conf config.Config, rs datastore.RepositoryStore) nodes.Manager {
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Hour)
+	t.Cleanup(nodeMgr.Stop)
 	return nodeMgr
 }
 
@@ -133,11 +138,11 @@ func defaultRepoStore(conf config.Config) datastore.RepositoryStore {
 	return datastore.MockRepositoryStore{}
 }
 
-func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
+func runPraefectServer(t testing.TB, ctx context.Context, conf config.Config, opt buildOptions) (*grpc.ClientConn, *grpc.Server, testhelper.Cleanup) {
 	var cleanups []testhelper.Cleanup
 
 	if opt.withQueue == nil {
-		opt.withQueue = defaultQueue(conf)
+		opt.withQueue = defaultQueue(t)
 	}
 	if opt.withRepoStore == nil {
 		opt.withRepoStore = defaultRepoStore(conf)
@@ -160,11 +165,14 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	if opt.withAssignmentStore == nil {
 		opt.withAssignmentStore = NewDisabledAssignmentStore(conf.StorageNames())
 	}
+	if opt.withRouter == nil {
+		opt.withRouter = NewNodeManagerRouter(opt.withNodeMgr, opt.withRepoStore)
+	}
 
 	coordinator := NewCoordinator(
 		opt.withQueue,
 		opt.withRepoStore,
-		NewNodeManagerRouter(opt.withNodeMgr, opt.withRepoStore),
+		opt.withRouter,
 		opt.withTxMgr,
 		conf,
 		opt.withAnnotations,
@@ -173,7 +181,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 	// TODO: run a replmgr for EVERY virtual storage
 	replmgr := NewReplMgr(
 		opt.withLogger,
-		conf.VirtualStorageNames(),
+		conf.StorageNames(),
 		opt.withQueue,
 		opt.withRepoStore,
 		opt.withNodeMgr,
@@ -192,15 +200,19 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		opt.withAssignmentStore,
 		opt.withConnections,
 		opt.withPrimaryGetter,
+		nil,
 	)
 
 	listener, port := listenAvailPort(t)
 
 	errQ := make(chan error)
-	ctx, cancel := testhelper.Context()
+	ctx, cancel := context.WithCancel(ctx)
 
-	go func() { errQ <- prf.Serve(listener) }()
-	go replmgr.ProcessBacklog(ctx, noopBackoffFunc)
+	go func() {
+		errQ <- prf.Serve(listener)
+		close(errQ)
+	}()
+	replMgrDone := startProcessBacklog(ctx, replmgr)
 
 	// dial client to praefect
 	cc := dialLocalPort(t, port, false)
@@ -215,6 +227,7 @@ func runPraefectServer(t testing.TB, conf config.Config, opt buildOptions) (*grp
 		prf.Stop()
 
 		cancel()
+		<-replMgrDone
 		require.NoError(t, <-errQ)
 	}
 
@@ -251,7 +264,7 @@ func dialLocalPort(tb testing.TB, port int, backend bool) *grpc.ClientConn {
 }
 
 func newMockDownstream(tb testing.TB, token string, m mock.SimpleServiceServer) (string, func()) {
-	srv := grpc.NewServer(grpc.UnaryInterceptor(auth.UnaryServerInterceptor(internalauth.Config{Token: token})))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(auth.UnaryServerInterceptor(gitalycfgauth.Config{Token: token})))
 	mock.RegisterSimpleServiceServer(srv, m)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 
@@ -276,4 +289,13 @@ func newMockDownstream(tb testing.TB, token string, m mock.SimpleServiceServer) 
 	}
 
 	return fmt.Sprintf("tcp://localhost:%d", port), cleanup
+}
+
+func startProcessBacklog(ctx context.Context, replMgr ReplMgr) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		replMgr.ProcessBacklog(ctx, noopBackoffFactory{})
+	}()
+	return done
 }

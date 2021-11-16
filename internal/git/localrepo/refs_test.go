@@ -1,7 +1,6 @@
 package localrepo
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -243,9 +242,12 @@ func TestRepo_GetRemoteReferences(t *testing.T) {
 	annotatedTagOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "annotated-tag"))
 
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
 	repo := New(
 		gitCmdFactory,
-		catfile.NewCache(cfg),
+		catfileCache,
 		&gitalypb.Repository{StorageName: "default", RelativePath: filepath.Join(relativePath, ".git")},
 		cfg,
 	)
@@ -268,7 +270,7 @@ func TestRepo_GetRemoteReferences(t *testing.T) {
 			remote: repoPath,
 			expected: []git.Reference{
 				{Name: "refs/heads/master", Target: commit},
-				{Name: "refs/heads/symbolic", Target: commit},
+				{Name: "refs/heads/symbolic", Target: commit, IsSymbolic: true},
 				{Name: "refs/remote/remote-name/remote-branch", Target: commit},
 				{Name: "refs/tags/annotated-tag", Target: annotatedTagOID},
 				{Name: "refs/tags/lightweight-tag", Target: commit},
@@ -282,7 +284,7 @@ func TestRepo_GetRemoteReferences(t *testing.T) {
 			},
 			expected: []git.Reference{
 				{Name: "refs/heads/master", Target: commit},
-				{Name: "refs/heads/symbolic", Target: commit},
+				{Name: "refs/heads/symbolic", Target: commit, IsSymbolic: true},
 				{Name: "refs/tags/annotated-tag", Target: annotatedTagOID},
 				{Name: "refs/tags/lightweight-tag", Target: commit},
 			},
@@ -319,7 +321,7 @@ func TestRepo_GetRemoteReferences(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, refs)
 
-			gitSSHCommand, err := ioutil.ReadFile(gitSSHCommandFile)
+			gitSSHCommand, err := os.ReadFile(gitSSHCommandFile)
 			if !os.IsNotExist(err) {
 				require.NoError(t, err)
 			}
@@ -447,7 +449,7 @@ func TestRepo_UpdateRef(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Re-create repo for each testcase.
-			repoProto, _, _ := gittest.CloneRepoAtStorage(t, repo.cfg, repo.cfg.Storages[0], t.Name())
+			repoProto, _ := gittest.CloneRepo(t, repo.cfg, repo.cfg.Storages[0])
 			repo := New(repo.gitCmdFactory, repo.catfileCache, repoProto, repo.cfg)
 			err := repo.UpdateRef(ctx, git.ReferenceName(tc.ref), tc.newValue, tc.oldValue)
 			tc.verify(t, repo, err)

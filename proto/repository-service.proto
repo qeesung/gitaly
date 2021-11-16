@@ -99,27 +99,37 @@ service RepositoryService {
       op: MUTATOR
     };
   }
-  rpc IsRebaseInProgress(IsRebaseInProgressRequest) returns (IsRebaseInProgressResponse) {
-    option (op_type) = {
-      op: ACCESSOR
-    };
-  }
-  rpc IsSquashInProgress(IsSquashInProgressRequest) returns (IsSquashInProgressResponse) {
-    option (op_type) = {
-      op: ACCESSOR
-    };
-  }
 
   rpc CreateRepositoryFromURL(CreateRepositoryFromURLRequest) returns (CreateRepositoryFromURLResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // CreateBundle creates a bundle from all refs
   rpc CreateBundle(CreateBundleRequest) returns (stream CreateBundleResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // CreateBundleFromRefList creates a bundle from a stream of ref patterns.
+  // When the bundle would be empty the FailedPrecondition error code is returned.
+  rpc CreateBundleFromRefList(stream CreateBundleFromRefListRequest) returns (stream CreateBundleFromRefListResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
+  // FetchBundle fetches references from a bundle into the local repository.
+  // Refs will be mirrored to the target repository with the refspec
+  // "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
+  rpc FetchBundle(stream FetchBundleRequest) returns (FetchBundleResponse) {
+    option (op_type) = {
+      op: MUTATOR
+    };
+  }
+
   rpc CreateRepositoryFromBundle(stream CreateRepositoryFromBundleRequest) returns (CreateRepositoryFromBundleResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -131,18 +141,6 @@ service RepositoryService {
   rpc GetConfig(GetConfigRequest) returns (stream GetConfigResponse) {
     option (op_type) = {
       op: ACCESSOR
-    };
-  }
-
-  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
-    option (op_type) = {
-      op: MUTATOR
-    };
-  }
-
-  rpc DeleteConfig(DeleteConfigRequest) returns (DeleteConfigResponse) {
-    option (op_type) = {
-      op: MUTATOR
     };
   }
 
@@ -239,6 +237,16 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // SetFullPath writes the "gitlab.fullpath" configuration into the
+  // repository's gitconfig. This is mainly to help debugging purposes in case
+  // an admin inspects the repository's gitconfig such that he can easily see
+  // what the repository name is.
+  rpc SetFullPath(SetFullPathRequest) returns (SetFullPathResponse) {
+    option (op_type)  = {
+      op: MUTATOR
+    };
+  }
 }
 
 message RepositoryExistsRequest {
@@ -317,12 +325,18 @@ message ApplyGitattributesRequest {
 
 message ApplyGitattributesResponse {}
 
+message FetchBundleRequest {
+  // Repository into which the reference shall be fetched.
+  Repository repository = 1 [(target_repository)=true];
+
+  // Data is the bundle file stream.
+  bytes data = 2;
+}
+
+message FetchBundleResponse {}
+
 message FetchRemoteRequest {
   Repository repository = 1 [(target_repository)=true];
-  // remote is the name of the remote that shall be fetched. This remote must
-  // exist in the repository's configuration already. This parameter is
-  // deprecated in favor of remote_params.
-  string remote = 2;
   // force determines if references should be force-updated in case they have
   // diverged.
   bool force = 3;
@@ -343,6 +357,9 @@ message FetchRemoteRequest {
   // tags were modified, returning the result in the tags_changed field of
   // FetchRemoteResponse
   bool check_tags_changed = 11;
+
+  reserved 2;
+  reserved "remote";
 }
 
 message FetchRemoteResponse {
@@ -458,24 +475,6 @@ message CreateForkRequest {
 
 message CreateForkResponse {}
 
-message IsRebaseInProgressRequest {
-  Repository repository = 1 [(target_repository)=true];
-  string rebase_id = 2;
-}
-
-message IsRebaseInProgressResponse {
-  bool in_progress = 1;
-}
-
-message IsSquashInProgressRequest {
-  Repository repository = 1 [(target_repository)=true];
-  string squash_id = 2;
-}
-
-message IsSquashInProgressResponse {
-  bool in_progress = 1;
-}
-
 message CreateRepositoryFromURLRequest {
   Repository repository = 1 [(target_repository)=true];
   string url = 2;
@@ -491,6 +490,20 @@ message CreateBundleResponse {
   bytes data = 1;
 }
 
+message CreateBundleFromRefListRequest {
+  // Repository is the repository that the bundle is created from.
+  Repository repository = 1 [(target_repository)=true];
+
+  // Patterns contains all patterns which shall be bundled. Patterns should be
+  // in the format accepted by git-rev-list(1). Patterns which don't match any
+  // reference will be silently ignored.
+  repeated bytes patterns = 2;
+}
+
+message CreateBundleFromRefListResponse {
+  bytes data = 1;
+}
+
 // GetConfigRequest is a request for the GetConfig RPC.
 message GetConfigRequest {
   // Repository is the repository from which the configuration should be read
@@ -503,28 +516,6 @@ message GetConfigResponse {
   // Data contains contents of the gitconfig.
   bytes data = 1;
 }
-
-message SetConfigRequest {
-  Repository repository = 1 [(target_repository)=true];
-  message Entry {
-    string key = 1;
-    oneof value {
-      string value_str = 2;
-      int32 value_int32 = 3;
-      bool value_bool = 4;
-    }
-  }
-  repeated Entry entries = 2;
-}
-
-message SetConfigResponse {}
-
-message DeleteConfigRequest {
-  Repository repository = 1 [(target_repository)=true];
-  repeated string keys = 2;
-}
-
-message DeleteConfigResponse {}
 
 message  RestoreCustomHooksRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -610,7 +601,9 @@ message GetRawChangesResponse {
     string blob_id = 1;
     int64 size= 2;
 
-    // use fields 9 and 10 in place of 3 and 4 (respectively)
+    // use fields 9 and 10 in place of 3 and 4 (respectively). These fields are
+    // still used by the Elasticsearch indexer. Their usage will likely be
+    // removed in v14.6 so that we can remove these in v14.7.
     string new_path = 3 [deprecated=true];
     string old_path = 4 [deprecated=true];
 
@@ -739,3 +732,14 @@ message OptimizeRepositoryRequest {
 }
 
 message OptimizeRepositoryResponse{}
+
+// SetFullPathRequest is a request for the SetFullPath RPC.
+message SetFullPathRequest {
+  // Repository is the repository whose gitconfig should be written to.
+  Repository repository = 1 [(target_repository)=true];
+  // Path is the path that shall be written into the "gitlab.fullpath" config key.
+  string path = 2;
+}
+
+// SetFullPathResponse is a response fqor the SetFullPath RPC.
+message SetFullPathResponse {}

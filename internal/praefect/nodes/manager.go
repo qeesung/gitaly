@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
 	prommetrics "gitlab.com/gitlab-org/gitaly/v14/internal/prometheus/metrics"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -32,6 +33,7 @@ type Shard struct {
 	Secondaries []Node
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s Shard) GetNode(storage string) (Node, error) {
 	if storage == s.Primary.GetStorage() {
 		return s.Primary, nil
@@ -97,7 +99,6 @@ type Node interface {
 type Mgr struct {
 	// strategies is a map of strategies keyed on virtual storage name
 	strategies map[string]leaderElectionStrategy
-	db         *sql.DB
 	// nodes contains nodes by their virtual storages
 	nodes map[string][]Node
 	csg   datastore.ConsistentStoragesGetter
@@ -107,6 +108,7 @@ type Mgr struct {
 // secondaries are managed.
 type leaderElectionStrategy interface {
 	start(bootstrapInterval, monitorInterval time.Duration)
+	stop()
 	checkNodes(context.Context) error
 	GetShard(ctx context.Context) (Shard, error)
 }
@@ -118,20 +120,26 @@ var ErrPrimaryNotHealthy = errors.New("primary gitaly is not healthy")
 const dialTimeout = 10 * time.Second
 
 // Dial dials a node with the necessary interceptors configured.
-func Dial(ctx context.Context, node *config.Node, registry *protoregistry.Registry, errorTracker tracker.ErrorTracker, handshaker client.Handshaker) (*grpc.ClientConn, error) {
+func Dial(ctx context.Context, node *config.Node, registry *protoregistry.Registry, errorTracker tracker.ErrorTracker, handshaker client.Handshaker, sidechannelRegistry *sidechannel.Registry) (*grpc.ClientConn, error) {
 	streamInterceptors := []grpc.StreamClientInterceptor{
-		grpc_prometheus.StreamClientInterceptor,
+		grpcprometheus.StreamClientInterceptor,
+		sidechannel.NewStreamProxy(sidechannelRegistry),
 	}
 
 	if errorTracker != nil {
 		streamInterceptors = append(streamInterceptors, middleware.StreamErrorHandler(registry, errorTracker, node.Storage))
 	}
 
+	unaryInterceptors := []grpc.UnaryClientInterceptor{
+		grpcprometheus.UnaryClientInterceptor,
+		sidechannel.NewUnaryProxy(sidechannelRegistry),
+	}
+
 	dialOpts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())),
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(node.Token)),
 		grpc.WithChainStreamInterceptor(streamInterceptors...),
-		grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
 	}
 
 	return client.Dial(ctx, node.Address, dialOpts, handshaker)
@@ -147,6 +155,7 @@ func NewManager(
 	registry *protoregistry.Registry,
 	errorTracker tracker.ErrorTracker,
 	handshaker client.Handshaker,
+	sidechannelRegistry *sidechannel.Registry,
 ) (*Mgr, error) {
 	if !c.Failover.Enabled {
 		errorTracker = nil
@@ -162,7 +171,7 @@ func NewManager(
 
 		ns := make([]*nodeStatus, 0, len(virtualStorage.Nodes))
 		for _, node := range virtualStorage.Nodes {
-			conn, err := Dial(ctx, node, registry, errorTracker, handshaker)
+			conn, err := Dial(ctx, node, registry, errorTracker, handshaker, sidechannelRegistry)
 			if err != nil {
 				return nil, err
 			}
@@ -187,7 +196,6 @@ func NewManager(
 	}
 
 	return &Mgr{
-		db:         db,
 		strategies: strategies,
 		nodes:      nodes,
 		csg:        csg,
@@ -199,6 +207,19 @@ func NewManager(
 func (n *Mgr) Start(bootstrapInterval, monitorInterval time.Duration) {
 	for _, strategy := range n.strategies {
 		strategy.start(bootstrapInterval, monitorInterval)
+	}
+}
+
+// Stop will stop all monitoring processes and closes connections. Must only be called once.
+func (n *Mgr) Stop() {
+	for _, strategy := range n.strategies {
+		strategy.stop()
+	}
+
+	for _, nodes := range n.nodes {
+		for _, node := range nodes {
+			_ = node.GetConnection().Close()
+		}
 	}
 }
 
@@ -227,7 +248,7 @@ func (n *Mgr) GetShard(ctx context.Context, virtualStorageName string) (Shard, e
 
 // GetPrimary returns the current primary of a repository. This is an adapter so NodeManager can be used
 // as a praefect.PrimaryGetter in newer code which written to support repository specific primaries.
-func (n *Mgr) GetPrimary(ctx context.Context, virtualStorage, _ string) (string, error) {
+func (n *Mgr) GetPrimary(ctx context.Context, virtualStorage string, _ int64) (string, error) {
 	shard, err := n.GetShard(ctx, virtualStorage)
 	if err != nil {
 		return "", err
@@ -236,8 +257,9 @@ func (n *Mgr) GetPrimary(ctx context.Context, virtualStorage, _ string) (string,
 	return shard.Primary.GetStorage(), nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath string) (Node, error) {
-	upToDateStorages, err := n.csg.GetConsistentStorages(ctx, virtualStorageName, repoPath)
+	_, upToDateStorages, err := n.csg.GetConsistentStorages(ctx, virtualStorageName, repoPath)
 	if err != nil && !errors.As(err, new(commonerr.RepositoryNotFoundError)) {
 		return nil, err
 	}
@@ -272,6 +294,7 @@ func (n *Mgr) GetSyncedNode(ctx context.Context, virtualStorageName, repoPath st
 	return healthyStorages[rand.Intn(len(healthyStorages))], nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (n *Mgr) HealthyNodes() map[string][]string {
 	healthy := make(map[string][]string, len(n.nodes))
 	for vs, nodes := range n.nodes {
@@ -288,6 +311,7 @@ func (n *Mgr) HealthyNodes() map[string][]string {
 	return healthy
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (n *Mgr) Nodes() map[string][]Node { return n.nodes }
 
 func newConnectionStatus(node config.Node, cc *grpc.ClientConn, l logrus.FieldLogger, latencyHist prommetrics.HistogramVec, errorTracker tracker.ErrorTracker) *nodeStatus {

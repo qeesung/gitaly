@@ -2,13 +2,10 @@ package wiki
 
 import (
 	"bytes"
-	"io/ioutil"
-	"os"
 	"reflect"
 	"runtime"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -34,25 +31,10 @@ type createWikiPageOpts struct {
 var mockPageContent = bytes.Repeat([]byte("Mock wiki page content"), 10000)
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
-	tempDir, err := ioutil.TempDir("", "gitaly")
-	if err != nil {
-		log.Error(err)
-		return 1
-	}
-	defer os.RemoveAll(tempDir)
-
-	hooks.Override = tempDir + "/hooks"
-
-	return m.Run()
+	testhelper.Run(m, testhelper.WithSetup(func() error {
+		hooks.Override = "/"
+		return nil
+	}))
 }
 
 func TestWithRubySidecar(t *testing.T) {
@@ -62,7 +44,9 @@ func TestWithRubySidecar(t *testing.T) {
 	require.NoError(t, rubySrv.Start())
 	t.Cleanup(rubySrv.Stop)
 
-	fs := []func(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server){
+	client := setupWikiService(t, cfg, rubySrv)
+
+	fs := []func(t *testing.T, cfg config.Cfg, client gitalypb.WikiServiceClient, rubySrv *rubyserver.Server){
 		testSuccessfulWikiFindPageRequest,
 		testSuccessfulWikiFindPageSameTitleDifferentPathRequest,
 		testSuccessfulWikiFindPageRequestWithTrailers,
@@ -79,7 +63,7 @@ func TestWithRubySidecar(t *testing.T) {
 	}
 	for _, f := range fs {
 		t.Run(runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(), func(t *testing.T) {
-			f(t, cfg, rubySrv)
+			f(t, cfg, client, rubySrv)
 		})
 	}
 }
@@ -146,8 +130,8 @@ func writeWikiPage(t *testing.T, client gitalypb.WikiServiceClient, wikiRepo *gi
 	require.NoError(t, err)
 }
 
-func setupWikiRepo(t *testing.T, cfg config.Cfg) (*gitalypb.Repository, string, func()) {
-	return gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+func setupWikiRepo(t *testing.T, cfg config.Cfg) (*gitalypb.Repository, string) {
+	return gittest.InitRepo(t, cfg, cfg.Storages[0])
 }
 
 func sendBytes(data []byte, chunkSize int, sender func([]byte) error) (int, error) {

@@ -1,21 +1,20 @@
-// +build postgres
-
 package main
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/info"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func TestAcceptDatalossSubcommand(t *testing.T) {
+	t.Parallel()
 	const (
 		vs   = "test-virtual-storage-1"
 		repo = "test-repository-1"
@@ -36,32 +35,25 @@ func TestAcceptDatalossSubcommand(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	rs := datastore.NewPostgresRepositoryStore(getDB(t), conf.StorageNames())
+	db := glsql.NewDB(t)
+	rs := datastore.NewPostgresRepositoryStore(db, conf.StorageNames())
 	startingGenerations := map[string]int{st1: 1, st2: 0, st3: datastore.GenerationUnknown}
+
+	repoCreated := false
 	for storage, generation := range startingGenerations {
 		if generation == datastore.GenerationUnknown {
 			continue
 		}
 
-		require.NoError(t, rs.SetGeneration(ctx, vs, repo, storage, generation))
+		if !repoCreated {
+			repoCreated = true
+			require.NoError(t, rs.CreateRepository(ctx, 1, vs, repo, repo, storage, nil, nil, false, false))
+		}
+
+		require.NoError(t, rs.SetGeneration(ctx, 1, storage, repo, generation))
 	}
 
-	q := &datastore.MockReplicationEventQueue{
-		EnqueueFunc: func(ctx context.Context, event datastore.ReplicationEvent) (datastore.ReplicationEvent, error) {
-			if event.Job.TargetNodeStorage == st2 {
-				return event, fmt.Errorf("replication event scheduled for authoritative storage %q", st2)
-			}
-
-			generation, err := rs.GetGeneration(ctx, event.Job.VirtualStorage, event.Job.RelativePath, event.Job.SourceNodeStorage)
-			if err != nil {
-				return event, err
-			}
-
-			return event, rs.SetGeneration(ctx, event.Job.VirtualStorage, event.Job.RelativePath, event.Job.TargetNodeStorage, generation)
-		},
-	}
-
-	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(info.NewServer(nil, conf, q, rs, nil, nil, nil))})
+	ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(info.NewServer(conf, rs, nil, nil, nil))})
 	defer clean()
 
 	conf.SocketPath = ln.Addr().String()
@@ -144,7 +136,7 @@ func TestAcceptDatalossSubcommand(t *testing.T) {
 			desc:                "success",
 			args:                []string{"-virtual-storage=test-virtual-storage-1", "-repository=test-repository-1", "-authoritative-storage=test-physical-storage-2"},
 			matchError:          matchNoError(),
-			expectedGenerations: map[string]int{st1: 2, st2: 2, st3: 2},
+			expectedGenerations: map[string]int{st1: 1, st2: 2, st3: datastore.GenerationUnknown},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -153,7 +145,7 @@ func TestAcceptDatalossSubcommand(t *testing.T) {
 			require.NoError(t, fs.Parse(tc.args))
 			tc.matchError(t, cmd.Exec(fs, conf))
 			for storage, expected := range tc.expectedGenerations {
-				actual, err := rs.GetGeneration(ctx, vs, repo, storage)
+				actual, err := rs.GetGeneration(ctx, 1, storage)
 				require.NoError(t, err)
 				require.Equal(t, expected, actual, storage)
 			}

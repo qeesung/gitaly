@@ -10,12 +10,9 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var errAmbigRef = errors.New("ambiguous reference")
@@ -29,25 +26,25 @@ func (s *server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLangua
 
 	revision := string(req.Revision)
 	if revision == "" {
-		defaultBranch, err := ref.DefaultBranchName(ctx, repo)
+		defaultBranch, err := repo.GetDefaultBranch(ctx)
 		if err != nil {
 			return nil, err
 		}
-		revision = string(defaultBranch)
+		revision = defaultBranch.String()
 	}
 
 	commitID, err := s.lookupRevision(ctx, repo, revision)
 	if err != nil {
-		return nil, err
+		return nil, helper.ErrInternalf("looking up revision: %w", err)
 	}
 
 	repoPath, err := repo.Path()
 	if err != nil {
-		return nil, err
+		return nil, helper.ErrInternalf("repository path: %w", err)
 	}
 	stats, err := s.linguist.Stats(ctx, s.cfg, repoPath, commitID)
 	if err != nil {
-		return nil, err
+		return nil, helper.ErrInternalf("language stats: %w", err)
 	}
 
 	resp := &gitalypb.CommitLanguagesResponse{}
@@ -61,7 +58,7 @@ func (s *server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLangua
 	}
 
 	if total == 0 {
-		return nil, status.Errorf(codes.Internal, "linguist stats added up to zero: %v", stats)
+		return nil, helper.ErrInternalf("linguist stats added up to zero: %v", stats)
 	}
 
 	for lang, count := range stats {
@@ -115,7 +112,6 @@ func (s *server) checkRevision(ctx context.Context, repo git.RepositoryExecutor,
 		git.WithStdout(&stdout),
 		git.WithStderr(&stderr),
 	)
-
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +134,6 @@ func (s *server) disambiguateRevision(ctx context.Context, repo git.RepositoryEx
 		Flags: []git.Option{git.Flag{Name: "--format=%(refname)"}},
 		Args:  []string{"**/" + revision},
 	})
-
 	if err != nil {
 		return "", err
 	}

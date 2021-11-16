@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package main
@@ -5,7 +6,7 @@ package main
 import (
 	"fmt"
 
-	git "github.com/libgit2/git2go/v31"
+	git "github.com/libgit2/git2go/v32"
 )
 
 func lookupCommit(repo *git.Repository, ref string) (*git.Commit, error) {

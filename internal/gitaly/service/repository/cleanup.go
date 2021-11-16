@@ -1,17 +1,28 @@
 package repository
 
+//nolint:depguard
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	worktreePrefix = "gitlab-worktree"
 )
 
 func (s *server) Cleanup(ctx context.Context, in *gitalypb.CleanupRequest) (*gitalypb.CleanupResponse, error) {
@@ -68,18 +79,52 @@ func (s *server) cleanStaleWorktrees(ctx context.Context, repo *localrepo.Repo, 
 		}
 
 		if info.ModTime().Before(threshold) {
-			if err := repo.ExecAndWait(ctx, git.SubSubCmd{
-				Name:   "worktree",
-				Action: "remove",
-				Flags:  []git.Option{git.Flag{Name: "--force"}},
-				Args:   []string{info.Name()},
-			}, git.WithRefTxHook(ctx, repo, s.cfg)); err != nil {
+			err := removeWorktree(ctx, s.cfg, repo, info.Name())
+			switch {
+			case errors.Is(err, errUnknownWorktree):
+				// if git doesn't recognise the worktree then we can safely remove it
+				if err := os.RemoveAll(filepath.Join(worktreePath, info.Name())); err != nil {
+					return fmt.Errorf("worktree remove dir: %w", err)
+				}
+			case err != nil:
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+// errUnknownWorktree indicates that git does not recognise the worktree
+var errUnknownWorktree = errors.New("unknown worktree")
+
+func removeWorktree(ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, name string) error {
+	var stderr bytes.Buffer
+	err := repo.ExecAndWait(ctx, git.SubSubCmd{
+		Name:   "worktree",
+		Action: "remove",
+		Flags:  []git.Option{git.Flag{Name: "--force"}},
+		Args:   []string{name},
+	},
+		git.WithRefTxHook(ctx, repo, cfg),
+		git.WithStderr(&stderr),
+	)
+	if isExitWithCode(err, 128) && strings.HasPrefix(stderr.String(), "fatal: '"+name+"' is not a working tree") {
+		return errUnknownWorktree
+	} else if err != nil {
+		return fmt.Errorf("remove worktree: %w, stderr: %q", err, stderr.String())
+	}
+
+	return nil
+}
+
+func isExitWithCode(err error, code int) bool {
+	actual, ok := command.ExitStatus(err)
+	if !ok {
+		return false
+	}
+
+	return code == actual
 }
 
 func (s *server) cleanDisconnectedWorktrees(ctx context.Context, repo *localrepo.Repo) error {

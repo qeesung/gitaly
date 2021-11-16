@@ -7,8 +7,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/linguist"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -20,10 +19,6 @@ type server struct {
 	linguist      *linguist.Instance
 	catfileCache  catfile.Cache
 }
-
-var (
-	defaultBranchName = ref.DefaultBranchName
-)
 
 // NewServer creates a new instance of a grpc CommitServiceServer
 func NewServer(

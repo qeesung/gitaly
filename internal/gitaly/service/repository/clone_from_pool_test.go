@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
@@ -18,7 +19,7 @@ func TestCloneFromPoolHTTP(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 	pool, poolRepo := newTestObjectPool(t, cfg)
@@ -37,7 +38,8 @@ func TestCloneFromPoolHTTP(t *testing.T) {
 	defer forkRepoCleanup()
 
 	authorizationHeader := "ABCefg0999182"
-	_, remoteURL := gittest.RemoteUploadPackServer(ctx, t, cfg.Git.BinPath, "my-repo", authorizationHeader, repoPath)
+	server, remoteURL := gittest.RemoteUploadPackServer(ctx, t, cfg, "my-repo", authorizationHeader, repoPath)
+	defer server.Close()
 
 	req := &gitalypb.CloneFromPoolRequest{
 		Repository: forkedRepo,

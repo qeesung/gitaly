@@ -5,20 +5,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestSuccessfulCountCommitsRequest(t *testing.T) {
 	t.Parallel()
 	cfg, repo1, _, client := setupCommitServiceWithRepo(t, true)
 
-	repo2, repo2Path, cleanupFn := gittest.InitRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanupFn)
+	repo2, repo2Path := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+		WithWorktree: true,
+	})
 
 	committerName := "Scrooge McDuck"
 	committerEmail := "scrooge@mcduck.com"
@@ -145,13 +146,13 @@ func TestSuccessfulCountCommitsRequest(t *testing.T) {
 			if testCase.before != "" {
 				before, err := time.Parse(time.RFC3339, testCase.before)
 				require.NoError(t, err)
-				request.Before = &timestamp.Timestamp{Seconds: before.Unix()}
+				request.Before = &timestamppb.Timestamp{Seconds: before.Unix()}
 			}
 
 			if testCase.after != "" {
 				after, err := time.Parse(time.RFC3339, testCase.after)
 				require.NoError(t, err)
-				request.After = &timestamp.Timestamp{Seconds: after.Unix()}
+				request.After = &timestamppb.Timestamp{Seconds: after.Unix()}
 			}
 
 			if testCase.maxCount != 0 {

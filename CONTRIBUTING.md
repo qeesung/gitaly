@@ -1,13 +1,12 @@
-## Developer Certificate of Origin + License
+## Developer Certificate of Origin and License
 
-By contributing to GitLab B.V., You accept and agree to the following terms and
-conditions for Your present and future Contributions submitted to GitLab B.V.
+By contributing to GitLab B.V., you accept and agree to the following terms and
+conditions for your present and future contributions submitted to GitLab B.V.
 Except for the license granted herein to GitLab B.V. and recipients of software
-distributed by GitLab B.V., You reserve all right, title, and interest in and to
-Your Contributions. All Contributions are subject to the following DCO + License
-terms.
+distributed by GitLab B.V., you reserve all right, title, and interest in and to
+your Contributions.
 
-[DCO + License](https://gitlab.com/gitlab-org/dco/blob/master/README.md)
+All contributions are subject to the Developer Certificate of Origin and license set out at [docs.gitlab.com/ce/legal/developer_certificate_of_origin](https://docs.gitlab.com/ce/legal/developer_certificate_of_origin).
 
 _This notice should stay as the first item in the CONTRIBUTING.md file._
 
@@ -44,36 +43,195 @@ available at [https://contributor-covenant.org/version/1/1/0/](https://contribut
 
 The Gitaly style guide is [documented in it's own file](STYLE.md).
 
-## Changelog
+## Commits
 
-Gitaly keeps a [changelog](CHANGELOG.md) which is generated when a new release
-is created. The changelog is generated from entries that are included on each
-merge request. To generate an entry on your branch run:
-`_support/changelog "Change descriptions"`.
+In this project we value good commit hygiene. Clean commits makes it much
+easier to discover when bugs have been introduced, why changes have been made,
+and what their reasoning was.
 
-After the merge request is created, the ID of the merge request needs to be set
-in the generated file. If you already know the merge request ID, run:
-`_support/changelog -m <ID> "Change descriptions"`.
+When you submit a merge request, expect the changes to be reviewed
+commit-by-commit. To make it easier for the reviewer, please submit your MR
+with nicely formatted commit messages and changes tied together step-by-step.
 
-Any new merge request must contain either a new entry or a
-justification in the merge request description why no changelog entry is needed.
+### Write small, atomic commits
 
-If a change is specific to an RPC, start the changelog line with the
-RPC name. So for a change to RPC `FooBar` you would get:
+Commits should be as small as possible but not smaller than required to make a
+logically complete change. If you struggle to find a proper summary for your
+commit message, it's a good indicator that the changes you make in this commit may
+not be focused enough.
 
-> FooBar: Add support for `fluffy_bunnies` parameter
+`git add -p` is useful to add only relevant changes. Often you only notice that
+you require additional changes to achieve your goal when halfway through the
+implementation.  Use `git stash` to help you stay focused on this additional
+change until you have implemented it in a separate commit.
+
+### Split up refactors and behavioral changes
+
+Introducing changes in behavior very often requires preliminary refactors. You
+should never squash refactoring and behavioral changes into a single commit,
+because that makes it very hard to spot the actual change later.
+
+### Tell a story
+
+When splitting up commits into small and logical changes, there will be many
+interdependencies between all commits of your feature branch. If you make
+changes to simply prepare another change, you should briefly mention the overall
+goal that this commit is heading towards.
+
+### Describe why you make changes, not what you change
+
+When writing commit messages, you should typically explain why a given change is
+being made. For example, if you have pondered several potential solutions, you
+can explain why you settled on the specific implementation you chose. What has
+changed is typically visible from the diff itself.
+
+A good commit message answers the following questions:
+
+- What is the current situation?
+- Why does that situation need to change?
+- How does your change fix that situation?
+- Are there relevant resources which help further the understanding? If so,
+  provide references.
+
+You may want to set up a [message template](https://thoughtbot.com/blog/better-commit-messages-with-a-gitmessage-template)
+to pre-populate your editor when executing `git commit`.
+
+### Use scoped commit subjects
+
+Many projects typically prefix their commit subjects with a scope. For example,
+if you're implementing a new feature "X" for subsystem "Y", your commit message
+would be "Y: Implement new feature X". This makes it easier to quickly sift
+through relevant commits by simply inspecting this prefix.
+
+### Keep the commit subject short
+
+Because commit subjects are displayed in various command line tools by default,
+keep the commit subject short. A good rule of thumb is that it shouldn't exceed
+72 characters.
+
+### Mention the original commit that introduced bugs
+
+When implementing bugfixes, it's often useful information to see why a bug was
+introduced and when it was introduced. Therefore, mentioning the original commit
+that introduced a given bug is recommended. You can use `git blame` or `git
+bisect` to help you identify that commit.
+
+The format used to mention commits is typically the abbreviated object ID
+followed by the commit subject and the commit date. You may create an alias for
+this to have it easily available. For example:
+
+```shell
+$ git config alias.reference "show -s --pretty=reference"
+$ git reference HEAD
+cf7f9ffe5 (style: Document best practices for commit hygiene, 2020-11-20)
+```
+
+### Use interactive rebases to arrange your commit series
+
+Use interactive rebases to end up with commit series that are readable and
+therefore also easily reviewable one-by-one. Use interactive rebases to
+rearrange commits, improve their commit messages, or squash multiple commits
+into one.
+
+### Create fixup commits
+
+When you create multiple commits as part of feature branches, you
+frequently discover bugs in one of the commits you've just written. Instead of
+creating a separate commit, you can easily create a fixup commit and squash it
+directly into the original source of bugs via `git commit --fixup=ORIG_COMMIT`
+and `git rebase --interactive --autosquash`.
+
+### Avoid merge commits
+
+During development other changes might be made to the target branch. These
+changes might cause a conflict with your changes. Instead of merging the target
+branch into your topic branch, rebase your branch onto the target
+branch. Consider setting up `git rerere` to avoid resolving the same conflict
+over and over again.
+
+### Ensure that all commits build and pass tests
+
+To keep history bisectable using `git bisect`, you should ensure that all of
+your commits build and pass tests. You can do this with interactive rebases, for
+example: `git rebase -i --exec='make build format lint test'
+origin/master`. This automatically builds each commit and verifies that they
+pass formatting, linting, and our test suite.
+
+### Changelog
+
+Gitaly keeps a [changelog](CHANGELOG.md) that is generated:
+
+- When a new release is created.
+- From commit messages where a specific trailer is used.
+
+The trailer should have the following format: `Changelog: <option>` where
+`<option>` is one of:
+
+- `added`
+- `fixed`
+- `changed`
+- `deprecated`
+- `removed`
+- `security`
+- `performance`
+- `other`
+
+The commit title is used to generate a changelog entry.
+
+### Example
+
+A great commit message could look something like:
+
+```plaintext
+package: Summarize change in 50 characters or less
+
+The first line of the commit message is the summary. The summary should
+start with a capital letter and not end with a period. Optionally
+prepend the summary with the package name, feature, file, or piece of
+the codebase where the change belongs to.
+
+After an empty line the commit body provides a more detailed explanatory
+text. This body is wrapped at 72 characters. The body can consist of
+several paragraphs, each separated with a blank line.
+
+The body explains the problem that this commit is solving. Focus on why
+you are making this change as opposed to what (the code explains this).
+Are there side effects or other counterintuitive consequences of
+this change? Here's the place to explain them.
+
+- Bullet points are okay, too
+
+- Typically a hyphen or asterisk is used for the bullet, followed by a
+  single space, with blank lines in between
+
+- Use a hanging indent
+
+These guidelines are pretty similar to those described in the Git Book
+[1]. If you like you can use footnotes to include a lengthy hyperlink
+that would otherwise clutter the text.
+
+You can provide links to the related issue, or the issue that's fixed by
+the change at the bottom using a trailer. A trailer is a token, without
+spaces, directly followed with a colon and a value. Order of trailers
+doesn't matter.
+
+1. https://www.git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project#_commit_guidelines
+
+Fixes: https://gitlab.com/gitlab-org/gitaly/-/issues/123
+Changelog: added
+Signed-off-by: Alice <alice@example.com>
+```
 
 ## Gitaly Maintainers
 
-| Maintainer         |
-|--------------------|
-|@8bitlife|
-|@avar|
-|@pks-t|
-|@proglottis|
-|@samihiltunen|
-|@zj-gitlab|
-|@toon|
+- @8bitlife
+- @avar
+- @chriscool
+- @jcaigitlab
+- @pks-t
+- @proglottis
+- @samihiltunen
+- @toon
 
 ## Development Process
 

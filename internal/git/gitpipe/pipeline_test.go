@@ -3,11 +3,11 @@ package gitpipe
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -15,21 +15,19 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
 
-func TestPipeline(t *testing.T) {
+func TestPipeline_revlist(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	repoProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	defer cleanup()
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	for _, tc := range []struct {
-		desc              string
-		revisions         []string
-		revlistOptions    []RevlistOption
-		revisionFilter    func(RevisionResult) bool
-		catfileInfoFilter func(CatfileInfoResult) bool
-		expectedResults   []CatfileObjectResult
-		expectedErr       error
+		desc               string
+		revisions          []string
+		revlistOptions     []RevlistOption
+		catfileInfoOptions []CatfileInfoOption
+		expectedResults    []CatfileObjectResult
+		expectedErr        error
 	}{
 		{
 			desc: "single blob",
@@ -40,7 +38,7 @@ func TestPipeline(t *testing.T) {
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}},
 			},
 		},
 		{
@@ -61,9 +59,9 @@ func TestPipeline(t *testing.T) {
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer3, Type: "blob", Size: 127}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer3, Type: "blob", Size: 127}}},
 			},
 		},
 		{
@@ -75,12 +73,12 @@ func TestPipeline(t *testing.T) {
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
-			},
-			revisionFilter: func(r RevisionResult) bool {
-				return r.OID == lfsPointer2
+				WithSkipRevlistResult(func(r *RevisionResult) bool {
+					return r.OID != lfsPointer2
+				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}},
 			},
 		},
 		{
@@ -92,8 +90,8 @@ func TestPipeline(t *testing.T) {
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "b95c0fad32f4361845f91d9ce4c1721b52b82793", Type: "tree", Size: 43}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}, ObjectName: []byte("branch-test.txt")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "b95c0fad32f4361845f91d9ce4c1721b52b82793", Type: "tree", Size: 43}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}}, ObjectName: []byte("branch-test.txt")},
 			},
 		},
 		{
@@ -111,11 +109,13 @@ func TestPipeline(t *testing.T) {
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
-			catfileInfoFilter: func(r CatfileInfoResult) bool {
-				return r.ObjectInfo.Type == "blob"
+			catfileInfoOptions: []CatfileInfoOption{
+				WithSkipCatfileInfoResult(func(objectInfo *catfile.ObjectInfo) bool {
+					return objectInfo.Type != "blob"
+				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}, ObjectName: []byte("branch-test.txt")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}}, ObjectName: []byte("branch-test.txt")},
 			},
 		},
 		{
@@ -128,13 +128,13 @@ func TestPipeline(t *testing.T) {
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "07f8147e8e73aab6c935c296e8cdc5194dee729b", Type: "tree", Size: 780}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "ceb102b8d3f9a95c2eb979213e49f7cc1b23d56e", Type: "tree", Size: 258}, ObjectName: []byte("files")},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "2132d150328bd9334cc4e62a16a5d998a7e399b9", Type: "tree", Size: 31}, ObjectName: []byte("files/flat")},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "f3942dc8b824a2c9359e518d48e68f84461bd2f7", Type: "tree", Size: 34}, ObjectName: []byte("files/flat/path")},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "ea7249055466085d0a6c69951908ef47757e92f4", Type: "tree", Size: 39}, ObjectName: []byte("files/flat/path/correct")},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "07f8147e8e73aab6c935c296e8cdc5194dee729b", Type: "tree", Size: 780}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "ceb102b8d3f9a95c2eb979213e49f7cc1b23d56e", Type: "tree", Size: 258}}, ObjectName: []byte("files")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "2132d150328bd9334cc4e62a16a5d998a7e399b9", Type: "tree", Size: 31}}, ObjectName: []byte("files/flat")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "f3942dc8b824a2c9359e518d48e68f84461bd2f7", Type: "tree", Size: 34}}, ObjectName: []byte("files/flat/path")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "ea7249055466085d0a6c69951908ef47757e92f4", Type: "tree", Size: 39}}, ObjectName: []byte("files/flat/path/correct")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}}},
 			},
 		},
 		{
@@ -144,8 +144,8 @@ func TestPipeline(t *testing.T) {
 				"master",
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}}},
 			},
 		},
 		{
@@ -155,19 +155,21 @@ func TestPipeline(t *testing.T) {
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
+				WithSkipRevlistResult(func(r *RevisionResult) bool {
+					// Let through two LFS pointers and a tree.
+					return r.OID != "b95c0fad32f4361845f91d9ce4c1721b52b82793" &&
+						r.OID != lfsPointer1 && r.OID != lfsPointer2
+				}),
 			},
-			revisionFilter: func(r RevisionResult) bool {
-				// Let through two LFS pointers and a tree.
-				return r.OID == "b95c0fad32f4361845f91d9ce4c1721b52b82793" ||
-					r.OID == lfsPointer1 || r.OID == lfsPointer2
-			},
-			catfileInfoFilter: func(r CatfileInfoResult) bool {
-				// Only let through blobs, so only the two LFS pointers remain.
-				return r.ObjectInfo.Type == "blob"
+			catfileInfoOptions: []CatfileInfoOption{
+				WithSkipCatfileInfoResult(func(objectInfo *catfile.ObjectInfo) bool {
+					// Only let through blobs, so only the two LFS pointers remain.
+					return objectInfo.Type != "blob"
+				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}, ObjectName: []byte("files/lfs/lfs_object.iso")},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}, ObjectName: []byte("another.lfs")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}, ObjectName: []byte("files/lfs/lfs_object.iso")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}, ObjectName: []byte("another.lfs")},
 			},
 		},
 		{
@@ -191,13 +193,17 @@ func TestPipeline(t *testing.T) {
 			revisions: []string{
 				"doesnotexist",
 			},
-			revisionFilter: func(r RevisionResult) bool {
-				require.Fail(t, "filter should not be invoked on errors")
-				return true
+			revlistOptions: []RevlistOption{
+				WithSkipRevlistResult(func(r *RevisionResult) bool {
+					require.Fail(t, "filter should not be invoked on errors")
+					return true
+				}),
 			},
-			catfileInfoFilter: func(r CatfileInfoResult) bool {
-				require.Fail(t, "filter should not be invoked on errors")
-				return true
+			catfileInfoOptions: []CatfileInfoOption{
+				WithSkipCatfileInfoResult(func(r *catfile.ObjectInfo) bool {
+					require.Fail(t, "filter should not be invoked on errors")
+					return true
+				}),
 			},
 			expectedErr: errors.New("rev-list pipeline command: exit status 128"),
 		},
@@ -209,36 +215,41 @@ func TestPipeline(t *testing.T) {
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
-			catfileProcess, err := catfileCache.BatchProcess(ctx, repo)
+			objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+			require.NoError(t, err)
+
+			objectReader, err := catfileCache.ObjectReader(ctx, repo)
 			require.NoError(t, err)
 
 			revlistIter := Revlist(ctx, repo, tc.revisions, tc.revlistOptions...)
-			if tc.revisionFilter != nil {
-				revlistIter = RevisionFilter(ctx, revlistIter, tc.revisionFilter)
-			}
 
-			catfileInfoIter := CatfileInfo(ctx, catfileProcess, revlistIter)
-			if tc.catfileInfoFilter != nil {
-				catfileInfoIter = CatfileInfoFilter(ctx, catfileInfoIter, tc.catfileInfoFilter)
-			}
+			catfileInfoIter, err := CatfileInfo(ctx, objectInfoReader, revlistIter, tc.catfileInfoOptions...)
+			require.NoError(t, err)
 
-			catfileObjectIter := CatfileObject(ctx, catfileProcess, catfileInfoIter)
+			catfileObjectIter, err := CatfileObject(ctx, objectReader, catfileInfoIter)
+			require.NoError(t, err)
 
 			var results []CatfileObjectResult
 			for catfileObjectIter.Next() {
 				result := catfileObjectIter.Result()
 
-				// While we could also assert object data, let's not do
-				// this: it would just be too annoying.
-				require.NotNil(t, result.ObjectReader)
-
-				objectData, err := ioutil.ReadAll(result.ObjectReader)
+				objectData, err := io.ReadAll(result)
 				require.NoError(t, err)
-				require.Len(t, objectData, int(result.ObjectInfo.Size))
+				require.Len(t, objectData, int(result.ObjectSize()))
 
-				result.ObjectReader = nil
-
-				results = append(results, result)
+				// We only really want to compare the publicly visible fields
+				// containing info about the object itself, and not the object's
+				// private state. We thus need to reconstruct the objects here.
+				results = append(results, CatfileObjectResult{
+					Object: &catfile.Object{
+						ObjectInfo: catfile.ObjectInfo{
+							Oid:  result.ObjectID(),
+							Type: result.ObjectType(),
+							Size: result.ObjectSize(),
+						},
+					},
+					ObjectName: result.ObjectName,
+				})
 			}
 
 			// We're converting the error here to a plain un-nested error such that we
@@ -260,20 +271,25 @@ func TestPipeline(t *testing.T) {
 		catfileCache := catfile.NewCache(cfg)
 		defer catfileCache.Stop()
 
-		catfileProcess, err := catfileCache.BatchProcess(ctx, repo)
+		objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+		require.NoError(t, err)
+
+		objectReader, err := catfileCache.ObjectReader(ctx, repo)
 		require.NoError(t, err)
 
 		revlistIter := Revlist(ctx, repo, []string{"--all"})
-		revlistIter = RevisionFilter(ctx, revlistIter, func(RevisionResult) bool { return true })
-		catfileInfoIter := CatfileInfo(ctx, catfileProcess, revlistIter)
-		catfileInfoIter = CatfileInfoFilter(ctx, catfileInfoIter, func(CatfileInfoResult) bool { return true })
-		catfileObjectIter := CatfileObject(ctx, catfileProcess, catfileInfoIter)
+
+		catfileInfoIter, err := CatfileInfo(ctx, objectInfoReader, revlistIter)
+		require.NoError(t, err)
+
+		catfileObjectIter, err := CatfileObject(ctx, objectReader, catfileInfoIter)
+		require.NoError(t, err)
 
 		i := 0
 		for catfileObjectIter.Next() {
 			i++
 
-			_, err := io.Copy(ioutil.Discard, catfileObjectIter.Result().ObjectReader)
+			_, err := io.Copy(io.Discard, catfileObjectIter.Result())
 			require.NoError(t, err)
 
 			if i == 3 {
@@ -296,12 +312,19 @@ func TestPipeline(t *testing.T) {
 		catfileCache := catfile.NewCache(cfg)
 		defer catfileCache.Stop()
 
-		catfileProcess, err := catfileCache.BatchProcess(ctx, repo)
+		objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+		require.NoError(t, err)
+
+		objectReader, err := catfileCache.ObjectReader(ctx, repo)
 		require.NoError(t, err)
 
 		revlistIter := Revlist(ctx, repo, []string{"--all"}, WithObjects())
-		catfileInfoIter := CatfileInfo(ctx, catfileProcess, revlistIter)
-		catfileObjectIter := CatfileObject(ctx, catfileProcess, catfileInfoIter)
+
+		catfileInfoIter, err := CatfileInfo(ctx, objectInfoReader, revlistIter)
+		require.NoError(t, err)
+
+		catfileObjectIter, err := CatfileObject(ctx, objectReader, catfileInfoIter)
+		require.NoError(t, err)
 
 		i := 0
 		var wg sync.WaitGroup
@@ -317,7 +340,7 @@ func TestPipeline(t *testing.T) {
 			// the object reader.
 			go func(object CatfileObjectResult) {
 				defer wg.Done()
-				_, err := io.Copy(ioutil.Discard, object.ObjectReader)
+				_, err := io.Copy(io.Discard, object)
 				require.NoError(t, err)
 			}(catfileObjectIter.Result())
 		}
@@ -329,4 +352,71 @@ func TestPipeline(t *testing.T) {
 		// harder than necessary to change the test repo's contents.
 		require.Greater(t, i, 1000)
 	})
+}
+
+func TestPipeline_forEachRef(t *testing.T) {
+	cfg := testcfg.Build(t)
+
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+	require.NoError(t, err)
+
+	objectReader, err := catfileCache.ObjectReader(ctx, repo)
+	require.NoError(t, err)
+
+	forEachRefIter := ForEachRef(ctx, repo, nil)
+
+	catfileInfoIter, err := CatfileInfo(ctx, objectInfoReader, forEachRefIter)
+	require.NoError(t, err)
+
+	catfileObjectIter, err := CatfileObject(ctx, objectReader, catfileInfoIter)
+	require.NoError(t, err)
+
+	type object struct {
+		oid     git.ObjectID
+		content []byte
+	}
+
+	objectsByRef := make(map[git.ReferenceName]object)
+	for catfileObjectIter.Next() {
+		result := catfileObjectIter.Result()
+
+		objectData, err := io.ReadAll(result)
+		require.NoError(t, err)
+		require.Len(t, objectData, int(result.ObjectSize()))
+
+		objectsByRef[git.ReferenceName(result.ObjectName)] = object{
+			oid:     result.ObjectID(),
+			content: objectData,
+		}
+	}
+	require.NoError(t, catfileObjectIter.Err())
+	require.Greater(t, len(objectsByRef), 90)
+
+	// We certainly don't want to hard-code all the references, so we just cross-check with the
+	// localrepo implementation to verify that both return the same data.
+	refs, err := repo.GetReferences(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(refs), len(objectsByRef))
+
+	expectedObjectsByRef := make(map[git.ReferenceName]object)
+	for _, ref := range refs {
+		oid := git.ObjectID(ref.Target)
+		content, err := repo.ReadObject(ctx, oid)
+		require.NoError(t, err)
+
+		expectedObjectsByRef[ref.Name] = object{
+			oid:     oid,
+			content: content,
+		}
+	}
+	require.Equal(t, expectedObjectsByRef, objectsByRef)
 }

@@ -37,38 +37,11 @@ func TestPostReceiveInvalidArgument(t *testing.T) {
 }
 
 func TestHooksMissingStdin(t *testing.T) {
+	t.Parallel()
+
 	user, password, secretToken := "user", "password", "secret token"
 	tempDir := testhelper.TempDir(t)
-	testhelper.WriteShellSecretFile(t, tempDir, secretToken)
-
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-
-	c := testhelper.GitlabTestServerOptions{
-		User:                        user,
-		Password:                    password,
-		SecretToken:                 secretToken,
-		GLID:                        "key_id",
-		GLRepository:                repo.GetGlRepository(),
-		Changes:                     "changes",
-		PostReceiveCounterDecreased: true,
-		Protocol:                    "protocol",
-		RepoPath:                    repoPath,
-	}
-
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
-	defer cleanup()
-
-	cfg.Gitlab = config.Gitlab{
-		SecretFile: filepath.Join(tempDir, ".gitlab_shell_secret"),
-		URL:        serverURL,
-		HTTPSettings: config.HTTPSettings{
-			User:     user,
-			Password: password,
-		},
-	}
-
-	gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, prometheus.Config{})
-	require.NoError(t, err)
+	gitlab.WriteShellSecretFile(t, tempDir, secretToken)
 
 	testCases := []struct {
 		desc    string
@@ -88,6 +61,35 @@ func TestHooksMissingStdin(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+
+			c := gitlab.TestServerOptions{
+				User:                        user,
+				Password:                    password,
+				SecretToken:                 secretToken,
+				GLID:                        "key_id",
+				GLRepository:                repo.GetGlRepository(),
+				Changes:                     "changes",
+				PostReceiveCounterDecreased: true,
+				Protocol:                    "protocol",
+				RepoPath:                    repoPath,
+			}
+
+			serverURL, cleanup := gitlab.NewTestServer(t, c)
+			defer cleanup()
+
+			cfg.Gitlab = config.Gitlab{
+				SecretFile: filepath.Join(tempDir, ".gitlab_shell_secret"),
+				URL:        serverURL,
+				HTTPSettings: config.HTTPSettings{
+					User:     user,
+					Password: password,
+				},
+			}
+
+			gitlabClient, err := gitlab.NewHTTPClient(testhelper.NewTestLogger(t), cfg.Gitlab, cfg.TLS, prometheus.Config{})
+			require.NoError(t, err)
+
 			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))
 
 			client, conn := newHooksClient(t, serverSocketPath)
@@ -152,6 +154,8 @@ func TestHooksMissingStdin(t *testing.T) {
 }
 
 func TestPostReceiveMessages(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		desc                         string
 		basicMessages, alertMessages []string
@@ -178,17 +182,17 @@ To create a merge request for okay, visit:
 		},
 	}
 
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-
 	secretToken := "secret token"
 	user, password := "user", "password"
 
-	tempDir := testhelper.TempDir(t)
-	testhelper.WriteShellSecretFile(t, tempDir, secretToken)
-
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			c := testhelper.GitlabTestServerOptions{
+			cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+
+			tempDir := testhelper.TempDir(t)
+			gitlab.WriteShellSecretFile(t, tempDir, secretToken)
+
+			c := gitlab.TestServerOptions{
 				User:                        user,
 				Password:                    password,
 				SecretToken:                 secretToken,
@@ -202,7 +206,7 @@ To create a merge request for okay, visit:
 				RepoPath:                    repoPath,
 			}
 
-			serverURL, cleanup := testhelper.NewGitlabTestServer(t, c)
+			serverURL, cleanup := gitlab.NewTestServer(t, c)
 			defer cleanup()
 
 			cfg.Gitlab = config.Gitlab{
@@ -214,7 +218,7 @@ To create a merge request for okay, visit:
 				},
 			}
 
-			gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, prometheus.Config{})
+			gitlabClient, err := gitlab.NewHTTPClient(testhelper.NewTestLogger(t), cfg.Gitlab, cfg.TLS, prometheus.Config{})
 			require.NoError(t, err)
 
 			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithGitLabClient(gitlabClient))

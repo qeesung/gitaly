@@ -2,12 +2,11 @@ package operations
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -16,8 +15,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -27,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestSuccessfulUserDeleteTagRequest(t *testing.T) {
@@ -116,7 +116,7 @@ end`, cfg.Git.BinPath)
 	dir := testhelper.TempDir(t)
 	hookPath := filepath.Join(dir, "pre-receive")
 
-	require.NoError(t, ioutil.WriteFile(hookPath, []byte(hook), 0755))
+	require.NoError(t, os.WriteFile(hookPath, []byte(hook), 0o755))
 
 	return hookPath
 }
@@ -149,7 +149,7 @@ end`, cfg.Git.BinPath)
 	dir := testhelper.TempDir(t)
 	hookPath := filepath.Join(dir, "pre-receive")
 
-	require.NoError(t, ioutil.WriteFile(hookPath, []byte(hook), 0755))
+	require.NoError(t, os.WriteFile(hookPath, []byte(hook), 0o755))
 
 	return hookPath
 }
@@ -200,7 +200,7 @@ func TestSuccessfulUserCreateTagRequest(t *testing.T) {
 			message:        "This is an annotated tag",
 			expectedTag: &gitalypb.Tag{
 				Name: []byte(inputTagName),
-				//Id: is a new object, filled in below
+				// Id: is a new object, filled in below
 				TargetCommit: targetRevisionCommit,
 				Message:      []byte("This is an annotated tag"),
 				MessageSize:  24,
@@ -278,14 +278,14 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterOperationServiceServer(srv, NewServer(
 			deps.GetCfg(),
-			nil,
 			deps.GetHookManager(),
+			deps.GetTxManager(),
 			deps.GetLocator(),
 			deps.GetConnsPool(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	})
 
 	ctx, cancel := testhelper.Context()
@@ -355,10 +355,10 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 
 			// We need to convert to an incoming context first in
 			// order to preserve the feature flag.
-			ctx = helper.OutgoingToIncoming(ctx)
+			ctx = metadata.OutgoingToIncoming(ctx)
 			ctx, err = txinfo.InjectTransaction(ctx, 1, "node", testCase.primary)
 			require.NoError(t, err)
-			ctx = helper.IncomingToOutgoing(ctx)
+			ctx = metadata.IncomingToOutgoing(ctx)
 
 			response, err := client.UserCreateTag(ctx, request)
 			require.NoError(t, err)
@@ -393,6 +393,56 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			transactionServer.called = 0
 		})
 	}
+}
+
+func TestUserCreateTagQuarantine(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	// We set up a custom "pre-receive" hook which simply prints the new tag to stdout and then
+	// exits with an error. Like this, we can both assert that the hook can see the quarantined
+	// tag, and it allows us to fail the RPC before we migrate quarantined objects. Furthermore,
+	// we also try whether we can print the tag's tagged object to assert that we can see
+	// objects which are not part of the object quarantine.
+	script := fmt.Sprintf(`#!/bin/sh
+	read oldval newval ref &&
+	%s cat-file -p $newval^{commit} >/dev/null &&
+	%s cat-file -p $newval^{tag} &&
+	exit 1`, cfg.Git.BinPath, cfg.Git.BinPath)
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(script))
+
+	response, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
+		Repository:     repoProto,
+		TagName:        []byte("quarantined-tag"),
+		TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
+		User:           gittest.TestUser,
+		Timestamp:      timestamppb.New(time.Unix(1600000000, 0)),
+		Message:        []byte("message"),
+	})
+	require.NoError(t, err)
+
+	// Conveniently, the pre-receive error will now contain output from our custom hook and thus
+	// the tag's contents.
+	testassert.ProtoEqual(t, &gitalypb.UserCreateTagResponse{
+		PreReceiveError: fmt.Sprintf("executing custom hooks: exit status 1, stdout: %q",
+			`object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+type commit
+tag quarantined-tag
+tagger Jane Doe <janedoe@gitlab.com> 1600000000 +0800
+
+message`),
+	}, response)
+
+	// In case we use an object quarantine directory, the tag should not exist in the target
+	// repository because the RPC failed to update the revision.
+	tagExists, err := repo.HasRevision(ctx, "85d279b2cc85df37992e08f84707987321e8ef47^{tag}")
+	require.NoError(t, err)
+	require.False(t, tagExists, "tag should not have been migrated")
 }
 
 func TestSuccessfulUserCreateTagRequestAnnotatedLightweightDisambiguation(t *testing.T) {
@@ -615,7 +665,7 @@ func TestSuccessfulUserCreateTagRequestToNonCommit(t *testing.T) {
 			message:        "This is an annotated tag",
 			expectedTag: &gitalypb.Tag{
 				Name: []byte(inputTagName),
-				//Id: is a new object, filled in below
+				// Id: is a new object, filled in below
 				TargetCommit: nil,
 				Message:      []byte("This is an annotated tag"),
 				MessageSize:  24,
@@ -629,7 +679,7 @@ func TestSuccessfulUserCreateTagRequestToNonCommit(t *testing.T) {
 			message:        "This is an annotated tag",
 			expectedTag: &gitalypb.Tag{
 				Name: []byte(inputTagName),
-				//Id: is a new object, filled in below
+				// Id: is a new object, filled in below
 				TargetCommit: nil,
 				Message:      []byte("This is an annotated tag"),
 				MessageSize:  24,
@@ -750,7 +800,7 @@ func TestSuccessfulUserCreateTagNestedTags(t *testing.T) {
 					Tag: &gitalypb.Tag{
 						Name: request.TagName,
 						Id:   createdIDStr,
-						//TargetCommit: is dymamically determined, filled in below
+						// TargetCommit: is dymamically determined, filled in below
 						Message:     request.Message,
 						MessageSize: int64(len(request.Message)),
 					},
@@ -819,12 +869,12 @@ func TestUserCreateTagStableTagIDs(t *testing.T) {
 		TargetRevision: []byte("dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82"),
 		Message:        []byte("my message"),
 		User:           gittest.TestUser,
-		Timestamp:      &timestamp.Timestamp{Seconds: 12345},
+		Timestamp:      &timestamppb.Timestamp{Seconds: 12345},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, &gitalypb.Tag{
-		Id:          "c0dd712fb40073c287bc69a39ed5e6b6aa524c6c",
+		Id:          "123b02f05cc249a7da87aae583babb8e4871cd65",
 		Name:        []byte("happy-tag"),
 		Message:     []byte("my message"),
 		MessageSize: 10,
@@ -1288,32 +1338,32 @@ func TestTagHookOutput(t *testing.T) {
 		{
 			desc:        "empty stdout and empty stderr",
 			hookContent: "#!/bin/sh\nexit 1",
-			output:      "",
+			output:      "executing custom hooks: exit status 1",
 		},
 		{
 			desc:        "empty stdout and some stderr",
 			hookContent: "#!/bin/sh\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "some stdout and empty stderr",
 			hookContent: "#!/bin/sh\necho stdout\nexit 1",
-			output:      "stdout\n",
+			output:      "executing custom hooks: exit status 1, stdout: \"stdout\\n\"",
 		},
 		{
 			desc:        "some stdout and some stderr",
 			hookContent: "#!/bin/sh\necho stdout\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "whitespace stdout and some stderr",
 			hookContent: "#!/bin/sh\necho '   '\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "some stdout and whitespace stderr",
 			hookContent: "#!/bin/sh\necho stdout\necho '   ' >&2\nexit 1",
-			output:      "stdout\n",
+			output:      "executing custom hooks: exit status 1, stdout: \"stdout\\n\"",
 		},
 	}
 

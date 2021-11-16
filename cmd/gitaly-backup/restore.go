@@ -7,10 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"runtime"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backup"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -23,16 +26,40 @@ type restoreRequest struct {
 }
 
 type restoreSubcommand struct {
-	backupPath string
+	backupPath      string
+	parallel        int
+	parallelStorage int
+	layout          string
 }
 
 func (cmd *restoreSubcommand) Flags(fs *flag.FlagSet) {
 	fs.StringVar(&cmd.backupPath, "path", "", "repository backup path")
+	fs.IntVar(&cmd.parallel, "parallel", runtime.NumCPU(), "maximum number of parallel restores")
+	fs.IntVar(&cmd.parallelStorage, "parallel-storage", 2, "maximum number of parallel restores per storage. Note: actual parallelism when combined with `-parallel` depends on the order the repositories are received.")
+	fs.StringVar(&cmd.layout, "layout", "legacy", "determines how backup files are located. One of legacy, pointer. Note: The feature is not ready for production use.")
 }
 
 func (cmd *restoreSubcommand) Run(ctx context.Context, stdin io.Reader, stdout io.Writer) error {
-	fsBackup := backup.NewFilesystem(cmd.backupPath)
-	pipeline := backup.NewPipeline(log.StandardLogger(), fsBackup)
+	sink, err := backup.ResolveSink(ctx, cmd.backupPath)
+	if err != nil {
+		return fmt.Errorf("restore: resolve sink: %w", err)
+	}
+
+	locator, err := backup.ResolveLocator(cmd.layout, sink)
+	if err != nil {
+		return fmt.Errorf("restore: resolve locator: %w", err)
+	}
+
+	pool := client.NewPool()
+	defer pool.Close()
+
+	manager := backup.NewManager(sink, locator, pool, time.Now().UTC().Format("20060102150405"))
+
+	var pipeline backup.Pipeline
+	pipeline = backup.NewLoggingPipeline(log.StandardLogger())
+	if cmd.parallel > 0 || cmd.parallelStorage > 0 {
+		pipeline = backup.NewParallelPipeline(pipeline, cmd.parallel, cmd.parallelStorage)
+	}
 
 	decoder := json.NewDecoder(stdin)
 	for {
@@ -48,11 +75,7 @@ func (cmd *restoreSubcommand) Run(ctx context.Context, stdin io.Reader, stdout i
 			RelativePath:  req.RelativePath,
 			GlProjectPath: req.GlProjectPath,
 		}
-		pipeline.Restore(ctx, &backup.RestoreRequest{
-			Server:       req.ServerInfo,
-			Repository:   &repo,
-			AlwaysCreate: req.AlwaysCreate,
-		})
+		pipeline.Handle(ctx, backup.NewRestoreCommand(manager, req.ServerInfo, &repo, req.AlwaysCreate))
 	}
 
 	if err := pipeline.Done(); err != nil {

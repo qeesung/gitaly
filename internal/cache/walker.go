@@ -5,7 +5,9 @@
 // worker will walk the cache directory every ten minutes.
 package cache
 
+//nolint:depguard
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,8 +15,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/dontpanic"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 )
 
 func (c *DiskCache) logWalkErr(err error, path, msg string) {
@@ -64,7 +66,7 @@ func (c *DiskCache) cleanWalk(path string) error {
 		c.walkerRemovalTotal.Inc()
 	}
 
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -96,39 +98,58 @@ func (c *DiskCache) walkLoop(walkPath string) {
 	logger.Infof("Starting file walker for %s", walkPath)
 
 	walkTick := time.NewTicker(cleanWalkFrequency)
-	dontpanic.GoForever(time.Minute, func() {
+
+	forever := dontpanic.NewForever(time.Minute)
+	forever.Go(func() {
+		select {
+		case <-c.walkersDone:
+			return
+		default:
+		}
+
 		if err := c.cleanWalk(walkPath); err != nil {
 			logger.Error(err)
 		}
-		<-walkTick.C
+
+		select {
+		case <-c.walkersDone:
+			return
+		case <-walkTick.C:
+		}
 	})
+
+	c.walkerLoops = append(c.walkerLoops, forever)
 }
 
-func (c *DiskCache) startCleanWalker(storagePath string) {
+func (c *DiskCache) startCleanWalker(cacheDir, stateDir string) {
 	if c.cacheConfig.disableWalker {
 		return
 	}
 
-	c.walkLoop(tempdir.AppendCacheDir(storagePath))
-	c.walkLoop(tempdir.AppendStateDir(storagePath))
+	c.walkLoop(cacheDir)
+	c.walkLoop(stateDir)
 }
 
 // moveAndClear will move the cache to the storage location's
 // temporary folder, and then remove its contents asynchronously
-func (c *DiskCache) moveAndClear(storagePath string) error {
+func (c *DiskCache) moveAndClear(storage config.Storage) error {
 	if c.cacheConfig.disableMoveAndClear {
 		return nil
 	}
 
-	logger := logrus.WithField("path", storagePath)
+	logger := logrus.WithField("storage", storage.Name)
 	logger.Info("clearing disk cache object folder")
 
-	tempPath := tempdir.AppendTempDir(storagePath)
-	if err := os.MkdirAll(tempPath, 0755); err != nil {
+	tempPath, err := c.locator.TempDir(storage.Name)
+	if err != nil {
+		return fmt.Errorf("temp dir: %w", err)
+	}
+
+	if err := os.MkdirAll(tempPath, 0o755); err != nil {
 		return err
 	}
 
-	tmpDir, err := ioutil.TempDir(tempPath, "diskcache")
+	tmpDir, err := os.MkdirTemp(tempPath, "diskcache")
 	if err != nil {
 		return err
 	}
@@ -146,7 +167,12 @@ func (c *DiskCache) moveAndClear(storagePath string) error {
 	}()
 
 	logger.Infof("moving disk cache object folder to %s", tmpDir)
-	cachePath := tempdir.AppendCacheDir(storagePath)
+
+	cachePath, err := c.locator.CacheDir(storage.Name)
+	if err != nil {
+		return fmt.Errorf("cache dir: %w", err)
+	}
+
 	if err := os.Rename(cachePath, filepath.Join(tmpDir, "moved")); err != nil {
 		if os.IsNotExist(err) {
 			logger.Info("disk cache object folder doesn't exist, no need to remove")
@@ -162,17 +188,38 @@ func (c *DiskCache) moveAndClear(storagePath string) error {
 // StartWalkers starts the cache walker Goroutines. Initially, this function will try to clean up
 // any preexisting cache directories.
 func (c *DiskCache) StartWalkers() error {
-	pathSet := map[string]struct{}{}
+	// Deduplicate storages by path.
+	storageByPath := map[string]config.Storage{}
 	for _, storage := range c.storages {
-		pathSet[storage.Path] = struct{}{}
+		storageByPath[storage.Path] = storage
 	}
 
-	for sPath := range pathSet {
-		if err := c.moveAndClear(sPath); err != nil {
+	for _, storage := range storageByPath {
+		cacheDir, err := c.locator.CacheDir(storage.Name)
+		if err != nil {
+			return fmt.Errorf("cache dir: %w", err)
+		}
+
+		stateDir, err := c.locator.StateDir(storage.Name)
+		if err != nil {
+			return fmt.Errorf("state dir: %w", err)
+		}
+
+		if err := c.moveAndClear(storage); err != nil {
 			return err
 		}
-		c.startCleanWalker(sPath)
+
+		c.startCleanWalker(cacheDir, stateDir)
 	}
 
 	return nil
+}
+
+// StopWalkers stops all walkers started by StartWalkers.
+func (c *DiskCache) StopWalkers() {
+	close(c.walkersDone)
+	for _, walkerLoop := range c.walkerLoops {
+		walkerLoop.Cancel()
+	}
+	c.walkerLoops = nil
 }

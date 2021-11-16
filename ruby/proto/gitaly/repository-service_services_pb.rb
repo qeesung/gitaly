@@ -35,16 +35,20 @@ module Gitaly
       rpc :WriteRef, Gitaly::WriteRefRequest, Gitaly::WriteRefResponse
       rpc :FindMergeBase, Gitaly::FindMergeBaseRequest, Gitaly::FindMergeBaseResponse
       rpc :CreateFork, Gitaly::CreateForkRequest, Gitaly::CreateForkResponse
-      rpc :IsRebaseInProgress, Gitaly::IsRebaseInProgressRequest, Gitaly::IsRebaseInProgressResponse
-      rpc :IsSquashInProgress, Gitaly::IsSquashInProgressRequest, Gitaly::IsSquashInProgressResponse
       rpc :CreateRepositoryFromURL, Gitaly::CreateRepositoryFromURLRequest, Gitaly::CreateRepositoryFromURLResponse
+      # CreateBundle creates a bundle from all refs
       rpc :CreateBundle, Gitaly::CreateBundleRequest, stream(Gitaly::CreateBundleResponse)
+      # CreateBundleFromRefList creates a bundle from a stream of ref patterns.
+      # When the bundle would be empty the FailedPrecondition error code is returned.
+      rpc :CreateBundleFromRefList, stream(Gitaly::CreateBundleFromRefListRequest), stream(Gitaly::CreateBundleFromRefListResponse)
+      # FetchBundle fetches references from a bundle into the local repository.
+      # Refs will be mirrored to the target repository with the refspec
+      # "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
+      rpc :FetchBundle, stream(Gitaly::FetchBundleRequest), Gitaly::FetchBundleResponse
       rpc :CreateRepositoryFromBundle, stream(Gitaly::CreateRepositoryFromBundleRequest), Gitaly::CreateRepositoryFromBundleResponse
       # GetConfig reads the target repository's gitconfig and streams its contents
       # back. Returns a NotFound error in case no gitconfig was found.
       rpc :GetConfig, Gitaly::GetConfigRequest, stream(Gitaly::GetConfigResponse)
-      rpc :SetConfig, Gitaly::SetConfigRequest, Gitaly::SetConfigResponse
-      rpc :DeleteConfig, Gitaly::DeleteConfigRequest, Gitaly::DeleteConfigResponse
       rpc :FindLicense, Gitaly::FindLicenseRequest, Gitaly::FindLicenseResponse
       rpc :GetInfoAttributes, Gitaly::GetInfoAttributesRequest, stream(Gitaly::GetInfoAttributesResponse)
       rpc :CalculateChecksum, Gitaly::CalculateChecksumRequest, Gitaly::CalculateChecksumResponse
@@ -66,6 +70,11 @@ module Gitaly
       rpc :RenameRepository, Gitaly::RenameRepositoryRequest, Gitaly::RenameRepositoryResponse
       rpc :ReplicateRepository, Gitaly::ReplicateRepositoryRequest, Gitaly::ReplicateRepositoryResponse
       rpc :OptimizeRepository, Gitaly::OptimizeRepositoryRequest, Gitaly::OptimizeRepositoryResponse
+      # SetFullPath writes the "gitlab.fullpath" configuration into the
+      # repository's gitconfig. This is mainly to help debugging purposes in case
+      # an admin inspects the repository's gitconfig such that he can easily see
+      # what the repository name is.
+      rpc :SetFullPath, Gitaly::SetFullPathRequest, Gitaly::SetFullPathResponse
     end
 
     Stub = Service.rpc_stub_class

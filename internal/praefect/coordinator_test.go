@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
@@ -22,10 +22,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	gitaly_metadata "gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -35,6 +38,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
@@ -46,12 +50,14 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var testLogger = logrus.New()
 
 func init() {
-	testLogger.SetOutput(ioutil.Discard)
+	testLogger.SetOutput(io.Discard)
 }
 
 func TestSecondaryRotation(t *testing.T) {
@@ -59,6 +65,8 @@ func TestSecondaryRotation(t *testing.T) {
 }
 
 func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
 	for _, tc := range []struct {
 		desc     string
 		readOnly bool
@@ -67,6 +75,8 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 		{desc: "read-only", readOnly: true},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			db.TruncateAll(t)
+
 			const (
 				virtualStorage = "test-virtual-storage"
 				relativePath   = "test-repository"
@@ -74,10 +84,10 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 			)
 			conf := config.Config{
 				VirtualStorages: []*config.VirtualStorage{
-					&config.VirtualStorage{
+					{
 						Name: virtualStorage,
 						Nodes: []*config.Node{
-							&config.Node{
+							{
 								Address: "tcp://gitaly-primary.example.com",
 								Storage: storage,
 							},
@@ -90,16 +100,16 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 			defer cancel()
 
 			rs := datastore.MockRepositoryStore{
-				GetConsistentStoragesFunc: func(context.Context, string, string) (map[string]struct{}, error) {
+				GetConsistentStoragesFunc: func(context.Context, string, string) (string, map[string]struct{}, error) {
 					if tc.readOnly {
-						return map[string]struct{}{storage + "-other": {}}, nil
+						return "", map[string]struct{}{storage + "-other": {}}, nil
 					}
-					return map[string]struct{}{storage: {}}, nil
+					return "", map[string]struct{}{storage: {}}, nil
 				},
 			}
 
 			coordinator := NewCoordinator(
-				datastore.NewMemoryReplicationEventQueue(conf),
+				datastore.NewPostgresReplicationEventQueue(db),
 				rs,
 				NewNodeManagerRouter(&nodes.MockManager{GetShardFunc: func(vs string) (nodes.Shard, error) {
 					require.Equal(t, virtualStorage, vs)
@@ -132,6 +142,7 @@ func TestStreamDirectorReadOnlyEnforcement(t *testing.T) {
 }
 
 func TestStreamDirectorMutator(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, gitalySocket0)
 	testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -141,20 +152,13 @@ func TestStreamDirectorMutator(t *testing.T) {
 	secondaryNode := &config.Node{Address: secondaryAddress, Storage: "praefect-internal-2"}
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name:  "praefect",
 				Nodes: []*config.Node{primaryNode, secondaryNode},
 			},
 		},
 	}
-
-	var replEventWait sync.WaitGroup
-
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
-	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-		defer replEventWait.Done()
-		return queue.Enqueue(ctx, event)
-	})
+	db := glsql.NewDB(t)
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -164,88 +168,137 @@ func TestStreamDirectorMutator(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	entry := testhelper.DiscardTestEntry(t)
-
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
-	require.NoError(t, err)
-	nodeMgr.Start(0, time.Hour)
-
 	txMgr := transactions.NewManager(conf)
-	rs := datastore.MockRepositoryStore{}
 
-	coordinator := NewCoordinator(
-		queueInterceptor,
-		rs,
-		NewNodeManagerRouter(nodeMgr, rs),
-		txMgr,
-		conf,
-		protoregistry.GitalyProtoPreregistered,
-	)
-
-	frame, err := proto.Marshal(&gitalypb.CreateObjectPoolRequest{
-		Origin:     &targetRepo,
-		ObjectPool: &gitalypb.ObjectPool{Repository: &targetRepo},
-	})
+	nodeSet, err := DialNodes(ctx, conf.VirtualStorages, protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
+	defer nodeSet.Close()
 
-	require.NoError(t, err)
-
-	fullMethod := "/gitaly.ObjectPoolService/CreateObjectPool"
-
-	peeker := &mockPeeker{frame}
-	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
-	require.NoError(t, err)
-	require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target())
-
-	mi, err := coordinator.registry.LookupMethod(fullMethod)
-	require.NoError(t, err)
-
-	m, err := mi.UnmarshalRequestProto(streamParams.Primary().Msg)
-	require.NoError(t, err)
-
-	rewrittenTargetRepo, err := mi.TargetRepo(m)
-	require.NoError(t, err)
-	require.Equal(t, "praefect-internal-1", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
-
-	replEventWait.Add(1) // expected only one event to be created
-	// this call creates new events in the queue and simulates usual flow of the update operation
-	require.NoError(t, streamParams.RequestFinalizer())
-
-	replEventWait.Wait() // wait until event persisted (async operation)
-	events, err := queueInterceptor.Dequeue(ctx, "praefect", "praefect-internal-2", 10)
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-
-	expectedEvent := datastore.ReplicationEvent{
-		ID:        1,
-		State:     datastore.JobStateInProgress,
-		Attempt:   2,
-		LockID:    "praefect|praefect-internal-2|/path/to/hashed/storage",
-		CreatedAt: events[0].CreatedAt,
-		UpdatedAt: events[0].UpdatedAt,
-		Job: datastore.ReplicationJob{
-			Change:            datastore.UpdateRepo,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-			RelativePath:      targetRepo.RelativePath,
-			TargetNodeStorage: secondaryNode.Storage,
-			SourceNodeStorage: primaryNode.Storage,
+	for _, tc := range []struct {
+		desc             string
+		repositoryExists bool
+		error            error
+	}{
+		{
+			desc:             "succcessful",
+			repositoryExists: true,
 		},
-		Meta: datastore.Params{metadatahandler.CorrelationIDKey: "my-correlation-id"},
+		{
+			desc:  "repository not found",
+			error: helper.ErrNotFound(fmt.Errorf("mutator call: route repository mutator: %w", fmt.Errorf("get repository id: %w", commonerr.NewRepositoryNotFoundError(targetRepo.StorageName, targetRepo.RelativePath)))),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			tx := db.Begin(t)
+			defer tx.Rollback(t)
+
+			rs := datastore.NewPostgresRepositoryStore(tx, conf.StorageNames())
+
+			if tc.repositoryExists {
+				require.NoError(t, rs.CreateRepository(ctx, 1, targetRepo.StorageName, targetRepo.RelativePath, targetRepo.RelativePath, primaryNode.Storage, []string{secondaryNode.Storage}, nil, true, true))
+			}
+
+			testdb.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{"praefect": conf.StorageNames()})
+			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(db))
+			queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+				assert.True(t, len(queueInterceptor.GetEnqueued()) < 2, "expected only one event to be created")
+				return queue.Enqueue(ctx, event)
+			})
+
+			coordinator := NewCoordinator(
+				queueInterceptor,
+				rs,
+				NewPerRepositoryRouter(
+					nodeSet.Connections(),
+					nodes.NewPerRepositoryElector(tx),
+					StaticHealthChecker(conf.StorageNames()),
+					NewLockedRandom(rand.New(rand.NewSource(0))),
+					rs,
+					datastore.NewAssignmentStore(tx, conf.StorageNames()),
+					rs,
+					nil,
+				),
+				txMgr,
+				conf,
+				protoregistry.GitalyProtoPreregistered,
+			)
+
+			frame, err := proto.Marshal(&gitalypb.CreateObjectPoolRequest{
+				Origin:     &targetRepo,
+				ObjectPool: &gitalypb.ObjectPool{Repository: &targetRepo},
+			})
+			require.NoError(t, err)
+
+			require.NoError(t, err)
+
+			fullMethod := "/gitaly.ObjectPoolService/CreateObjectPool"
+
+			peeker := &mockPeeker{frame}
+			streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
+			if tc.error != nil {
+				require.Equal(t, tc.error, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target())
+
+			mi, err := coordinator.registry.LookupMethod(fullMethod)
+			require.NoError(t, err)
+
+			m, err := mi.UnmarshalRequestProto(streamParams.Primary().Msg)
+			require.NoError(t, err)
+
+			rewrittenTargetRepo, err := mi.TargetRepo(m)
+			require.NoError(t, err)
+			require.Equal(t, "praefect-internal-1", rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
+
+			// this call creates new events in the queue and simulates usual flow of the update operation
+			require.NoError(t, streamParams.RequestFinalizer())
+
+			// wait until event persisted (async operation)
+			require.NoError(t, queueInterceptor.Wait(time.Minute, func(i *datastore.ReplicationEventQueueInterceptor) bool {
+				return len(i.GetEnqueuedResult()) == 1
+			}))
+
+			events, err := queueInterceptor.Dequeue(ctx, "praefect", "praefect-internal-2", 10)
+			require.NoError(t, err)
+			require.Len(t, events, 1)
+
+			expectedEvent := datastore.ReplicationEvent{
+				ID:        1,
+				State:     datastore.JobStateInProgress,
+				Attempt:   2,
+				LockID:    "praefect|praefect-internal-2|/path/to/hashed/storage",
+				CreatedAt: events[0].CreatedAt,
+				UpdatedAt: events[0].UpdatedAt,
+				Job: datastore.ReplicationJob{
+					RepositoryID:      1,
+					Change:            datastore.UpdateRepo,
+					VirtualStorage:    conf.VirtualStorages[0].Name,
+					RelativePath:      targetRepo.RelativePath,
+					TargetNodeStorage: secondaryNode.Storage,
+					SourceNodeStorage: primaryNode.Storage,
+				},
+				Meta: datastore.Params{metadatahandler.CorrelationIDKey: "my-correlation-id"},
+			}
+			require.Equal(t, expectedEvent, events[0], "ensure replication job created by stream director is correct")
+		})
 	}
-	require.Equal(t, expectedEvent, events[0], "ensure replication job created by stream director is correct")
 }
 
 func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
+	t.Parallel()
 	socket := testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, socket)
 
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name: "praefect",
 				Nodes: []*config.Node{
-					&config.Node{Address: "unix://" + socket, Storage: "primary"},
-					&config.Node{Address: "unix://" + socket, Storage: "secondary"},
+					{Address: "unix://" + socket, Storage: "primary"},
+					{Address: "unix://" + socket, Storage: "secondary"},
 				},
 			},
 		},
@@ -256,9 +309,10 @@ func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
 		RelativePath: "/path/to/hashed/storage",
 	}
 
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Hour)
+	defer nodeMgr.Stop()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -273,15 +327,15 @@ func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
 	}
 
 	rs := datastore.MockRepositoryStore{
-		GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error) {
-			return map[string]struct{}{"primary": {}, "secondary": {}}, nil
+		GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, map[string]struct{}, error) {
+			return relativePath, map[string]struct{}{"primary": {}, "secondary": {}}, nil
 		},
 	}
 
 	txMgr := transactions.NewManager(conf)
 
 	coordinator := NewCoordinator(
-		datastore.NewMemoryReplicationEventQueue(conf),
+		datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)),
 		rs,
 		NewNodeManagerRouter(nodeMgr, rs),
 		txMgr,
@@ -347,14 +401,15 @@ func TestStreamDirectorMutator_StopTransaction(t *testing.T) {
 
 type mockRouter struct {
 	Router
-	routeRepositoryAccessorFunc func(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RouterNode, error)
+	routeRepositoryAccessorFunc func(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RepositoryAccessorRoute, error)
 }
 
-func (m mockRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RouterNode, error) {
+func (m mockRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RepositoryAccessorRoute, error) {
 	return m.routeRepositoryAccessorFunc(ctx, virtualStorage, relativePath, forcePrimary)
 }
 
 func TestStreamDirectorAccessor(t *testing.T) {
+	t.Parallel()
 	gitalySocket := testhelper.GetTemporaryGitalySocketFileName(t)
 	testhelper.NewServerWithHealth(t, gitalySocket)
 
@@ -373,7 +428,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -386,9 +441,10 @@ func TestStreamDirectorAccessor(t *testing.T) {
 	entry := testhelper.DiscardTestEntry(t)
 	rs := datastore.MockRepositoryStore{}
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Minute)
+	defer nodeMgr.Stop()
 
 	txMgr := transactions.NewManager(conf)
 
@@ -404,11 +460,11 @@ func TestStreamDirectorAccessor(t *testing.T) {
 		{
 			desc: "repository not found",
 			router: mockRouter{
-				routeRepositoryAccessorFunc: func(_ context.Context, virtualStorage, relativePath string, _ bool) (RouterNode, error) {
-					return RouterNode{}, commonerr.NewRepositoryNotFoundError(virtualStorage, relativePath)
+				routeRepositoryAccessorFunc: func(_ context.Context, virtualStorage, relativePath string, _ bool) (RepositoryAccessorRoute, error) {
+					return RepositoryAccessorRoute{}, commonerr.NewRepositoryNotFoundError(virtualStorage, relativePath)
 				},
 			},
-			error: helper.ErrNotFound(commonerr.NewRepositoryNotFoundError(targetRepo.StorageName, targetRepo.RelativePath)),
+			error: helper.ErrNotFound(fmt.Errorf("accessor call: route repository accessor: %w", commonerr.NewRepositoryNotFoundError(targetRepo.StorageName, targetRepo.RelativePath))),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -452,6 +508,7 @@ func TestStreamDirectorAccessor(t *testing.T) {
 }
 
 func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	primaryHealthSrv := testhelper.NewServerWithHealth(t, gitalySocket0)
 	healthSrv := testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -478,7 +535,7 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 		},
 	}
 
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
@@ -491,14 +548,15 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 	entry := testhelper.DiscardTestEntry(t)
 
 	repoStore := datastore.MockRepositoryStore{
-		GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error) {
-			return map[string]struct{}{primaryNodeConf.Storage: {}, secondaryNodeConf.Storage: {}}, nil
+		GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, map[string]struct{}, error) {
+			return relativePath, map[string]struct{}{primaryNodeConf.Storage: {}, secondaryNodeConf.Storage: {}}, nil
 		},
 	}
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, repoStore, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, repoStore, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Minute)
+	defer nodeMgr.Stop()
 
 	txMgr := transactions.NewManager(conf)
 
@@ -730,7 +788,42 @@ func TestCoordinatorStreamDirector_distributesReads(t *testing.T) {
 	})
 }
 
+func TestRewrittenRepositoryMessage(t *testing.T) {
+	buildRequest := func(storageName, relativePath, additionalRelativePath string) *gitalypb.CreateObjectPoolRequest {
+		return &gitalypb.CreateObjectPoolRequest{
+			ObjectPool: &gitalypb.ObjectPool{
+				Repository: &gitalypb.Repository{
+					StorageName:  storageName,
+					RelativePath: relativePath,
+				},
+			},
+			Origin: &gitalypb.Repository{
+				StorageName:  storageName,
+				RelativePath: additionalRelativePath,
+			},
+		}
+	}
+
+	originalRequest := buildRequest("original-storage", "original-relative-path", "original-additional-relative-path")
+
+	methodInfo, err := protoregistry.GitalyProtoPreregistered.LookupMethod("/gitaly.ObjectPoolService/CreateObjectPool")
+	require.NoError(t, err)
+
+	rewrittenMessageBytes, err := rewrittenRepositoryMessage(methodInfo, originalRequest, "rewritten-storage", "rewritten-relative-path", "rewritten-additional-relative-path")
+	require.NoError(t, err)
+
+	var rewrittenMessage gitalypb.CreateObjectPoolRequest
+	require.NoError(t, proto.Unmarshal(rewrittenMessageBytes, &rewrittenMessage))
+
+	testassert.ProtoEqual(t, buildRequest("original-storage", "original-relative-path", "original-additional-relative-path"), originalRequest)
+	testassert.ProtoEqual(t, buildRequest("rewritten-storage", "rewritten-relative-path", "rewritten-additional-relative-path"), &rewrittenMessage)
+}
+
 func TestStreamDirector_repo_creation(t *testing.T) {
+	t.Parallel()
+
+	db := glsql.NewDB(t)
+
 	for _, tc := range []struct {
 		desc              string
 		electionStrategy  config.ElectionStrategy
@@ -760,26 +853,20 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			db.TruncateAll(t)
 			primaryNode := &config.Node{Storage: "praefect-internal-1"}
 			healthySecondaryNode := &config.Node{Storage: "praefect-internal-2"}
 			unhealthySecondaryNode := &config.Node{Storage: "praefect-internal-3"}
 			conf := config.Config{
 				Failover: config.Failover{ElectionStrategy: tc.electionStrategy},
 				VirtualStorages: []*config.VirtualStorage{
-					&config.VirtualStorage{
+					{
 						Name:                     "praefect",
 						DefaultReplicationFactor: tc.replicationFactor,
 						Nodes:                    []*config.Node{primaryNode, healthySecondaryNode, unhealthySecondaryNode},
 					},
 				},
 			}
-
-			var replEventWait sync.WaitGroup
-			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
-			queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-				defer replEventWait.Done()
-				return queue.Enqueue(ctx, event)
-			})
 
 			rewrittenStorage := primaryNode.Storage
 			targetRepo := gitalypb.Repository{
@@ -789,10 +876,12 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 
 			var createRepositoryCalled int64
 			rs := datastore.MockRepositoryStore{
-				CreateRepositoryFunc: func(ctx context.Context, virtualStorage, relativePath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error {
+				CreateRepositoryFunc: func(ctx context.Context, repoID int64, virtualStorage, relativePath, replicaPath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error {
 					atomic.AddInt64(&createRepositoryCalled, 1)
+					assert.Equal(t, int64(0), repoID)
 					assert.Equal(t, targetRepo.StorageName, virtualStorage)
 					assert.Equal(t, targetRepo.RelativePath, relativePath)
+					assert.Equal(t, targetRepo.RelativePath, replicaPath)
 					assert.Equal(t, rewrittenStorage, primary)
 					assert.Equal(t, []string{healthySecondaryNode.Storage}, updatedSecondaries)
 					assert.Equal(t, []string{unhealthySecondaryNode.Storage}, outdatedSecondaries)
@@ -819,9 +908,10 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 				healthySecondaryNode.Address = "unix://" + gitalySocket1
 				unhealthySecondaryNode.Address = "unix://" + gitalySocket2
 
-				nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+				nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 				require.NoError(t, err)
 				nodeMgr.Start(0, time.Hour)
+				defer nodeMgr.Stop()
 
 				router = NewNodeManagerRouter(nodeMgr, rs)
 				for _, node := range nodeMgr.Nodes()["praefect"] {
@@ -859,6 +949,7 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 					},
 					nil,
 					nil,
+					rs,
 					conf.DefaultReplicationFactors(),
 				)
 			default:
@@ -866,6 +957,7 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 			}
 
 			txMgr := transactions.NewManager(conf)
+			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(db))
 
 			coordinator := NewCoordinator(
 				queueInterceptor,
@@ -907,8 +999,6 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, rewrittenStorage, rewrittenTargetRepo.GetStorageName(), "stream director should have rewritten the storage name")
 
-			replEventWait.Add(1)
-
 			vote := voting.VoteFromData([]byte{})
 			require.NoError(t, txMgr.VoteTransaction(ctx, 1, "praefect-internal-1", vote))
 			require.NoError(t, txMgr.VoteTransaction(ctx, 1, "praefect-internal-2", vote))
@@ -917,7 +1007,10 @@ func TestStreamDirector_repo_creation(t *testing.T) {
 			err = streamParams.RequestFinalizer()
 			require.NoError(t, err)
 
-			replEventWait.Wait() // wait until event persisted (async operation)
+			// wait until event persisted (async operation)
+			require.NoError(t, queueInterceptor.Wait(time.Minute, func(i *datastore.ReplicationEventQueueInterceptor) bool {
+				return len(i.GetEnqueuedResult()) == 1
+			}))
 
 			var expectedEvents, actualEvents []datastore.ReplicationEvent
 			for _, target := range []string{unhealthySecondaryNode.Storage} {
@@ -977,6 +1070,7 @@ func (m *mockPeeker) Modify(payload []byte) error {
 }
 
 func TestAbsentCorrelationID(t *testing.T) {
+	t.Parallel()
 	gitalySocket0, gitalySocket1 := testhelper.GetTemporaryGitalySocketFileName(t), testhelper.GetTemporaryGitalySocketFileName(t)
 	healthSrv0 := testhelper.NewServerWithHealth(t, gitalySocket0)
 	healthSrv1 := testhelper.NewServerWithHealth(t, gitalySocket1)
@@ -986,14 +1080,14 @@ func TestAbsentCorrelationID(t *testing.T) {
 	primaryAddress, secondaryAddress := "unix://"+gitalySocket0, "unix://"+gitalySocket1
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name: "praefect",
 				Nodes: []*config.Node{
-					&config.Node{
+					{
 						Address: primaryAddress,
 						Storage: "praefect-internal-1",
 					},
-					&config.Node{
+					{
 						Address: secondaryAddress,
 						Storage: "praefect-internal-2",
 					},
@@ -1002,14 +1096,11 @@ func TestAbsentCorrelationID(t *testing.T) {
 		},
 	}
 
-	var replEventWait sync.WaitGroup
-
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t)))
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-		defer replEventWait.Done()
+		assert.True(t, len(queueInterceptor.GetEnqueued()) < 2, "expected only one event to be created")
 		return queue.Enqueue(ctx, event)
 	})
-
 	targetRepo := gitalypb.Repository{
 		StorageName:  "praefect",
 		RelativePath: "/path/to/hashed/storage",
@@ -1020,9 +1111,10 @@ func TestAbsentCorrelationID(t *testing.T) {
 
 	entry := testhelper.DiscardTestEntry(t)
 
-	nodeMgr, err := nodes.NewManager(entry, conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(entry, conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Hour)
+	defer nodeMgr.Stop()
 
 	txMgr := transactions.NewManager(conf)
 	rs := datastore.MockRepositoryStore{}
@@ -1048,11 +1140,12 @@ func TestAbsentCorrelationID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target())
 
-	replEventWait.Add(1) // expected only one event to be created
 	// must be run as it adds replication events to the queue
 	require.NoError(t, streamParams.RequestFinalizer())
 
-	replEventWait.Wait() // wait until event persisted (async operation)
+	require.NoError(t, queueInterceptor.Wait(time.Minute, func(i *datastore.ReplicationEventQueueInterceptor) bool {
+		return len(i.GetEnqueuedResult()) == 1
+	}))
 	jobs, err := queueInterceptor.Dequeue(ctx, conf.VirtualStorages[0].Name, conf.VirtualStorages[0].Nodes[1].Storage, 1)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
@@ -1062,39 +1155,50 @@ func TestAbsentCorrelationID(t *testing.T) {
 }
 
 func TestCoordinatorEnqueueFailure(t *testing.T) {
+	t.Parallel()
 	conf := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name: "praefect",
 				Nodes: []*config.Node{
-					&config.Node{
+					{
 						Address: "unix:///woof",
 						Storage: "praefect-internal-1",
 					},
-					&config.Node{
+					{
 						Address: "unix:///meow",
 						Storage: "praefect-internal-2",
-					}},
+					},
+				},
 			},
 		},
 	}
 
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(nil)
 	errQ := make(chan error, 1)
 	queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 		return datastore.ReplicationEvent{}, <-errQ
 	})
+	queueInterceptor.OnDequeue(func(context.Context, string, string, int, datastore.ReplicationEventQueue) ([]datastore.ReplicationEvent, error) {
+		return nil, nil
+	})
+	queueInterceptor.OnAcknowledge(func(context.Context, datastore.JobState, []uint64, datastore.ReplicationEventQueue) ([]uint64, error) {
+		return nil, nil
+	})
 
 	ms := &mockSvc{
-		repoMutatorUnary: func(context.Context, *mock.RepoRequest) (*empty.Empty, error) {
-			return &empty.Empty{}, nil // always succeeds
+		repoMutatorUnary: func(context.Context, *mock.RepoRequest) (*emptypb.Empty, error) {
+			return &emptypb.Empty{}, nil // always succeeds
 		},
 	}
 
 	r, err := protoregistry.NewFromPaths("praefect/mock/mock.proto")
 	require.NoError(t, err)
 
-	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
 		withAnnotations: r,
 		withQueue:       queueInterceptor,
 		withBackends: withMockBackends(t, map[string]mock.SimpleServiceServer{
@@ -1103,9 +1207,6 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 		}),
 	})
 	defer cleanup()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	mcli := mock.NewSimpleServiceClient(cc)
 
@@ -1140,13 +1241,15 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 		VirtualStorages: []*config.VirtualStorage{{
 			Name:  "praefect",
 			Nodes: []*config.Node{primaryGitaly, secondaryGitaly},
-		}}}
+		}},
+	}
 
 	rs := datastore.MockRepositoryStore{}
 
-	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Second)
+	defer nodeMgr.Stop()
 	coordinator := NewCoordinator(
 		nil,
 		rs,
@@ -1389,12 +1492,10 @@ func (c *mockDiskCache) StartLease(*gitalypb.Repository) (cache.LeaseEnder, erro
 // fails. Most importantly, we want to make sure to only ever forward errors from the primary and
 // never from the secondaries.
 func TestCoordinator_grpcErrorHandling(t *testing.T) {
-	ctx, cleanup := testhelper.Context()
-	defer cleanup()
-
+	t.Parallel()
 	praefectConfig := config.Config{
 		VirtualStorages: []*config.VirtualStorage{
-			&config.VirtualStorage{
+			{
 				Name: testhelper.DefaultStorageName,
 			},
 		},
@@ -1439,6 +1540,9 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cleanup := testhelper.Context()
+			defer cleanup()
+
 			var wg sync.WaitGroup
 			gitalies := make(map[string]gitalyNode)
 			for _, gitaly := range []string{"primary", "secondary-1", "secondary-2"} {
@@ -1453,7 +1557,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 
 				addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 					gitalypb.RegisterOperationServiceServer(srv, operationServer)
-				}, testserver.WithDiskCache(&mockDiskCache{}))
+				}, testserver.WithDiskCache(&mockDiskCache{}), testserver.WithDisablePraefect())
 
 				conn, err := client.DialContext(ctx, addr, []grpc.DialOption{
 					grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())),
@@ -1476,7 +1580,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				})
 			}
 
-			praefectConn, _, cleanup := runPraefectServer(t, praefectConfig, buildOptions{
+			praefectConn, _, cleanup := runPraefectServer(t, ctx, praefectConfig, buildOptions{
 				// Set up a mock manager which sets up primary/secondaries and pretends that all nodes are
 				// healthy. We need fixed roles and unhealthy nodes will not take part in transactions.
 				withNodeMgr: &nodes.MockManager{
@@ -1495,8 +1599,11 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				// Set up a mock repsoitory store pretending that all nodes are consistent. Only consistent
 				// nodes will take part in transactions.
 				withRepoStore: datastore.MockRepositoryStore{
-					GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error) {
-						return map[string]struct{}{"primary": {}, "secondary-1": {}, "secondary-2": {}}, nil
+					GetReplicaPathFunc: func(ctx context.Context, repositoryID int64) (string, error) {
+						return repoProto.GetRelativePath(), nil
+					},
+					GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, map[string]struct{}, error) {
+						return relativePath, map[string]struct{}{"primary": {}, "secondary-1": {}, "secondary-2": {}}, nil
 					},
 				},
 			})
@@ -1522,9 +1629,9 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 }
 
 type mockTransaction struct {
-	nodeStates                 map[string]transactions.VoteResult
-	subtransactions            int
-	didCommitAnySubtransaction bool
+	nodeStates      map[string]transactions.VoteResult
+	subtransactions int
+	didVote         map[string]bool
 }
 
 func (t mockTransaction) ID() uint64 {
@@ -1535,8 +1642,8 @@ func (t mockTransaction) CountSubtransactions() int {
 	return t.subtransactions
 }
 
-func (t mockTransaction) DidCommitAnySubtransaction() bool {
-	return t.didCommitAnySubtransaction
+func (t mockTransaction) DidVote(node string) bool {
+	return t.didVote[node]
 }
 
 func (t mockTransaction) State() (map[string]transactions.VoteResult, error) {
@@ -1556,16 +1663,16 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 	anyErr := errors.New("arbitrary error")
 
 	for _, tc := range []struct {
-		desc                       string
-		primary                    node
-		secondaries                []node
-		replicas                   []string
-		subtransactions            int
-		didCommitAnySubtransaction bool
-		expectedPrimaryDirtied     bool
-		expectedOutdated           []string
-		expectedUpdated            []string
-		expectedMetrics            map[string]int
+		desc                   string
+		primary                node
+		secondaries            []node
+		replicas               []string
+		subtransactions        int
+		didVote                map[string]bool
+		expectedPrimaryDirtied bool
+		expectedOutdated       []string
+		expectedUpdated        []string
+		expectedMetrics        map[string]int
 	}{
 		{
 			desc: "single committed node",
@@ -1573,9 +1680,11 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				name:  "primary",
 				state: transactions.VoteCommitted,
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
 		},
 		{
 			desc: "single failed node",
@@ -1606,24 +1715,24 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				name:  "primary",
 				state: transactions.VoteCommitted,
 			},
-			replicas:                   []string{"replica"},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"replica"},
+			replicas: []string{"replica"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"replica"},
 			expectedMetrics: map[string]int{
 				"outdated": 1,
 			},
 		},
 		{
-			desc: "single failing node with replica",
+			desc: "single failing node with replica is not considered modified",
 			primary: node{
 				name:  "primary",
 				state: transactions.VoteFailed,
 			},
-			replicas:         []string{"replica"},
-			subtransactions:  1,
-			expectedOutdated: []string{"replica"},
+			subtransactions: 1,
 		},
 		{
 			desc: "single erred node with replica",
@@ -1632,14 +1741,27 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				state: transactions.VoteCommitted,
 				err:   anyErr,
 			},
-			replicas:                   []string{"replica"},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"replica"},
+			replicas: []string{"replica"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"replica"},
 			expectedMetrics: map[string]int{
 				"outdated": 1,
 			},
+		},
+		{
+			desc: "single erred node without commit with replica",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			replicas:               []string{"replica"},
+			subtransactions:        1,
+			expectedPrimaryDirtied: false,
 		},
 		{
 			desc: "single node without transaction with replica",
@@ -1664,10 +1786,15 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteCommitted},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedUpdated:            []string{"s1", "s2"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s1", "s2"},
+			expectedMetrics: map[string]int{
+				"updated": 2,
+			},
 		},
 		{
 			desc: "multiple committed nodes with primary err",
@@ -1680,12 +1807,58 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteCommitted},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"s1", "s2"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"s1", "s2"},
 			expectedMetrics: map[string]int{
-				"primary-failed": 2,
+				"node-error-status": 2,
+			},
+		},
+		{
+			desc: "multiple committed nodes with same error as primary",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteCommitted, err: anyErr},
+				{name: "s2", state: transactions.VoteCommitted, err: anyErr},
+			},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s1", "s2"},
+			expectedMetrics: map[string]int{
+				"updated": 2,
+			},
+		},
+		{
+			desc: "multiple committed nodes with different error as primary",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteCommitted, err: errors.New("somethingsomething")},
+				{name: "s2", state: transactions.VoteCommitted, err: anyErr},
+			},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s2"},
+			expectedOutdated:       []string{"s1"},
+			expectedMetrics: map[string]int{
+				"node-error-status": 1,
+				"updated":           1,
 			},
 		},
 		{
@@ -1698,13 +1871,39 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteCommitted, err: anyErr},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedUpdated:            []string{"s2"},
-			expectedOutdated:           []string{"s1"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s2"},
+			expectedOutdated:       []string{"s1"},
 			expectedMetrics: map[string]int{
-				"node-failed": 1,
+				"node-error-status": 1,
+				"updated":           1,
+			},
+		},
+		{
+			desc: "multiple committed nodes with primary and missing secondary err",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteCommitted,
+				err:   anyErr,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteCommitted, err: anyErr},
+				{name: "s2", state: transactions.VoteCommitted},
+			},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s1"},
+			expectedOutdated:       []string{"s2"},
+			expectedMetrics: map[string]int{
+				"node-error-status": 1,
+				"updated":           1,
 			},
 		},
 		{
@@ -1717,13 +1916,16 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteFailed},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedUpdated:            []string{"s2"},
-			expectedOutdated:           []string{"s1"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedUpdated:        []string{"s2"},
+			expectedOutdated:       []string{"s1"},
 			expectedMetrics: map[string]int{
 				"node-not-committed": 1,
+				"updated":            1,
 			},
 		},
 		{
@@ -1736,13 +1938,31 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteFailed},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"s1", "s2"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"s1", "s2"},
 			expectedMetrics: map[string]int{
 				"primary-not-committed": 2,
 			},
+		},
+		{
+			desc: "failure with no primary votes",
+			primary: node{
+				name:  "primary",
+				state: transactions.VoteFailed,
+			},
+			secondaries: []node{
+				{name: "s1", state: transactions.VoteFailed},
+				{name: "s2", state: transactions.VoteCommitted},
+			},
+			didVote: map[string]bool{
+				"s1": true,
+				"s2": true,
+			},
+			subtransactions: 1,
 		},
 		{
 			desc: "multiple nodes without subtransactions",
@@ -1771,15 +1991,18 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteFailed},
 				{name: "s2", state: transactions.VoteCommitted},
 			},
-			replicas:                   []string{"r1", "r2"},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"s1", "r1", "r2"},
-			expectedUpdated:            []string{"s2"},
+			replicas: []string{"r1", "r2"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"s1", "r1", "r2"},
+			expectedUpdated:        []string{"s2"},
 			expectedMetrics: map[string]int{
 				"node-not-committed": 1,
 				"outdated":           2,
+				"updated":            1,
 			},
 		},
 		{
@@ -1792,13 +2015,15 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 				{name: "s1", state: transactions.VoteFailed},
 				{name: "s2", state: transactions.VoteCommitted, err: anyErr},
 			},
-			replicas:                   []string{"r1", "r2"},
-			didCommitAnySubtransaction: true,
-			subtransactions:            1,
-			expectedPrimaryDirtied:     true,
-			expectedOutdated:           []string{"s1", "s2", "r1", "r2"},
+			replicas: []string{"r1", "r2"},
+			didVote: map[string]bool{
+				"primary": true,
+			},
+			subtransactions:        1,
+			expectedPrimaryDirtied: true,
+			expectedOutdated:       []string{"s1", "s2", "r1", "r2"},
 			expectedMetrics: map[string]int{
-				"node-failed":        1,
+				"node-error-status":  1,
 				"node-not-committed": 1,
 				"outdated":           2,
 			},
@@ -1823,9 +2048,9 @@ func TestGetUpdatedAndOutdatedSecondaries(t *testing.T) {
 			}
 
 			transaction := mockTransaction{
-				nodeStates:                 states,
-				subtransactions:            tc.subtransactions,
-				didCommitAnySubtransaction: tc.didCommitAnySubtransaction,
+				nodeStates:      states,
+				subtransactions: tc.subtransactions,
+				didVote:         tc.didVote,
 			}
 
 			route := RepositoryMutatorRoute{
@@ -1895,10 +2120,6 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 			errMsg: "rename repository: error",
 		},
 		{
-			change: datastore.DeleteRepo,
-			errMsg: "delete repository: error",
-		},
-		{
 			change: "replication jobs only",
 			errMsg: "enqueue replication event: error",
 		},
@@ -1913,7 +2134,7 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 						},
 					},
 					datastore.MockRepositoryStore{
-						IncrementGenerationFunc: func(ctx context.Context, _, _, _ string, _ []string) error {
+						IncrementGenerationFunc: func(ctx context.Context, _ int64, _ string, _ []string) error {
 							requireSuppressedCancellation(t, ctx)
 							return err
 						},
@@ -1921,11 +2142,7 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 							requireSuppressedCancellation(t, ctx)
 							return err
 						},
-						DeleteRepositoryFunc: func(ctx context.Context, _, _ string, _ []string) error {
-							requireSuppressedCancellation(t, ctx)
-							return err
-						},
-						CreateRepositoryFunc: func(ctx context.Context, _, _, _ string, _, _ []string, _, _ bool) error {
+						CreateRepositoryFunc: func(ctx context.Context, _ int64, _, _, _, _ string, _, _ []string, _, _ bool) error {
 							requireSuppressedCancellation(t, ctx)
 							return err
 						},
@@ -1936,6 +2153,7 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 					nil,
 				).newRequestFinalizer(
 					ctx,
+					0,
 					"virtual storage",
 					&gitalypb.Repository{},
 					"primary",
@@ -1947,6 +2165,208 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 				)(),
 				tc.errMsg,
 			)
+		})
+	}
+}
+
+func TestStreamParametersContext(t *testing.T) {
+	// Because we're using NewFeatureFlag, they'll end up in the All array.
+	enabledFF := featureflag.NewFeatureFlag("default-enabled", true)
+	disabledFF := featureflag.NewFeatureFlag("default-disabled", false)
+
+	type expectedFlag struct {
+		flag    featureflag.FeatureFlag
+		enabled bool
+	}
+
+	expectedFlags := func(overrides ...expectedFlag) []expectedFlag {
+		flagValues := map[featureflag.FeatureFlag]bool{}
+		for _, flag := range featureflag.All {
+			flagValues[flag] = flag.OnByDefault
+		}
+		for _, override := range overrides {
+			flagValues[override.flag] = override.enabled
+		}
+
+		expectedFlags := make([]expectedFlag, 0, len(flagValues))
+		for flag, value := range flagValues {
+			expectedFlags = append(expectedFlags, expectedFlag{
+				flag: flag, enabled: value,
+			})
+		}
+
+		return expectedFlags
+	}
+
+	metadataForFlags := func(flags []expectedFlag) metadata.MD {
+		pairs := []string{}
+		for _, flag := range flags {
+			pairs = append(pairs, flag.flag.MetadataKey(), strconv.FormatBool(flag.enabled))
+		}
+		return metadata.Pairs(pairs...)
+	}
+
+	for _, tc := range []struct {
+		desc               string
+		setupContext       func() context.Context
+		expectedIncomingMD metadata.MD
+		expectedOutgoingMD metadata.MD
+		expectedFlags      []expectedFlag
+	}{
+		{
+			desc: "no metadata",
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			expectedFlags:      expectedFlags(),
+			expectedOutgoingMD: metadataForFlags(expectedFlags()),
+		},
+		{
+			desc: "with incoming metadata",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("key", "value"))
+				return ctx
+			},
+			expectedIncomingMD: metadata.Pairs("key", "value"),
+			expectedOutgoingMD: metadata.Join(
+				metadata.Pairs("key", "value"),
+				metadataForFlags(expectedFlags()),
+			),
+			expectedFlags: expectedFlags(),
+		},
+		{
+			desc: "with outgoing metadata",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("key", "value"))
+				return ctx
+			},
+			expectedOutgoingMD: metadata.Join(
+				metadata.Pairs("key", "value"),
+				metadataForFlags(expectedFlags()),
+			),
+			expectedFlags: expectedFlags(),
+		},
+		{
+			desc: "with incoming and outgoing metadata",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("incoming", "value"))
+				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("outgoing", "value"))
+				return ctx
+			},
+			// This behaviour is quite subtle: in the previous test case where we only
+			// have outgoing metadata, we retain it. But in case we have both incoming
+			// and outgoing we'd discard the outgoing metadata altogether. It is
+			// debatable whether this is a bug or feature, so I'll just document this
+			// weird edge case here for now.
+			expectedIncomingMD: metadata.Pairs("incoming", "value"),
+			expectedOutgoingMD: metadata.Join(
+				metadata.Pairs("incoming", "value"),
+				metadataForFlags(expectedFlags()),
+			),
+			expectedFlags: expectedFlags(),
+		},
+		{
+			desc: "with flags set to their default values",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, enabledFF)
+				ctx = featureflag.IncomingCtxWithDisabledFeatureFlag(ctx, disabledFF)
+				return ctx
+			},
+			expectedIncomingMD: metadata.Pairs(
+				enabledFF.MetadataKey(), "true",
+				disabledFF.MetadataKey(), "false",
+			),
+			expectedOutgoingMD: metadata.Join(
+				metadataForFlags(expectedFlags()),
+				metadata.Pairs(
+					enabledFF.MetadataKey(), "true",
+					disabledFF.MetadataKey(), "false",
+				),
+			),
+			expectedFlags: expectedFlags(),
+		},
+		{
+			desc: "with flags set to their reverse default values",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = featureflag.IncomingCtxWithDisabledFeatureFlag(ctx, enabledFF)
+				ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, disabledFF)
+				return ctx
+			},
+			expectedIncomingMD: metadata.Pairs(
+				enabledFF.MetadataKey(), "false",
+				disabledFF.MetadataKey(), "true",
+			),
+			expectedOutgoingMD: metadata.Join(
+				metadataForFlags(expectedFlags(
+					expectedFlag{flag: enabledFF, enabled: false},
+					expectedFlag{flag: disabledFF, enabled: true},
+				)),
+				metadata.Pairs(
+					enabledFF.MetadataKey(), "false",
+					disabledFF.MetadataKey(), "true",
+				),
+			),
+			expectedFlags: expectedFlags(
+				expectedFlag{flag: enabledFF, enabled: false},
+				expectedFlag{flag: disabledFF, enabled: true},
+			),
+		},
+		{
+			desc: "mixed flags and metadata",
+			setupContext: func() context.Context {
+				ctx := context.Background()
+				ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(
+					disabledFF.MetadataKey(), "true",
+					"incoming", "value"),
+				)
+				return ctx
+			},
+			expectedIncomingMD: metadata.Pairs(
+				disabledFF.MetadataKey(), "true",
+				"incoming", "value",
+			),
+			expectedOutgoingMD: metadata.Join(
+				metadataForFlags(expectedFlags(
+					expectedFlag{flag: disabledFF, enabled: true},
+				)),
+				metadata.Pairs(
+					disabledFF.MetadataKey(), "true",
+					"incoming", "value",
+				),
+			),
+			expectedFlags: expectedFlags(
+				expectedFlag{flag: disabledFF, enabled: true},
+			),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := streamParametersContext(tc.setupContext())
+
+			incomingMD, ok := metadata.FromIncomingContext(ctx)
+			if tc.expectedIncomingMD == nil {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+			}
+			require.Equal(t, tc.expectedIncomingMD, incomingMD)
+
+			outgoingMD, ok := metadata.FromOutgoingContext(ctx)
+			if tc.expectedOutgoingMD == nil {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+			}
+			require.Equal(t, tc.expectedOutgoingMD, outgoingMD)
+
+			incomingCtx := gitaly_metadata.OutgoingToIncoming(ctx)
+			for _, expectedFlag := range tc.expectedFlags {
+				require.Equal(t, expectedFlag.enabled, expectedFlag.flag.IsEnabled(incomingCtx))
+			}
 		})
 	}
 }

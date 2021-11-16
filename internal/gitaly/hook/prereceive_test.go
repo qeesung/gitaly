@@ -12,6 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
@@ -20,12 +22,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func TestPrereceive_customHooks(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	hookManager := NewManager(config.NewLocator(cfg), transaction.NewManager(cfg, backchannel.NewRegistry()), gitlab.NewMockClient(), cfg)
+	hookManager := NewManager(config.NewLocator(cfg), transaction.NewManager(cfg, backchannel.NewRegistry()), gitlab.NewMockClient(
+		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
+	), cfg)
 
 	receiveHooksPayload := &git.ReceiveHooksPayload{
 		UserID:   "1234",
@@ -178,6 +183,61 @@ func TestPrereceive_customHooks(t *testing.T) {
 	}
 }
 
+func TestPrereceive_quarantine(t *testing.T) {
+	ctx, cleanup := testhelper.Context()
+	defer cleanup()
+
+	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+
+	quarantine, err := quarantine.New(ctx, repoProto, config.NewLocator(cfg))
+	require.NoError(t, err)
+
+	quarantinedRepo := localrepo.NewTestRepo(t, cfg, quarantine.QuarantinedRepo())
+	blobID, err := quarantinedRepo.WriteBlob(ctx, "", strings.NewReader("allyourbasearebelongtous"))
+	require.NoError(t, err)
+
+	hookManager := NewManager(config.NewLocator(cfg), nil, gitlab.NewMockClient(
+		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
+	), cfg)
+
+	script := fmt.Sprintf("#!/bin/sh\n%s cat-file -p '%s' || true\n",
+		cfg.Git.BinPath, blobID.String())
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(script))
+
+	for repo, isQuarantined := range map[*gitalypb.Repository]bool{
+		quarantine.QuarantinedRepo(): true,
+		repoProto:                    false,
+	} {
+		t.Run(fmt.Sprintf("quarantined: %v", isQuarantined), func(t *testing.T) {
+			env, err := git.NewHooksPayload(cfg, repo, nil,
+				&git.ReceiveHooksPayload{
+					UserID:   "1234",
+					Username: "user",
+					Protocol: "web",
+				},
+				git.PreReceiveHook,
+				featureflag.RawFromContext(ctx),
+			).Env()
+			require.NoError(t, err)
+
+			stdin := strings.NewReader(fmt.Sprintf("%s %s refs/heads/master",
+				git.ZeroOID, git.ZeroOID))
+
+			var stdout, stderr bytes.Buffer
+			require.NoError(t, hookManager.PreReceiveHook(ctx, repo, nil,
+				[]string{env}, stdin, &stdout, &stderr))
+
+			if isQuarantined {
+				require.Equal(t, "allyourbasearebelongtous", stdout.String())
+				require.Empty(t, stderr.String())
+			} else {
+				require.Empty(t, stdout.String())
+				require.Contains(t, stderr.String(), "Not a valid object name")
+			}
+		})
+	}
+}
+
 type prereceiveAPIMock struct {
 	allowed    func(context.Context, gitlab.AllowedParams) (bool, string, error)
 	prereceive func(context.Context, string) (bool, error)
@@ -246,7 +306,12 @@ func TestPrereceive_gitlab(t *testing.T) {
 				return false, "you shall not pass", nil
 			},
 			expectHookCall: false,
-			expectedErr:    NotAllowedError{Message: "you shall not pass"},
+			expectedErr: NotAllowedError{
+				Message:  "you shall not pass",
+				Protocol: "web",
+				UserID:   "1234",
+				Changes:  []byte("changes\n"),
+			},
 		},
 		{
 			desc:    "allowed returns error",
@@ -256,7 +321,14 @@ func TestPrereceive_gitlab(t *testing.T) {
 				return false, "", errors.New("oops")
 			},
 			expectHookCall: false,
-			expectedErr:    NotAllowedError{Message: "GitLab: oops"},
+			// This really is wrong, but we cannot fix it without adapting gitlab-shell
+			// to return proper errors from its GitlabNetClient.
+			expectedErr: NotAllowedError{
+				Message:  "oops",
+				Protocol: "web",
+				UserID:   "1234",
+				Changes:  []byte("changes\n"),
+			},
 		},
 		{
 			desc:    "prereceive rejects",

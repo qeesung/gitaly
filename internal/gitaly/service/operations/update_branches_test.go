@@ -23,6 +23,8 @@ var (
 )
 
 func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -98,6 +100,8 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 }
 
 func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -167,6 +171,8 @@ func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
 }
 
 func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -174,8 +180,7 @@ func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
 
 	for _, hookName := range GitlabHooks {
 		t.Run(hookName, func(t *testing.T) {
-			testRepo, testRepoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "repo")
-			defer cleanupFn()
+			testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			hookOutputTempPath := gittest.WriteEnvToCustomHook(t, testRepoPath, hookName)
 
@@ -200,6 +205,8 @@ func TestSuccessfulGitHooksForUserUpdateBranchRequest(t *testing.T) {
 }
 
 func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -232,6 +239,8 @@ func TestFailedUserUpdateBranchDueToHooks(t *testing.T) {
 }
 
 func TestFailedUserUpdateBranchRequest(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 

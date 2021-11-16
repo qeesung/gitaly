@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -117,6 +117,10 @@ func TestSuccessfulCreateBranchRequest(t *testing.T) {
 
 func TestUserCreateBranchWithTransaction(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	transactionServer := &testTransactionServer{}
@@ -125,14 +129,14 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterOperationServiceServer(srv, NewServer(
 			deps.GetCfg(),
-			nil,
 			deps.GetHookManager(),
+			deps.GetTxManager(),
 			deps.GetLocator(),
 			deps.GetConnsPool(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		// Praefect proxy execution disabled as praefect runs only on the UNIX socket, but
 		// the test requires a TCP listening address.
 	}, testserver.WithDisablePraefect())
@@ -155,11 +159,9 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			defer gittest.Exec(t, cfg, "-C", repoPath, "branch", "-D", "new-branch")
 
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 			ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 			require.NoError(t, err)
-			ctx = helper.IncomingToOutgoing(ctx)
+			ctx = metadata.IncomingToOutgoing(ctx)
 
 			client := newMuxedOperationClient(t, ctx, tc.address, cfg.Auth.Token,
 				backchannel.NewClientHandshaker(
@@ -222,6 +224,7 @@ func TestSuccessfulGitHooksForUserCreateBranchRequest(t *testing.T) {
 
 func TestSuccessfulCreateBranchRequestWithStartPointRefPrefix(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -296,6 +299,7 @@ func TestSuccessfulCreateBranchRequestWithStartPointRefPrefix(t *testing.T) {
 
 func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -322,6 +326,7 @@ func TestFailedUserCreateBranchDueToHooks(t *testing.T) {
 
 func TestFailedUserCreateBranchRequest(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -486,8 +491,8 @@ func TestUserDeleteBranch_transaction(t *testing.T) {
 	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterOperationServiceServer(srv, NewServer(
 			deps.GetCfg(),
-			nil,
 			deps.GetHookManager(),
+			deps.GetTxManager(),
 			deps.GetLocator(),
 			deps.GetConnsPool(),
 			deps.GetGitCmdFactory(),
@@ -499,7 +504,7 @@ func TestUserDeleteBranch_transaction(t *testing.T) {
 	defer cancel()
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
 	client := newMuxedOperationClient(t, ctx, fmt.Sprintf("unix://"+cfg.GitalyInternalSocketPath()), cfg.Auth.Token,
 		backchannel.NewClientHandshaker(
@@ -620,32 +625,32 @@ func TestBranchHookOutput(t *testing.T) {
 		{
 			desc:        "empty stdout and empty stderr",
 			hookContent: "#!/bin/sh\nexit 1",
-			output:      "",
+			output:      "executing custom hooks: exit status 1",
 		},
 		{
 			desc:        "empty stdout and some stderr",
 			hookContent: "#!/bin/sh\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "some stdout and empty stderr",
 			hookContent: "#!/bin/sh\necho stdout\nexit 1",
-			output:      "stdout\n",
+			output:      "executing custom hooks: exit status 1, stdout: \"stdout\\n\"",
 		},
 		{
 			desc:        "some stdout and some stderr",
 			hookContent: "#!/bin/sh\necho stdout\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "whitespace stdout and some stderr",
 			hookContent: "#!/bin/sh\necho '   '\necho stderr >&2\nexit 1",
-			output:      "stderr\n",
+			output:      "executing custom hooks: exit status 1, stderr: \"stderr\\n\"",
 		},
 		{
 			desc:        "some stdout and whitespace stderr",
 			hookContent: "#!/bin/sh\necho stdout\necho '   ' >&2\nexit 1",
-			output:      "stdout\n",
+			output:      "executing custom hooks: exit status 1, stdout: \"stdout\\n\"",
 		},
 	}
 

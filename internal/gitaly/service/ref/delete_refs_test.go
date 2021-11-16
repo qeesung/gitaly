@@ -11,7 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -45,8 +45,7 @@ func TestSuccessfulDeleteRefs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			repo, repoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], testCase.desc)
-			defer cleanupFn()
+			repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/delete/a", "b83d6e391c22777fca1ed3012fce84f633d7fed0")
 			gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/also-delete/b", "1b12f15a11fc6e62177bef08f47bc7b5ce50b141")
@@ -81,7 +80,7 @@ func TestSuccessfulDeleteRefs(t *testing.T) {
 func TestDeleteRefs_transaction(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	var votes int
 	txManager := &transaction.MockManager{
@@ -99,7 +98,7 @@ func TestDeleteRefs_transaction(t *testing.T) {
 			deps.GetTxManager(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	}, testserver.WithTransactionManager(txManager))
 
 	client, conn := newRefServiceClient(t, addr)
@@ -110,7 +109,7 @@ func TestDeleteRefs_transaction(t *testing.T) {
 
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
 	for _, tc := range []struct {
 		desc          string
@@ -135,8 +134,7 @@ func TestDeleteRefs_transaction(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			votes = 0
 
-			repo, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], tc.desc)
-			t.Cleanup(cleanup)
+			repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 			tc.request.Repository = repo
 
 			response, err := client.DeleteRefs(ctx, tc.request)
@@ -211,7 +209,7 @@ func TestFailedDeleteRefsDueToValidation(t *testing.T) {
 			desc: "Empty prefix",
 			request: &gitalypb.DeleteRefsRequest{
 				Repository:       repo,
-				ExceptWithPrefix: [][]byte{[]byte("exclude-this"), []byte{}},
+				ExceptWithPrefix: [][]byte{[]byte("exclude-this"), {}},
 			},
 			code: codes.InvalidArgument,
 		},
@@ -219,7 +217,7 @@ func TestFailedDeleteRefsDueToValidation(t *testing.T) {
 			desc: "Empty ref",
 			request: &gitalypb.DeleteRefsRequest{
 				Repository: repo,
-				Refs:       [][]byte{[]byte("delete-this"), []byte{}},
+				Refs:       [][]byte{[]byte("delete-this"), {}},
 			},
 			code: codes.InvalidArgument,
 		},

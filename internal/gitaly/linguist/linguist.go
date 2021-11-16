@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,9 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
-var (
-	exportedEnvVars = []string{"HOME", "PATH", "GEM_HOME", "BUNDLE_PATH", "BUNDLE_APP_CONFIG"}
-)
+var exportedEnvVars = []string{"HOME", "PATH", "GEM_HOME", "BUNDLE_PATH", "BUNDLE_APP_CONFIG"}
 
 // Language is used to parse Linguist's language.json file.
 type Language struct {
@@ -54,20 +51,24 @@ func New(cfg config.Cfg) (*Instance, error) {
 func (inst *Instance) Stats(ctx context.Context, cfg config.Cfg, repoPath string, commitID string) (ByteCountPerLanguage, error) {
 	cmd, err := startGitLinguist(ctx, cfg, repoPath, commitID, "stats")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("starting linguist: %w", err)
 	}
 
-	data, err := ioutil.ReadAll(cmd)
+	data, err := io.ReadAll(cmd)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading linguist output: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("waiting for linguist: %w", err)
 	}
 
 	stats := make(ByteCountPerLanguage)
-	return stats, json.Unmarshal(data, &stats)
+	if err := json.Unmarshal(data, &stats); err != nil {
+		return nil, fmt.Errorf("unmarshaling stats: %w", err)
+	}
+
+	return stats, nil
 }
 
 // Color returns the color Linguist has assigned to language.
@@ -83,7 +84,7 @@ func (inst *Instance) Color(language string) string {
 func startGitLinguist(ctx context.Context, cfg config.Cfg, repoPath string, commitID string, linguistCommand string) (*command.Command, error) {
 	bundle, err := exec.LookPath("bundle")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("finding bundle executable: %w", err)
 	}
 
 	args := []string{
@@ -116,7 +117,7 @@ func startGitLinguist(ctx context.Context, cfg config.Cfg, repoPath string, comm
 
 	internalCmd, err := command.New(ctx, cmd, nil, nil, nil, exportEnvironment()...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating command: %w", err)
 	}
 
 	return internalCmd, nil
@@ -130,11 +131,11 @@ func openLanguagesJSON(cfg config.Cfg) (io.ReadCloser, error) {
 		return os.Open(jsonPath)
 	}
 
-	linguistPathSymlink, err := ioutil.TempFile("", "gitaly-linguist-path")
+	linguistPathSymlink, err := os.CreateTemp("", "gitaly-linguist-path")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(linguistPathSymlink.Name())
+	defer func() { _ = os.Remove(linguistPathSymlink.Name()) }()
 
 	if err := linguistPathSymlink.Close(); err != nil {
 		return nil, err

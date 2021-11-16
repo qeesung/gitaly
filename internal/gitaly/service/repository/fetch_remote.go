@@ -5,10 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/errors"
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
@@ -27,11 +26,12 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 
 	var stderr bytes.Buffer
 	opts := localrepo.FetchOpts{
-		Stderr:  &stderr,
-		Force:   req.Force,
-		Prune:   !req.NoPrune,
-		Tags:    localrepo.FetchOptsTagsAll,
-		Verbose: req.GetCheckTagsChanged(),
+		Stderr:              &stderr,
+		Force:               req.Force,
+		Prune:               !req.NoPrune,
+		Tags:                localrepo.FetchOptsTagsAll,
+		Verbose:             req.GetCheckTagsChanged(),
+		DisableTransactions: true,
 	}
 
 	if req.GetNoTags() {
@@ -39,33 +39,27 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 	}
 
 	repo := s.localrepo(req.GetRepository())
-	remoteName := req.GetRemote()
+	remoteName := "inmemory"
+	remoteURL := req.GetRemoteParams().GetUrl()
 
-	if params := req.GetRemoteParams(); params != nil {
-		remoteName = "inmemory"
-
-		remoteURL := params.GetUrl()
-		refspecs := s.getRefspecs(params.GetMirrorRefmaps())
-
-		config := []git.ConfigPair{
-			{Key: "remote.inmemory.url", Value: remoteURL},
-		}
-
-		for _, refspec := range refspecs {
-			config = append(config, git.ConfigPair{
-				Key: "remote.inmemory.fetch", Value: refspec,
-			})
-		}
-
-		if authHeader := params.GetHttpAuthorizationHeader(); authHeader != "" {
-			config = append(config, git.ConfigPair{
-				Key:   fmt.Sprintf("http.%s.extraHeader", remoteURL),
-				Value: "Authorization: " + authHeader,
-			})
-		}
-
-		opts.CommandOptions = append(opts.CommandOptions, git.WithConfigEnv(config...))
+	config := []git.ConfigPair{
+		{Key: "remote.inmemory.url", Value: remoteURL},
 	}
+
+	for _, refspec := range s.getRefspecs(req.GetRemoteParams().GetMirrorRefmaps()) {
+		config = append(config, git.ConfigPair{
+			Key: "remote.inmemory.fetch", Value: refspec,
+		})
+	}
+
+	if authHeader := req.GetRemoteParams().GetHttpAuthorizationHeader(); authHeader != "" {
+		config = append(config, git.ConfigPair{
+			Key:   fmt.Sprintf("http.%s.extraHeader", remoteURL),
+			Value: "Authorization: " + authHeader,
+		})
+	}
+
+	opts.CommandOptions = append(opts.CommandOptions, git.WithConfigEnv(config...))
 
 	sshCommand, cleanup, err := git.BuildSSHInvocation(ctx, req.GetSshKey(), req.GetKnownHosts())
 	if err != nil {
@@ -156,21 +150,15 @@ func didTagsChange(r io.Reader) bool {
 
 func (s *server) validateFetchRemoteRequest(req *gitalypb.FetchRemoteRequest) error {
 	if req.GetRepository() == nil {
-		return helper.ErrInvalidArgument(errors.ErrEmptyRepository)
+		return helper.ErrInvalidArgument(gitalyerrors.ErrEmptyRepository)
 	}
 
-	params := req.GetRemoteParams()
-	if params == nil {
-		remote := req.GetRemote()
-		if strings.TrimSpace(remote) == "" {
-			return helper.ErrInvalidArgument(fmt.Errorf(`blank or empty "remote": %q`, remote))
-		}
-		return nil
+	if req.GetRemoteParams() == nil {
+		return helper.ErrInvalidArgumentf("missing remote params")
 	}
 
-	remoteURL := params.GetUrl()
-	if strings.TrimSpace(remoteURL) == "" {
-		return helper.ErrInvalidArgumentf("blank or empty remote URL: %q", remoteURL)
+	if req.GetRemoteParams().GetUrl() == "" {
+		return helper.ErrInvalidArgumentf("blank or empty remote URL")
 	}
 
 	return nil

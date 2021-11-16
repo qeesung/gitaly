@@ -1,7 +1,5 @@
 package operations
 
-//lint:file-ignore SA1019 due to planned removal in issue https://gitlab.com/gitlab-org/gitaly/issues/1628
-
 import (
 	"context"
 	"fmt"
@@ -10,30 +8,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	rebaseBranchName = "many_files"
-)
+var rebaseBranchName = "many_files"
 
 func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -44,8 +41,7 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	repoCopyProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	repoCopyProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	branchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 
@@ -63,7 +59,7 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 	require.NoError(t, err, "receive first response")
 
 	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
-	require.NoError(t, err, "look up git commit before rebase is applied")
+	require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should not exist in the normal repo given that it is quarantined")
 
 	applyRequest := buildApplyRequest(true)
 	require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
@@ -73,6 +69,9 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 
 	_, err = rebaseStream.Recv()
 	require.Equal(t, io.EOF, err)
+
+	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
+	require.NoError(t, err)
 
 	newBranchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 
@@ -90,6 +89,8 @@ func TestSuccessfulUserRebaseConfirmableRequest(t *testing.T) {
 }
 
 func TestUserRebaseConfirmableTransaction(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -101,8 +102,8 @@ func TestUserRebaseConfirmableTransaction(t *testing.T) {
 		},
 	}
 
-	ctx, cfg, repoProto, repoPath, client := setupOperationsServiceWithRuby(
-		t, ctx, testcfg.Build(t), nil,
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(
+		t, ctx,
 		// Praefect would intercept our call and inject its own transaction.
 		testserver.WithDisablePraefect(),
 		testserver.WithTransactionManager(txManager),
@@ -145,12 +146,12 @@ func TestUserRebaseConfirmableTransaction(t *testing.T) {
 
 			ctx := ctx
 			if tc.withTransaction {
-				ctx = helper.OutgoingToIncoming(ctx)
+				ctx = metadata.OutgoingToIncoming(ctx)
 
 				var err error
 				ctx, err = txinfo.InjectTransaction(ctx, 1, "node", tc.primary)
 				require.NoError(t, err)
-				ctx = helper.IncomingToOutgoing(ctx)
+				ctx = metadata.IncomingToOutgoing(ctx)
 			}
 
 			branchSha, err := repo.ResolveRevision(ctx, git.Revision(rebaseBranchName))
@@ -184,6 +185,8 @@ func TestUserRebaseConfirmableTransaction(t *testing.T) {
 }
 
 func TestUserRebaseConfirmableStableCommitIDs(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -195,7 +198,7 @@ func TestUserRebaseConfirmableStableCommitIDs(t *testing.T) {
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	committerDate := &timestamp.Timestamp{Seconds: 100000000}
+	committerDate := &timestamppb.Timestamp{Seconds: 100000000}
 	parentSha := getBranchSha(t, cfg, repoPath, "master")
 
 	require.NoError(t, rebaseStream.Send(&gitalypb.UserRebaseConfirmableRequest{
@@ -240,7 +243,7 @@ func TestUserRebaseConfirmableStableCommitIDs(t *testing.T) {
 			Name:  []byte("Drew Blessing"),
 			Email: []byte("drew@gitlab.com"),
 			// Nanoseconds get ignored because commit timestamps aren't that granular.
-			Date:     &timestamp.Timestamp{Seconds: 1510610637},
+			Date:     &timestamppb.Timestamp{Seconds: 1510610637},
 			Timezone: []byte("-0600"),
 		},
 		Committer: &gitalypb.CommitAuthor{
@@ -254,13 +257,14 @@ func TestUserRebaseConfirmableStableCommitIDs(t *testing.T) {
 }
 
 func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
-	repoCopy, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	repoCopy, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	branchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 
@@ -314,6 +318,8 @@ func TestFailedRebaseUserRebaseConfirmableRequestDueToInvalidHeader(t *testing.T
 }
 
 func TestAbortedUserRebaseConfirmable(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -332,11 +338,8 @@ func TestAbortedUserRebaseConfirmable(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			testRepo, testRepoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "repo")
-			defer cleanup()
-
-			testRepoCopy, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-			defer cleanup()
+			testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			testRepoCopy, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			branchSha := getBranchSha(t, cfg, testRepoPath, rebaseBranchName)
 
@@ -375,6 +378,8 @@ func TestAbortedUserRebaseConfirmable(t *testing.T) {
 }
 
 func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -382,8 +387,7 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	testRepoCopy, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	testRepoCopy, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	branchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 
@@ -397,7 +401,7 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 	require.NoError(t, err, "receive first response")
 
 	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
-	require.NoError(t, err, "look up git commit before rebase is applied")
+	require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should not exist in the normal repo given that it is quarantined")
 
 	applyRequest := buildApplyRequest(false)
 	require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
@@ -407,20 +411,24 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 	testhelper.RequireGrpcError(t, err, codes.FailedPrecondition)
 	require.False(t, secondResponse.GetRebaseApplied(), "the second rebase is not applied")
 
+	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
+	require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should have been discarded")
+
 	newBranchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 	require.Equal(t, branchSha, newBranchSha, "branch should not change when the rebase is not applied")
 	require.NotEqual(t, newBranchSha, firstResponse.GetRebaseSha(), "branch should not be the sha returned when the rebase is not applied")
 }
 
 func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	repoCopyProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	repoCopyProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	branchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 
@@ -440,7 +448,7 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 			require.NoError(t, err, "receive first response")
 
 			_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
-			require.NoError(t, err, "look up git commit before rebase is applied")
+			require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should not exist in the normal repo given that it is quarantined")
 
 			applyRequest := buildApplyRequest(true)
 			require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
@@ -453,6 +461,13 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 			_, err = rebaseStream.Recv()
 			require.Equal(t, io.EOF, err)
 
+			_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
+			if hookName == "pre-receive" {
+				require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should have been discarded")
+			} else {
+				require.NoError(t, err)
+			}
+
 			newBranchSha := getBranchSha(t, cfg, repoPath, rebaseBranchName)
 			require.Equal(t, branchSha, newBranchSha, "branch should not change when the rebase fails due to PreReceiveError")
 			require.NotEqual(t, newBranchSha, firstResponse.GetRebaseSha(), "branch should not be the sha returned when the rebase fails due to PreReceiveError")
@@ -461,13 +476,14 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 }
 
 func TestFailedUserRebaseConfirmableDueToGitError(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
-	repoCopyProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	repoCopyProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	failedBranchName := "rebase-encoding-failure-trigger"
 	branchSha := getBranchSha(t, cfg, repoPath, failedBranchName)
@@ -495,17 +511,19 @@ func getBranchSha(t *testing.T, cfg config.Cfg, repoPath string, branchName stri
 }
 
 func TestRebaseRequestWithDeletedFile(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
-	repoProto, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	repoCopyProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "copy")
-	defer cleanup()
+	repoCopyProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	branch := "rebase-delete-test"
 
@@ -527,7 +545,7 @@ func TestRebaseRequestWithDeletedFile(t *testing.T) {
 	require.NoError(t, err, "receive first response")
 
 	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
-	require.NoError(t, err, "look up git commit before rebase is applied")
+	require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should not exist in the normal repo given that it is quarantined")
 
 	applyRequest := buildApplyRequest(true)
 	require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
@@ -540,6 +558,9 @@ func TestRebaseRequestWithDeletedFile(t *testing.T) {
 
 	newBranchSha := getBranchSha(t, cfg, repoPath, branch)
 
+	_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
+	require.NoError(t, err, "look up git commit after rebase is applied")
+
 	require.NotEqual(t, newBranchSha, branchSha)
 	require.Equal(t, newBranchSha, firstResponse.GetRebaseSha())
 
@@ -547,6 +568,8 @@ func TestRebaseRequestWithDeletedFile(t *testing.T) {
 }
 
 func TestRebaseOntoRemoteBranch(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -554,8 +577,9 @@ func TestRebaseOntoRemoteBranch(t *testing.T) {
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	remoteRepo, remoteRepoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer cleanup()
+	remoteRepo, remoteRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	localBranch := "master"
 	localBranchHash := getBranchSha(t, cfg, repoPath, localBranch)
@@ -581,7 +605,7 @@ func TestRebaseOntoRemoteBranch(t *testing.T) {
 	require.NoError(t, err, "receive first response")
 
 	_, err = repo.ReadCommit(ctx, git.Revision(remoteBranchHash))
-	require.NoError(t, err, "remote commit does now exist in local repository")
+	require.Equal(t, localrepo.ErrObjectNotFound, err, "commit should not exist in the normal repo given that it is quarantined")
 
 	applyRequest := buildApplyRequest(true)
 	require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
@@ -592,6 +616,9 @@ func TestRebaseOntoRemoteBranch(t *testing.T) {
 	_, err = rebaseStream.Recv()
 	require.Equal(t, io.EOF, err)
 
+	_, err = repo.ReadCommit(ctx, git.Revision(remoteBranchHash))
+	require.NoError(t, err)
+
 	rebasedBranchHash := getBranchSha(t, cfg, repoPath, localBranch)
 
 	require.NotEqual(t, rebasedBranchHash, localBranchHash)
@@ -601,6 +628,8 @@ func TestRebaseOntoRemoteBranch(t *testing.T) {
 }
 
 func TestRebaseFailedWithCode(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 

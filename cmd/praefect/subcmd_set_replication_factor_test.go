@@ -1,5 +1,3 @@
-// +build postgres
-
 package main
 
 import (
@@ -10,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/info"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
@@ -18,6 +17,9 @@ import (
 )
 
 func TestSetReplicationFactorSubcommand(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
+
 	for _, tc := range []struct {
 		desc   string
 		args   []string
@@ -81,7 +83,7 @@ func TestSetReplicationFactorSubcommand(t *testing.T) {
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			db := getDB(t)
+			db.TruncateAll(t)
 
 			store := tc.store
 			if tc.store == nil {
@@ -90,11 +92,11 @@ func TestSetReplicationFactorSubcommand(t *testing.T) {
 
 			// create a repository record
 			require.NoError(t,
-				datastore.NewPostgresRepositoryStore(db, nil).SetGeneration(ctx, "virtual-storage", "relative-path", "primary", 0),
+				datastore.NewPostgresRepositoryStore(db, nil).CreateRepository(ctx, 1, "virtual-storage", "relative-path", "relative-path", "primary", nil, nil, false, false),
 			)
 
 			ln, clean := listenAndServe(t, []svcRegistrar{registerPraefectInfoServer(
-				info.NewServer(nil, config.Config{}, nil, nil, store, nil, nil),
+				info.NewServer(config.Config{}, nil, store, nil, nil),
 			)})
 			defer clean()
 

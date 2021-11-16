@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 )
 
 // Repo represents a local Git repository.
@@ -37,7 +37,9 @@ func New(gitCmdFactory git.CommandFactory, catfileCache catfile.Cache, repo repo
 // dependencies ad-hoc from the given config.
 func NewTestRepo(t testing.TB, cfg config.Cfg, repo repository.GitRepo) *Repo {
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
-	return New(gitCmdFactory, catfile.NewCache(cfg), repo, cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+	return New(gitCmdFactory, catfileCache, repo, cfg)
 }
 
 // Path returns the on-disk path of the repository.
@@ -62,16 +64,9 @@ func (repo *Repo) ExecAndWait(ctx context.Context, cmd git.Cmd, opts ...git.CmdO
 	return command.Wait()
 }
 
-// Config returns executor of the 'config' sub-command.
-func (repo *Repo) Config() Config {
-	return Config{repo: repo}
-}
-
-// Remote returns executor of the 'remote' sub-command.
-func (repo *Repo) Remote() Remote {
-	return Remote{repo: repo}
-}
-
 func errorWithStderr(err error, stderr []byte) error {
+	if len(stderr) == 0 {
+		return err
+	}
 	return fmt.Errorf("%w, stderr: %q", err, stderr)
 }

@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	diskcache "gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server/auth"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/grpcstats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/fieldextractors"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
@@ -37,7 +38,7 @@ import (
 )
 
 func concurrencyKeyFn(ctx context.Context) string {
-	tags := grpc_ctxtags.Extract(ctx)
+	tags := grpcmwtags.Extract(ctx)
 	ctxValue := tags.Values()["grpc.request.repoPath"]
 	if ctxValue == nil {
 		return ""
@@ -63,7 +64,7 @@ func init() {
 	}
 
 	// grpc-go gets a custom logger; it is too chatty
-	grpc_logrus.ReplaceGrpcLogger(gitalylog.GrpcGo())
+	grpcmwlogrus.ReplaceGrpcLogger(gitalylog.GrpcGo())
 }
 
 // New returns a GRPC server instance with a set of interceptors configured.
@@ -75,8 +76,8 @@ func New(
 	registry *backchannel.Registry,
 	cacheInvalidator diskcache.Invalidator,
 ) (*grpc.Server, error) {
-	ctxTagOpts := []grpc_ctxtags.Option{
-		grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
+	ctxTagOpts := []grpcmwtags.Option{
+		grpcmwtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor),
 	}
 
 	lh := limithandler.New(concurrencyKeyFn)
@@ -103,17 +104,31 @@ func New(
 		[]grpc.DialOption{client.UnaryInterceptor()},
 	))
 
+	logMsgProducer := grpcmwlogrus.WithMessageProducer(
+		gitalylog.MessageProducer(
+			gitalylog.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+			commandstatshandler.FieldsProducer,
+			grpcstats.FieldsProducer,
+		),
+	)
+
 	opts := []grpc.ServerOption{
+		grpc.StatsHandler(gitalylog.PerRPCLogHandler{
+			Underlying:     &grpcstats.PayloadBytes{},
+			FieldProducers: []gitalylog.FieldsProducer{grpcstats.FieldsProducer},
+		}),
 		grpc.Creds(lm),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_ctxtags.StreamServerInterceptor(ctxTagOpts...),
+		grpc.StreamInterceptor(grpcmw.ChainStreamServer(
+			grpcmwtags.StreamServerInterceptor(ctxTagOpts...),
 			grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
 			metadatahandler.StreamInterceptor,
-			grpc_prometheus.StreamServerInterceptor,
+			grpcprometheus.StreamServerInterceptor,
 			commandstatshandler.StreamInterceptor,
-			grpc_logrus.StreamServerInterceptor(logrusEntry,
-				grpc_logrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
-				grpc_logrus.WithMessageProducer(commandstatshandler.CommandStatsMessageProducer)),
+			grpcmwlogrus.StreamServerInterceptor(logrusEntry,
+				grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
+				logMsgProducer,
+			),
+			gitalylog.StreamLogDataCatcherServerInterceptor(),
 			sentryhandler.StreamLogHandler,
 			cancelhandler.Stream, // Should be below LogHandler
 			auth.StreamServerInterceptor(cfg.Auth),
@@ -124,15 +139,17 @@ func New(
 			// converted to errors and logged
 			panichandler.StreamPanicHandler,
 		)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_ctxtags.UnaryServerInterceptor(ctxTagOpts...),
+		grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(
+			grpcmwtags.UnaryServerInterceptor(ctxTagOpts...),
 			grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
 			metadatahandler.UnaryInterceptor,
-			grpc_prometheus.UnaryServerInterceptor,
+			grpcprometheus.UnaryServerInterceptor,
 			commandstatshandler.UnaryInterceptor,
-			grpc_logrus.UnaryServerInterceptor(logrusEntry,
-				grpc_logrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
-				grpc_logrus.WithMessageProducer(commandstatshandler.CommandStatsMessageProducer)),
+			grpcmwlogrus.UnaryServerInterceptor(logrusEntry,
+				grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
+				logMsgProducer,
+			),
+			gitalylog.UnaryLogDataCatcherServerInterceptor(),
 			sentryhandler.UnaryLogHandler,
 			cancelhandler.Unary, // Should be below LogHandler
 			auth.UnaryServerInterceptor(cfg.Auth),

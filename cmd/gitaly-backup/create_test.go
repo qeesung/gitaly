@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -28,7 +28,9 @@ func TestCreateSubcommand(t *testing.T) {
 
 	var repos []*gitalypb.Repository
 	for i := 0; i < 5; i++ {
-		repo, _, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], fmt.Sprintf("repo-%d", i))
+		repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+			RelativePath: fmt.Sprintf("repo-%d", i),
+		})
 		repos = append(repos, repo)
 	}
 
@@ -57,7 +59,7 @@ func TestCreateSubcommand(t *testing.T) {
 
 	require.NoError(t, fs.Parse([]string{"-path", path}))
 	require.EqualError(t,
-		cmd.Run(context.Background(), &stdin, ioutil.Discard),
+		cmd.Run(context.Background(), &stdin, io.Discard),
 		"create: pipeline: 1 failures encountered")
 
 	for _, repo := range repos {

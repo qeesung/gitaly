@@ -1,13 +1,10 @@
 package operations
 
-//lint:file-ignore SA1019 due to planned removal in issue https://gitlab.com/gitlab-org/gitaly/issues/1628
-
 import (
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
@@ -17,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserRebaseConfirmableServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {
@@ -34,8 +32,12 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 
 	ctx := stream.Context()
 
-	repo := header.Repository
-	repoPath, err := s.locator.GetPath(repo)
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, header.GetRepository())
+	if err != nil {
+		return helper.ErrInternalf("creating repo quarantine: %w", err)
+	}
+
+	repoPath, err := quarantineRepo.Path()
 	if err != nil {
 		return err
 	}
@@ -47,25 +49,22 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 	}
 
 	remoteFetch := rebaseRemoteFetch{header: header}
-	startRevision, err := s.fetchStartRevision(ctx, remoteFetch)
+	startRevision, err := s.fetchStartRevision(ctx, quarantineRepo, remoteFetch)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
 	committer := git2go.NewSignature(string(header.User.Name), string(header.User.Email), time.Now())
 	if header.Timestamp != nil {
-		committer.When, err = ptypes.Timestamp(header.Timestamp)
-		if err != nil {
-			return helper.ErrInvalidArgumentf("parse timestamp: %w", err)
-		}
+		committer.When = header.Timestamp.AsTime()
 	}
 
-	newrev, err := git2go.RebaseCommand{
+	newrev, err := s.git2go.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
 		Repository:       repoPath,
 		Committer:        committer,
 		BranchName:       string(header.Branch),
 		UpstreamRevision: startRevision.String(),
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		return stream.Send(&gitalypb.UserRebaseConfirmableResponse{
 			GitError: err.Error(),
@@ -86,19 +85,20 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 	}
 
 	if !secondRequest.GetApply() {
-		return helper.ErrPreconditionFailedf("rebase aborted by client")
+		return helper.ErrFailedPreconditionf("rebase aborted by client")
 	}
 
 	if err := s.updateReferenceWithHooks(
 		ctx,
-		header.Repository,
+		header.GetRepository(),
 		header.User,
+		quarantineDir,
 		branch,
 		newrev,
 		oldrev,
 		header.GitPushOptions...); err != nil {
 		switch {
-		case errors.As(err, &updateref.PreReceiveError{}):
+		case errors.As(err, &updateref.HookError{}):
 			return stream.Send(&gitalypb.UserRebaseConfirmableResponse{
 				PreReceiveError: err.Error(),
 			})

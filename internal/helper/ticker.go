@@ -26,7 +26,16 @@ type timerTicker struct {
 
 func (tt *timerTicker) C() <-chan time.Time { return tt.timer.C }
 
-func (tt *timerTicker) Reset() { tt.timer.Reset(tt.interval) }
+// Reset resets the timer. If there is a pending tick, then this tick will be drained.
+func (tt *timerTicker) Reset() {
+	if !tt.timer.Stop() {
+		select {
+		case <-tt.timer.C:
+		default:
+		}
+	}
+	tt.timer.Reset(tt.interval)
+}
 
 func (tt *timerTicker) Stop() { tt.timer.Stop() }
 
@@ -38,12 +47,16 @@ type ManualTicker struct {
 	ResetFunc func()
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (mt *ManualTicker) C() <-chan time.Time { return mt.c }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (mt *ManualTicker) Stop() { mt.StopFunc() }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (mt *ManualTicker) Reset() { mt.ResetFunc() }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (mt *ManualTicker) Tick() { mt.c <- time.Now() }
 
 // NewManualTicker returns a Ticker that can be manually controlled.

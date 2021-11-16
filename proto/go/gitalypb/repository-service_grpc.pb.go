@@ -39,16 +39,20 @@ type RepositoryServiceClient interface {
 	WriteRef(ctx context.Context, in *WriteRefRequest, opts ...grpc.CallOption) (*WriteRefResponse, error)
 	FindMergeBase(ctx context.Context, in *FindMergeBaseRequest, opts ...grpc.CallOption) (*FindMergeBaseResponse, error)
 	CreateFork(ctx context.Context, in *CreateForkRequest, opts ...grpc.CallOption) (*CreateForkResponse, error)
-	IsRebaseInProgress(ctx context.Context, in *IsRebaseInProgressRequest, opts ...grpc.CallOption) (*IsRebaseInProgressResponse, error)
-	IsSquashInProgress(ctx context.Context, in *IsSquashInProgressRequest, opts ...grpc.CallOption) (*IsSquashInProgressResponse, error)
 	CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error)
+	// CreateBundle creates a bundle from all refs
 	CreateBundle(ctx context.Context, in *CreateBundleRequest, opts ...grpc.CallOption) (RepositoryService_CreateBundleClient, error)
+	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
+	// When the bundle would be empty the FailedPrecondition error code is returned.
+	CreateBundleFromRefList(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateBundleFromRefListClient, error)
+	// FetchBundle fetches references from a bundle into the local repository.
+	// Refs will be mirrored to the target repository with the refspec
+	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
+	FetchBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_FetchBundleClient, error)
 	CreateRepositoryFromBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateRepositoryFromBundleClient, error)
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error)
-	SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error)
-	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error)
 	FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error)
 	GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error)
 	CalculateChecksum(ctx context.Context, in *CalculateChecksumRequest, opts ...grpc.CallOption) (*CalculateChecksumResponse, error)
@@ -70,6 +74,11 @@ type RepositoryServiceClient interface {
 	RenameRepository(ctx context.Context, in *RenameRepositoryRequest, opts ...grpc.CallOption) (*RenameRepositoryResponse, error)
 	ReplicateRepository(ctx context.Context, in *ReplicateRepositoryRequest, opts ...grpc.CallOption) (*ReplicateRepositoryResponse, error)
 	OptimizeRepository(ctx context.Context, in *OptimizeRepositoryRequest, opts ...grpc.CallOption) (*OptimizeRepositoryResponse, error)
+	// SetFullPath writes the "gitlab.fullpath" configuration into the
+	// repository's gitconfig. This is mainly to help debugging purposes in case
+	// an admin inspects the repository's gitconfig such that he can easily see
+	// what the repository name is.
+	SetFullPath(ctx context.Context, in *SetFullPathRequest, opts ...grpc.CallOption) (*SetFullPathResponse, error)
 }
 
 type repositoryServiceClient struct {
@@ -256,24 +265,6 @@ func (c *repositoryServiceClient) CreateFork(ctx context.Context, in *CreateFork
 	return out, nil
 }
 
-func (c *repositoryServiceClient) IsRebaseInProgress(ctx context.Context, in *IsRebaseInProgressRequest, opts ...grpc.CallOption) (*IsRebaseInProgressResponse, error) {
-	out := new(IsRebaseInProgressResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/IsRebaseInProgress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *repositoryServiceClient) IsSquashInProgress(ctx context.Context, in *IsSquashInProgressRequest, opts ...grpc.CallOption) (*IsSquashInProgressResponse, error) {
-	out := new(IsSquashInProgressResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/IsSquashInProgress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repositoryServiceClient) CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error) {
 	out := new(CreateRepositoryFromURLResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/CreateRepositoryFromURL", in, out, opts...)
@@ -315,8 +306,73 @@ func (x *repositoryServiceCreateBundleClient) Recv() (*CreateBundleResponse, err
 	return m, nil
 }
 
+func (c *repositoryServiceClient) CreateBundleFromRefList(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateBundleFromRefListClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[2], "/gitaly.RepositoryService/CreateBundleFromRefList", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &repositoryServiceCreateBundleFromRefListClient{stream}
+	return x, nil
+}
+
+type RepositoryService_CreateBundleFromRefListClient interface {
+	Send(*CreateBundleFromRefListRequest) error
+	Recv() (*CreateBundleFromRefListResponse, error)
+	grpc.ClientStream
+}
+
+type repositoryServiceCreateBundleFromRefListClient struct {
+	grpc.ClientStream
+}
+
+func (x *repositoryServiceCreateBundleFromRefListClient) Send(m *CreateBundleFromRefListRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *repositoryServiceCreateBundleFromRefListClient) Recv() (*CreateBundleFromRefListResponse, error) {
+	m := new(CreateBundleFromRefListResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *repositoryServiceClient) FetchBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_FetchBundleClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[3], "/gitaly.RepositoryService/FetchBundle", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &repositoryServiceFetchBundleClient{stream}
+	return x, nil
+}
+
+type RepositoryService_FetchBundleClient interface {
+	Send(*FetchBundleRequest) error
+	CloseAndRecv() (*FetchBundleResponse, error)
+	grpc.ClientStream
+}
+
+type repositoryServiceFetchBundleClient struct {
+	grpc.ClientStream
+}
+
+func (x *repositoryServiceFetchBundleClient) Send(m *FetchBundleRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *repositoryServiceFetchBundleClient) CloseAndRecv() (*FetchBundleResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(FetchBundleResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *repositoryServiceClient) CreateRepositoryFromBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateRepositoryFromBundleClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[2], "/gitaly.RepositoryService/CreateRepositoryFromBundle", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[4], "/gitaly.RepositoryService/CreateRepositoryFromBundle", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +406,7 @@ func (x *repositoryServiceCreateRepositoryFromBundleClient) CloseAndRecv() (*Cre
 }
 
 func (c *repositoryServiceClient) GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[3], "/gitaly.RepositoryService/GetConfig", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[5], "/gitaly.RepositoryService/GetConfig", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -381,24 +437,6 @@ func (x *repositoryServiceGetConfigClient) Recv() (*GetConfigResponse, error) {
 	return m, nil
 }
 
-func (c *repositoryServiceClient) SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error) {
-	out := new(SetConfigResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/SetConfig", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *repositoryServiceClient) DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*DeleteConfigResponse, error) {
-	out := new(DeleteConfigResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/DeleteConfig", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repositoryServiceClient) FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error) {
 	out := new(FindLicenseResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FindLicense", in, out, opts...)
@@ -409,7 +447,7 @@ func (c *repositoryServiceClient) FindLicense(ctx context.Context, in *FindLicen
 }
 
 func (c *repositoryServiceClient) GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[4], "/gitaly.RepositoryService/GetInfoAttributes", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[6], "/gitaly.RepositoryService/GetInfoAttributes", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +497,7 @@ func (c *repositoryServiceClient) Cleanup(ctx context.Context, in *CleanupReques
 }
 
 func (c *repositoryServiceClient) GetSnapshot(ctx context.Context, in *GetSnapshotRequest, opts ...grpc.CallOption) (RepositoryService_GetSnapshotClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[5], "/gitaly.RepositoryService/GetSnapshot", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[7], "/gitaly.RepositoryService/GetSnapshot", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +538,7 @@ func (c *repositoryServiceClient) CreateRepositoryFromSnapshot(ctx context.Conte
 }
 
 func (c *repositoryServiceClient) GetRawChanges(ctx context.Context, in *GetRawChangesRequest, opts ...grpc.CallOption) (RepositoryService_GetRawChangesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[6], "/gitaly.RepositoryService/GetRawChanges", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[8], "/gitaly.RepositoryService/GetRawChanges", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -532,7 +570,7 @@ func (x *repositoryServiceGetRawChangesClient) Recv() (*GetRawChangesResponse, e
 }
 
 func (c *repositoryServiceClient) SearchFilesByContent(ctx context.Context, in *SearchFilesByContentRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByContentClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[7], "/gitaly.RepositoryService/SearchFilesByContent", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[9], "/gitaly.RepositoryService/SearchFilesByContent", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -564,7 +602,7 @@ func (x *repositoryServiceSearchFilesByContentClient) Recv() (*SearchFilesByCont
 }
 
 func (c *repositoryServiceClient) SearchFilesByName(ctx context.Context, in *SearchFilesByNameRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByNameClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[8], "/gitaly.RepositoryService/SearchFilesByName", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[10], "/gitaly.RepositoryService/SearchFilesByName", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +634,7 @@ func (x *repositoryServiceSearchFilesByNameClient) Recv() (*SearchFilesByNameRes
 }
 
 func (c *repositoryServiceClient) RestoreCustomHooks(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_RestoreCustomHooksClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[9], "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[11], "/gitaly.RepositoryService/RestoreCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +668,7 @@ func (x *repositoryServiceRestoreCustomHooksClient) CloseAndRecv() (*RestoreCust
 }
 
 func (c *repositoryServiceClient) BackupCustomHooks(ctx context.Context, in *BackupCustomHooksRequest, opts ...grpc.CallOption) (RepositoryService_BackupCustomHooksClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[10], "/gitaly.RepositoryService/BackupCustomHooks", opts...)
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[12], "/gitaly.RepositoryService/BackupCustomHooks", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -724,6 +762,15 @@ func (c *repositoryServiceClient) OptimizeRepository(ctx context.Context, in *Op
 	return out, nil
 }
 
+func (c *repositoryServiceClient) SetFullPath(ctx context.Context, in *SetFullPathRequest, opts ...grpc.CallOption) (*SetFullPathResponse, error) {
+	out := new(SetFullPathResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/SetFullPath", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepositoryServiceServer is the server API for RepositoryService service.
 // All implementations must embed UnimplementedRepositoryServiceServer
 // for forward compatibility
@@ -749,16 +796,20 @@ type RepositoryServiceServer interface {
 	WriteRef(context.Context, *WriteRefRequest) (*WriteRefResponse, error)
 	FindMergeBase(context.Context, *FindMergeBaseRequest) (*FindMergeBaseResponse, error)
 	CreateFork(context.Context, *CreateForkRequest) (*CreateForkResponse, error)
-	IsRebaseInProgress(context.Context, *IsRebaseInProgressRequest) (*IsRebaseInProgressResponse, error)
-	IsSquashInProgress(context.Context, *IsSquashInProgressRequest) (*IsSquashInProgressResponse, error)
 	CreateRepositoryFromURL(context.Context, *CreateRepositoryFromURLRequest) (*CreateRepositoryFromURLResponse, error)
+	// CreateBundle creates a bundle from all refs
 	CreateBundle(*CreateBundleRequest, RepositoryService_CreateBundleServer) error
+	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
+	// When the bundle would be empty the FailedPrecondition error code is returned.
+	CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error
+	// FetchBundle fetches references from a bundle into the local repository.
+	// Refs will be mirrored to the target repository with the refspec
+	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
+	FetchBundle(RepositoryService_FetchBundleServer) error
 	CreateRepositoryFromBundle(RepositoryService_CreateRepositoryFromBundleServer) error
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error
-	SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error)
-	DeleteConfig(context.Context, *DeleteConfigRequest) (*DeleteConfigResponse, error)
 	FindLicense(context.Context, *FindLicenseRequest) (*FindLicenseResponse, error)
 	GetInfoAttributes(*GetInfoAttributesRequest, RepositoryService_GetInfoAttributesServer) error
 	CalculateChecksum(context.Context, *CalculateChecksumRequest) (*CalculateChecksumResponse, error)
@@ -780,6 +831,11 @@ type RepositoryServiceServer interface {
 	RenameRepository(context.Context, *RenameRepositoryRequest) (*RenameRepositoryResponse, error)
 	ReplicateRepository(context.Context, *ReplicateRepositoryRequest) (*ReplicateRepositoryResponse, error)
 	OptimizeRepository(context.Context, *OptimizeRepositoryRequest) (*OptimizeRepositoryResponse, error)
+	// SetFullPath writes the "gitlab.fullpath" configuration into the
+	// repository's gitconfig. This is mainly to help debugging purposes in case
+	// an admin inspects the repository's gitconfig such that he can easily see
+	// what the repository name is.
+	SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error)
 	mustEmbedUnimplementedRepositoryServiceServer()
 }
 
@@ -838,29 +894,23 @@ func (UnimplementedRepositoryServiceServer) FindMergeBase(context.Context, *Find
 func (UnimplementedRepositoryServiceServer) CreateFork(context.Context, *CreateForkRequest) (*CreateForkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFork not implemented")
 }
-func (UnimplementedRepositoryServiceServer) IsRebaseInProgress(context.Context, *IsRebaseInProgressRequest) (*IsRebaseInProgressResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method IsRebaseInProgress not implemented")
-}
-func (UnimplementedRepositoryServiceServer) IsSquashInProgress(context.Context, *IsSquashInProgressRequest) (*IsSquashInProgressResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method IsSquashInProgress not implemented")
-}
 func (UnimplementedRepositoryServiceServer) CreateRepositoryFromURL(context.Context, *CreateRepositoryFromURLRequest) (*CreateRepositoryFromURLResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateRepositoryFromURL not implemented")
 }
 func (UnimplementedRepositoryServiceServer) CreateBundle(*CreateBundleRequest, RepositoryService_CreateBundleServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateBundle not implemented")
 }
+func (UnimplementedRepositoryServiceServer) CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error {
+	return status.Errorf(codes.Unimplemented, "method CreateBundleFromRefList not implemented")
+}
+func (UnimplementedRepositoryServiceServer) FetchBundle(RepositoryService_FetchBundleServer) error {
+	return status.Errorf(codes.Unimplemented, "method FetchBundle not implemented")
+}
 func (UnimplementedRepositoryServiceServer) CreateRepositoryFromBundle(RepositoryService_CreateRepositoryFromBundleServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateRepositoryFromBundle not implemented")
 }
 func (UnimplementedRepositoryServiceServer) GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
-}
-func (UnimplementedRepositoryServiceServer) SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetConfig not implemented")
-}
-func (UnimplementedRepositoryServiceServer) DeleteConfig(context.Context, *DeleteConfigRequest) (*DeleteConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteConfig not implemented")
 }
 func (UnimplementedRepositoryServiceServer) FindLicense(context.Context, *FindLicenseRequest) (*FindLicenseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FindLicense not implemented")
@@ -915,6 +965,9 @@ func (UnimplementedRepositoryServiceServer) ReplicateRepository(context.Context,
 }
 func (UnimplementedRepositoryServiceServer) OptimizeRepository(context.Context, *OptimizeRepositoryRequest) (*OptimizeRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OptimizeRepository not implemented")
+}
+func (UnimplementedRepositoryServiceServer) SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetFullPath not implemented")
 }
 func (UnimplementedRepositoryServiceServer) mustEmbedUnimplementedRepositoryServiceServer() {}
 
@@ -1238,42 +1291,6 @@ func _RepositoryService_CreateFork_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepositoryService_IsRebaseInProgress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IsRebaseInProgressRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).IsRebaseInProgress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RepositoryService/IsRebaseInProgress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).IsRebaseInProgress(ctx, req.(*IsRebaseInProgressRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RepositoryService_IsSquashInProgress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IsSquashInProgressRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).IsSquashInProgress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RepositoryService/IsSquashInProgress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).IsSquashInProgress(ctx, req.(*IsSquashInProgressRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepositoryService_CreateRepositoryFromURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateRepositoryFromURLRequest)
 	if err := dec(in); err != nil {
@@ -1311,6 +1328,58 @@ type repositoryServiceCreateBundleServer struct {
 
 func (x *repositoryServiceCreateBundleServer) Send(m *CreateBundleResponse) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _RepositoryService_CreateBundleFromRefList_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RepositoryServiceServer).CreateBundleFromRefList(&repositoryServiceCreateBundleFromRefListServer{stream})
+}
+
+type RepositoryService_CreateBundleFromRefListServer interface {
+	Send(*CreateBundleFromRefListResponse) error
+	Recv() (*CreateBundleFromRefListRequest, error)
+	grpc.ServerStream
+}
+
+type repositoryServiceCreateBundleFromRefListServer struct {
+	grpc.ServerStream
+}
+
+func (x *repositoryServiceCreateBundleFromRefListServer) Send(m *CreateBundleFromRefListResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *repositoryServiceCreateBundleFromRefListServer) Recv() (*CreateBundleFromRefListRequest, error) {
+	m := new(CreateBundleFromRefListRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _RepositoryService_FetchBundle_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RepositoryServiceServer).FetchBundle(&repositoryServiceFetchBundleServer{stream})
+}
+
+type RepositoryService_FetchBundleServer interface {
+	SendAndClose(*FetchBundleResponse) error
+	Recv() (*FetchBundleRequest, error)
+	grpc.ServerStream
+}
+
+type repositoryServiceFetchBundleServer struct {
+	grpc.ServerStream
+}
+
+func (x *repositoryServiceFetchBundleServer) SendAndClose(m *FetchBundleResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *repositoryServiceFetchBundleServer) Recv() (*FetchBundleRequest, error) {
+	m := new(FetchBundleRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _RepositoryService_CreateRepositoryFromBundle_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -1358,42 +1427,6 @@ type repositoryServiceGetConfigServer struct {
 
 func (x *repositoryServiceGetConfigServer) Send(m *GetConfigResponse) error {
 	return x.ServerStream.SendMsg(m)
-}
-
-func _RepositoryService_SetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetConfigRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).SetConfig(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RepositoryService/SetConfig",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).SetConfig(ctx, req.(*SetConfigRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RepositoryService_DeleteConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteConfigRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).DeleteConfig(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RepositoryService/DeleteConfig",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).DeleteConfig(ctx, req.(*DeleteConfigRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _RepositoryService_FindLicense_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1746,6 +1779,24 @@ func _RepositoryService_OptimizeRepository_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepositoryService_SetFullPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetFullPathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepositoryServiceServer).SetFullPath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.RepositoryService/SetFullPath",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepositoryServiceServer).SetFullPath(ctx, req.(*SetFullPathRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepositoryService_ServiceDesc is the grpc.ServiceDesc for RepositoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1818,24 +1869,8 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RepositoryService_CreateFork_Handler,
 		},
 		{
-			MethodName: "IsRebaseInProgress",
-			Handler:    _RepositoryService_IsRebaseInProgress_Handler,
-		},
-		{
-			MethodName: "IsSquashInProgress",
-			Handler:    _RepositoryService_IsSquashInProgress_Handler,
-		},
-		{
 			MethodName: "CreateRepositoryFromURL",
 			Handler:    _RepositoryService_CreateRepositoryFromURL_Handler,
-		},
-		{
-			MethodName: "SetConfig",
-			Handler:    _RepositoryService_SetConfig_Handler,
-		},
-		{
-			MethodName: "DeleteConfig",
-			Handler:    _RepositoryService_DeleteConfig_Handler,
 		},
 		{
 			MethodName: "FindLicense",
@@ -1881,6 +1916,10 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "OptimizeRepository",
 			Handler:    _RepositoryService_OptimizeRepository_Handler,
 		},
+		{
+			MethodName: "SetFullPath",
+			Handler:    _RepositoryService_SetFullPath_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1892,6 +1931,17 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "CreateBundle",
 			Handler:       _RepositoryService_CreateBundle_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "CreateBundleFromRefList",
+			Handler:       _RepositoryService_CreateBundleFromRefList_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "FetchBundle",
+			Handler:       _RepositoryService_FetchBundle_Handler,
+			ClientStreams: true,
 		},
 		{
 			StreamName:    "CreateRepositoryFromBundle",

@@ -18,8 +18,10 @@ func TestWriteCommit(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	batchCache := catfile.NewCache(cfg)
-	batch, err := batchCache.BatchProcess(ctx, repo)
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	objectReader, err := catfileCache.ObjectReader(ctx, repo)
 	require.NoError(t, err)
 
 	defaultCommitter := &gitalypb.CommitAuthor{
@@ -153,7 +155,7 @@ func TestWriteCommit(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			oid := WriteCommit(t, cfg, repoPath, tc.opts...)
 
-			commit, err := catfile.GetCommit(ctx, batch, oid.Revision())
+			commit, err := catfile.GetCommit(ctx, objectReader, oid.Revision())
 			require.NoError(t, err)
 
 			CommitEqual(t, tc.expectedCommit, commit)

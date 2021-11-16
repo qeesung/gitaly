@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -29,7 +30,7 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 	// precision on `mtime`.
 	// Stamp taken from https://golang.org/pkg/time/#pkg-constants
 	testhelper.MustRunCommand(t, nil, "touch", "-t", testTimeString, filepath.Join(packPath, "*"))
-	testTime := time.Date(2006, 01, 02, 15, 04, 05, 0, time.UTC)
+	testTime := time.Date(2006, 0o1, 0o2, 15, 0o4, 0o5, 0, time.UTC)
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 	c, err := client.RepackIncremental(ctx, &gitalypb.RepackIncrementalRequest{Repository: repo})
@@ -40,7 +41,7 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 	assertModTimeAfter(t, testTime, packPath)
 
 	assert.FileExistsf(t,
-		filepath.Join(repoPath, CommitGraphChainRelPath),
+		filepath.Join(repoPath, stats.CommitGraphChainRelPath),
 		"pre-computed commit-graph should exist after running incremental repack",
 	)
 }
@@ -134,12 +135,12 @@ func TestRepackFullSuccess(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var repoPath string
-			test.req.Repository, repoPath, _ = gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
+			test.req.Repository, repoPath = gittest.CloneRepo(t, cfg, cfg.Storages[0])
 			// Reset mtime to a long while ago since some filesystems don't have sub-second
 			// precision on `mtime`.
 			packPath := filepath.Join(repoPath, "objects", "pack")
 			testhelper.MustRunCommand(t, nil, "touch", "-t", testTimeString, packPath)
-			testTime := time.Date(2006, 01, 02, 15, 04, 05, 0, time.UTC)
+			testTime := time.Date(2006, 0o1, 0o2, 15, 0o4, 0o5, 0, time.UTC)
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 			c, err := client.RepackFull(ctx, test.req)
@@ -165,7 +166,7 @@ func TestRepackFullSuccess(t *testing.T) {
 			}
 
 			assert.FileExistsf(t,
-				filepath.Join(repoPath, CommitGraphChainRelPath),
+				filepath.Join(repoPath, stats.CommitGraphChainRelPath),
 				"pre-computed commit-graph should exist after running full repack",
 			)
 		})

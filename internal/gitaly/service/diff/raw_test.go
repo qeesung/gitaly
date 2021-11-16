@@ -2,7 +2,7 @@ package diff
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"regexp"
 	"testing"
 
@@ -27,8 +27,9 @@ func TestSuccessfulRawDiffRequest(t *testing.T) {
 	c, err := client.RawDiff(ctx, rpcRequest)
 	require.NoError(t, err)
 
-	_, sandboxRepoPath, cleanupFn := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer cleanupFn()
+	_, sandboxRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	reader := streamio.NewReader(func() ([]byte, error) {
 		response, err := c.Recv()
@@ -39,8 +40,8 @@ func TestSuccessfulRawDiffRequest(t *testing.T) {
 	committerEmail := "scrooge@mcduck.com"
 	gittest.Exec(t, cfg, "-C", sandboxRepoPath, "reset", "--hard", leftCommit)
 
-	gittest.ExecStream(t, cfg, reader, "-C", sandboxRepoPath, "apply")
-	gittest.ExecStream(t, cfg, reader, "-C", sandboxRepoPath, "add", ".")
+	gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: reader}, "-C", sandboxRepoPath, "apply")
+	gittest.Exec(t, cfg, "-C", sandboxRepoPath, "add", ".")
 	gittest.Exec(t, cfg, "-C", sandboxRepoPath,
 		"-c", fmt.Sprintf("user.name=%s", committerName),
 		"-c", fmt.Sprintf("user.email=%s", committerEmail),
@@ -117,12 +118,12 @@ func TestSuccessfulRawPatchRequest(t *testing.T) {
 		return response.GetData(), err
 	})
 
-	_, sandboxRepoPath, cleanupFn := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer cleanupFn()
+	_, sandboxRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	gittest.Exec(t, cfg, "-C", sandboxRepoPath, "reset", "--hard", leftCommit)
-
-	gittest.ExecStream(t, cfg, reader, "-C", sandboxRepoPath, "am")
+	gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: reader}, "-C", sandboxRepoPath, "am")
 
 	expectedTreeStructure := gittest.Exec(t, cfg, "-C", repoPath, "ls-tree", "-r", rightCommit)
 	actualTreeStructure := gittest.Exec(t, cfg, "-C", sandboxRepoPath, "ls-tree", "-r", "HEAD")
@@ -195,7 +196,7 @@ func TestRawPatchContainsGitLabSignature(t *testing.T) {
 		return response.GetData(), err
 	})
 
-	patch, err := ioutil.ReadAll(reader)
+	patch, err := io.ReadAll(reader)
 	require.NoError(t, err)
 
 	require.Regexp(t, regexp.MustCompile(`\n-- \nGitLab\s+$`), string(patch))

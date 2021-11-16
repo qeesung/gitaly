@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -25,12 +26,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	commitFilesMessage = []byte("Change files")
-)
+var commitFilesMessage = []byte("Change files")
 
 func TestUserCommitFiles(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -48,8 +48,7 @@ func TestUserCommitFiles(t *testing.T) {
 	// repository there on every test run. This allows us to use deterministic
 	// paths in the tests.
 
-	startRepo, startRepoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	startRepo, startRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	pathToStorage := strings.TrimSuffix(startRepoPath, startRepo.RelativePath)
 	repoPath := filepath.Join(pathToStorage, targetRelativePath)
@@ -881,7 +880,7 @@ func TestUserCommitFiles(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			defer os.RemoveAll(repoPath)
+			defer func() { require.NoError(t, os.RemoveAll(repoPath)) }()
 			gittest.Exec(t, cfg, "init", "--bare", repoPath)
 
 			const branch = "master"
@@ -943,16 +942,16 @@ func TestUserCommitFiles(t *testing.T) {
 
 func TestUserCommitFilesStableCommitID(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
 
-	repoProto, repoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	defer cleanup()
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	for key, values := range testhelper.GitalyServersMetadataFromCfg(t, cfg) {
+	for key, values := range testcfg.GitalyServersMetadataFromCfg(t, cfg) {
 		for _, value := range values {
 			ctx = metadata.AppendToOutgoingContext(ctx, key, value)
 		}
@@ -989,27 +988,69 @@ func TestUserCommitFilesStableCommitID(t *testing.T) {
 		Author: &gitalypb.CommitAuthor{
 			Name:     []byte("Author Name"),
 			Email:    []byte("author.email@example.com"),
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:     gittest.TestUser.Name,
 			Email:    gittest.TestUser.Email,
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	}, commit)
 }
 
+func TestUserCommitFilesQuarantine(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
+
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
+
+	outputPath := filepath.Join(testhelper.TempDir(t), "output")
+
+	// Set up a hook that parses the new object and then aborts the update. Like this, we can
+	// assert that the object does not end up in the main repository.
+	hookScript := fmt.Sprintf("#!/bin/sh\nread oldval newval ref && %s rev-parse $newval^{commit} >%s && exit 1", cfg.Git.BinPath, outputPath)
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(hookScript))
+
+	stream, err := client.UserCommitFiles(ctx)
+	require.NoError(t, err)
+
+	headerRequest := headerRequest(repoProto, gittest.TestUser, "master", []byte("commit message"), "")
+	setAuthorAndEmail(headerRequest, []byte("Author Name"), []byte("author.email@example.com"))
+	setTimestamp(headerRequest, time.Unix(12345, 0))
+	require.NoError(t, stream.Send(headerRequest))
+
+	require.NoError(t, stream.Send(createFileHeaderRequest("file.txt")))
+	require.NoError(t, stream.Send(actionContentRequest("content")))
+	_, err = stream.CloseAndRecv()
+	require.NoError(t, err)
+
+	hookOutput := testhelper.MustReadFile(t, outputPath)
+	oid, err := git.NewObjectIDFromHex(text.ChompBytes(hookOutput))
+	require.NoError(t, err)
+	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
+	require.NoError(t, err)
+
+	require.False(t, exists, "quarantined commit should have been discarded")
+}
+
 func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
-	newRepo, newRepoPath, newRepoCleanupFn := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	defer newRepoCleanupFn()
+	newRepo, newRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	filePath := "héllo/wörld"
 	authorName := []byte("Jane Doe")
@@ -1114,6 +1155,7 @@ func TestSuccessfulUserCommitFilesRequest(t *testing.T) {
 
 func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -1135,8 +1177,7 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 		{content: "foo", infer: true},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			testRepo, testRepoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-			defer cleanupFn()
+			testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			origFileContent := gittest.Exec(t, cfg, "-C", testRepoPath, "show", branchName+":"+previousFilePath)
 			headerRequest := headerRequest(testRepo, gittest.TestUser, branchName, commitFilesMessage, "")
@@ -1172,6 +1213,7 @@ func TestSuccessfulUserCommitFilesRequestMove(t *testing.T) {
 
 func TestSuccessfulUserCommitFilesRequestForceCommit(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -1218,6 +1260,7 @@ func TestSuccessfulUserCommitFilesRequestForceCommit(t *testing.T) {
 
 func TestSuccessfulUserCommitFilesRequestStartSha(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -1252,6 +1295,7 @@ func TestSuccessfulUserCommitFilesRequestStartSha(t *testing.T) {
 
 func TestSuccessfulUserCommitFilesRequestStartShaRemoteRepository(t *testing.T) {
 	t.Parallel()
+
 	testSuccessfulUserCommitFilesRemoteRepositoryRequest(func(header *gitalypb.UserCommitFilesRequest) {
 		setStartSha(header, "1e292f8fedd741b75372e19097c76d327140c312")
 	})
@@ -1259,24 +1303,21 @@ func TestSuccessfulUserCommitFilesRequestStartShaRemoteRepository(t *testing.T) 
 
 func TestSuccessfulUserCommitFilesRequestStartBranchRemoteRepository(t *testing.T) {
 	t.Parallel()
+
 	testSuccessfulUserCommitFilesRemoteRepositoryRequest(func(header *gitalypb.UserCommitFilesRequest) {
 		setStartBranchName(header, []byte("master"))
 	})
 }
 
-func testSuccessfulUserCommitFilesRemoteRepositoryRequest(setHeader func(header *gitalypb.UserCommitFilesRequest)) func(*testing.T) {
+func testSuccessfulUserCommitFilesRemoteRepositoryRequest(setHeader func(header *gitalypb.UserCommitFilesRequest)) func(*testing.T, context.Context) {
 	// Regular table driven test did not work here as there is some state shared in the helpers between the subtests.
 	// Running them in different top level tests works, so we use a parameterized function instead to share the code.
-	return func(t *testing.T) {
-		ctx, cancel := testhelper.Context()
-		defer cancel()
-
+	return func(t *testing.T, ctx context.Context) {
 		ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		newRepoProto, _, newRepoCleanupFn := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-		defer newRepoCleanupFn()
+		newRepoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 		newRepo := localrepo.NewTestRepo(t, cfg, newRepoProto)
 
 		targetBranchName := "new"
@@ -1308,13 +1349,13 @@ func testSuccessfulUserCommitFilesRemoteRepositoryRequest(setHeader func(header 
 
 func TestSuccessfulUserCommitFilesRequestWithSpecialCharactersInSignature(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
 	ctx, cfg, _, _, client := setupOperationsService(t, ctx)
 
-	repoProto, _, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	defer cleanup()
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	targetBranchName := "master"
@@ -1361,6 +1402,7 @@ func TestSuccessfulUserCommitFilesRequestWithSpecialCharactersInSignature(t *tes
 
 func TestFailedUserCommitFilesRequestDueToHooks(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -1394,6 +1436,7 @@ func TestFailedUserCommitFilesRequestDueToHooks(t *testing.T) {
 
 func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -1458,6 +1501,7 @@ func TestFailedUserCommitFilesRequestDueToIndexError(t *testing.T) {
 
 func TestFailedUserCommitFilesRequest(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 

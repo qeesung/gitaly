@@ -63,6 +63,7 @@ func TestNodeStatus(t *testing.T) {
 		"unix://"+socket,
 		grpc.WithInsecure(),
 	)
+	defer testhelper.MustClose(t, cc)
 
 	require.NoError(t, err)
 
@@ -118,10 +119,11 @@ func TestManagerFailoverDisabledElectionStrategySQL(t *testing.T) {
 		Failover:        config.Failover{Enabled: false, ElectionStrategy: config.ElectionStrategySQL},
 		VirtualStorages: []*config.VirtualStorage{virtualStorage},
 	}
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 
 	nm.Start(time.Millisecond, time.Millisecond)
+	defer nm.Stop()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -166,10 +168,11 @@ func TestDialWithUnhealthyNode(t *testing.T) {
 
 	testhelper.NewHealthServerWithListener(t, primaryLn)
 
-	mgr, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	mgr, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 
 	mgr.Start(1*time.Millisecond, 1*time.Millisecond)
+	defer mgr.Stop()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -214,15 +217,18 @@ func TestNodeManager(t *testing.T) {
 	}
 
 	mockHistogram := promtest.NewMockHistogramVec()
-	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover, nil, nil, mockHistogram, protoregistry.GitalyProtoPreregistered, nil, nil)
+	nm, err := NewManager(testhelper.DiscardTestEntry(t), confWithFailover, nil, nil, mockHistogram, protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 
-	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover, nil, nil, mockHistogram, protoregistry.GitalyProtoPreregistered, nil, nil)
+	nmWithoutFailover, err := NewManager(testhelper.DiscardTestEntry(t), confWithoutFailover, nil, nil, mockHistogram, protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
 
 	// monitoring period set to 1 hour as we execute health checks by hands in this test
 	nm.Start(0, time.Hour)
+	defer nm.Stop()
+
 	nmWithoutFailover.Start(0, time.Hour)
+	defer nmWithoutFailover.Stop()
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -286,7 +292,7 @@ func TestNodeManager(t *testing.T) {
 		Secondaries: []nodeAssertion{{node2.Storage, node2.Address}},
 	}, shard)
 
-	primary, err := nm.GetPrimary(ctx, "virtual-storage-0", "")
+	primary, err := nm.GetPrimary(ctx, "virtual-storage-0", 0)
 	require.NoError(t, err)
 	require.Equal(t, shard.Primary.GetStorage(), primary)
 
@@ -297,7 +303,7 @@ func TestNodeManager(t *testing.T) {
 	_, err = nm.GetShard(ctx, "virtual-storage-0")
 	require.Error(t, err, "should return error since no nodes are healthy")
 
-	_, err = nm.GetPrimary(ctx, "virtual-storage-0", "")
+	_, err = nm.GetPrimary(ctx, "virtual-storage-0", 0)
 	require.Equal(t, ErrPrimaryNotHealthy, err)
 }
 
@@ -327,18 +333,19 @@ func TestMgr_GetSyncedNode(t *testing.T) {
 	verify := func(failover bool, scenario func(t *testing.T, nm Manager, rs datastore.RepositoryStore)) func(*testing.T) {
 		conf.Failover.Enabled = failover
 		rs := datastore.MockRepositoryStore{
-			GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (map[string]struct{}, error) {
-				return consistentStorages, consistentSecondariesErr
+			GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, map[string]struct{}, error) {
+				return relativePath, consistentStorages, consistentSecondariesErr
 			},
 		}
 
-		nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+		nm, err := NewManager(testhelper.DiscardTestEntry(t), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 		require.NoError(t, err)
 
 		for i := range healthSrvs {
 			healthSrvs[i].SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 		}
 		nm.Start(0, time.Hour)
+		t.Cleanup(nm.Stop)
 
 		return func(t *testing.T) { scenario(t, nm, rs) }
 	}

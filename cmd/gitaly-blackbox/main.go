@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,9 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 )
 
-var (
-	flagVersion = flag.Bool("version", false, "Print version and exit")
-)
+var flagVersion = flag.Bool("version", false, "Print version and exit")
 
 func flagUsage() {
 	fmt.Println(version.GetVersionString())
@@ -44,7 +41,7 @@ func main() {
 }
 
 func run(configPath string) error {
-	configRaw, err := ioutil.ReadFile(configPath)
+	configRaw, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}

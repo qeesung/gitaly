@@ -39,9 +39,9 @@ func (s *server) ListCommits(
 	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
-	catfileProcess, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
-		return helper.ErrInternal(fmt.Errorf("creating catfile process: %w", err))
+		return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
 	}
 
 	revlistOptions := []gitpipe.RevlistOption{}
@@ -83,26 +83,28 @@ func (s *server) ListCommits(
 		revlistOptions = append(revlistOptions, gitpipe.WithAuthor(request.GetAuthor()))
 	}
 
-	revlistIter := gitpipe.Revlist(ctx, repo, request.GetRevisions(), revlistOptions...)
-
 	// If we've got a pagination token, then we will only start to print commits as soon as
 	// we've seen the token.
 	if token := request.GetPaginationParams().GetPageToken(); token != "" {
 		tokenSeen := false
-		revlistIter = gitpipe.RevisionFilter(ctx, revlistIter, func(r gitpipe.RevisionResult) bool {
+		revlistOptions = append(revlistOptions, gitpipe.WithSkipRevlistResult(func(r *gitpipe.RevisionResult) bool {
 			if !tokenSeen {
 				tokenSeen = r.OID == git.ObjectID(token)
 				// We also skip the token itself, thus we always return `false`
 				// here.
-				return false
+				return true
 			}
 
-			return true
-		})
+			return false
+		}))
 	}
 
-	catfileInfoIter := gitpipe.CatfileInfo(ctx, catfileProcess, revlistIter)
-	catfileObjectIter := gitpipe.CatfileObject(ctx, catfileProcess, catfileInfoIter)
+	revlistIter := gitpipe.Revlist(ctx, repo, request.GetRevisions(), revlistOptions...)
+
+	catfileObjectIter, err := gitpipe.CatfileObject(ctx, objectReader, revlistIter)
+	if err != nil {
+		return err
+	}
 
 	chunker := chunk.New(&commitsSender{
 		send: func(commits []*gitalypb.GitCommit) error {
@@ -113,6 +115,7 @@ func (s *server) ListCommits(
 	})
 
 	limit := request.GetPaginationParams().GetLimit()
+	parser := catfile.NewParser()
 
 	for i := int32(0); catfileObjectIter.Next(); i++ {
 		// If we hit the pagination limit, then we stop sending commits even if there are
@@ -123,7 +126,7 @@ func (s *server) ListCommits(
 
 		object := catfileObjectIter.Result()
 
-		commit, err := catfile.ParseCommit(object.ObjectReader, object.ObjectInfo)
+		commit, err := parser.ParseCommit(object)
 		if err != nil {
 			return helper.ErrInternal(fmt.Errorf("parsing commit: %w", err))
 		}

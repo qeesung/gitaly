@@ -1,5 +1,3 @@
-// +build postgres
-
 package praefect
 
 import (
@@ -11,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -21,9 +20,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestRepositoryExistsStreamInterceptor(t *testing.T) {
+func TestRepositoryExistsHandler(t *testing.T) {
+	t.Parallel()
 	errServedByGitaly := status.Error(codes.Unknown, "request passed to Gitaly")
 
+	db := glsql.NewDB(t)
 	for _, tc := range []struct {
 		desc          string
 		routeToGitaly bool
@@ -67,30 +68,26 @@ func TestRepositoryExistsStreamInterceptor(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			db := getDB(t)
+			db.TruncateAll(t)
 			rs := datastore.NewPostgresRepositoryStore(db, map[string][]string{"virtual-storage": {"storage"}})
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			require.NoError(t, rs.CreateRepository(ctx, "virtual-storage", "relative-path", "storage", nil, nil, false, false))
-
-			electionStrategy := config.ElectionStrategyPerRepository
-			if tc.routeToGitaly {
-				electionStrategy = config.ElectionStrategySQL
-			}
+			require.NoError(t, rs.CreateRepository(ctx, 0, "virtual-storage", "relative-path", "relative-path", "storage", nil, nil, false, false))
 
 			tmp := testhelper.TempDir(t)
 
 			ln, err := net.Listen("unix", filepath.Join(tmp, "praefect"))
 			require.NoError(t, err)
 
+			electionStrategy := config.ElectionStrategyPerRepository
+			if tc.routeToGitaly {
+				electionStrategy = config.ElectionStrategySQL
+			}
+
 			srv := NewGRPCServer(
-				config.Config{
-					Failover: config.Failover{
-						ElectionStrategy: electionStrategy,
-					},
-				},
+				config.Config{Failover: config.Failover{ElectionStrategy: electionStrategy}},
 				testhelper.DiscardTestEntry(t),
 				protoregistry.GitalyProtoPreregistered,
 				func(ctx context.Context, fullMethodName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
@@ -103,6 +100,7 @@ func TestRepositoryExistsStreamInterceptor(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			)
 			defer srv.Stop()
 
@@ -110,6 +108,7 @@ func TestRepositoryExistsStreamInterceptor(t *testing.T) {
 
 			clientConn, err := grpc.DialContext(ctx, "unix://"+ln.Addr().String(), grpc.WithInsecure())
 			require.NoError(t, err)
+			defer testhelper.MustClose(t, clientConn)
 
 			client := gitalypb.NewRepositoryServiceClient(clientConn)
 			_, err = client.RepositorySize(ctx, &gitalypb.RepositorySizeRequest{Repository: tc.repository})

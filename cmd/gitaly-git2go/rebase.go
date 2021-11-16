@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package main
@@ -10,7 +11,8 @@ import (
 	"fmt"
 	"io"
 
-	git "github.com/libgit2/git2go/v31"
+	git "github.com/libgit2/git2go/v32"
+	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 )
 
@@ -43,11 +45,17 @@ func (cmd *rebaseSubcommand) verify(ctx context.Context, r *git2go.RebaseCommand
 	if r.Committer.Email == "" {
 		return errors.New("missing committer email")
 	}
-	if r.BranchName == "" {
+	if r.BranchName == "" && r.CommitID == "" {
 		return errors.New("missing branch name")
 	}
-	if r.UpstreamRevision == "" {
+	if r.BranchName != "" && r.CommitID != "" {
+		return errors.New("both branch name and commit ID")
+	}
+	if r.UpstreamRevision == "" && r.UpstreamCommitID == "" {
 		return errors.New("missing upstream revision")
+	}
+	if r.UpstreamRevision != "" && r.UpstreamCommitID != "" {
+		return errors.New("both upstream revision and upstream commit ID")
 	}
 	return nil
 }
@@ -57,7 +65,7 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 		return "", err
 	}
 
-	repo, err := git.OpenRepository(request.Repository)
+	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("open repository: %w", err)
 	}
@@ -68,34 +76,52 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 	}
 	opts.InMemory = 1
 
-	branch, err := repo.AnnotatedCommitFromRevspec(fmt.Sprintf("refs/heads/%s", request.BranchName))
-	if err != nil {
-		return "", fmt.Errorf("look up branch %q: %w", request.BranchName, err)
+	var commit *git.AnnotatedCommit
+	if request.BranchName != "" {
+		commit, err = repo.AnnotatedCommitFromRevspec(fmt.Sprintf("refs/heads/%s", request.BranchName))
+		if err != nil {
+			return "", fmt.Errorf("look up branch %q: %w", request.BranchName, err)
+		}
+	} else {
+		commitOid, err := git.NewOid(request.CommitID.String())
+		if err != nil {
+			return "", fmt.Errorf("parse commit %q: %w", request.CommitID, err)
+		}
+
+		commit, err = repo.LookupAnnotatedCommit(commitOid)
+		if err != nil {
+			return "", fmt.Errorf("look up commit %q: %w", request.CommitID, err)
+		}
 	}
 
-	ontoOid, err := git.NewOid(request.UpstreamRevision)
-	if err != nil {
-		return "", fmt.Errorf("parse upstream revision %q: %w", request.UpstreamRevision, err)
+	upstreamCommitParam := request.UpstreamRevision
+	if upstreamCommitParam == "" {
+		upstreamCommitParam = request.UpstreamCommitID.String()
 	}
 
-	onto, err := repo.LookupAnnotatedCommit(ontoOid)
+	upstreamCommitOID, err := git.NewOid(upstreamCommitParam)
 	if err != nil {
-		return "", fmt.Errorf("look up upstream revision %q: %w", request.UpstreamRevision, err)
+		return "", fmt.Errorf("parse upstream revision %q: %w", upstreamCommitParam, err)
 	}
 
-	mergeBase, err := repo.MergeBase(onto.Id(), branch.Id())
+	upstreamCommit, err := repo.LookupAnnotatedCommit(upstreamCommitOID)
+	if err != nil {
+		return "", fmt.Errorf("look up upstream revision %q: %w", upstreamCommitParam, err)
+	}
+
+	mergeBase, err := repo.MergeBase(upstreamCommit.Id(), commit.Id())
 	if err != nil {
 		return "", fmt.Errorf("find merge base: %w", err)
 	}
 
-	if mergeBase.Equal(onto.Id()) {
+	if mergeBase.Equal(upstreamCommit.Id()) {
 		// Branch is zero commits behind, so do not rebase
-		return branch.Id().String(), nil
+		return commit.Id().String(), nil
 	}
 
-	if mergeBase.Equal(branch.Id()) {
+	if mergeBase.Equal(commit.Id()) {
 		// Branch is merged, so fast-forward to upstream
-		return onto.Id().String(), nil
+		return upstreamCommit.Id().String(), nil
 	}
 
 	mergeCommit, err := repo.LookupAnnotatedCommit(mergeBase)
@@ -103,7 +129,7 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 		return "", fmt.Errorf("look up merge base: %w", err)
 	}
 
-	rebase, err := repo.InitRebase(branch, mergeCommit, onto, &opts)
+	rebase, err := repo.InitRebase(commit, mergeCommit, upstreamCommit, &opts)
 	if err != nil {
 		return "", fmt.Errorf("initiate rebase: %w", err)
 	}
@@ -112,7 +138,7 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 	var oid *git.Oid
 	for {
 		op, err := rebase.Next()
-		if git.IsErrorCode(err, git.ErrIterOver) {
+		if git.IsErrorCode(err, git.ErrorCodeIterOver) {
 			break
 		} else if err != nil {
 			return "", fmt.Errorf("rebase iterate: %w", err)
@@ -123,15 +149,24 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 			return "", fmt.Errorf("lookup commit: %w", err)
 		}
 
-		oid = op.Id.Copy()
-		err = rebase.Commit(oid, nil, &committer, commit.Message())
-		if err != nil {
+		if err := rebase.Commit(op.Id, nil, &committer, commit.Message()); err != nil {
+			// If the commit has already been applied on the target branch then we can
+			// skip it if we were told to.
+			if request.SkipEmptyCommits && git.IsErrorCode(err, git.ErrorCodeApplied) {
+				continue
+			}
+
 			return "", fmt.Errorf("commit %q: %w", op.Id.String(), err)
 		}
+
+		oid = op.Id.Copy()
 	}
 
+	// When the OID is unset here, then we didn't have to rebase any commits at all. We can
+	// thus return the upstream commit directly: rebasing nothing onto the upstream commit is
+	// the same as the upstream commit itself.
 	if oid == nil {
-		return branch.Id().String(), nil
+		return upstreamCommit.Id().String(), nil
 	}
 
 	if err = rebase.Finish(); err != nil {

@@ -5,14 +5,15 @@ package praefect
 import (
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/fieldextractors"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/cancelhandler"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
@@ -29,10 +30,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
@@ -40,26 +44,29 @@ import (
 
 // NewBackchannelServerFactory returns a ServerFactory that serves the RefTransactionServer on the backchannel
 // connection.
-func NewBackchannelServerFactory(logger *logrus.Entry, svc gitalypb.RefTransactionServer) backchannel.ServerFactory {
+func NewBackchannelServerFactory(logger *logrus.Entry, refSvc gitalypb.RefTransactionServer, registry *sidechannel.Registry) backchannel.ServerFactory {
 	return func() backchannel.Server {
+		lm := listenmux.New(insecure.NewCredentials())
+		lm.Register(sidechannel.NewServerHandshaker(registry))
 		srv := grpc.NewServer(
-			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(
 				commonUnaryServerInterceptors(logger)...,
 			)),
+			grpc.Creds(lm),
 		)
-		gitalypb.RegisterRefTransactionServer(srv, svc)
-		grpc_prometheus.Register(srv)
+		gitalypb.RegisterRefTransactionServer(srv, refSvc)
+		grpcprometheus.Register(srv)
 		return srv
 	}
 }
 
 func commonUnaryServerInterceptors(logger *logrus.Entry) []grpc.UnaryServerInterceptor {
 	return []grpc.UnaryServerInterceptor{
-		grpc_ctxtags.UnaryServerInterceptor(ctxtagsInterceptorOption()),
+		grpcmwtags.UnaryServerInterceptor(ctxtagsInterceptorOption()),
 		grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
 		metadatahandler.UnaryInterceptor,
-		grpc_prometheus.UnaryServerInterceptor,
-		grpc_logrus.UnaryServerInterceptor(logger, grpc_logrus.WithTimestampFormat(log.LogTimestampFormat)),
+		grpcprometheus.UnaryServerInterceptor,
+		grpcmwlogrus.UnaryServerInterceptor(logger, grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat)),
 		sentryhandler.UnaryLogHandler,
 		cancelhandler.Unary, // Should be below LogHandler
 		grpctracing.UnaryServerTracingInterceptor(),
@@ -69,8 +76,8 @@ func commonUnaryServerInterceptors(logger *logrus.Entry) []grpc.UnaryServerInter
 	}
 }
 
-func ctxtagsInterceptorOption() grpc_ctxtags.Option {
-	return grpc_ctxtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor)
+func ctxtagsInterceptorOption() grpcmwtags.Option {
+	return grpcmwtags.WithFieldExtractorForInitialReq(fieldextractors.FieldExtractor)
 }
 
 // NewGRPCServer returns gRPC server with registered proxy-handler and actual services praefect serves on its own.
@@ -87,16 +94,17 @@ func NewGRPCServer(
 	assignmentStore AssignmentStore,
 	conns Connections,
 	primaryGetter PrimaryGetter,
+	creds credentials.TransportCredentials,
 	grpcOpts ...grpc.ServerOption,
 ) *grpc.Server {
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		grpc_ctxtags.StreamServerInterceptor(ctxtagsInterceptorOption()),
+		grpcmwtags.StreamServerInterceptor(ctxtagsInterceptorOption()),
 		grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
 		middleware.MethodTypeStreamInterceptor(registry),
 		metadatahandler.StreamInterceptor,
-		grpc_prometheus.StreamServerInterceptor,
-		grpc_logrus.StreamServerInterceptor(logger,
-			grpc_logrus.WithTimestampFormat(log.LogTimestampFormat)),
+		grpcprometheus.StreamServerInterceptor,
+		grpcmwlogrus.StreamServerInterceptor(logger,
+			grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat)),
 		sentryhandler.StreamLogHandler,
 		cancelhandler.Stream, // Should be below LogHandler
 		grpctracing.StreamServerTracingInterceptor(),
@@ -106,14 +114,10 @@ func NewGRPCServer(
 		panichandler.StreamPanicHandler,
 	}
 
-	if conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
-		streamInterceptors = append(streamInterceptors, RepositoryExistsStreamInterceptor(rs))
-	}
-
 	grpcOpts = append(grpcOpts, proxyRequiredOpts(director)...)
 	grpcOpts = append(grpcOpts, []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		grpc.StreamInterceptor(grpcmw.ChainStreamServer(streamInterceptors...)),
+		grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(
 			append(
 				commonUnaryServerInterceptors(logger),
 				middleware.MethodTypeUnaryInterceptor(registry),
@@ -126,10 +130,27 @@ func NewGRPCServer(
 		}),
 	}...)
 
+	// Accept backchannel connections so that we can proxy sidechannels
+	// from clients (e.g. Workhorse) to a backend Gitaly server.
+	if creds == nil {
+		creds = insecure.NewCredentials()
+	}
+	lm := listenmux.New(creds)
+	lm.Register(backchannel.NewServerHandshaker(logger, backchannel.NewRegistry(), nil))
+	grpcOpts = append(grpcOpts, grpc.Creds(lm))
+
 	warnDupeAddrs(logger, conf)
 
 	srv := grpc.NewServer(grpcOpts...)
 	registerServices(srv, nodeMgr, txMgr, conf, queue, rs, assignmentStore, service.Connections(conns), primaryGetter)
+
+	if conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
+		proxy.RegisterStreamHandlers(srv, "gitaly.RepositoryService", map[string]grpc.StreamHandler{
+			"RepositoryExists": RepositoryExistsHandler(rs),
+			"RemoveRepository": RemoveRepositoryHandler(rs, conns),
+		})
+	}
+
 	return srv
 }
 
@@ -154,11 +175,11 @@ func registerServices(
 ) {
 	// ServerServiceServer is necessary for the ServerInfo RPC
 	gitalypb.RegisterServerServiceServer(srv, server.NewServer(conf, conns))
-	gitalypb.RegisterPraefectInfoServiceServer(srv, info.NewServer(nm, conf, queue, rs, assignmentStore, conns, primaryGetter))
+	gitalypb.RegisterPraefectInfoServiceServer(srv, info.NewServer(conf, rs, assignmentStore, conns, primaryGetter))
 	gitalypb.RegisterRefTransactionServer(srv, transaction.NewServer(tm))
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 
-	grpc_prometheus.Register(srv)
+	grpcprometheus.Register(srv)
 }
 
 func warnDupeAddrs(logger logrus.FieldLogger, conf config.Config) {

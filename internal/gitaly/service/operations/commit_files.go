@@ -16,17 +16,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/remoterepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitalyssh"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-func errorWithStderr(err error, stderr *bytes.Buffer) error {
-	return fmt.Errorf("%w, stderr: %q", err, stderr)
-}
 
 // UserCommitFiles allows for committing from a set of actions. See the protobuf documentation
 // for details.
@@ -65,9 +60,9 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 		}
 
 		var (
-			response        gitalypb.UserCommitFilesResponse
-			indexError      git2go.IndexError
-			preReceiveError updateref.PreReceiveError
+			response   gitalypb.UserCommitFilesResponse
+			indexError git2go.IndexError
+			hookError  updateref.HookError
 		)
 
 		switch {
@@ -79,8 +74,8 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 			response = gitalypb.UserCommitFilesResponse{IndexError: "A file with this name already exists"}
 		case errors.As(err, new(git2go.FileNotFoundError)):
 			response = gitalypb.UserCommitFilesResponse{IndexError: "A file with this name doesn't exist"}
-		case errors.As(err, &preReceiveError):
-			response = gitalypb.UserCommitFilesResponse{PreReceiveError: preReceiveError.Error()}
+		case errors.As(err, &hookError):
+			response = gitalypb.UserCommitFilesResponse{PreReceiveError: hookError.Error()}
 		case errors.As(err, new(git2go.InvalidArgumentError)):
 			return helper.ErrInvalidArgument(err)
 		default:
@@ -123,7 +118,12 @@ func validatePath(rootPath, relPath string) (string, error) {
 }
 
 func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommitFilesRequestHeader, stream gitalypb.OperationService_UserCommitFilesServer) error {
-	repoPath, err := s.locator.GetRepoPath(header.Repository)
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, header.GetRepository())
+	if err != nil {
+		return err
+	}
+
+	repoPath, err := quarantineRepo.Path()
 	if err != nil {
 		return fmt.Errorf("get repo path: %w", err)
 	}
@@ -137,10 +137,8 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 		remoteRepo = nil
 	}
 
-	localRepo := s.localrepo(header.GetRepository())
-
 	targetBranchName := git.NewReferenceNameFromBranchName(string(header.BranchName))
-	targetBranchCommit, err := localRepo.ResolveRevision(ctx, targetBranchName.Revision()+"^{commit}")
+	targetBranchCommit, err := quarantineRepo.ResolveRevision(ctx, targetBranchName.Revision()+"^{commit}")
 	if err != nil {
 		if !errors.Is(err, git.ErrReferenceNotFound) {
 			return fmt.Errorf("resolve target branch commit: %w", err)
@@ -153,7 +151,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 	if header.StartSha == "" {
 		parentCommitOID, err = s.resolveParentCommit(
 			ctx,
-			localRepo,
+			quarantineRepo,
 			remoteRepo,
 			targetBranchName,
 			targetBranchCommit,
@@ -170,7 +168,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 	}
 
 	if parentCommitOID != targetBranchCommit {
-		if err := s.fetchMissingCommit(ctx, localRepo, remoteRepo, parentCommitOID); err != nil {
+		if err := s.fetchMissingCommit(ctx, quarantineRepo, remoteRepo, parentCommitOID); err != nil {
 			return fmt.Errorf("fetch missing commit: %w", err)
 		}
 	}
@@ -226,7 +224,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 
 		switch pbAction.header.Action {
 		case gitalypb.UserCommitFilesActionHeader_CREATE:
-			blobID, err := localRepo.WriteBlob(ctx, path, content)
+			blobID, err := quarantineRepo.WriteBlob(ctx, path, content)
 			if err != nil {
 				return fmt.Errorf("write created blob: %w", err)
 			}
@@ -250,7 +248,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 			var oid git.ObjectID
 			if !pbAction.header.InferContent {
 				var err error
-				oid, err = localRepo.WriteBlob(ctx, path, content)
+				oid, err = quarantineRepo.WriteBlob(ctx, path, content)
 				if err != nil {
 					return err
 				}
@@ -262,7 +260,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 				OID:     oid.String(),
 			})
 		case gitalypb.UserCommitFilesActionHeader_UPDATE:
-			oid, err := localRepo.WriteBlob(ctx, path, content)
+			oid, err := quarantineRepo.WriteBlob(ctx, path, content)
 			if err != nil {
 				return fmt.Errorf("write updated blob: %w", err)
 			}
@@ -293,7 +291,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 		author = git2go.NewSignature(string(header.CommitAuthorName), string(header.CommitAuthorEmail), now)
 	}
 
-	commitID, err := s.git2go.Commit(ctx, git2go.CommitParams{
+	commitID, err := s.git2go.Commit(ctx, quarantineRepo, git2go.CommitParams{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -305,7 +303,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 		return fmt.Errorf("commit: %w", err)
 	}
 
-	hasBranches, err := localRepo.HasBranches(ctx)
+	hasBranches, err := quarantineRepo.HasBranches(ctx)
 	if err != nil {
 		return fmt.Errorf("was repo created: %w", err)
 	}
@@ -317,7 +315,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 		oldRevision = targetBranchCommit
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, header.Repository, header.User, targetBranchName, commitID, oldRevision); err != nil {
+	if err := s.updateReferenceWithHooks(ctx, header.GetRepository(), header.User, quarantineDir, targetBranchName, commitID, oldRevision); err != nil {
 		if errors.As(err, &updateref.Error{}) {
 			return status.Errorf(codes.FailedPrecondition, err.Error())
 		}
@@ -407,39 +405,14 @@ func (s *Server) fetchMissingCommit(
 			return fmt.Errorf("lookup parent commit: %w", err)
 		}
 
-		if err := s.fetchRemoteObject(ctx, localRepo, remoteRepo, commit); err != nil {
+		if err := localRepo.FetchInternal(
+			ctx,
+			remoteRepo,
+			[]string{commit.String()},
+			localrepo.FetchOpts{Tags: localrepo.FetchOptsTagsNone},
+		); err != nil {
 			return fmt.Errorf("fetch parent commit: %w", err)
 		}
-	}
-
-	return nil
-}
-
-func (s *Server) fetchRemoteObject(
-	ctx context.Context,
-	localRepo *localrepo.Repo,
-	remoteRepo *gitalypb.Repository,
-	oid git.ObjectID,
-) error {
-	env, err := gitalyssh.UploadPackEnv(ctx, s.cfg, &gitalypb.SSHUploadPackRequest{
-		Repository:       remoteRepo,
-		GitConfigOptions: []string{"uploadpack.allowAnySHA1InWant=true"},
-	})
-	if err != nil {
-		return fmt.Errorf("upload pack env: %w", err)
-	}
-
-	stderr := &bytes.Buffer{}
-	if err := localRepo.ExecAndWait(ctx, git.SubCmd{
-		Name:  "fetch",
-		Flags: []git.Option{git.Flag{Name: "--no-tags"}},
-		Args:  []string{"ssh://gitaly/internal.git", oid.String()},
-	},
-		git.WithEnv(env...),
-		git.WithStderr(stderr),
-		git.WithRefTxHook(ctx, localRepo, s.cfg),
-	); err != nil {
-		return errorWithStderr(err, stderr)
 	}
 
 	return nil

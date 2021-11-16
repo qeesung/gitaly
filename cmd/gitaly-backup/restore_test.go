@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -21,13 +21,15 @@ import (
 
 func TestRestoreSubcommand(t *testing.T) {
 	cfg := testcfg.Build(t)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	gitalyAddr := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
 
 	path := testhelper.TempDir(t)
 
-	existingRepo, existRepoPath, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "existing_repo")
+	existingRepo, existRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		RelativePath: "existing_repo",
+	})
 	existingRepoBundlePath := filepath.Join(path, existingRepo.RelativePath+".bundle")
 	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
 
@@ -64,7 +66,7 @@ func TestRestoreSubcommand(t *testing.T) {
 
 	require.NoError(t, fs.Parse([]string{"-path", path}))
 	require.EqualError(t,
-		cmd.Run(context.Background(), &stdin, ioutil.Discard),
+		cmd.Run(context.Background(), &stdin, io.Discard),
 		"restore: pipeline: 1 failures encountered")
 
 	for _, repo := range repos {

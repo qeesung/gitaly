@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -27,10 +27,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-var (
-	// ConnectTimeout is the timeout for establishing a connection to the gitaly-ruby process.
-	ConnectTimeout = 40 * time.Second
-)
+// ConnectTimeout is the timeout for establishing a connection to the gitaly-ruby process.
+var ConnectTimeout = 40 * time.Second
 
 func init() {
 	timeout, err := env.GetInt("GITALY_RUBY_CONNECT_TIMEOUT", 0)
@@ -254,15 +252,15 @@ func dialOptions() []grpc.DialOption {
 			return d.DialContext(ctx, "unix", addr)
 		}),
 		grpc.WithUnaryInterceptor(
-			grpc_middleware.ChainUnaryClient(
-				grpc_prometheus.UnaryClientInterceptor,
+			grpcmw.ChainUnaryClient(
+				grpcprometheus.UnaryClientInterceptor,
 				grpctracing.UnaryClientTracingInterceptor(),
 				grpccorrelation.UnaryClientCorrelationInterceptor(),
 			),
 		),
 		grpc.WithStreamInterceptor(
-			grpc_middleware.ChainStreamClient(
-				grpc_prometheus.StreamClientInterceptor,
+			grpcmw.ChainStreamClient(
+				grpcprometheus.StreamClientInterceptor,
 				grpctracing.StreamClientTracingInterceptor(),
 				grpccorrelation.StreamClientCorrelationInterceptor(),
 			),

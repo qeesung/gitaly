@@ -32,7 +32,7 @@ removed](https://about.gitlab.com/2018/09/12/the-road-to-gitaly-1-0/).
 
 For performance reasons some RPCs can be performed through NFS still. An
 effort is made to mitigate performance issues by removing [Gitaly N+1](https://gitlab.com/groups/gitlab-org/-/epics/827).
-Once that is no longer neccesairy we can conclude the migration project by
+Once that is no longer necessary we can conclude the migration project by
 [removing the Git repository storage paths from gitlab-rails's
 configuration](https://gitlab.com/gitlab-org/gitaly/issues/1282).
 
@@ -54,10 +54,10 @@ GitLab.com, read about our [observability story](doc/observability.md)!
 Most users won't install Gitaly on its own. It is already included in
 [your GitLab installation](https://about.gitlab.com/install/).
 
-Gitaly requires Go 1.15 or Go 1.16 and Ruby 2.7. Run `make` to download and
+Gitaly requires Go 1.16 or Go 1.17 and Ruby 2.7. Run `make` to download and
 compile Ruby dependencies, and to compile the Gitaly Go executable.
 
-Gitaly uses `git`. Versions `2.31.0` and newer are supported.
+Gitaly uses `git`. Versions `2.33.0` and newer are supported.
 
 ## Configuration
 

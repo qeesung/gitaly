@@ -1,9 +1,12 @@
 package praefect
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"io"
 	"net"
 	"os"
 	"testing"
@@ -11,16 +14,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	gconfig "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -28,10 +36,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestServerFactory(t *testing.T) {
+	t.Parallel()
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 	gitalyAddr := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 
@@ -61,13 +71,16 @@ func TestServerFactory(t *testing.T) {
 	revision := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
 
 	logger := testhelper.DiscardTestEntry(t)
-	queue := datastore.NewMemoryReplicationEventQueue(conf)
+	queue := datastore.NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	rs := datastore.MockRepositoryStore{}
-	nodeMgr, err := nodes.NewManager(logger, conf, nil, rs, &promtest.MockHistogramVec{}, protoregistry.GitalyProtoPreregistered, nil, nil)
+	txMgr := transactions.NewManager(conf)
+	sidechannelRegistry := sidechannel.NewRegistry()
+	clientHandshaker := backchannel.NewClientHandshaker(logger, NewBackchannelServerFactory(logger, transaction.NewServer(txMgr), sidechannelRegistry))
+	nodeMgr, err := nodes.NewManager(logger, conf, nil, rs, &promtest.MockHistogramVec{}, protoregistry.GitalyProtoPreregistered, nil, clientHandshaker, sidechannelRegistry)
 	require.NoError(t, err)
 	nodeMgr.Start(0, time.Second)
-	txMgr := transactions.NewManager(conf)
+	defer nodeMgr.Stop()
 	registry := protoregistry.GitalyProtoPreregistered
 
 	coordinator := NewCoordinator(
@@ -101,6 +114,68 @@ func TestServerFactory(t *testing.T) {
 		require.Equal(t, revision, resp.Commit.Id)
 	}
 
+	checkSidechannelGitaly := func(ctx context.Context, t *testing.T, addr string, creds credentials.TransportCredentials) {
+		t.Helper()
+
+		// Client has its own sidechannel registry, don't reuse the one we plugged into Praefect.
+		registry := sidechannel.NewRegistry()
+
+		factory := func() backchannel.Server {
+			lm := listenmux.New(insecure.NewCredentials())
+			lm.Register(sidechannel.NewServerHandshaker(registry))
+			return grpc.NewServer(grpc.Creds(lm))
+		}
+
+		clientHandshaker := backchannel.NewClientHandshaker(logger, factory)
+		dialOpt := grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(creds))
+
+		cc, err := grpc.Dial(addr, dialOpt)
+		require.NoError(t, err)
+		defer func() { require.NoError(t, cc.Close()) }()
+
+		var pack []byte
+		ctx, waiter := sidechannel.RegisterSidechannel(ctx, registry, func(conn *sidechannel.ClientConn) error {
+			// 1e292f8fedd741b75372e19097c76d327140c312 is refs/heads/master of the test repo
+			const message = `003cwant 1e292f8fedd741b75372e19097c76d327140c312 ofs-delta
+00000009done
+`
+
+			if _, err := io.WriteString(conn, message); err != nil {
+				return err
+			}
+			if err := conn.CloseWrite(); err != nil {
+				return err
+			}
+
+			buf := make([]byte, 8)
+			if _, err := io.ReadFull(conn, buf); err != nil {
+				return fmt.Errorf("read nak: %w", err)
+			}
+			if string(buf) != "0008NAK\n" {
+				return fmt.Errorf("unexpected response: %q", buf)
+			}
+
+			var err error
+			pack, err = io.ReadAll(conn)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		defer waiter.Close()
+
+		_, err = gitalypb.NewSmartHTTPServiceClient(cc).PostUploadPackWithSidechannel(ctx,
+			&gitalypb.PostUploadPackWithSidechannelRequest{Repository: repo},
+		)
+		require.NoError(t, err)
+		require.NoError(t, waiter.Close())
+
+		gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: bytes.NewReader(pack)},
+			"-C", repoPath, "index-pack", "--stdin", "--fix-thin",
+		)
+	}
+
 	t.Run("insecure", func(t *testing.T) {
 		praefectServerFactory := NewServerFactory(conf, logger, coordinator.StreamDirector, nodeMgr, txMgr, queue, rs, datastore.AssignmentStore{}, registry, nil, nil)
 		defer praefectServerFactory.Stop()
@@ -113,6 +188,8 @@ func TestServerFactory(t *testing.T) {
 
 		praefectAddr, err := starter.ComposeEndpoint(listener.Addr().Network(), listener.Addr().String())
 		require.NoError(t, err)
+
+		creds := insecure.NewCredentials()
 
 		cc, err := client.Dial(praefectAddr, nil)
 		require.NoError(t, err)
@@ -127,6 +204,10 @@ func TestServerFactory(t *testing.T) {
 
 		t.Run("proxies RPCs onto gitaly server", func(t *testing.T) {
 			checkProxyingOntoGitaly(ctx, t, cc)
+		})
+
+		t.Run("proxies sidechannel RPCs onto gitaly server", func(t *testing.T) {
+			checkSidechannelGitaly(ctx, t, listener.Addr().String(), creds)
 		})
 	})
 
@@ -165,6 +246,10 @@ func TestServerFactory(t *testing.T) {
 
 		t.Run("proxies RPCs onto gitaly server", func(t *testing.T) {
 			checkProxyingOntoGitaly(ctx, t, cc)
+		})
+
+		t.Run("proxies sidechannel RPCs onto gitaly server", func(t *testing.T) {
+			checkSidechannelGitaly(ctx, t, listener.Addr().String(), creds)
 		})
 	})
 

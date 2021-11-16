@@ -2,10 +2,10 @@ package featureflag
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -54,7 +54,7 @@ func callUnary(ctx context.Context) {
 
 func callStream(ctx context.Context) {
 	// nolint: errcheck
-	StreamInterceptor(ctx, &grpc_middleware.WrappedServerStream{WrappedContext: ctx}, nil, func(interface{}, grpc.ServerStream) error {
+	StreamInterceptor(ctx, &grpcmw.WrappedServerStream{WrappedContext: ctx}, nil, func(interface{}, grpc.ServerStream) error {
 		ctxlogrus.Extract(ctx).Info("verify")
 		return nil
 	})
@@ -73,7 +73,7 @@ func setup() (context.Context, *test.Hook) {
 func setupContext() (context.Context, *test.Hook) {
 	ctx := context.Background()
 	logger := logrus.New()
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
 
 	hook := test.NewLocal(logger)
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))

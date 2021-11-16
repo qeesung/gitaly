@@ -188,7 +188,7 @@ func TestMemoryReplicationEventQueue_ConcurrentAccess(t *testing.T) {
 	eventType1 := ReplicationEvent{Job: job1}
 	eventType2 := ReplicationEvent{Job: job2}
 
-	var checkScenario = func(wg *sync.WaitGroup, event ReplicationEvent, state JobState) {
+	checkScenario := func(wg *sync.WaitGroup, event ReplicationEvent, state JobState) {
 		defer wg.Done()
 
 		created, err := queue.Enqueue(ctx, event)
@@ -212,6 +212,6 @@ func TestMemoryReplicationEventQueue_ConcurrentAccess(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go checkScenario(wg, eventType1, JobStateCompleted)
-	go checkScenario(wg, eventType2, JobStateCancelled)
+	go checkScenario(wg, eventType2, JobStateDead)
 	wg.Wait()
 }

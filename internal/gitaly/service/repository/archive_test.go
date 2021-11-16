@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -146,9 +147,8 @@ func TestGetArchiveSuccess(t *testing.T) {
 				data, err := consumeArchive(stream)
 				require.NoError(t, err)
 
-				archiveFile, err := ioutil.TempFile("", "")
+				archiveFile, err := os.Create(filepath.Join(testhelper.TempDir(t), "archive"))
 				require.NoError(t, err)
-				defer os.Remove(archiveFile.Name())
 
 				_, err = archiveFile.Write(data)
 				require.NoError(t, err)
@@ -169,12 +169,12 @@ func TestGetArchiveSuccess(t *testing.T) {
 
 func TestGetArchiveWithLfsSuccess(t *testing.T) {
 	t.Parallel()
-	defaultOptions := testhelper.GitlabTestServerOptions{
+	defaultOptions := gitlab.TestServerOptions{
 		SecretToken: secretToken,
 		LfsBody:     lfsBody,
 	}
 
-	url, cleanup := testhelper.NewGitlabTestServer(t, defaultOptions)
+	url, cleanup := gitlab.NewTestServer(t, defaultOptions)
 	t.Cleanup(cleanup)
 
 	shellDir := testhelper.TempDir(t)
@@ -183,17 +183,16 @@ func TestGetArchiveWithLfsSuccess(t *testing.T) {
 		GitlabShell: config.GitlabShell{Dir: shellDir},
 		Gitlab: config.Gitlab{
 			URL:        url,
-			SecretFile: testhelper.WriteShellSecretFile(t, shellDir, defaultOptions.SecretToken),
+			SecretFile: gitlab.WriteShellSecretFile(t, shellDir, defaultOptions.SecretToken),
 		},
 	}))
 
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
-	testhelper.ConfigureGitalyLfsSmudge(t, cfg.BinDir)
+	testcfg.BuildGitalyLFSSmudge(t, cfg)
 
 	// lfs-moar branch SHA
 	sha := "46abbb087fcc0fd02c340f0f2f052bd2c7708da3"
@@ -263,7 +262,7 @@ func TestGetArchiveWithLfsSuccess(t *testing.T) {
 					require.NoError(t, err)
 					defer fc.Close()
 
-					data, err := ioutil.ReadAll(fc)
+					data, err := io.ReadAll(fc)
 					require.NoError(t, err)
 
 					if tc.includeLfsBlobs {
@@ -426,7 +425,7 @@ func TestGetArchivePathInjection(t *testing.T) {
 
 	// Create the directory on the repository
 	repoExploitPath := filepath.Join(repoPath, "--output=", authorizedKeysPath)
-	require.NoError(t, os.MkdirAll(repoExploitPath, os.ModeDir|0755))
+	require.NoError(t, os.MkdirAll(repoExploitPath, os.ModeDir|0o755))
 
 	f, err := os.Create(filepath.Join(repoExploitPath, "id_12345.pub"))
 	require.NoError(t, err)
@@ -464,7 +463,7 @@ func TestGetArchivePathInjection(t *testing.T) {
 	require.NoError(t, err)
 	defer authorizedKeysFile.Close()
 
-	authorizedKeysFileBytes, err := ioutil.ReadAll(authorizedKeysFile)
+	authorizedKeysFileBytes, err := io.ReadAll(authorizedKeysFile)
 	require.NoError(t, err)
 	authorizedKeysFileStat, err := authorizedKeysFile.Stat()
 	require.NoError(t, err)
@@ -475,35 +474,26 @@ func TestGetArchivePathInjection(t *testing.T) {
 
 func TestGetArchiveEnv(t *testing.T) {
 	t.Parallel()
-	tmpFile, err := ioutil.TempFile("", "archive.sh")
-	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
 
-	err = tmpFile.Chmod(0755)
-	require.NoError(t, err)
-
-	_, err = tmpFile.Write([]byte(`#!/bin/sh
-env | grep -E "^GL_|CORRELATION|GITALY_"`))
-	require.NoError(t, err)
-	require.NoError(t, tmpFile.Close())
+	scriptPath := filepath.Join(testhelper.TempDir(t), "archive.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte("#!/bin/sh\nenv | grep -E '^GL_|CORRELATION|GITALY_'"), 0o755))
 
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	// We re-define path to the git executable to catch parameters used to call it.
 	// This replacement only needs to be done for the configuration used to invoke git commands.
 	// Other operations should use actual path to the git binary to work properly.
 	spyGitCfg := cfg
-	spyGitCfg.Git.BinPath = tmpFile.Name()
+	spyGitCfg.Git.BinPath = scriptPath
 
 	serverSocketPath := runRepositoryServerWithConfig(t, spyGitCfg, nil)
 	cfg.SocketPath = serverSocketPath
 
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, _, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	commitID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
 
@@ -558,5 +548,5 @@ func consumeArchive(stream gitalypb.RepositoryService_GetArchiveClient) ([]byte,
 		return response.GetData(), err
 	})
 
-	return ioutil.ReadAll(reader)
+	return io.ReadAll(reader)
 }

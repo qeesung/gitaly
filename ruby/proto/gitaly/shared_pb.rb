@@ -67,6 +67,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :page_token, :string, 1
       optional :limit, :int32, 2
     end
+    add_message "gitaly.PaginationCursor" do
+      optional :next_cursor, :string, 1
+    end
     add_message "gitaly.GlobalOptions" do
       optional :literal_pathspecs, :bool, 1
     end
@@ -82,6 +85,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       value :PGP, 1
       value :X509, 2
     end
+    add_enum "gitaly.SortDirection" do
+      value :ASCENDING, 0
+      value :DESCENDING, 1
+    end
   end
 end
 
@@ -96,7 +103,9 @@ module Gitaly
   User = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.User").msgclass
   ObjectPool = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ObjectPool").msgclass
   PaginationParameter = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PaginationParameter").msgclass
+  PaginationCursor = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PaginationCursor").msgclass
   GlobalOptions = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GlobalOptions").msgclass
   ObjectType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ObjectType").enummodule
   SignatureType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SignatureType").enummodule
+  SortDirection = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SortDirection").enummodule
 end

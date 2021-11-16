@@ -2,15 +2,14 @@ package server
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/fstype"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
@@ -57,10 +56,10 @@ func shardCheck(shardPath string) (readable bool, writeable bool) {
 	testPath := filepath.Join(shardPath, "+testWrite")
 
 	content := []byte("testWrite")
-	if err := ioutil.WriteFile(testPath, content, 0644); err == nil {
+	if err := os.WriteFile(testPath, content, 0o644); err == nil {
 		writeable = true
 	}
-	os.Remove(testPath)
+	_ = os.Remove(testPath)
 
 	return
 }

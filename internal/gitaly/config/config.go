@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -67,7 +66,7 @@ type Cfg struct {
 	InternalSocketDir      string            `toml:"internal_socket_dir"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
-	PackObjectsCache       PackObjectsCache  `toml:"pack_objects_cache"`
+	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
 }
 
 // TLS configuration
@@ -94,6 +93,7 @@ type Hooks struct {
 	CustomHooksDir string `toml:"custom_hooks_dir" json:"custom_hooks_dir"`
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
@@ -140,8 +140,8 @@ type Concurrency struct {
 	MaxPerRepo int    `toml:"max_per_repo"`
 }
 
-// PackObjectsCache contains settings for the pack-objects cache.
-type PackObjectsCache struct {
+// StreamCacheConfig contains settings for a streamcache instance.
+type StreamCacheConfig struct {
 	Enabled bool     `toml:"enabled"` // Default: false
 	Dir     string   `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
 	MaxAge  Duration `toml:"max_age"` // Default: 5m
@@ -150,7 +150,9 @@ type PackObjectsCache struct {
 // Load initializes the Config variable from file and the environment.
 //  Environment variables take precedence over the file.
 func Load(file io.Reader) (Cfg, error) {
-	var cfg Cfg
+	cfg := Cfg{
+		Prometheus: prometheus.DefaultConfig(),
+	}
 
 	if err := toml.NewDecoder(file).Decode(&cfg); err != nil {
 		return Cfg{}, fmt.Errorf("load toml: %v", err)
@@ -206,11 +208,11 @@ func (cfg *Cfg) setDefaults() error {
 
 	if cfg.InternalSocketDir == "" {
 		// The socket path must be short-ish because listen(2) fails on long
-		// socket paths. We hope/expect that ioutil.TempDir creates a directory
+		// socket paths. We hope/expect that os.MkdirTemp creates a directory
 		// that is not too deep. We need a directory, not a tempfile, because we
 		// will later want to set its permissions to 0700
 
-		tmpDir, err := ioutil.TempDir("", "gitaly-internal")
+		tmpDir, err := os.MkdirTemp("", "gitaly-internal")
 		if err != nil {
 			return fmt.Errorf("create internal socket directory: %w", err)
 		}
@@ -225,15 +227,15 @@ func (cfg *Cfg) setDefaults() error {
 }
 
 func (cfg *Cfg) validateListeners() error {
-	if len(cfg.SocketPath) == 0 && len(cfg.ListenAddr) == 0 {
-		return fmt.Errorf("invalid listener config: at least one of socket_path and listen_addr must be set")
+	if len(cfg.SocketPath) == 0 && len(cfg.ListenAddr) == 0 && len(cfg.TLSListenAddr) == 0 {
+		return fmt.Errorf("at least one of socket_path, listen_addr or tls_listen_addr must be set")
 	}
 	return nil
 }
 
 func (cfg *Cfg) validateShell() error {
 	if len(cfg.GitlabShell.Dir) == 0 {
-		return fmt.Errorf("gitlab-shell.dir is not set")
+		return fmt.Errorf("gitlab-shell.dir: is not set")
 	}
 
 	return validateIsDirectory(cfg.GitlabShell.Dir, "gitlab-shell.dir")
@@ -291,14 +293,16 @@ func (cfg *Cfg) validateHooks() error {
 func validateIsDirectory(path, name string) error {
 	s, err := os.Stat(path)
 	if err != nil {
-		return err
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%s: path doesn't exist: %q", name, path)
+		}
+		return fmt.Errorf("%s: %w", name, err)
 	}
 	if !s.IsDir() {
-		return fmt.Errorf("not a directory: %q", path)
+		return fmt.Errorf("%s: not a directory: %q", name, path)
 	}
 
-	log.WithField("dir", path).
-		Debugf("%s set", name)
+	log.WithField("dir", path).Debugf("%s set", name)
 
 	return nil
 }
@@ -310,20 +314,23 @@ func (cfg *Cfg) validateStorages() error {
 
 	for i, storage := range cfg.Storages {
 		if storage.Name == "" {
-			return fmt.Errorf("empty storage name in %+v", storage)
+			return fmt.Errorf("empty storage name at declaration %d", i+1)
 		}
 
 		if storage.Path == "" {
-			return fmt.Errorf("empty storage path in %+v", storage)
+			return fmt.Errorf("empty storage path for storage %q", storage.Name)
 		}
 
 		fs, err := os.Stat(storage.Path)
 		if err != nil {
-			return fmt.Errorf("storage %+v path must exist: %w", storage, err)
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("storage path %q for storage %q doesn't exist", storage.Path, storage.Name)
+			}
+			return fmt.Errorf("storage %q: %w", storage.Name, err)
 		}
 
 		if !fs.IsDir() {
-			return fmt.Errorf("storage %+v path must be a dir", storage)
+			return fmt.Errorf("storage path %q for storage %q is not a dir", storage.Path, storage.Name)
 		}
 
 		for _, other := range cfg.Storages[:i] {
@@ -349,6 +356,7 @@ func (cfg *Cfg) validateStorages() error {
 	return nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func SkipHooks() bool {
 	enabled, _ := env.GetBool("GITALY_TESTING_NO_GIT_HOOKS", false)
 	return enabled
@@ -368,7 +376,9 @@ func (cfg *Cfg) SetGitPath() error {
 
 	resolvedPath, err := exec.LookPath("git")
 	if err != nil {
-		return err
+		if errors.Is(err, exec.ErrNotFound) {
+			return fmt.Errorf(`"git" executable not found, set path to it in the configuration file or add it to the PATH`)
+		}
 	}
 
 	log.WithFields(log.Fields{
@@ -403,8 +413,11 @@ func (cfg *Cfg) GitalyInternalSocketPath() string {
 }
 
 func (cfg *Cfg) validateBinDir() error {
+	if len(cfg.BinDir) == 0 {
+		return fmt.Errorf("bin_dir: is not set")
+	}
+
 	if err := validateIsDirectory(cfg.BinDir, "bin_dir"); err != nil {
-		log.WithError(err).Warn("Gitaly bin directory is not configured")
 		return err
 	}
 
@@ -464,17 +477,14 @@ func (cfg *Cfg) validateInternalSocketDir() error {
 		return nil
 	}
 
-	dir := cfg.InternalSocketDir
-
-	f, err := os.Stat(dir)
-	switch {
-	case err != nil:
-		return fmt.Errorf("InternalSocketDir: %s", err)
-	case !f.IsDir():
-		return fmt.Errorf("InternalSocketDir %s is not a directory", dir)
+	if err := validateIsDirectory(cfg.InternalSocketDir, "internal_socket_dir"); err != nil {
+		return err
 	}
 
-	return trySocketCreation(dir)
+	if err := trySocketCreation(cfg.InternalSocketDir); err != nil {
+		return fmt.Errorf("internal_socket_dir: try create socket: %w", err)
+	}
+	return nil
 }
 
 func trySocketCreation(dir string) error {
@@ -487,7 +497,7 @@ func trySocketCreation(dir string) error {
 	}
 
 	socketPath := filepath.Join(dir, fmt.Sprintf("test-%s.sock", b))
-	defer os.Remove(socketPath)
+	defer func() { _ = os.Remove(socketPath) }()
 
 	// Attempt to create an actual socket and not just a file to catch socket path length problems
 	l, err := net.Listen("unix", socketPath)
@@ -548,19 +558,19 @@ func (cfg *Cfg) validateCgroups() error {
 	}
 
 	if cg.Mountpoint == "" {
-		return fmt.Errorf("cgroups mountpoint cannot be empty")
+		return fmt.Errorf("cgroups.mountpoint: cannot be empty")
 	}
 
 	if cg.HierarchyRoot == "" {
-		return fmt.Errorf("cgroups hierarchy root cannot be empty")
+		return fmt.Errorf("cgroups.hierarchy_root: cannot be empty")
 	}
 
 	if cg.CPU.Enabled && cg.CPU.Shares == 0 {
-		return fmt.Errorf("cgroups CPU shares has to be greater than zero")
+		return fmt.Errorf("cgroups.cpu.shares: has to be greater than zero")
 	}
 
 	if cg.Memory.Enabled && (cg.Memory.Limit == 0 || cg.Memory.Limit < -1) {
-		return fmt.Errorf("cgroups memory limit has to be greater than zero or equal to -1")
+		return fmt.Errorf("cgroups.memory.limit: has to be greater than zero or equal to -1")
 	}
 
 	return nil

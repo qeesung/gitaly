@@ -17,18 +17,20 @@ import (
 )
 
 const (
+	//nolint: revive // This is unintentionally missing documentation.
 	MidxRelPath = "objects/pack/multi-pack-index"
 )
 
 func (s *server) MidxRepack(ctx context.Context, in *gitalypb.MidxRepackRequest) (*gitalypb.MidxRepackResponse, error) {
-	repo := in.GetRepository()
+	repoProto := in.GetRepository()
+	repo := s.localrepo(repoProto)
 
-	if err := s.midxSetConfig(ctx, repo); err != nil {
-		return nil, err
+	if err := repo.SetConfig(ctx, "core.multiPackIndex", "true", s.txManager); err != nil {
+		return nil, helper.ErrInternalf("setting config: %w", err)
 	}
 
 	for _, cmd := range []midxSubCommand{s.midxWrite, s.midxExpire, s.midxRepack} {
-		if err := s.safeMidxCommand(ctx, repo, cmd); err != nil {
+		if err := s.safeMidxCommand(ctx, repoProto, cmd); err != nil {
 			if git.IsInvalidArgErr(err) {
 				return nil, helper.ErrInvalidArgumentf("MidxRepack: %w", err)
 			}
@@ -53,27 +55,6 @@ func (s *server) safeMidxCommand(ctx context.Context, repo repository.GitRepo, c
 	return s.midxEnsureExists(ctx, repo)
 }
 
-func (s *server) midxSetConfig(ctx context.Context, repo repository.GitRepo) error {
-	cmd, err := s.gitCmdFactory.New(ctx, repo, git.SubCmd{
-		Name: "config",
-		Flags: []git.Option{
-			git.ConfigPair{
-				Key:   "core.multiPackIndex",
-				Value: "true",
-			},
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *server) midxWrite(ctx context.Context, repo repository.GitRepo) error {
 	cmd, err := s.gitCmdFactory.New(ctx, repo,
 		git.SubSubCmd{
@@ -81,7 +62,6 @@ func (s *server) midxWrite(ctx context.Context, repo repository.GitRepo) error {
 			Action: "write",
 		},
 	)
-
 	if err != nil {
 		return err
 	}

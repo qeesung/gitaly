@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,6 +28,10 @@ import (
 
 func TestApplyGitattributesSuccess(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	cfg, repo, _, client := setupRepositoryService(t)
 
 	infoPath := filepath.Join(cfg.Storages[0].Path, repo.GetRelativePath(), "info")
@@ -57,18 +60,18 @@ func TestApplyGitattributesSuccess(t *testing.T) {
 			if err := os.RemoveAll(infoPath); err != nil {
 				t.Fatal(err)
 			}
-			assertGitattributesApplied(t, client, repo, attributesPath, test.revision, test.contents)
+			assertGitattributesApplied(t, ctx, client, repo, attributesPath, test.revision, test.contents)
 
 			// Test when no git attributes file exists
 			if err := os.Remove(attributesPath); err != nil && !os.IsNotExist(err) {
 				t.Fatal(err)
 			}
-			assertGitattributesApplied(t, client, repo, attributesPath, test.revision, test.contents)
+			assertGitattributesApplied(t, ctx, client, repo, attributesPath, test.revision, test.contents)
 
 			// Test when a git attributes file already exists
-			require.NoError(t, os.MkdirAll(infoPath, 0755))
-			require.NoError(t, ioutil.WriteFile(attributesPath, []byte("*.docx diff=word"), 0644))
-			assertGitattributesApplied(t, client, repo, attributesPath, test.revision, test.contents)
+			require.NoError(t, os.MkdirAll(infoPath, 0o755))
+			require.NoError(t, os.WriteFile(attributesPath, []byte("*.docx diff=word"), 0o644))
+			assertGitattributesApplied(t, ctx, client, repo, attributesPath, test.revision, test.contents)
 		})
 	}
 }
@@ -87,6 +90,10 @@ func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 
 func TestApplyGitattributesWithTransaction(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	transactionServer := &testTransactionServer{}
@@ -98,6 +105,7 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 			deps.GetTxManager(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
+			deps.GetConnsPool(),
 		))
 	})
 
@@ -105,9 +113,6 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 	// Praefect in our tests. Otherwise Praefect would replace our
 	// carefully crafted transaction and server information.
 	logger := testhelper.DiscardTestEntry(t)
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	client := newMuxedRepositoryClient(t, ctx, cfg, "unix://"+cfg.GitalyInternalSocketPath(),
 		backchannel.NewClientHandshaker(logger, func() backchannel.Server {
@@ -128,12 +133,10 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 			desc:     "successful vote writes gitattributes",
 			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
 			voteFn: func(t *testing.T, request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
-				oid, err := git.NewObjectIDFromHex("36814a3da051159a1683479e7a1487120309db8f")
-				require.NoError(t, err)
-				hash, err := oid.Bytes()
-				require.NoError(t, err)
+				vote := voting.VoteFromData([]byte("/custom-highlighting/*.gitlab-custom gitlab-language=ruby\n"))
+				expectedHash := vote.Bytes()
 
-				require.Equal(t, hash, request.ReferenceUpdatesHash)
+				require.Equal(t, expectedHash, request.ReferenceUpdatesHash)
 				return &gitalypb.VoteTransactionResponse{
 					State: gitalypb.VoteTransactionResponse_COMMIT,
 				}, nil
@@ -149,7 +152,9 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 				}, nil
 			},
 			shouldExist: false,
-			expectedErr: status.Error(codes.Unknown, "could not commit gitattributes: vote failed: transaction was aborted"),
+			expectedErr: func() error {
+				return status.Error(codes.Unknown, "committing gitattributes: voting on locked file: preimage vote: transaction was aborted")
+			}(),
 		},
 		{
 			desc:     "failing vote does not write gitattributes",
@@ -158,7 +163,9 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 				return nil, errors.New("foobar")
 			},
 			shouldExist: false,
-			expectedErr: status.Error(codes.Unknown, "could not commit gitattributes: vote failed: rpc error: code = Unknown desc = foobar"),
+			expectedErr: func() error {
+				return status.Error(codes.Unknown, "committing gitattributes: voting on locked file: preimage vote: rpc error: code = Unknown desc = foobar")
+			}(),
 		},
 		{
 			desc:     "commit without gitattributes performs vote",
@@ -178,7 +185,7 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 
 			ctx, err := txinfo.InjectTransaction(ctx, 1, "primary", true)
 			require.NoError(t, err)
-			ctx = helper.IncomingToOutgoing(ctx)
+			ctx = metadata.IncomingToOutgoing(ctx)
 
 			transactionServer.vote = func(request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
 				return tc.voteFn(t, request)
@@ -204,6 +211,10 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 
 func TestApplyGitattributesFailure(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	_, repo, _, client := setupRepositoryService(t)
 
 	tests := []struct {
@@ -250,9 +261,6 @@ func TestApplyGitattributesFailure(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%+v", test), func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
-
 			req := &gitalypb.ApplyGitattributesRequest{Repository: test.repo, Revision: test.revision}
 			_, err := client.ApplyGitattributes(ctx, req)
 			testhelper.RequireGrpcError(t, err, test.code)
@@ -260,11 +268,8 @@ func TestApplyGitattributesFailure(t *testing.T) {
 	}
 }
 
-func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceClient, testRepo *gitalypb.Repository, attributesPath string, revision, expectedContents []byte) {
+func assertGitattributesApplied(t *testing.T, ctx context.Context, client gitalypb.RepositoryServiceClient, testRepo *gitalypb.Repository, attributesPath string, revision, expectedContents []byte) {
 	t.Helper()
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	req := &gitalypb.ApplyGitattributesRequest{Repository: testRepo, Revision: revision}
 	c, err := client.ApplyGitattributes(ctx, req)
@@ -272,7 +277,7 @@ func assertGitattributesApplied(t *testing.T, client gitalypb.RepositoryServiceC
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 
-	contents, err := ioutil.ReadFile(attributesPath)
+	contents, err := os.ReadFile(attributesPath)
 	if expectedContents == nil {
 		if !os.IsNotExist(err) {
 			t.Error(err)

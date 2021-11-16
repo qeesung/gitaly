@@ -11,7 +11,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -35,6 +37,7 @@ func validateMergeBranchRequest(request *gitalypb.UserMergeBranchRequest) error 
 	return nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranchServer) error {
 	ctx := stream.Context()
 
@@ -47,15 +50,19 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return helper.ErrInvalidArgument(err)
 	}
 
-	repo := firstRequest.Repository
-	repoPath, err := s.locator.GetPath(repo)
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, firstRequest.GetRepository())
+	if err != nil {
+		return err
+	}
+
+	repoPath, err := quarantineRepo.Path()
 	if err != nil {
 		return err
 	}
 
 	referenceName := git.NewReferenceNameFromBranchName(string(firstRequest.Branch))
 
-	revision, err := s.localrepo(repo).ResolveRevision(ctx, referenceName.Revision())
+	revision, err := quarantineRepo.ResolveRevision(ctx, referenceName.Revision())
 	if err != nil {
 		return err
 	}
@@ -65,7 +72,7 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return helper.ErrInvalidArgument(err)
 	}
 
-	merge, err := git2go.MergeCommand{
+	merge, err := s.git2go.Merge(ctx, quarantineRepo, git2go.MergeCommand{
 		Repository: repoPath,
 		AuthorName: string(firstRequest.User.Name),
 		AuthorMail: string(firstRequest.User.Email),
@@ -73,12 +80,17 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		Message:    string(firstRequest.Message),
 		Ours:       revision.String(),
 		Theirs:     firstRequest.CommitId,
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		if errors.Is(err, git2go.ErrInvalidArgument) {
 			return helper.ErrInvalidArgument(err)
 		}
-		return err
+
+		if strings.Contains(err.Error(), "could not auto-merge due to conflicts") || errors.As(err, &git2go.ConflictingFilesError{}) {
+			return helper.ErrFailedPreconditionf("Failed to merge for source_sha %s into target_sha %s",
+				firstRequest.CommitId, revision.String())
+		}
+		return helper.ErrInternal(err)
 	}
 
 	mergeOID, err := git.NewObjectIDFromHex(merge.CommitID)
@@ -97,16 +109,52 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return err
 	}
 	if !secondRequest.Apply {
-		return helper.ErrPreconditionFailedf("merge aborted by client")
+		return helper.ErrFailedPreconditionf("merge aborted by client")
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, firstRequest.Repository, firstRequest.User, referenceName, mergeOID, revision); err != nil {
-		var preReceiveError updateref.PreReceiveError
+	if err := s.updateReferenceWithHooks(ctx, firstRequest.GetRepository(), firstRequest.User, quarantineDir, referenceName, mergeOID, revision); err != nil {
+		// This code cannot be enabled via a feature flag only until Rails has adapted to
+		// the changed error handling because it will test with all feature flags enabled by
+		// default.
+		if s.enableUserMergeBranchStructuredErrors && featureflag.UserMergeBranchAccessError.IsEnabled(ctx) {
+			var notAllowedError hook.NotAllowedError
+			var updateRefError updateref.Error
+
+			if errors.As(err, &notAllowedError) {
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrPermissionDenied(notAllowedError),
+					&gitalypb.UserMergeBranchError{
+						Error: &gitalypb.UserMergeBranchError_AccessCheck{
+							AccessCheck: &gitalypb.AccessCheckError{
+								ErrorMessage: notAllowedError.Message,
+								UserId:       notAllowedError.UserID,
+								Protocol:     notAllowedError.Protocol,
+								Changes:      notAllowedError.Changes,
+							},
+						},
+					},
+				)
+				if err != nil {
+					return helper.ErrInternalf("error details: %w", err)
+				}
+
+				return detailedErr
+			} else if errors.As(err, &updateRefError) {
+				// When an error happens updating the reference, e.g. because of a
+				// race with another update, then we should tell the user that a
+				// precondition failed. A retry may fix this.
+				return helper.ErrFailedPrecondition(err)
+			}
+
+			return helper.ErrInternal(err)
+		}
+
+		var hookError updateref.HookError
 		var updateRefError updateref.Error
 
-		if errors.As(err, &preReceiveError) {
+		if errors.As(err, &hookError) {
 			err = stream.Send(&gitalypb.UserMergeBranchResponse{
-				PreReceiveError: preReceiveError.Message,
+				PreReceiveError: hookError.Error(),
 			})
 		} else if errors.As(err, &updateRefError) {
 			// When an error happens updating the reference, e.g. because of a race
@@ -132,6 +180,10 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 }
 
 func validateFFRequest(in *gitalypb.UserFFBranchRequest) error {
+	if in.Repository == nil {
+		return fmt.Errorf("empty repository")
+	}
+
 	if len(in.Branch) == 0 {
 		return fmt.Errorf("empty branch name")
 	}
@@ -147,6 +199,7 @@ func validateFFRequest(in *gitalypb.UserFFBranchRequest) error {
 	return nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequest) (*gitalypb.UserFFBranchResponse, error) {
 	if err := validateFFRequest(in); err != nil {
 		return nil, helper.ErrInvalidArgument(err)
@@ -154,8 +207,15 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 
 	referenceName := git.NewReferenceNameFromBranchName(string(in.Branch))
 
-	repo := s.localrepo(in.GetRepository())
-	revision, err := repo.ResolveRevision(ctx, referenceName.Revision())
+	// While we're creating a quarantine directory, we know that it won't ever have any new
+	// objects given that we're doing a fast-forward merge. We still want to create one such
+	// that Rails can efficiently compute new objects.
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, in.GetRepository())
+	if err != nil {
+		return nil, err
+	}
+
+	revision, err := quarantineRepo.ResolveRevision(ctx, referenceName.Revision())
 	if err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}
@@ -165,19 +225,19 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 		return nil, helper.ErrInvalidArgumentf("cannot parse commit ID: %w", err)
 	}
 
-	ancestor, err := repo.IsAncestor(ctx, revision.Revision(), commitID.Revision())
+	ancestor, err := quarantineRepo.IsAncestor(ctx, revision.Revision(), commitID.Revision())
 	if err != nil {
 		return nil, err
 	}
 	if !ancestor {
-		return nil, helper.ErrPreconditionFailedf("not fast forward")
+		return nil, helper.ErrFailedPreconditionf("not fast forward")
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, in.Repository, in.User, referenceName, commitID, revision); err != nil {
-		var preReceiveError updateref.PreReceiveError
-		if errors.As(err, &preReceiveError) {
+	if err := s.updateReferenceWithHooks(ctx, in.GetRepository(), in.User, quarantineDir, referenceName, commitID, revision); err != nil {
+		var hookError updateref.HookError
+		if errors.As(err, &hookError) {
 			return &gitalypb.UserFFBranchResponse{
-				PreReceiveError: preReceiveError.Message,
+				PreReceiveError: hookError.Error(),
 			}, nil
 		}
 
@@ -266,7 +326,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 	var oldTargetOID git.ObjectID
 	if targetRef, err := repo.GetReference(ctx, git.ReferenceName(request.TargetRef)); err == nil {
 		if targetRef.IsSymbolic {
-			return nil, helper.ErrPreconditionFailedf("target reference is symbolic: %q", request.TargetRef)
+			return nil, helper.ErrFailedPreconditionf("target reference is symbolic: %q", request.TargetRef)
 		}
 
 		oid, err := git.NewObjectIDFromHex(targetRef.Target)
@@ -282,7 +342,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 	}
 
 	// Now, we create the merge commit...
-	merge, err := git2go.MergeCommand{
+	merge, err := s.git2go.Merge(ctx, repo, git2go.MergeCommand{
 		Repository:     repoPath,
 		AuthorName:     string(request.User.Name),
 		AuthorMail:     string(request.User.Email),
@@ -291,7 +351,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		Ours:           oid.String(),
 		Theirs:         sourceOID.String(),
 		AllowConflicts: request.AllowConflicts,
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		ctxlogrus.Extract(ctx).WithError(err).WithFields(
 			logrus.Fields{
@@ -304,7 +364,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 		if errors.Is(err, git2go.ErrInvalidArgument) {
 			return nil, helper.ErrInvalidArgument(err)
 		}
-		return nil, helper.ErrPreconditionFailedf("Failed to create merge commit for source_sha %s and target_sha %s at %s",
+		return nil, helper.ErrFailedPreconditionf("Failed to create merge commit for source_sha %s and target_sha %s at %s",
 			sourceOID, oid, string(request.TargetRef))
 	}
 
@@ -316,8 +376,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 	// ... and move branch from target ref to the merge commit. The Ruby
 	// implementation doesn't invoke hooks, so we don't either.
 	if err := repo.UpdateRef(ctx, git.ReferenceName(request.TargetRef), mergeOID, oldTargetOID); err != nil {
-		//nolint:stylecheck
-		return nil, helper.ErrPreconditionFailed(fmt.Errorf("Could not update %s. Please refresh and try again", string(request.TargetRef)))
+		return nil, helper.ErrFailedPreconditionf("Could not update %s. Please refresh and try again", string(request.TargetRef))
 	}
 
 	return &gitalypb.UserMergeToRefResponse{

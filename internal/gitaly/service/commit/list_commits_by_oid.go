@@ -1,33 +1,31 @@
 package commit
 
 import (
-	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
-var (
-	listCommitsbyOidHistogram = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name: "gitaly_list_commits_by_oid_request_size",
-			Help: "Number of commits requested in a ListCommitsByOid request",
+var listCommitsbyOidHistogram = promauto.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "gitaly_list_commits_by_oid_request_size",
+		Help: "Number of commits requested in a ListCommitsByOid request",
 
-			// We want to count the pathological case where the request is empty. I
-			// am not sure if with floats, Observe(0) would go into bucket 0. Use
-			// bucket 0.001 because 0 <= 0.001 for sure.
-			Buckets: []float64{0.001, 1, 5, 10, 20},
-		})
-)
+		// We want to count the pathological case where the request is empty. I
+		// am not sure if with floats, Observe(0) would go into bucket 0. Use
+		// bucket 0.001 because 0 <= 0.001 for sure.
+		Buckets: []float64{0.001, 1, 5, 10, 20},
+	})
 
 func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream gitalypb.CommitService_ListCommitsByOidServer) error {
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -36,7 +34,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 	listCommitsbyOidHistogram.Observe(float64(len(in.Oid)))
 
 	for _, oid := range in.Oid {
-		commit, err := catfile.GetCommit(ctx, c, git.Revision(oid))
+		commit, err := catfile.GetCommit(ctx, objectReader, git.Revision(oid))
 		if catfile.IsNotFound(err) {
 			continue
 		}

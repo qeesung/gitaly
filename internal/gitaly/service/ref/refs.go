@@ -6,19 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"math"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gitpipe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -28,12 +22,19 @@ const (
 	tagFormat = "%(objectname) %(objecttype) %(refname:lstrip=2)"
 )
 
-var (
-	// We declare the following functions in variables so that we can override them in our tests
-	headReference = _headReference
-	// FindBranchNames is exported to be used in other packages
-	FindBranchNames = _findBranchNames
-)
+type paginationOpts struct {
+	// Limit allows to set the maximum numbers of elements
+	Limit int
+	// IsPageToken allows control over which results are sent as part of the
+	// response. When IsPageToken evaluates to true for the first time,
+	// results will start to be sent as part of the response. This function
+	// will	be called with an empty slice previous to sending the first line
+	// in order to allow sending everything right from the beginning.
+	IsPageToken func([]byte) bool
+	// When PageTokenError is true then the response will return an error when
+	// PageToken is not found.
+	PageTokenError bool
+}
 
 type findRefsOpts struct {
 	cmdArgs []git.Option
@@ -60,9 +61,10 @@ func (s *server) findRefs(ctx context.Context, writer lines.Sender, repo git.Rep
 	}
 
 	if err := lines.Send(cmd, writer, lines.SenderOpts{
-		IsPageToken: opts.IsPageToken,
-		Delimiter:   opts.delim,
-		Limit:       opts.Limit,
+		IsPageToken:    opts.IsPageToken,
+		Delimiter:      opts.delim,
+		Limit:          opts.Limit,
+		PageTokenError: opts.PageTokenError,
 	}); err != nil {
 		return err
 	}
@@ -70,205 +72,17 @@ func (s *server) findRefs(ctx context.Context, writer lines.Sender, repo git.Rep
 	return cmd.Wait()
 }
 
-type tagSender struct {
-	tags   []*gitalypb.Tag
-	stream gitalypb.RefService_FindAllTagsServer
-}
-
-func (t *tagSender) Reset() {
-	t.tags = nil
-}
-
-func (t *tagSender) Append(m proto.Message) {
-	t.tags = append(t.tags, m.(*gitalypb.Tag))
-}
-
-func (t *tagSender) Send() error {
-	return t.stream.Send(&gitalypb.FindAllTagsResponse{
-		Tags: t.tags,
-	})
-}
-
-func (s *server) parseAndReturnTags(ctx context.Context, repo git.RepositoryExecutor, stream gitalypb.RefService_FindAllTagsServer) error {
-	tagsCmd, err := repo.Exec(ctx, git.SubCmd{
-		Name: "for-each-ref",
-		Flags: []git.Option{
-			git.ValueFlag{"--format", tagFormat},
-		},
-		Args: []string{"refs/tags/"},
-	})
-	if err != nil {
-		return fmt.Errorf("for-each-ref error: %v", err)
-	}
-
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("error creating catfile: %v", err)
-	}
-
-	tagChunker := chunk.New(&tagSender{stream: stream})
-
-	scanner := bufio.NewScanner(tagsCmd)
-	for scanner.Scan() {
-		tag, err := parseTagLine(ctx, c, scanner.Text())
-		if err != nil {
-			return fmt.Errorf("parsing tag: %v", err)
-		}
-
-		if err := tagChunker.Send(tag); err != nil {
-			return fmt.Errorf("sending to chunker: %v", err)
-		}
-	}
-
-	if err := tagsCmd.Wait(); err != nil {
-		return fmt.Errorf("tag command: %v", err)
-	}
-
-	if err := tagChunker.Flush(); err != nil {
-		return fmt.Errorf("flushing chunker: %v", err)
-	}
-
-	return nil
-}
-
-func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.RefService_FindAllTagsServer) error {
-	ctx := stream.Context()
-
-	if err := s.validateFindAllTagsRequest(in); err != nil {
-		return helper.ErrInvalidArgument(err)
-	}
-
-	repo := s.localrepo(in.GetRepository())
-
-	if featureflag.IsEnabled(ctx, featureflag.FindAllTagsPipeline) {
-		if err := s.findAllTags(ctx, repo, stream); err != nil {
-			return helper.ErrInternal(err)
-		}
-	} else {
-		if err := s.parseAndReturnTags(ctx, repo, stream); err != nil {
-			return helper.ErrInternal(err)
-		}
-	}
-
-	return nil
-}
-
-func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, stream gitalypb.RefService_FindAllTagsServer) error {
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("error creating catfile: %v", err)
-	}
-
-	forEachRefIter := gitpipe.ForEachRef(ctx, repo, []string{"refs/tags/*"})
-	forEachRefIter = gitpipe.RevisionTransform(ctx, forEachRefIter,
-		func(r gitpipe.RevisionResult) []gitpipe.RevisionResult {
-			// We transform the pipeline to include each tag-reference twice: once for
-			// the "normal" object, and once we opportunistically peel the object to a
-			// non-tag object. This is required such that we can efficiently parse the
-			// tagged object.
-			return []gitpipe.RevisionResult{
-				r,
-				{OID: r.OID + "^{}"},
-			}
-		},
-	)
-
-	catfileInfoIter := gitpipe.CatfileInfo(ctx, c, forEachRefIter)
-	catfileObjectsIter := gitpipe.CatfileObject(ctx, c, catfileInfoIter)
-
-	chunker := chunk.New(&tagSender{stream: stream})
-
-	for catfileObjectsIter.Next() {
-		tag := catfileObjectsIter.Result()
-
-		tagName := bytes.TrimPrefix(tag.ObjectName, []byte("refs/tags/"))
-
-		var result *gitalypb.Tag
-		switch tag.ObjectInfo.Type {
-		case "tag":
-			var err error
-			result, err = catfile.ParseTag(tag.ObjectReader, tag.ObjectInfo.Oid)
-			if err != nil {
-				return fmt.Errorf("parsing annotated tag: %w", err)
-			}
-		case "commit":
-			commit, err := catfile.ParseCommit(tag.ObjectReader, tag.ObjectInfo)
-			if err != nil {
-				return fmt.Errorf("parsing tagged commit: %w", err)
-			}
-
-			result = &gitalypb.Tag{
-				Id:           tag.ObjectInfo.Oid.String(),
-				Name:         tagName,
-				TargetCommit: commit,
-			}
-		default:
-			if _, err := io.Copy(ioutil.Discard, tag.ObjectReader); err != nil {
-				return fmt.Errorf("discarding tag object contents: %w", err)
-			}
-
-			result = &gitalypb.Tag{
-				Id:   tag.ObjectInfo.Oid.String(),
-				Name: tagName,
-			}
-		}
-
-		// For each tag, we expect both the tag itself as well as its potentially-peeled
-		// tagged object.
-		if !catfileObjectsIter.Next() {
-			return errors.New("expected peeled tag")
-		}
-
-		peeledTag := catfileObjectsIter.Result()
-
-		// We only need to parse the tagged object in case we have an annotated tag which
-		// refers to a commit object. Otherwise, we discard the object's contents.
-		if tag.ObjectInfo.Type == "tag" && peeledTag.ObjectInfo.Type == "commit" {
-			result.TargetCommit, err = catfile.ParseCommit(peeledTag.ObjectReader, peeledTag.ObjectInfo)
-			if err != nil {
-				return fmt.Errorf("parsing tagged commit: %w", err)
-			}
-		} else {
-			if _, err := io.Copy(ioutil.Discard, peeledTag.ObjectReader); err != nil {
-				return fmt.Errorf("discarding tagged object contents: %w", err)
-			}
-		}
-
-		if err := chunker.Send(result); err != nil {
-			return fmt.Errorf("sending tag: %w", err)
-		}
-	}
-
-	if err := catfileObjectsIter.Err(); err != nil {
-		return fmt.Errorf("iterating over tags: %w", err)
-	}
-
-	if err := chunker.Flush(); err != nil {
-		return fmt.Errorf("flushing chunker: %w", err)
-	}
-
-	return nil
-}
-
-func (s *server) validateFindAllTagsRequest(request *gitalypb.FindAllTagsRequest) error {
-	if request.GetRepository() == nil {
-		return errors.New("empty Repository")
-	}
-
-	if _, err := s.locator.GetRepoPath(request.GetRepository()); err != nil {
-		return fmt.Errorf("invalid git directory: %v", err)
-	}
-
-	return nil
-}
-
-func _findBranchNames(ctx context.Context, repo git.RepositoryExecutor) ([][]byte, error) {
+// FindBranchNames returns all branch names.
+//
+// Deprecated: Use localrepo.Repo.GetBranches instead.
+func FindBranchNames(ctx context.Context, repo git.RepositoryExecutor) ([][]byte, error) {
 	var names [][]byte
 
 	cmd, err := repo.Exec(ctx, git.SubCmd{
 		Name:  "for-each-ref",
 		Flags: []git.Option{git.Flag{Name: "--format=%(refname)"}},
-		Args:  []string{"refs/heads"}},
+		Args:  []string{"refs/heads"},
+	},
 	)
 	if err != nil {
 		return nil, err
@@ -289,38 +103,6 @@ func _findBranchNames(ctx context.Context, repo git.RepositoryExecutor) ([][]byt
 	return names, nil
 }
 
-func _headReference(ctx context.Context, repo git.RepositoryExecutor) ([]byte, error) {
-	var headRef []byte
-
-	cmd, err := repo.Exec(ctx, git.SubCmd{
-		Name:  "rev-parse",
-		Flags: []git.Option{git.Flag{Name: "--symbolic-full-name"}},
-		Args:  []string{"HEAD"},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	scanner := bufio.NewScanner(cmd)
-	scanner.Scan()
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	headRef = scanner.Bytes()
-
-	if err := cmd.Wait(); err != nil {
-		// If the ref pointed at by HEAD doesn't exist, the rev-parse fails
-		// returning the string `"HEAD"`, so we return `nil` without error.
-		if bytes.Equal(headRef, []byte("HEAD")) {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	return headRef, nil
-}
-
 // SetDefaultBranchRef overwrites the default branch ref for the repository
 func SetDefaultBranchRef(ctx context.Context, repo git.RepositoryExecutor, ref string, cfg config.Cfg) error {
 	if err := repo.ExecAndWait(ctx, git.SubCmd{
@@ -332,60 +114,16 @@ func SetDefaultBranchRef(ctx context.Context, repo git.RepositoryExecutor, ref s
 	return nil
 }
 
-// DefaultBranchName looks up the name of the default branch given a repoPath
-func DefaultBranchName(ctx context.Context, repo git.RepositoryExecutor) ([]byte, error) {
-	branches, err := FindBranchNames(ctx, repo)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Return empty ref name if there are no branches
-	if len(branches) == 0 {
-		return nil, nil
-	}
-
-	// Return first branch name if there's only one
-	if len(branches) == 1 {
-		return branches[0], nil
-	}
-
-	hasDefaultRef := false
-	headRef, err := headReference(ctx, repo)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, branch := range branches {
-		// Return HEAD if it exists and corresponds to a branch
-		if headRef != nil && bytes.Equal(headRef, branch) {
-			return headRef, nil
-		}
-
-		if bytes.Equal(branch, git.DefaultRef) {
-			hasDefaultRef = true
-		}
-	}
-
-	// Return the default ref if it exists
-	if hasDefaultRef {
-		return git.DefaultRef, nil
-	}
-
-	// If all else fails, return the first branch name
-	return branches[0], nil
-}
-
 // FindDefaultBranchName returns the default branch name for the given repository
 func (s *server) FindDefaultBranchName(ctx context.Context, in *gitalypb.FindDefaultBranchNameRequest) (*gitalypb.FindDefaultBranchNameResponse, error) {
 	repo := s.localrepo(in.GetRepository())
 
-	defaultBranchName, err := DefaultBranchName(ctx, repo)
+	defaultBranch, err := repo.GetDefaultBranch(ctx)
 	if err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 
-	return &gitalypb.FindDefaultBranchNameResponse{Name: defaultBranchName}, nil
+	return &gitalypb.FindDefaultBranchNameResponse{Name: []byte(defaultBranch)}, nil
 }
 
 func parseSortKey(sortKey gitalypb.FindLocalBranchesRequest_SortBy) string {
@@ -414,13 +152,13 @@ func (s *server) findLocalBranches(in *gitalypb.FindLocalBranchesRequest, stream
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	writer := newFindLocalBranchesWriter(stream, c)
-	opts := paginationParamsToOpts(in.GetPaginationParams())
+	writer := newFindLocalBranchesWriter(stream, objectReader)
+	opts := buildFindRefsOpts(ctx, in.GetPaginationParams())
 	opts.cmdArgs = []git.Option{
 		// %00 inserts the null character into the output (see for-each-ref docs)
 		git.Flag{Name: "--format=" + strings.Join(localBranchFormatFields, "%00")},
@@ -449,12 +187,12 @@ func (s *server) findAllBranches(in *gitalypb.FindAllBranchesRequest, stream git
 	patterns := []string{"refs/heads", "refs/remotes"}
 
 	if in.MergedOnly {
-		defaultBranchName, err := DefaultBranchName(stream.Context(), repo)
+		defaultBranch, err := repo.GetDefaultBranch(stream.Context())
 		if err != nil {
 			return err
 		}
 
-		args = append(args, git.Flag{fmt.Sprintf("--merged=%s", string(defaultBranchName))})
+		args = append(args, git.Flag{Name: fmt.Sprintf("--merged=%s", defaultBranch.String())})
 
 		if len(in.MergedBranches) > 0 {
 			patterns = nil
@@ -466,15 +204,15 @@ func (s *server) findAllBranches(in *gitalypb.FindAllBranchesRequest, stream git
 	}
 
 	ctx := stream.Context()
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	opts := paginationParamsToOpts(nil)
+	opts := buildFindRefsOpts(ctx, nil)
 	opts.cmdArgs = args
 
-	writer := newFindAllBranchesWriter(stream, c)
+	writer := newFindAllBranchesWriter(stream, objectReader)
 
 	return s.findRefs(ctx, writer, repo, patterns, opts)
 }
@@ -495,7 +233,7 @@ func (s *server) FindTag(ctx context.Context, in *gitalypb.FindTagRequest) (*git
 }
 
 // parseTagLine parses a line of text with the output format %(objectname) %(objecttype) %(refname:lstrip=2)
-func parseTagLine(ctx context.Context, c catfile.Batch, tagLine string) (*gitalypb.Tag, error) {
+func parseTagLine(ctx context.Context, objectReader catfile.ObjectReader, tagLine string) (*gitalypb.Tag, error) {
 	fields := strings.SplitN(tagLine, " ", 3)
 	if len(fields) != 3 {
 		return nil, fmt.Errorf("invalid output from for-each-ref command: %v", tagLine)
@@ -511,13 +249,15 @@ func parseTagLine(ctx context.Context, c catfile.Batch, tagLine string) (*gitaly
 	switch refType {
 	// annotated tag
 	case "tag":
-		tag, err := catfile.GetTag(ctx, c, git.Revision(tagID), refName, true, true)
+		tag, err := catfile.GetTag(ctx, objectReader, git.Revision(tagID), refName)
 		if err != nil {
 			return nil, fmt.Errorf("getting annotated tag: %v", err)
 		}
+		catfile.TrimTagMessage(tag)
+
 		return tag, nil
 	case "commit":
-		commit, err := catfile.GetCommit(ctx, c, git.Revision(tagID))
+		commit, err := catfile.GetCommit(ctx, objectReader, git.Revision(tagID))
 		if err != nil {
 			return nil, fmt.Errorf("getting commit catfile: %v", err)
 		}
@@ -533,7 +273,7 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 		git.SubCmd{
 			Name: "tag",
 			Flags: []git.Option{
-				git.Flag{Name: "-l"}, git.ValueFlag{"--format", tagFormat},
+				git.Flag{Name: "-l"}, git.ValueFlag{Name: "--format", Value: tagFormat},
 			},
 			Args: []string{string(tagName)},
 		},
@@ -543,7 +283,7 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 		return nil, fmt.Errorf("for-each-ref error: %v", err)
 	}
 
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +292,7 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 
 	scanner := bufio.NewScanner(tagCmd)
 	if scanner.Scan() {
-		tag, err = parseTagLine(ctx, c, scanner.Text())
+		tag, err = parseTagLine(ctx, objectReader, scanner.Text())
 		if err != nil {
 			return nil, err
 		}
@@ -582,8 +322,8 @@ func (s *server) validateFindTagRequest(in *gitalypb.FindTagRequest) error {
 	return nil
 }
 
-func paginationParamsToOpts(p *gitalypb.PaginationParameter) *findRefsOpts {
-	opts := &findRefsOpts{delim: '\n'}
+func buildPaginationOpts(ctx context.Context, p *gitalypb.PaginationParameter) *paginationOpts {
+	opts := &paginationOpts{}
 	opts.IsPageToken = func(_ []byte) bool { return true }
 	opts.Limit = math.MaxInt32
 
@@ -596,8 +336,61 @@ func paginationParamsToOpts(p *gitalypb.PaginationParameter) *findRefsOpts {
 	}
 
 	if p.GetPageToken() != "" {
-		opts.IsPageToken = func(l []byte) bool { return bytes.Compare(l, []byte(p.GetPageToken())) >= 0 }
+		if featureflag.ExactPaginationTokenMatch.IsEnabled(ctx) {
+			opts.IsPageToken = func(line []byte) bool {
+				// Only use the first part of the line before \x00 separator
+				if nullByteIndex := bytes.IndexByte(line, 0); nullByteIndex != -1 {
+					line = line[:nullByteIndex]
+				}
+
+				return bytes.Equal(line, []byte(p.GetPageToken()))
+			}
+			opts.PageTokenError = true
+		} else {
+			opts.IsPageToken = func(l []byte) bool { return bytes.Compare(l, []byte(p.GetPageToken())) >= 0 }
+		}
 	}
 
 	return opts
+}
+
+func buildFindRefsOpts(ctx context.Context, p *gitalypb.PaginationParameter) *findRefsOpts {
+	opts := buildPaginationOpts(ctx, p)
+
+	refsOpts := &findRefsOpts{delim: '\n'}
+	refsOpts.Limit = opts.Limit
+	refsOpts.IsPageToken = opts.IsPageToken
+	refsOpts.PageTokenError = opts.PageTokenError
+
+	return refsOpts
+}
+
+// getTagSortField returns a field that needs to be used to sort the tags.
+// If sorting is not provided the default sorting is used: by refname.
+func getTagSortField(sortBy *gitalypb.FindAllTagsRequest_SortBy) (string, error) {
+	if sortBy == nil {
+		return "", nil
+	}
+
+	var dir string
+	switch sortBy.Direction {
+	case gitalypb.SortDirection_ASCENDING:
+		dir = ""
+	case gitalypb.SortDirection_DESCENDING:
+		dir = "-"
+	default:
+		return "", fmt.Errorf("unsupported sorting direction: %s", sortBy.Direction)
+	}
+
+	var key string
+	switch sortBy.Key {
+	case gitalypb.FindAllTagsRequest_SortBy_REFNAME:
+		key = "refname"
+	case gitalypb.FindAllTagsRequest_SortBy_CREATORDATE:
+		key = "creatordate"
+	default:
+		return "", fmt.Errorf("unsupported sorting key: %s", sortBy.Key)
+	}
+
+	return dir + key, nil
 }

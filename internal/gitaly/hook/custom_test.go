@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -244,7 +243,7 @@ func TestCustomHooksWithSymlinks(t *testing.T) {
 	// bad -> /path/to/nowhere             BAD
 	firstDir := filepath.Join(globalHooksPath, "first_dir")
 	secondDir := filepath.Join(globalHooksPath, "second_dir")
-	require.NoError(t, os.MkdirAll(firstDir, 0755))
+	require.NoError(t, os.MkdirAll(firstDir, 0o755))
 	require.NoError(t, os.Symlink(firstDir, secondDir))
 	filename := filepath.Join(firstDir, "update")
 
@@ -424,11 +423,11 @@ type customHookResults struct {
 }
 
 func writeCustomHook(t *testing.T, hookName, dir string, content []byte) func() {
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, ioutil.WriteFile(filepath.Join(dir, hookName), content, 0755))
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, hookName), content, 0o755))
 
 	return func() {
-		os.RemoveAll(dir)
+		require.NoError(t, os.RemoveAll(dir))
 	}
 }
 

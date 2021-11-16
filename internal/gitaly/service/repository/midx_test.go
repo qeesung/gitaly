@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,13 +10,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/grpc/peer"
 )
 
 func TestMidxWrite(t *testing.T) {
@@ -35,15 +40,8 @@ func TestMidxWrite(t *testing.T) {
 		"multi-pack-index should exist after running MidxRepack",
 	)
 
-	repoCfgPath := filepath.Join(repoPath, "config")
-
-	cfgF, err := os.Open(repoCfgPath)
-	require.NoError(t, err)
-	defer cfgF.Close()
-
-	cfgCmd, err := localrepo.NewTestRepo(t, cfg, repo).Config().GetRegexp(ctx, "core.multipackindex", git.ConfigGetRegexpOpts{})
-	require.NoError(t, err)
-	require.Equal(t, []git.ConfigPair{{Key: "core.multipackindex", Value: "true"}}, cfgCmd)
+	configEntries := gittest.Exec(t, cfg, "-C", repoPath, "config", "--local", "--list")
+	require.NotContains(t, configEntries, "core.muiltipackindex")
 }
 
 func TestMidxRewrite(t *testing.T) {
@@ -57,7 +55,7 @@ func TestMidxRewrite(t *testing.T) {
 
 	// Create an invalid multi-pack-index file
 	// with mtime update being the basis for comparison
-	require.NoError(t, ioutil.WriteFile(midxPath, nil, 0644))
+	require.NoError(t, os.WriteFile(midxPath, nil, 0o644))
 	require.NoError(t, os.Chtimes(midxPath, time.Time{}, time.Time{}))
 	info, err := os.Stat(midxPath)
 	require.NoError(t, err)
@@ -114,6 +112,40 @@ func TestMidxRepack(t *testing.T) {
 	assert.True(t, newPackFile.ModTime().After(time.Time{}))
 }
 
+func TestMidxRepack_transactional(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	votes := 0
+	txManager := &transaction.MockManager{
+		VoteFn: func(context.Context, txinfo.Transaction, voting.Vote) error {
+			votes++
+			return nil
+		},
+	}
+
+	cfg, repo, repoPath, client := setupRepositoryService(t, testserver.WithTransactionManager(txManager))
+
+	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
+	require.NoError(t, err)
+	ctx = peer.NewContext(ctx, &peer.Peer{
+		AuthInfo: backchannel.WithID(nil, 1234),
+	})
+	ctx = metadata.IncomingToOutgoing(ctx)
+
+	_, err = client.MidxRepack(ctx, &gitalypb.MidxRepackRequest{
+		Repository: repo,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 2, votes)
+
+	multiPackIndex := gittest.Exec(t, cfg, "-C", repoPath, "config", "core.multiPackIndex")
+	require.Equal(t, "true", text.ChompBytes(multiPackIndex))
+}
+
 func TestMidxRepackExpire(t *testing.T) {
 	t.Parallel()
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
@@ -121,8 +153,7 @@ func TestMidxRepackExpire(t *testing.T) {
 	for _, packsAdded := range []int{3, 5, 11, 20} {
 		t.Run(fmt.Sprintf("Test repack expire with %d added packs", packsAdded),
 			func(t *testing.T) {
-				repo, repoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-				t.Cleanup(cleanupFn)
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 				ctx, cancel := testhelper.Context()
 				defer cancel()

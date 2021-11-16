@@ -1,12 +1,14 @@
 package git2go
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -41,6 +43,7 @@ type Conflict struct {
 	Content []byte `json:"content"`
 }
 
+// ConflictError is an error which happened during conflict resolution.
 type ConflictError struct {
 	// Code is the GRPC error code
 	Code codes.Code
@@ -75,32 +78,32 @@ func (m ConflictsResult) SerializeTo(writer io.Writer) error {
 	return serializeTo(writer, m)
 }
 
-// Run performs a merge via gitaly-git2go and returns all resulting conflicts.
-func (c ConflictsCommand) Run(ctx context.Context, cfg config.Cfg) (ConflictsResult, error) {
+// Conflicts performs a merge via gitaly-git2go and returns all resulting conflicts.
+func (b Executor) Conflicts(ctx context.Context, repo repository.GitRepo, c ConflictsCommand) (ConflictsResult, error) {
 	if err := c.verify(); err != nil {
 		return ConflictsResult{}, fmt.Errorf("conflicts: %w: %s", ErrInvalidArgument, err.Error())
 	}
 
-	serialized, err := serialize(c)
+	input := &bytes.Buffer{}
+	const cmd = "conflicts"
+	if err := gob.NewEncoder(input).Encode(c); err != nil {
+		return ConflictsResult{}, fmt.Errorf("%s: %w", cmd, err)
+	}
+
+	output, err := b.run(ctx, repo, input, cmd)
 	if err != nil {
-		return ConflictsResult{}, err
+		return ConflictsResult{}, fmt.Errorf("%s: %w", cmd, err)
 	}
 
-	stdout, err := run(ctx, BinaryPath(cfg.BinDir), nil, "conflicts", "-request", serialized)
-	if err != nil {
-		return ConflictsResult{}, err
+	var result ConflictsResult
+	if err := gob.NewDecoder(output).Decode(&result); err != nil {
+		return ConflictsResult{}, fmt.Errorf("%s: %w", cmd, err)
 	}
 
-	var response ConflictsResult
-	if err := deserialize(stdout.String(), &response); err != nil {
-		return ConflictsResult{}, err
+	if result.Error.Code != codes.OK {
+		return ConflictsResult{}, status.Error(result.Error.Code, result.Error.Message)
 	}
-
-	if response.Error.Code != codes.OK {
-		return ConflictsResult{}, status.Error(response.Error.Code, response.Error.Message)
-	}
-
-	return response, nil
+	return result, nil
 }
 
 func (c ConflictsCommand) verify() error {

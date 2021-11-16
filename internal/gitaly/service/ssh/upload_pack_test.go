@@ -11,11 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -24,16 +22,27 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type cloneCommand struct {
-	command      *exec.Cmd
+	command      git.Cmd
 	repository   *gitalypb.Repository
 	server       string
 	featureFlags []string
 	gitConfig    string
 	gitProtocol  string
 	cfg          config.Cfg
+}
+
+func runTestWithAndWithoutConfigOptions(t *testing.T, tf func(t *testing.T, opts ...testcfg.Option), opts ...testcfg.Option) {
+	t.Run("no config options", func(t *testing.T) { tf(t) })
+
+	if len(opts) > 0 {
+		t.Run("with config options", func(t *testing.T) {
+			tf(t, opts...)
+		})
+	}
 }
 
 func (cmd cloneCommand) execute(t *testing.T) error {
@@ -44,9 +53,7 @@ func (cmd cloneCommand) execute(t *testing.T) error {
 	if cmd.gitConfig != "" {
 		req.GitConfigOptions = strings.Split(cmd.gitConfig, " ")
 	}
-	pbMarshaler := &jsonpb.Marshaler{}
-	payload, err := pbMarshaler.MarshalToString(req)
-
+	payload, err := protojson.Marshal(req)
 	require.NoError(t, err)
 
 	var flagPairs []string
@@ -54,20 +61,23 @@ func (cmd cloneCommand) execute(t *testing.T) error {
 		flagPairs = append(flagPairs, fmt.Sprintf("%s:true", flag))
 	}
 
-	cmd.command.Env = []string{
-		fmt.Sprintf("GITALY_ADDRESS=%s", cmd.server),
-		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
-		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagPairs, ",")),
-		fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
-		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, filepath.Join(cmd.cfg.BinDir, "gitaly-ssh")),
-	}
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-	out, err := cmd.command.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%v: %q", err, out)
-	}
-	if !cmd.command.ProcessState.Success() {
-		return fmt.Errorf("Failed to run `git clone`: %q", out)
+	var output bytes.Buffer
+	gitCommand, err := git.NewExecCommandFactory(cmd.cfg).NewWithoutRepo(ctx,
+		cmd.command, git.WithStdout(&output), git.WithStderr(&output), git.WithEnv(
+			fmt.Sprintf("GITALY_ADDRESS=%s", cmd.server),
+			fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
+			fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagPairs, ",")),
+			fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
+			fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, filepath.Join(cmd.cfg.BinDir, "gitaly-ssh")),
+		), git.WithDisabledHooks(),
+	)
+	require.NoError(t, err)
+
+	if err := gitCommand.Wait(); err != nil {
+		return fmt.Errorf("Failed to run `git clone`: %q", output.Bytes())
 	}
 
 	return nil
@@ -76,7 +86,7 @@ func (cmd cloneCommand) execute(t *testing.T) error {
 func (cmd cloneCommand) test(t *testing.T, cfg config.Cfg, repoPath string, localRepoPath string) (string, string, string, string) {
 	t.Helper()
 
-	defer os.RemoveAll(localRepoPath)
+	defer func() { require.NoError(t, os.RemoveAll(localRepoPath)) }()
 
 	err := cmd.execute(t)
 	require.NoError(t, err)
@@ -91,7 +101,11 @@ func (cmd cloneCommand) test(t *testing.T, cfg config.Cfg, repoPath string, loca
 }
 
 func TestFailedUploadPackRequestDueToTimeout(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	runTestWithAndWithoutConfigOptions(t, testFailedUploadPackRequestDueToTimeout, testcfg.WithPackObjectsCacheEnabled())
+}
+
+func testFailedUploadPackRequestDueToTimeout(t *testing.T, opts ...testcfg.Option) {
+	cfg, repo, _ := testcfg.BuildWithRepo(t, opts...)
 
 	serverSocketPath := runSSHServerWithOptions(t, cfg, []ServerOpt{WithUploadPackRequestTimeout(10 * time.Microsecond)})
 
@@ -197,10 +211,14 @@ func TestFailedUploadPackRequestDueToValidationError(t *testing.T) {
 }
 
 func TestUploadPackCloneSuccess(t *testing.T) {
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+	runTestWithAndWithoutConfigOptions(t, testUploadPackCloneSuccess, testcfg.WithPackObjectsCacheEnabled())
+}
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+func testUploadPackCloneSuccess(t *testing.T, opts ...testcfg.Option) {
+	cfg, repo, repoPath := testcfg.BuildWithRepo(t, opts...)
+
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	negotiationMetrics := prometheus.NewCounterVec(prometheus.CounterOpts{}, []string{"feature"})
 
@@ -209,18 +227,26 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 	localRepoPath := testhelper.TempDir(t)
 
 	tests := []struct {
-		cmd          *exec.Cmd
-		desc         string
-		deepen       float64
-		featureFlags []string
+		cmd    git.Cmd
+		desc   string
+		deepen float64
 	}{
 		{
-			cmd:    exec.Command(cfg.Git.BinPath, "clone", "git@localhost:test/test.git", localRepoPath),
+			cmd: git.SubCmd{
+				Name: "clone",
+				Args: []string{"git@localhost:test/test.git", localRepoPath},
+			},
 			desc:   "full clone",
 			deepen: 0,
 		},
 		{
-			cmd:    exec.Command(cfg.Git.BinPath, "clone", "--depth", "1", "git@localhost:test/test.git", localRepoPath),
+			cmd: git.SubCmd{
+				Name: "clone",
+				Flags: []git.Option{
+					git.ValueFlag{Name: "--depth", Value: "1"},
+				},
+				Args: []string{"git@localhost:test/test.git", localRepoPath},
+			},
 			desc:   "shallow clone",
 			deepen: 1,
 		},
@@ -231,11 +257,10 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 			negotiationMetrics.Reset()
 
 			cmd := cloneCommand{
-				repository:   repo,
-				command:      tc.cmd,
-				featureFlags: tc.featureFlags,
-				server:       serverSocketPath,
-				cfg:          cfg,
+				repository: repo,
+				command:    tc.cmd,
+				server:     serverSocketPath,
+				cfg:        cfg,
 			}
 			lHead, rHead, _, _ := cmd.test(t, cfg, repoPath, localRepoPath)
 			require.Equal(t, lHead, rHead, "local and remote head not equal")
@@ -248,14 +273,14 @@ func TestUploadPackCloneSuccess(t *testing.T) {
 }
 
 func TestUploadPackWithPackObjectsHook(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg, repo, _ := testcfg.BuildWithRepo(t, testcfg.WithPackObjectsCacheEnabled())
 
 	filterDir := testhelper.TempDir(t)
 	outputPath := filepath.Join(filterDir, "output")
 	cfg.BinDir = filterDir
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	hookScript := fmt.Sprintf(
 		`#!/bin/sh
@@ -278,9 +303,11 @@ exec '%s' "$@"
 
 	err := cloneCommand{
 		repository: repo,
-		command:    exec.Command(cfg.Git.BinPath, "clone", "git@localhost:test/test.git", localRepoPath),
-		server:     serverSocketPath,
-		cfg:        cfg,
+		command: git.SubCmd{
+			Name: "clone", Args: []string{"git@localhost:test/test.git", localRepoPath},
+		},
+		server: serverSocketPath,
+		cfg:    cfg,
 	}.execute(t)
 	require.NoError(t, err)
 
@@ -288,10 +315,14 @@ exec '%s' "$@"
 }
 
 func TestUploadPackWithoutSideband(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	runTestWithAndWithoutConfigOptions(t, testUploadPackWithoutSideband, testcfg.WithPackObjectsCacheEnabled())
+}
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+func testUploadPackWithoutSideband(t *testing.T, opts ...testcfg.Option) {
+	cfg, repo, _ := testcfg.BuildWithRepo(t, opts...)
+
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
@@ -307,8 +338,7 @@ func TestUploadPackWithoutSideband(t *testing.T) {
 	request := &gitalypb.SSHUploadPackRequest{
 		Repository: repo,
 	}
-	marshaler := &jsonpb.Marshaler{}
-	payload, err := marshaler.MarshalToString(request)
+	payload, err := protojson.Marshal(request)
 	require.NoError(t, err)
 
 	// As we're not using the sideband, the remote process will write both to stdout and stderr.
@@ -332,10 +362,14 @@ func TestUploadPackWithoutSideband(t *testing.T) {
 }
 
 func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	runTestWithAndWithoutConfigOptions(t, testUploadPackCloneWithPartialCloneFilter, testcfg.WithPackObjectsCacheEnabled())
+}
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+func testUploadPackCloneWithPartialCloneFilter(t *testing.T, opts ...testcfg.Option) {
+	cfg, repo, _ := testcfg.BuildWithRepo(t, opts...)
+
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
@@ -345,23 +379,30 @@ func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
 	blobGreaterThanLimit := "18079e308ff9b3a5e304941020747e5c39b46c88"
 
 	tests := []struct {
-		desc      string
-		repoTest  func(t *testing.T, repoPath string)
-		cloneArgs []string
+		desc     string
+		repoTest func(t *testing.T, repoPath string)
+		cmd      git.SubCmd
 	}{
 		{
 			desc: "full_clone",
 			repoTest: func(t *testing.T, repoPath string) {
 				gittest.GitObjectMustExist(t, cfg.Git.BinPath, repoPath, blobGreaterThanLimit)
 			},
-			cloneArgs: []string{"clone", "git@localhost:test/test.git"},
+			cmd: git.SubCmd{
+				Name: "clone",
+			},
 		},
 		{
 			desc: "partial_clone",
 			repoTest: func(t *testing.T, repoPath string) {
 				gittest.GitObjectMustNotExist(t, cfg.Git.BinPath, repoPath, blobGreaterThanLimit)
 			},
-			cloneArgs: []string{"clone", "--filter=blob:limit=2048", "git@localhost:test/test.git"},
+			cmd: git.SubCmd{
+				Name: "clone",
+				Flags: []git.Option{
+					git.ValueFlag{Name: "--filter", Value: "blob:limit=2048"},
+				},
+			},
 		},
 	}
 
@@ -372,14 +413,16 @@ func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
 			// UploadPackFilter flag disabled.
 			localPath := testhelper.TempDir(t)
 
+			tc.cmd.Args = []string{"git@localhost:test/test.git", localPath}
+
 			cmd := cloneCommand{
 				repository: repo,
-				command:    exec.Command(cfg.Git.BinPath, append(tc.cloneArgs, localPath)...),
+				command:    tc.cmd,
 				server:     serverSocketPath,
 				cfg:        cfg,
 			}
 			err := cmd.execute(t)
-			defer os.RemoveAll(localPath)
+			defer func() { require.NoError(t, os.RemoveAll(localPath)) }()
 			require.NoError(t, err, "clone failed")
 
 			gittest.GitObjectMustExist(t, cfg.Git.BinPath, localPath, blobLessThanLimit)
@@ -389,33 +432,46 @@ func TestUploadPackCloneWithPartialCloneFilter(t *testing.T) {
 }
 
 func TestUploadPackCloneSuccessWithGitProtocol(t *testing.T) {
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+	runTestWithAndWithoutConfigOptions(t, testUploadPackCloneSuccessWithGitProtocol, testcfg.WithPackObjectsCacheEnabled())
+}
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+func testUploadPackCloneSuccessWithGitProtocol(t *testing.T, opts ...testcfg.Option) {
+	cfg, repo, repoPath := testcfg.BuildWithRepo(t, opts...)
+
+	readProto, cfg := gittest.EnableGitProtocolV2Support(t, cfg)
+
+	serverSocketPath := runSSHServer(t, cfg)
+
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	localRepoPath := testhelper.TempDir(t)
 
 	tests := []struct {
-		cmd  *exec.Cmd
+		cmd  git.Cmd
 		desc string
 	}{
 		{
-			cmd:  exec.Command(cfg.Git.BinPath, "clone", "git@localhost:test/test.git", localRepoPath),
+			cmd: git.SubCmd{
+				Name: "clone",
+				Args: []string{"git@localhost:test/test.git", localRepoPath},
+			},
 			desc: "full clone",
 		},
 		{
-			cmd:  exec.Command(cfg.Git.BinPath, "clone", "--depth", "1", "git@localhost:test/test.git", localRepoPath),
+			cmd: git.SubCmd{
+				Name: "clone",
+				Args: []string{"git@localhost:test/test.git", localRepoPath},
+				Flags: []git.Option{
+					git.ValueFlag{Name: "--depth", Value: "1"},
+				},
+			},
 			desc: "shallow clone",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			readProto, cfg := gittest.EnableGitProtocolV2Support(t, cfg)
-
-			serverSocketPath := runSSHServer(t, cfg)
-
 			cmd := cloneCommand{
 				repository:  repo,
 				command:     tc.cmd,
@@ -436,22 +492,25 @@ func TestUploadPackCloneSuccessWithGitProtocol(t *testing.T) {
 func TestUploadPackCloneHideTags(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
 	localRepoPath := testhelper.TempDir(t)
 
-	cmd := exec.Command(cfg.Git.BinPath, "clone", "--mirror", "git@localhost:test/test.git", localRepoPath)
-	cmd.Env = os.Environ()
-	cmd.Env = append(command.GitEnv, cmd.Env...)
 	cloneCmd := cloneCommand{
 		repository: repo,
-		command:    cmd,
-		server:     serverSocketPath,
-		gitConfig:  "transfer.hideRefs=refs/tags",
-		cfg:        cfg,
+		command: git.SubCmd{
+			Name: "clone",
+			Flags: []git.Option{
+				git.Flag{Name: "--mirror"},
+			},
+			Args: []string{"git@localhost:test/test.git", localRepoPath},
+		},
+		server:    serverSocketPath,
+		gitConfig: "transfer.hideRefs=refs/tags",
+		cfg:       cfg,
 	}
 	_, _, lTags, rTags := cloneCmd.test(t, cfg, repoPath, localRepoPath)
 
@@ -475,9 +534,12 @@ func TestUploadPackCloneFailure(t *testing.T) {
 			StorageName:  "foobar",
 			RelativePath: repo.GetRelativePath(),
 		},
-		command: exec.Command(cfg.Git.BinPath, "clone", "git@localhost:test/test.git", localRepoPath),
-		server:  serverSocketPath,
-		cfg:     cfg,
+		command: git.SubCmd{
+			Name: "clone",
+			Args: []string{"git@localhost:test/test.git", localRepoPath},
+		},
+		server: serverSocketPath,
+		cfg:    cfg,
 	}
 	err := cmd.execute(t)
 	require.Error(t, err, "clone didn't fail")

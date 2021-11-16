@@ -15,16 +15,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
-	return m.Run()
+	testhelper.Run(m)
 }
 
 func TestNamespaceExists(t *testing.T) {
@@ -35,7 +26,7 @@ func TestNamespaceExists(t *testing.T) {
 	defer cancel()
 
 	const existingNamespace = "existing"
-	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0o755))
 
 	queries := []struct {
 		desc      string
@@ -101,6 +92,8 @@ func getStorageDir(t *testing.T, cfg config.Cfg, storageName string) string {
 }
 
 func TestAddNamespace(t *testing.T) {
+	testhelper.SkipWithPraefect(t, "per_repository election strategy doesn't support storage scoped mutators")
+
 	cfg, client := setupNamespaceService(t)
 	existingStorage := cfg.Storages[0]
 
@@ -163,6 +156,8 @@ func TestAddNamespace(t *testing.T) {
 }
 
 func TestRemoveNamespace(t *testing.T) {
+	testhelper.SkipWithPraefect(t, "per_repository election strategy doesn't support storage scoped mutators")
+
 	cfg, client := setupNamespaceService(t)
 	existingStorage := cfg.Storages[0]
 
@@ -170,7 +165,7 @@ func TestRemoveNamespace(t *testing.T) {
 	defer cancel()
 
 	const existingNamespace = "created"
-	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0755), "test setup")
+	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0o755), "test setup")
 
 	queries := []struct {
 		desc      string
@@ -217,6 +212,8 @@ func TestRemoveNamespace(t *testing.T) {
 }
 
 func TestRenameNamespace(t *testing.T) {
+	testhelper.SkipWithPraefect(t, "per_repository election strategy doesn't support storage scoped mutators")
+
 	cfg, client := setupNamespaceService(t)
 	existingStorage := cfg.Storages[0]
 
@@ -224,7 +221,7 @@ func TestRenameNamespace(t *testing.T) {
 	defer cancel()
 
 	const existingNamespace = "existing"
-	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(existingStorage.Path, existingNamespace), 0o755))
 
 	queries := []struct {
 		desc      string
@@ -285,6 +282,8 @@ func TestRenameNamespace(t *testing.T) {
 }
 
 func TestRenameNamespaceWithNonexistentParentDir(t *testing.T) {
+	testhelper.SkipWithPraefect(t, "per_repository election strategy doesn't support storage scoped mutators")
+
 	cfg, client := setupNamespaceService(t)
 	existingStorage := cfg.Storages[0]
 

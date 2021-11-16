@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +13,9 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	hookPkg "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -55,10 +59,7 @@ func cfgWithCache(t *testing.T) (config.Cfg, *gitalypb.Repository, string) {
 }
 
 func TestServer_PackObjectsHook(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	cfg, repo, repoPath := cfgWithCache(t)
+	t.Parallel()
 
 	testCases := []struct {
 		desc  string
@@ -79,6 +80,11 @@ func TestServer_PackObjectsHook(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			cfg, repo, repoPath := cfgWithCache(t)
+
 			logger, hook := test.NewNullLogger()
 
 			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithLogger(logger))
@@ -109,10 +115,10 @@ func TestServer_PackObjectsHook(t *testing.T) {
 			}
 			require.Equal(t, io.EOF, err)
 
-			gittest.ExecStream(
+			gittest.ExecOpts(
 				t,
 				cfg,
-				bytes.NewReader(stdout),
+				gittest.ExecConfig{Stdin: bytes.NewReader(stdout)},
 				"-C", repoPath, "index-pack", "--stdin", "--fix-thin",
 			)
 
@@ -130,6 +136,20 @@ func TestServer_PackObjectsHook(t *testing.T) {
 					require.Greater(t, entry.Data["bytes"], int64(0))
 				})
 			}
+
+			t.Run("pack file compression statistic", func(t *testing.T) {
+				var entry *logrus.Entry
+				for _, e := range hook.AllEntries() {
+					if e.Message == "pack file compression statistic" {
+						entry = e
+					}
+				}
+
+				require.NotNil(t, entry)
+				total := entry.Data["pack.stat"].(string)
+				require.True(t, strings.HasPrefix(total, "Total "))
+				require.False(t, strings.Contains(total, "\n"))
+			})
 		})
 	}
 }
@@ -217,10 +237,10 @@ func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 	}
 	require.Equal(t, io.EOF, err)
 
-	gittest.ExecStream(
+	gittest.ExecOpts(
 		t,
 		cfg,
-		bytes.NewReader(stdout),
+		gittest.ExecConfig{Stdin: bytes.NewReader(stdout)},
 		"-C", repoPath, "index-pack", "--stdin", "--fix-thin",
 	)
 }
@@ -262,10 +282,10 @@ func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 		}
 		require.Equal(t, io.EOF, err)
 
-		gittest.ExecStream(
+		gittest.ExecOpts(
 			t,
 			cfg,
-			bytes.NewReader(stdout),
+			gittest.ExecConfig{Stdin: bytes.NewReader(stdout)},
 			"-C", repoPath, "index-pack", "--stdin", "--fix-thin",
 		)
 	}
@@ -287,4 +307,184 @@ func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 		require.False(t, entries[i].Created, "all requests except the first were cache hits")
 		require.NoError(t, entries[i].Err)
 	}
+}
+
+func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		desc  string
+		stdin string
+		args  []string
+	}{
+		{
+			desc:  "clone 1 branch",
+			stdin: "3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n",
+			args:  []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"},
+		},
+		{
+			desc:  "shallow clone 1 branch",
+			stdin: "--shallow 1e292f8fedd741b75372e19097c76d327140c312\n1e292f8fedd741b75372e19097c76d327140c312\n--not\n\n",
+			args:  []string{"--shallow-file", "", "pack-objects", "--revs", "--thin", "--stdout", "--shallow", "--progress", "--delta-base-offset", "--include-tag"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			cfg, repo, repoPath := cfgWithCache(t)
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			logger, hook := test.NewNullLogger()
+			serverSocketPath := runHooksServer(t, cfg, nil, testserver.WithLogger(logger))
+
+			var packets []string
+			ctx, wt, err := hookPkg.SetupSidechannel(
+				ctx,
+				func(c *net.UnixConn) error {
+					if _, err := io.WriteString(c, tc.stdin); err != nil {
+						return err
+					}
+					if err := c.CloseWrite(); err != nil {
+						return err
+					}
+
+					scanner := pktline.NewScanner(c)
+					for scanner.Scan() {
+						packets = append(packets, scanner.Text())
+					}
+					return scanner.Err()
+				},
+			)
+			require.NoError(t, err)
+			defer wt.Close()
+
+			client, conn := newHooksClient(t, serverSocketPath)
+			defer conn.Close()
+
+			_, err = client.PackObjectsHookWithSidechannel(ctx, &gitalypb.PackObjectsHookWithSidechannelRequest{
+				Repository: repo,
+				Args:       tc.args,
+			})
+			require.NoError(t, err)
+
+			require.NoError(t, wt.Wait())
+			require.NotEmpty(t, packets)
+
+			var packdata []byte
+			for _, pkt := range packets {
+				require.Greater(t, len(pkt), 4)
+
+				switch band := pkt[4]; band {
+				case 1:
+					packdata = append(packdata, pkt[5:]...)
+				case 2:
+				default:
+					t.Fatalf("unexpected band: %d", band)
+				}
+			}
+
+			gittest.ExecOpts(
+				t,
+				cfg,
+				gittest.ExecConfig{Stdin: bytes.NewReader(packdata)},
+				"-C", repoPath, "index-pack", "--stdin", "--fix-thin",
+			)
+
+			for _, msg := range []string{"served bytes", "generated bytes"} {
+				t.Run(msg, func(t *testing.T) {
+					var entry *logrus.Entry
+					for _, e := range hook.AllEntries() {
+						if e.Message == msg {
+							entry = e
+						}
+					}
+
+					require.NotNil(t, entry)
+					require.NotEmpty(t, entry.Data["cache_key"])
+					require.Greater(t, entry.Data["bytes"], int64(0))
+				})
+			}
+
+			t.Run("pack file compression statistic", func(t *testing.T) {
+				var entry *logrus.Entry
+				for _, e := range hook.AllEntries() {
+					if e.Message == "pack file compression statistic" {
+						entry = e
+					}
+				}
+
+				require.NotNil(t, entry)
+				total := entry.Data["pack.stat"].(string)
+				require.True(t, strings.HasPrefix(total, "Total "))
+				require.False(t, strings.Contains(total, "\n"))
+			})
+		})
+	}
+}
+
+func TestServer_PackObjectsHookWithSidechannel_invalidArgument(t *testing.T) {
+	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	serverSocketPath := runHooksServer(t, cfg, nil)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	testCases := []struct {
+		desc string
+		req  *gitalypb.PackObjectsHookWithSidechannelRequest
+	}{
+		{
+			desc: "empty",
+			req:  &gitalypb.PackObjectsHookWithSidechannelRequest{},
+		},
+		{
+			desc: "repo, no args",
+			req:  &gitalypb.PackObjectsHookWithSidechannelRequest{Repository: repo},
+		},
+		{
+			desc: "repo, bad args",
+			req:  &gitalypb.PackObjectsHookWithSidechannelRequest{Repository: repo, Args: []string{"rm", "-rf"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			client, conn := newHooksClient(t, serverSocketPath)
+			defer conn.Close()
+
+			_, err := client.PackObjectsHookWithSidechannel(ctx, tc.req)
+			testhelper.RequireGrpcError(t, err, codes.InvalidArgument)
+		})
+	}
+}
+
+func TestServer_PackObjectsHookWithSidechannel_Canceled(t *testing.T) {
+	cfg, repo, _ := cfgWithCache(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, wt, err := hookPkg.SetupSidechannel(
+		ctx,
+		func(c *net.UnixConn) error {
+			// Simulate a client that successfully initiates a request, but hangs up
+			// before fully consuming the response.
+			_, err := io.WriteString(c, "3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n")
+			return err
+		},
+	)
+	require.NoError(t, err)
+	defer wt.Close()
+
+	client, conn := newHooksClient(t, runHooksServer(t, cfg, nil))
+	defer conn.Close()
+
+	_, err = client.PackObjectsHookWithSidechannel(ctx, &gitalypb.PackObjectsHookWithSidechannelRequest{
+		Repository: repo,
+		Args:       []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"},
+	})
+	testhelper.RequireGrpcError(t, err, codes.Canceled)
+
+	require.NoError(t, wt.Wait())
 }

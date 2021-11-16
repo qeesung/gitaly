@@ -6,10 +6,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -24,6 +25,7 @@ type server struct {
 	binDir        string
 	loggingCfg    config.Logging
 	catfileCache  catfile.Cache
+	git2go        git2go.Executor
 }
 
 // NewServer creates a new instance of a gRPC repo server
@@ -34,20 +36,19 @@ func NewServer(
 	txManager transaction.Manager,
 	gitCmdFactory git.CommandFactory,
 	catfileCache catfile.Cache,
+	connsPool *client.Pool,
 ) gitalypb.RepositoryServiceServer {
 	return &server{
 		ruby:          rs,
 		locator:       locator,
 		txManager:     txManager,
 		gitCmdFactory: gitCmdFactory,
-		conns: client.NewPoolWithOptions(
-			client.WithDialer(client.HealthCheckDialer(client.DialContext)),
-			client.WithDialOptions(client.FailOnNonTempDialError()...),
-		),
-		cfg:          cfg,
-		binDir:       cfg.BinDir,
-		loggingCfg:   cfg.Logging,
-		catfileCache: catfileCache,
+		conns:         connsPool,
+		cfg:           cfg,
+		binDir:        cfg.BinDir,
+		loggingCfg:    cfg.Logging,
+		catfileCache:  catfileCache,
+		git2go:        git2go.NewExecutor(cfg, locator),
 	}
 }
 

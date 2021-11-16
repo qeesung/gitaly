@@ -5,9 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -39,18 +38,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-	cleanup := testhelper.Configure()
-	defer cleanup()
-	return m.Run()
+	testhelper.Run(m)
 }
 
 func TestSanity(t *testing.T) {
-	serverSocketPath := runServer(t, config.Cfg{})
+	serverSocketPath := runServer(t, testcfg.Build(t))
 
 	conn, err := dial(serverSocketPath, []grpc.DialOption{grpc.WithInsecure()})
 	require.NoError(t, err)
@@ -104,7 +96,11 @@ func TestAuthFailures(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			serverSocketPath := runServer(t, config.Cfg{Auth: auth.Config{Token: "quxbaz"}})
+			cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{
+				Auth: auth.Config{Token: "quxbaz"},
+			}))
+
+			serverSocketPath := runServer(t, cfg)
 			connOpts := append(tc.opts, grpc.WithInsecure())
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
@@ -197,9 +193,12 @@ func runServer(t *testing.T, cfg config.Cfg) string {
 	t.Cleanup(func() { conns.Close() })
 	locator := config.NewLocator(cfg)
 	txManager := transaction.NewManager(cfg, registry)
-	hookManager := hook.NewManager(locator, txManager, gitlab.NewMockClient(), cfg)
+	hookManager := hook.NewManager(locator, txManager, gitlab.NewMockClient(
+		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
+	), cfg)
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
 	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
 	diskCache := cache.New(cfg, locator)
 
 	srv, err := New(false, cfg, testhelper.DiscardTestEntry(t), registry, diskCache)
@@ -253,6 +252,7 @@ func TestUnaryNoAuth(t *testing.T) {
 	path := runServer(t, cfg)
 	conn, err := grpc.Dial(path, grpc.WithInsecure())
 	require.NoError(t, err)
+	defer testhelper.MustClose(t, conn)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -262,7 +262,8 @@ func TestUnaryNoAuth(t *testing.T) {
 		Repository: &gitalypb.Repository{
 			StorageName:  cfg.Storages[0].Name,
 			RelativePath: "new/project/path",
-		}},
+		},
+	},
 	)
 
 	testhelper.RequireGrpcError(t, err, codes.Unauthenticated)
@@ -284,11 +285,12 @@ func TestStreamingNoAuth(t *testing.T) {
 		Repository: &gitalypb.Repository{
 			StorageName:  cfg.Storages[0].Name,
 			RelativePath: "new/project/path",
-		}},
+		},
+	},
 	)
 	require.NoError(t, err)
 
-	_, err = ioutil.ReadAll(streamio.NewReader(func() ([]byte, error) {
+	_, err = io.ReadAll(streamio.NewReader(func() ([]byte, error) {
 		_, err = stream.Recv()
 		return nil, err
 	}))
@@ -301,12 +303,13 @@ func TestAuthBeforeLimit(t *testing.T) {
 		Concurrency: []config.Concurrency{{
 			RPC:        "/gitaly.OperationService/UserCreateTag",
 			MaxPerRepo: 1,
-		}}},
+		}},
+	},
 	))
 
 	config.ConfigureConcurrencyLimits(cfg)
 
-	gitlabURL, cleanup := testhelper.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &testhelper.GitlabTestServerOptions{
+	gitlabURL, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
 		SecretToken:                 "secretToken",
 		GLID:                        gittest.GlID,
 		GLRepository:                repo.GetGlRepository(),
@@ -323,17 +326,6 @@ func TestAuthBeforeLimit(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	targetRevision := "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"
-	inputTagName := "to-be-créated-soon"
-
-	request := &gitalypb.UserCreateTagRequest{
-		Repository:     repo,
-		TagName:        []byte(inputTagName),
-		TargetRevision: []byte(targetRevision),
-		User:           gittest.TestUser,
-		Message:        []byte("a new tag!"),
-	}
-
 	defer func(d time.Duration) {
 		gitalyauth.SetTokenValidityDuration(d)
 	}(gitalyauth.TokenValidityDuration())
@@ -346,8 +338,15 @@ sleep %vs
 	errChan := make(chan error)
 
 	for i := 0; i < 2; i++ {
+		i := i
 		go func() {
-			_, err := client.UserCreateTag(ctx, request)
+			_, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
+				Repository:     repo,
+				TagName:        []byte(fmt.Sprintf("tag-name-%d", i)),
+				TargetRevision: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
+				User:           gittest.TestUser,
+				Message:        []byte("a new tag!"),
+			})
 			errChan <- err
 		}()
 	}

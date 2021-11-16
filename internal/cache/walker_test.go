@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,13 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
 
 func TestDiskCacheObjectWalker(t *testing.T) {
 	cfg := testcfg.Build(t)
+	locator := config.NewLocator(cfg)
 
 	var shouldExist, shouldNotExist []string
 
@@ -33,10 +32,11 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		{"2b/ancient", 24 * time.Hour, true},
 		{"cd/baby", time.Second, false},
 	} {
-		cacheDir := tempdir.CacheDir(cfg.Storages[0])
+		cacheDir, err := locator.CacheDir(cfg.Storages[0].Name)
+		require.NoError(t, err)
 
 		path := filepath.Join(cacheDir, tt.name)
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 
 		f, err := os.Create(path)
 		require.NoError(t, err)
@@ -51,9 +51,9 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		}
 	}
 
-	locator := config.NewLocator(cfg)
 	cache := New(cfg, locator, withDisabledMoveAndClear())
 	require.NoError(t, cache.StartWalkers())
+	defer cache.StopWalkers()
 
 	pollCountersUntil(t, cache, 4)
 
@@ -68,16 +68,18 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 
 func TestDiskCacheInitialClear(t *testing.T) {
 	cfg := testcfg.Build(t)
+	locator := config.NewLocator(cfg)
 
-	cacheDir := tempdir.CacheDir(cfg.Storages[0])
+	cacheDir, err := locator.CacheDir(cfg.Storages[0].Name)
+	require.NoError(t, err)
 
 	canary := filepath.Join(cacheDir, "canary.txt")
-	require.NoError(t, os.MkdirAll(filepath.Dir(canary), 0755))
-	require.NoError(t, ioutil.WriteFile(canary, []byte("chirp chirp"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(canary), 0o755))
+	require.NoError(t, os.WriteFile(canary, []byte("chirp chirp"), 0o755))
 
-	locator := config.NewLocator(cfg)
 	cache := New(cfg, locator, withDisabledWalker())
 	require.NoError(t, cache.StartWalkers())
+	defer cache.StopWalkers()
 
 	require.NoFileExists(t, canary)
 }
@@ -129,9 +131,9 @@ func TestCleanWalkEmptyDirs(t *testing.T) {
 	} {
 		p := filepath.Join(tmp, tt.path)
 		if strings.HasSuffix(tt.path, "/") {
-			require.NoError(t, os.MkdirAll(p, 0755))
+			require.NoError(t, os.MkdirAll(p, 0o755))
 		} else {
-			require.NoError(t, ioutil.WriteFile(p, nil, 0655))
+			require.NoError(t, os.WriteFile(p, nil, 0o655))
 			if tt.stale {
 				require.NoError(t, os.Chtimes(p, time.Now(), time.Now().Add(-time.Hour)))
 			}

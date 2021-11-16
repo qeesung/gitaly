@@ -2,9 +2,6 @@ package operations
 
 import (
 	"context"
-	"os"
-	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,13 +9,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	internalclient "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/commit"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -33,94 +30,63 @@ var (
 	GitlabHooks     []string
 )
 
-func init() {
-	GitlabHooks = append(GitlabHooks, append(gitlabPreHooks, gitlabPostHooks...)...)
-}
-
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	GitlabHooks = append(GitlabHooks, append(gitlabPreHooks, gitlabPostHooks...)...)
+	testhelper.Run(m)
 }
 
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
-	return m.Run()
-}
-
-func TestWithRubySidecar(t *testing.T) {
-	t.Parallel()
+func setupOperationsService(t testing.TB, ctx context.Context, options ...testserver.GitalyServerOpt) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
 	cfg := testcfg.Build(t)
-
-	rubySrv := rubyserver.New(cfg)
-	require.NoError(t, rubySrv.Start())
-	t.Cleanup(rubySrv.Stop)
-
-	fs := []func(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server){
-		testSuccessfulUserApplyPatch,
-		testUserApplyPatchStableID,
-		testFailedPatchApplyPatch,
-	}
-	for _, f := range fs {
-		t.Run(runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(), func(t *testing.T) {
-			f(t, cfg, rubySrv)
-		})
-	}
-}
-
-func setupOperationsService(t testing.TB, ctx context.Context) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
-	cfg := testcfg.Build(t)
-
-	ctx, cfg, repo, repoPath, client := setupOperationsServiceWithRuby(t, ctx, cfg, nil)
-
+	ctx, cfg, repo, repoPath, client := setupOperationsServiceWithCfg(t, ctx, cfg, options...)
 	return ctx, cfg, repo, repoPath, client
 }
 
-func setupOperationsServiceWithRuby(
-	t testing.TB, ctx context.Context, cfg config.Cfg, rubySrv *rubyserver.Server, options ...testserver.GitalyServerOpt,
+func setupOperationsServiceWithCfg(
+	t testing.TB, ctx context.Context, cfg config.Cfg, options ...testserver.GitalyServerOpt,
 ) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyGit2Go(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
-	serverSocketPath := runOperationServiceServer(t, cfg, rubySrv, options...)
+	serverSocketPath := runOperationServiceServer(t, cfg, options...)
 	cfg.SocketPath = serverSocketPath
 
 	client, conn := newOperationClient(t, serverSocketPath)
 	t.Cleanup(func() { conn.Close() })
 
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 	ctx = testhelper.MergeOutgoingMetadata(ctx, md)
 
 	return ctx, cfg, repo, repoPath, client
 }
 
-func runOperationServiceServer(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, options ...testserver.GitalyServerOpt) string {
+func runOperationServiceServer(t testing.TB, cfg config.Cfg, options ...testserver.GitalyServerOpt) string {
 	t.Helper()
 
-	return testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterOperationServiceServer(srv, NewServer(
+	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		operationServer := NewServer(
 			deps.GetCfg(),
-			deps.GetRubyServer(),
 			deps.GetHookManager(),
+			deps.GetTxManager(),
 			deps.GetLocator(),
 			deps.GetConnsPool(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
-		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory()))
+		)
+		operationServer.enableUserMergeBranchStructuredErrors = true
+
+		gitalypb.RegisterOperationServiceServer(srv, operationServer)
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			deps.GetCfg(),
-			rubySrv,
+			nil,
 			deps.GetLocator(),
 			deps.GetTxManager(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
+			deps.GetConnsPool(),
 		))
 		gitalypb.RegisterRefServiceServer(srv, ref.NewServer(
 			deps.GetCfg(),
@@ -165,7 +131,7 @@ func newMuxedOperationClient(t *testing.T, ctx context.Context, serverSocketPath
 }
 
 func setupAndStartGitlabServer(t testing.TB, glID, glRepository string, cfg config.Cfg, gitPushOptions ...string) string {
-	url, cleanup := testhelper.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &testhelper.GitlabTestServerOptions{
+	url, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
 		SecretToken:                 "secretToken",
 		GLID:                        glID,
 		GLRepository:                glRepository,

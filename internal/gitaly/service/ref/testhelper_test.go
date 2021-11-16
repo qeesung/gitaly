@@ -2,7 +2,6 @@ package ref
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,46 +18,31 @@ import (
 	"google.golang.org/grpc"
 )
 
-var (
-	localBranches = map[string]*gitalypb.GitCommit{
-		"refs/heads/100%branch":      testhelper.GitLabTestCommit("1b12f15a11fc6e62177bef08f47bc7b5ce50b141"),
-		"refs/heads/improve/awesome": testhelper.GitLabTestCommit("5937ac0a7beb003549fc5fd26fc247adbce4a52e"),
-		"refs/heads/'test'":          testhelper.GitLabTestCommit("e56497bb5f03a90a51293fc6d516788730953899"),
-	}
-)
-
-func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+var localBranches = map[string]*gitalypb.GitCommit{
+	"refs/heads/100%branch":      testhelper.GitLabTestCommit("1b12f15a11fc6e62177bef08f47bc7b5ce50b141"),
+	"refs/heads/improve/awesome": testhelper.GitLabTestCommit("5937ac0a7beb003549fc5fd26fc247adbce4a52e"),
+	"refs/heads/'test'":          testhelper.GitLabTestCommit("e56497bb5f03a90a51293fc6d516788730953899"),
 }
 
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
-	// Force small messages to test that fragmenting the
-	// ref list works correctly
-	lines.ItemsPerMessage = 3
-
-	return m.Run()
+func TestMain(m *testing.M) {
+	testhelper.Run(m, testhelper.WithSetup(func() error {
+		// Force small messages to test that fragmenting the
+		// ref list works correctly
+		lines.ItemsPerMessage = 3
+		return nil
+	}))
 }
 
 func setupRefService(t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.RefServiceClient) {
 	cfg, client := setupRefServiceWithoutRepo(t)
-
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
-
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	return cfg, repo, repoPath, client
 }
 
 func setupRefServiceWithoutRepo(t testing.TB) (config.Cfg, gitalypb.RefServiceClient) {
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	serverSocketPath := runRefServiceServer(t, cfg)
 	cfg.SocketPath = serverSocketPath
@@ -78,7 +62,7 @@ func runRefServiceServer(t testing.TB, cfg config.Cfg) string {
 			deps.GetTxManager(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	})
 }
 

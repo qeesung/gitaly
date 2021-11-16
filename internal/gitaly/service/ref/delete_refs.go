@@ -49,7 +49,9 @@ func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest)
 	}
 
 	if err := updater.Prepare(); err != nil {
-		return nil, helper.ErrInternalf("could not prepare ref update: %v", err)
+		return &gitalypb.DeleteRefsResponse{
+			GitError: fmt.Sprintf("unable to delete refs: %s", err.Error()),
+		}, nil
 	}
 
 	vote, err := voteHash.Vote()
@@ -65,7 +67,11 @@ func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest)
 		return nil, helper.ErrInternal(err)
 	}
 
-	if err := updater.Wait(); err != nil {
+	if err := updater.Commit(); err != nil {
+		// TODO: We should be able to easily drop this error here and return a real error as
+		// soon as we always use proper locking semantics in git-update-ref(1). All locking
+		// issues would be catched when `Prepare()`ing the changes already, so a fail
+		// afterwards would hint at a real unexpected error.
 		return &gitalypb.DeleteRefsResponse{GitError: fmt.Sprintf("unable to delete refs: %s", err.Error())}, nil
 	}
 

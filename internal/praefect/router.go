@@ -6,6 +6,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// RepositoryAccessorRoute describes how to route a repository scoped accessor call.
+type RepositoryAccessorRoute struct {
+	// ReplicaPath is the disk path where the replicas are stored.
+	ReplicaPath string
+	// Node contains the details of the node that should handle the request.
+	Node RouterNode
+}
+
 // RouterNode is a subset of a node's configuration needed to perform
 // request routing.
 type RouterNode struct {
@@ -25,6 +33,13 @@ type StorageMutatorRoute struct {
 
 // RepositoryMutatorRoute describes how to route a repository scoped mutator call.
 type RepositoryMutatorRoute struct {
+	// RepositoryID is the repository's ID as Praefect identifies it.
+	RepositoryID int64
+	// ReplicaPath is the disk path where the replicas are stored.
+	ReplicaPath string
+	// AdditionalReplicaPath is the disk path where the possible additional repository in the request
+	// is stored. This is only used for object pools.
+	AdditionalReplicaPath string
 	// Primary is the primary node of the transaction.
 	Primary RouterNode
 	// Secondaries are the secondary participating in a transaction.
@@ -43,12 +58,12 @@ type Router interface {
 	RouteStorageMutator(ctx context.Context, virtualStorage string) (StorageMutatorRoute, error)
 	// RouteRepositoryAccessor returns the node that should serve the repository accessor
 	// request. If forcePrimary is set to `true`, it returns the primary node.
-	RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RouterNode, error)
+	RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RepositoryAccessorRoute, error)
 	// RouteRepositoryMutatorTransaction returns the primary and secondaries that should handle the repository mutator request.
 	// Additionally, it returns nodes which should have the change replicated to. RouteRepositoryMutator should only be used
 	// with existing repositories.
-	RouteRepositoryMutator(ctx context.Context, virtualStorage, relativePath string) (RepositoryMutatorRoute, error)
+	RouteRepositoryMutator(ctx context.Context, virtualStorage, relativePath, additionalRepoRelativePath string) (RepositoryMutatorRoute, error)
 	// RouteRepositoryCreation decides returns the primary and secondaries that should handle the repository creation
 	// request. It is up to the caller to store the assignments and primary information after finishing the RPC.
-	RouteRepositoryCreation(ctx context.Context, virtualStorage string) (RepositoryMutatorRoute, error)
+	RouteRepositoryCreation(ctx context.Context, virtualStorage, relativePath string) (RepositoryMutatorRoute, error)
 }

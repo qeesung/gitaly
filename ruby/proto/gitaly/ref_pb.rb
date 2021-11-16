@@ -5,18 +5,9 @@ require 'google/protobuf'
 
 require 'lint_pb'
 require 'shared_pb'
-require 'blob_pb'
 require 'google/protobuf/timestamp_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("ref.proto", :syntax => :proto3) do
-    add_message "gitaly.ListNewBlobsRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :commit_id, :string, 2
-      optional :limit, :uint32, 3
-    end
-    add_message "gitaly.ListNewBlobsResponse" do
-      repeated :new_blob_objects, :message, 1, "gitaly.NewBlobObject"
-    end
     add_message "gitaly.FindDefaultBranchNameRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
     end
@@ -34,14 +25,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.FindAllTagNamesResponse" do
       repeated :names, :bytes, 1
-    end
-    add_message "gitaly.FindRefNameRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :commit_id, :string, 2
-      optional :prefix, :bytes, 3
-    end
-    add_message "gitaly.FindRefNameResponse" do
-      optional :name, :bytes, 1
     end
     add_message "gitaly.FindLocalBranchesRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
@@ -91,6 +74,16 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.FindAllTagsRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
+      optional :sort_by, :message, 2, "gitaly.FindAllTagsRequest.SortBy"
+      optional :pagination_params, :message, 3, "gitaly.PaginationParameter"
+    end
+    add_message "gitaly.FindAllTagsRequest.SortBy" do
+      optional :key, :enum, 1, "gitaly.FindAllTagsRequest.SortBy.Key"
+      optional :direction, :enum, 2, "gitaly.SortDirection"
+    end
+    add_enum "gitaly.FindAllTagsRequest.SortBy.Key" do
+      value :REFNAME, 0
+      value :CREATORDATE, 1
     end
     add_message "gitaly.FindAllTagsResponse" do
       repeated :tags, :message, 1, "gitaly.Tag"
@@ -154,6 +147,18 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.ListTagNamesContainingCommitResponse" do
       repeated :tag_names, :bytes, 2
     end
+    add_message "gitaly.GetTagSignaturesRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      repeated :tag_revisions, :string, 2
+    end
+    add_message "gitaly.GetTagSignaturesResponse" do
+      repeated :signatures, :message, 1, "gitaly.GetTagSignaturesResponse.TagSignature"
+    end
+    add_message "gitaly.GetTagSignaturesResponse.TagSignature" do
+      optional :tag_id, :string, 1
+      optional :signature, :bytes, 2
+      optional :content, :bytes, 3
+    end
     add_message "gitaly.GetTagMessagesRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       repeated :tag_ids, :string, 3
@@ -161,13 +166,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.GetTagMessagesResponse" do
       optional :message, :bytes, 2
       optional :tag_id, :string, 3
-    end
-    add_message "gitaly.ListNewCommitsRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :commit_id, :string, 2
-    end
-    add_message "gitaly.ListNewCommitsResponse" do
-      repeated :commits, :message, 1, "gitaly.GitCommit"
     end
     add_message "gitaly.FindAllRemoteBranchesRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
@@ -182,20 +180,38 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.PackRefsResponse" do
     end
+    add_message "gitaly.ListRefsRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      repeated :patterns, :bytes, 2
+      optional :head, :bool, 3
+    end
+    add_message "gitaly.ListRefsResponse" do
+      repeated :references, :message, 1, "gitaly.ListRefsResponse.Reference"
+    end
+    add_message "gitaly.ListRefsResponse.Reference" do
+      optional :name, :bytes, 1
+      optional :target, :string, 2
+    end
+    add_message "gitaly.FindRefsByOIDRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :oid, :string, 2
+      repeated :ref_patterns, :string, 3
+      optional :sort_field, :string, 4
+      optional :limit, :uint32, 5
+    end
+    add_message "gitaly.FindRefsByOIDResponse" do
+      repeated :refs, :string, 1
+    end
   end
 end
 
 module Gitaly
-  ListNewBlobsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListNewBlobsRequest").msgclass
-  ListNewBlobsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListNewBlobsResponse").msgclass
   FindDefaultBranchNameRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindDefaultBranchNameRequest").msgclass
   FindDefaultBranchNameResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindDefaultBranchNameResponse").msgclass
   FindAllBranchNamesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchNamesRequest").msgclass
   FindAllBranchNamesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchNamesResponse").msgclass
   FindAllTagNamesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagNamesRequest").msgclass
   FindAllTagNamesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagNamesResponse").msgclass
-  FindRefNameRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindRefNameRequest").msgclass
-  FindRefNameResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindRefNameResponse").msgclass
   FindLocalBranchesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindLocalBranchesRequest").msgclass
   FindLocalBranchesRequest::SortBy = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindLocalBranchesRequest.SortBy").enummodule
   FindLocalBranchesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindLocalBranchesResponse").msgclass
@@ -207,6 +223,8 @@ module Gitaly
   FindTagRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagRequest").msgclass
   FindTagResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagResponse").msgclass
   FindAllTagsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest").msgclass
+  FindAllTagsRequest::SortBy = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest.SortBy").msgclass
+  FindAllTagsRequest::SortBy::Key = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest.SortBy.Key").enummodule
   FindAllTagsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsResponse").msgclass
   RefExistsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RefExistsRequest").msgclass
   RefExistsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RefExistsResponse").msgclass
@@ -223,12 +241,18 @@ module Gitaly
   ListBranchNamesContainingCommitResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListBranchNamesContainingCommitResponse").msgclass
   ListTagNamesContainingCommitRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListTagNamesContainingCommitRequest").msgclass
   ListTagNamesContainingCommitResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListTagNamesContainingCommitResponse").msgclass
+  GetTagSignaturesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetTagSignaturesRequest").msgclass
+  GetTagSignaturesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetTagSignaturesResponse").msgclass
+  GetTagSignaturesResponse::TagSignature = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetTagSignaturesResponse.TagSignature").msgclass
   GetTagMessagesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetTagMessagesRequest").msgclass
   GetTagMessagesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetTagMessagesResponse").msgclass
-  ListNewCommitsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListNewCommitsRequest").msgclass
-  ListNewCommitsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListNewCommitsResponse").msgclass
   FindAllRemoteBranchesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllRemoteBranchesRequest").msgclass
   FindAllRemoteBranchesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllRemoteBranchesResponse").msgclass
   PackRefsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PackRefsRequest").msgclass
   PackRefsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PackRefsResponse").msgclass
+  ListRefsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListRefsRequest").msgclass
+  ListRefsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListRefsResponse").msgclass
+  ListRefsResponse::Reference = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListRefsResponse.Reference").msgclass
+  FindRefsByOIDRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindRefsByOIDRequest").msgclass
+  FindRefsByOIDResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindRefsByOIDResponse").msgclass
 end

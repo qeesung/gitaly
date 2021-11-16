@@ -7,9 +7,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -22,21 +23,27 @@ type server struct {
 	pool          *client.Pool
 	hookManager   hook.Manager
 	updater       *updateref.UpdaterWithHooks
+	git2go        git2go.Executor
 }
 
 // NewServer creates a new instance of a grpc ConflictsServer
-func NewServer(cfg config.Cfg, hookManager hook.Manager, locator storage.Locator, gitCmdFactory git.CommandFactory, catfileCache catfile.Cache) gitalypb.ConflictsServiceServer {
+func NewServer(
+	cfg config.Cfg,
+	hookManager hook.Manager,
+	locator storage.Locator,
+	gitCmdFactory git.CommandFactory,
+	catfileCache catfile.Cache,
+	connsPool *client.Pool,
+) gitalypb.ConflictsServiceServer {
 	return &server{
 		cfg:           cfg,
 		hookManager:   hookManager,
 		locator:       locator,
 		gitCmdFactory: gitCmdFactory,
 		catfileCache:  catfileCache,
-		pool: client.NewPoolWithOptions(
-			client.WithDialer(client.HealthCheckDialer(client.DialContext)),
-			client.WithDialOptions(client.FailOnNonTempDialError()...),
-		),
-		updater: updateref.NewUpdaterWithHooks(cfg, hookManager, gitCmdFactory, catfileCache),
+		pool:          connsPool,
+		updater:       updateref.NewUpdaterWithHooks(cfg, hookManager, gitCmdFactory, catfileCache),
+		git2go:        git2go.NewExecutor(cfg, locator),
 	}
 }
 

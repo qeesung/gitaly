@@ -9,8 +9,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobService_GetBlobServer) error {
@@ -19,38 +17,37 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 	repo := s.localrepo(in.GetRepository())
 
 	if err := validateRequest(in); err != nil {
-		return status.Errorf(codes.InvalidArgument, "GetBlob: %v", err)
+		return helper.ErrInvalidArgumentf("GetBlob: %v", err)
 	}
 
-	c, err := s.catfileCache.BatchProcess(stream.Context(), repo)
+	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
-		return status.Errorf(codes.Internal, "GetBlob: %v", err)
+		return helper.ErrInternalf("GetBlob: %v", err)
 	}
 
-	objectInfo, err := c.Info(ctx, git.Revision(in.Oid))
-	if err != nil && !catfile.IsNotFound(err) {
-		return status.Errorf(codes.Internal, "GetBlob: %v", err)
-	}
-	if catfile.IsNotFound(err) || objectInfo.Type != "blob" {
-		return helper.DecorateError(codes.Unavailable, stream.Send(&gitalypb.GetBlobResponse{}))
+	blob, err := objectReader.Object(ctx, git.Revision(in.Oid))
+	if err != nil {
+		if catfile.IsNotFound(err) {
+			return helper.ErrUnavailable(stream.Send(&gitalypb.GetBlobResponse{}))
+		}
+		return helper.ErrInternalf("GetBlob: %v", err)
 	}
 
-	readLimit := objectInfo.Size
+	if blob.Type != "blob" {
+		return helper.ErrUnavailable(stream.Send(&gitalypb.GetBlobResponse{}))
+	}
+
+	readLimit := blob.Size
 	if in.Limit >= 0 && in.Limit < readLimit {
 		readLimit = in.Limit
 	}
 	firstMessage := &gitalypb.GetBlobResponse{
-		Size: objectInfo.Size,
-		Oid:  objectInfo.Oid.String(),
+		Size: blob.Size,
+		Oid:  blob.Oid.String(),
 	}
 
 	if readLimit == 0 {
-		return helper.DecorateError(codes.Unavailable, stream.Send(firstMessage))
-	}
-
-	blobObj, err := c.Blob(ctx, git.Revision(objectInfo.Oid))
-	if err != nil {
-		return status.Errorf(codes.Internal, "GetBlob: %v", err)
+		return helper.ErrUnavailable(stream.Send(firstMessage))
 	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
@@ -63,9 +60,9 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 		return stream.Send(msg)
 	})
 
-	_, err = io.CopyN(sw, blobObj.Reader, readLimit)
+	_, err = io.CopyN(sw, blob, readLimit)
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "GetBlob: send: %v", err)
+		return helper.ErrUnavailablef("GetBlob: send: %v", err)
 	}
 
 	return nil

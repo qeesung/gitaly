@@ -21,11 +21,10 @@ type RefServiceClient interface {
 	FindDefaultBranchName(ctx context.Context, in *FindDefaultBranchNameRequest, opts ...grpc.CallOption) (*FindDefaultBranchNameResponse, error)
 	FindAllBranchNames(ctx context.Context, in *FindAllBranchNamesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchNamesClient, error)
 	FindAllTagNames(ctx context.Context, in *FindAllTagNamesRequest, opts ...grpc.CallOption) (RefService_FindAllTagNamesClient, error)
-	// Find a Ref matching the given constraints. Response may be empty.
-	FindRefName(ctx context.Context, in *FindRefNameRequest, opts ...grpc.CallOption) (*FindRefNameResponse, error)
 	// Return a stream so we can divide the response in chunks of branches
 	FindLocalBranches(ctx context.Context, in *FindLocalBranchesRequest, opts ...grpc.CallOption) (RefService_FindLocalBranchesClient, error)
 	FindAllBranches(ctx context.Context, in *FindAllBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchesClient, error)
+	// Returns a stream of tags repository has.
 	FindAllTags(ctx context.Context, in *FindAllTagsRequest, opts ...grpc.CallOption) (RefService_FindAllTagsClient, error)
 	FindTag(ctx context.Context, in *FindTagRequest, opts ...grpc.CallOption) (*FindTagResponse, error)
 	FindAllRemoteBranches(ctx context.Context, in *FindAllRemoteBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllRemoteBranchesClient, error)
@@ -36,11 +35,21 @@ type RefServiceClient interface {
 	DeleteRefs(ctx context.Context, in *DeleteRefsRequest, opts ...grpc.CallOption) (*DeleteRefsResponse, error)
 	ListBranchNamesContainingCommit(ctx context.Context, in *ListBranchNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListBranchNamesContainingCommitClient, error)
 	ListTagNamesContainingCommit(ctx context.Context, in *ListTagNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListTagNamesContainingCommitClient, error)
+	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
+	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
+	// result in an error. Tags which are annotated but not signed will return a TagSignature response
+	// which has no signature, but its unsigned contents will still be returned.
+	GetTagSignatures(ctx context.Context, in *GetTagSignaturesRequest, opts ...grpc.CallOption) (RefService_GetTagSignaturesClient, error)
 	GetTagMessages(ctx context.Context, in *GetTagMessagesRequest, opts ...grpc.CallOption) (RefService_GetTagMessagesClient, error)
-	// Returns commits that are only reachable from the ref passed
-	ListNewCommits(ctx context.Context, in *ListNewCommitsRequest, opts ...grpc.CallOption) (RefService_ListNewCommitsClient, error)
-	ListNewBlobs(ctx context.Context, in *ListNewBlobsRequest, opts ...grpc.CallOption) (RefService_ListNewBlobsClient, error)
 	PackRefs(ctx context.Context, in *PackRefsRequest, opts ...grpc.CallOption) (*PackRefsResponse, error)
+	// ListRefs returns a stream of all references in the repository. By default, pseudo-revisions like HEAD
+	// will not be returned by this RPC. Any symbolic references will be resolved to the object ID it is
+	// pointing at.
+	ListRefs(ctx context.Context, in *ListRefsRequest, opts ...grpc.CallOption) (RefService_ListRefsClient, error)
+	// FindRefsByOID returns an array of fully qualified reference names that point to an object ID.
+	// It returns nothing if the object ID doesn't exist, or doesn't point to
+	// any branches or tags. Prefixes can be also be used as the object ID.
+	FindRefsByOID(ctx context.Context, in *FindRefsByOIDRequest, opts ...grpc.CallOption) (*FindRefsByOIDResponse, error)
 }
 
 type refServiceClient struct {
@@ -122,15 +131,6 @@ func (x *refServiceFindAllTagNamesClient) Recv() (*FindAllTagNamesResponse, erro
 		return nil, err
 	}
 	return m, nil
-}
-
-func (c *refServiceClient) FindRefName(ctx context.Context, in *FindRefNameRequest, opts ...grpc.CallOption) (*FindRefNameResponse, error) {
-	out := new(FindRefNameResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RefService/FindRefName", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *refServiceClient) FindLocalBranches(ctx context.Context, in *FindLocalBranchesRequest, opts ...grpc.CallOption) (RefService_FindLocalBranchesClient, error) {
@@ -361,8 +361,40 @@ func (x *refServiceListTagNamesContainingCommitClient) Recv() (*ListTagNamesCont
 	return m, nil
 }
 
+func (c *refServiceClient) GetTagSignatures(ctx context.Context, in *GetTagSignaturesRequest, opts ...grpc.CallOption) (RefService_GetTagSignaturesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[8], "/gitaly.RefService/GetTagSignatures", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &refServiceGetTagSignaturesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RefService_GetTagSignaturesClient interface {
+	Recv() (*GetTagSignaturesResponse, error)
+	grpc.ClientStream
+}
+
+type refServiceGetTagSignaturesClient struct {
+	grpc.ClientStream
+}
+
+func (x *refServiceGetTagSignaturesClient) Recv() (*GetTagSignaturesResponse, error) {
+	m := new(GetTagSignaturesResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *refServiceClient) GetTagMessages(ctx context.Context, in *GetTagMessagesRequest, opts ...grpc.CallOption) (RefService_GetTagMessagesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[8], "/gitaly.RefService/GetTagMessages", opts...)
+	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[9], "/gitaly.RefService/GetTagMessages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -393,73 +425,50 @@ func (x *refServiceGetTagMessagesClient) Recv() (*GetTagMessagesResponse, error)
 	return m, nil
 }
 
-func (c *refServiceClient) ListNewCommits(ctx context.Context, in *ListNewCommitsRequest, opts ...grpc.CallOption) (RefService_ListNewCommitsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[9], "/gitaly.RefService/ListNewCommits", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &refServiceListNewCommitsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type RefService_ListNewCommitsClient interface {
-	Recv() (*ListNewCommitsResponse, error)
-	grpc.ClientStream
-}
-
-type refServiceListNewCommitsClient struct {
-	grpc.ClientStream
-}
-
-func (x *refServiceListNewCommitsClient) Recv() (*ListNewCommitsResponse, error) {
-	m := new(ListNewCommitsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *refServiceClient) ListNewBlobs(ctx context.Context, in *ListNewBlobsRequest, opts ...grpc.CallOption) (RefService_ListNewBlobsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[10], "/gitaly.RefService/ListNewBlobs", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &refServiceListNewBlobsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type RefService_ListNewBlobsClient interface {
-	Recv() (*ListNewBlobsResponse, error)
-	grpc.ClientStream
-}
-
-type refServiceListNewBlobsClient struct {
-	grpc.ClientStream
-}
-
-func (x *refServiceListNewBlobsClient) Recv() (*ListNewBlobsResponse, error) {
-	m := new(ListNewBlobsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func (c *refServiceClient) PackRefs(ctx context.Context, in *PackRefsRequest, opts ...grpc.CallOption) (*PackRefsResponse, error) {
 	out := new(PackRefsResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RefService/PackRefs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *refServiceClient) ListRefs(ctx context.Context, in *ListRefsRequest, opts ...grpc.CallOption) (RefService_ListRefsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RefService_ServiceDesc.Streams[10], "/gitaly.RefService/ListRefs", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &refServiceListRefsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RefService_ListRefsClient interface {
+	Recv() (*ListRefsResponse, error)
+	grpc.ClientStream
+}
+
+type refServiceListRefsClient struct {
+	grpc.ClientStream
+}
+
+func (x *refServiceListRefsClient) Recv() (*ListRefsResponse, error) {
+	m := new(ListRefsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *refServiceClient) FindRefsByOID(ctx context.Context, in *FindRefsByOIDRequest, opts ...grpc.CallOption) (*FindRefsByOIDResponse, error) {
+	out := new(FindRefsByOIDResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.RefService/FindRefsByOID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -473,11 +482,10 @@ type RefServiceServer interface {
 	FindDefaultBranchName(context.Context, *FindDefaultBranchNameRequest) (*FindDefaultBranchNameResponse, error)
 	FindAllBranchNames(*FindAllBranchNamesRequest, RefService_FindAllBranchNamesServer) error
 	FindAllTagNames(*FindAllTagNamesRequest, RefService_FindAllTagNamesServer) error
-	// Find a Ref matching the given constraints. Response may be empty.
-	FindRefName(context.Context, *FindRefNameRequest) (*FindRefNameResponse, error)
 	// Return a stream so we can divide the response in chunks of branches
 	FindLocalBranches(*FindLocalBranchesRequest, RefService_FindLocalBranchesServer) error
 	FindAllBranches(*FindAllBranchesRequest, RefService_FindAllBranchesServer) error
+	// Returns a stream of tags repository has.
 	FindAllTags(*FindAllTagsRequest, RefService_FindAllTagsServer) error
 	FindTag(context.Context, *FindTagRequest) (*FindTagResponse, error)
 	FindAllRemoteBranches(*FindAllRemoteBranchesRequest, RefService_FindAllRemoteBranchesServer) error
@@ -488,11 +496,21 @@ type RefServiceServer interface {
 	DeleteRefs(context.Context, *DeleteRefsRequest) (*DeleteRefsResponse, error)
 	ListBranchNamesContainingCommit(*ListBranchNamesContainingCommitRequest, RefService_ListBranchNamesContainingCommitServer) error
 	ListTagNamesContainingCommit(*ListTagNamesContainingCommitRequest, RefService_ListTagNamesContainingCommitServer) error
+	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
+	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
+	// result in an error. Tags which are annotated but not signed will return a TagSignature response
+	// which has no signature, but its unsigned contents will still be returned.
+	GetTagSignatures(*GetTagSignaturesRequest, RefService_GetTagSignaturesServer) error
 	GetTagMessages(*GetTagMessagesRequest, RefService_GetTagMessagesServer) error
-	// Returns commits that are only reachable from the ref passed
-	ListNewCommits(*ListNewCommitsRequest, RefService_ListNewCommitsServer) error
-	ListNewBlobs(*ListNewBlobsRequest, RefService_ListNewBlobsServer) error
 	PackRefs(context.Context, *PackRefsRequest) (*PackRefsResponse, error)
+	// ListRefs returns a stream of all references in the repository. By default, pseudo-revisions like HEAD
+	// will not be returned by this RPC. Any symbolic references will be resolved to the object ID it is
+	// pointing at.
+	ListRefs(*ListRefsRequest, RefService_ListRefsServer) error
+	// FindRefsByOID returns an array of fully qualified reference names that point to an object ID.
+	// It returns nothing if the object ID doesn't exist, or doesn't point to
+	// any branches or tags. Prefixes can be also be used as the object ID.
+	FindRefsByOID(context.Context, *FindRefsByOIDRequest) (*FindRefsByOIDResponse, error)
 	mustEmbedUnimplementedRefServiceServer()
 }
 
@@ -508,9 +526,6 @@ func (UnimplementedRefServiceServer) FindAllBranchNames(*FindAllBranchNamesReque
 }
 func (UnimplementedRefServiceServer) FindAllTagNames(*FindAllTagNamesRequest, RefService_FindAllTagNamesServer) error {
 	return status.Errorf(codes.Unimplemented, "method FindAllTagNames not implemented")
-}
-func (UnimplementedRefServiceServer) FindRefName(context.Context, *FindRefNameRequest) (*FindRefNameResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FindRefName not implemented")
 }
 func (UnimplementedRefServiceServer) FindLocalBranches(*FindLocalBranchesRequest, RefService_FindLocalBranchesServer) error {
 	return status.Errorf(codes.Unimplemented, "method FindLocalBranches not implemented")
@@ -542,17 +557,20 @@ func (UnimplementedRefServiceServer) ListBranchNamesContainingCommit(*ListBranch
 func (UnimplementedRefServiceServer) ListTagNamesContainingCommit(*ListTagNamesContainingCommitRequest, RefService_ListTagNamesContainingCommitServer) error {
 	return status.Errorf(codes.Unimplemented, "method ListTagNamesContainingCommit not implemented")
 }
+func (UnimplementedRefServiceServer) GetTagSignatures(*GetTagSignaturesRequest, RefService_GetTagSignaturesServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetTagSignatures not implemented")
+}
 func (UnimplementedRefServiceServer) GetTagMessages(*GetTagMessagesRequest, RefService_GetTagMessagesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetTagMessages not implemented")
 }
-func (UnimplementedRefServiceServer) ListNewCommits(*ListNewCommitsRequest, RefService_ListNewCommitsServer) error {
-	return status.Errorf(codes.Unimplemented, "method ListNewCommits not implemented")
-}
-func (UnimplementedRefServiceServer) ListNewBlobs(*ListNewBlobsRequest, RefService_ListNewBlobsServer) error {
-	return status.Errorf(codes.Unimplemented, "method ListNewBlobs not implemented")
-}
 func (UnimplementedRefServiceServer) PackRefs(context.Context, *PackRefsRequest) (*PackRefsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackRefs not implemented")
+}
+func (UnimplementedRefServiceServer) ListRefs(*ListRefsRequest, RefService_ListRefsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListRefs not implemented")
+}
+func (UnimplementedRefServiceServer) FindRefsByOID(context.Context, *FindRefsByOIDRequest) (*FindRefsByOIDResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindRefsByOID not implemented")
 }
 func (UnimplementedRefServiceServer) mustEmbedUnimplementedRefServiceServer() {}
 
@@ -625,24 +643,6 @@ type refServiceFindAllTagNamesServer struct {
 
 func (x *refServiceFindAllTagNamesServer) Send(m *FindAllTagNamesResponse) error {
 	return x.ServerStream.SendMsg(m)
-}
-
-func _RefService_FindRefName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FindRefNameRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RefServiceServer).FindRefName(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RefService/FindRefName",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RefServiceServer).FindRefName(ctx, req.(*FindRefNameRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _RefService_FindLocalBranches_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -843,6 +843,27 @@ func (x *refServiceListTagNamesContainingCommitServer) Send(m *ListTagNamesConta
 	return x.ServerStream.SendMsg(m)
 }
 
+func _RefService_GetTagSignatures_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetTagSignaturesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RefServiceServer).GetTagSignatures(m, &refServiceGetTagSignaturesServer{stream})
+}
+
+type RefService_GetTagSignaturesServer interface {
+	Send(*GetTagSignaturesResponse) error
+	grpc.ServerStream
+}
+
+type refServiceGetTagSignaturesServer struct {
+	grpc.ServerStream
+}
+
+func (x *refServiceGetTagSignaturesServer) Send(m *GetTagSignaturesResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _RefService_GetTagMessages_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(GetTagMessagesRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -864,48 +885,6 @@ func (x *refServiceGetTagMessagesServer) Send(m *GetTagMessagesResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _RefService_ListNewCommits_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ListNewCommitsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(RefServiceServer).ListNewCommits(m, &refServiceListNewCommitsServer{stream})
-}
-
-type RefService_ListNewCommitsServer interface {
-	Send(*ListNewCommitsResponse) error
-	grpc.ServerStream
-}
-
-type refServiceListNewCommitsServer struct {
-	grpc.ServerStream
-}
-
-func (x *refServiceListNewCommitsServer) Send(m *ListNewCommitsResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _RefService_ListNewBlobs_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ListNewBlobsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(RefServiceServer).ListNewBlobs(m, &refServiceListNewBlobsServer{stream})
-}
-
-type RefService_ListNewBlobsServer interface {
-	Send(*ListNewBlobsResponse) error
-	grpc.ServerStream
-}
-
-type refServiceListNewBlobsServer struct {
-	grpc.ServerStream
-}
-
-func (x *refServiceListNewBlobsServer) Send(m *ListNewBlobsResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
 func _RefService_PackRefs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackRefsRequest)
 	if err := dec(in); err != nil {
@@ -924,6 +903,45 @@ func _RefService_PackRefs_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RefService_ListRefs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListRefsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RefServiceServer).ListRefs(m, &refServiceListRefsServer{stream})
+}
+
+type RefService_ListRefsServer interface {
+	Send(*ListRefsResponse) error
+	grpc.ServerStream
+}
+
+type refServiceListRefsServer struct {
+	grpc.ServerStream
+}
+
+func (x *refServiceListRefsServer) Send(m *ListRefsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _RefService_FindRefsByOID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindRefsByOIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RefServiceServer).FindRefsByOID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.RefService/FindRefsByOID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RefServiceServer).FindRefsByOID(ctx, req.(*FindRefsByOIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RefService_ServiceDesc is the grpc.ServiceDesc for RefService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -934,10 +952,6 @@ var RefService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FindDefaultBranchName",
 			Handler:    _RefService_FindDefaultBranchName_Handler,
-		},
-		{
-			MethodName: "FindRefName",
-			Handler:    _RefService_FindRefName_Handler,
 		},
 		{
 			MethodName: "FindTag",
@@ -958,6 +972,10 @@ var RefService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PackRefs",
 			Handler:    _RefService_PackRefs_Handler,
+		},
+		{
+			MethodName: "FindRefsByOID",
+			Handler:    _RefService_FindRefsByOID_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -1002,18 +1020,18 @@ var RefService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 		{
+			StreamName:    "GetTagSignatures",
+			Handler:       _RefService_GetTagSignatures_Handler,
+			ServerStreams: true,
+		},
+		{
 			StreamName:    "GetTagMessages",
 			Handler:       _RefService_GetTagMessages_Handler,
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "ListNewCommits",
-			Handler:       _RefService_ListNewCommits_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "ListNewBlobs",
-			Handler:       _RefService_ListNewBlobs_Handler,
+			StreamName:    "ListRefs",
+			Handler:       _RefService_ListRefs_Handler,
 			ServerStreams: true,
 		},
 	},

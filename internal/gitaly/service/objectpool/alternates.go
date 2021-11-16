@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,7 +49,7 @@ func (s *server) disconnectAlternates(ctx context.Context, repo *gitalypb.Reposi
 		return err
 	}
 
-	altContents, err := ioutil.ReadFile(altFile)
+	altContents, err := os.ReadFile(altFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -86,7 +85,7 @@ func (s *server) disconnectAlternates(ctx context.Context, repo *gitalypb.Reposi
 		source := filepath.Join(altDir, path)
 		target := filepath.Join(repoPath, "objects", path)
 
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err
 		}
 
@@ -203,7 +202,14 @@ func (s *server) removeAlternatesIfOk(ctx context.Context, repo *gitalypb.Reposi
 	cmd, err := s.gitCmdFactory.New(ctx, repo, git.SubCmd{
 		Name:  "fsck",
 		Flags: []git.Option{git.Flag{Name: "--connectivity-only"}},
-	})
+	}, git.WithConfig(git.ConfigPair{
+		// Starting with Git's f30e4d854b (fsck: verify commit graph when implicitly
+		// enabled, 2021-10-15), git-fsck(1) will check the commit graph for consistency
+		// even if `core.commitGraph` is not enabled explicitly. We do not want to verify
+		// whether the commit graph is consistent though, but only care about connectivity,
+		// so we now explicitly disable usage of the commit graph.
+		Key: "core.commitGraph", Value: "false",
+	}))
 	if err != nil {
 		return err
 	}

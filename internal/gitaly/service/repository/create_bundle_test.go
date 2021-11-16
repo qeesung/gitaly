@@ -2,7 +2,6 @@ package repository
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +28,7 @@ func TestSuccessfulCreateBundleRequest(t *testing.T) {
 	// clean this up before creating the bundle.
 	sha := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
 
-	require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "gitlab-worktree"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "gitlab-worktree"), 0o755))
 
 	gittest.Exec(t, cfg, "-C", repoPath, "worktree", "add", "gitlab-worktree/worktree1", sha.String())
 	require.NoError(t, os.Chtimes(filepath.Join(repoPath, "gitlab-worktree", "worktree1"), time.Now().Add(-7*time.Hour), time.Now().Add(-7*time.Hour)))
@@ -47,12 +46,12 @@ func TestSuccessfulCreateBundleRequest(t *testing.T) {
 		return response.GetData(), err
 	})
 
-	dstDir, err := tempdir.New(ctx, repo, config.NewLocator(cfg))
+	dstDir, err := tempdir.New(ctx, repo.GetStorageName(), config.NewLocator(cfg))
 	require.NoError(t, err)
-	dstFile, err := ioutil.TempFile(dstDir, "")
+	dstFile, err := os.CreateTemp(dstDir.Path(), "")
 	require.NoError(t, err)
 	defer dstFile.Close()
-	defer os.RemoveAll(dstFile.Name())
+	defer func() { require.NoError(t, os.RemoveAll(dstFile.Name())) }()
 
 	_, err = io.Copy(dstFile, reader)
 	require.NoError(t, err)

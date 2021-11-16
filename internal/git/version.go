@@ -1,28 +1,31 @@
 package git
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
+
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 )
 
-var (
-	// minimumVersion is the minimum required Git version. If updating this version, be sure to
-	// also update the following locations:
-	// - https://gitlab.com/gitlab-org/gitaly/blob/master/README.md#installation
-	// - https://gitlab.com/gitlab-org/gitaly/blob/master/.gitlab-ci.yml
-	// - https://gitlab.com/gitlab-org/gitlab-foss/blob/master/.gitlab-ci.yml
-	// - https://gitlab.com/gitlab-org/gitlab-foss/blob/master/lib/system_check/app/git_version_check.rb
-	minimumVersion = Version{
-		versionString: "2.31.0",
-		major:         2,
-		minor:         31,
-		patch:         0,
-		rc:            false,
-	}
-)
+// minimumVersion is the minimum required Git version. If updating this version, be sure to
+// also update the following locations:
+// - https://gitlab.com/gitlab-org/gitaly/blob/master/README.md#installation
+// - https://gitlab.com/gitlab-org/gitaly/blob/master/.gitlab-ci.yml
+// - https://gitlab.com/gitlab-org/gitlab-foss/blob/master/.gitlab-ci.yml
+// - https://gitlab.com/gitlab-org/gitlab-foss/blob/master/lib/system_check/app/git_version_check.rb
+var minimumVersion = Version{
+	versionString: "2.33.0",
+	major:         2,
+	minor:         33,
+	patch:         0,
+	rc:            false,
+
+	// gl is the GitLab patch level.
+	gl: 0,
+}
 
 // Version represents the version of git itself.
 type Version struct {
@@ -33,26 +36,47 @@ type Version struct {
 	versionString       string
 	major, minor, patch uint32
 	rc                  bool
+	gl                  uint32
 }
 
 // CurrentVersion returns the used git version.
 func CurrentVersion(ctx context.Context, gitCmdFactory CommandFactory) (Version, error) {
-	var buf bytes.Buffer
 	cmd, err := gitCmdFactory.NewWithoutRepo(ctx, SubCmd{
 		Name: "version",
-	}, WithStdout(&buf))
+	})
 	if err != nil {
-		return Version{}, err
+		return Version{}, fmt.Errorf("spawning version command: %w", err)
 	}
 
-	if err = cmd.Wait(); err != nil {
-		return Version{}, err
+	return parseVersionFromCommand(cmd)
+}
+
+// CurrentVersionForExecutor returns the git version used by the given executor.
+func CurrentVersionForExecutor(ctx context.Context, executor RepositoryExecutor) (Version, error) {
+	cmd, err := executor.Exec(ctx, SubCmd{
+		Name: "version",
+	})
+	if err != nil {
+		return Version{}, fmt.Errorf("spawning version command: %w", err)
 	}
 
-	out := strings.Trim(buf.String(), " \n")
-	versionString := strings.SplitN(out, " ", 3)
+	return parseVersionFromCommand(cmd)
+}
+
+func parseVersionFromCommand(cmd *command.Command) (Version, error) {
+	versionOutput, err := io.ReadAll(cmd)
+	if err != nil {
+		return Version{}, fmt.Errorf("reading version output: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return Version{}, fmt.Errorf("waiting for version command: %w", err)
+	}
+
+	trimmedVersionOutput := strings.Trim(string(versionOutput), " \n")
+	versionString := strings.SplitN(trimmedVersionOutput, " ", 3)
 	if len(versionString) != 3 {
-		return Version{}, fmt.Errorf("invalid version format: %q", buf.String())
+		return Version{}, fmt.Errorf("invalid version format: %q", string(versionOutput))
 	}
 
 	version, err := parseVersion(versionString[2])
@@ -74,10 +98,15 @@ func (v Version) IsSupported() bool {
 	return !v.LessThan(minimumVersion)
 }
 
-// SupportsObjectTypeFilter checks if a version corresponds to a Git version which supports object
-// type filters.
-func (v Version) SupportsObjectTypeFilter() bool {
-	return !v.LessThan(Version{major: 2, minor: 32, patch: 0})
+// FlushesUpdaterefStatus determines whether the given Git version properly flushes status messages
+// in git-update-ref(1).
+func (v Version) FlushesUpdaterefStatus() bool {
+	// This has been released with v2.33.1 and will be part of v2.34.0. It's also contained in
+	// our custom-patched version v2.33.0-gl3. So everything newer than these versions is
+	// supported.
+	return !v.LessThan(Version{
+		major: 2, minor: 33, patch: 0, gl: 3,
+	})
 }
 
 // LessThan determines whether the version is older than another version.
@@ -101,6 +130,11 @@ func (v Version) LessThan(other Version) bool {
 	case v.rc && !other.rc:
 		return true
 	case !v.rc && other.rc:
+		return false
+
+	case v.gl < other.gl:
+		return true
+	case v.gl > other.gl:
 		return false
 
 	default:
@@ -147,6 +181,15 @@ func parseVersion(versionStr string) (Version, error) {
 	if len(versionSplit) == 4 {
 		if strings.HasPrefix(versionSplit[3], "rc") {
 			ver.rc = true
+		} else if strings.HasPrefix(versionSplit[3], "gl") {
+			gitlabPatchLevel := versionSplit[3][2:]
+
+			gl, err := strconv.ParseUint(gitlabPatchLevel, 10, 32)
+			if err != nil {
+				return Version{}, err
+			}
+
+			ver.gl = uint32(gl)
 		}
 	}
 

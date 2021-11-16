@@ -7,13 +7,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/metadata"
 )
@@ -24,12 +27,15 @@ func newTestObjectPool(t *testing.T, cfg config.Cfg) (*objectpool.ObjectPool, *g
 	repo := gittest.InitRepoDir(t, cfg.Storages[0].Path, relativePath)
 
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
 
 	pool, err := objectpool.NewObjectPool(
 		cfg,
 		config.NewLocator(cfg),
 		gitCmdFactory,
-		catfile.NewCache(cfg),
+		catfileCache,
+		transaction.NewManager(cfg, backchannel.NewRegistry()),
 		repo.GetStorageName(),
 		relativePath,
 	)
@@ -46,7 +52,7 @@ func getForkDestination(t *testing.T, storage config.Storage) (*gitalypb.Reposit
 	forkRepoPath := filepath.Join(storage.Path, folder)
 	forkedRepo := &gitalypb.Repository{StorageName: storage.Name, RelativePath: folder, GlRepository: "project-1"}
 
-	return forkedRepo, forkRepoPath, func() { os.RemoveAll(forkRepoPath) }
+	return forkedRepo, forkRepoPath, func() { require.NoError(t, os.RemoveAll(forkRepoPath)) }
 }
 
 func TestCloneFromPoolInternal(t *testing.T) {
@@ -56,7 +62,7 @@ func TestCloneFromPoolInternal(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 	pool, poolRepo := newTestObjectPool(t, cfg)

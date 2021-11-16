@@ -12,15 +12,15 @@ import (
 
 func TestNewProtoRegistry(t *testing.T) {
 	expectedResults := map[string]map[string]protoregistry.OpType{
-		"BlobService": map[string]protoregistry.OpType{
+		"BlobService": {
 			"GetBlob":        protoregistry.OpAccessor,
 			"GetBlobs":       protoregistry.OpAccessor,
 			"GetLFSPointers": protoregistry.OpAccessor,
 		},
-		"CleanupService": map[string]protoregistry.OpType{
+		"CleanupService": {
 			"ApplyBfgObjectMapStream": protoregistry.OpMutator,
 		},
-		"CommitService": map[string]protoregistry.OpType{
+		"CommitService": {
 			"CommitIsAncestor":         protoregistry.OpAccessor,
 			"TreeEntry":                protoregistry.OpAccessor,
 			"CommitsBetween":           protoregistry.OpAccessor,
@@ -40,32 +40,31 @@ func TestNewProtoRegistry(t *testing.T) {
 			"ListCommitsByOid":         protoregistry.OpAccessor,
 			"FilterShasWithSignatures": protoregistry.OpAccessor,
 		},
-		"ConflictsService": map[string]protoregistry.OpType{
+		"ConflictsService": {
 			"ListConflictFiles": protoregistry.OpAccessor,
 			"ResolveConflicts":  protoregistry.OpMutator,
 		},
-		"DiffService": map[string]protoregistry.OpType{
+		"DiffService": {
 			"CommitDiff":  protoregistry.OpAccessor,
 			"CommitDelta": protoregistry.OpAccessor,
 			"RawDiff":     protoregistry.OpAccessor,
 			"RawPatch":    protoregistry.OpAccessor,
 			"DiffStats":   protoregistry.OpAccessor,
 		},
-		"NamespaceService": map[string]protoregistry.OpType{
+		"NamespaceService": {
 			"AddNamespace":    protoregistry.OpMutator,
 			"RemoveNamespace": protoregistry.OpMutator,
 			"RenameNamespace": protoregistry.OpMutator,
 			"NamespaceExists": protoregistry.OpAccessor,
 		},
-		"ObjectPoolService": map[string]protoregistry.OpType{
-			"CreateObjectPool":               protoregistry.OpMutator,
-			"DeleteObjectPool":               protoregistry.OpMutator,
-			"LinkRepositoryToObjectPool":     protoregistry.OpMutator,
-			"UnlinkRepositoryFromObjectPool": protoregistry.OpMutator,
-			"ReduplicateRepository":          protoregistry.OpMutator,
-			"DisconnectGitAlternates":        protoregistry.OpMutator,
+		"ObjectPoolService": {
+			"CreateObjectPool":           protoregistry.OpMutator,
+			"DeleteObjectPool":           protoregistry.OpMutator,
+			"LinkRepositoryToObjectPool": protoregistry.OpMutator,
+			"ReduplicateRepository":      protoregistry.OpMutator,
+			"DisconnectGitAlternates":    protoregistry.OpMutator,
 		},
-		"OperationService": map[string]protoregistry.OpType{
+		"OperationService": {
 			"UserCreateBranch":    protoregistry.OpMutator,
 			"UserUpdateBranch":    protoregistry.OpMutator,
 			"UserDeleteBranch":    protoregistry.OpMutator,
@@ -81,11 +80,10 @@ func TestNewProtoRegistry(t *testing.T) {
 			"UserApplyPatch":      protoregistry.OpMutator,
 			"UserUpdateSubmodule": protoregistry.OpMutator,
 		},
-		"RefService": map[string]protoregistry.OpType{
+		"RefService": {
 			"FindDefaultBranchName":           protoregistry.OpAccessor,
 			"FindAllBranchNames":              protoregistry.OpAccessor,
 			"FindAllTagNames":                 protoregistry.OpAccessor,
-			"FindRefName":                     protoregistry.OpAccessor,
 			"FindLocalBranches":               protoregistry.OpAccessor,
 			"FindAllBranches":                 protoregistry.OpAccessor,
 			"FindAllTags":                     protoregistry.OpAccessor,
@@ -96,19 +94,14 @@ func TestNewProtoRegistry(t *testing.T) {
 			"ListBranchNamesContainingCommit": protoregistry.OpAccessor,
 			"ListTagNamesContainingCommit":    protoregistry.OpAccessor,
 			"GetTagMessages":                  protoregistry.OpAccessor,
-			"ListNewCommits":                  protoregistry.OpAccessor,
-			"ListNewBlobs":                    protoregistry.OpAccessor,
 			"PackRefs":                        protoregistry.OpMutator,
 		},
-		"RemoteService": map[string]protoregistry.OpType{
-			"AddRemote":            protoregistry.OpMutator,
-			"FetchInternalRemote":  protoregistry.OpMutator,
-			"RemoveRemote":         protoregistry.OpMutator,
+		"RemoteService": {
 			"UpdateRemoteMirror":   protoregistry.OpAccessor,
 			"FindRemoteRepository": protoregistry.OpAccessor,
 			"FindRemoteRootRef":    protoregistry.OpAccessor,
 		},
-		"RepositoryService": map[string]protoregistry.OpType{
+		"RepositoryService": {
 			"RepositoryExists":             protoregistry.OpAccessor,
 			"RepackIncremental":            protoregistry.OpMutator,
 			"RepackFull":                   protoregistry.OpMutator,
@@ -116,6 +109,7 @@ func TestNewProtoRegistry(t *testing.T) {
 			"RepositorySize":               protoregistry.OpAccessor,
 			"ApplyGitattributes":           protoregistry.OpMutator,
 			"FetchRemote":                  protoregistry.OpMutator,
+			"FetchBundle":                  protoregistry.OpMutator,
 			"CreateRepository":             protoregistry.OpMutator,
 			"GetArchive":                   protoregistry.OpAccessor,
 			"HasLocalBranches":             protoregistry.OpAccessor,
@@ -124,13 +118,9 @@ func TestNewProtoRegistry(t *testing.T) {
 			"WriteRef":                     protoregistry.OpMutator,
 			"FindMergeBase":                protoregistry.OpAccessor,
 			"CreateFork":                   protoregistry.OpMutator,
-			"IsRebaseInProgress":           protoregistry.OpAccessor,
-			"IsSquashInProgress":           protoregistry.OpAccessor,
 			"CreateRepositoryFromURL":      protoregistry.OpMutator,
 			"CreateBundle":                 protoregistry.OpAccessor,
 			"CreateRepositoryFromBundle":   protoregistry.OpMutator,
-			"SetConfig":                    protoregistry.OpMutator,
-			"DeleteConfig":                 protoregistry.OpMutator,
 			"FindLicense":                  protoregistry.OpAccessor,
 			"GetInfoAttributes":            protoregistry.OpAccessor,
 			"CalculateChecksum":            protoregistry.OpAccessor,
@@ -143,18 +133,18 @@ func TestNewProtoRegistry(t *testing.T) {
 			"RestoreCustomHooks":           protoregistry.OpMutator,
 			"BackupCustomHooks":            protoregistry.OpAccessor,
 		},
-		"SmartHTTPService": map[string]protoregistry.OpType{
+		"SmartHTTPService": {
 			"InfoRefsUploadPack":  protoregistry.OpAccessor,
 			"InfoRefsReceivePack": protoregistry.OpAccessor,
 			"PostUploadPack":      protoregistry.OpAccessor,
 			"PostReceivePack":     protoregistry.OpMutator,
 		},
-		"SSHService": map[string]protoregistry.OpType{
+		"SSHService": {
 			"SSHUploadPack":    protoregistry.OpAccessor,
 			"SSHReceivePack":   protoregistry.OpMutator,
 			"SSHUploadArchive": protoregistry.OpAccessor,
 		},
-		"WikiService": map[string]protoregistry.OpType{
+		"WikiService": {
 			"WikiWritePage":   protoregistry.OpMutator,
 			"WikiUpdatePage":  protoregistry.OpMutator,
 			"WikiFindPage":    protoregistry.OpAccessor,
@@ -185,7 +175,6 @@ func TestNewProtoRegistry_IsInterceptedMethod(t *testing.T) {
 		},
 		"PraefectInfoService": {
 			"RepositoryReplicas",
-			"ConsistencyCheck",
 			"DatalossCheck",
 			"SetAuthoritativeStorage",
 		},

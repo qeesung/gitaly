@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -16,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const keepAroundNamespace = "refs/keep-around"
@@ -25,8 +25,8 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 	defer cancel()
 
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	socketPath := testhelper.GetTemporaryGitalySocketFileName(t)
 
@@ -46,7 +46,7 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NoError(t, updater.Create(git.ReferenceName(keepAroundRef), existingSha))
-	require.NoError(t, updater.Wait())
+	require.NoError(t, updater.Commit())
 
 	gittest.Exec(t, cfg, "-C", repoPath, "config", "transfer.hideRefs", keepAroundNamespace)
 
@@ -74,8 +74,7 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pbMarshaler := &jsonpb.Marshaler{}
-			payload, err := pbMarshaler.MarshalToString(&gitalypb.SSHUploadPackRequest{
+			payload, err := protojson.Marshal(&gitalypb.SSHUploadPackRequest{
 				Repository:       repo,
 				GitConfigOptions: test.GitConfigOptions,
 			})

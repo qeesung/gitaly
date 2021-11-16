@@ -1,10 +1,6 @@
 // Copyright 2017 Michal Witkowski. All Rights Reserved.
 // See LICENSE for licensing terms.
 
-// TODO: remove the following linter override when the deprecations are fixed
-// in issue https://gitlab.com/gitlab-org/gitaly/issues/1663
-//lint:file-ignore SA1019 Ignore all gRPC deprecations until issue #1663
-
 package proxy
 
 import (
@@ -20,12 +16,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	clientStreamDescForProxying = &grpc.StreamDesc{
-		ServerStreams: true,
-		ClientStreams: true,
-	}
-)
+var clientStreamDescForProxying = &grpc.StreamDesc{
+	ServerStreams: true,
+	ClientStreams: true,
+}
 
 // RegisterStreamHandlers sets up stream handlers for a set of gRPC methods for a given service.
 // streamers is a map of method to grpc.StreamHandler eg:

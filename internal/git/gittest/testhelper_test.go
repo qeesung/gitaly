@@ -3,6 +3,7 @@ package gittest
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,14 +13,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-	cleanup := testhelper.Configure()
-	defer cleanup()
-	return m.Run()
+	testhelper.Run(m)
 }
 
 // setup sets up a test configuration and repository. Ideally we'd use our central test helpers to
@@ -39,19 +33,21 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 			Path: filepath.Join(rootDir, "storage.d"),
 		},
 	}
-	require.NoError(t, os.Mkdir(cfg.Storages[0].Path, 0755))
+	require.NoError(t, os.Mkdir(cfg.Storages[0].Path, 0o755))
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "could not get caller info")
+	cfg.Ruby.Dir = filepath.Join(filepath.Dir(currentFile), "../../../ruby")
 
 	cfg.GitlabShell.Dir = filepath.Join(rootDir, "shell.d")
-	require.NoError(t, os.Mkdir(cfg.GitlabShell.Dir, 0755))
+	require.NoError(t, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
 
 	cfg.BinDir = filepath.Join(rootDir, "bin.d")
-	require.NoError(t, os.Mkdir(cfg.BinDir, 0755))
+	require.NoError(t, os.Mkdir(cfg.BinDir, 0o755))
 
-	require.NoError(t, testhelper.ConfigureRuby(&cfg))
 	require.NoError(t, cfg.Validate())
 
-	repo, repoPath, cleanup := CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := CloneRepo(t, cfg, cfg.Storages[0])
 
 	return cfg, repo, repoPath
 }

@@ -2,23 +2,20 @@ package protoregistry
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/protoutil"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	protoreg "google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-var (
-	// GitalyProtoPreregistered is a proto registry pre-registered with all
-	// gitalypb.GitalyProtos proto files.
-	GitalyProtoPreregistered *Registry
-)
+// GitalyProtoPreregistered is a proto registry pre-registered with all
+// gitalypb.GitalyProtos proto files.
+var GitalyProtoPreregistered *Registry
 
 func init() {
 	var err error
@@ -99,12 +96,13 @@ func (mi MethodInfo) AdditionalRepo(msg proto.Message) (*gitalypb.Repository, bo
 	return repo, true, err
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (mi MethodInfo) FullMethodName() string {
 	return mi.fullMethodName
 }
 
 func (mi MethodInfo) getRepo(msg proto.Message, targetOid []int) (*gitalypb.Repository, error) {
-	if mi.requestName != proto.MessageName(msg) {
+	if mi.requestName != string(proto.MessageName(msg)) {
 		return nil, fmt.Errorf(
 			"proto message %s does not match expected RPC request message %s",
 			proto.MessageName(msg), mi.requestName,
@@ -127,7 +125,7 @@ func (mi MethodInfo) getRepo(msg proto.Message, targetOid []int) (*gitalypb.Repo
 
 // Storage returns the storage name for a protobuf message if it exists
 func (mi MethodInfo) Storage(msg proto.Message) (string, error) {
-	if mi.requestName != proto.MessageName(msg) {
+	if mi.requestName != string(proto.MessageName(msg)) {
 		return "", fmt.Errorf(
 			"proto message %s does not match expected RPC request message %s",
 			proto.MessageName(msg), mi.requestName,
@@ -139,7 +137,7 @@ func (mi MethodInfo) Storage(msg proto.Message) (string, error) {
 
 // SetStorage sets the storage name for a protobuf message
 func (mi MethodInfo) SetStorage(msg proto.Message, storage string) error {
-	if mi.requestName != proto.MessageName(msg) {
+	if mi.requestName != string(proto.MessageName(msg)) {
 		return fmt.Errorf(
 			"proto message %s does not match expected RPC request message %s",
 			proto.MessageName(msg), mi.requestName,
@@ -164,7 +162,7 @@ type Registry struct {
 }
 
 // New creates a new ProtoRegistry with info from one or more descriptor.FileDescriptorProto
-func New(protos ...*descriptor.FileDescriptorProto) (*Registry, error) {
+func New(protos ...*descriptorpb.FileDescriptorProto) (*Registry, error) {
 	methods := make(map[string]MethodInfo)
 	interceptedMethods := make(map[string]struct{})
 
@@ -175,7 +173,7 @@ func New(protos ...*descriptor.FileDescriptorProto) (*Registry, error) {
 					p.GetPackage(), svc.GetName(), method.GetName(),
 				)
 
-				if intercepted, err := protoutil.IsInterceptedService(svc); err != nil {
+				if intercepted, err := protoutil.IsInterceptedMethod(svc, method); err != nil {
 					return nil, fmt.Errorf("is intercepted: %w", err)
 				} else if intercepted {
 					interceptedMethods[fullMethodName] = struct{}{}
@@ -214,22 +212,17 @@ func NewFromPaths(paths ...string) (*Registry, error) {
 
 type protoFactory func([]byte) (proto.Message, error)
 
-func methodReqFactory(method *descriptor.MethodDescriptorProto) (protoFactory, error) {
+func methodReqFactory(method *descriptorpb.MethodDescriptorProto) (protoFactory, error) {
 	// for some reason, the descriptor prepends a dot not expected in Go
 	inputTypeName := strings.TrimPrefix(method.GetInputType(), ".")
 
-	inputType := proto.MessageType(inputTypeName)
-	if inputType == nil {
-		return nil, fmt.Errorf("no message type found for %s", inputType)
+	inputType, err := protoreg.GlobalTypes.FindMessageByName(protoreflect.FullName(inputTypeName))
+	if err != nil {
+		return nil, fmt.Errorf("no message type found for %w", err)
 	}
 
 	f := func(buf []byte) (proto.Message, error) {
-		v := reflect.New(inputType.Elem())
-		pb, ok := v.Interface().(proto.Message)
-		if !ok {
-			return nil, fmt.Errorf("factory function expected protobuf message but got %T", v.Interface())
-		}
-
+		pb := inputType.New().Interface()
 		if err := proto.Unmarshal(buf, pb); err != nil {
 			return nil, err
 		}
@@ -241,8 +234,8 @@ func methodReqFactory(method *descriptor.MethodDescriptorProto) (protoFactory, e
 }
 
 func parseMethodInfo(
-	p *descriptor.FileDescriptorProto,
-	methodDesc *descriptor.MethodDescriptorProto,
+	p *descriptorpb.FileDescriptorProto,
+	methodDesc *descriptorpb.MethodDescriptorProto,
 	fullMethodName string,
 ) (MethodInfo, error) {
 	opMsg, err := protoutil.GetOpExtension(methodDesc)
@@ -335,7 +328,7 @@ func parseMethodInfo(
 	return mi, nil
 }
 
-func getFileTypes(filename string) ([]*descriptor.DescriptorProto, error) {
+func getFileTypes(filename string) ([]*descriptorpb.DescriptorProto, error) {
 	fd, err := protoreg.GlobalFiles.FindFileByPath(filename)
 	if err != nil {
 		return nil, err
@@ -355,8 +348,8 @@ func getFileTypes(filename string) ([]*descriptor.DescriptorProto, error) {
 	return types, nil
 }
 
-func getTopLevelMsgs(p *descriptor.FileDescriptorProto) (map[string]*descriptor.DescriptorProto, error) {
-	topLevelMsgs := map[string]*descriptor.DescriptorProto{}
+func getTopLevelMsgs(p *descriptorpb.FileDescriptorProto) (map[string]*descriptorpb.DescriptorProto, error) {
+	topLevelMsgs := map[string]*descriptorpb.DescriptorProto{}
 	types, err := getFileTypes(p.GetName())
 	if err != nil {
 		return nil, err
@@ -371,13 +364,13 @@ func getTopLevelMsgs(p *descriptor.FileDescriptorProto) (map[string]*descriptor.
 // recursively. Then if field matches but type don't match expectedType subMatch method is used
 // from this point. This matcher assumes that only one field in the message matches the credentials.
 type matcher struct {
-	match        func(*descriptor.FieldDescriptorProto) (bool, error)
-	subMatch     func(*descriptor.FieldDescriptorProto) (bool, error)
-	expectedType string                                 // fully qualified name of expected type e.g. ".gitaly.Repository"
-	topLevelMsgs map[string]*descriptor.DescriptorProto // Map of all top level messages in given file and it dependencies. Result of getTopLevelMsgs should be used.
+	match        func(*descriptorpb.FieldDescriptorProto) (bool, error)
+	subMatch     func(*descriptorpb.FieldDescriptorProto) (bool, error)
+	expectedType string                                   // fully qualified name of expected type e.g. ".gitaly.Repository"
+	topLevelMsgs map[string]*descriptorpb.DescriptorProto // Map of all top level messages in given file and it dependencies. Result of getTopLevelMsgs should be used.
 }
 
-func (m matcher) findField(t *descriptor.DescriptorProto) ([]int, error) {
+func (m matcher) findField(t *descriptorpb.DescriptorProto) ([]int, error) {
 	for _, f := range t.GetField() {
 		match, err := m.match(f)
 		if err != nil {
@@ -412,8 +405,8 @@ func (m matcher) findField(t *descriptor.DescriptorProto) ([]int, error) {
 	return nil, nil
 }
 
-func findChildMsg(topLevelMsgs map[string]*descriptor.DescriptorProto, t *descriptor.DescriptorProto, f *descriptor.FieldDescriptorProto) (*descriptor.DescriptorProto, error) {
-	var childType *descriptor.DescriptorProto
+func findChildMsg(topLevelMsgs map[string]*descriptorpb.DescriptorProto, t *descriptorpb.DescriptorProto, f *descriptorpb.FieldDescriptorProto) (*descriptorpb.DescriptorProto, error) {
+	var childType *descriptorpb.DescriptorProto
 	const msgPrimitive = "TYPE_MESSAGE"
 	if primitive := f.GetType().String(); primitive != msgPrimitive {
 		return nil, nil

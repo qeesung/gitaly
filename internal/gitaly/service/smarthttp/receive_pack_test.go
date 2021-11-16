@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,8 +20,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
@@ -104,7 +104,7 @@ func TestReceivePackHiddenRefs(t *testing.T) {
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	repoProto.GlProjectPath = "project/path"
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -134,7 +134,9 @@ func TestReceivePackHiddenRefs(t *testing.T) {
 
 			// The options passed are the same ones used when doing an actual push.
 			revisions := strings.NewReader(fmt.Sprintf("^%s\n%s\n", oldHead, newHead))
-			pack := gittest.ExecStream(t, cfg, revisions, "-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+			pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: revisions},
+				"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+			)
 			request.Write(pack)
 
 			stream, err := client.PostReceivePack(ctx)
@@ -152,7 +154,7 @@ func TestReceivePackHiddenRefs(t *testing.T) {
 func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	readProto, cfg := gittest.EnableGitProtocolV2Support(t, cfg)
 
@@ -210,10 +212,10 @@ func TestFailedReceivePackRequestDueToHooksFailure(t *testing.T) {
 	}(hooks.Override)
 	hooks.Override = hookDir
 
-	require.NoError(t, os.MkdirAll(hooks.Path(cfg), 0755))
+	require.NoError(t, os.MkdirAll(hooks.Path(cfg), 0o755))
 
 	hookContent := []byte("#!/bin/sh\nexit 1")
-	require.NoError(t, ioutil.WriteFile(filepath.Join(hooks.Path(cfg), "pre-receive"), hookContent, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooks.Path(cfg), "pre-receive"), hookContent, 0o755))
 
 	serverSocketPath := runSmartHTTPServer(t, cfg)
 
@@ -262,8 +264,9 @@ type pushData struct {
 }
 
 func newTestPush(t *testing.T, cfg config.Cfg, fileContents []byte) *pushData {
-	_, repoPath, localCleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer localCleanup()
+	_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	oldHead, newHead := createCommit(t, cfg, repoPath, fileContents)
 
@@ -287,7 +290,9 @@ func newTestPush(t *testing.T, cfg config.Cfg, fileContents []byte) *pushData {
 	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", oldHead, newHead))
 
 	// The options passed are the same ones used when doing an actual push.
-	pack := gittest.ExecStream(t, cfg, stdin, "-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+	pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin},
+		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+	)
 	requestBuffer.Write(pack)
 
 	return &pushData{newHead: newHead, body: requestBuffer}
@@ -304,7 +309,7 @@ func createCommit(t *testing.T, cfg config.Cfg, repoPath string, fileContents []
 	oldHead = text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "master"))
 
 	changedFile := "README.md"
-	require.NoError(t, ioutil.WriteFile(filepath.Join(repoPath, changedFile), fileContents, 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, changedFile), fileContents, 0o644))
 
 	gittest.Exec(t, cfg, "-C", repoPath, "add", changedFile)
 	gittest.Exec(t, cfg, "-C", repoPath,
@@ -353,8 +358,7 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	_, localRepoPath, localCleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	defer localCleanup()
+	_, localRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	socket := runSmartHTTPServer(t, cfg)
 
@@ -406,15 +410,48 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 			expectedResponse: "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000",
 			expectObject:     true,
 		},
+		{
+			desc: "zero-padded file mode",
+			prepareCommit: func(t *testing.T, repoPath string) bytes.Buffer {
+				subtree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{Mode: "100644", Path: "file", Content: "content"},
+				})
+				subtreeID, err := subtree.Bytes()
+				require.NoError(t, err)
+
+				var treeContents bytes.Buffer
+				treeContents.WriteString("040000 subdir\x00")
+				treeContents.Write(subtreeID)
+
+				brokenTree := gittest.ExecOpts(t, cfg, gittest.ExecConfig{
+					Stdin: &treeContents,
+				}, "-C", repoPath, "hash-object", "-w", "-t", "tree", "--stdin")
+
+				var buf bytes.Buffer
+				buf.WriteString("tree " + text.ChompBytes(brokenTree) + "\n")
+				buf.WriteString("parent " + head + "\n")
+				buf.WriteString("author Au Thor <author@example.com>\n")
+				buf.WriteString("committer Au Thor <author@example.com>\n")
+				buf.WriteString("\n")
+				buf.WriteString("Commit message\n")
+				return buf
+			},
+			expectedResponse: "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000",
+			expectObject:     true,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			commitBuffer := tc.prepareCommit(t, repoPath)
-			commitID := text.ChompBytes(gittest.ExecStream(t, cfg, &commitBuffer, "-C", localRepoPath, "hash-object", "-t", "commit", "--stdin", "-w"))
+			commitBuffer := tc.prepareCommit(t, localRepoPath)
+			commitID := text.ChompBytes(gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: &commitBuffer},
+				"-C", localRepoPath, "hash-object", "-t", "commit", "--stdin", "-w",
+			))
 
 			currentHead := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
 
 			stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", currentHead, commitID))
-			pack := gittest.ExecStream(t, cfg, stdin, "-C", localRepoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+			pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin},
+				"-C", localRepoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+			)
 
 			pkt := fmt.Sprintf("%s %s refs/heads/master\x00 %s", currentHead, commitID, "report-status side-band-64k agent=git/2.12.0")
 			body := &bytes.Buffer{}
@@ -442,7 +479,7 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 func TestReceivePackFsck(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	head := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
 
@@ -456,7 +493,9 @@ func TestReceivePackFsck(t *testing.T) {
 	)
 
 	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", head, commit))
-	pack := gittest.ExecStream(t, cfg, stdin, "-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+	pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin},
+		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+	)
 
 	var body bytes.Buffer
 	gittest.WritePktlineString(t, &body, fmt.Sprintf("%s %s refs/heads/master\x00 %s", head, commit, "report-status side-band-64k agent=git/2.12.0"))
@@ -493,7 +532,7 @@ func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePa
 func TestPostReceivePackToHooks(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	const (
 		secretToken  = "secret token"
@@ -505,7 +544,7 @@ func TestPostReceivePackToHooks(t *testing.T) {
 	cfg.GitlabShell.Dir = testhelper.TempDir(t)
 
 	cfg.Auth.Token = "abc123"
-	cfg.Gitlab.SecretFile = testhelper.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
+	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
 
 	push := newTestPush(t, cfg, nil)
 	testRepoPath := filepath.Join(cfg.Storages[0].Path, repo.RelativePath)
@@ -513,7 +552,7 @@ func TestPostReceivePackToHooks(t *testing.T) {
 
 	changes := fmt.Sprintf("%s %s refs/heads/master\n", oldHead, push.newHead)
 
-	cfg.Gitlab.URL, cleanup = testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	cfg.Gitlab.URL, cleanup = gitlab.NewTestServer(t, gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -557,7 +596,7 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	secretToken := "secret token"
 	glID := "key-1234"
@@ -565,7 +604,7 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 	gitlabUser := "gitlab_user-1234"
 	gitlabPassword := "gitlabsecret9887"
 
-	opts := testhelper.GitlabTestServerOptions{
+	opts := gitlab.TestServerOptions{
 		User:         gitlabUser,
 		Password:     gitlabPassword,
 		SecretToken:  secretToken,
@@ -574,7 +613,7 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 		RepoPath:     repoPath,
 	}
 
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, opts)
+	serverURL, cleanup := gitlab.NewTestServer(t, opts)
 	defer cleanup()
 
 	gitlabShellDir := testhelper.TempDir(t)
@@ -584,7 +623,7 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 	cfg.Gitlab.HTTPSettings.Password = gitlabPassword
 	cfg.Gitlab.SecretFile = filepath.Join(gitlabShellDir, ".gitlab_shell_secret")
 
-	testhelper.WriteShellSecretFile(t, gitlabShellDir, secretToken)
+	gitlab.WriteShellSecretFile(t, gitlabShellDir, secretToken)
 
 	addr := runSmartHTTPServer(t, cfg)
 
@@ -617,7 +656,7 @@ func (t *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	refTransactionServer := &testTransactionServer{}
 
@@ -628,7 +667,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 			deps.GetGitCmdFactory(),
 			deps.GetDiskCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	}, testserver.WithDisablePraefect())
 
 	ctx, cancel := testhelper.Context()
@@ -636,7 +675,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 
 	ctx, err := txinfo.InjectTransaction(ctx, 1234, "primary", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
 	client := newMuxedSmartHTTPClient(t, ctx, addr, cfg.Auth.Token, func() backchannel.Server {
 		srv := grpc.NewServer()
@@ -648,7 +687,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		stream, err := client.PostReceivePack(ctx)
 		require.NoError(t, err)
 
-		repo, _, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
+		repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 		request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
 		response := doPush(t, stream, request, newTestPush(t, cfg, nil).body)
@@ -664,7 +703,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		stream, err := client.PostReceivePack(ctx)
 		require.NoError(t, err)
 
-		repo, repoPath, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
+		repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 		// Create a new branch which we're about to delete. We also pack references because
 		// this used to generate two transactions: one for the packed-refs file and one for

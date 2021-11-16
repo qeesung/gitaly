@@ -1,5 +1,6 @@
 package cache
 
+//nolint:depguard
 import (
 	"context"
 	"crypto/sha256"
@@ -13,16 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -63,11 +63,11 @@ func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Reposit
 	}
 
 	lPath := latestPath(repoStatePath)
-	if err := os.MkdirAll(filepath.Dir(lPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(lPath), 0o755); err != nil {
 		return "", err
 	}
 
-	latest, err := safe.CreateFileWriter(lPath)
+	latest, err := safe.NewFileWriter(lPath)
 	if err != nil {
 		return "", err
 	}
@@ -165,11 +165,11 @@ func (keyer leaseKeyer) newPendingLease(repo *gitalypb.Repository) (string, erro
 	}
 
 	pDir := pendingDir(repoStatePath)
-	if err := os.MkdirAll(pDir, 0755); err != nil {
+	if err := os.MkdirAll(pDir, 0o755); err != nil {
 		return "", err
 	}
 
-	f, err := ioutil.TempFile(pDir, "")
+	f, err := os.CreateTemp(pDir, "")
 	if err != nil {
 		err = fmt.Errorf("creating pending lease failed: %w", err)
 		return "", err
@@ -184,12 +184,12 @@ func (keyer leaseKeyer) newPendingLease(repo *gitalypb.Repository) (string, erro
 
 // cacheDir is $STORAGE/+gitaly/cache
 func (keyer leaseKeyer) cacheDir(repo *gitalypb.Repository) (string, error) {
-	storagePath, err := keyer.locator.GetStorageByName(repo.StorageName)
+	cacheDir, err := keyer.locator.CacheDir(repo.StorageName)
 	if err != nil {
-		return "", fmt.Errorf("storage not found for %v", repo)
+		return "", fmt.Errorf("cache dir not found for %v", repo)
 	}
 
-	return tempdir.AppendCacheDir(storagePath), nil
+	return cacheDir, nil
 }
 
 func (keyer leaseKeyer) getRepoStatePath(repo *gitalypb.Repository) (string, error) {
@@ -198,7 +198,10 @@ func (keyer leaseKeyer) getRepoStatePath(repo *gitalypb.Repository) (string, err
 		return "", fmt.Errorf("getRepoStatePath: storage not found for %v", repo)
 	}
 
-	stateDir := tempdir.AppendStateDir(storagePath)
+	stateDir, err := keyer.locator.StateDir(repo.StorageName)
+	if err != nil {
+		return "", fmt.Errorf("getRepoStatePath: state dir not found for %v", repo)
+	}
 
 	relativePath := repo.GetRelativePath()
 	if len(relativePath) == 0 {
@@ -238,7 +241,7 @@ func (keyer leaseKeyer) currentGenID(ctx context.Context, repo *gitalypb.Reposit
 		return "", err
 	}
 
-	latestBytes, err := ioutil.ReadFile(latestPath(repoStatePath))
+	latestBytes, err := os.ReadFile(latestPath(repoStatePath))
 	switch {
 	case os.IsNotExist(err):
 		// latest file doesn't exist, so create one
@@ -250,7 +253,7 @@ func (keyer leaseKeyer) currentGenID(ctx context.Context, repo *gitalypb.Reposit
 	}
 }
 
-//func stateDir(repoDir string) string   { return filepath.Join(repoDir, "state") }
+// func stateDir(repoDir string) string   { return filepath.Join(repoDir, "state") }
 func pendingDir(repoStateDir string) string { return filepath.Join(repoStateDir, "pending") }
 func latestPath(repoStateDir string) string { return filepath.Join(repoStateDir, "latest") }
 

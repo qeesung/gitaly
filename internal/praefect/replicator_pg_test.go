@@ -1,10 +1,7 @@
-// +build postgres
-
 package praefect
 
 import (
 	"context"
-	"errors"
 	"net"
 	"path/filepath"
 	"testing"
@@ -12,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -29,6 +26,7 @@ func (m *mockRepositoryService) ReplicateRepository(ctx context.Context, r *gita
 }
 
 func TestReplicatorInvalidSourceRepository(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -49,13 +47,21 @@ func TestReplicatorInvalidSourceRepository(t *testing.T) {
 
 	targetCC, err := client.Dial(ln.Addr().Network()+":"+ln.Addr().String(), nil)
 	require.NoError(t, err)
+	defer testhelper.MustClose(t, targetCC)
 
-	rs := datastore.NewPostgresRepositoryStore(getDB(t), nil)
-	require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-1", "gitaly-1", 0))
+	rs := datastore.NewPostgresRepositoryStore(glsql.NewDB(t), nil)
+
+	require.NoError(t, rs.CreateRepository(ctx, 1, "virtual-storage-1", "relative-path-1", "relative-path-1", "gitaly-1", nil, nil, true, false))
+
+	exists, err := rs.RepositoryExists(ctx, "virtual-storage-1", "relative-path-1")
+	require.NoError(t, err)
+	require.True(t, exists)
 
 	r := &defaultReplicator{rs: rs, log: testhelper.DiscardTestLogger(t)}
 	require.NoError(t, r.Replicate(ctx, datastore.ReplicationEvent{
 		Job: datastore.ReplicationJob{
+			RepositoryID:      1,
+			ReplicaPath:       "relative-path-1",
 			VirtualStorage:    "virtual-storage-1",
 			RelativePath:      "relative-path-1",
 			SourceNodeStorage: "gitaly-1",
@@ -63,31 +69,30 @@ func TestReplicatorInvalidSourceRepository(t *testing.T) {
 		},
 	}, nil, targetCC))
 
-	exists, err := rs.RepositoryExists(ctx, "virtual-storage-1", "relative-path-1")
+	exists, err = rs.RepositoryExists(ctx, "virtual-storage-1", "relative-path-1")
 	require.NoError(t, err)
 	require.False(t, exists)
 }
 
 func TestReplicatorDestroy(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
 	for _, tc := range []struct {
 		change datastore.ChangeType
-		exists bool
 		error  error
 	}{
-		{change: datastore.DeleteReplica, exists: true},
-		{change: datastore.DeleteRepo, exists: false},
-		{change: "invalid-type", exists: true, error: errors.New(`unknown change type: "invalid-type"`)},
+		{change: datastore.DeleteReplica},
+		{change: datastore.DeleteRepo},
 	} {
 		t.Run(string(tc.change), func(t *testing.T) {
-			db := getDB(t)
+			db.TruncateAll(t)
 
 			rs := datastore.NewPostgresRepositoryStore(db, nil)
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-1", "storage-1", 0))
-			require.NoError(t, rs.SetGeneration(ctx, "virtual-storage-1", "relative-path-1", "storage-2", 0))
+			require.NoError(t, rs.CreateRepository(ctx, 1, "virtual-storage-1", "relative-path-1", "relative-path-1", "storage-1", []string{"storage-2"}, nil, false, false))
 
 			ln, err := net.Listen("tcp", "localhost:0")
 			require.NoError(t, err)
@@ -110,6 +115,7 @@ func TestReplicatorDestroy(t *testing.T) {
 				ctx,
 				datastore.ReplicationEvent{
 					Job: datastore.ReplicationJob{
+						ReplicaPath:       "relative-path-1",
 						Change:            tc.change,
 						VirtualStorage:    "virtual-storage-1",
 						RelativePath:      "relative-path-1",
@@ -121,15 +127,7 @@ func TestReplicatorDestroy(t *testing.T) {
 
 			exists, err := rs.RepositoryExists(ctx, "virtual-storage-1", "relative-path-1")
 			require.NoError(t, err)
-			require.Equal(t, tc.exists, exists)
+			require.True(t, exists)
 		})
 	}
-}
-
-func TestReplicator_PropagateReplicationJob_postgres(t *testing.T) {
-	testReplicatorPropagateReplicationJob(t,
-		func(t *testing.T, cfg config.Config) datastore.ReplicationEventQueue {
-			return datastore.NewPostgresReplicationEventQueue(getDB(t))
-		},
-	)
 }

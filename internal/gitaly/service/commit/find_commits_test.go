@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -15,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestFindCommitsFields(t *testing.T) {
@@ -41,13 +41,13 @@ func TestFindCommitsFields(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Jacob Vosmaer"),
 					Email:    []byte("jacob@gitlab.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1512132977},
+					Date:     &timestamppb.Timestamp{Seconds: 1512132977},
 					Timezone: []byte("+0100"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:     []byte("Jacob Vosmaer"),
 					Email:    []byte("jacob@gitlab.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1512132977},
+					Date:     &timestamppb.Timestamp{Seconds: 1512132977},
 					Timezone: []byte("+0100"),
 				},
 				ParentIds: []string{"e63f41fe459e62e1228fcef60d7189127aeba95a"},
@@ -77,13 +77,13 @@ func TestFindCommitsFields(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Dmitriy Zaporozhets"),
 					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Date:     &timestamppb.Timestamp{Seconds: 1393491698},
 					Timezone: []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:     []byte("Dmitriy Zaporozhets"),
 					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Date:     &timestamppb.Timestamp{Seconds: 1393491698},
 					Timezone: []byte("+0200"),
 				},
 				ParentIds:     []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
@@ -102,13 +102,13 @@ func TestFindCommitsFields(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Dmitriy Zaporozhets"),
 					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Date:     &timestamppb.Timestamp{Seconds: 1393491698},
 					Timezone: []byte("+0200"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:     []byte("Dmitriy Zaporozhets"),
 					Email:    []byte("dmitriy.zaporozhets@gmail.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1393491698},
+					Date:     &timestamppb.Timestamp{Seconds: 1393491698},
 					Timezone: []byte("+0200"),
 				},
 				ParentIds:     []string{"570e7b2abdd848b95f2f578043fc23bd6f6fd24d"},
@@ -116,7 +116,7 @@ func TestFindCommitsFields(t *testing.T) {
 				SignatureType: gitalypb.SignatureType_PGP,
 				TreeId:        "a6973545d42361b28bfba5ced3b75dba5848b955",
 				Trailers: []*gitalypb.CommitTrailer{
-					&gitalypb.CommitTrailer{
+					{
 						Key:   []byte("Signed-off-by"),
 						Value: []byte("Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>"),
 					},
@@ -132,13 +132,13 @@ func TestFindCommitsFields(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:     []byte("Alejandro Rodríguez"),
 					Email:    []byte("alejorro70@gmail.com"),
-					Date:     &timestamp.Timestamp{Seconds: 1504382739},
+					Date:     &timestamppb.Timestamp{Seconds: 1504382739},
 					Timezone: []byte("+0000"),
 				},
 				Committer: &gitalypb.CommitAuthor{
 					Name:     []byte("Drew Blessing"),
 					Email:    []byte("drew@blessing.io"),
-					Date:     &timestamp.Timestamp{Seconds: 1540823671},
+					Date:     &timestamppb.Timestamp{Seconds: 1540823671},
 					Timezone: []byte("+0000"),
 				},
 				ParentIds: []string{"7975be0116940bf2ad4321f79d02a55c5f7779aa"},
@@ -225,7 +225,8 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 				Revision:    []byte("0031876facac3f2b2702a0e53a26e89939a42209"),
 				DisableWalk: true,
 			},
-		}, {
+		},
+		{
 			desc: "revision and paths",
 			request: &gitalypb.FindCommitsRequest{
 				Repository: repo,
@@ -268,8 +269,8 @@ func TestSuccessfulFindCommitsRequest(t *testing.T) {
 			desc: "before and after",
 			request: &gitalypb.FindCommitsRequest{
 				Repository: repo,
-				Before:     &timestamp.Timestamp{Seconds: 1483225200},
-				After:      &timestamp.Timestamp{Seconds: 1472680800},
+				Before:     &timestamppb.Timestamp{Seconds: 1483225200},
+				After:      &timestamppb.Timestamp{Seconds: 1472680800},
 				Limit:      10,
 			},
 			ids: []string{

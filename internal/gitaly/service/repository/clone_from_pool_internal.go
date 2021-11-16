@@ -33,7 +33,7 @@ func (s *server) CloneFromPoolInternal(ctx context.Context, req *gitalypb.CloneF
 		return nil, helper.ErrInternalf("fetch internal remote: %v", err)
 	}
 
-	objectPool, err := objectpool.FromProto(s.cfg, s.locator, s.gitCmdFactory, s.catfileCache, req.GetPool())
+	objectPool, err := objectpool.FromProto(s.cfg, s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, req.GetPool())
 	if err != nil {
 		return nil, helper.ErrInternalf("get object pool from request: %v", err)
 	}
@@ -55,7 +55,7 @@ func (s *server) validateCloneFromPoolInternalRequestRepositoryState(req *gitaly
 		return errors.New("target reopsitory already exists")
 	}
 
-	objectPool, err := objectpool.FromProto(s.cfg, s.locator, s.gitCmdFactory, s.catfileCache, req.GetPool())
+	objectPool, err := objectpool.FromProto(s.cfg, s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, req.GetPool())
 	if err != nil {
 		return fmt.Errorf("getting object pool from repository: %v", err)
 	}
@@ -108,9 +108,9 @@ func (s *server) cloneFromPool(ctx context.Context, objectPoolRepo *gitalypb.Obj
 
 	cmd, err := s.gitCmdFactory.NewWithoutRepo(ctx,
 		git.SubCmd{
-			Name:        "clone",
-			Flags:       []git.Option{git.Flag{Name: "--bare"}, git.Flag{Name: "--shared"}},
-			PostSepArgs: []string{objectPoolPath, repositoryPath},
+			Name:  "clone",
+			Flags: []git.Option{git.Flag{Name: "--bare"}, git.Flag{Name: "--shared"}},
+			Args:  []string{objectPoolPath, repositoryPath},
 		},
 		git.WithRefTxHook(ctx, repo, s.cfg),
 	)

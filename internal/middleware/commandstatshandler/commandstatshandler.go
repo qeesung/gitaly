@@ -3,12 +3,10 @@ package commandstatshandler
 import (
 	"context"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 // UnaryInterceptor returns a Unary Interceptor
@@ -25,7 +23,7 @@ func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.Str
 	ctx := stream.Context()
 	ctx = command.InitContextStats(ctx)
 
-	wrapped := grpc_middleware.WrapServerStream(stream)
+	wrapped := grpcmw.WrapServerStream(stream)
 	wrapped.WrappedContext = ctx
 
 	err := handler(srv, wrapped)
@@ -33,23 +31,10 @@ func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.Str
 	return err
 }
 
-// CommandStatsMessageProducer hooks into grpc_logrus to add more fields.
-//
-// It replaces github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus.DefaultMessageProducer.
-//
-// We cannot use ctxlogrus.AddFields() as it is not concurrency safe, and
-// we may be logging concurrently. Conversely, command.Stats.Fields() is
-// protected by a lock and can safely be called here.
-func CommandStatsMessageProducer(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields logrus.Fields) {
-	if err != nil {
-		fields[logrus.ErrorKey] = err
-	}
-	entry := ctxlogrus.Extract(ctx).WithContext(ctx).WithFields(fields)
-
-	// safely inject commandstats
+// FieldsProducer extracts stats info from the context and returns it as a logging fields.
+func FieldsProducer(ctx context.Context) logrus.Fields {
 	if stats := command.StatsFromContext(ctx); stats != nil {
-		entry = entry.WithFields(stats.Fields())
+		return stats.Fields()
 	}
-
-	entry.Logf(level, format)
+	return nil
 }

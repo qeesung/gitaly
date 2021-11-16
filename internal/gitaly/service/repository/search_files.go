@@ -14,8 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/lines"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -30,12 +28,12 @@ var contentDelimiter = []byte("--\n")
 
 func (s *server) SearchFilesByContent(req *gitalypb.SearchFilesByContentRequest, stream gitalypb.RepositoryService_SearchFilesByContentServer) error {
 	if err := validateSearchFilesRequest(req); err != nil {
-		return helper.DecorateError(codes.InvalidArgument, err)
+		return helper.ErrInvalidArgument(err)
 	}
 
 	repo := req.GetRepository()
 	if repo == nil {
-		return status.Errorf(codes.InvalidArgument, "SearchFilesByContent: empty Repository")
+		return helper.ErrInvalidArgumentf("SearchFilesByContent: empty Repository")
 	}
 
 	ctx := stream.Context()
@@ -48,14 +46,14 @@ func (s *server) SearchFilesByContent(req *gitalypb.SearchFilesByContentRequest,
 			git.ValueFlag{Name: "--before-context", Value: surroundContext},
 			git.ValueFlag{Name: "--after-context", Value: surroundContext},
 			git.Flag{Name: "--perl-regexp"},
-			git.Flag{Name: "-e"}}, Args: []string{req.GetQuery(), string(req.GetRef())}})
-
+			git.Flag{Name: "-e"},
+		}, Args: []string{req.GetQuery(), string(req.GetRef())}})
 	if err != nil {
-		return status.Errorf(codes.Internal, "SearchFilesByContent: cmd start failed: %v", err)
+		return helper.ErrInternalf("SearchFilesByContent: cmd start failed: %v", err)
 	}
 
 	if err = sendSearchFilesResultChunked(cmd, stream); err != nil {
-		return status.Errorf(codes.Internal, "SearchFilesByContent: sending chunked response failed: %v", err)
+		return helper.ErrInternalf("SearchFilesByContent: sending chunked response failed: %v", err)
 	}
 
 	return nil
@@ -105,7 +103,7 @@ func sendSearchFilesResultChunked(cmd *command.Command, stream gitalypb.Reposito
 
 func (s *server) SearchFilesByName(req *gitalypb.SearchFilesByNameRequest, stream gitalypb.RepositoryService_SearchFilesByNameServer) error {
 	if err := validateSearchFilesRequest(req); err != nil {
-		return helper.DecorateError(codes.InvalidArgument, err)
+		return helper.ErrInvalidArgument(err)
 	}
 
 	var filter *regexp.Regexp
@@ -122,7 +120,7 @@ func (s *server) SearchFilesByName(req *gitalypb.SearchFilesByNameRequest, strea
 
 	repo := req.GetRepository()
 	if repo == nil {
-		return status.Errorf(codes.InvalidArgument, "SearchFilesByName: empty Repository")
+		return helper.ErrInvalidArgumentf("SearchFilesByName: empty Repository")
 	}
 
 	ctx := stream.Context()
@@ -132,9 +130,10 @@ func (s *server) SearchFilesByName(req *gitalypb.SearchFilesByNameRequest, strea
 		git.SubCmd{Name: "ls-tree", Flags: []git.Option{
 			git.Flag{Name: "--full-tree"},
 			git.Flag{Name: "--name-status"},
-			git.Flag{Name: "-r"}}, Args: []string{string(req.GetRef()), req.GetQuery()}})
+			git.Flag{Name: "-r"},
+		}, Args: []string{string(req.GetRef()), req.GetQuery()}})
 	if err != nil {
-		return status.Errorf(codes.Internal, "SearchFilesByName: cmd start failed: %v", err)
+		return helper.ErrInternalf("SearchFilesByName: cmd start failed: %v", err)
 	}
 
 	lr := func(objs [][]byte) error {

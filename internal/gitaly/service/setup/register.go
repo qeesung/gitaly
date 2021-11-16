@@ -1,7 +1,7 @@
 package setup
 
 import (
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
@@ -80,8 +80,8 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 	gitalypb.RegisterNamespaceServiceServer(srv, namespace.NewServer(deps.GetLocator()))
 	gitalypb.RegisterOperationServiceServer(srv, operations.NewServer(
 		deps.GetCfg(),
-		deps.GetRubyServer(),
 		deps.GetHookManager(),
+		deps.GetTxManager(),
 		deps.GetLocator(),
 		deps.GetConnsPool(),
 		deps.GetGitCmdFactory(),
@@ -101,6 +101,7 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 		deps.GetTxManager(),
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
+		deps.GetConnsPool(),
 	))
 	gitalypb.RegisterSSHServiceServer(srv, ssh.NewServer(
 		deps.GetCfg(),
@@ -123,14 +124,15 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 		deps.GetLocator(),
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
+		deps.GetConnsPool(),
 	))
 	gitalypb.RegisterRemoteServiceServer(srv, remote.NewServer(
 		deps.GetCfg(),
-		deps.GetRubyServer(),
 		deps.GetLocator(),
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
 		deps.GetTxManager(),
+		deps.GetConnsPool(),
 	))
 	gitalypb.RegisterServerServiceServer(srv, server.NewServer(deps.GetGitCmdFactory(), deps.GetCfg().Storages))
 	gitalypb.RegisterObjectPoolServiceServer(srv, objectpool.NewServer(
@@ -138,11 +140,17 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 		deps.GetLocator(),
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
+		deps.GetTxManager(),
 	))
-	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(
+		deps.GetCfg(),
+		deps.GetHookManager(),
+		deps.GetGitCmdFactory(),
+		deps.GetPackObjectsCache(),
+	))
 	gitalypb.RegisterInternalGitalyServer(srv, internalgitaly.NewServer(deps.GetCfg().Storages))
 
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 	reflection.Register(srv)
-	grpc_prometheus.Register(srv)
+	grpcprometheus.Register(srv)
 }

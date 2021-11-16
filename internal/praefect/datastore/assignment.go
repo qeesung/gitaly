@@ -38,7 +38,8 @@ func NewAssignmentStore(db glsql.Querier, configuredStorages map[string][]string
 	return AssignmentStore{db: db, configuredStorages: configuredStorages}
 }
 
-func (s AssignmentStore) GetHostAssignments(ctx context.Context, virtualStorage, relativePath string) ([]string, error) {
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
+func (s AssignmentStore) GetHostAssignments(ctx context.Context, virtualStorage string, repositoryID int64) ([]string, error) {
 	configuredStorages, ok := s.configuredStorages[virtualStorage]
 	if !ok {
 		return nil, newVirtualStorageNotFoundError(virtualStorage)
@@ -47,10 +48,9 @@ func (s AssignmentStore) GetHostAssignments(ctx context.Context, virtualStorage,
 	rows, err := s.db.QueryContext(ctx, `
 SELECT storage
 FROM repository_assignments
-WHERE virtual_storage = $1
-AND   relative_path = $2
-AND   storage = ANY($3)
-`, virtualStorage, relativePath, pq.StringArray(configuredStorages))
+WHERE repository_id = $1
+AND   storage = ANY($2)
+`, repositoryID, pq.StringArray(configuredStorages))
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
@@ -123,7 +123,7 @@ func (s AssignmentStore) SetReplicationFactor(ctx context.Context, virtualStorag
 	//    current assignments.
 	rows, err := s.db.QueryContext(ctx, `
 WITH repository AS (
-	SELECT virtual_storage, relative_path, "primary"
+	SELECT repository_id, virtual_storage, relative_path, "primary"
 	FROM repositories
 	WHERE virtual_storage = $1
 	AND   relative_path   = $2
@@ -139,7 +139,7 @@ existing_assignments AS (
 
 created_assignments AS (
 	INSERT INTO repository_assignments
-	SELECT virtual_storage, relative_path, storage
+	SELECT virtual_storage, relative_path, storage, repository_id
 	FROM repository
 	CROSS JOIN ( SELECT unnest($4::text[]) AS storage ) AS configured_storages
 	WHERE storage NOT IN ( SELECT storage FROM existing_assignments )

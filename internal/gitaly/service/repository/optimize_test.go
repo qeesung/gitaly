@@ -43,6 +43,7 @@ func TestOptimizeRepository(t *testing.T) {
 	cfg, repoProto, repoPath, client := setupRepositoryService(t)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-b")
+	gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--size-multiple=4", "--split=replace", "--reachable", "--changed-paths")
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -50,6 +51,10 @@ func TestOptimizeRepository(t *testing.T) {
 	hasBitmap, err := stats.HasBitmap(repoPath)
 	require.NoError(t, err)
 	require.True(t, hasBitmap, "expect a bitmap since we just repacked with -b")
+
+	missingBloomFilters, err := stats.IsMissingBloomFilters(repoPath)
+	require.NoError(t, err)
+	require.False(t, missingBloomFilters)
 
 	// get timestamp of latest packfile
 	newestsPackfileTime := getNewestPackfileModtime(t, repoPath)
@@ -86,8 +91,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 	require.Equal(t, getNewestPackfileModtime(t, repoPath), newestsPackfileTime, "there should not have been a new packfile created")
 
-	testRepoProto, testRepoPath, cleanupBare := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanupBare)
+	testRepoProto, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	blobs := 10
 	blobIDs := gittest.WriteBlobs(t, cfg, testRepoPath, blobs)
@@ -108,7 +112,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 	mrRefs := filepath.Join(testRepoPath, "refs/merge-requests")
 	emptyRef := filepath.Join(mrRefs, "1")
-	require.NoError(t, os.MkdirAll(emptyRef, 0755))
+	require.NoError(t, os.MkdirAll(emptyRef, 0o755))
 	require.DirExists(t, emptyRef, "sanity check for empty ref dir existence")
 
 	// optimize repository on a repository without a bitmap should call repack full
@@ -118,6 +122,10 @@ func TestOptimizeRepository(t *testing.T) {
 	bitmaps, err = filepath.Glob(filepath.Join(testRepoPath, "objects", "pack", "*.bitmap"))
 	require.NoError(t, err)
 	require.NotEmpty(t, bitmaps)
+
+	missingBloomFilters, err = stats.IsMissingBloomFilters(testRepoPath)
+	require.NoError(t, err)
+	require.False(t, missingBloomFilters)
 
 	// Empty directories should exist because they're too recent.
 	require.DirExists(t, emptyRef)

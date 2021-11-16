@@ -50,10 +50,12 @@ func NewReconciler(log logrus.FieldLogger, db glsql.Querier, hc praefect.HealthC
 	return r
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (r *Reconciler) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(r, ch)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 	r.reconciliationSchedulingDuration.Collect(ch)
 }
@@ -84,6 +86,7 @@ func (r *Reconciler) Run(ctx context.Context, ticker helper.Ticker) error {
 
 // job is an internal type for formatting log messages
 type job struct {
+	RepositoryID   int64   `json:"repository_id"`
 	Change         string  `json:"change"`
 	CorrelationID  string  `json:"correlation_id"`
 	VirtualStorage string  `json:"virtual_storage"`
@@ -120,7 +123,7 @@ func (r *Reconciler) reconcile(ctx context.Context) error {
 
 	for virtualStorage, healthyStorages := range r.hc.HealthyNodes() {
 		if len(healthyStorages) < 2 {
-			// minimum two healthy storages within a virtual stoage needed for valid
+			// minimum two healthy storages within a virtual storage needed for valid
 			// replication source and target
 			r.log.WithField("virtual_storage", virtualStorage).Info("reconciliation skipped for virtual storage due to not having enough healthy storages")
 			continue
@@ -147,97 +150,102 @@ healthy_storages AS (
 ),
 
 delete_jobs AS (
-	SELECT DISTINCT ON (virtual_storage, relative_path)
+	SELECT DISTINCT ON (repository_id)
+		repository_id,
 		virtual_storage,
 		relative_path,
 		storage
-	FROM storage_repositories
+	FROM (
+		SELECT repository_id, storage, generation
+		FROM storage_repositories
+	) AS storage_repositories
+	JOIN repositories USING (repository_id)
 	JOIN healthy_storages USING (virtual_storage, storage)
 	WHERE (
 		-- Only unassigned repositories should be targeted for deletion. If no assignment exists,
 		-- every storage is considered assigned, thus no deletion would be scheduled.
 		SELECT COUNT(storage) > 0 AND COUNT(storage) FILTER (WHERE storage = storage_repositories.storage) = 0
 		FROM repository_assignments
-		WHERE virtual_storage = storage_repositories.virtual_storage
-		AND   relative_path   = storage_repositories.relative_path
+		WHERE repository_id = repositories.repository_id
 	)
-	AND generation <= (
+	AND storage_repositories.generation <= (
 		-- Check whether the replica's generation is equal or lower than the generation of every assigned
 		-- replica of the repository. If so, then it is eligible for deletion.
 		SELECT MIN(COALESCE(generation, -1))
 		FROM repository_assignments
-		FULL JOIN storage_repositories AS sr USING (virtual_storage, relative_path, storage)
-		WHERE virtual_storage = storage_repositories.virtual_storage
-		AND relative_path = storage_repositories.relative_path
+		FULL JOIN storage_repositories USING (repository_id, storage)
+		WHERE repository_id = repositories.repository_id
 	) AND NOT EXISTS (
 		-- Ensure the replica is not used as target or source in any scheduled job. This is to avoid breaking
 		-- any already scheduled jobs.
 		SELECT FROM replication_queue
-		WHERE job->>'virtual_storage' = virtual_storage
-		AND   job->>'relative_path' = relative_path
+		WHERE (job->'repository_id')::bigint = repository_id
 		AND (
 				job->>'source_node_storage' = storage
 			OR 	job->>'target_node_storage' = storage
 		)
-		AND state NOT IN ('completed', 'dead', 'cancelled')
+		AND state NOT IN ('completed', 'dead')
 	) AND NOT EXISTS (
 		-- Ensure there are no other scheduled 'delete_replica' type jobs for the repository. Performing rapid
 		-- repository_assignments could cause the reconciler to schedule deletion against all replicas. To avoid this,
 		-- we do not allow more than one 'delete_replica' job to be active at any given time.
 		SELECT FROM replication_queue
-		WHERE state NOT IN ('completed', 'cancelled', 'dead')
-		AND job->>'virtual_storage' = virtual_storage
-		AND job->>'relative_path' = relative_path
+		WHERE state NOT IN ('completed', 'dead')
+		AND (job->>'repository_id')::bigint = repository_id
 		AND job->>'change' = 'delete_replica'
 	)
 ),
 
 update_jobs AS (
-	SELECT DISTINCT ON (virtual_storage, relative_path, target_node_storage)
+	SELECT DISTINCT ON (repository_id, target_node_storage)
+		repository_id,
 		virtual_storage,
 		relative_path,
 		source_node_storage,
 		target_node_storage
 	FROM (
-		SELECT virtual_storage, relative_path, storage AS target_node_storage
+		SELECT repository_id, virtual_storage, relative_path, storage AS target_node_storage
 		FROM repositories
 		JOIN healthy_storages USING (virtual_storage)
-		LEFT JOIN storage_repositories USING (virtual_storage, relative_path, storage)
+		LEFT JOIN (
+			SELECT repository_id, storage, generation
+			FROM storage_repositories
+		) AS storage_repositories USING (repository_id, storage)
 		WHERE COALESCE(storage_repositories.generation != repositories.generation, true)
 		AND (
 			-- If assignments exist for the repository, only the assigned storages are targeted for replication.
 			-- If no assignments exist, every healthy node is targeted for replication.
 			SELECT COUNT(storage) = 0 OR COUNT(storage) FILTER (WHERE storage = healthy_storages.storage) = 1
 			FROM repository_assignments
-			WHERE virtual_storage = repositories.virtual_storage
-			AND   relative_path   = repositories.relative_path
+			WHERE repository_id = repositories.repository_id
 		)
 		ORDER BY virtual_storage, relative_path
 	) AS unhealthy_repositories
 	JOIN (
-		SELECT virtual_storage, relative_path, storage AS source_node_storage
-		FROM storage_repositories
+		SELECT repository_id, storage AS source_node_storage
+		FROM (
+			SELECT repository_id, relative_path, storage, generation
+			FROM storage_repositories
+		) AS storage_repositories
+		JOIN repositories USING (repository_id, relative_path, generation)
 		JOIN healthy_storages USING (virtual_storage, storage)
-		JOIN repositories USING (virtual_storage, relative_path, generation)
 		WHERE NOT EXISTS (
 			SELECT FROM replication_queue
-			WHERE state NOT IN ('completed', 'cancelled', 'dead')
-			AND job->>'virtual_storage' = virtual_storage
-			AND job->>'relative_path' = relative_path
+			WHERE state NOT IN ('completed', 'dead')
+			AND (job->>'repository_id')::bigint = repository_id
 			AND job->>'target_node_storage' = storage
 			AND job->>'change' = 'delete_replica'
 		)
 		ORDER BY virtual_storage, relative_path
-	) AS healthy_repositories USING (virtual_storage, relative_path)
+	) AS healthy_repositories USING (repository_id)
 	WHERE NOT EXISTS (
 		SELECT FROM replication_queue
-		WHERE state NOT IN ('completed', 'cancelled', 'dead')
-		AND job->>'virtual_storage' = virtual_storage
-		AND job->>'relative_path' = relative_path
+		WHERE state NOT IN ('completed', 'dead')
+		AND (job->>'repository_id')::bigint = repository_id
 		AND job->>'target_node_storage' = target_node_storage
 		AND job->>'change' = 'update'
 	)
-	ORDER BY virtual_storage, relative_path, target_node_storage, random()
+	ORDER BY repository_id, target_node_storage, random()
 ),
 
 reconciliation_jobs AS (
@@ -248,6 +256,7 @@ reconciliation_jobs AS (
 		jsonb_build_object('correlation_id', encode(random()::text::bytea, 'base64'))
 	FROM (
 		SELECT
+			COALESCE(repository_id, 0) AS repository_id,
 			virtual_storage,
 			relative_path,
 			source_node_storage,
@@ -256,6 +265,7 @@ reconciliation_jobs AS (
 		FROM update_jobs
 			UNION ALL
 		SELECT
+			COALESCE(repository_id, 0) AS repository_id,
 			virtual_storage,
 			relative_path,
 			NULL AS source_node_storage,
@@ -278,6 +288,7 @@ create_locks AS (
 
 SELECT
 	meta->>'correlation_id',
+	job->>'repository_id',
 	job->>'change',
 	job->>'virtual_storage',
 	job->>'relative_path',
@@ -301,6 +312,7 @@ FROM reconciliation_jobs
 		var j job
 		if err := rows.Scan(
 			&j.CorrelationID,
+			&j.RepositoryID,
 			&j.Change,
 			&j.VirtualStorage,
 			&j.RelativePath,

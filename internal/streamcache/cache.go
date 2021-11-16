@@ -36,16 +36,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/dontpanic"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
-var (
-	cacheIndexSize = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "gitaly_streamcache_index_entries",
-			Help: "Number of index entries in streamcache",
-		},
-		[]string{"dir"},
-	)
+var cacheIndexSize = promauto.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "gitaly_streamcache_index_entries",
+		Help: "Number of index entries in streamcache",
+	},
+	[]string{"dir"},
 )
 
 // Cache is a cache for large byte streams.
@@ -108,7 +107,7 @@ func (NullCache) FindOrCreate(key string, create func(io.Writer) error) (s *Stre
 	pr, pw := io.Pipe()
 	w := newWaiter()
 	go func() { w.SetError(runCreate(pw, create)) }()
-	return &Stream{reader: pr, waiter: w}, true, nil
+	return &Stream{ReadCloser: pr, waiter: w}, true, nil
 }
 
 // Stop is a no-op.
@@ -123,15 +122,30 @@ type cache struct {
 	stopOnce   sync.Once
 	logger     logrus.FieldLogger
 	dir        string
+	sleepLoop  *dontpanic.Forever
+
+	// removalCond is a condition that gets signalled after files have been removed from disk.
+	// This field is optional and should only be used for tests.
+	removalCond *sync.Cond
 }
 
 // New returns a new cache instance.
-func New(dir string, maxAge time.Duration, logger logrus.FieldLogger) Cache {
-	return newCacheWithSleep(dir, maxAge, time.Sleep, logger)
+func New(cfg config.StreamCacheConfig, logger logrus.FieldLogger) Cache {
+	if cfg.Enabled {
+		return newCacheWithSleep(cfg.Dir, cfg.MaxAge.Duration(), time.After, time.After, logger)
+	}
+
+	return NullCache{}
 }
 
-func newCacheWithSleep(dir string, maxAge time.Duration, sleep func(time.Duration), logger logrus.FieldLogger) Cache {
-	fs := newFilestore(dir, maxAge, sleep, logger)
+func newCacheWithSleep(
+	dir string,
+	maxAge time.Duration,
+	filestoreSleep func(time.Duration) <-chan time.Time,
+	cleanSleep func(time.Duration) <-chan time.Time,
+	logger logrus.FieldLogger,
+) *cache {
+	fs := newFilestore(dir, maxAge, filestoreSleep, logger)
 
 	c := &cache{
 		maxAge:     maxAge,
@@ -140,13 +154,15 @@ func newCacheWithSleep(dir string, maxAge time.Duration, sleep func(time.Duratio
 		stop:       make(chan struct{}),
 		logger:     logger,
 		dir:        dir,
+		sleepLoop:  dontpanic.NewForever(time.Minute),
 	}
 
-	dontpanic.GoForever(1*time.Minute, func() {
-		sleepLoop(c.stop, c.maxAge, sleep, c.clean)
+	c.sleepLoop.Go(func() {
+		sleepLoop(c.stop, c.maxAge, cleanSleep, c.clean)
 	})
 	go func() {
 		<-c.stop
+		c.sleepLoop.Cancel()
 		fs.Stop()
 	}()
 
@@ -176,6 +192,12 @@ func (c *cache) clean() {
 			if err := e.pipe.RemoveFile(); err != nil && !os.IsNotExist(err) {
 				c.logger.WithError(err).Error("streamcache: remove file evicted from index")
 			}
+		}
+
+		if c.removalCond != nil {
+			c.removalCond.L.Lock()
+			defer c.removalCond.L.Unlock()
+			c.removalCond.Broadcast()
 		}
 	}()
 }
@@ -228,18 +250,22 @@ type entry struct {
 // Wait()). Callers must always call Close() to prevent resource leaks.
 type Stream struct {
 	waiter *waiter
-	reader io.ReadCloser
+	io.ReadCloser
 }
 
 // Wait returns the error value of the Stream. If ctx is canceled,
 // Wait unblocks and returns early.
 func (s *Stream) Wait(ctx context.Context) error { return s.waiter.Wait(ctx) }
 
-// Read reads from the underlying stream of the stream.
-func (s *Stream) Read(p []byte) (int, error) { return s.reader.Read(p) }
+// WriteTo implements io.WriterTo. For some w on some platforms, this
+// uses sendfile to make copying data more efficient.
+func (s *Stream) WriteTo(w io.Writer) (int64, error) {
+	if wt, ok := s.ReadCloser.(io.WriterTo); ok {
+		return wt.WriteTo(w)
+	}
 
-// Close releases the underlying resources of the stream.
-func (s *Stream) Close() error { return s.reader.Close() }
+	return io.Copy(w, s.ReadCloser)
+}
 
 func (c *cache) newEntry(key string, create func(io.Writer) error) (_ *Stream, _ *entry, err error) {
 	e := &entry{
@@ -291,7 +317,7 @@ func (c *cache) newEntry(key string, create func(io.Writer) error) (_ *Stream, _
 }
 
 func (e *entry) wrapReadCloser(r io.ReadCloser) *Stream {
-	return &Stream{reader: r, waiter: e.waiter}
+	return &Stream{ReadCloser: r, waiter: e.waiter}
 }
 
 func runCreate(w io.WriteCloser, create func(io.Writer) error) (err error) {
@@ -346,19 +372,17 @@ func (w *waiter) Wait(ctx context.Context) error {
 	}
 }
 
-func sleepLoop(done chan struct{}, period time.Duration, sleep func(time.Duration), callback func()) {
+func sleepLoop(done chan struct{}, period time.Duration, sleep func(time.Duration) <-chan time.Time, callback func()) {
 	const maxPeriod = time.Minute
 	if period <= 0 || period >= maxPeriod {
 		period = maxPeriod
 	}
 
 	for {
-		sleep(period)
-
 		select {
 		case <-done:
 			return
-		default:
+		case <-sleep(period):
 		}
 
 		callback()

@@ -35,37 +35,30 @@ const testTimeString = "200601021504.05"
 var testTime = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
-	return m.Run()
+	testhelper.Run(m)
 }
 
 func TestWithRubySidecar(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-
 	rubySrv := rubyserver.New(cfg)
 	require.NoError(t, rubySrv.Start())
 	t.Cleanup(rubySrv.Stop)
 
-	fs := []func(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server){
-		testSetConfig,
-		testSetConfigTransactional,
+	client, serverSocketPath := runRepositoryService(t, cfg, rubySrv)
+	cfg.SocketPath = serverSocketPath
+
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalyGit2Go(t, cfg)
+
+	fs := []func(t *testing.T, cfg config.Cfg, client gitalypb.RepositoryServiceClient, rubySrv *rubyserver.Server){
 		testSuccessfulFindLicenseRequest,
 		testFindLicenseRequestEmptyRepo,
 	}
 	for _, f := range fs {
 		t.Run(runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(), func(t *testing.T) {
-			f(t, cfg, rubySrv)
+			f(t, cfg, client, rubySrv)
 		})
 	}
 }
@@ -89,17 +82,6 @@ func newMuxedRepositoryClient(t *testing.T, ctx context.Context, cfg config.Cfg,
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 	return gitalypb.NewRepositoryServiceClient(conn)
-}
-
-func setupRepositoryServiceWithRuby(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
-	client, serverSocketPath := runRepositoryService(t, cfg, rubySrv, opts...)
-	testhelper.ConfigureGitalyGit2GoBin(t, cfg)
-	cfg.SocketPath = serverSocketPath
-
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
-
-	return cfg, repo, repoPath, client
 }
 
 func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool {
@@ -127,15 +109,16 @@ func runRepositoryServerWithConfig(t testing.TB, cfg config.Cfg, rubySrv *rubyse
 			deps.GetTxManager(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
+			deps.GetConnsPool(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(cfg, deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 		gitalypb.RegisterRemoteServiceServer(srv, remote.NewServer(
 			cfg,
-			rubySrv,
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
 			deps.GetCatfileCache(),
 			deps.GetTxManager(),
+			deps.GetConnsPool(),
 		))
 		gitalypb.RegisterSSHServiceServer(srv, ssh.NewServer(
 			cfg,
@@ -169,16 +152,15 @@ func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Serv
 
 func setupRepositoryService(t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t, opts...)
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	return cfg, repo, repoPath, client
 }
 
 func setupRepositoryServiceWithoutRepo(t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, gitalypb.RepositoryServiceClient) {
 	cfg := testcfg.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	client, serverSocketPath := runRepositoryService(t, cfg, nil, opts...)
 	cfg.SocketPath = serverSocketPath
@@ -189,8 +171,9 @@ func setupRepositoryServiceWithoutRepo(t testing.TB, opts ...testserver.GitalySe
 func setupRepositoryServiceWithWorktree(t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
-	repo, repoPath, cleanup := gittest.CloneRepoWithWorktreeAtStorage(t, cfg, cfg.Storages[0])
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		WithWorktree: true,
+	})
 
 	return cfg, repo, repoPath, client
 }

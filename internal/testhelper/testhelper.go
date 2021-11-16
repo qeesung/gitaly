@@ -1,25 +1,19 @@
 package testhelper
 
-//nolint: gci
 import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -27,16 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
-	"google.golang.org/grpc/metadata"
-
-	// The goleak import only exists such that this test-only dependency is properly being
-	// attributed in our NOTICE file.
-	_ "go.uber.org/goleak"
 )
 
 const (
@@ -48,9 +33,17 @@ const (
 	DefaultStorageName = "default"
 )
 
+// SkipWithPraefect skips the test if it is being executed with Praefect in front
+// of the Gitaly.
+func SkipWithPraefect(t testing.TB, reason string) {
+	if os.Getenv("GITALY_TEST_WITH_PRAEFECT") == "YesPlease" {
+		t.Skipf(reason)
+	}
+}
+
 // MustReadFile returns the content of a file or fails at once.
 func MustReadFile(t testing.TB, filename string) []byte {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,33 +57,6 @@ func GitlabTestStoragePath() string {
 		panic("you must call testhelper.Configure() before GitlabTestStoragePath()")
 	}
 	return filepath.Join(testDirectory, "storage")
-}
-
-// GitalyServersMetadataFromCfg returns a metadata pair for gitaly-servers to be used in
-// inter-gitaly operations.
-func GitalyServersMetadataFromCfg(t testing.TB, cfg config.Cfg) metadata.MD {
-	gitalyServers := storage.GitalyServers{}
-storages:
-	for _, s := range cfg.Storages {
-		// It picks up the first address configured: TLS, TCP or UNIX.
-		for _, addr := range []string{cfg.TLSListenAddr, cfg.ListenAddr, cfg.SocketPath} {
-			if addr != "" {
-				gitalyServers[s.Name] = storage.ServerInfo{
-					Address: addr,
-					Token:   cfg.Auth.Token,
-				}
-				continue storages
-			}
-		}
-		require.FailNow(t, "no address found on the config")
-	}
-
-	gitalyServersJSON, err := json.Marshal(gitalyServers)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))
 }
 
 // MustRunCommand runs a command with an optional standard input and returns the standard output, or fails.
@@ -141,7 +107,7 @@ func CopyFile(t testing.TB, src, dst string) {
 func GetTemporaryGitalySocketFileName(t testing.TB) string {
 	require.NotEmpty(t, testDirectory, "you must call testhelper.Configure() before GetTemporaryGitalySocketFileName()")
 
-	tmpfile, err := ioutil.TempFile(testDirectory, "gitaly.socket.")
+	tmpfile, err := os.CreateTemp(testDirectory, "gitaly.socket.")
 	require.NoError(t, err)
 
 	name := tmpfile.Name()
@@ -160,56 +126,6 @@ func GetLocalhostListener(t testing.TB) (net.Listener, string) {
 	addr := fmt.Sprintf("localhost:%d", l.Addr().(*net.TCPAddr).Port)
 
 	return l, addr
-}
-
-// MustHaveNoChildProcess panics if it finds a running or finished child
-// process. It waits for 2 seconds for processes to be cleaned up by other
-// goroutines.
-func MustHaveNoChildProcess() {
-	waitDone := make(chan struct{})
-	go func() {
-		command.WaitAllDone()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-	case <-time.After(2 * time.Second):
-	}
-
-	mustFindNoFinishedChildProcess()
-	mustFindNoRunningChildProcess()
-}
-
-func mustFindNoFinishedChildProcess() {
-	// Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error)
-	//
-	// We use pid -1 to wait for any child. We don't care about wstatus or
-	// rusage. Use WNOHANG to return immediately if there is no child waiting
-	// to be reaped.
-	wpid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil)
-	if err == nil && wpid > 0 {
-		panic(fmt.Errorf("wait4 found child process %d", wpid))
-	}
-}
-
-func mustFindNoRunningChildProcess() {
-	pgrep := exec.Command("pgrep", "-P", fmt.Sprintf("%d", os.Getpid()))
-	desc := fmt.Sprintf("%q", strings.Join(pgrep.Args, " "))
-
-	out, err := pgrep.Output()
-	if err == nil {
-		pidsComma := strings.Replace(text.ChompBytes(out), "\n", ",", -1)
-		psOut, _ := exec.Command("ps", "-o", "pid,args", "-p", pidsComma).Output()
-		panic(fmt.Errorf("found running child processes %s:\n%s", pidsComma, psOut))
-	}
-
-	if status, ok := command.ExitStatus(err); ok && status == 1 {
-		// Exit status 1 means no processes were found
-		return
-	}
-
-	panic(fmt.Errorf("%s: %w", desc, err))
 }
 
 // ContextOpt returns a new context instance with the new additions to it.
@@ -251,13 +167,22 @@ func Context(opts ...ContextOpt) (context.Context, func()) {
 	}
 }
 
-// TempDir is a wrapper around ioutil.TempDir that provides a cleanup function.
+// CreateGlobalDirectory creates a directory in the test directory that is shared across all
+// between all tests.
+func CreateGlobalDirectory(t testing.TB, name string) string {
+	require.NotEmpty(t, testDirectory, "global temporary directory does not exist")
+	path := filepath.Join(testDirectory, name)
+	require.NoError(t, os.Mkdir(path, 0o777))
+	return path
+}
+
+// TempDir is a wrapper around os.MkdirTemp that provides a cleanup function.
 func TempDir(t testing.TB) string {
 	if testDirectory == "" {
 		panic("you must call testhelper.Configure() before TempDir()")
 	}
 
-	tmpDir, err := ioutil.TempDir(testDirectory, "")
+	tmpDir, err := os.MkdirTemp(testDirectory, "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, os.RemoveAll(tmpDir))
@@ -274,8 +199,8 @@ type Cleanup func()
 func WriteExecutable(t testing.TB, path string, content []byte) {
 	dir := filepath.Dir(path)
 
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, ioutil.WriteFile(path, content, 0755))
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(path, content, 0o755))
 
 	t.Cleanup(func() {
 		assert.NoError(t, os.RemoveAll(dir))
@@ -283,12 +208,18 @@ func WriteExecutable(t testing.TB, path string, content []byte) {
 }
 
 // ModifyEnvironment will change an environment variable and return a func suitable
-// for `defer` to change the value back.
+// for `defer` to change the value back. If the given value is empty, then the envvar will be
+// unset.
 func ModifyEnvironment(t testing.TB, key string, value string) func() {
 	t.Helper()
 
 	oldValue, hasOldValue := os.LookupEnv(key)
-	require.NoError(t, os.Setenv(key, value))
+	if value == "" {
+		require.NoError(t, os.Unsetenv(key))
+	} else {
+		require.NoError(t, os.Setenv(key, value))
+	}
+
 	return func() {
 		if hasOldValue {
 			require.NoError(t, os.Setenv(key, oldValue))
@@ -330,7 +261,7 @@ func GenerateCerts(t *testing.T) (string, string) {
 	entityCert, err := x509.CreateCertificate(rand.Reader, rootCA, entityX509, &entityKey.PublicKey, caKey)
 	require.NoError(t, err)
 
-	certFile, err := ioutil.TempFile(testDirectory, "")
+	certFile, err := os.CreateTemp(testDirectory, "")
 	require.NoError(t, err)
 	defer MustClose(t, certFile)
 	t.Cleanup(func() {
@@ -347,7 +278,7 @@ func GenerateCerts(t *testing.T) (string, string) {
 		)
 	}
 
-	keyFile, err := ioutil.TempFile(testDirectory, "")
+	keyFile, err := os.CreateTemp(testDirectory, "")
 	require.NoError(t, err)
 	defer MustClose(t, keyFile)
 	t.Cleanup(func() {

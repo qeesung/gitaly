@@ -41,11 +41,26 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       repeated :revisions, :string, 2
       optional :limit, :uint32, 3
       optional :bytes_limit, :int64, 4
+      optional :with_paths, :bool, 5
     end
     add_message "gitaly.ListBlobsResponse" do
       repeated :blobs, :message, 1, "gitaly.ListBlobsResponse.Blob"
     end
     add_message "gitaly.ListBlobsResponse.Blob" do
+      optional :oid, :string, 1
+      optional :size, :int64, 2
+      optional :data, :bytes, 3
+      optional :path, :bytes, 4
+    end
+    add_message "gitaly.ListAllBlobsRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :limit, :uint32, 2
+      optional :bytes_limit, :int64, 3
+    end
+    add_message "gitaly.ListAllBlobsResponse" do
+      repeated :blobs, :message, 1, "gitaly.ListAllBlobsResponse.Blob"
+    end
+    add_message "gitaly.ListAllBlobsResponse.Blob" do
       optional :oid, :string, 1
       optional :size, :int64, 2
       optional :data, :bytes, 3
@@ -94,6 +109,9 @@ module Gitaly
   ListBlobsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListBlobsRequest").msgclass
   ListBlobsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListBlobsResponse").msgclass
   ListBlobsResponse::Blob = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListBlobsResponse.Blob").msgclass
+  ListAllBlobsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListAllBlobsRequest").msgclass
+  ListAllBlobsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListAllBlobsResponse").msgclass
+  ListAllBlobsResponse::Blob = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ListAllBlobsResponse.Blob").msgclass
   LFSPointer = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.LFSPointer").msgclass
   NewBlobObject = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NewBlobObject").msgclass
   GetLFSPointersRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetLFSPointersRequest").msgclass

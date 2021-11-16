@@ -1,16 +1,13 @@
-// +build postgres
-
 package praefect
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
@@ -20,25 +17,23 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 )
 
-func getDB(t *testing.T) glsql.DB {
-	return glsql.GetDB(t, "praefect")
-}
-
 func TestStreamDirectorMutator_Transaction(t *testing.T) {
+	t.Parallel()
+
 	type subtransactions []struct {
 		vote          string
 		shouldSucceed bool
 	}
 
 	type node struct {
-		primary            bool
 		subtransactions    subtransactions
 		shouldGetRepl      bool
 		shouldParticipate  bool
@@ -47,104 +42,103 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 	}
 
 	testcases := []struct {
-		desc         string
-		primaryFails bool
-		nodes        []node
+		desc                                 string
+		primaryFails                         bool
+		concurrentWrite                      bool
+		nodes                                []node
+		expectedRequestFinalizerErrorMessage string
 	}{
 		{
 			desc: "successful vote should not create replication jobs",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
 			},
 		},
 		{
 			desc:         "successful vote should create replication jobs if the primary fails",
 			primaryFails: true,
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
-			desc: "failing vote should not create replication jobs without committed subtransactions",
+			desc: "failing vote should create replication jobs without committed subtransactions",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "qux", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "bar", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "qux", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "bar", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
 			desc: "failing vote should create replication jobs with committed subtransaction",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "qux", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
-				{primary: false, subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "bar", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "foo", shouldSucceed: false}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "qux", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foo", shouldSucceed: true}, {vote: "bar", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
 			desc: "primary should reach quorum with disagreeing secondary",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "barfoo", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "barfoo", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
 			desc: "quorum should create replication jobs for disagreeing node",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
-				{primary: false, subtransactions: subtransactions{{vote: "barfoo", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldGetRepl: false, shouldParticipate: true, expectedGeneration: 1},
+				{subtransactions: subtransactions{{vote: "barfoo", shouldSucceed: false}}, shouldGetRepl: true, shouldParticipate: true, expectedGeneration: 0},
 			},
 		},
 		{
 			desc: "only consistent secondaries should participate",
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: 1, expectedGeneration: 2},
-				{primary: false, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: 1, expectedGeneration: 2},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: 1, expectedGeneration: 2},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: 1, expectedGeneration: 2},
 				{shouldParticipate: false, shouldGetRepl: true, generation: 0, expectedGeneration: 0},
 				{shouldParticipate: false, shouldGetRepl: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
 			},
 		},
 		{
-			desc: "secondaries should not participate when primary's generation is unknown",
+			desc:            "write is not acknowledged if it only targets outdated nodes",
+			concurrentWrite: true,
 			nodes: []node{
-				{primary: true, subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: datastore.GenerationUnknown, expectedGeneration: 0},
-				{shouldParticipate: false, shouldGetRepl: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
+				{subtransactions: subtransactions{{vote: "foobar", shouldSucceed: true}}, shouldParticipate: true, generation: 0, expectedGeneration: 0},
+				{shouldParticipate: false, shouldGetRepl: false, generation: 0, expectedGeneration: 0},
 			},
+			expectedRequestFinalizerErrorMessage: "increment generation: write to outdated nodes",
 		},
 		{
 			// All transactional RPCs are expected to cast vote if they are successful. If they don't, something is wrong
 			// and we should replicate to the secondaries to be sure.
 			desc: "unstarted transaction creates replication jobs if the primary is successful",
 			nodes: []node{
-				{primary: true, shouldGetRepl: false, expectedGeneration: 1},
-				{primary: false, shouldGetRepl: true, expectedGeneration: 0},
+				{shouldGetRepl: false, expectedGeneration: 1},
+				{shouldGetRepl: true, expectedGeneration: 0},
 			},
 		},
 		{
-			// If the RPC fails without any subtransactions, the Gitalys would not have performed any changes yet.
-			// We don't have to consider the secondaries outdated.
-			desc:         "unstarted transaction doesn't create replication jobs if the primary fails",
+			desc:         "unstarted transaction does not create replication job",
 			primaryFails: true,
 			nodes: []node{
-				{primary: true, expectedGeneration: 0},
-				{primary: false, expectedGeneration: 0},
+				{expectedGeneration: 0},
+				{shouldGetRepl: false, expectedGeneration: 0},
 			},
 		},
 		{
-			// If there were no subtransactions and the RPC failed, the primary should not have performed any changes.
-			// We don't need to schedule replication jobs to replication targets either as they'd have jobs
-			// already scheduled by the earlier RPC that made them outdated or by the reconciler.
-			desc:         "unstarted transaction should not create replication jobs for outdated node if the primary fails",
+			desc:         "unstarted transaction should not create replication jobs for outdated node if the primary does not vote",
 			primaryFails: true,
 			nodes: []node{
-				{primary: true, shouldGetRepl: false, generation: 1, expectedGeneration: 1},
-				{primary: false, shouldGetRepl: false, generation: 1, expectedGeneration: 1},
-				{primary: false, shouldGetRepl: false, generation: 0, expectedGeneration: 0},
-				{primary: false, shouldGetRepl: false, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
+				{shouldGetRepl: false, generation: 1, expectedGeneration: 1},
+				{shouldGetRepl: false, generation: 1, expectedGeneration: 1},
+				{shouldGetRepl: false, generation: 0, expectedGeneration: 0},
+				{shouldGetRepl: false, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
 			},
 		},
 		{
@@ -152,27 +146,30 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			// All transactional RPCs are expected to vote if they are successful.
 			desc: "unstarted transaction should create replication jobs for outdated node if the primary succeeds",
 			nodes: []node{
-				{primary: true, shouldGetRepl: false, generation: 1, expectedGeneration: 2},
-				{primary: false, shouldGetRepl: true, generation: 1, expectedGeneration: 1},
-				{primary: false, shouldGetRepl: true, generation: 0, expectedGeneration: 0},
-				{primary: false, shouldGetRepl: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
+				{shouldGetRepl: false, generation: 1, expectedGeneration: 2},
+				{shouldGetRepl: true, generation: 1, expectedGeneration: 1},
+				{shouldGetRepl: true, generation: 0, expectedGeneration: 0},
+				{shouldGetRepl: true, generation: datastore.GenerationUnknown, expectedGeneration: datastore.GenerationUnknown},
 			},
 		},
 	}
 
+	db := glsql.NewDB(t)
+
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
+			db.TruncateAll(t)
+
 			storageNodes := make([]*config.Node, 0, len(tc.nodes))
 			for i := range tc.nodes {
 				socket := testhelper.GetTemporaryGitalySocketFileName(t)
-				testhelper.NewServerWithHealth(t, socket)
 				node := &config.Node{Address: "unix://" + socket, Storage: fmt.Sprintf("node-%d", i)}
 				storageNodes = append(storageNodes, node)
 			}
 
 			conf := config.Config{
 				VirtualStorages: []*config.VirtualStorage{
-					&config.VirtualStorage{
+					{
 						Name:  "praefect",
 						Nodes: storageNodes,
 					},
@@ -180,45 +177,69 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			}
 
 			var replicationWaitGroup sync.WaitGroup
-			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewMemoryReplicationEventQueue(conf))
+			queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(db))
 			queueInterceptor.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 				defer replicationWaitGroup.Done()
 				return queue.Enqueue(ctx, event)
 			})
 
+			virtualStorage := conf.VirtualStorages[0].Name
 			repo := gitalypb.Repository{
-				StorageName:  "praefect",
+				StorageName:  virtualStorage,
 				RelativePath: "/path/to/hashed/repository",
 			}
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			nodeMgr, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
-			require.NoError(t, err)
-			nodeMgr.Start(0, time.Hour)
-
-			shard, err := nodeMgr.GetShard(ctx, conf.VirtualStorages[0].Name)
-			require.NoError(t, err)
-
-			for i := range tc.nodes {
-				node, err := shard.GetNode(fmt.Sprintf("node-%d", i))
-				require.NoError(t, err)
-				waitNodeToChangeHealthStatus(ctx, t, node, true)
-			}
-
 			txMgr := transactions.NewManager(conf)
 
+			tx := db.Begin(t)
+			defer tx.Rollback(t)
+
 			// set up the generations prior to transaction
-			rs := datastore.NewPostgresRepositoryStore(getDB(t), conf.StorageNames())
+			rs := datastore.NewPostgresRepositoryStore(tx, conf.StorageNames())
+
+			repoCreated := false
 			for i, n := range tc.nodes {
-				require.NoError(t, rs.SetGeneration(ctx, repo.StorageName, repo.RelativePath, storageNodes[i].Storage, n.generation))
+				if n.generation == datastore.GenerationUnknown {
+					continue
+				}
+
+				if !repoCreated {
+					repoCreated = true
+					require.NoError(t, rs.CreateRepository(ctx, 1, repo.StorageName, repo.RelativePath, repo.RelativePath, storageNodes[i].Storage, nil, nil, true, false))
+				}
+
+				require.NoError(t, rs.SetGeneration(ctx, 1, storageNodes[i].Storage, repo.RelativePath, n.generation))
 			}
+
+			testdb.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{"praefect": conf.StorageNames()})
+
+			nodeSet, err := DialNodes(
+				ctx,
+				conf.VirtualStorages,
+				protoregistry.GitalyProtoPreregistered,
+				nil,
+				nil,
+				nil,
+			)
+			require.NoError(t, err)
+			defer nodeSet.Close()
 
 			coordinator := NewCoordinator(
 				queueInterceptor,
 				rs,
-				NewNodeManagerRouter(nodeMgr, rs),
+				NewPerRepositoryRouter(
+					nodeSet.Connections(),
+					nodes.NewPerRepositoryElector(tx),
+					StaticHealthChecker(conf.StorageNames()),
+					NewLockedRandom(rand.New(rand.NewSource(0))),
+					rs,
+					datastore.NewAssignmentStore(tx, conf.StorageNames()),
+					rs,
+					nil,
+				),
 				txMgr,
 				conf,
 				protoregistry.GitalyProtoPreregistered,
@@ -274,20 +295,30 @@ func TestStreamDirectorMutator_Transaction(t *testing.T) {
 			voterWaitGroup.Wait()
 
 			if tc.primaryFails {
-				streamParams.Primary().ErrHandler(errors.New("rpc failure"))
+				require.Error(t, streamParams.Primary().ErrHandler(errors.New("rpc failure")))
+			}
+
+			if tc.concurrentWrite {
+				require.NoError(t, rs.SetGeneration(ctx, 1, "non-participating-storage", repo.RelativePath, 2))
 			}
 
 			err = streamParams.RequestFinalizer()
-			require.NoError(t, err)
+			if tc.expectedRequestFinalizerErrorMessage != "" {
+				require.EqualError(t, err, tc.expectedRequestFinalizerErrorMessage)
+			} else {
+				require.NoError(t, err)
+			}
 
 			// Nodes that successfully committed should have their generations incremented.
 			// Nodes that did not successfully commit or did not participate should remain on their
 			// existing generation.
 			for i, n := range tc.nodes {
-				gen, err := rs.GetGeneration(ctx, repo.StorageName, repo.RelativePath, storageNodes[i].Storage)
+				gen, err := rs.GetGeneration(ctx, 1, storageNodes[i].Storage)
 				require.NoError(t, err)
 				require.Equal(t, n.expectedGeneration, gen, "node %d has wrong generation", i)
 			}
+
+			tx.Commit(t)
 
 			replicationWaitGroup.Wait()
 

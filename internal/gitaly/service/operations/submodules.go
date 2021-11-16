@@ -19,6 +19,7 @@ import (
 
 const userUpdateSubmoduleName = "UserUpdateSubmodule"
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpdateSubmoduleRequest) (*gitalypb.UserUpdateSubmoduleResponse, error) {
 	if err := validateUserUpdateSubmoduleRequest(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, userUpdateSubmoduleName+": %v", err)
@@ -60,8 +61,12 @@ func validateUserUpdateSubmoduleRequest(req *gitalypb.UserUpdateSubmoduleRequest
 }
 
 func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpdateSubmoduleRequest) (*gitalypb.UserUpdateSubmoduleResponse, error) {
-	repo := s.localrepo(req.GetRepository())
-	branches, err := repo.GetBranches(ctx)
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	if err != nil {
+		return nil, err
+	}
+
+	branches, err := quarantineRepo.GetBranches(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%s: get branches: %w", userUpdateSubmoduleName, err)
 	}
@@ -73,7 +78,7 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 
 	referenceName := git.NewReferenceNameFromBranchName(string(req.GetBranch()))
 
-	branchOID, err := repo.ResolveRevision(ctx, referenceName.Revision())
+	branchOID, err := quarantineRepo.ResolveRevision(ctx, referenceName.Revision())
 	if err != nil {
 		if errors.Is(err, git.ErrReferenceNotFound) {
 			return nil, helper.ErrInvalidArgumentf("Cannot find branch")
@@ -81,7 +86,7 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		return nil, fmt.Errorf("%s: get branch: %w", userUpdateSubmoduleName, err)
 	}
 
-	repoPath, err := s.locator.GetRepoPath(req.GetRepository())
+	repoPath, err := quarantineRepo.Path()
 	if err != nil {
 		return nil, fmt.Errorf("%s: locate repo: %w", userUpdateSubmoduleName, err)
 	}
@@ -91,7 +96,7 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	result, err := git2go.SubmoduleCommand{
+	result, err := s.git2go.Submodule(ctx, quarantineRepo, git2go.SubmoduleCommand{
 		Repository: repoPath,
 		AuthorMail: string(req.GetUser().GetEmail()),
 		AuthorName: string(req.GetUser().GetName()),
@@ -100,7 +105,7 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		CommitSHA:  req.GetCommitSha(),
 		Submodule:  string(req.GetSubmodule()),
 		Message:    string(req.GetCommitMessage()),
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		errStr := strings.TrimPrefix(err.Error(), "submodule: ")
 		errStr = strings.TrimSpace(errStr)
@@ -142,14 +147,15 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		ctx,
 		req.GetRepository(),
 		req.GetUser(),
+		quarantineDir,
 		referenceName,
 		commitID,
 		branchOID,
 	); err != nil {
-		var preReceiveError updateref.PreReceiveError
-		if errors.As(err, &preReceiveError) {
+		var hookError updateref.HookError
+		if errors.As(err, &hookError) {
 			return &gitalypb.UserUpdateSubmoduleResponse{
-				PreReceiveError: preReceiveError.Error(),
+				PreReceiveError: hookError.Error(),
 			}, nil
 		}
 

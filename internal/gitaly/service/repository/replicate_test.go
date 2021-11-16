@@ -2,28 +2,26 @@ package repository
 
 import (
 	"bytes"
-	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,26 +30,28 @@ func TestReplicateRepository(t *testing.T) {
 	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "replica"))
 	cfg := cfgBuilder.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = serverSocketPath
 
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 
-	repo, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-	t.Cleanup(cleanup)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	// create a loose object to ensure snapshot replication is used
 	blobData, err := text.RandomHex(10)
 	require.NoError(t, err)
-	blobID := text.ChompBytes(gittest.ExecStream(t, cfg, bytes.NewBuffer([]byte(blobData)), "-C", repoPath, "hash-object", "-w", "--stdin"))
+	blobID := text.ChompBytes(gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: bytes.NewBuffer([]byte(blobData))},
+		"-C", repoPath, "hash-object", "-w", "--stdin",
+	))
 
 	// write info attributes
 	attrFilePath := filepath.Join(repoPath, "info", "attributes")
+	require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), 0o755))
 	attrData := []byte("*.pbxproj binary\n")
-	require.NoError(t, ioutil.WriteFile(attrFilePath, attrData, 0644))
+	require.NoError(t, os.WriteFile(attrFilePath, attrData, 0o644))
 
 	// Write a modified gitconfig
 	gittest.Exec(t, cfg, "-C", repoPath, "config", "please.replicate", "me")
@@ -63,10 +63,9 @@ func TestReplicateRepository(t *testing.T) {
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
-	injectedCtx := metadata.NewOutgoingContext(ctx, md)
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
-	_, err = client.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+	_, err = client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 		Repository: targetRepo,
 		Source:     repo,
 	})
@@ -85,7 +84,7 @@ func TestReplicateRepository(t *testing.T) {
 
 	// create another branch
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
-	_, err = client.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+	_, err = client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 		Repository: targetRepo,
 		Source:     repo,
 	})
@@ -99,32 +98,30 @@ func TestReplicateRepository(t *testing.T) {
 	gittest.Exec(t, cfg, "-C", targetRepoPath, "cat-file", "-p", blobID)
 }
 
-func TestReplicateRepository_transactional(t *testing.T) {
-	testhelper.NewFeatureSets([]featureflag.FeatureFlag{
-		featureflag.ReplicateRepositoryDirectFetch,
-	}).Run(t, testReplicateRepositoryTransactional)
-}
+func TestReplicateRepositoryTransactional(t *testing.T) {
+	t.Parallel()
 
-func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "replica"))
 	cfg := cfgBuilder.Build(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = serverSocketPath
 
-	sourceRepo, sourceRepoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-	t.Cleanup(cleanup)
+	sourceRepo, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	targetRepo := proto.Clone(sourceRepo).(*gitalypb.Repository)
 	targetRepo.StorageName = cfg.Storages[1].Name
 
-	votes := 0
+	votes := int32(0)
 	txServer := testTransactionServer{
 		vote: func(request *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
-			votes++
+			atomic.AddInt32(&votes, 1)
 			return &gitalypb.VoteTransactionResponse{
 				State: gitalypb.VoteTransactionResponse_COMMIT,
 			}, nil
@@ -133,8 +130,8 @@ func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
 
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "primary", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
-	ctx = testhelper.MergeOutgoingMetadata(ctx, testhelper.GitalyServersMetadataFromCfg(t, cfg))
+	ctx = metadata.IncomingToOutgoing(ctx)
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
 	client := newMuxedRepositoryClient(t, ctx, cfg, serverSocketPath, backchannel.NewClientHandshaker(
 		testhelper.DiscardTestEntry(t),
@@ -151,35 +148,22 @@ func testReplicateRepositoryTransactional(t *testing.T, ctx context.Context) {
 		Repository: targetRepo,
 		Source:     sourceRepo,
 	})
-
 	require.NoError(t, err)
-	require.Equal(t, 1, votes)
+	require.EqualValues(t, 5, atomic.LoadInt32(&votes))
 
 	// We're now changing a reference in the source repository such that we can observe changes
 	// in the target repo.
 	gittest.Exec(t, cfg, "-C", sourceRepoPath, "update-ref", "refs/heads/master", "refs/heads/master~")
 
-	votes = 0
+	atomic.StoreInt32(&votes, 0)
 
 	// And the second invocation uses FetchInternalRemote.
 	_, err = client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 		Repository: targetRepo,
 		Source:     sourceRepo,
 	})
-
-	if featureflag.IsEnabled(ctx, featureflag.ReplicateRepositoryDirectFetch) {
-		require.NoError(t, err)
-		require.Equal(t, 2, votes)
-	} else {
-		// This is failing because we do a nested mutating RPC in `ReplicateRepository()` to
-		// `FetchInternalRemote()`. Because we simply pass along the incoming context as an
-		// outgoing one, the server would try to vote on the backchannel. But given that the
-		// connection is not to Praefect but to Gitaly now, it's trying to cast votes on a
-		// non-multiplexed Gitaly connection instead of against the expected Praefect peer.
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "ref updates aborted by hook")
-		require.Equal(t, 0, votes)
-	}
+	require.NoError(t, err)
+	require.EqualValues(t, 6, atomic.LoadInt32(&votes))
 }
 
 func TestReplicateRepositoryInvalidArguments(t *testing.T) {
@@ -284,8 +268,7 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 			desc:          "source invalid",
 			invalidSource: true,
 			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, actual, codes.NotFound)
-				require.Contains(t, actual.Error(), "rpc error: code = NotFound desc = GetRepoPath: not a git repository:")
+				testassert.GrpcEqualErr(t, actual, helper.ErrNotFoundf("source repository does not exist"))
 			},
 		},
 		{
@@ -301,19 +284,18 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 			cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "target"))
 			cfg := cfgBuilder.Build(t)
 
-			testhelper.ConfigureGitalyHooksBin(t, cfg)
-			testhelper.ConfigureGitalySSHBin(t, cfg)
+			testcfg.BuildGitalyHooks(t, cfg)
+			testcfg.BuildGitalySSH(t, cfg)
 
 			serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 			cfg.SocketPath = serverSocketPath
 
 			client := newRepositoryClient(t, cfg, serverSocketPath)
 
-			sourceRepo, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source")
-			t.Cleanup(cleanup)
-
-			targetRepo, targetRepoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[1], sourceRepo.RelativePath)
-			t.Cleanup(cleanup)
+			sourceRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			targetRepo, targetRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[1], gittest.CloneRepoOpts{
+				RelativePath: sourceRepo.RelativePath,
+			})
 
 			var invalidRepos []*gitalypb.Repository
 			if tc.invalidSource {
@@ -336,11 +318,9 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
+			ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
-			md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
-			injectedCtx := metadata.NewOutgoingContext(ctx, md)
-
-			_, err := client.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+			_, err := client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 				Repository: targetRepo,
 				Source:     sourceRepo,
 			})
@@ -357,60 +337,41 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 
 func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 	t.Parallel()
-	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "replica"))
-	cfg := cfgBuilder.Build(t)
 
-	cfg.SocketPath = runServerWithBadFetchInternalRemote(t, cfg)
+	cfg := testcfg.Build(t, testcfg.WithStorages("default", "replica"))
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
-	locator := config.NewLocator(cfg)
+	// Our test setup does not allow for Praefects with multiple storages. We thus have to
+	// disable Praefect here.
+	cfg.SocketPath = runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
 
-	testRepo, _, cleanupRepo := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanupRepo)
+	targetRepo, _ := gittest.InitRepo(t, cfg, cfg.Storages[1])
 
-	repoClient := newRepositoryClient(t, cfg, cfg.SocketPath)
-
-	targetRepo := proto.Clone(testRepo).(*gitalypb.Repository)
-	targetRepo.StorageName = cfg.Storages[1].Name
-
-	targetRepoPath, err := locator.GetPath(targetRepo)
+	// The source repository must be at the same path as the target repository, and it must be a
+	// real repository. In order to still have the fetch fail, we corrupt the repository by
+	// writing garbage into HEAD.
+	sourceRepo := &gitalypb.Repository{
+		StorageName:  "default",
+		RelativePath: targetRepo.RelativePath,
+	}
+	sourceRepoPath, err := config.NewLocator(cfg).GetPath(sourceRepo)
 	require.NoError(t, err)
-
-	require.NoError(t, os.MkdirAll(targetRepoPath, 0755))
-	testhelper.MustRunCommand(t, nil, "touch", filepath.Join(targetRepoPath, "invalid_git_repo"))
+	require.NoError(t, os.MkdirAll(sourceRepoPath, 0o777))
+	gittest.Exec(t, cfg, "init", "--bare", sourceRepoPath)
+	require.NoError(t, os.WriteFile(filepath.Join(sourceRepoPath, "HEAD"), []byte("garbage"), 0o666))
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
-	injectedCtx := metadata.NewOutgoingContext(ctx, md)
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
-	_, err = repoClient.ReplicateRepository(injectedCtx, &gitalypb.ReplicateRepositoryRequest{
+	repoClient := newRepositoryClient(t, cfg, cfg.SocketPath)
+
+	_, err = repoClient.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 		Repository: targetRepo,
-		Source:     testRepo,
+		Source:     sourceRepo,
 	})
 	require.Error(t, err)
-}
-
-func runServerWithBadFetchInternalRemote(t *testing.T, cfg config.Cfg) string {
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
-			deps.GetCfg(),
-			deps.GetRubyServer(),
-			deps.GetLocator(),
-			deps.GetTxManager(),
-			deps.GetGitCmdFactory(),
-			deps.GetCatfileCache(),
-		))
-		gitalypb.RegisterRemoteServiceServer(srv, &mockRemoteServer{})
-	})
-}
-
-type mockRemoteServer struct {
-	gitalypb.UnimplementedRemoteServiceServer
-}
-
-func (m *mockRemoteServer) FetchInternalRemote(ctx context.Context, req *gitalypb.FetchInternalRemoteRequest) (*gitalypb.FetchInternalRemoteResponse, error) {
-	return &gitalypb.FetchInternalRemoteResponse{
-		Result: false,
-	}, nil
+	require.Contains(t, err.Error(), "fetch: exit status 128")
 }

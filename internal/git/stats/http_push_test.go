@@ -41,12 +41,13 @@ func TestPerformHTTPPush(t *testing.T) {
 		{
 			desc: "single revision",
 			preparePush: func(t *testing.T, cfg config.Cfg) ([]PushCommand, io.Reader) {
-				_, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source.git")
-				defer cleanup()
+				_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 				commit := gittest.WriteCommit(t, cfg, repoPath)
 				revisions := strings.NewReader(commit.String())
-				pack := gittest.ExecStream(t, cfg, revisions, "-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+				pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: revisions},
+					"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+				)
 
 				return []PushCommand{
 					{OldOID: git.ZeroOID, NewOID: commit, Reference: "refs/heads/foobar"},
@@ -61,12 +62,12 @@ func TestPerformHTTPPush(t *testing.T) {
 					packets:           2,
 					largestPacketSize: 44,
 					multiband: map[string]*bandInfo{
-						"pack": &bandInfo{
+						"pack": {
 							packets: 1,
 							size:    44,
 						},
-						"progress": &bandInfo{},
-						"error":    &bandInfo{},
+						"progress": {},
+						"error":    {},
 					},
 				},
 			},
@@ -74,8 +75,7 @@ func TestPerformHTTPPush(t *testing.T) {
 		{
 			desc: "many revisions",
 			preparePush: func(t *testing.T, cfg config.Cfg) ([]PushCommand, io.Reader) {
-				_, repoPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "source.git")
-				defer cleanup()
+				_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 				commands := make([]PushCommand, 1000)
 				commits := make([]string, len(commands))
@@ -90,7 +90,9 @@ func TestPerformHTTPPush(t *testing.T) {
 				}
 
 				revisions := strings.NewReader(strings.Join(commits, "\n"))
-				pack := gittest.ExecStream(t, cfg, revisions, "-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q")
+				pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: revisions},
+					"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+				)
 
 				return commands, bytes.NewReader(pack)
 			},
@@ -103,12 +105,12 @@ func TestPerformHTTPPush(t *testing.T) {
 					packets:           2,
 					largestPacketSize: 28909,
 					multiband: map[string]*bandInfo{
-						"pack": &bandInfo{
+						"pack": {
 							packets: 1,
 							size:    28909,
 						},
-						"progress": &bandInfo{},
-						"error":    &bandInfo{},
+						"progress": {},
+						"error":    {},
 					},
 				},
 			},
@@ -132,12 +134,12 @@ func TestPerformHTTPPush(t *testing.T) {
 					packets:           2,
 					largestPacketSize: 45,
 					multiband: map[string]*bandInfo{
-						"pack": &bandInfo{
+						"pack": {
 							packets: 1,
 							size:    45,
 						},
-						"progress": &bandInfo{},
-						"error":    &bandInfo{},
+						"progress": {},
+						"error":    {},
 					},
 				},
 			},

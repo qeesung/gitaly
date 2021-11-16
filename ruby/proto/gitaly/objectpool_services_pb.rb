@@ -18,7 +18,6 @@ module Gitaly
       rpc :DeleteObjectPool, Gitaly::DeleteObjectPoolRequest, Gitaly::DeleteObjectPoolResponse
       # Repositories are assumed to be stored on the same disk
       rpc :LinkRepositoryToObjectPool, Gitaly::LinkRepositoryToObjectPoolRequest, Gitaly::LinkRepositoryToObjectPoolResponse
-      rpc :UnlinkRepositoryFromObjectPool, Gitaly::UnlinkRepositoryFromObjectPoolRequest, Gitaly::UnlinkRepositoryFromObjectPoolResponse
       rpc :ReduplicateRepository, Gitaly::ReduplicateRepositoryRequest, Gitaly::ReduplicateRepositoryResponse
       rpc :DisconnectGitAlternates, Gitaly::DisconnectGitAlternatesRequest, Gitaly::DisconnectGitAlternatesResponse
       rpc :FetchIntoObjectPool, Gitaly::FetchIntoObjectPoolRequest, Gitaly::FetchIntoObjectPoolResponse

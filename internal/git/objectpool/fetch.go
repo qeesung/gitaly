@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -22,10 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
-const (
-	sourceRemote       = "origin"
-	sourceRefNamespace = "refs/remotes/" + sourceRemote
-)
+const sourceRefNamespace = "refs/remotes/origin"
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
 func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repository) error {
@@ -38,25 +35,8 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 		return err
 	}
 
-	if err := housekeeping.Perform(ctx, o.poolRepo); err != nil {
+	if err := housekeeping.Perform(ctx, o.poolRepo, o.txManager); err != nil {
 		return err
-	}
-
-	remote := o.poolRepo.Remote()
-
-	remoteExists, err := remote.Exists(ctx, sourceRemote)
-	if err != nil {
-		return err
-	}
-
-	if remoteExists {
-		if err := remote.SetURL(ctx, sourceRemote, originPath, git.SetURLOpts{}); err != nil {
-			return err
-		}
-	} else {
-		if err := remote.Add(ctx, sourceRemote, originPath, git.RemoteAddOpts{}); err != nil {
-			return err
-		}
 	}
 
 	if err := o.logStats(ctx, "before fetch"); err != nil {
@@ -71,8 +51,12 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *gitalypb.Repos
 			Flags: []git.Option{
 				git.Flag{Name: "--quiet"},
 				git.Flag{Name: "--atomic"},
+				// We already fetch tags via our refspec, so we don't
+				// want to fetch them a second time via Git's default
+				// tag refspec.
+				git.Flag{Name: "--no-tags"},
 			},
-			Args: []string{sourceRemote, refSpec},
+			Args: []string{originPath, refSpec},
 		},
 		git.WithRefTxHook(ctx, o.poolRepo, o.cfg),
 		git.WithStderr(&stderr),
@@ -148,7 +132,7 @@ func (o *ObjectPool) rescueDanglingObjects(ctx context.Context) error {
 		return fmt.Errorf("git fsck: %v", err)
 	}
 
-	return updater.Wait()
+	return updater.Commit()
 }
 
 func (o *ObjectPool) repackPool(ctx context.Context, pool repository.GitRepo) error {
@@ -238,7 +222,7 @@ func sizeDir(ctx context.Context, dir string) (int64, error) {
 		return 0, err
 	}
 
-	sizeLine, err := ioutil.ReadAll(cmd)
+	sizeLine, err := io.ReadAll(cmd)
 	if err != nil {
 		return 0, err
 	}

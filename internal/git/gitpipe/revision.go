@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -51,6 +53,7 @@ type revlistConfig struct {
 	firstParent   bool
 	before, after time.Time
 	author        []byte
+	skipResult    func(*RevisionResult) bool
 }
 
 // RevlistOption is an option for the revlist pipeline step.
@@ -158,6 +161,15 @@ func WithAuthor(author []byte) RevlistOption {
 	}
 }
 
+// WithSkipRevlistResult will execute the given function for each RevisionResult processed by the
+// pipeline. If the callback returns `true`, then the object will be skipped and not passed down
+// the pipeline.
+func WithSkipRevlistResult(skipResult func(*RevisionResult) bool) RevlistOption {
+	return func(cfg *revlistConfig) {
+		cfg.skipResult = skipResult
+	}
+}
+
 // Revlist runs git-rev-list(1) with objects and object names enabled. The returned channel will
 // contain all object IDs listed by this command. Cancelling the context will cause the pipeline to
 // be cancelled, too.
@@ -214,7 +226,8 @@ func Revlist(
 
 		if cfg.maxParents > 0 {
 			flags = append(flags, git.Flag{
-				Name: fmt.Sprintf("--max-parents=%d", cfg.maxParents)},
+				Name: fmt.Sprintf("--max-parents=%d", cfg.maxParents),
+			},
 			)
 		}
 
@@ -270,6 +283,10 @@ func Revlist(
 				result.ObjectName = oidAndName[1]
 			}
 
+			if cfg.skipResult != nil && cfg.skipResult(&result) {
+				continue
+			}
+
 			if isDone := sendRevisionResult(ctx, resultChan, result); isDone {
 				return
 			}
@@ -295,6 +312,46 @@ func Revlist(
 	}
 }
 
+type forEachRefConfig struct {
+	format    string
+	sortField string
+	pointsAt  string
+	count     int
+}
+
+// ForEachRefOption is an option that can be passed to ForEachRef.
+type ForEachRefOption func(cfg *forEachRefConfig)
+
+// WithForEachRefFormat is the format used by git-for-each-ref. Note that each line _must_ be of
+// format "%(objectname) %(refname)" such that the pipeline can parse it correctly. You may use
+// conditional format statements though to potentially produce multiple such lines.
+func WithForEachRefFormat(format string) ForEachRefOption {
+	return func(cfg *forEachRefConfig) {
+		cfg.format = format
+	}
+}
+
+// WithSortField is an option for ForEachRef that determines the field by which results will be sorted
+func WithSortField(sortField string) ForEachRefOption {
+	return func(cfg *forEachRefConfig) {
+		cfg.sortField = sortField
+	}
+}
+
+// WithPointsAt is an option for ForEachRef to only list refs that point to an object id
+func WithPointsAt(pointsAt string) ForEachRefOption {
+	return func(cfg *forEachRefConfig) {
+		cfg.pointsAt = pointsAt
+	}
+}
+
+// WithCount is an option for ForEachRef to limit the number of results
+func WithCount(count int) ForEachRefOption {
+	return func(cfg *forEachRefConfig) {
+		cfg.count = count
+	}
+}
+
 // ForEachRef runs git-for-each-ref(1) with the given patterns and returns a RevisionIterator for
 // found references. Patterns must always refer to fully qualified reference names. Patterns for
 // which no branch is found do not result in an error. The iterator's object name is set to the
@@ -304,22 +361,40 @@ func ForEachRef(
 	ctx context.Context,
 	repo *localrepo.Repo,
 	patterns []string,
+	opts ...ForEachRefOption,
 ) RevisionIterator {
-	resultChan := make(chan RevisionResult)
+	cfg := forEachRefConfig{
+		// The default format also includes the object type, which requires us to read the
+		// referenced commit's object. It would thus be about 2-3x slower to use the
+		// default format, and instead we move the burden into the next pipeline step by
+		// default.
+		format: "%(objectname) %(refname)",
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 
+	resultChan := make(chan RevisionResult)
 	go func() {
 		defer close(resultChan)
 
+		flags := []git.Option{
+			git.ValueFlag{Name: "--format", Value: cfg.format},
+		}
+		if cfg.sortField != "" {
+			flags = append(flags, git.ValueFlag{Name: "--sort", Value: cfg.sortField})
+		}
+		if cfg.pointsAt != "" {
+			flags = append(flags, git.ValueFlag{Name: "--points-at", Value: cfg.pointsAt})
+		}
+		if cfg.count > 0 {
+			flags = append(flags, git.ValueFlag{Name: "--count", Value: strconv.Itoa(cfg.count)})
+		}
+
 		forEachRef, err := repo.Exec(ctx, git.SubCmd{
-			Name: "for-each-ref",
-			Flags: []git.Option{
-				// The default format also includes the object type, which requires
-				// us to read the referenced commit's object. It would thus be about
-				// 2-3x slower to use the default format, and instead we move the
-				// burden into the next pipeline step.
-				git.Flag{Name: "--format=%(objectname) %(refname)"},
-			},
-			Args: patterns,
+			Name:  "for-each-ref",
+			Flags: flags,
+			Args:  patterns,
 		})
 		if err != nil {
 			sendRevisionResult(ctx, resultChan, RevisionResult{err: err})
@@ -328,10 +403,9 @@ func ForEachRef(
 
 		scanner := bufio.NewScanner(forEachRef)
 		for scanner.Scan() {
-			line := make([]byte, len(scanner.Bytes()))
-			copy(line, scanner.Bytes())
+			line := scanner.Text()
 
-			oidAndRef := bytes.SplitN(line, []byte{' '}, 2)
+			oidAndRef := strings.SplitN(line, " ", 2)
 			if len(oidAndRef) != 2 {
 				sendRevisionResult(ctx, resultChan, RevisionResult{
 					err: fmt.Errorf("invalid for-each-ref format: %q", line),
@@ -341,7 +415,7 @@ func ForEachRef(
 
 			if isDone := sendRevisionResult(ctx, resultChan, RevisionResult{
 				OID:        git.ObjectID(oidAndRef[0]),
-				ObjectName: oidAndRef[1],
+				ObjectName: []byte(oidAndRef[1]),
 			}); isDone {
 				return
 			}
@@ -359,47 +433,6 @@ func ForEachRef(
 				err: fmt.Errorf("for-each-ref pipeline command: %w", err),
 			})
 			return
-		}
-	}()
-
-	return &revisionIterator{
-		ch: resultChan,
-	}
-}
-
-// RevisionFilter filters the RevisionResult from the provided iterator with the filter function: if
-// the filter returns `false` for a given item, then it will be dropped from the pipeline. Errors
-// cannot be filtered and will always be passed through.
-func RevisionFilter(ctx context.Context, it RevisionIterator, filter func(RevisionResult) bool) RevisionIterator {
-	return RevisionTransform(ctx, it, func(r RevisionResult) []RevisionResult {
-		if filter(r) {
-			return []RevisionResult{r}
-		}
-		return []RevisionResult{}
-	})
-}
-
-// RevisionTransform transforms each RevisionResult from the provided iterator with the transforming
-// function. Instead of sending the original RevisionResult, it will instead send transformed
-// results.
-func RevisionTransform(ctx context.Context, it RevisionIterator, transform func(RevisionResult) []RevisionResult) RevisionIterator {
-	resultChan := make(chan RevisionResult)
-
-	go func() {
-		defer close(resultChan)
-
-		for it.Next() {
-			for _, transformed := range transform(it.Result()) {
-				if sendRevisionResult(ctx, resultChan, transformed) {
-					return
-				}
-			}
-		}
-
-		if err := it.Err(); err != nil {
-			if sendRevisionResult(ctx, resultChan, RevisionResult{err: err}) {
-				return
-			}
 		}
 	}()
 

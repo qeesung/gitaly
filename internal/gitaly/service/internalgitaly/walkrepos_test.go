@@ -42,9 +42,15 @@ func TestWalkRepos(t *testing.T) {
 
 	// file walk happens lexicographically, so we delete repository in the middle
 	// of the seqeuence to ensure the walk proceeds normally
-	testRepo1 := gittest.CloneRepoAtStorageRoot(t, cfg, storageRoot, "a")
-	deletedRepo := gittest.CloneRepoAtStorageRoot(t, cfg, storageRoot, "b")
-	testRepo2 := gittest.CloneRepoAtStorageRoot(t, cfg, storageRoot, "c")
+	testRepo1, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		RelativePath: "a",
+	})
+	deletedRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		RelativePath: "b",
+	})
+	testRepo2, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		RelativePath: "c",
+	})
 
 	// to test a directory being deleted during a walk, we must delete a directory after
 	// the file walk has started. To achieve that, we wrap the server to pass down a wrapped
@@ -52,9 +58,11 @@ func TestWalkRepos(t *testing.T) {
 	// the first repo 'a' is being streamed to the client.
 	deleteOnce := sync.Once{}
 	srv := NewServer([]config.Storage{{Name: storageName, Path: storageRoot}})
-	wsrv := &serverWrapper{srv,
+	wsrv := &serverWrapper{
+		srv,
 		func(r *gitalypb.WalkReposRequest, s gitalypb.InternalGitaly_WalkReposServer) error {
-			return srv.WalkRepos(r, &streamWrapper{s,
+			return srv.WalkRepos(r, &streamWrapper{
+				s,
 				func(resp *gitalypb.WalkReposResponse) error {
 					deleteOnce.Do(func() {
 						require.NoError(t, os.RemoveAll(filepath.Join(storageRoot, deletedRepo.RelativePath)))

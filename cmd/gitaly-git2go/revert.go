@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package main
@@ -10,7 +11,8 @@ import (
 	"fmt"
 	"io"
 
-	git "github.com/libgit2/git2go/v31"
+	git "github.com/libgit2/git2go/v32"
+	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 )
 
@@ -59,7 +61,7 @@ func (cmd *revertSubcommand) revert(ctx context.Context, request *git2go.RevertC
 	if err := cmd.verify(ctx, request); err != nil {
 		return "", err
 	}
-	repo, err := git.OpenRepository(request.Repository)
+	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("open repository: %w", err)
 	}

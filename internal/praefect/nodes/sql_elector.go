@@ -85,6 +85,7 @@ type sqlElector struct {
 	db              *sql.DB
 	log             logrus.FieldLogger
 	failoverTimeout time.Duration
+	doneCh          chan struct{}
 }
 
 func newSQLElector(name string, c config.Config, db *sql.DB, log logrus.FieldLogger, ns []*nodeStatus) *sqlElector {
@@ -107,6 +108,7 @@ func newSQLElector(name string, c config.Config, db *sql.DB, log logrus.FieldLog
 		nodes:           nodes,
 		primaryNode:     nodes[0],
 		failoverTimeout: failoverTimeout,
+		doneCh:          make(chan struct{}),
 	}
 }
 
@@ -118,7 +120,6 @@ func newSQLElector(name string, c config.Config, db *sql.DB, log logrus.FieldLog
 // determining a quorum.
 func GeneratePraefectName(c config.Config, log logrus.FieldLogger) string {
 	name, err := os.Hostname()
-
 	if err != nil {
 		name = uuid.New().String()
 		log.WithError(err).WithField("praefectName", name).Warn("unable to determine Praefect hostname, using randomly generated UUID")
@@ -138,6 +139,10 @@ func (s *sqlElector) start(bootstrapInterval, monitorInterval time.Duration) {
 	go s.monitor(monitorInterval)
 }
 
+func (s *sqlElector) stop() {
+	close(s.doneCh)
+}
+
 func (s *sqlElector) bootstrap(d time.Duration) {
 	ctx := context.Background()
 	s.checkNodes(ctx)
@@ -150,7 +155,11 @@ func (s *sqlElector) monitor(d time.Duration) {
 	ctx := context.Background()
 
 	for {
-		<-ticker.C
+		select {
+		case <-s.doneCh:
+			return
+		case <-ticker.C:
+		}
 		s.checkNodes(ctx)
 	}
 }
@@ -254,7 +263,6 @@ last_contact_attempt_at = NOW()`
 	}
 
 	_, err := tx.ExecContext(ctx, q, s.praefectName, s.shardName, node.GetStorage())
-
 	if err != nil {
 		s.log.Errorf("Error updating node: %s", err)
 	}
@@ -439,7 +447,6 @@ func (s *sqlElector) electNewPrimary(ctx context.Context, tx *sql.Tx, candidates
 
 func (s *sqlElector) validateAndUpdatePrimary(ctx context.Context, tx *sql.Tx) error {
 	quorumCount, err := s.getQuorumCount(ctx, tx)
-
 	if err != nil {
 		return err
 	}

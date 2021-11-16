@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -16,14 +15,23 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 )
 
+func newCache(dir string) Cache {
+	return New(config.StreamCacheConfig{
+		Enabled: true,
+		Dir:     dir,
+		MaxAge:  config.Duration(time.Hour),
+	}, log.Default())
+}
+
 func TestCache_writeOneReadMultiple(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Minute, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	const (
@@ -40,7 +48,7 @@ func TestCache_writeOneReadMultiple(t *testing.T) {
 
 			require.Equal(t, i == 0, created, "all calls except the first one should be cache hits")
 
-			out, err := ioutil.ReadAll(r)
+			out, err := io.ReadAll(r)
 			require.NoError(t, err)
 			require.NoError(t, r.Wait(context.Background()))
 			require.Equal(t, content(0), string(out), "expect cache hits for all i > 0")
@@ -53,7 +61,7 @@ func TestCache_writeOneReadMultiple(t *testing.T) {
 func TestCache_manyConcurrentWrites(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Minute, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	const (
@@ -80,7 +88,7 @@ func TestCache_manyConcurrentWrites(t *testing.T) {
 				}
 				defer r.Close()
 
-				out, err := ioutil.ReadAll(r)
+				out, err := io.ReadAll(r)
 				if err != nil {
 					return err
 				}
@@ -132,7 +140,7 @@ func requireCacheEntries(t *testing.T, _c Cache, n int) {
 func TestCache_deletedFile(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	const (
@@ -146,7 +154,7 @@ func TestCache_deletedFile(t *testing.T) {
 	require.True(t, created)
 
 	require.NoError(t, os.RemoveAll(tmp), "wipe out underlying files of cache")
-	require.NoError(t, os.MkdirAll(tmp, 0755))
+	require.NoError(t, os.MkdirAll(tmp, 0o755))
 
 	// File is gone from filesystem but not from cache
 	requireCacheFiles(t, tmp, 0)
@@ -157,11 +165,11 @@ func TestCache_deletedFile(t *testing.T) {
 	defer r2.Close()
 	require.True(t, created, "because the first file is gone, cache is forced to create a new entry")
 
-	out1, err := ioutil.ReadAll(r1)
+	out1, err := io.ReadAll(r1)
 	require.NoError(t, err)
 	require.Equal(t, content(1), string(out1), "r1 should still see its original pre-wipe contents")
 
-	out2, err := ioutil.ReadAll(r2)
+	out2, err := io.ReadAll(r2)
 	require.NoError(t, err)
 	require.Equal(t, content(2), string(out2), "r2 should see the new post-wipe contents")
 }
@@ -183,7 +191,7 @@ func TestCache_scope(t *testing.T) {
 
 	for i := 0; i < N; i++ {
 		input[i] = fmt.Sprintf("test content %d", i)
-		cache[i] = New(tmp, time.Minute, log.Default())
+		cache[i] = newCache(tmp)
 		defer func(i int) { cache[i].Stop() }(i)
 
 		var created bool
@@ -205,41 +213,12 @@ func TestCache_scope(t *testing.T) {
 	for i := 0; i < N; i++ {
 		r, content := reader[i], input[i]
 
-		out, err := ioutil.ReadAll(r)
+		out, err := io.ReadAll(r)
 		require.NoError(t, err)
 		require.NoError(t, r.Wait(context.Background()))
 
 		require.Equal(t, content, string(out))
 	}
-}
-
-type clock struct {
-	n int
-	sync.Mutex
-	*sync.Cond
-}
-
-func newClock() *clock {
-	cl := &clock{}
-	cl.Cond = sync.NewCond(cl)
-	return cl
-}
-
-func (cl *clock) wait() {
-	cl.Lock()
-	defer cl.Unlock()
-
-	for old := cl.n; old == cl.n; {
-		cl.Cond.Wait()
-	}
-}
-
-func (cl *clock) advance() {
-	cl.Lock()
-	defer cl.Unlock()
-
-	cl.n++
-	cl.Cond.Broadcast()
 }
 
 func TestCache_diskCleanup(t *testing.T) {
@@ -249,9 +228,21 @@ func TestCache_diskCleanup(t *testing.T) {
 		key = "test key"
 	)
 
-	cl := newClock()
-	c := newCacheWithSleep(tmp, 0, func(time.Duration) { cl.wait() }, log.Default())
+	filestoreCleanTimerCh := make(chan time.Time)
+	filestoreClean := func(time.Duration) <-chan time.Time {
+		return filestoreCleanTimerCh
+	}
+
+	cleanSleepTimerCh := make(chan time.Time)
+	cleanSleep := func(time.Duration) <-chan time.Time {
+		return cleanSleepTimerCh
+	}
+
+	c := newCacheWithSleep(tmp, 0, filestoreClean, cleanSleep, log.Default())
 	defer c.Stop()
+
+	var removalLock sync.Mutex
+	c.removalCond = sync.NewCond(&removalLock)
 
 	content := func(i int) string { return fmt.Sprintf("content %d", i) }
 
@@ -260,7 +251,7 @@ func TestCache_diskCleanup(t *testing.T) {
 	defer r1.Close()
 	require.True(t, created)
 
-	out1, err := ioutil.ReadAll(r1)
+	out1, err := io.ReadAll(r1)
 	require.NoError(t, err)
 	require.Equal(t, content(1), string(out1))
 	require.NoError(t, r1.Wait(context.Background()))
@@ -269,10 +260,26 @@ func TestCache_diskCleanup(t *testing.T) {
 	requireCacheFiles(t, tmp, 1)
 	requireCacheEntries(t, c, 1)
 
+	// In order to avoid having to sleep, we instead use the removalCond of the cache. Like
+	// this, we can lock the condition before scheduling removal of the cache entry and then
+	// wait for the condition to be triggered. Like this, we can wait for removal in an entirely
+	// race-free manner.
+	removedCh := make(chan struct{})
+	removalLock.Lock()
+	go func() {
+		defer func() {
+			removalLock.Unlock()
+			close(removedCh)
+		}()
+
+		c.removalCond.Wait()
+	}()
+
 	// Unblock cleanup goroutines so they run exactly once
-	cl.advance()
-	// Give them time to do their work
-	time.Sleep(10 * time.Millisecond)
+	cleanSleepTimerCh <- time.Time{}
+	filestoreCleanTimerCh <- time.Time{}
+
+	<-removedCh
 
 	// File and index entry should have been removed by cleanup goroutines.
 	requireCacheFiles(t, tmp, 0)
@@ -283,7 +290,7 @@ func TestCache_diskCleanup(t *testing.T) {
 	defer r2.Close()
 	require.True(t, created)
 
-	out2, err := ioutil.ReadAll(r2)
+	out2, err := io.ReadAll(r2)
 	require.NoError(t, err)
 	require.NoError(t, r2.Wait(context.Background()))
 
@@ -294,7 +301,7 @@ func TestCache_diskCleanup(t *testing.T) {
 func TestCache_failedWrite(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	testCases := []struct {
@@ -317,7 +324,7 @@ func TestCache_failedWrite(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, created)
 
-			_, err = io.Copy(ioutil.Discard, r1)
+			_, err = io.Copy(io.Discard, r1)
 			require.NoError(t, err, "errors on the write end are not propagated via Read()")
 			require.NoError(t, r1.Close(), "errors on the write end are not propagated via Close()")
 			require.Error(t, r1.Wait(context.Background()), "error propagation happens via Wait()")
@@ -330,7 +337,7 @@ func TestCache_failedWrite(t *testing.T) {
 			defer r2.Close()
 			require.True(t, created, "because the previous entry failed, a new one should have been created")
 
-			out, err := ioutil.ReadAll(r2)
+			out, err := io.ReadAll(r2)
 			require.NoError(t, err)
 			require.NoError(t, r2.Wait(context.Background()))
 			require.Equal(t, happy, string(out))
@@ -341,7 +348,7 @@ func TestCache_failedWrite(t *testing.T) {
 func TestCache_failCreateFile(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	createError := errors.New("cannot create file")
@@ -354,11 +361,11 @@ func TestCache_failCreateFile(t *testing.T) {
 func TestCache_unWriteableFile(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	c.(*cache).createFile = func() (namedWriteCloser, error) {
-		return os.OpenFile(filepath.Join(tmp, "unwriteable"), os.O_RDONLY|os.O_CREATE|os.O_EXCL, 0644)
+		return os.OpenFile(filepath.Join(tmp, "unwriteable"), os.O_RDONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	}
 
 	r, created, err := c.FindOrCreate("key", func(w io.Writer) error {
@@ -368,7 +375,7 @@ func TestCache_unWriteableFile(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, created)
 
-	_, err = ioutil.ReadAll(r)
+	_, err = io.ReadAll(r)
 	require.NoError(t, err)
 
 	err = r.Wait(context.Background())
@@ -379,11 +386,11 @@ func TestCache_unWriteableFile(t *testing.T) {
 func TestCache_unCloseableFile(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	c.(*cache).createFile = func() (namedWriteCloser, error) {
-		f, err := os.OpenFile(filepath.Join(tmp, "uncloseable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+		f, err := os.OpenFile(filepath.Join(tmp, "uncloseable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err != nil {
 			return nil, err
 		}
@@ -394,7 +401,7 @@ func TestCache_unCloseableFile(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, created)
 
-	_, err = ioutil.ReadAll(r)
+	_, err = io.ReadAll(r)
 	require.NoError(t, err)
 
 	err = r.Wait(context.Background())
@@ -405,11 +412,11 @@ func TestCache_unCloseableFile(t *testing.T) {
 func TestCache_cannotOpenFileForReading(t *testing.T) {
 	tmp := testhelper.TempDir(t)
 
-	c := New(tmp, time.Hour, log.Default())
+	c := newCache(tmp)
 	defer c.Stop()
 
 	c.(*cache).createFile = func() (namedWriteCloser, error) {
-		f, err := os.OpenFile(filepath.Join(tmp, "unopenable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+		f, err := os.OpenFile(filepath.Join(tmp, "unopenable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err != nil {
 			return nil, err
 		}
@@ -485,7 +492,7 @@ func TestNullCache(t *testing.T) {
 					return errors.New("created should be true")
 				}
 
-				output, err := ioutil.ReadAll(s)
+				output, err := io.ReadAll(s)
 				if err != nil {
 					return err
 				}

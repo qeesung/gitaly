@@ -1,5 +1,3 @@
-// +build postgres
-
 package datastore
 
 import (
@@ -15,6 +13,8 @@ import (
 )
 
 func TestPostgresReplicationEventQueue_DeleteReplicaUniqueIndex(t *testing.T) {
+	t.Parallel()
+	db := glsql.NewDB(t)
 	for _, tc := range []struct {
 		desc        string
 		existingJob *ReplicationEvent
@@ -28,18 +28,6 @@ func TestPostgresReplicationEventQueue_DeleteReplicaUniqueIndex(t *testing.T) {
 			desc: "allowed if existing completed job",
 			existingJob: &ReplicationEvent{
 				State: JobStateCompleted,
-				Job: ReplicationJob{
-					Change:         DeleteReplica,
-					VirtualStorage: "praefect",
-					RelativePath:   "relative-path",
-				},
-			},
-			succeeds: true,
-		},
-		{
-			desc: "allowed if existing cancelled job",
-			existingJob: &ReplicationEvent{
-				State: JobStateCancelled,
 				Job: ReplicationJob{
 					Change:         DeleteReplica,
 					VirtualStorage: "praefect",
@@ -119,7 +107,7 @@ func TestPostgresReplicationEventQueue_DeleteReplicaUniqueIndex(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			db := getDB(t)
+			db.TruncateAll(t)
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
@@ -153,7 +141,8 @@ func TestPostgresReplicationEventQueue_DeleteReplicaUniqueIndex(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_Enqueue(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -199,7 +188,8 @@ func TestPostgresReplicationEventQueue_Enqueue(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_DeleteReplicaInfiniteAttempts(t *testing.T) {
-	queue := NewPostgresReplicationEventQueue(getDB(t))
+	t.Parallel()
+	queue := NewPostgresReplicationEventQueue(glsql.NewDB(t))
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -249,7 +239,8 @@ func TestPostgresReplicationEventQueue_DeleteReplicaInfiniteAttempts(t *testing.
 }
 
 func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -382,7 +373,8 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_Dequeue(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -430,7 +422,8 @@ func TestPostgresReplicationEventQueue_Dequeue(t *testing.T) {
 
 // expected results are listed as literals on purpose to be more explicit about what is going on with data
 func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -539,7 +532,8 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_DequeueSameStorageOtherRepository(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -568,11 +562,9 @@ func TestPostgresReplicationEventQueue_DequeueSameStorageOtherRepository(t *test
 		},
 	}
 
-	var eventsType1 []ReplicationEvent
 	for i := 0; i < 2; i++ {
-		event, err := queue.Enqueue(ctx, eventType1)
+		_, err := queue.Enqueue(ctx, eventType1)
 		require.NoError(t, err, "failed to fill in event queue")
-		eventsType1 = append(eventsType1, event)
 	}
 
 	dequeuedEvents1, err := queue.Dequeue(ctx, "praefect", "gitaly-1", 1)
@@ -584,11 +576,9 @@ func TestPostgresReplicationEventQueue_DequeueSameStorageOtherRepository(t *test
 	})
 	requireJobLocks(t, ctx, db, []JobLockRow{{JobID: 1, LockID: "praefect|gitaly-1|/project/path-1"}})
 
-	var eventsType2 []ReplicationEvent
 	for i := 0; i < 2; i++ {
-		event, err := queue.Enqueue(ctx, eventType2)
+		_, err := queue.Enqueue(ctx, eventType2)
 		require.NoError(t, err, "failed to fill in event queue")
-		eventsType2 = append(eventsType2, event)
 	}
 
 	dequeuedEvents2, err := queue.Dequeue(ctx, "praefect", "gitaly-1", 1)
@@ -605,7 +595,8 @@ func TestPostgresReplicationEventQueue_DequeueSameStorageOtherRepository(t *test
 }
 
 func TestPostgresReplicationEventQueue_Acknowledge(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -641,14 +632,15 @@ func TestPostgresReplicationEventQueue_Acknowledge(t *testing.T) {
 	event.Attempt = 2
 	// events acknowledged with 'completed' or 'dead' states expected to be removed
 	db.RequireRowsInTable(t, "replication_queue", 0)
-	//all associated with acknowledged event tracking bindings between lock and event must be removed
+	// all associated with acknowledged event tracking bindings between lock and event must be removed
 	db.RequireRowsInTable(t, "replication_queue_job_lock", 0)
 	// lock must be released as the event was acknowledged and there are no other events left protected under this lock
 	requireLocks(t, ctx, db, []LockRow{{ID: event.LockID, Acquired: false}})
 }
 
 func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
-	db := getDB(t)
+	t.Parallel()
+	db := glsql.NewDB(t)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
@@ -819,6 +811,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeMultiple(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
+	t.Parallel()
 	eventType1 := ReplicationEvent{Job: ReplicationJob{
 		Change:            UpdateRepo,
 		VirtualStorage:    "vs-1",
@@ -835,6 +828,8 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 
 	eventType4 := eventType1
 	eventType4.Job.TargetNodeStorage = "s-2"
+
+	db := glsql.NewDB(t)
 
 	t.Run("no events is valid", func(t *testing.T) {
 		// 'qc' is not initialized, so the test will fail if there will be an attempt to make SQL operation
@@ -857,7 +852,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	})
 
 	t.Run("stops after first error", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 
 		ctx, cancel := testhelper.Context()
 		defer cancel()
@@ -876,7 +871,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	})
 
 	t.Run("stops if nothing to update (extended coverage)", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 
 		ctx, cancel := testhelper.Context()
 		defer cancel()
@@ -900,7 +895,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 	})
 
 	t.Run("triggers all passed in events", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 
 		var wg sync.WaitGroup
 		ctx, cancel := testhelper.Context()
@@ -957,6 +952,7 @@ func TestPostgresReplicationEventQueue_StartHealthUpdate(t *testing.T) {
 }
 
 func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -980,8 +976,10 @@ func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
 	eventType4 := eventType3
 	eventType4.Job.TargetNodeStorage = "gitaly-3"
 
+	db := glsql.NewDB(t)
+
 	t.Run("no stale jobs yet", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 		source := NewPostgresReplicationEventQueue(db)
 
 		event, err := source.Enqueue(ctx, eventType1)
@@ -996,7 +994,7 @@ func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
 	})
 
 	t.Run("jobs considered stale only at 'in_progress' state", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 		source := NewPostgresReplicationEventQueue(db)
 
 		// move event to 'ready' state
@@ -1035,19 +1033,19 @@ func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
 	})
 
 	t.Run("stale jobs updated for all virtual storages and storages at once", func(t *testing.T) {
-		db := getDB(t)
+		db.TruncateAll(t)
 		source := NewPostgresReplicationEventQueue(db)
 
-		var exp []ReplicationEvent
+		var events []ReplicationEvent
 		for _, eventType := range []ReplicationEvent{eventType1, eventType2, eventType3} {
 			event, err := source.Enqueue(ctx, eventType)
 			require.NoError(t, err)
 			devents, err := source.Dequeue(ctx, event.Job.VirtualStorage, event.Job.TargetNodeStorage, 1)
 			require.NoError(t, err)
-			exp = append(exp, devents...)
+			events = append(events, devents...)
 		}
 
-		for event, i := exp[0], 0; i < 2; i++ { // consume all processing attempts to verify that state will be changed to 'dead'
+		for event, i := events[0], 0; i < 2; i++ { // consume all processing attempts to verify that state will be changed to 'dead'
 			_, err := source.Acknowledge(ctx, JobStateFailed, []uint64{event.ID})
 			require.NoError(t, err)
 			_, err = source.Dequeue(ctx, event.Job.VirtualStorage, event.Job.TargetNodeStorage, 1)
@@ -1056,10 +1054,11 @@ func TestPostgresReplicationEventQueue_AcknowledgeStale(t *testing.T) {
 
 		require.NoError(t, source.AcknowledgeStale(ctx, time.Microsecond))
 
-		exp[0].State = JobStateDead
-		exp[0].Attempt = 0
-		for i := range exp[1:] {
-			exp[1+i].State = JobStateFailed
+		var exp []ReplicationEvent
+		// The first event should be removed from table as its state changed to 'dead'.
+		for _, e := range events[1:] {
+			e.State = JobStateFailed
+			exp = append(exp, e)
 		}
 
 		requireEvents(t, ctx, db, exp)

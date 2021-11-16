@@ -4,22 +4,20 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cgi"
 	"net/http/httptest"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 )
 
 // RemoteUploadPackServer implements two HTTP routes for git-upload-pack by copying stdin and stdout into and out of the git upload-pack command
-func RemoteUploadPackServer(ctx context.Context, t *testing.T, gitPath, repoName, httpToken, repoPath string) (*httptest.Server, string) {
+func RemoteUploadPackServer(ctx context.Context, t *testing.T, cfg config.Cfg, repoName, httpToken, repoPath string) (*httptest.Server, string) {
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.String() {
@@ -35,9 +33,9 @@ func RemoteUploadPackServer(ctx context.Context, t *testing.T, gitPath, repoName
 				}
 				defer r.Body.Close()
 
-				cmd, err := command.New(ctx, exec.Command(gitPath, "-C", repoPath, "upload-pack", "--stateless-rpc", "."), reader, w, nil)
-				require.NoError(t, err)
-				require.NoError(t, cmd.Wait())
+				ExecOpts(t, cfg, ExecConfig{Stdin: reader, Stdout: w},
+					"-C", repoPath, "upload-pack", "--stateless-rpc", ".",
+				)
 			case fmt.Sprintf("/%s.git/info/refs?service=git-upload-pack", repoName):
 				if httpToken != "" && r.Header.Get("Authorization") != httpToken {
 					w.WriteHeader(http.StatusUnauthorized)
@@ -51,9 +49,9 @@ func RemoteUploadPackServer(ctx context.Context, t *testing.T, gitPath, repoName
 				_, err = w.Write([]byte("0000"))
 				require.NoError(t, err)
 
-				cmd, err := command.New(ctx, exec.Command(gitPath, "-C", repoPath, "upload-pack", "--advertise-refs", "."), nil, w, nil)
-				require.NoError(t, err)
-				require.NoError(t, cmd.Wait())
+				ExecOpts(t, cfg, ExecConfig{Stdout: w},
+					"-C", repoPath, "upload-pack", "--advertise-refs", ".",
+				)
 			default:
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -67,7 +65,7 @@ func RemoteUploadPackServer(ctx context.Context, t *testing.T, gitPath, repoName
 // repository is prepared such that git-http-backend(1) will serve it by
 // creating the "git-daemon-export-ok" magic file.
 func GitServer(t testing.TB, cfg config.Cfg, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) (int, func() error) {
-	require.NoError(t, ioutil.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, 0o644))
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

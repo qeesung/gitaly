@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-enry/go-license-detector/v4/licensedb"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
@@ -25,10 +26,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/server"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
@@ -36,9 +38,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var (
-	flagVersion = flag.Bool("version", false, "Print version and exit")
-)
+var flagVersion = flag.Bool("version", false, "Print version and exit")
 
 func loadConfig(configPath string) (config.Cfg, error) {
 	cfgFile, err := os.Open(configPath)
@@ -53,7 +53,7 @@ func loadConfig(configPath string) (config.Cfg, error) {
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return config.Cfg{}, err
+		return config.Cfg{}, fmt.Errorf("invalid config: %w", err)
 	}
 
 	return cfg, nil
@@ -109,6 +109,7 @@ func configure(configPath string) (config.Cfg, error) {
 	cfg.Prometheus.Configure()
 	config.ConfigureConcurrencyLimits(cfg)
 	tracing.Initialize(tracing.WithServiceName("gitaly"))
+	preloadLicenseDatabase()
 
 	return cfg, nil
 }
@@ -128,9 +129,17 @@ func verifyGitVersion(cfg config.Cfg) error {
 	return nil
 }
 
-func run(cfg config.Cfg) error {
-	tempdir.StartCleaning(cfg.Storages, time.Hour)
+func preloadLicenseDatabase() {
+	// the first call to `licensedb.Detect` could be too long
+	// https://github.com/go-enry/go-license-detector/issues/13
+	// this is why we're calling it here to preload license database
+	// on server startup to avoid long initialization on gRPC
+	// method handling.
+	licensedb.Preload()
+	log.Info("License database preloaded")
+}
 
+func run(cfg config.Cfg) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -147,10 +156,12 @@ func run(cfg config.Cfg) error {
 
 	locator := config.NewLocator(cfg)
 
+	tempdir.StartCleaning(locator, cfg.Storages, time.Hour)
+
 	if config.SkipHooks() {
 		log.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
 	} else {
-		gitlabClient, err := gitlab.NewHTTPClient(cfg.Gitlab, cfg.TLS, cfg.Prometheus)
+		gitlabClient, err := gitlab.NewHTTPClient(glog.Default(), cfg.Gitlab, cfg.TLS, cfg.Prometheus)
 		if err != nil {
 			return fmt.Errorf("could not create GitLab API client: %w", err)
 		}
@@ -187,8 +198,6 @@ func run(cfg config.Cfg) error {
 	if err != nil {
 		return fmt.Errorf("linguist instance creation: %w", err)
 	}
-
-	b.StopAction = gitalyServerFactory.GracefulStop
 
 	rubySrv := rubyserver.New(cfg)
 	if err := rubySrv.Start(); err != nil {
@@ -230,6 +239,7 @@ func run(cfg config.Cfg) error {
 			Linguist:           ling,
 			CatfileCache:       catfileCache,
 			DiskCache:          diskCache,
+			PackObjectsCache:   streamcache.New(cfg.PackObjectsCache, glog.Default()),
 		})
 		b.RegisterStarter(starter.New(c, srv))
 	}
@@ -291,5 +301,5 @@ func run(cfg config.Cfg) error {
 		}
 	}()
 
-	return b.Wait(cfg.GracefulRestartTimeout.Duration())
+	return b.Wait(cfg.GracefulRestartTimeout.Duration(), gitalyServerFactory.GracefulStop)
 }

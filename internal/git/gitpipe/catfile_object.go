@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 )
 
@@ -17,11 +18,14 @@ type CatfileObjectResult struct {
 
 	// ObjectName is the object name as received from the revlistResultChan.
 	ObjectName []byte
-	// ObjectInfo is the object info of the object.
-	ObjectInfo *catfile.ObjectInfo
-	// obbjectReader is the reader for the raw object data. The reader must always be consumed
-	// by the caller.
-	ObjectReader io.Reader
+	// Object is the object returned by the CatfileObject pipeline step. The object must
+	// be fully consumed.
+	git.Object
+}
+
+type catfileObjectRequest struct {
+	objectName []byte
+	err        error
 }
 
 // CatfileObject processes catfileInfoResults from the given channel and reads associated objects
@@ -31,9 +35,64 @@ type CatfileObjectResult struct {
 // be fully consumed by the caller.
 func CatfileObject(
 	ctx context.Context,
-	catfileProcess catfile.Batch,
-	it CatfileInfoIterator,
-) CatfileObjectIterator {
+	objectReader catfile.ObjectReader,
+	it ObjectIterator,
+) (CatfileObjectIterator, error) {
+	queue, cleanup, err := objectReader.ObjectQueue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	requestChan := make(chan catfileObjectRequest, 32)
+	go func() {
+		defer close(requestChan)
+
+		var i int64
+		for it.Next() {
+			if err := queue.RequestRevision(it.ObjectID().Revision()); err != nil {
+				select {
+				case requestChan <- catfileObjectRequest{err: err}:
+				case <-ctx.Done():
+					return
+				}
+			}
+
+			select {
+			case requestChan <- catfileObjectRequest{objectName: it.ObjectName()}:
+			case <-ctx.Done():
+				return
+			}
+
+			i++
+			if i%int64(cap(requestChan)) == 0 {
+				if err := queue.Flush(); err != nil {
+					select {
+					case requestChan <- catfileObjectRequest{err: err}:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+
+		if err := it.Err(); err != nil {
+			select {
+			case requestChan <- catfileObjectRequest{err: err}:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		if err := queue.Flush(); err != nil {
+			select {
+			case requestChan <- catfileObjectRequest{err: err}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	resultChan := make(chan CatfileObjectResult)
 	go func() {
 		defer close(resultChan)
@@ -59,40 +118,30 @@ func CatfileObject(
 			}
 		}
 
-		var objectReader *signallingReader
+		var previousObject *synchronizingObject
 
-		for it.Next() {
-			catfileInfoResult := it.Result()
+		// It's fine to iterate over the request channel without paying attention to
+		// context cancellation because the request channel itself would be closed if the
+		// context was cancelled.
+		for request := range requestChan {
+			if request.err != nil {
+				sendResult(CatfileObjectResult{err: request.err})
+				break
+			}
 
 			// We mustn't try to read another object before reading the previous object
 			// has concluded. Given that this is not under our control but under the
 			// control of the caller, we thus have to wait until the blocking reader has
 			// reached EOF.
-			if objectReader != nil {
+			if previousObject != nil {
 				select {
-				case <-objectReader.doneCh:
+				case <-previousObject.doneCh:
 				case <-ctx.Done():
 					return
 				}
 			}
 
-			var object *catfile.Object
-			var err error
-
-			objectType := catfileInfoResult.ObjectInfo.Type
-			switch objectType {
-			case "tag":
-				object, err = catfileProcess.Tag(ctx, catfileInfoResult.ObjectInfo.Oid.Revision())
-			case "commit":
-				object, err = catfileProcess.Commit(ctx, catfileInfoResult.ObjectInfo.Oid.Revision())
-			case "tree":
-				object, err = catfileProcess.Tree(ctx, catfileInfoResult.ObjectInfo.Oid.Revision())
-			case "blob":
-				object, err = catfileProcess.Blob(ctx, catfileInfoResult.ObjectInfo.Oid.Revision())
-			default:
-				err = fmt.Errorf("unknown object type %q", objectType)
-			}
-
+			object, err := queue.ReadObject()
 			if err != nil {
 				sendResult(CatfileObjectResult{
 					err: fmt.Errorf("requesting object: %w", err),
@@ -100,43 +149,46 @@ func CatfileObject(
 				return
 			}
 
-			objectReader = &signallingReader{
-				reader: object,
+			previousObject = &synchronizingObject{
+				Object: object,
 				doneCh: make(chan interface{}),
 			}
 
 			if isDone := sendResult(CatfileObjectResult{
-				ObjectName:   catfileInfoResult.ObjectName,
-				ObjectInfo:   catfileInfoResult.ObjectInfo,
-				ObjectReader: objectReader,
+				ObjectName: request.objectName,
+				Object:     previousObject,
 			}); isDone {
 				return
 			}
-		}
-
-		if err := it.Err(); err != nil {
-			sendResult(CatfileObjectResult{err: err})
-			return
 		}
 	}()
 
 	return &catfileObjectIterator{
 		ch: resultChan,
-	}
+	}, nil
 }
 
-type signallingReader struct {
-	reader    io.Reader
+type synchronizingObject struct {
+	git.Object
+
 	doneCh    chan interface{}
 	closeOnce sync.Once
 }
 
-func (r *signallingReader) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
+func (r *synchronizingObject) Read(p []byte) (int, error) {
+	n, err := r.Object.Read(p)
 	if errors.Is(err, io.EOF) {
 		r.closeOnce.Do(func() {
 			close(r.doneCh)
 		})
 	}
+	return n, err
+}
+
+func (r *synchronizingObject) WriteTo(w io.Writer) (int64, error) {
+	n, err := r.Object.WriteTo(w)
+	r.closeOnce.Do(func() {
+		close(r.doneCh)
+	})
 	return n, err
 }

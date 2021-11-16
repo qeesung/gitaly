@@ -4,13 +4,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/runtime/protoimpl"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // GetOpExtension gets the OperationMsg from a method descriptor
-func GetOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg, error) {
+func GetOpExtension(m *descriptorpb.MethodDescriptorProto) (*gitalypb.OperationMsg, error) {
 	ext, err := getExtension(m.GetOptions(), gitalypb.E_OpType)
 	if err != nil {
 		return nil, err
@@ -19,53 +21,58 @@ func GetOpExtension(m *descriptor.MethodDescriptorProto) (*gitalypb.OperationMsg
 	return ext.(*gitalypb.OperationMsg), nil
 }
 
-// IsInterceptedService returns whether the serivce is intercepted by Praefect.
-func IsInterceptedService(s *descriptor.ServiceDescriptorProto) (bool, error) {
-	return getBoolExtension(s.GetOptions(), gitalypb.E_Intercepted)
+// IsInterceptedMethod returns whether the RPC method is intercepted by Praefect.
+func IsInterceptedMethod(s *descriptorpb.ServiceDescriptorProto, m *descriptorpb.MethodDescriptorProto) (bool, error) {
+	isServiceIntercepted, err := getBoolExtension(s.GetOptions(), gitalypb.E_Intercepted)
+	if err != nil {
+		return false, fmt.Errorf("is service intercepted: %w", err)
+	}
+
+	isMethodIntercepted, err := getBoolExtension(m.GetOptions(), gitalypb.E_InterceptedMethod)
+	if err != nil {
+		return false, fmt.Errorf("is method intercepted: %w", err)
+	}
+
+	return isServiceIntercepted || isMethodIntercepted, nil
 }
 
 // GetRepositoryExtension gets the repository extension from a field descriptor
-func GetRepositoryExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+func GetRepositoryExtension(m *descriptorpb.FieldDescriptorProto) (bool, error) {
 	return getBoolExtension(m.GetOptions(), gitalypb.E_Repository)
 }
 
 // GetStorageExtension gets the storage extension from a field descriptor
-func GetStorageExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+func GetStorageExtension(m *descriptorpb.FieldDescriptorProto) (bool, error) {
 	return getBoolExtension(m.GetOptions(), gitalypb.E_Storage)
 }
 
 // GetTargetRepositoryExtension gets the target_repository extension from a field descriptor
-func GetTargetRepositoryExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+func GetTargetRepositoryExtension(m *descriptorpb.FieldDescriptorProto) (bool, error) {
 	return getBoolExtension(m.GetOptions(), gitalypb.E_TargetRepository)
 }
 
 // GetAdditionalRepositoryExtension gets the target_repository extension from a field descriptor
-func GetAdditionalRepositoryExtension(m *descriptor.FieldDescriptorProto) (bool, error) {
+func GetAdditionalRepositoryExtension(m *descriptorpb.FieldDescriptorProto) (bool, error) {
 	return getBoolExtension(m.GetOptions(), gitalypb.E_AdditionalRepository)
 }
 
-func getBoolExtension(options proto.Message, extension *proto.ExtensionDesc) (bool, error) {
+func getBoolExtension(options proto.Message, extension *protoimpl.ExtensionInfo) (bool, error) {
 	val, err := getExtension(options, extension)
 	if err != nil {
-		if errors.Is(err, proto.ErrMissingExtension) {
+		if errors.Is(err, protoregistry.NotFound) {
 			return false, nil
 		}
 
 		return false, err
 	}
 
-	return *val.(*bool), nil
+	return val.(bool), nil
 }
 
-func getExtension(options proto.Message, extension *proto.ExtensionDesc) (interface{}, error) {
+func getExtension(options proto.Message, extension *protoimpl.ExtensionInfo) (interface{}, error) {
 	if !proto.HasExtension(options, extension) {
-		return nil, fmt.Errorf("protoutil.getExtension %q: %w", extension.TypeDescriptor().FullName(), proto.ErrMissingExtension)
+		return nil, fmt.Errorf("protoutil.getExtension %q: %w", extension.TypeDescriptor().FullName(), protoregistry.NotFound)
 	}
 
-	ext, err := proto.GetExtension(options, extension)
-	if err != nil {
-		return nil, fmt.Errorf("protoutil.getExtension %q: %w", extension.TypeDescriptor().FullName(), err)
-	}
-
-	return ext, nil
+	return proto.GetExtension(options, extension), nil
 }

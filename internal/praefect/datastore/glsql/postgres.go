@@ -4,6 +4,7 @@ package glsql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	// Blank import to enable integration of github.com/lib/pq into database/sql
 	_ "github.com/lib/pq"
@@ -13,14 +14,32 @@ import (
 )
 
 // OpenDB returns connection pool to the database.
-func OpenDB(conf config.DB) (*sql.DB, error) {
+func OpenDB(ctx context.Context, conf config.DB) (*sql.DB, error) {
 	db, err := sql.Open("postgres", conf.ToPQString(false))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, err
+	errChan := make(chan error)
+	go func() {
+		if err := db.PingContext(ctx); err != nil {
+			errChan <- fmt.Errorf("send ping: %w", err)
+		} else {
+			errChan <- nil
+		}
+	}()
+
+	select {
+	// Because of the issue https://github.com/lib/pq/issues/620 we need to handle context
+	// cancellation/timeout by ourselves.
+	case <-ctx.Done():
+		db.Close()
+		return nil, ctx.Err()
+	case err := <-errChan:
+		if err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 
 	return db, nil
@@ -28,9 +47,16 @@ func OpenDB(conf config.DB) (*sql.DB, error) {
 
 // Migrate will apply all pending SQL migrations.
 func Migrate(db *sql.DB, ignoreUnknown bool) (int, error) {
-	migrationSource := &migrate.MemoryMigrationSource{Migrations: migrations.All()}
-	migrate.SetIgnoreUnknown(ignoreUnknown)
-	return migrate.Exec(db, "postgres", migrationSource, migrate.Up)
+	migrationSet := migrate.MigrationSet{
+		IgnoreUnknown: ignoreUnknown,
+		TableName:     migrations.MigrationTableName,
+	}
+
+	migrationSource := &migrate.MemoryMigrationSource{
+		Migrations: migrations.All(),
+	}
+
+	return migrationSet.Exec(db, "postgres", migrationSource, migrate.Up)
 }
 
 // Querier is an abstraction on *sql.DB and *sql.Tx that allows to use their methods without awareness about actual type.

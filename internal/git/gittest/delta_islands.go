@@ -3,7 +3,6 @@ package gittest
 import (
 	"crypto/rand"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 // https://github.com/git/git/blob/master/t/t5320-delta-islands.sh .
 func TestDeltaIslands(t *testing.T, cfg config.Cfg, repoPath string, repack func() error) {
 	// Create blobs that we expect Git to use delta compression on.
-	blob1, err := ioutil.ReadAll(io.LimitReader(rand.Reader, 100000))
+	blob1, err := io.ReadAll(io.LimitReader(rand.Reader, 100000))
 	require.NoError(t, err)
 
 	blob2 := append(blob1, "\nblob 2"...)
@@ -66,7 +65,9 @@ func commitBlob(t *testing.T, cfg config.Cfg, repoPath, ref string, content []by
 }
 
 func deltaBase(t *testing.T, cfg config.Cfg, repoPath string, blobID string) string {
-	catfileOut := ExecStream(t, cfg, strings.NewReader(blobID), "-C", repoPath, "cat-file", "--batch-check=%(deltabase)")
+	catfileOut := ExecOpts(t, cfg, ExecConfig{Stdin: strings.NewReader(blobID)},
+		"-C", repoPath, "cat-file", "--batch-check=%(deltabase)",
+	)
 
 	return chompToString(catfileOut)
 }

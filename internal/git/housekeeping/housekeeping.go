@@ -2,8 +2,8 @@ package housekeeping
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"google.golang.org/grpc/codes"
 )
@@ -22,7 +23,7 @@ const (
 	emptyRefsGracePeriod             = 24 * time.Hour
 	deleteTempFilesOlderThanDuration = 7 * 24 * time.Hour
 	brokenRefsGracePeriod            = 24 * time.Hour
-	minimumDirPerm                   = 0700
+	minimumDirPerm                   = 0o700
 	lockfileGracePeriod              = 15 * time.Minute
 	referenceLockfileGracePeriod     = 1 * time.Hour
 	packedRefsLockGracePeriod        = 1 * time.Hour
@@ -53,7 +54,7 @@ func init() {
 type staleFileFinderFn func(context.Context, string) ([]string, error)
 
 // Perform will perform housekeeping duties on a repository
-func Perform(ctx context.Context, repo *localrepo.Repo) error {
+func Perform(ctx context.Context, repo *localrepo.Repo, txManager transaction.Manager) error {
 	repoPath, err := repo.Path()
 	if err != nil {
 		myLogger(ctx).WithError(err).Warn("housekeeping failed to get repo path")
@@ -106,8 +107,10 @@ func Perform(ctx context.Context, repo *localrepo.Repo) error {
 
 	// TODO: https://gitlab.com/gitlab-org/gitaly/-/issues/3138
 	// This is a temporary code and needs to be removed once it will be run on all repositories at least once.
-	if err := unsetAllConfigsByRegexp(ctx, repo, "^http\\..+\\.extraHeader$"); err != nil {
-		return fmt.Errorf("housekeeping could not unset extreHeaders: %w", err)
+	if err := repo.UnsetMatchingConfig(ctx, "^http\\..+\\.extraHeader$", txManager); err != nil {
+		if !errors.Is(err, git.ErrNotFound) {
+			return fmt.Errorf("housekeeping could not unset extreHeaders: %w", err)
+		}
 	}
 
 	return nil
@@ -310,7 +313,7 @@ func removeRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) error {
 
 	// we never want to delete the actual "refs" directory, so we start the
 	// recursive functions for each subdirectory
-	entries, err := ioutil.ReadDir(repoRefsPath)
+	entries, err := os.ReadDir(repoRefsPath)
 	if err != nil {
 		return err
 	}
@@ -345,7 +348,7 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 		return err
 	}
 
-	entries, err := ioutil.ReadDir(target)
+	entries, err := os.ReadDir(target)
 	switch {
 	case os.IsNotExist(err):
 		return nil // race condition: someone else deleted it first
@@ -371,7 +374,7 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 	}
 
 	// recheck entries now that we have potentially removed some dirs
-	entries, err = ioutil.ReadDir(target)
+	entries, err = os.ReadDir(target)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -386,25 +389,6 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 		return err
 	}
 	optimizeEmptyDirRemovalTotals.Inc()
-
-	return nil
-}
-
-func unsetAllConfigsByRegexp(ctx context.Context, repository *localrepo.Repo, regexp string) error {
-	config := repository.Config()
-
-	configPairs, err := config.GetRegexp(ctx, regexp, git.ConfigGetRegexpOpts{})
-	if err != nil {
-		return fmt.Errorf("get config keys: %w", err)
-	}
-
-	for _, configPair := range configPairs {
-		if err := config.Unset(ctx, configPair.Key, git.ConfigUnsetOpts{
-			All: true,
-		}); err != nil {
-			return fmt.Errorf("unset all: %w", err)
-		}
-	}
 
 	return nil
 }

@@ -10,20 +10,24 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batch, revision, path string, limit, maxSize int64) error {
+func sendTreeEntry(
+	stream gitalypb.CommitService_TreeEntryServer,
+	objectReader catfile.ObjectReader,
+	objectInfoReader catfile.ObjectInfoReader,
+	revision, path string,
+	limit, maxSize int64,
+) error {
 	ctx := stream.Context()
 
-	treeEntry, err := NewTreeEntryFinder(c).FindByRevisionAndPath(ctx, revision, path)
+	treeEntry, err := NewTreeEntryFinder(objectReader, objectInfoReader).FindByRevisionAndPath(ctx, revision, path)
 	if err != nil {
 		return err
 	}
 
 	if treeEntry == nil || len(treeEntry.Oid) == 0 {
-		return status.Errorf(codes.NotFound, "not found: %s", path)
+		return helper.ErrNotFoundf("not found: %s", path)
 	}
 
 	if treeEntry.Type == gitalypb.TreeEntry_COMMIT {
@@ -33,14 +37,14 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batc
 			Oid:  treeEntry.Oid,
 		}
 		if err := stream.Send(response); err != nil {
-			return status.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
+			return helper.ErrUnavailablef("TreeEntry: send: %v", err)
 		}
 
 		return nil
 	}
 
 	if treeEntry.Type == gitalypb.TreeEntry_TREE {
-		treeInfo, err := c.Info(ctx, git.Revision(treeEntry.Oid))
+		treeInfo, err := objectInfoReader.Info(ctx, git.Revision(treeEntry.Oid))
 		if err != nil {
 			return err
 		}
@@ -51,18 +55,17 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batc
 			Size: treeInfo.Size,
 			Mode: treeEntry.Mode,
 		}
-		return helper.DecorateError(codes.Unavailable, stream.Send(response))
+		return helper.ErrUnavailable(stream.Send(response))
 	}
 
-	objectInfo, err := c.Info(ctx, git.Revision(treeEntry.Oid))
+	objectInfo, err := objectInfoReader.Info(ctx, git.Revision(treeEntry.Oid))
 	if err != nil {
-		return status.Errorf(codes.Internal, "TreeEntry: %v", err)
+		return helper.ErrInternalf("TreeEntry: %v", err)
 	}
 
 	if strings.ToLower(treeEntry.Type.String()) != objectInfo.Type {
-		return status.Errorf(
-			codes.Internal,
-			"TreeEntry: mismatched object type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
+		return helper.ErrInternalf(
+			"TreeEntry: mismatched nbject type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
 			treeEntry.Oid, objectInfo.Oid, treeEntry.Type.String(), objectInfo.Type,
 		)
 	}
@@ -70,8 +73,7 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batc
 	dataLength := objectInfo.Size
 
 	if maxSize > 0 && dataLength > maxSize {
-		return status.Errorf(
-			codes.FailedPrecondition,
+		return helper.ErrFailedPreconditionf(
 			"TreeEntry: object size (%d) is bigger than the maximum allowed size (%d)",
 			dataLength, maxSize,
 		)
@@ -88,19 +90,22 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batc
 		Mode: treeEntry.Mode,
 	}
 	if dataLength == 0 {
-		return helper.DecorateError(codes.Unavailable, stream.Send(response))
+		return helper.ErrUnavailable(stream.Send(response))
 	}
 
-	blobObj, err := c.Blob(ctx, git.Revision(objectInfo.Oid))
+	blobObj, err := objectReader.Object(ctx, git.Revision(objectInfo.Oid))
 	if err != nil {
 		return err
+	}
+	if blobObj.Type != "blob" {
+		return fmt.Errorf("blob has unexpected type %q", blobObj.Type)
 	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
 		response.Data = p
 
 		if err := stream.Send(response); err != nil {
-			return status.Errorf(codes.Unavailable, "TreeEntry: send: %v", err)
+			return helper.ErrUnavailablef("TreeEntry: send: %v", err)
 		}
 
 		// Use a new response so we don't send other fields (Size, ...) over and over
@@ -109,13 +114,13 @@ func sendTreeEntry(stream gitalypb.CommitService_TreeEntryServer, c catfile.Batc
 		return nil
 	})
 
-	_, err = io.CopyN(sw, blobObj.Reader, dataLength)
+	_, err = io.CopyN(sw, blobObj, dataLength)
 	return err
 }
 
 func (s *server) TreeEntry(in *gitalypb.TreeEntryRequest, stream gitalypb.CommitService_TreeEntryServer) error {
 	if err := validateRequest(in); err != nil {
-		return status.Errorf(codes.InvalidArgument, "TreeEntry: %v", err)
+		return helper.ErrInvalidArgumentf("TreeEntry: %v", err)
 	}
 
 	repo := s.localrepo(in.GetRepository())
@@ -127,12 +132,17 @@ func (s *server) TreeEntry(in *gitalypb.TreeEntryRequest, stream gitalypb.Commit
 		requestPath = strings.TrimRight(requestPath, "/")
 	}
 
-	c, err := s.catfileCache.BatchProcess(stream.Context(), repo)
+	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
 
-	return sendTreeEntry(stream, c, string(in.GetRevision()), requestPath, in.GetLimit(), in.GetMaxSize())
+	objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+	if err != nil {
+		return err
+	}
+
+	return sendTreeEntry(stream, objectReader, objectInfoReader, string(in.GetRevision()), requestPath, in.GetLimit(), in.GetMaxSize())
 }
 
 func validateRequest(in *gitalypb.TreeEntryRequest) error {

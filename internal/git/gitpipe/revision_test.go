@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
@@ -16,25 +18,11 @@ import (
 func TestRevlist(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	repoProto, _, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	defer cleanup()
+	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-
-	needsObjectTypeFilters := func(t *testing.T) {
-		ctx, cancel := testhelper.Context()
-		defer cancel()
-
-		gitVersion, err := git.CurrentVersion(ctx, git.NewExecCommandFactory(cfg))
-		require.NoError(t, err)
-
-		if !gitVersion.SupportsObjectTypeFilter() {
-			t.Skip("Git does not support object type filters")
-		}
-	}
 
 	for _, tc := range []struct {
 		desc            string
-		precondition    func(t *testing.T)
 		revisions       []string
 		options         []RevlistOption
 		expectedResults []RevisionResult
@@ -347,8 +335,7 @@ func TestRevlist(t *testing.T) {
 			},
 		},
 		{
-			desc:         "tree with blob object type filter",
-			precondition: needsObjectTypeFilters,
+			desc: "tree with blob object type filter",
 			revisions: []string{
 				"79d5f98270ad677c86a7e1ab2baa922958565135",
 			},
@@ -369,8 +356,7 @@ func TestRevlist(t *testing.T) {
 			},
 		},
 		{
-			desc:         "tree with tag object type filter",
-			precondition: needsObjectTypeFilters,
+			desc: "tree with tag object type filter",
 			revisions: []string{
 				"--all",
 			},
@@ -385,8 +371,7 @@ func TestRevlist(t *testing.T) {
 			},
 		},
 		{
-			desc:         "tree with commit object type filter",
-			precondition: needsObjectTypeFilters,
+			desc: "tree with commit object type filter",
 			revisions: []string{
 				"79d5f98270ad677c86a7e1ab2baa922958565135",
 			},
@@ -399,8 +384,7 @@ func TestRevlist(t *testing.T) {
 			},
 		},
 		{
-			desc:         "tree with commit object type filter",
-			precondition: needsObjectTypeFilters,
+			desc: "tree with commit object type filter",
 			revisions: []string{
 				"^refs/heads/master~",
 				"refs/heads/master",
@@ -415,8 +399,7 @@ func TestRevlist(t *testing.T) {
 			},
 		},
 		{
-			desc:         "tree with object type and blob size filter",
-			precondition: needsObjectTypeFilters,
+			desc: "tree with object type and blob size filter",
 			revisions: []string{
 				"79d5f98270ad677c86a7e1ab2baa922958565135",
 			},
@@ -446,12 +429,55 @@ func TestRevlist(t *testing.T) {
 			},
 			expectedErr: errors.New("rev-list pipeline command: exit status 128"),
 		},
+		{
+			desc: "skip everything",
+			revisions: []string{
+				"79d5f98270ad677c86a7e1ab2baa922958565135",
+			},
+			options: []RevlistOption{
+				WithObjects(),
+				WithBlobLimit(10),
+				WithObjectTypeFilter(ObjectTypeBlob),
+				WithSkipRevlistResult(func(*RevisionResult) bool { return true }),
+			},
+		},
+		{
+			desc: "skip nothing",
+			revisions: []string{
+				"79d5f98270ad677c86a7e1ab2baa922958565135",
+			},
+			options: []RevlistOption{
+				WithObjects(),
+				WithBlobLimit(10),
+				WithObjectTypeFilter(ObjectTypeBlob),
+				WithSkipRevlistResult(func(*RevisionResult) bool { return false }),
+			},
+			expectedResults: []RevisionResult{
+				{OID: "0fb47f093f769008049a0b0976ac3fa6d6125033", ObjectName: []byte("hotfix-1.txt")},
+				{OID: "4ae6c5e14452a35d04156277ae63e8356eb17cae", ObjectName: []byte("hotfix-2.txt")},
+				{OID: "b988ffed90cb6a9b7f98a3686a933edb3c5d70c0", ObjectName: []byte("iso8859.txt")},
+			},
+		},
+		{
+			desc: "skip one",
+			revisions: []string{
+				"79d5f98270ad677c86a7e1ab2baa922958565135",
+			},
+			options: []RevlistOption{
+				WithObjects(),
+				WithBlobLimit(10),
+				WithObjectTypeFilter(ObjectTypeBlob),
+				WithSkipRevlistResult(func(r *RevisionResult) bool {
+					return string(r.ObjectName) == "hotfix-2.txt"
+				}),
+			},
+			expectedResults: []RevisionResult{
+				{OID: "0fb47f093f769008049a0b0976ac3fa6d6125033", ObjectName: []byte("hotfix-1.txt")},
+				{OID: "b988ffed90cb6a9b7f98a3686a933edb3c5d70c0", ObjectName: []byte("iso8859.txt")},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			if tc.precondition != nil {
-				tc.precondition(t)
-			}
-
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
@@ -479,8 +505,8 @@ func TestForEachRef(t *testing.T) {
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	readRefs := func(t *testing.T, repo *localrepo.Repo, patterns ...string) []RevisionResult {
-		it := ForEachRef(ctx, repo, patterns)
+	readRefs := func(t *testing.T, repo *localrepo.Repo, patterns []string, opts ...ForEachRefOption) []RevisionResult {
+		it := ForEachRef(ctx, repo, patterns, opts...)
 
 		var results []RevisionResult
 		for it.Next() {
@@ -508,11 +534,11 @@ func TestForEachRef(t *testing.T) {
 				ObjectName: []byte("refs/heads/master"),
 				OID:        revisions["refs/heads/master"],
 			},
-		}, readRefs(t, repo, "refs/heads/master"))
+		}, readRefs(t, repo, []string{"refs/heads/master"}))
 	})
 
 	t.Run("unqualified branch name", func(t *testing.T) {
-		require.Nil(t, readRefs(t, repo, "master"))
+		require.Nil(t, readRefs(t, repo, []string{"master"}))
 	})
 
 	t.Run("multiple branches", func(t *testing.T) {
@@ -525,11 +551,11 @@ func TestForEachRef(t *testing.T) {
 				ObjectName: []byte("refs/heads/master"),
 				OID:        revisions["refs/heads/master"],
 			},
-		}, readRefs(t, repo, "refs/heads/master", "refs/heads/feature"))
+		}, readRefs(t, repo, []string{"refs/heads/master", "refs/heads/feature"}))
 	})
 
 	t.Run("branches pattern", func(t *testing.T) {
-		refs := readRefs(t, repo, "refs/heads/*")
+		refs := readRefs(t, repo, []string{"refs/heads/*"})
 		require.Greater(t, len(refs), 90)
 
 		require.Subset(t, refs, []RevisionResult{
@@ -544,212 +570,104 @@ func TestForEachRef(t *testing.T) {
 		})
 	})
 
+	t.Run("tag with format", func(t *testing.T) {
+		refs := readRefs(t, repo, []string{"refs/tags/v1.0.0"},
+			WithForEachRefFormat("%(objectname) tag\n%(*objectname) peeled"),
+		)
+
+		require.Equal(t, refs, []RevisionResult{
+			{
+				ObjectName: []byte("tag"),
+				OID:        "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			},
+			{
+				ObjectName: []byte("peeled"),
+				OID:        "6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9",
+			},
+		})
+	})
+
 	t.Run("multiple patterns", func(t *testing.T) {
-		refs := readRefs(t, repo, "refs/heads/*", "refs/tags/*")
+		refs := readRefs(t, repo, []string{"refs/heads/*", "refs/tags/*"})
 		require.Greater(t, len(refs), 90)
 	})
 
 	t.Run("nonexisting branch", func(t *testing.T) {
-		require.Nil(t, readRefs(t, repo, "refs/heads/idontexist"))
+		require.Nil(t, readRefs(t, repo, []string{"refs/heads/idontexist"}))
 	})
 
 	t.Run("nonexisting pattern", func(t *testing.T) {
-		require.Nil(t, readRefs(t, repo, "refs/idontexist/*"))
+		require.Nil(t, readRefs(t, repo, []string{"refs/idontexist/*"}))
 	})
 }
 
-func TestRevisionFilter(t *testing.T) {
+func TestForEachRef_options(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
 	for _, tc := range []struct {
-		desc            string
-		input           []RevisionResult
-		filter          func(RevisionResult) bool
-		expectedResults []RevisionResult
-		expectedErr     error
+		// prepare is a function that prepares a repository and returns an oid to match on
+		prepare  func(repoPath string, cfg config.Cfg) string
+		desc     string
+		options  []ForEachRefOption
+		refnames []string
 	}{
 		{
-			desc: "all accepted",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
+			desc: "with limit",
+			prepare: func(repoPath string, cfg config.Cfg) string {
+				oid := string(gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage(t.Name())))
+
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-1", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-2", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-3", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-4", oid)
+
+				return oid
 			},
-			filter: func(RevisionResult) bool {
-				return true
+			options: []ForEachRefOption{
+				WithCount(2),
 			},
-			expectedResults: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
+			refnames: []string{
+				"refs/heads/branch-1",
+				"refs/heads/branch-2",
 			},
 		},
 		{
-			desc: "all filtered",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
+			desc: "with sort key",
+			prepare: func(repoPath string, cfg config.Cfg) string {
+				oid := string(gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage(t.Name())))
+
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-b", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-a", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-d", oid)
+				gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/branch-c", oid)
+
+				return oid
 			},
-			filter: func(RevisionResult) bool {
-				return false
+			options: []ForEachRefOption{
+				WithSortField("refname"),
 			},
-			expectedResults: nil,
-		},
-		{
-			desc: "errors always get through",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{err: errors.New("foobar")},
-				{OID: "c"},
-			},
-			filter: func(RevisionResult) bool {
-				return false
-			},
-			expectedErr: errors.New("foobar"),
-		},
-		{
-			desc: "subset filtered",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-			filter: func(r RevisionResult) bool {
-				return r.OID == "b"
-			},
-			expectedResults: []RevisionResult{
-				{OID: "b"},
+			refnames: []string{
+				"refs/heads/branch-a",
+				"refs/heads/branch-b",
+				"refs/heads/branch-c",
+				"refs/heads/branch-d",
 			},
 		},
 	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
 
-			it := RevisionFilter(ctx, NewRevisionIterator(tc.input), tc.filter)
+		cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+		oid := tc.prepare(repoPath, cfg)
 
-			var results []RevisionResult
-			for it.Next() {
-				results = append(results, it.Result())
-			}
+		forEachRef := ForEachRef(ctx, repo, nil, append(tc.options, WithPointsAt(oid))...)
 
-			require.Equal(t, tc.expectedErr, it.Err())
-			require.Equal(t, tc.expectedResults, results)
-		})
-	}
-}
+		var i int
+		for forEachRef.Next() {
+			assert.Equal(t, tc.refnames[i], string(forEachRef.Result().ObjectName))
+			i++
+		}
 
-func TestRevisionTransform(t *testing.T) {
-	for _, tc := range []struct {
-		desc            string
-		input           []RevisionResult
-		transform       func(RevisionResult) []RevisionResult
-		expectedResults []RevisionResult
-		expectedErr     error
-	}{
-		{
-			desc: "identity mapping",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-			transform: func(r RevisionResult) []RevisionResult {
-				return []RevisionResult{r}
-			},
-			expectedResults: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-		},
-		{
-			desc: "strip object",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-			transform: func(r RevisionResult) []RevisionResult {
-				if r.OID == "b" {
-					return []RevisionResult{}
-				}
-				return []RevisionResult{r}
-			},
-			expectedResults: []RevisionResult{
-				{OID: "a"},
-				{OID: "c"},
-			},
-		},
-		{
-			desc: "replace items",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-			transform: func(RevisionResult) []RevisionResult {
-				return []RevisionResult{{OID: "x"}}
-			},
-			expectedResults: []RevisionResult{
-				{OID: "x"},
-				{OID: "x"},
-				{OID: "x"},
-			},
-		},
-		{
-			desc: "add additional items",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{OID: "c"},
-			},
-			transform: func(r RevisionResult) []RevisionResult {
-				return []RevisionResult{
-					r,
-					{OID: r.OID + "x"},
-				}
-			},
-			expectedResults: []RevisionResult{
-				{OID: "a"},
-				{OID: "ax"},
-				{OID: "b"},
-				{OID: "bx"},
-				{OID: "c"},
-				{OID: "cx"},
-			},
-		},
-		{
-			desc: "error handling",
-			input: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-				{err: errors.New("foobar")},
-				{OID: "c"},
-			},
-			transform: func(r RevisionResult) []RevisionResult {
-				return []RevisionResult{r}
-			},
-			expectedResults: []RevisionResult{
-				{OID: "a"},
-				{OID: "b"},
-			},
-			expectedErr: errors.New("foobar"),
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := testhelper.Context()
-			defer cancel()
-
-			it := RevisionTransform(ctx, NewRevisionIterator(tc.input), tc.transform)
-
-			var results []RevisionResult
-			for it.Next() {
-				results = append(results, it.Result())
-			}
-
-			require.Equal(t, tc.expectedErr, it.Err())
-			require.Equal(t, tc.expectedResults, results)
-		})
+		assert.Equal(t, i, len(tc.refnames))
 	}
 }

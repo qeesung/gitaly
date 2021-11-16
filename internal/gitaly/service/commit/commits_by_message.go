@@ -3,10 +3,10 @@ package commit
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 type commitsByMessageSender struct {
@@ -53,12 +53,11 @@ func (s *server) commitsByMessage(in *gitalypb.CommitsByMessageRequest, stream g
 
 	revision := in.GetRevision()
 	if len(revision) == 0 {
-		var err error
-
-		revision, err = defaultBranchName(ctx, repo)
+		defaultBranch, err := repo.GetDefaultBranch(ctx)
 		if err != nil {
 			return err
 		}
+		revision = []byte(defaultBranch)
 	}
 
 	var paths []string

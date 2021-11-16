@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
@@ -15,16 +15,14 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-var (
-	requests = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "service",
-			Name:      "client_requests_total",
-			Help:      "Counter of client requests received by client, call_site, auth version, response code and deadline_type",
-		},
-		[]string{"client_name", "grpc_service", "call_site", "auth_version", "grpc_code", "deadline_type"},
-	)
+var requests = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "gitaly",
+		Subsystem: "service",
+		Name:      "client_requests_total",
+		Help:      "Counter of client requests received by client, call_site, auth version, response code and deadline_type",
+	},
+	[]string{"client_name", "grpc_service", "call_site", "auth_version", "grpc_code", "deadline_type"},
 )
 
 type metadataTags struct {
@@ -45,6 +43,9 @@ const AuthVersionKey = "grpc.meta.auth_version"
 
 // DeadlineTypeKey is the key used in ctx_tags to store the deadline type
 const DeadlineTypeKey = "grpc.meta.deadline_type"
+
+// MethodTypeKey is one of "unary", "client_stream", "server_stream", "bidi_stream"
+const MethodTypeKey = "grpc.meta.method_type"
 
 // RemoteIPKey is the key used in ctx_tags to store the remote_ip
 const RemoteIPKey = "remote_ip"
@@ -73,7 +74,7 @@ func getFromMD(md metadata.MD, header string) string {
 // addMetadataTags extracts metadata from the connection headers and add it to the
 // ctx_tags, if it is set. Returns values appropriate for use with prometheus labels,
 // using `unknown` if a value is not set
-func addMetadataTags(ctx context.Context) metadataTags {
+func addMetadataTags(ctx context.Context, grpcMethodType string) metadataTags {
 	metaTags := metadataTags{
 		clientName:   unknownValue,
 		callSite:     unknownValue,
@@ -86,7 +87,7 @@ func addMetadataTags(ctx context.Context) metadataTags {
 		return metaTags
 	}
 
-	tags := grpc_ctxtags.Extract(ctx)
+	tags := grpcmwtags.Extract(ctx)
 
 	metadata := getFromMD(md, "call_site")
 	if metadata != "" {
@@ -114,8 +115,9 @@ func addMetadataTags(ctx context.Context) metadataTags {
 		}
 	}
 
-	// Set the deadline type in the logs
+	// Set the deadline and method types in the logs
 	tags.Set(DeadlineTypeKey, metaTags.deadlineType)
+	tags.Set(MethodTypeKey, grpcMethodType)
 
 	authInfo, _ := gitalyauth.ExtractAuthInfo(ctx)
 	if authInfo != nil {
@@ -155,6 +157,15 @@ func extractServiceName(fullMethodName string) string {
 	return unknownValue
 }
 
+func streamRPCType(info *grpc.StreamServerInfo) string {
+	if info.IsClientStream && !info.IsServerStream {
+		return "client_stream"
+	} else if !info.IsClientStream && info.IsServerStream {
+		return "server_stream"
+	}
+	return "bidi_stream"
+}
+
 func reportWithPrometheusLabels(metaTags metadataTags, fullMethod string, err error) {
 	grpcCode := helper.GrpcCode(err)
 	serviceName := extractServiceName(fullMethod)
@@ -167,12 +178,12 @@ func reportWithPrometheusLabels(metaTags metadataTags, fullMethod string, err er
 		grpcCode.String(),     // grpc_code
 		metaTags.deadlineType, // deadline_type
 	).Inc()
-	grpc_prometheus.WithConstLabels(prometheus.Labels{"deadline_type": metaTags.deadlineType})
+	grpcprometheus.WithConstLabels(prometheus.Labels{"deadline_type": metaTags.deadlineType})
 }
 
 // UnaryInterceptor returns a Unary Interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	metaTags := addMetadataTags(ctx)
+	metaTags := addMetadataTags(ctx, "unary")
 
 	res, err := handler(ctx, req)
 
@@ -184,7 +195,7 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 // StreamInterceptor returns a Stream Interceptor
 func StreamInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	ctx := stream.Context()
-	metaTags := addMetadataTags(ctx)
+	metaTags := addMetadataTags(ctx, streamRPCType(info))
 
 	err := handler(srv, stream)
 

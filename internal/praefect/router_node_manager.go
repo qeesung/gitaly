@@ -35,22 +35,22 @@ func NewNodeManagerRouter(mgr nodes.Manager, rs datastore.RepositoryStore) Route
 	return &nodeManagerRouter{mgr: mgr, rs: rs}
 }
 
-func (r *nodeManagerRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RouterNode, error) {
+func (r *nodeManagerRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RepositoryAccessorRoute, error) {
 	if forcePrimary {
 		shard, err := r.mgr.GetShard(ctx, virtualStorage)
 		if err != nil {
-			return RouterNode{}, fmt.Errorf("get shard: %w", err)
+			return RepositoryAccessorRoute{}, fmt.Errorf("get shard: %w", err)
 		}
 
-		return toRouterNode(shard.Primary), nil
+		return RepositoryAccessorRoute{ReplicaPath: relativePath, Node: toRouterNode(shard.Primary)}, nil
 	}
 
 	node, err := r.mgr.GetSyncedNode(ctx, virtualStorage, relativePath)
 	if err != nil {
-		return RouterNode{}, fmt.Errorf("get synced node: %w", err)
+		return RepositoryAccessorRoute{}, fmt.Errorf("get synced node: %w", err)
 	}
 
-	return toRouterNode(node), nil
+	return RepositoryAccessorRoute{ReplicaPath: relativePath, Node: toRouterNode(node)}, nil
 }
 
 func (r *nodeManagerRouter) RouteStorageAccessor(ctx context.Context, virtualStorage string) (RouterNode, error) {
@@ -74,13 +74,17 @@ func (r *nodeManagerRouter) RouteStorageMutator(ctx context.Context, virtualStor
 	}, nil
 }
 
-func (r *nodeManagerRouter) RouteRepositoryMutator(ctx context.Context, virtualStorage, relativePath string) (RepositoryMutatorRoute, error) {
+func (r *nodeManagerRouter) RouteRepositoryMutator(ctx context.Context, virtualStorage, relativePath, additionalRelativePath string) (RepositoryMutatorRoute, error) {
 	shard, err := r.mgr.GetShard(ctx, virtualStorage)
 	if err != nil {
 		return RepositoryMutatorRoute{}, fmt.Errorf("get shard: %w", err)
 	}
 
-	consistentStorages, err := r.rs.GetConsistentStorages(ctx, virtualStorage, relativePath)
+	// The replica path is ignored as Rails' tests are the only user of NodeManagerRouter. The tests don't
+	// set up a database, so the RepositoryStore here is always a mock. The mock doesn't know about the replica
+	// paths of repositories and thus returns an empty string. This breaks the tests. Instead, we'll just keep
+	// using the relative path in NodeManagerRouter.
+	_, consistentStorages, err := r.rs.GetConsistentStorages(ctx, virtualStorage, relativePath)
 	if err != nil && !errors.As(err, new(commonerr.RepositoryNotFoundError)) {
 		return RepositoryMutatorRoute{}, fmt.Errorf("consistent storages: %w", err)
 	}
@@ -111,15 +115,17 @@ func (r *nodeManagerRouter) RouteRepositoryMutator(ctx context.Context, virtualS
 	}
 
 	return RepositoryMutatorRoute{
-		Primary:            toRouterNode(shard.Primary),
-		Secondaries:        toRouterNodes(participatingSecondaries),
-		ReplicationTargets: replicationTargets,
+		ReplicaPath:           relativePath,
+		AdditionalReplicaPath: additionalRelativePath,
+		Primary:               toRouterNode(shard.Primary),
+		Secondaries:           toRouterNodes(participatingSecondaries),
+		ReplicationTargets:    replicationTargets,
 	}, nil
 }
 
 // RouteRepositoryCreation includes healthy secondaries in the transaction and sets the unhealthy secondaries as
 // replication targets. The virtual storage's primary acts as the primary for every repository.
-func (r *nodeManagerRouter) RouteRepositoryCreation(ctx context.Context, virtualStorage string) (RepositoryMutatorRoute, error) {
+func (r *nodeManagerRouter) RouteRepositoryCreation(ctx context.Context, virtualStorage, relativePath string) (RepositoryMutatorRoute, error) {
 	shard, err := r.mgr.GetShard(ctx, virtualStorage)
 	if err != nil {
 		return RepositoryMutatorRoute{}, fmt.Errorf("get shard: %w", err)
@@ -139,6 +145,7 @@ func (r *nodeManagerRouter) RouteRepositoryCreation(ctx context.Context, virtual
 
 	return RepositoryMutatorRoute{
 		Primary:            toRouterNode(shard.Primary),
+		ReplicaPath:        relativePath,
 		Secondaries:        secondaries,
 		ReplicationTargets: replicationTargets,
 	}, nil

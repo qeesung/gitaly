@@ -88,6 +88,7 @@ func NewPostgresListener(logger logrus.FieldLogger, opts PostgresListenerOpts, h
 func (pgl *PostgresListener) connect() error {
 	firstConnectionAttempt := true
 	connectErrChan := make(chan error, 1)
+	listenerAssignedChan := make(chan struct{})
 
 	connectionLifecycle := func(eventType pq.ListenerEventType, err error) {
 		pgl.reconnectTotal.WithLabelValues(listenerEventTypeToString(eventType)).Inc()
@@ -107,8 +108,14 @@ func (pgl *PostgresListener) connect() error {
 			// once the connection is established we can be sure that the connection
 			// address is correct and all other errors could be considered as
 			// a temporary, so listener will try to re-connect and proceed.
-			pgl.async(pgl.ping)
-			pgl.async(pgl.handleNotifications)
+			pgl.async(func() {
+				<-listenerAssignedChan
+				pgl.ping()
+			})
+			pgl.async(func() {
+				<-listenerAssignedChan
+				pgl.handleNotifications()
+			})
 
 			close(connectErrChan) // to signal the connection was established without troubles
 			firstConnectionAttempt = false
@@ -123,6 +130,7 @@ func (pgl *PostgresListener) connect() error {
 	}
 
 	pgl.listener = pq.NewListener(pgl.opts.Addr, pgl.opts.MinReconnectInterval, pgl.opts.MaxReconnectInterval, connectionLifecycle)
+	close(listenerAssignedChan)
 
 	listenErrChan := make(chan error, 1)
 	pgl.async(func() {
@@ -140,6 +148,7 @@ func (pgl *PostgresListener) connect() error {
 	return <-listenErrChan
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (pgl *PostgresListener) Close() error {
 	defer func() {
 		close(pgl.closed)
@@ -217,10 +226,12 @@ func (pgl *PostgresListener) async(f func()) {
 	}()
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (pgl *PostgresListener) Describe(descs chan<- *promclient.Desc) {
 	promclient.DescribeByCollect(pgl, descs)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (pgl *PostgresListener) Collect(metrics chan<- promclient.Metric) {
 	pgl.reconnectTotal.Collect(metrics)
 }

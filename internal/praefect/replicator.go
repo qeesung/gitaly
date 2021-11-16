@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
@@ -55,12 +56,12 @@ type defaultReplicator struct {
 func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.ReplicationEvent, sourceCC, targetCC *grpc.ClientConn) error {
 	targetRepository := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	sourceRepository := &gitalypb.Repository{
 		StorageName:  event.Job.SourceNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	logger := dr.log.WithFields(logrus.Fields{
@@ -70,7 +71,7 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 		logWithCorrID:            correlation.ExtractFromContext(ctx),
 	})
 
-	generation, err := dr.rs.GetReplicatedGeneration(ctx, event.Job.VirtualStorage, event.Job.RelativePath, event.Job.SourceNodeStorage, event.Job.TargetNodeStorage)
+	generation, err := dr.rs.GetReplicatedGeneration(ctx, event.Job.RepositoryID, event.Job.SourceNodeStorage, event.Job.TargetNodeStorage)
 	if err != nil {
 		// Later generation might have already been replicated by an earlier replication job. If that's the case,
 		// we'll simply acknowledge the job. This also prevents accidental downgrades from happening.
@@ -95,11 +96,7 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 		Repository: targetRepository,
 	}); err != nil {
 		if errors.Is(err, repository.ErrInvalidSourceRepository) {
-			if err := dr.rs.DeleteInvalidRepository(ctx,
-				event.Job.VirtualStorage,
-				event.Job.RelativePath,
-				event.Job.SourceNodeStorage,
-			); err != nil {
+			if err := dr.rs.DeleteInvalidRepository(ctx, event.Job.RepositoryID, event.Job.SourceNodeStorage); err != nil {
 				return fmt.Errorf("delete invalid repository: %w", err)
 			}
 
@@ -136,9 +133,9 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 
 	if generation != datastore.GenerationUnknown {
 		return dr.rs.SetGeneration(ctx,
-			event.Job.VirtualStorage,
-			event.Job.RelativePath,
+			event.Job.RepositoryID,
 			event.Job.TargetNodeStorage,
+			event.Job.RelativePath,
 			generation,
 		)
 	}
@@ -149,7 +146,7 @@ func (dr defaultReplicator) Replicate(ctx context.Context, event datastore.Repli
 func (dr defaultReplicator) Destroy(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
@@ -160,21 +157,9 @@ func (dr defaultReplicator) Destroy(ctx context.Context, event datastore.Replica
 		return err
 	}
 
-	var deleteFunc func(context.Context, string, string, string) error
-	switch event.Job.Change {
-	case datastore.DeleteRepo:
-		deleteFunc = func(ctx context.Context, virtualStorage, relativePath, storage string) error {
-			return dr.rs.DeleteRepository(ctx, virtualStorage, relativePath, []string{storage})
-		}
-	case datastore.DeleteReplica:
-		deleteFunc = dr.rs.DeleteReplica
-	default:
-		return fmt.Errorf("unknown change type: %q", event.Job.Change)
-	}
-
 	// If the repository was deleted but this fails, we'll know by the repository not having a record in the virtual
 	// storage but having one for the storage. We can later retry the deletion.
-	if err := deleteFunc(ctx, event.Job.VirtualStorage, event.Job.RelativePath, event.Job.TargetNodeStorage); err != nil {
+	if err := dr.rs.DeleteReplica(ctx, event.Job.RepositoryID, event.Job.TargetNodeStorage); err != nil {
 		if !errors.Is(err, datastore.ErrNoRowsAffected) {
 			return err
 		}
@@ -232,7 +217,7 @@ func (dr defaultReplicator) Rename(ctx context.Context, event datastore.Replicat
 func (dr defaultReplicator) GarbageCollect(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	createBitmap, err := event.Job.Params.GetBool("CreateBitmap")
@@ -261,7 +246,7 @@ func (dr defaultReplicator) GarbageCollect(ctx context.Context, event datastore.
 func (dr defaultReplicator) RepackIncremental(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
@@ -276,7 +261,7 @@ func (dr defaultReplicator) RepackIncremental(ctx context.Context, event datasto
 func (dr defaultReplicator) Cleanup(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
@@ -291,7 +276,7 @@ func (dr defaultReplicator) Cleanup(ctx context.Context, event datastore.Replica
 func (dr defaultReplicator) PackRefs(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	allRefs, err := event.Job.Params.GetBool("AllRefs")
@@ -314,7 +299,7 @@ func (dr defaultReplicator) PackRefs(ctx context.Context, event datastore.Replic
 func (dr defaultReplicator) WriteCommitGraph(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	val, found := event.Job.Params["SplitStrategy"]
@@ -350,7 +335,7 @@ func (dr defaultReplicator) WriteCommitGraph(ctx context.Context, event datastor
 func (dr defaultReplicator) MidxRepack(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
@@ -367,7 +352,7 @@ func (dr defaultReplicator) MidxRepack(ctx context.Context, event datastore.Repl
 func (dr defaultReplicator) OptimizeRepository(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	repoSvcClient := gitalypb.NewRepositoryServiceClient(targetCC)
@@ -384,7 +369,7 @@ func (dr defaultReplicator) OptimizeRepository(ctx context.Context, event datast
 func (dr defaultReplicator) RepackFull(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	targetRepo := &gitalypb.Repository{
 		StorageName:  event.Job.TargetNodeStorage,
-		RelativePath: event.Job.RelativePath,
+		RelativePath: event.Job.ReplicaPath,
 	}
 
 	createBitmap, err := event.Job.Params.GetBool("CreateBitmap")
@@ -406,19 +391,19 @@ func (dr defaultReplicator) RepackFull(ctx context.Context, event datastore.Repl
 
 // ReplMgr is a replication manager for handling replication jobs
 type ReplMgr struct {
-	log                *logrus.Entry
-	queue              datastore.ReplicationEventQueue
-	hc                 HealthChecker
-	nodes              NodeSet
-	virtualStorages    []string   // replicas this replicator is responsible for
-	replicator         Replicator // does the actual replication logic
-	replInFlightMetric *prometheus.GaugeVec
-	replLatencyMetric  prommetrics.HistogramVec
-	replDelayMetric    prommetrics.HistogramVec
-	replJobTimeout     time.Duration
-	dequeueBatchSize   uint
-	// allowlist contains the project names of the repos we wish to replicate
-	allowlist map[string]struct{}
+	log                              *logrus.Entry
+	queue                            datastore.ReplicationEventQueue
+	hc                               HealthChecker
+	nodes                            NodeSet
+	storageNamesByVirtualStorage     map[string][]string // replicas this replicator is responsible for
+	replicator                       Replicator          // does the actual replication logic
+	replInFlightMetric               *prometheus.GaugeVec
+	replLatencyMetric                prommetrics.HistogramVec
+	replDelayMetric                  prommetrics.HistogramVec
+	replJobTimeout                   time.Duration
+	dequeueBatchSize                 uint
+	parallelStorageProcessingWorkers uint
+	repositoryStore                  datastore.RepositoryStore
 }
 
 // ReplMgrOpt allows a replicator to be configured with additional options
@@ -445,57 +430,62 @@ func WithDequeueBatchSize(size uint) func(*ReplMgr) {
 	}
 }
 
+// WithParallelStorageProcessingWorkers configures the number of workers used to process replication
+// events per virtual storage.
+func WithParallelStorageProcessingWorkers(n uint) func(*ReplMgr) {
+	return func(m *ReplMgr) {
+		m.parallelStorageProcessingWorkers = n
+	}
+}
+
 // NewReplMgr initializes a replication manager with the provided dependencies
 // and options
-func NewReplMgr(log *logrus.Entry, virtualStorages []string, queue datastore.ReplicationEventQueue, rs datastore.RepositoryStore, hc HealthChecker, nodes NodeSet, opts ...ReplMgrOpt) ReplMgr {
+func NewReplMgr(log *logrus.Entry, storageNames map[string][]string, queue datastore.ReplicationEventQueue, rs datastore.RepositoryStore, hc HealthChecker, nodes NodeSet, opts ...ReplMgrOpt) ReplMgr {
 	r := ReplMgr{
-		log:             log.WithField("component", "replication_manager"),
-		queue:           queue,
-		allowlist:       map[string]struct{}{},
-		replicator:      defaultReplicator{rs: rs, log: log.WithField("component", "replicator")},
-		virtualStorages: virtualStorages,
-		hc:              hc,
-		nodes:           nodes,
+		log:                          log.WithField("component", "replication_manager"),
+		queue:                        queue,
+		replicator:                   defaultReplicator{rs: rs, log: log.WithField("component", "replicator")},
+		storageNamesByVirtualStorage: storageNames,
+		hc:                           hc,
+		nodes:                        nodes,
 		replInFlightMetric: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "gitaly_praefect_replication_jobs",
 				Help: "Number of replication jobs in flight.",
 			}, []string{"virtual_storage", "gitaly_storage", "change_type"},
 		),
-		replLatencyMetric: prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
-		replDelayMetric:   prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
-		dequeueBatchSize:  config.DefaultReplicationConfig().BatchSize,
+		replLatencyMetric:                prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
+		replDelayMetric:                  prometheus.NewHistogramVec(prometheus.HistogramOpts{}, []string{"type"}),
+		dequeueBatchSize:                 config.DefaultReplicationConfig().BatchSize,
+		parallelStorageProcessingWorkers: 1,
+		repositoryStore:                  rs,
 	}
 
 	for _, opt := range opts {
 		opt(&r)
 	}
 
+	for virtual, sn := range storageNames {
+		if len(sn) < int(r.parallelStorageProcessingWorkers) {
+			r.log.Infof("parallel processing workers decreased from %d "+
+				"configured with config to %d according to minumal amount of "+
+				"storages in the virtual storage %q",
+				r.parallelStorageProcessingWorkers, len(storageNames), virtual,
+			)
+			r.parallelStorageProcessingWorkers = uint(len(storageNames))
+		}
+	}
 	return r
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (r ReplMgr) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(r, ch)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (r ReplMgr) Collect(ch chan<- prometheus.Metric) {
 	r.replInFlightMetric.Collect(ch)
-}
-
-// WithAllowlist will configure a allowlist for repos to allow replication
-func WithAllowlist(allowlistedRepos []string) ReplMgrOpt {
-	return func(r *ReplMgr) {
-		for _, repo := range allowlistedRepos {
-			r.allowlist[repo] = struct{}{}
-		}
-	}
-}
-
-// WithReplicator overrides the default replicator
-func WithReplicator(r Replicator) ReplMgrOpt {
-	return func(rm *ReplMgr) {
-		rm.replicator = r
-	}
 }
 
 const (
@@ -504,31 +494,35 @@ const (
 	logWithVirtualStorage = "virtual_storage"
 )
 
-type backoff func() time.Duration
-type backoffReset func()
-
-// BackoffFunc is a function that n turn provides a pair of functions backoff and backoffReset
-type BackoffFunc func() (backoff, backoffReset)
-
-// ExpBackoffFunc generates a backoffFunc based off of start and max time durations
-func ExpBackoffFunc(start time.Duration, max time.Duration) BackoffFunc {
-	return func() (backoff, backoffReset) {
-		const factor = 2
-		duration := start
-
-		return func() time.Duration {
-				defer func() {
-					duration *= time.Duration(factor)
-					if (duration) >= max {
-						duration = max
-					}
-				}()
-				return duration
-			}, func() {
-				duration = start
-			}
-	}
+// ExpBackoffFactory creates exponentially growing durations.
+type ExpBackoffFactory struct {
+	Start, Max time.Duration
 }
+
+// Create returns a backoff function based on Start and Max time durations.
+func (b ExpBackoffFactory) Create() (Backoff, BackoffReset) {
+	const factor = 2
+	duration := b.Start
+
+	return func() time.Duration {
+			defer func() {
+				duration *= time.Duration(factor)
+				if (duration) >= b.Max {
+					duration = b.Max
+				}
+			}()
+			return duration
+		}, func() {
+			duration = b.Start
+		}
+}
+
+type (
+	// Backoff returns next backoff.
+	Backoff func() time.Duration
+	// BackoffReset resets backoff provider.
+	BackoffReset func()
+)
 
 func getCorrelationID(params datastore.Params) string {
 	correlationID := ""
@@ -538,21 +532,26 @@ func getCorrelationID(params datastore.Params) string {
 	return correlationID
 }
 
+// BackoffFactory creates backoff function and a reset pair for it.
+type BackoffFactory interface {
+	// Create return new backoff provider and a reset function for it.
+	Create() (Backoff, BackoffReset)
+}
+
 // ProcessBacklog starts processing of queued jobs.
 // It will be processing jobs until ctx is Done. ProcessBacklog
 // blocks until all backlog processing goroutines have returned
-func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFunc) {
+func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFactory) {
 	var wg sync.WaitGroup
+	defer wg.Wait()
 
-	for _, virtualStorage := range r.virtualStorages {
+	for virtualStorage := range r.storageNamesByVirtualStorage {
 		wg.Add(1)
 		go func(virtualStorage string) {
 			defer wg.Done()
 			r.processBacklog(ctx, b, virtualStorage)
 		}(virtualStorage)
 	}
-
-	wg.Wait()
 }
 
 // ProcessStale starts a background process to acknowledge stale replication jobs.
@@ -580,43 +579,83 @@ func (r ReplMgr) ProcessStale(ctx context.Context, checkPeriod, staleAfter time.
 	return done
 }
 
-func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFunc, virtualStorage string) {
-	logger := r.log.WithField(logWithVirtualStorage, virtualStorage)
-	backoff, reset := b()
+func (r ReplMgr) processBacklog(ctx context.Context, b BackoffFactory, virtualStorage string) {
+	var wg sync.WaitGroup
+	defer wg.Wait()
 
+	logger := r.log.WithField(logWithVirtualStorage, virtualStorage)
 	logger.Info("processing started")
 
-	for {
-		select {
-		case <-ctx.Done():
-			logger.WithError(ctx.Err()).Info("processing stopped")
-			return // processing must be stopped
-		default:
-			// proceed with processing
-		}
+	// We should make a graceful shutdown of the processing loop and don't want to interrupt
+	// in-flight operations. That is why we suppress cancellation on the provided context.
+	appCtx := ctx
+	ctx = helper.SuppressCancellation(ctx)
 
-		var totalEvents int
-		for _, storage := range r.hc.HealthyNodes()[virtualStorage] {
-			target, ok := r.nodes[virtualStorage][storage]
-			if !ok {
-				logger.WithField("storage", storage).Error("no connection to target storage")
-				continue
+	storageNames := r.storageNamesByVirtualStorage[virtualStorage]
+	type StorageProcessing struct {
+		StorageName string
+		Backoff
+		BackoffReset
+	}
+	storagesQueue := make(chan StorageProcessing, len(storageNames))
+	for _, storageName := range storageNames {
+		backoff, reset := b.Create()
+		storagesQueue <- StorageProcessing{StorageName: storageName, Backoff: backoff, BackoffReset: reset}
+	}
+
+	for i := uint(0); i < r.parallelStorageProcessingWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for {
+				var storageProcessing StorageProcessing
+				select {
+				case <-appCtx.Done():
+					logger.WithError(appCtx.Err()).Info("processing stopped")
+					return
+				case storageProcessing = <-storagesQueue:
+				}
+
+				healthyStorages := r.hc.HealthyNodes()[virtualStorage]
+				healthy := false
+				for _, healthyStorageName := range healthyStorages {
+					if healthyStorageName != storageProcessing.StorageName {
+						continue
+					}
+					healthy = true
+					break
+				}
+
+				var processedEvents int
+				if healthy {
+					target, ok := r.nodes[virtualStorage][storageProcessing.StorageName]
+					if !ok {
+						logger.WithField("storage", storageProcessing.StorageName).Error("no connection to target storage")
+					} else {
+						processedEvents = r.handleNode(ctx, virtualStorage, target)
+					}
+				}
+
+				if processedEvents == 0 {
+					// if the storage is not healthy or if there is no events to
+					// process we don't put it back to the queue immediately but
+					// wait for certain time period first.
+					go func() {
+						select {
+						case <-time.After(storageProcessing.Backoff()):
+							storagesQueue <- storageProcessing
+						case <-appCtx.Done():
+							logger.WithError(appCtx.Err()).Info("processing stopped")
+							return
+						}
+					}()
+				} else {
+					storageProcessing.BackoffReset()
+					storagesQueue <- storageProcessing
+				}
 			}
-
-			totalEvents += r.handleNode(ctx, virtualStorage, target)
-		}
-
-		if totalEvents == 0 {
-			select {
-			case <-time.After(backoff()):
-				continue
-			case <-ctx.Done():
-				logger.WithError(ctx.Err()).Info("processing stopped")
-				return
-			}
-		}
-
-		reset()
+		}()
 	}
 }
 
@@ -705,6 +744,42 @@ func (r ReplMgr) handleNodeEvent(ctx context.Context, logger logrus.FieldLogger,
 	return newState
 }
 
+// backfillReplicaPath backfills the replica path in the replication job. As of 14.5, not all jobs are guaranteed
+// to have a replica path on them yet. There are few special cased jobs which won't be scheduled anymore in 14.6 a
+// and thus do not need to use replica paths.
+func (r ReplMgr) backfillReplicaPath(ctx context.Context, event datastore.ReplicationEvent) (string, error) {
+	switch {
+	// The reconciler scheduled DeleteReplica jobs which are missing repository ID. 14.5 has
+	// dropped this logic and doesn't leave orphaned records any more as Praefect has a walker
+	// to identify stale replicas. Any jobs still in flight have been scheduled prior to 14.4 and
+	// should be handled in the old manner.
+	case event.Job.Change == datastore.DeleteReplica && event.Job.RepositoryID == 0:
+		fallthrough
+	// 14.5 also doesn't schedule DeleteRepo jobs. Any jobs are again old jobs in-flight.
+	// The repository ID in delete jobs scheduled in 14.4 won't be present anymore at the time the
+	// replication job is being executed, as the the 'repositories' record is deleted. Given that,
+	// it's not possible to get the replica path. In 14.4, Praefect intercepts deletes and handles
+	// them without scheduling replication jobs. The 'delete' jobs still in flight are handled as before
+	// for backwards compatibility.
+	case event.Job.Change == datastore.DeleteRepo:
+		fallthrough
+	// RenameRepo doesn't need to use repository ID as the RenameRepository RPC
+	// call will be intercepted in 14.6 by Praefect to perform an atomic rename in
+	// the database. Any jobs still in flight are from 14.5 and older, and should be
+	// handled in the old manner. We'll use the relative path from the replication job
+	// for the backwards compatible handling.
+	case event.Job.Change == datastore.RenameRepo:
+		return event.Job.RelativePath, nil
+	default:
+		replicaPath, err := r.repositoryStore.GetReplicaPath(ctx, event.Job.RepositoryID)
+		if err != nil {
+			return "", fmt.Errorf("get replica path: %w", err)
+		}
+
+		return replicaPath, nil
+	}
+}
+
 func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.ReplicationEvent, targetCC *grpc.ClientConn) error {
 	var cancel func()
 
@@ -724,6 +799,11 @@ func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.Re
 	defer inFlightGauge.Dec()
 
 	var err error
+	event.Job.ReplicaPath, err = r.backfillReplicaPath(ctx, event)
+	if err != nil {
+		return fmt.Errorf("choose replica path: %w", err)
+	}
+
 	switch event.Job.Change {
 	case datastore.UpdateRepo:
 		source, ok := r.nodes[event.Job.VirtualStorage][event.Job.SourceNodeStorage]
@@ -731,7 +811,7 @@ func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.Re
 			return fmt.Errorf("no connection to source node %q/%q", event.Job.VirtualStorage, event.Job.SourceNodeStorage)
 		}
 
-		ctx, err = helper.InjectGitalyServers(ctx, event.Job.SourceNodeStorage, source.Address, source.Token)
+		ctx, err = storage.InjectGitalyServers(ctx, event.Job.SourceNodeStorage, source.Address, source.Token)
 		if err != nil {
 			return fmt.Errorf("inject Gitaly servers into context: %w", err)
 		}

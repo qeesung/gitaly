@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/stretchr/testify/require"
 	_ "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata"
 	"google.golang.org/protobuf/reflect/protodesc"
 	protoreg "google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 func TestLintFile(t *testing.T) {
@@ -38,6 +38,7 @@ func TestLintFile(t *testing.T) {
 				formatError("go/internal/linter/testdata/invalid.proto", "InvalidService", "InvalidMethod11", errors.New("unexpected count of storage field 1, expected 0, found storage label at: [RequestWithNestedStorageAndRepo.inner_message.storage_name]")),
 				formatError("go/internal/linter/testdata/invalid.proto", "InvalidService", "InvalidMethod13", errors.New("unexpected count of storage field 0, expected 1, found storage label at: []")),
 				formatError("go/internal/linter/testdata/invalid.proto", "InvalidService", "InvalidMethod14", errors.New("unexpected count of storage field 2, expected 1, found storage label at: [RequestWithMultipleNestedStorage.inner_message.storage_name RequestWithMultipleNestedStorage.storage_name]")),
+				formatError("go/internal/linter/testdata/invalid.proto", "InvalidService", "InvalidMethod15", errors.New("operation type defined on an intercepted method")),
 			},
 		},
 	} {
@@ -46,8 +47,8 @@ func TestLintFile(t *testing.T) {
 			require.NoError(t, err)
 
 			fdToCheck := protodesc.ToFileDescriptorProto(fd)
-			req := &plugin.CodeGeneratorRequest{
-				ProtoFile: []*descriptor.FileDescriptorProto{fdToCheck},
+			req := &pluginpb.CodeGeneratorRequest{
+				ProtoFile: []*descriptorpb.FileDescriptorProto{fdToCheck},
 			}
 
 			for _, protoPath := range []string{

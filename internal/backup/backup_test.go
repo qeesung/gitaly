@@ -1,16 +1,25 @@
 package backup
 
 import (
-	"errors"
-	"io/ioutil"
+	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	gitalylog "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	praefectConfig "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -18,68 +27,89 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestFilesystem_Create(t *testing.T) {
+func TestManager_Create(t *testing.T) {
+	const backupID = "abc123"
+
 	cfg := testcfg.Build(t)
 
 	gitalyAddr := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
 
-	path := testhelper.TempDir(t)
-
-	hooksRepo, hooksRepoPath, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "hooks")
-	require.NoError(t, os.Mkdir(filepath.Join(hooksRepoPath, "custom_hooks"), os.ModePerm))
-	require.NoError(t, ioutil.WriteFile(filepath.Join(hooksRepoPath, "custom_hooks/pre-commit.sample"), []byte("Some hooks"), os.ModePerm))
-
-	noHooksRepo, _, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "no-hooks")
-	emptyRepo, _, _ := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	nonexistentRepo := proto.Clone(emptyRepo).(*gitalypb.Repository)
-	nonexistentRepo.RelativePath = "nonexistent"
-
 	for _, tc := range []struct {
 		desc               string
-		repo               *gitalypb.Repository
+		setup              func(t testing.TB) *gitalypb.Repository
 		createsBundle      bool
 		createsCustomHooks bool
 		err                error
 	}{
 		{
-			desc:               "no hooks",
-			repo:               noHooksRepo,
+			desc: "no hooks",
+			setup: func(t testing.TB) *gitalypb.Repository {
+				noHooksRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: "no-hooks",
+				})
+				return noHooksRepo
+			},
 			createsBundle:      true,
 			createsCustomHooks: false,
 		},
 		{
-			desc:               "hooks",
-			repo:               hooksRepo,
+			desc: "hooks",
+			setup: func(t testing.TB) *gitalypb.Repository {
+				hooksRepo, hooksRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: "hooks",
+				})
+				require.NoError(t, os.Mkdir(filepath.Join(hooksRepoPath, "custom_hooks"), os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(hooksRepoPath, "custom_hooks/pre-commit.sample"), []byte("Some hooks"), os.ModePerm))
+				return hooksRepo
+			},
 			createsBundle:      true,
 			createsCustomHooks: true,
 		},
 		{
-			desc:               "empty repo",
-			repo:               emptyRepo,
+			desc: "empty repo",
+			setup: func(t testing.TB) *gitalypb.Repository {
+				emptyRepo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				return emptyRepo
+			},
 			createsBundle:      false,
 			createsCustomHooks: false,
-			err:                ErrSkipped,
+			err:                fmt.Errorf("manager: repository empty: %w", ErrSkipped),
 		},
 		{
-			desc:               "nonexistent repo",
-			repo:               nonexistentRepo,
+			desc: "nonexistent repo",
+			setup: func(t testing.TB) *gitalypb.Repository {
+				emptyRepo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				nonexistentRepo := proto.Clone(emptyRepo).(*gitalypb.Repository)
+				nonexistentRepo.RelativePath = "nonexistent"
+				return nonexistentRepo
+			},
 			createsBundle:      false,
 			createsCustomHooks: false,
-			err:                ErrSkipped,
+			err:                fmt.Errorf("manager: repository empty: %w", ErrSkipped),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			repoPath := filepath.Join(cfg.Storages[0].Path, tc.repo.RelativePath)
-			bundlePath := filepath.Join(path, tc.repo.RelativePath+".bundle")
-			customHooksPath := filepath.Join(path, tc.repo.RelativePath, "custom_hooks.tar")
+			repo := tc.setup(t)
+			repoPath := filepath.Join(cfg.Storages[0].Path, repo.RelativePath)
+			path := testhelper.TempDir(t)
+			refsPath := filepath.Join(path, repo.RelativePath, backupID, "001.refs")
+			bundlePath := filepath.Join(path, repo.RelativePath, backupID, "001.bundle")
+			customHooksPath := filepath.Join(path, repo.RelativePath, backupID, "001.custom_hooks.tar")
 
 			ctx, cancel := testhelper.Context()
 			defer cancel()
 
-			fsBackup := NewFilesystem(path)
-			err := fsBackup.Create(ctx, &CreateRequest{
+			pool := client.NewPool()
+			defer testhelper.MustClose(t, pool)
+
+			sink := NewFilesystemSink(path)
+			locator, err := ResolveLocator("pointer", sink)
+			require.NoError(t, err)
+
+			fsBackup := NewManager(sink, locator, pool, backupID)
+			err = fsBackup.Create(ctx, &CreateRequest{
 				Server:     storage.ServerInfo{Address: gitalyAddr, Token: cfg.Auth.Token},
-				Repository: tc.repo,
+				Repository: repo,
 			})
 			if tc.err == nil {
 				require.NoError(t, err)
@@ -88,18 +118,23 @@ func TestFilesystem_Create(t *testing.T) {
 			}
 
 			if tc.createsBundle {
+				require.FileExists(t, refsPath)
 				require.FileExists(t, bundlePath)
 
 				dirInfo, err := os.Stat(filepath.Dir(bundlePath))
 				require.NoError(t, err)
-				require.Equal(t, os.FileMode(0700), dirInfo.Mode().Perm(), "expecting restricted directory permissions")
+				require.Equal(t, os.FileMode(0o700), dirInfo.Mode().Perm(), "expecting restricted directory permissions")
 
 				bundleInfo, err := os.Stat(bundlePath)
 				require.NoError(t, err)
-				require.Equal(t, os.FileMode(0600), bundleInfo.Mode().Perm(), "expecting restricted file permissions")
+				require.Equal(t, os.FileMode(0o600), bundleInfo.Mode().Perm(), "expecting restricted file permissions")
 
 				output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
 				require.Contains(t, string(output), "The bundle records a complete history")
+
+				expectedRefs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+				actualRefs := testhelper.MustReadFile(t, refsPath)
+				require.Equal(t, string(expectedRefs), string(actualRefs))
 			} else {
 				require.NoFileExists(t, bundlePath)
 			}
@@ -113,91 +148,530 @@ func TestFilesystem_Create(t *testing.T) {
 	}
 }
 
-func TestFilesystem_Restore(t *testing.T) {
+func TestManager_Create_incremental(t *testing.T) {
+	const backupID = "abc123"
+
 	cfg := testcfg.Build(t)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
 
 	gitalyAddr := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
 
+	for _, tc := range []struct {
+		desc              string
+		setup             func(t testing.TB, backupRoot string) *gitalypb.Repository
+		expectedIncrement string
+		expectedErr       error
+	}{
+		{
+			desc: "no previous backup",
+			setup: func(t testing.TB, backupRoot string) *gitalypb.Repository {
+				repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo"})
+				return repo
+			},
+			expectedIncrement: "001",
+		},
+		{
+			desc: "previous backup, no updates",
+			setup: func(t testing.TB, backupRoot string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo"})
+
+				backupRepoPath := filepath.Join(backupRoot, repo.RelativePath)
+				backupPath := filepath.Join(backupRepoPath, backupID)
+				bundlePath := filepath.Join(backupPath, "001.bundle")
+				refsPath := filepath.Join(backupPath, "001.refs")
+
+				require.NoError(t, os.MkdirAll(backupPath, os.ModePerm))
+				gittest.Exec(t, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
+
+				refs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+				require.NoError(t, os.WriteFile(refsPath, refs, os.ModePerm))
+
+				require.NoError(t, os.WriteFile(filepath.Join(backupRepoPath, "LATEST"), []byte(backupID), os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), os.ModePerm))
+
+				return repo
+			},
+			expectedErr: fmt.Errorf("manager: write bundle: %w", fmt.Errorf("*backup.FilesystemSink write: %w: no changes to bundle", ErrSkipped)),
+		},
+		{
+			desc: "previous backup, updates",
+			setup: func(t testing.TB, backupRoot string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo"})
+
+				backupRepoPath := filepath.Join(backupRoot, repo.RelativePath)
+				backupPath := filepath.Join(backupRepoPath, backupID)
+				bundlePath := filepath.Join(backupPath, "001.bundle")
+				refsPath := filepath.Join(backupPath, "001.refs")
+
+				require.NoError(t, os.MkdirAll(backupPath, os.ModePerm))
+				gittest.Exec(t, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
+
+				refs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+				require.NoError(t, os.WriteFile(refsPath, refs, os.ModePerm))
+
+				require.NoError(t, os.WriteFile(filepath.Join(backupRepoPath, "LATEST"), []byte(backupID), os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), os.ModePerm))
+
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
+
+				return repo
+			},
+			expectedIncrement: "002",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			path := testhelper.TempDir(t)
+			repo := tc.setup(t, path)
+
+			repoPath := filepath.Join(cfg.Storages[0].Path, repo.RelativePath)
+			refsPath := filepath.Join(path, repo.RelativePath, backupID, tc.expectedIncrement+".refs")
+			bundlePath := filepath.Join(path, repo.RelativePath, backupID, tc.expectedIncrement+".bundle")
+
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			pool := client.NewPool()
+			defer testhelper.MustClose(t, pool)
+
+			sink := NewFilesystemSink(path)
+			locator, err := ResolveLocator("pointer", sink)
+			require.NoError(t, err)
+
+			fsBackup := NewManager(sink, locator, pool, backupID)
+			err = fsBackup.Create(ctx, &CreateRequest{
+				Server:      storage.ServerInfo{Address: gitalyAddr, Token: cfg.Auth.Token},
+				Repository:  repo,
+				Incremental: true,
+			})
+			if tc.expectedErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.Equal(t, tc.expectedErr, err)
+				return
+			}
+
+			require.FileExists(t, refsPath)
+			require.FileExists(t, bundlePath)
+
+			expectedRefs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+			actualRefs := testhelper.MustReadFile(t, refsPath)
+			require.Equal(t, string(expectedRefs), string(actualRefs))
+		})
+	}
+}
+
+func TestManager_Restore(t *testing.T) {
+	cfg := testcfg.Build(t)
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	gitalyAddr := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll)
+
+	testManagerRestore(t, cfg, gitalyAddr)
+}
+
+func TestManager_Restore_praefect(t *testing.T) {
+	gitalyCfg := testcfg.Build(t, testcfg.WithStorages("gitaly-1"))
+
+	testcfg.BuildPraefect(t, gitalyCfg)
+	testcfg.BuildGitalyHooks(t, gitalyCfg)
+
+	gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
+
+	db := glsql.NewDB(t)
+	dbConf := glsql.GetDBConfig(t, db.Name)
+
+	conf := praefectConfig.Config{
+		SocketPath: testhelper.GetTemporaryGitalySocketFileName(t),
+		VirtualStorages: []*praefectConfig.VirtualStorage{
+			{
+				Name: "default",
+				Nodes: []*praefectConfig.Node{
+					{Storage: gitalyCfg.Storages[0].Name, Address: gitalyAddr},
+				},
+			},
+		},
+		DB: dbConf,
+		Failover: praefectConfig.Failover{
+			Enabled:          true,
+			ElectionStrategy: praefectConfig.ElectionStrategyPerRepository,
+		},
+		Replication: praefectConfig.DefaultReplicationConfig(),
+		Logging: gitalylog.Config{
+			Format: "json",
+			Level:  "panic",
+		},
+	}
+
+	tempDir := testhelper.TempDir(t)
+	configFilePath := filepath.Join(tempDir, "config.toml")
+	configFile, err := os.Create(configFilePath)
+	require.NoError(t, err)
+	defer testhelper.MustClose(t, configFile)
+
+	require.NoError(t, toml.NewEncoder(configFile).Encode(&conf))
+	require.NoError(t, configFile.Sync())
+
+	cmd := exec.Command(filepath.Join(gitalyCfg.BinDir, "praefect"), "-config", configFilePath)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	require.NoError(t, cmd.Start())
+
+	t.Cleanup(func() { _ = cmd.Wait() })
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+
+	testManagerRestore(t, gitalyCfg, "unix://"+conf.SocketPath)
+}
+
+func testManagerRestore(t *testing.T, cfg config.Cfg, gitalyAddr string) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cc, err := client.Dial(gitalyAddr, nil)
+	require.NoError(t, err)
+	defer testhelper.MustClose(t, cc)
+
+	repoClient := gitalypb.NewRepositoryServiceClient(cc)
+
+	createRepo := func(t testing.TB, relativePath string) *gitalypb.Repository {
+		t.Helper()
+
+		repo := &gitalypb.Repository{
+			StorageName:  "default",
+			RelativePath: gittest.NewRepositoryName(t, false) + relativePath,
+		}
+
+		for i := 0; true; i++ {
+			_, err := repoClient.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{Repository: repo})
+			if err != nil {
+				require.Regexp(t, "(no healthy nodes)|(no such file or directory)|(connection refused)", err.Error())
+				require.Less(t, i, 100, "praefect doesn't serve for too long")
+				time.Sleep(50 * time.Millisecond)
+			} else {
+				break
+			}
+		}
+
+		return repo
+	}
+
 	path := testhelper.TempDir(t)
-
-	existingRepo, existRepoPath, _ := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "existing_repo")
-	existingRepoPath := filepath.Join(path, existingRepo.RelativePath)
-	existingRepoBundlePath := existingRepoPath + ".bundle"
-	existingRepoCustomHooksPath := filepath.Join(existingRepoPath, "custom_hooks.tar")
-	require.NoError(t, os.MkdirAll(existingRepoPath, os.ModePerm))
-
-	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
-	testhelper.CopyFile(t, "../gitaly/service/repository/testdata/custom_hooks.tar", existingRepoCustomHooksPath)
-
-	newRepo := gittest.InitRepoDir(t, cfg.Storages[0].Path, "new_repo")
-	newRepoBundlePath := filepath.Join(path, newRepo.RelativePath+".bundle")
-	testhelper.CopyFile(t, existingRepoBundlePath, newRepoBundlePath)
-
-	missingBundleRepo := gittest.InitRepoDir(t, cfg.Storages[0].Path, "missing_bundle")
-	missingBundleRepoAlwaysCreate := gittest.InitRepoDir(t, cfg.Storages[0].Path, "missing_bundle_always_create")
+	testRepoChecksum := gittest.ChecksumTestRepo(t, cfg, "gitlab-test.git")
 
 	for _, tc := range []struct {
 		desc          string
-		repo          *gitalypb.Repository
+		locators      []string
+		setup         func(t testing.TB) (*gitalypb.Repository, *git.Checksum)
 		alwaysCreate  bool
+		expectExists  bool
 		expectedPaths []string
 		expectedErrAs error
-		expectVerify  bool
 	}{
 		{
-			desc:         "new repo, without hooks",
-			repo:         newRepo,
-			expectVerify: true,
+			desc:     "existing repo, without hooks",
+			locators: []string{"legacy", "pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				repo := createRepo(t, "existing")
+				require.NoError(t, os.MkdirAll(filepath.Join(path, repo.RelativePath), os.ModePerm))
+				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
+				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+
+				return repo, testRepoChecksum
+			},
+			expectExists: true,
 		},
 		{
-			desc: "existing repo, with hooks",
-			repo: existingRepo,
+			desc:     "existing repo, with hooks",
+			locators: []string{"legacy", "pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				repo := createRepo(t, "existing_hooks")
+				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
+				customHooksPath := filepath.Join(path, repo.RelativePath, "custom_hooks.tar")
+				require.NoError(t, os.MkdirAll(filepath.Join(path, repo.RelativePath), os.ModePerm))
+				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+				testhelper.CopyFile(t, "../gitaly/service/repository/testdata/custom_hooks.tar", customHooksPath)
+
+				return repo, testRepoChecksum
+			},
 			expectedPaths: []string{
 				"custom_hooks/pre-commit.sample",
 				"custom_hooks/prepare-commit-msg.sample",
 				"custom_hooks/pre-push.sample",
 			},
-			expectVerify: true,
+			expectExists: true,
 		},
 		{
-			desc:          "missing bundle",
-			repo:          missingBundleRepo,
+			desc:     "missing bundle",
+			locators: []string{"legacy", "pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				repo := createRepo(t, "missing_bundle")
+				return repo, nil
+			},
 			expectedErrAs: ErrSkipped,
 		},
 		{
-			desc:         "missing bundle, always create",
-			repo:         missingBundleRepoAlwaysCreate,
+			desc:     "missing bundle, always create",
+			locators: []string{"legacy", "pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				repo := createRepo(t, "missing_bundle_always_create")
+				return repo, new(git.Checksum)
+			},
 			alwaysCreate: true,
+			expectExists: true,
+		},
+		{
+			desc:     "nonexistent repo",
+			locators: []string{"legacy", "pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				repo := &gitalypb.Repository{
+					StorageName:  "default",
+					RelativePath: "nonexistent",
+				}
+				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
+				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+
+				return repo, testRepoChecksum
+			},
+			expectExists: true,
+		},
+		{
+			desc:     "single incremental",
+			locators: []string{"pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				const backupID = "abc123"
+				repo := createRepo(t, "incremental")
+				repoBackupPath := filepath.Join(path, repo.RelativePath)
+				backupPath := filepath.Join(repoBackupPath, backupID)
+				require.NoError(t, os.MkdirAll(backupPath, os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(repoBackupPath, "LATEST"), []byte(backupID), os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), os.ModePerm))
+				bundlePath := filepath.Join(backupPath, "001.bundle")
+				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+
+				return repo, testRepoChecksum
+			},
+			expectExists: true,
+		},
+		{
+			desc:     "many incrementals",
+			locators: []string{"pointer"},
+			setup: func(t testing.TB) (*gitalypb.Repository, *git.Checksum) {
+				const backupID = "abc123"
+
+				expected := createRepo(t, "expected")
+				expectedRepoPath := filepath.Join(cfg.Storages[0].Path, expected.RelativePath)
+
+				repo := createRepo(t, "incremental")
+				repoBackupPath := filepath.Join(path, repo.RelativePath)
+				backupPath := filepath.Join(repoBackupPath, backupID)
+				require.NoError(t, os.MkdirAll(backupPath, os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(repoBackupPath, "LATEST"), []byte(backupID), os.ModePerm))
+				require.NoError(t, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("002"), os.ModePerm))
+
+				root := gittest.WriteCommit(t, cfg, expectedRepoPath,
+					gittest.WithBranch("master"),
+					gittest.WithParents(),
+				)
+				master1 := gittest.WriteCommit(t, cfg, expectedRepoPath,
+					gittest.WithBranch("master"),
+					gittest.WithParents(root),
+				)
+				other := gittest.WriteCommit(t, cfg, expectedRepoPath,
+					gittest.WithBranch("other"),
+					gittest.WithParents(root),
+				)
+				bundlePath1 := filepath.Join(backupPath, "001.bundle")
+				gittest.Exec(t, cfg, "-C", expectedRepoPath, "bundle", "create", bundlePath1,
+					"refs/heads/master",
+					"refs/heads/other",
+				)
+
+				master2 := gittest.WriteCommit(t, cfg, expectedRepoPath,
+					gittest.WithBranch("master"),
+					gittest.WithParents(master1),
+				)
+				bundlePath2 := filepath.Join(backupPath, "002.bundle")
+				gittest.Exec(t, cfg, "-C", expectedRepoPath, "bundle", "create", bundlePath2,
+					"^"+master1.String(),
+					"^"+other.String(),
+					"refs/heads/master",
+					"refs/heads/other",
+				)
+
+				checksum := new(git.Checksum)
+				checksum.Add(git.NewReference("refs/heads/master", master2.String()))
+				checksum.Add(git.NewReference("refs/heads/other", other.String()))
+
+				return repo, checksum
+			},
+			expectExists: true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			repoPath := filepath.Join(cfg.Storages[0].Path, tc.repo.RelativePath)
-			bundlePath := filepath.Join(path, tc.repo.RelativePath+".bundle")
+			require.GreaterOrEqual(t, len(tc.locators), 1, "each test case must specify a locator")
 
-			ctx, cancel := testhelper.Context()
-			defer cancel()
+			for _, locatorName := range tc.locators {
+				t.Run(locatorName, func(t *testing.T) {
+					repo, expectedChecksum := tc.setup(t)
+					repoPath := filepath.Join(cfg.Storages[0].Path, repo.RelativePath)
 
-			fsBackup := NewFilesystem(path)
-			err := fsBackup.Restore(ctx, &RestoreRequest{
-				Server:       storage.ServerInfo{Address: gitalyAddr, Token: cfg.Auth.Token},
-				Repository:   tc.repo,
-				AlwaysCreate: tc.alwaysCreate,
-			})
-			if tc.expectedErrAs != nil {
-				require.True(t, errors.Is(err, tc.expectedErrAs), err.Error())
-			} else {
+					pool := client.NewPool()
+					defer testhelper.MustClose(t, pool)
+
+					sink := NewFilesystemSink(path)
+					locator, err := ResolveLocator(locatorName, sink)
+					require.NoError(t, err)
+
+					fsBackup := NewManager(sink, locator, pool, "unused-backup-id")
+					err = fsBackup.Restore(ctx, &RestoreRequest{
+						Server:       storage.ServerInfo{Address: gitalyAddr, Token: cfg.Auth.Token},
+						Repository:   repo,
+						AlwaysCreate: tc.alwaysCreate,
+					})
+					if tc.expectedErrAs != nil {
+						require.ErrorAs(t, err, &tc.expectedErrAs)
+					} else {
+						require.NoError(t, err)
+					}
+
+					exists, err := repoClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+						Repository: repo,
+					})
+					require.NoError(t, err)
+					require.Equal(t, tc.expectExists, exists.Exists, "repository exists")
+
+					if expectedChecksum != nil {
+						checksum, err := repoClient.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{
+							Repository: repo,
+						})
+						require.NoError(t, err)
+
+						require.Equal(t, expectedChecksum.String(), checksum.GetChecksum())
+					}
+
+					for _, p := range tc.expectedPaths {
+						require.FileExists(t, filepath.Join(repoPath, p))
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestResolveSink(t *testing.T) {
+	isStorageServiceSink := func(expErrMsg string) func(t *testing.T, sink Sink) {
+		return func(t *testing.T, sink Sink) {
+			t.Helper()
+			sssink, ok := sink.(*StorageServiceSink)
+			require.True(t, ok)
+			_, err := sssink.bucket.List(nil).Next(context.TODO())
+			ierr, ok := err.(interface{ Unwrap() error })
+			require.True(t, ok)
+			terr := ierr.Unwrap()
+			require.Contains(t, terr.Error(), expErrMsg)
+		}
+	}
+
+	tmpDir := testhelper.TempDir(t)
+	gsCreds := filepath.Join(tmpDir, "gs.creds")
+	require.NoError(t, os.WriteFile(gsCreds, []byte(`
+{
+  "type": "service_account",
+  "project_id": "hostfactory-179005",
+  "private_key_id": "6253b144ccd94f50ce1224a73ffc48bda256d0a7",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nXXXX<KEY CONTENT OMMIT HERR> \n-----END PRIVATE KEY-----\n",
+  "client_email": "303721356529-compute@developer.gserviceaccount.com",
+  "client_id": "116595416948414952474",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/303724477529-compute%40developer.gserviceaccount.com"
+}`), 0o655))
+
+	for _, tc := range []struct {
+		desc   string
+		envs   map[string]string
+		path   string
+		verify func(t *testing.T, sink Sink)
+		errMsg string
+	}{
+		{
+			desc: "AWS S3",
+			envs: map[string]string{
+				"AWS_ACCESS_KEY_ID":     "test",
+				"AWS_SECRET_ACCESS_KEY": "test",
+				"AWS_REGION":            "us-east-1",
+			},
+			path:   "s3://bucket",
+			verify: isStorageServiceSink("The AWS Access Key Id you provided does not exist in our records."),
+		},
+		{
+			desc: "Google Cloud Storage",
+			envs: map[string]string{
+				"GOOGLE_APPLICATION_CREDENTIALS": gsCreds,
+			},
+			path:   "blob+gs://bucket",
+			verify: isStorageServiceSink("storage.googleapis.com"),
+		},
+		{
+			desc: "Azure Cloud File Storage",
+			envs: map[string]string{
+				"AZURE_STORAGE_ACCOUNT":   "test",
+				"AZURE_STORAGE_KEY":       "test",
+				"AZURE_STORAGE_SAS_TOKEN": "test",
+			},
+			path:   "blob+bucket+azblob://bucket",
+			verify: isStorageServiceSink("https://test.blob.core.windows.net"),
+		},
+		{
+			desc: "Filesystem",
+			path: "/some/path",
+			verify: func(t *testing.T, sink Sink) {
+				require.IsType(t, &FilesystemSink{}, sink)
+			},
+		},
+		{
+			desc:   "undefined",
+			path:   "some:invalid:path\x00",
+			errMsg: `parse "some:invalid:path\x00": net/url: invalid control character in URL`,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			for k, v := range tc.envs {
+				t.Cleanup(testhelper.ModifyEnvironment(t, k, v))
+			}
+			sink, err := ResolveSink(context.TODO(), tc.path)
+			if tc.errMsg != "" {
+				require.EqualError(t, err, tc.errMsg)
+				return
+			}
+			tc.verify(t, sink)
+		})
+	}
+}
+
+func TestResolveLocator(t *testing.T) {
+	for _, tc := range []struct {
+		layout      string
+		expectedErr string
+	}{
+		{layout: "legacy"},
+		{layout: "pointer"},
+		{
+			layout:      "unknown",
+			expectedErr: "unknown layout: \"unknown\"",
+		},
+	} {
+		t.Run(tc.layout, func(t *testing.T) {
+			l, err := ResolveLocator(tc.layout, nil)
+
+			if tc.expectedErr == "" {
 				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tc.expectedErr)
+				return
 			}
 
-			if tc.expectVerify {
-				output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
-				require.Contains(t, string(output), "The bundle records a complete history")
-			}
-
-			for _, p := range tc.expectedPaths {
-				require.FileExists(t, filepath.Join(repoPath, p))
-			}
+			require.NotNil(t, l)
 		})
 	}
 }

@@ -3,55 +3,160 @@ package testhelper
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 )
 
-var (
-	configureOnce sync.Once
-	testDirectory string
-)
+var testDirectory string
 
-// Configure sets up the global test configuration. On failure,
-// terminates the program.
-func Configure() func() {
-	configureOnce.Do(func() {
-		gitalylog.Configure(gitalylog.Loggers, "json", "panic")
+// RunOption is an option that can be passed to Run.
+type RunOption func(*runConfig)
 
-		testDirectory = getTestTmpDir()
+type runConfig struct {
+	setup                  func() error
+	disableGoroutineChecks bool
+}
 
-		for _, f := range []func() error{
-			ConfigureGit,
-		} {
-			if err := f(); err != nil {
-				os.RemoveAll(testDirectory)
-				log.Fatalf("error configuring tests: %v", err)
-			}
-		}
-	})
-
-	return func() {
-		if err := os.RemoveAll(testDirectory); err != nil {
-			log.Fatalf("error removing test directory: %v", err)
-		}
+// WithSetup allows the caller of Run to pass a setup function that will be called after global
+// test state has been configured.
+func WithSetup(setup func() error) RunOption {
+	return func(cfg *runConfig) {
+		cfg.setup = setup
 	}
 }
 
-// ConfigureGit configures git for test purpose
-func ConfigureGit() error {
+// WithDisabledGoroutineChecker disables checking for leaked Goroutines after tests have run. This
+// should ideally only be used as a temporary measure until all Goroutine leaks have been fixed.
+//
+// Deprecated: This should not be used, but instead you should try to fix all Goroutine leakages.
+func WithDisabledGoroutineChecker() RunOption {
+	return func(cfg *runConfig) {
+		cfg.disableGoroutineChecks = true
+	}
+}
+
+// Run sets up required testing state and executes the given test suite. It can optionally receive a
+// variable number of RunOptions.
+func Run(m *testing.M, opts ...RunOption) {
+	// Run tests in a separate function such that we can use deferred statements and still
+	// (indirectly) call `os.Exit()` in case the test setup failed.
+	if err := func() error {
+		var cfg runConfig
+		for _, opt := range opts {
+			opt(&cfg)
+		}
+
+		defer mustHaveNoChildProcess()
+		if !cfg.disableGoroutineChecks {
+			defer mustHaveNoGoroutines()
+		}
+
+		cleanup, err := configure()
+		if err != nil {
+			return fmt.Errorf("test configuration: %w", err)
+		}
+		defer cleanup()
+
+		if cfg.setup != nil {
+			if err := cfg.setup(); err != nil {
+				return fmt.Errorf("error calling setup function: %w", err)
+			}
+		}
+
+		m.Run()
+
+		return nil
+	}(); err != nil {
+		fmt.Printf("%s", err)
+		os.Exit(1)
+	}
+}
+
+// configure sets up the global test configuration. On failure,
+// terminates the program.
+func configure() (_ func(), returnedErr error) {
+	gitalylog.Configure(gitalylog.Loggers, "json", "panic")
+
+	cleanup, err := configureTestDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("configuring test directory: %w", err)
+	}
+	defer func() {
+		if returnedErr != nil {
+			cleanup()
+		}
+	}()
+
+	if err := configureGit(); err != nil {
+		return nil, fmt.Errorf("configuring git: %w", err)
+	}
+
+	return cleanup, nil
+}
+
+func configureTestDirectory() (_ func(), returnedErr error) {
+	if testDirectory != "" {
+		return nil, errors.New("test directory has already been configured")
+	}
+
+	// Ideally, we'd just pass "" to `os.MkdirTemp()`, which would then use either the value of
+	// `$TMPDIR` or alternatively "/tmp". But given that macOS sets `$TMPDIR` to a user specific
+	// temporary directory, resulting paths would be too long and thus cause issues galore. We
+	// thus support our own specific variable instead which allows users to override it, with
+	// our default being "/tmp".
+	tempDirLocation := os.Getenv("TEST_TMP_DIR")
+	if tempDirLocation == "" {
+		tempDirLocation = "/tmp"
+	}
+
+	var err error
+	testDirectory, err = os.MkdirTemp(tempDirLocation, "gitaly-")
+	if err != nil {
+		return nil, fmt.Errorf("creating test directory: %w", err)
+	}
+
+	cleanup := func() {
+		if err := os.RemoveAll(testDirectory); err != nil {
+			log.Errorf("cleaning up test directory: %v", err)
+		}
+	}
+	defer func() {
+		if returnedErr != nil {
+			cleanup()
+		}
+	}()
+
+	// macOS symlinks /tmp/ to /private/tmp/ which can cause some check to fail. We thus resolve
+	// the symlinks to their actual location.
+	testDirectory, err = filepath.EvalSymlinks(testDirectory)
+	if err != nil {
+		return nil, err
+	}
+
+	// In many locations throughout Gitaly, we create temporary files and directories. By
+	// default, these would clutter the "real" temporary directory with useless cruft that stays
+	// around after our tests. To avoid this, we thus set the TMPDIR environment variable to
+	// point into a directory inside of out test directory.
+	globalTempDir := filepath.Join(testDirectory, "tmp")
+	if err := os.Mkdir(globalTempDir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating global temporary directory: %w", err)
+	}
+	if err := os.Setenv("TMPDIR", globalTempDir); err != nil {
+		return nil, fmt.Errorf("setting global temporary directory: %w", err)
+	}
+
+	return cleanup, nil
+}
+
+// configureGit configures git for test purpose
+func configureGit() error {
 	// We cannot use gittest here given that we ain't got no config yet. We thus need to
 	// manually resolve the git executable, which is either stored in below envvar if
 	// executed via our Makefile, or else just git as resolved via PATH.
@@ -96,128 +201,4 @@ func ConfigureGit() error {
 	testHome := filepath.Join(filepath.Dir(currentFile), "testdata/home")
 	// overwrite HOME env variable so user global .gitconfig doesn't influence tests
 	return os.Setenv("HOME", testHome)
-}
-
-// ConfigureRuby configures Ruby settings for test purposes at run time.
-func ConfigureRuby(cfg *config.Cfg) error {
-	if dir := os.Getenv("GITALY_TEST_RUBY_DIR"); len(dir) > 0 {
-		// Sometimes runtime.Caller is unreliable. This environment variable provides a bypass.
-		cfg.Ruby.Dir = dir
-	} else {
-		_, currentFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("could not get caller info")
-		}
-		cfg.Ruby.Dir = filepath.Join(filepath.Dir(currentFile), "../../ruby")
-	}
-
-	if err := cfg.ConfigureRuby(); err != nil {
-		log.Fatalf("validate ruby config: %v", err)
-	}
-
-	return nil
-}
-
-// ConfigureGitalyGit2GoBin configures the gitaly-git2go command for tests
-func ConfigureGitalyGit2GoBin(t testing.TB, cfg config.Cfg) {
-	buildBinary(t, cfg.BinDir, "gitaly-git2go")
-	// The link is needed because gitaly uses version-named binary.
-	// Please check out https://gitlab.com/gitlab-org/gitaly/-/issues/3647 for more info.
-	if err := os.Link(filepath.Join(cfg.BinDir, "gitaly-git2go"), filepath.Join(cfg.BinDir, "gitaly-git2go-"+version.GetModuleVersion())); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return
-		}
-		require.NoError(t, err)
-	}
-}
-
-// ConfigureGitalyLfsSmudge configures the gitaly-lfs-smudge command for tests
-func ConfigureGitalyLfsSmudge(t *testing.T, outputDir string) {
-	buildCommand(t, outputDir, "gitaly-lfs-smudge")
-}
-
-// ConfigureGitalyHooksBin builds gitaly-hooks command for tests for the cfg.
-func ConfigureGitalyHooksBin(t testing.TB, cfg config.Cfg) {
-	buildBinary(t, cfg.BinDir, "gitaly-hooks")
-}
-
-// ConfigureGitalySSHBin builds gitaly-ssh command for tests for the cfg.
-func ConfigureGitalySSHBin(t testing.TB, cfg config.Cfg) {
-	buildBinary(t, cfg.BinDir, "gitaly-ssh")
-}
-
-func buildBinary(t testing.TB, dstDir, name string) {
-	// binsPath is a shared between all tests location where all compiled binaries should be placed
-	binsPath := filepath.Join(testDirectory, "bins")
-	// binPath is a path to a specific binary file
-	binPath := filepath.Join(binsPath, name)
-	// lockPath is a path to the special lock file used to prevent parallel build runs
-	lockPath := binPath + ".lock"
-
-	defer func() {
-		if !t.Failed() {
-			// copy compiled binary to the destination folder
-			require.NoError(t, os.MkdirAll(dstDir, os.ModePerm))
-			MustRunCommand(t, nil, "cp", binPath, dstDir)
-		}
-	}()
-
-	require.NoError(t, os.MkdirAll(binsPath, os.ModePerm))
-
-	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		if !errors.Is(err, os.ErrExist) {
-			require.FailNow(t, err.Error())
-		}
-		// another process is creating the binary at the moment, wait for it to complete (5s)
-		for i := 0; i < 50; i++ {
-			if _, err := os.Stat(binPath); err != nil {
-				if !errors.Is(err, os.ErrNotExist) {
-					require.NoError(t, err)
-				}
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			// binary was created
-			return
-		}
-		require.FailNow(t, "another process is creating binary for too long")
-	}
-	defer func() { require.NoError(t, os.Remove(lockPath)) }()
-	require.NoError(t, lockFile.Close())
-
-	if _, err := os.Stat(binPath); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			// something went wrong and for some reason the binary already exists
-			require.FailNow(t, err.Error())
-		}
-		buildCommand(t, binsPath, name)
-	}
-}
-
-func buildCommand(t testing.TB, outputDir, cmd string) {
-	if outputDir == "" {
-		log.Fatal("BinDir must be set")
-	}
-
-	goBuildArgs := []string{
-		"build",
-		"-tags", "static,system_libgit2",
-		"-o", filepath.Join(outputDir, cmd),
-		fmt.Sprintf("gitlab.com/gitlab-org/gitaly/v14/cmd/%s", cmd),
-	}
-	MustRunCommand(t, nil, "go", goBuildArgs...)
-}
-
-func getTestTmpDir() string {
-	testTmpDir := os.Getenv("TEST_TMP_DIR")
-	if testTmpDir != "" {
-		return testTmpDir
-	}
-
-	testTmpDir, err := ioutil.TempDir("/tmp/", "gitaly-")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return testTmpDir
 }

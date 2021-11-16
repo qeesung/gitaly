@@ -25,11 +25,6 @@ service ObjectPoolService {
       op: MUTATOR
     };
   }
-  rpc UnlinkRepositoryFromObjectPool(UnlinkRepositoryFromObjectPoolRequest) returns (UnlinkRepositoryFromObjectPoolResponse) {
-    option (op_type) = {
-      op: MUTATOR
-    };
-  }
 
   rpc ReduplicateRepository(ReduplicateRepositoryRequest) returns (ReduplicateRepositoryResponse) {
     option (op_type) = {
@@ -73,14 +68,6 @@ message LinkRepositoryToObjectPoolRequest {
   Repository repository = 2 [(target_repository)=true];
 }
 message LinkRepositoryToObjectPoolResponse {}
-
-// This RPC doesn't require the ObjectPool as it will remove the alternates file
-// from the pool participant. The caller is responsible no data loss occurs.
-message UnlinkRepositoryFromObjectPoolRequest {
-  Repository repository = 1 [(target_repository)=true]; // already specified as the target repo field
-  ObjectPool object_pool = 2 [(additional_repository)=true];
-}
-message UnlinkRepositoryFromObjectPoolResponse {}
 
 message ReduplicateRepositoryRequest {
   Repository repository = 1 [(target_repository)=true];

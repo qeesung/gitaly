@@ -2,8 +2,9 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -26,6 +27,8 @@ func (m *mockUpgrader) Exit() <-chan struct{} {
 	return m.exit
 }
 
+func (m *mockUpgrader) Stop() {}
+
 func (m *mockUpgrader) HasParent() bool {
 	return m.hasParent
 }
@@ -39,6 +42,8 @@ func (m *mockUpgrader) Upgrade() error {
 }
 
 type testServer struct {
+	t         *testing.T
+	ctx       context.Context
 	server    *http.Server
 	listeners map[string]net.Listener
 	url       string
@@ -48,9 +53,14 @@ func (s *testServer) slowRequest(duration time.Duration) <-chan error {
 	done := make(chan error)
 
 	go func() {
-		r, err := http.Get(fmt.Sprintf("%sslow?seconds=%d", s.url, int(duration.Seconds())))
-		if r != nil {
-			r.Body.Close()
+		request, err := http.NewRequestWithContext(s.ctx, http.MethodGet, fmt.Sprintf("%sslow?seconds=%d", s.url, int(duration.Seconds())), nil)
+		require.NoError(s.t, err)
+
+		response, err := http.DefaultClient.Do(request)
+		if response != nil {
+			_, err := io.Copy(io.Discard, response.Body)
+			require.NoError(s.t, err)
+			require.NoError(s.t, response.Body.Close())
 		}
 
 		done <- err
@@ -68,7 +78,7 @@ func TestCreateUnixListener(t *testing.T) {
 	}
 
 	// simulate a dangling socket
-	require.NoError(t, ioutil.WriteFile(socketPath, nil, 0755))
+	require.NoError(t, os.WriteFile(socketPath, nil, 0o755))
 
 	listen := func(network, addr string) (net.Listener, error) {
 		require.Equal(t, "unix", network)
@@ -104,27 +114,33 @@ func waitWithTimeout(t *testing.T, waitCh <-chan error, timeout time.Duration) e
 }
 
 func TestImmediateTerminationOnSocketError(t *testing.T) {
-	b, server := makeBootstrap(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	b, server, stopAction := makeBootstrap(t, ctx)
 
 	waitCh := make(chan error)
-	go func() { waitCh <- b.Wait(2 * time.Second) }()
+	go func() { waitCh <- b.Wait(2*time.Second, stopAction) }()
 
 	require.NoError(t, server.listeners["tcp"].Close(), "Closing first listener")
 
 	err := waitWithTimeout(t, waitCh, 1*time.Second)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "use of closed network connection")
+	require.True(t, errors.Is(err, net.ErrClosed), "expected closed connection error, got %T: %q", err, err)
 }
 
 func TestImmediateTerminationOnSignal(t *testing.T) {
 	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
 		t.Run(sig.String(), func(t *testing.T) {
-			b, server := makeBootstrap(t)
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+
+			b, server, stopAction := makeBootstrap(t, ctx)
 
 			done := server.slowRequest(3 * time.Minute)
 
 			waitCh := make(chan error)
-			go func() { waitCh <- b.Wait(2 * time.Second) }()
+			go func() { waitCh <- b.Wait(2*time.Second, stopAction) }()
 
 			// make sure we are inside b.Wait() or we'll kill the test suite
 			time.Sleep(100 * time.Millisecond)
@@ -146,9 +162,12 @@ func TestImmediateTerminationOnSignal(t *testing.T) {
 }
 
 func TestGracefulTerminationStuck(t *testing.T) {
-	b, server := makeBootstrap(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
 
-	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil)
+	b, server, stopAction := makeBootstrap(t, ctx)
+
+	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil, stopAction)
 	require.Contains(t, err.Error(), "grace period expired")
 }
 
@@ -158,22 +177,26 @@ func TestGracefulTerminationWithSignals(t *testing.T) {
 
 	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
 		t.Run(sig.String(), func(t *testing.T) {
-			b, server := makeBootstrap(t)
+			ctx, cancel := testhelper.Context()
+			defer cancel()
+			b, server, stopAction := makeBootstrap(t, ctx)
 
 			err := testGracefulUpdate(t, server, b, 1*time.Second, 2*time.Second, func() {
 				require.NoError(t, self.Signal(sig))
-			})
+			}, stopAction)
 			require.Contains(t, err.Error(), "force shutdown")
 		})
 	}
 }
 
 func TestGracefulTerminationServerErrors(t *testing.T) {
-	b, server := makeBootstrap(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	b, server, _ := makeBootstrap(t, ctx)
 
 	done := make(chan error, 1)
 	// This is a simulation of receiving a listener error during waitGracePeriod
-	b.StopAction = func() {
+	stopAction := func() {
 		// we close the unix listener in order to test that the shutdown will not fail, but it keep waiting for the TCP request
 		require.NoError(t, server.listeners["unix"].Close())
 
@@ -185,43 +208,45 @@ func TestGracefulTerminationServerErrors(t *testing.T) {
 		require.NoError(t, server.server.Shutdown(context.Background()))
 	}
 
-	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil)
+	err := testGracefulUpdate(t, server, b, 3*time.Second, 2*time.Second, nil, stopAction)
 	require.Contains(t, err.Error(), "grace period expired")
 
 	require.NoError(t, <-done)
 }
 
 func TestGracefulTermination(t *testing.T) {
-	b, server := makeBootstrap(t)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+	b, server, _ := makeBootstrap(t, ctx)
 
 	// Using server.Close we bypass the graceful shutdown faking a completed shutdown
-	b.StopAction = func() { server.server.Close() }
+	stopAction := func() { server.server.Close() }
 
-	err := testGracefulUpdate(t, server, b, 1*time.Second, 2*time.Second, nil)
+	err := testGracefulUpdate(t, server, b, 1*time.Second, 2*time.Second, nil, stopAction)
 	require.Contains(t, err.Error(), "completed")
 }
 
 func TestPortReuse(t *testing.T) {
-	var addr string
-
 	b, err := New()
 	require.NoError(t, err)
 
 	l, err := b.listen("tcp", "localhost:")
 	require.NoError(t, err, "failed to bind")
 
-	addr = l.Addr().String()
+	addr := l.Addr().String()
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
 
 	l, err = b.listen("tcp", "localhost:"+port)
 	require.NoError(t, err, "failed to bind")
 	require.NoError(t, l.Close())
+
+	b.upgrader.Stop()
 }
 
-func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout, gracefulWait time.Duration, duringGracePeriodCallback func()) error {
+func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTimeout, gracefulWait time.Duration, duringGracePeriodCallback func(), stopAction func()) error {
 	waitCh := make(chan error)
-	go func() { waitCh <- b.Wait(gracefulWait) }()
+	go func() { waitCh <- b.Wait(gracefulWait, stopAction) }()
 
 	// Start a slow request to keep the old server from shutting down immediately.
 	req := server.slowRequest(2 * gracefulWait)
@@ -251,7 +276,7 @@ func testGracefulUpdate(t *testing.T, server *testServer, b *Bootstrap, waitTime
 	return waitErr
 }
 
-func makeBootstrap(t *testing.T) (*Bootstrap, *testServer) {
+func makeBootstrap(t *testing.T, ctx context.Context) (*Bootstrap, *testServer, func()) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(200)
@@ -260,18 +285,20 @@ func makeBootstrap(t *testing.T) (*Bootstrap, *testServer) {
 		sec, err := strconv.Atoi(r.URL.Query().Get("seconds"))
 		require.NoError(t, err)
 
-		time.Sleep(time.Duration(sec) * time.Second)
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Duration(sec) * time.Second):
+		}
 
 		w.WriteHeader(200)
 	})
 
 	s := http.Server{Handler: mux}
+	t.Cleanup(func() { testhelper.MustClose(t, &s) })
 	u := &mockUpgrader{exit: make(chan struct{})}
 
 	b, err := _new(u, net.Listen, false)
 	require.NoError(t, err)
-
-	b.StopAction = func() { require.NoError(t, s.Shutdown(context.Background())) }
 
 	listeners := make(map[string]net.Listener)
 	start := func(network, address string) Starter {
@@ -303,19 +330,21 @@ func makeBootstrap(t *testing.T) (*Bootstrap, *testServer) {
 	require.Equal(t, 2, len(listeners))
 
 	// test connection
-	testAllListeners(t, listeners)
+	testAllListeners(t, ctx, listeners)
 
 	addr := listeners["tcp"].Addr()
 	url := fmt.Sprintf("http://%s/", addr.String())
 
 	return b, &testServer{
+		t:         t,
+		ctx:       ctx,
 		server:    &s,
 		listeners: listeners,
 		url:       url,
-	}
+	}, func() { require.NoError(t, s.Shutdown(context.Background())) }
 }
 
-func testAllListeners(t *testing.T, listeners map[string]net.Listener) {
+func testAllListeners(t *testing.T, ctx context.Context, listeners map[string]net.Listener) {
 	for network, listener := range listeners {
 		addr := listener.Addr().String()
 
@@ -328,10 +357,16 @@ func testAllListeners(t *testing.T, listeners map[string]net.Listener) {
 			},
 		}
 
-		// we don't need a real address because we forced it on Dial
-		r, err := client.Get("http://fakeHost/")
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://fakeHost/", nil)
 		require.NoError(t, err)
-		r.Body.Close()
+
+		r, err := client.Do(request)
+		require.NoError(t, err)
+
+		_, err = io.Copy(io.Discard, r.Body)
+		require.NoError(t, err)
+		require.NoError(t, r.Body.Close())
+
 		require.Equal(t, 200, r.StatusCode)
 	}
 }

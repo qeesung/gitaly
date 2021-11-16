@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -39,8 +39,7 @@ func TestRenameRepositoryDestinationExists(t *testing.T) {
 	t.Parallel()
 	cfg, repo, _, client := setupRepositoryService(t)
 
-	destinationRepo, destinationRepoPath, cleanupDestinationRepo := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "dst")
-	t.Cleanup(cleanupDestinationRepo)
+	destinationRepo, destinationRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	sha := gittest.WriteCommit(t, cfg, destinationRepoPath)
 

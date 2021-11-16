@@ -3,7 +3,6 @@ package updateref
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -17,15 +16,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	defer testhelper.MustHaveNoChildProcess()
-	cleanup := testhelper.Configure()
-	defer cleanup()
-	hooks.Override = "/"
-	return m.Run()
+	testhelper.Run(m, testhelper.WithSetup(func() error {
+		hooks.Override = "/"
+		return nil
+	}))
 }
 
 func setupUpdater(t *testing.T, ctx context.Context) (config.Cfg, *localrepo.Repo, *Updater) {
@@ -54,7 +48,7 @@ func TestCreate(t *testing.T) {
 	sha := headCommit.Id
 
 	require.NoError(t, updater.Create(ref, sha))
-	require.NoError(t, updater.Wait())
+	require.NoError(t, updater.Commit())
 
 	// check the ref was created
 	commit, logErr := repo.ReadCommit(ctx, ref.Revision())
@@ -81,7 +75,7 @@ func TestUpdate(t *testing.T) {
 
 	require.NoError(t, updater.Update(ref, sha, ""))
 	require.NoError(t, updater.Prepare())
-	require.NoError(t, updater.Wait())
+	require.NoError(t, updater.Commit())
 
 	// check the ref was updated
 	commit, logErr = repo.ReadCommit(ctx, ref.Revision())
@@ -108,7 +102,7 @@ func TestDelete(t *testing.T) {
 	ref := git.ReferenceName("refs/heads/feature")
 
 	require.NoError(t, updater.Delete(ref))
-	require.NoError(t, updater.Wait())
+	require.NoError(t, updater.Commit())
 
 	// check the ref was removed
 	_, err := repo.ReadCommit(ctx, ref.Revision())
@@ -128,9 +122,48 @@ func TestUpdater_prepareLocksTransaction(t *testing.T) {
 	require.NoError(t, updater.Prepare())
 	require.NoError(t, updater.Update("refs/heads/feature", commit.Id, ""))
 
-	err := updater.Wait()
+	err := updater.Commit()
 	require.Error(t, err, "cannot update after prepare")
 	require.Contains(t, err.Error(), "fatal: prepared transactions can only be closed")
+}
+
+func TestUpdater_concurrentLocking(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cfg, protoRepo, _ := testcfg.BuildWithRepo(t)
+	repo := localrepo.NewTestRepo(t, cfg, protoRepo)
+
+	commit, logErr := repo.ReadCommit(ctx, "refs/heads/master")
+	require.NoError(t, logErr)
+
+	firstUpdater, err := New(ctx, cfg, repo)
+	require.NoError(t, err)
+	require.NoError(t, firstUpdater.Update("refs/heads/master", "", commit.Id))
+	require.NoError(t, firstUpdater.Prepare())
+
+	secondUpdater, err := New(ctx, cfg, repo)
+	require.NoError(t, err)
+	require.NoError(t, secondUpdater.Update("refs/heads/master", "", commit.Id))
+
+	// With flushing, we're able to detect concurrent locking at prepare time already instead of
+	// at commit time.
+	if gitSupportsStatusFlushing(t, ctx, cfg) {
+		err := secondUpdater.Prepare()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
+
+		require.NoError(t, firstUpdater.Commit())
+	} else {
+		require.NoError(t, secondUpdater.Prepare())
+		require.NoError(t, firstUpdater.Commit())
+
+		err := secondUpdater.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
+	}
 }
 
 func TestBulkOperation(t *testing.T) {
@@ -147,7 +180,7 @@ func TestBulkOperation(t *testing.T) {
 		require.NoError(t, updater.Create(git.ReferenceName(ref), headCommit.Id), "Failed to create ref %d", i)
 	}
 
-	require.NoError(t, updater.Wait())
+	require.NoError(t, updater.Commit())
 
 	refs, err := repo.GetReferences(ctx, "refs/")
 	require.NoError(t, err)
@@ -174,11 +207,38 @@ func TestContextCancelAbortsRefChanges(t *testing.T) {
 
 	// Force the update-ref process to terminate early
 	childCancel()
-	require.Error(t, updater.Wait())
+	require.Error(t, updater.Commit())
 
 	// check the ref doesn't exist
 	_, err = repo.ReadCommit(ctx, ref.Revision())
 	require.Equal(t, localrepo.ErrObjectNotFound, err, "expected 'not found' error got %v", err)
+}
+
+func TestUpdater_cancel(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	cfg, repo, updater := setupUpdater(t, ctx)
+
+	require.NoError(t, updater.Delete(git.ReferenceName("refs/heads/master")))
+	require.NoError(t, updater.Prepare())
+
+	// A concurrent update shouldn't be allowed.
+	concurrentUpdater, err := New(ctx, cfg, repo)
+	require.NoError(t, err)
+	require.NoError(t, concurrentUpdater.Delete(git.ReferenceName("refs/heads/master")))
+	err = concurrentUpdater.Commit()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "fatal: commit: cannot lock ref 'refs/heads/master'")
+
+	// We now cancel the initial updater. Afterwards, it should be possible again to update the
+	// ref because locks should have been released.
+	require.NoError(t, updater.Cancel())
+
+	concurrentUpdater, err = New(ctx, cfg, repo)
+	require.NoError(t, err)
+	require.NoError(t, concurrentUpdater.Delete(git.ReferenceName("refs/heads/master")))
+	require.NoError(t, concurrentUpdater.Commit())
 }
 
 func TestUpdater_closingStdinAbortsChanges(t *testing.T) {
@@ -208,10 +268,12 @@ func TestUpdater_closingStdinAbortsChanges(t *testing.T) {
 }
 
 func TestUpdater_capturesStderr(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	_, _, updater := setupUpdater(t, ctx)
+	cfg, _, updater := setupUpdater(t, ctx)
 
 	ref := "refs/heads/a"
 	newValue := strings.Repeat("1", 40)
@@ -219,11 +281,23 @@ func TestUpdater_capturesStderr(t *testing.T) {
 
 	require.NoError(t, updater.Update(git.ReferenceName(ref), newValue, oldValue))
 
-	expectedErr := fmt.Sprintf("git update-ref: exit status 128, stderr: "+
-		"\"fatal: commit: cannot update ref '%s': "+
-		"trying to write ref '%s' with nonexistent object %s\\n\"", ref, ref, newValue)
+	var expectedErr string
+	if gitSupportsStatusFlushing(t, ctx, cfg) {
+		expectedErr = fmt.Sprintf("state update to \"commit\" failed: EOF, stderr: \"fatal: commit: cannot update ref '%s': "+
+			"trying to write ref '%s' with nonexistent object %s\\n\"", ref, ref, newValue)
+	} else {
+		expectedErr = fmt.Sprintf("git update-ref: exit status 128, stderr: "+
+			"\"fatal: commit: cannot update ref '%s': "+
+			"trying to write ref '%s' with nonexistent object %s\\n\"", ref, ref, newValue)
+	}
 
-	err := updater.Wait()
+	err := updater.Commit()
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), expectedErr)
+}
+
+func gitSupportsStatusFlushing(t *testing.T, ctx context.Context, cfg config.Cfg) bool {
+	version, err := git.CurrentVersion(ctx, git.NewExecCommandFactory(cfg))
+	require.NoError(t, err)
+	return version.FlushesUpdaterefStatus()
 }

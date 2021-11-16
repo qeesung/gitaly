@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
@@ -17,26 +16,27 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type simpleService struct {
 	mock.UnimplementedSimpleServiceServer
 }
 
-func (s *simpleService) RepoAccessorUnary(ctx context.Context, in *mock.RepoRequest) (*empty.Empty, error) {
+func (s *simpleService) RepoAccessorUnary(ctx context.Context, in *mock.RepoRequest) (*emptypb.Empty, error) {
 	if in.GetRepo() == nil {
 		return nil, helper.ErrInternalf("error")
 	}
 
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
-func (s *simpleService) RepoMutatorUnary(ctx context.Context, in *mock.RepoRequest) (*empty.Empty, error) {
+func (s *simpleService) RepoMutatorUnary(ctx context.Context, in *mock.RepoRequest) (*emptypb.Empty, error) {
 	if in.GetRepo() == nil {
 		return nil, helper.ErrInternalf("error")
 	}
 
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
 func TestStreamInterceptor(t *testing.T) {
@@ -75,6 +75,7 @@ func TestStreamInterceptor(t *testing.T) {
 				grpc.WithStreamInterceptor(StreamErrorHandler(registry, errTracker, nodeName)),
 			)
 			require.NoError(t, err)
+			t.Cleanup(func() { testhelper.MustClose(t, cc) })
 			f, err := peeker.Peek()
 			require.NoError(t, err)
 			return proxy.NewStreamParameters(proxy.Destination{Conn: cc, Ctx: ctx, Msg: f}, nil, func() error { return nil }, nil), nil
@@ -90,6 +91,7 @@ func TestStreamInterceptor(t *testing.T) {
 	go praefectSrv.Serve(praefectLis)
 
 	praefectCC, err := grpc.Dial("unix://"+praefectSocket, grpc.WithInsecure())
+	defer testhelper.MustClose(t, praefectCC)
 	require.NoError(t, err)
 
 	simpleClient := mock.NewSimpleServiceClient(praefectCC)

@@ -5,40 +5,41 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-const attributesFileMode os.FileMode = 0644
+const attributesFileMode os.FileMode = 0o644
 
-func (s *server) applyGitattributes(ctx context.Context, c catfile.Batch, repoPath string, revision []byte) error {
+func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, objectReader catfile.ObjectReader, repoPath string, revision []byte) error {
 	infoPath := filepath.Join(repoPath, "info")
 	attributesPath := filepath.Join(infoPath, "attributes")
 
-	_, err := c.Info(ctx, git.Revision(revision))
+	_, err := repo.ResolveRevision(ctx, git.Revision(revision)+"^{commit}")
 	if err != nil {
-		if catfile.IsNotFound(err) {
-			return status.Errorf(codes.InvalidArgument, "Revision doesn't exist")
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return helper.ErrInvalidArgumentf("revision does not exist")
 		}
 
 		return err
 	}
 
-	blobInfo, err := c.Info(ctx, git.Revision(fmt.Sprintf("%s:.gitattributes", revision)))
+	blobObj, err := objectReader.Object(ctx, git.Revision(fmt.Sprintf("%s:.gitattributes", revision)))
 	if err != nil && !catfile.IsNotFound(err) {
 		return err
 	}
 
-	if catfile.IsNotFound(err) || blobInfo.Type != "blob" {
+	if catfile.IsNotFound(err) || blobObj.Type != "blob" {
 		// If there is no gitattributes file, we simply use the ZeroOID
 		// as a placeholder to vote on the removal.
 		if err := s.vote(ctx, git.ZeroOID); err != nil {
@@ -54,42 +55,27 @@ func (s *server) applyGitattributes(ctx context.Context, c catfile.Batch, repoPa
 	}
 
 	// Create  /info folder if it doesn't exist
-	if err := os.MkdirAll(infoPath, 0755); err != nil {
+	if err := os.MkdirAll(infoPath, 0o755); err != nil {
 		return err
 	}
 
-	tempFile, err := ioutil.TempFile(infoPath, "attributes")
+	writer, err := safe.NewLockingFileWriter(attributesPath, safe.LockingFileWriterConfig{
+		FileWriterConfig: safe.FileWriterConfig{FileMode: attributesFileMode},
+	})
 	if err != nil {
-		return status.Errorf(codes.Internal, "ApplyGitAttributes: creating temp file: %v", err)
+		return fmt.Errorf("creating gitattributes writer: %w", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer writer.Close()
 
-	blobObj, err := c.Blob(ctx, git.Revision(blobInfo.Oid))
-	if err != nil {
+	if _, err := io.Copy(writer, blobObj); err != nil {
 		return err
 	}
 
-	// Write attributes to temp file
-	if _, err := io.CopyN(tempFile, blobObj.Reader, blobInfo.Size); err != nil {
-		return err
+	if err := transaction.CommitLockedFile(ctx, s.txManager, writer); err != nil {
+		return fmt.Errorf("committing gitattributes: %w", err)
 	}
 
-	if err := tempFile.Close(); err != nil {
-		return err
-	}
-
-	// Change the permission of tempFile as the permission of file attributesPath
-	if err := os.Chmod(tempFile.Name(), attributesFileMode); err != nil {
-		return err
-	}
-
-	// Vote on the contents of the newly written gitattributes file.
-	if err := s.vote(ctx, blobInfo.Oid); err != nil {
-		return fmt.Errorf("could not commit gitattributes: %w", err)
-	}
-
-	// Rename temp file and return the result
-	return os.Rename(tempFile.Name(), attributesPath)
+	return nil
 }
 
 func (s *server) vote(ctx context.Context, oid git.ObjectID) error {
@@ -123,15 +109,15 @@ func (s *server) ApplyGitattributes(ctx context.Context, in *gitalypb.ApplyGitat
 	}
 
 	if err := git.ValidateRevision(in.GetRevision()); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "ApplyGitAttributes: revision: %v", err)
+		return nil, helper.ErrInvalidArgumentf("revision: %v", err)
 	}
 
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.applyGitattributes(ctx, c, repoPath, in.GetRevision()); err != nil {
+	if err := s.applyGitattributes(ctx, repo, objectReader, repoPath, in.GetRevision()); err != nil {
 		return nil, err
 	}
 

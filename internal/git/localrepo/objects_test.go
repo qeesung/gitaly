@@ -3,14 +3,12 @@ package localrepo
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -20,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func setupRepo(t *testing.T, bare bool) (*Repo, string) {
@@ -29,16 +28,16 @@ func setupRepo(t *testing.T, bare bool) (*Repo, string) {
 
 	var repoProto *gitalypb.Repository
 	var repoPath string
-	var repoCleanUp func()
 	if bare {
-		repoProto, repoPath, repoCleanUp = gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
+		repoProto, repoPath = gittest.InitRepo(t, cfg, cfg.Storages[0])
 	} else {
-		repoProto, repoPath, repoCleanUp = gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
+		repoProto, repoPath = gittest.CloneRepo(t, cfg, cfg.Storages[0])
 	}
-	t.Cleanup(repoCleanUp)
 
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
-	return New(gitCmdFactory, catfile.NewCache(cfg), repoProto, cfg), repoPath
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+	return New(gitCmdFactory, catfileCache, repoProto, cfg), repoPath
 }
 
 type ReaderFunc func([]byte) (int, error)
@@ -62,7 +61,7 @@ func TestRepo_WriteBlob(t *testing.T) {
 		{
 			desc:  "error reading",
 			input: ReaderFunc(func([]byte) (int, error) { return 0, assert.AnError }),
-			error: fmt.Errorf("%w, stderr: %q", assert.AnError, []byte{}),
+			error: assert.AnError,
 		},
 		{
 			desc:    "successful empty blob",
@@ -92,9 +91,9 @@ func TestRepo_WriteBlob(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(t,
-				ioutil.WriteFile(filepath.Join(repoPath, "info", "attributes"), []byte(tc.attributes), os.ModePerm),
-			)
+			attributesPath := filepath.Join(repoPath, "info", "attributes")
+			require.NoError(t, os.MkdirAll(filepath.Dir(attributesPath), 0o755))
+			require.NoError(t, os.WriteFile(attributesPath, []byte(tc.attributes), os.ModePerm))
 
 			sha, err := repo.WriteBlob(ctx, "file-path", tc.input)
 			require.Equal(t, tc.error, err)
@@ -115,9 +114,8 @@ func TestFormatTag(t *testing.T) {
 		objectID   git.ObjectID
 		objectType string
 		tagName    []byte
-		userName   []byte
-		userEmail  []byte
 		tagBody    []byte
+		author     *gitalypb.User
 		authorDate time.Time
 		err        error
 	}{
@@ -128,33 +126,39 @@ func TestFormatTag(t *testing.T) {
 			objectID:   git.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
-			userName:   []byte("root"),
-			userEmail:  []byte("root@localhost"),
-			tagBody:    []byte(""),
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
+			tagBody: []byte(""),
 		},
 		{
 			desc:       "basic signature",
 			objectID:   git.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag\ninjection"),
-			userName:   []byte("root"),
-			userEmail:  []byte("root@localhost"),
 			tagBody:    []byte(""),
-			err:        FormatTagError{expectedLines: 4, actualLines: 5},
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
+			err: FormatTagError{expectedLines: 4, actualLines: 5},
 		},
 		{
 			desc:       "signature with fixed time",
 			objectID:   git.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
-			userName:   []byte("root"),
-			userEmail:  []byte("root@localhost"),
 			tagBody:    []byte(""),
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
 			authorDate: time.Unix(12345, 0),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			signature, err := FormatTag(tc.objectID, tc.objectType, tc.tagName, tc.userName, tc.userEmail, tc.tagBody, tc.authorDate)
+			signature, err := FormatTag(tc.objectID, tc.objectType, tc.tagName, tc.tagBody, tc.author, tc.authorDate)
 			if err != nil {
 				require.Equal(t, tc.err, err)
 				require.Equal(t, "", signature)
@@ -175,14 +179,14 @@ func TestRepo_WriteTag(t *testing.T) {
 	repo, repoPath := setupRepo(t, false)
 
 	for _, tc := range []struct {
-		desc       string
-		objectID   git.ObjectID
-		objectType string
-		tagName    []byte
-		userName   []byte
-		userEmail  []byte
-		tagBody    []byte
-		authorDate time.Time
+		desc        string
+		objectID    git.ObjectID
+		objectType  string
+		tagName     []byte
+		tagBody     []byte
+		author      *gitalypb.User
+		authorDate  time.Time
+		expectedTag string
 	}{
 		// Just trivial tests here, most of this is tested in
 		// internal/gitaly/service/operations/tags_test.go
@@ -191,27 +195,59 @@ func TestRepo_WriteTag(t *testing.T) {
 			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
-			userName:   []byte("root"),
-			userEmail:  []byte("root@localhost"),
 			tagBody:    []byte(""),
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
 		},
 		{
 			desc:       "signature with time",
 			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
 			objectType: "commit",
 			tagName:    []byte("tag-with-timestamp"),
-			userName:   []byte("root"),
-			userEmail:  []byte("root@localhost"),
 			tagBody:    []byte(""),
-			authorDate: time.Unix(12345, 0),
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
+			authorDate: time.Unix(12345, 0).UTC(),
+			expectedTag: `object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+type commit
+tag tag-with-timestamp
+tagger root <root@localhost> 12345 +0000
+`,
+		},
+		{
+			desc:       "signature with time and timezone",
+			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
+			objectType: "commit",
+			tagName:    []byte("tag-with-timezone"),
+			tagBody:    []byte(""),
+			author: &gitalypb.User{
+				Name:  []byte("root"),
+				Email: []byte("root@localhost"),
+			},
+			authorDate: time.Unix(12345, 0).In(time.FixedZone("myzone", -60*60)),
+			expectedTag: `object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+type commit
+tag tag-with-timezone
+tagger root <root@localhost> 12345 -0100
+`,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			tagObjID, err := repo.WriteTag(ctx, tc.objectID, tc.objectType, tc.tagName, tc.userName, tc.userEmail, tc.tagBody, tc.authorDate)
+			tagObjID, err := repo.WriteTag(ctx, tc.objectID, tc.objectType, tc.tagName, tc.tagBody, tc.author, tc.authorDate)
 			require.NoError(t, err)
 
 			repoTagObjID := gittest.Exec(t, repo.cfg, "-C", repoPath, "rev-parse", tagObjID.String())
 			require.Equal(t, text.ChompBytes(repoTagObjID), tagObjID.String())
+
+			if tc.expectedTag != "" {
+				tag := gittest.Exec(t, repo.cfg, "-C", repoPath, "cat-file",
+					"-p", tagObjID.String())
+				require.Equal(t, tc.expectedTag, text.ChompBytes(tag))
+			}
 		})
 	}
 }
@@ -288,7 +324,7 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:  []byte("Drew Blessing"),
 					Email: []byte("drew@blessing.io"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1540830087,
 					},
 					Timezone: []byte("+0000"),
@@ -296,7 +332,7 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Committer: &gitalypb.CommitAuthor{
 					Name:  []byte("Drew Blessing"),
 					Email: []byte("drew@blessing.io"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1540830087,
 					},
 					Timezone: []byte("+0000"),
@@ -318,7 +354,7 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1393491698,
 					},
 					Timezone: []byte("+0200"),
@@ -326,7 +362,7 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Committer: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1393491698,
 					},
 					Timezone: []byte("+0200"),
@@ -350,7 +386,7 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Author: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1393491698,
 					},
 					Timezone: []byte("+0200"),
@@ -358,14 +394,14 @@ func TestRepo_ReadCommit(t *testing.T) {
 				Committer: &gitalypb.CommitAuthor{
 					Name:  []byte("Dmitriy Zaporozhets"),
 					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamp.Timestamp{
+					Date: &timestamppb.Timestamp{
 						Seconds: 1393491698,
 					},
 					Timezone: []byte("+0200"),
 				},
 				SignatureType: gitalypb.SignatureType_PGP,
 				Trailers: []*gitalypb.CommitTrailer{
-					&gitalypb.CommitTrailer{
+					{
 						Key:   []byte("Signed-off-by"),
 						Value: []byte("Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>"),
 					},

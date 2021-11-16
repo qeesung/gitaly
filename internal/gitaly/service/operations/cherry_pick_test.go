@@ -2,21 +2,24 @@ package operations
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestServer_UserCherryPick_successful(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -33,8 +36,7 @@ func TestServer_UserCherryPick_successful(t *testing.T) {
 	cherryPickedCommit, err := repo.ReadCommit(ctx, "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab")
 	require.NoError(t, err)
 
-	testRepoCopy, testRepoCopyPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "read-only") // read-only repo
-	defer cleanup()
+	testRepoCopy, testRepoCopyPath := gittest.CloneRepo(t, cfg, cfg.Storages[0]) // read-only repo
 
 	gittest.Exec(t, cfg, "-C", testRepoCopyPath, "branch", destinationBranch, "master")
 
@@ -173,6 +175,7 @@ func TestServer_UserCherryPick_successful(t *testing.T) {
 
 func TestServer_UserCherryPick_successfulGitHooks(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -212,6 +215,7 @@ func TestServer_UserCherryPick_successfulGitHooks(t *testing.T) {
 
 func TestServer_UserCherryPick_stableID(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -231,7 +235,7 @@ func TestServer_UserCherryPick_stableID(t *testing.T) {
 		Commit:     commitToPick,
 		BranchName: []byte(destinationBranch),
 		Message:    []byte("Cherry-picking " + commitToPick.Id),
-		Timestamp:  &timestamp.Timestamp{Seconds: 12345},
+		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
@@ -251,7 +255,7 @@ func TestServer_UserCherryPick_stableID(t *testing.T) {
 		Author: &gitalypb.CommitAuthor{
 			Name:  []byte("Ahmad Sherif"),
 			Email: []byte("me@ahmadsherif.com"),
-			Date: &timestamp.Timestamp{
+			Date: &timestamppb.Timestamp{
 				Seconds: 1487337076,
 			},
 			Timezone: []byte("+0200"),
@@ -259,7 +263,7 @@ func TestServer_UserCherryPick_stableID(t *testing.T) {
 		Committer: &gitalypb.CommitAuthor{
 			Name:  gittest.TestUser.Name,
 			Email: gittest.TestUser.Email,
-			Date: &timestamp.Timestamp{
+			Date: &timestamppb.Timestamp{
 				Seconds: 12345,
 			},
 			Timezone: []byte("+0000"),
@@ -269,6 +273,7 @@ func TestServer_UserCherryPick_stableID(t *testing.T) {
 
 func TestServer_UserCherryPick_failedValidations(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -342,6 +347,7 @@ func TestServer_UserCherryPick_failedValidations(t *testing.T) {
 
 func TestServer_UserCherryPick_failedWithPreReceiveError(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -378,6 +384,7 @@ func TestServer_UserCherryPick_failedWithPreReceiveError(t *testing.T) {
 
 func TestServer_UserCherryPick_failedWithCreateTreeError(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -408,6 +415,7 @@ func TestServer_UserCherryPick_failedWithCreateTreeError(t *testing.T) {
 
 func TestServer_UserCherryPick_failedWithCommitError(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -439,6 +447,7 @@ func TestServer_UserCherryPick_failedWithCommitError(t *testing.T) {
 
 func TestServer_UserCherryPick_failedWithConflict(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -469,6 +478,7 @@ func TestServer_UserCherryPick_failedWithConflict(t *testing.T) {
 
 func TestServer_UserCherryPick_successfulWithGivenCommits(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -521,4 +531,43 @@ func TestServer_UserCherryPick_successfulWithGivenCommits(t *testing.T) {
 			require.Equal(t, testCase.startRevision.String(), newHead.ParentIds[0])
 		})
 	}
+}
+
+func TestServer_UserCherryPick_quarantine(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	// Set up a hook that parses the new object and then aborts the update. Like this, we can
+	// assert that the object does not end up in the main repository.
+	outputPath := filepath.Join(testhelper.TempDir(t), "output")
+	hookScript := fmt.Sprintf("#!/bin/sh\nread oldval newval ref && %s rev-parse $newval^{commit} >%s && exit 1", cfg.Git.BinPath, outputPath)
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(hookScript))
+
+	commit, err := repo.ReadCommit(ctx, "8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab")
+	require.NoError(t, err)
+
+	request := &gitalypb.UserCherryPickRequest{
+		Repository: repoProto,
+		User:       gittest.TestUser,
+		Commit:     commit,
+		BranchName: []byte("refs/heads/master"),
+		Message:    []byte("Message"),
+	}
+
+	response, err := client.UserCherryPick(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, response)
+
+	hookOutput := testhelper.MustReadFile(t, outputPath)
+	oid, err := git.NewObjectIDFromHex(text.ChompBytes(hookOutput))
+	require.NoError(t, err)
+	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
+	require.NoError(t, err)
+
+	require.False(t, exists, "quarantined commit should have been discarded")
 }

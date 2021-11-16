@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package testhelper
@@ -6,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	git "github.com/libgit2/git2go/v31"
+	git "github.com/libgit2/git2go/v32"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/git2goutil"
 )
 
 // DefaultAuthor is the author used by BuildCommit
@@ -17,8 +19,9 @@ var DefaultAuthor = git.Signature{
 	When:  time.Date(2020, 1, 1, 1, 1, 1, 0, time.FixedZone("", 2*60*60)),
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func BuildCommit(t testing.TB, repoPath string, parents []*git.Oid, fileContents map[string]string) *git.Oid {
-	repo, err := git.OpenRepository(repoPath)
+	repo, err := git2goutil.OpenRepository(repoPath)
 	require.NoError(t, err)
 	defer repo.Free()
 

@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"strconv"
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	glerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
@@ -29,22 +29,17 @@ import (
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/sync/errgroup"
 	grpc_metadata "google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 // ErrRepositoryReadOnly is returned when the repository is in read-only mode. This happens
 // if the primary does not have the latest changes.
-var ErrRepositoryReadOnly = helper.ErrPreconditionFailedf("repository is in read-only mode")
+var ErrRepositoryReadOnly = helper.ErrFailedPreconditionf("repository is in read-only mode")
 
 type transactionsCondition func(context.Context) bool
 
 func transactionsEnabled(context.Context) bool  { return true }
 func transactionsDisabled(context.Context) bool { return false }
-
-func transactionsFlag(flag featureflag.FeatureFlag) transactionsCondition {
-	return func(ctx context.Context) bool {
-		return featureflag.IsEnabled(ctx, flag)
-	}
-}
 
 // transactionRPCs contains the list of repository-scoped mutating calls which may take part in
 // transactions. An optional feature flag can be added to conditionally enable transactional
@@ -69,9 +64,6 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.OperationService/UserUpdateBranch":              transactionsEnabled,
 	"/gitaly.OperationService/UserUpdateSubmodule":           transactionsEnabled,
 	"/gitaly.RefService/DeleteRefs":                          transactionsEnabled,
-	"/gitaly.RemoteService/AddRemote":                        transactionsEnabled,
-	"/gitaly.RemoteService/FetchInternalRemote":              transactionsEnabled,
-	"/gitaly.RemoteService/RemoveRemote":                     transactionsEnabled,
 	"/gitaly.RepositoryService/ApplyGitattributes":           transactionsEnabled,
 	"/gitaly.RepositoryService/CloneFromPool":                transactionsEnabled,
 	"/gitaly.RepositoryService/CloneFromPoolInternal":        transactionsEnabled,
@@ -80,28 +72,26 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.RepositoryService/CreateRepositoryFromBundle":   transactionsEnabled,
 	"/gitaly.RepositoryService/CreateRepositoryFromSnapshot": transactionsEnabled,
 	"/gitaly.RepositoryService/CreateRepositoryFromURL":      transactionsEnabled,
-	"/gitaly.RepositoryService/DeleteConfig":                 transactionsEnabled,
+	"/gitaly.RepositoryService/FetchBundle":                  transactionsEnabled,
 	"/gitaly.RepositoryService/FetchRemote":                  transactionsEnabled,
 	"/gitaly.RepositoryService/FetchSourceBranch":            transactionsEnabled,
+	"/gitaly.RepositoryService/RemoveRepository":             transactionsEnabled,
 	"/gitaly.RepositoryService/ReplicateRepository":          transactionsEnabled,
-	"/gitaly.RepositoryService/SetConfig":                    transactionsEnabled,
+	"/gitaly.RepositoryService/SetFullPath":                  transactionsEnabled,
 	"/gitaly.RepositoryService/WriteRef":                     transactionsEnabled,
 	"/gitaly.SSHService/SSHReceivePack":                      transactionsEnabled,
 	"/gitaly.SmartHTTPService/PostReceivePack":               transactionsEnabled,
 	"/gitaly.WikiService/WikiUpdatePage":                     transactionsEnabled,
 	"/gitaly.WikiService/WikiWritePage":                      transactionsEnabled,
 
-	"/gitaly.RepositoryService/RemoveRepository": transactionsFlag(featureflag.TxRemoveRepository),
-
 	// The following RPCs currently aren't transactional, but we may consider making them
 	// transactional in the future if the need arises.
-	"/gitaly.ObjectPoolService/CreateObjectPool":               transactionsDisabled,
-	"/gitaly.ObjectPoolService/DeleteObjectPool":               transactionsDisabled,
-	"/gitaly.ObjectPoolService/DisconnectGitAlternates":        transactionsDisabled,
-	"/gitaly.ObjectPoolService/LinkRepositoryToObjectPool":     transactionsDisabled,
-	"/gitaly.ObjectPoolService/ReduplicateRepository":          transactionsDisabled,
-	"/gitaly.ObjectPoolService/UnlinkRepositoryFromObjectPool": transactionsDisabled,
-	"/gitaly.RepositoryService/RenameRepository":               transactionsDisabled,
+	"/gitaly.ObjectPoolService/CreateObjectPool":           transactionsDisabled,
+	"/gitaly.ObjectPoolService/DeleteObjectPool":           transactionsDisabled,
+	"/gitaly.ObjectPoolService/DisconnectGitAlternates":    transactionsDisabled,
+	"/gitaly.ObjectPoolService/LinkRepositoryToObjectPool": transactionsDisabled,
+	"/gitaly.ObjectPoolService/ReduplicateRepository":      transactionsDisabled,
+	"/gitaly.RepositoryService/RenameRepository":           transactionsDisabled,
 
 	// The following list of RPCs are considered idempotent RPCs: while they write into the
 	// target repository, this shouldn't ever have any user-visible impact given that they're
@@ -270,6 +260,10 @@ type Coordinator struct {
 	conf                     config.Config
 	votersMetric             *prometheus.HistogramVec
 	txReplicationCountMetric *prometheus.CounterVec
+
+	// forceCreateRepositories will enable force-creation of repositories when routing
+	// repository-scoped mutators. This must never be used outside of tests.
+	forceCreateRepositories bool
 }
 
 // NewCoordinator returns a new Coordinator that utilizes the provided logger
@@ -310,15 +304,18 @@ func NewCoordinator(
 			},
 			[]string{"reason"},
 		),
+		forceCreateRepositories: conf.ForceCreateRepositories,
 	}
 
 	return coordinator
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (c *Coordinator) Describe(descs chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(c, descs)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (c *Coordinator) Collect(metrics chan<- prometheus.Metric) {
 	c.votersMetric.Collect(metrics)
 	c.txReplicationCountMetric.Collect(metrics)
@@ -333,6 +330,42 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 	var err error
 	var ps *proxy.StreamParameters
 
+	if c.forceCreateRepositories {
+		replicationType, _, err := getReplicationDetails(call.fullMethodName, call.msg)
+		if err != nil {
+			return nil, err
+		}
+
+		if replicationType != datastore.CreateRepo {
+			relativePaths := []string{call.targetRepo.RelativePath}
+
+			if additionalRepo, ok, err := call.methodInfo.AdditionalRepo(call.msg); err != nil {
+				return nil, err
+			} else if ok {
+				relativePaths = append(relativePaths, additionalRepo.RelativePath)
+			}
+
+			for _, relativePath := range relativePaths {
+				// This is a hack for the tests: during execution of the gitaly tests under praefect proxy
+				// the repositories are created directly on the filesystem. There is no call for the
+				// CreateRepository that creates records in the database that is why we do it artificially
+				// before redirecting the calls.
+				id, err := c.rs.ReserveRepositoryID(ctx, call.targetRepo.StorageName, relativePath)
+				if err != nil {
+					if !errors.Is(err, commonerr.ErrRepositoryAlreadyExists) {
+						return nil, err
+					}
+				} else {
+					if err := c.rs.CreateRepository(ctx, id, call.targetRepo.StorageName, relativePath, relativePath, call.targetRepo.StorageName, nil, nil, true, true); err != nil {
+						if !errors.As(err, &datastore.RepositoryExistsError{}) {
+							return nil, err
+						}
+					}
+				}
+			}
+		}
+	}
+
 	switch call.methodInfo.Operation {
 	case protoregistry.OpAccessor:
 		ps, err = c.accessorStreamParameters(ctx, call)
@@ -343,6 +376,10 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 	}
 
 	if err != nil {
+		if errors.As(err, new(commonerr.RepositoryNotFoundError)) {
+			return nil, helper.ErrNotFound(err)
+		}
+
 		return nil, err
 	}
 
@@ -372,27 +409,23 @@ func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCal
 	repoPath := call.targetRepo.GetRelativePath()
 	virtualStorage := call.targetRepo.StorageName
 
-	node, err := c.router.RouteRepositoryAccessor(
+	route, err := c.router.RouteRepositoryAccessor(
 		ctx, virtualStorage, repoPath, shouldRouteRepositoryAccessorToPrimary(ctx, call),
 	)
 	if err != nil {
-		if errors.As(err, new(commonerr.RepositoryNotFoundError)) {
-			return nil, helper.ErrNotFound(err)
-		}
-
 		return nil, fmt.Errorf("accessor call: route repository accessor: %w", err)
 	}
 
-	b, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, node.Storage)
+	b, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Node.Storage, route.ReplicaPath, "")
 	if err != nil {
 		return nil, fmt.Errorf("accessor call: rewrite storage: %w", err)
 	}
 
-	metrics.ReadDistribution.WithLabelValues(virtualStorage, node.Storage).Inc()
+	metrics.ReadDistribution.WithLabelValues(virtualStorage, route.Node.Storage).Inc()
 
 	return proxy.NewStreamParameters(proxy.Destination{
-		Ctx:  helper.IncomingToOutgoing(ctx),
-		Conn: node.Connection,
+		Ctx:  streamParametersContext(ctx),
+		Conn: route.Node.Connection,
 		Msg:  b,
 	}, nil, nil, nil), nil
 }
@@ -449,12 +482,19 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	var route RepositoryMutatorRoute
 	switch change {
 	case datastore.CreateRepo:
-		route, err = c.router.RouteRepositoryCreation(ctx, virtualStorage)
+		route, err = c.router.RouteRepositoryCreation(ctx, virtualStorage, targetRepo.RelativePath)
 		if err != nil {
 			return nil, fmt.Errorf("route repository creation: %w", err)
 		}
 	default:
-		route, err = c.router.RouteRepositoryMutator(ctx, virtualStorage, targetRepo.RelativePath)
+		var additionalRepoRelativePath string
+		if additionalRepo, ok, err := call.methodInfo.AdditionalRepo(call.msg); err != nil {
+			return nil, helper.ErrInvalidArgument(err)
+		} else if ok {
+			additionalRepoRelativePath = additionalRepo.GetRelativePath()
+		}
+
+		route, err = c.router.RouteRepositoryMutator(ctx, virtualStorage, targetRepo.RelativePath, additionalRepoRelativePath)
 		if err != nil {
 			if errors.Is(err, ErrRepositoryReadOnly) {
 				return nil, err
@@ -464,7 +504,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		}
 	}
 
-	primaryMessage, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Primary.Storage)
+	primaryMessage, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Primary.Storage, route.ReplicaPath, route.AdditionalReplicaPath)
 	if err != nil {
 		return nil, fmt.Errorf("mutator call: rewrite storage: %w", err)
 	}
@@ -472,7 +512,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	var finalizers []func() error
 
 	primaryDest := proxy.Destination{
-		Ctx:  helper.IncomingToOutgoing(ctx),
+		Ctx:  streamParametersContext(ctx),
 		Conn: route.Primary.Connection,
 		Msg:  primaryMessage,
 	}
@@ -496,7 +536,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		if err != nil {
 			return nil, err
 		}
-		primaryDest.Ctx = helper.IncomingToOutgoing(injectedCtx)
+		primaryDest.Ctx = streamParametersContext(injectedCtx)
 		primaryDest.ErrHandler = func(err error) error {
 			nodeErrors.Lock()
 			defer nodeErrors.Unlock()
@@ -506,7 +546,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 
 		for _, secondary := range route.Secondaries {
 			secondary := secondary
-			secondaryMsg, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, secondary.Storage)
+			secondaryMsg, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, secondary.Storage, route.ReplicaPath, route.AdditionalReplicaPath)
 			if err != nil {
 				return nil, err
 			}
@@ -517,7 +557,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 			}
 
 			secondaryDests = append(secondaryDests, proxy.Destination{
-				Ctx:  helper.IncomingToOutgoing(injectedCtx),
+				Ctx:  streamParametersContext(injectedCtx),
 				Conn: secondary.Connection,
 				Msg:  secondaryMsg,
 				ErrHandler: func(err error) error {
@@ -545,6 +585,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		finalizers = append(finalizers,
 			c.newRequestFinalizer(
 				ctx,
+				route.RepositoryID,
 				virtualStorage,
 				targetRepo,
 				route.Primary.Storage,
@@ -577,6 +618,49 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return firstErr
 	}
 	return proxy.NewStreamParameters(primaryDest, secondaryDests, reqFinalizer, nil), nil
+}
+
+// streamParametersContexts converts the contexts with incoming metadata into a context that is
+// usable by peer Gitaly nodes.
+func streamParametersContext(ctx context.Context) context.Context {
+	outgoingCtx := metadata.IncomingToOutgoing(ctx)
+
+	// When upgrading Gitaly nodes where the upgrade contains feature flag default changes, then
+	// there will be a window where a subset of Gitaly nodes has a different understanding of
+	// the current default value. If the feature flag wasn't set explicitly on upgrade by
+	// outside callers, then these Gitaly nodes will thus see different default values and run
+	// different code. This is something we want to avoid: all Gitalies should have the same
+	// world view of which features are enabled and which ones aren't and ideally do the same
+	// thing.
+	//
+	// This problem isn't solveable on Gitaly side, but Praefect is in a perfect position to do
+	// so. While it may have the same problem in a load-balanced multi-Praefect setup, this is
+	// much less of a problem: the most important thing is that the view on feature flags is
+	// consistent for a single RPC call, and that will always be the case regardless of which
+	// Praefect is proxying the call. The worst case scenario is that we'll execute the RPC once
+	// with a feature flag enabled, and once with it disabled, which shouldn't typically be an
+	// issue.
+	//
+	// To fix this scenario, we thus inject all known feature flags with their current default
+	// value as seen by Praefect into Gitaly's context if they haven't explicitly been set by
+	// the caller. Like this, Gitalies will never even consider the default value in a cluster
+	// setup, except when it is being introduced for the first time when Gitaly restarts before
+	// Praefect. But given that feature flags should be introduced with a default value of
+	// `false` to account for zero-dodwntime upgrades, the view would also be consistent in that
+	// case.
+	rawFeatureFlags := featureflag.RawFromContext(ctx)
+	if rawFeatureFlags == nil {
+		rawFeatureFlags = map[string]string{}
+	}
+
+	for _, ff := range featureflag.All {
+		if _, ok := rawFeatureFlags[ff.MetadataKey()]; !ok {
+			rawFeatureFlags[ff.MetadataKey()] = strconv.FormatBool(ff.OnByDefault)
+		}
+	}
+	outgoingCtx = featureflag.OutgoingWithRaw(outgoingCtx, rawFeatureFlags)
+
+	return outgoingCtx
 }
 
 // StreamDirector determines which downstream servers receive requests
@@ -620,6 +704,11 @@ func (c *Coordinator) StreamDirector(ctx context.Context, fullMethodName string,
 			if errors.Is(err, nodes.ErrVirtualStorageNotExist) {
 				return nil, helper.ErrInvalidArgument(err)
 			}
+
+			if errors.Is(err, commonerr.ErrRepositoryAlreadyExists) {
+				return nil, helper.ErrAlreadyExists(err)
+			}
+
 			return nil, err
 		}
 		return sp, nil
@@ -712,14 +801,18 @@ func (c *Coordinator) mutatorStorageStreamParameters(ctx context.Context, mi pro
 	return proxy.NewStreamParameters(primaryDest, secondaryDests, func() error { return nil }, nil), nil
 }
 
-func rewrittenRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, storage string) ([]byte, error) {
+// rewrittenRepositoryMessage rewrites the repository storages and relative paths.
+func rewrittenRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, storage, relativePath, additionalRelativePath string) ([]byte, error) {
+	// clone the message so the original is not changed
+	m = proto.Clone(m)
 	targetRepo, err := mi.TargetRepo(m)
 	if err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	// rewrite storage name
+	// rewrite the target repository
 	targetRepo.StorageName = storage
+	targetRepo.RelativePath = relativePath
 
 	additionalRepo, ok, err := mi.AdditionalRepo(m)
 	if err != nil {
@@ -728,14 +821,10 @@ func rewrittenRepositoryMessage(mi protoregistry.MethodInfo, m proto.Message, st
 
 	if ok {
 		additionalRepo.StorageName = storage
+		additionalRepo.RelativePath = additionalRelativePath
 	}
 
-	b, err := proxy.NewCodec().Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return proxy.NewCodec().Marshal(m)
 }
 
 func rewrittenStorageMessage(mi protoregistry.MethodInfo, m proto.Message, storage string) ([]byte, error) {
@@ -777,7 +866,7 @@ func (c *Coordinator) createTransactionFinalizer(
 		}
 
 		return c.newRequestFinalizer(
-			ctx, virtualStorage, targetRepo, route.Primary.Storage,
+			ctx, route.RepositoryID, virtualStorage, targetRepo, route.Primary.Storage,
 			updated, outdated, change, params, cause)()
 	}
 }
@@ -794,8 +883,9 @@ func (c *Coordinator) createTransactionFinalizer(
 // - The node failed to be part of the quorum. As a special case, if the primary fails the vote, all
 //   nodes need to get replication jobs.
 //
-// - The node has errored. As a special case, if the primary fails all nodes need to get replication
-//   jobs.
+// - The node has a different error state than the primary. If both primary and secondary have
+//   returned the same error, then we assume they did the same thing and failed in the same
+//   controlled way.
 //
 // Note that this function cannot and should not fail: if anything goes wrong, we need to create
 // replication jobs to repair state.
@@ -811,57 +901,53 @@ func getUpdatedAndOutdatedSecondaries(
 
 	primaryErr := nodeErrors.errByNode[route.Primary.Storage]
 
-	// If there were subtransactions, we only assume some changes were made if one of the subtransactions
-	// was committed.
-	//
-	// If there were no subtransactions, we assume changes were performed only if the primary successfully
-	// processed the RPC. This might be an RPC that is not correctly casting votes thus we replicate everywhere.
-	//
-	// If there were no subtransactions and the primary failed the RPC, we assume no changes have been made and
-	// the nodes simply failed before voting.
-	primaryDirtied = transaction.DidCommitAnySubtransaction() ||
-		(transaction.CountSubtransactions() == 0 && primaryErr == nil)
-
-	// If the primary wasn't dirtied, then we never replicate any changes. While this is
-	// duplicates logic defined elsewhere, it's probably good enough given that we only talk
-	// about metrics here.
-	recordReplication := func(reason string, replicationCount int) {
-		if primaryDirtied && replicationCount > 0 {
-			replicationCountMetric.WithLabelValues(reason).Add(float64(replicationCount))
-		}
+	// If there were no subtransactions and the primary failed the RPC, we assume no changes
+	// have been made and the nodes simply failed before voting. We can thus return directly and
+	// notify the caller that the primary is not considered to be dirty.
+	if transaction.CountSubtransactions() == 0 && primaryErr != nil {
+		return false, nil, nil
 	}
 
-	// Same as above, we discard log entries in case the primary wasn't dirtied.
-	logReplication := ctxlogrus.Extract(ctx)
-	if !primaryDirtied {
-		discardLogger := logrus.New()
-		discardLogger.Out = ioutil.Discard
-		logReplication = logrus.NewEntry(discardLogger)
+	// If there was a single subtransactions but the primary didn't cast a vote, then it means
+	// that the primary node has dropped out before secondaries were able to commit any changes
+	// to disk. Given that they cannot ever succeed without the primary, no change to disk
+	// should have happened.
+	if transaction.CountSubtransactions() == 1 && !transaction.DidVote(route.Primary.Storage) {
+		return false, nil, nil
+	}
+
+	primaryDirtied = true
+
+	nodesByState := make(map[string][]string)
+	defer func() {
+		ctxlogrus.Extract(ctx).
+			WithField("transaction.primary", route.Primary.Storage).
+			WithField("transaction.secondaries", nodesByState).
+			Info("transactional node states")
+
+		for reason, nodes := range nodesByState {
+			replicationCountMetric.WithLabelValues(reason).Add(float64(len(nodes)))
+		}
+	}()
+
+	markOutdated := func(reason string, nodes []string) {
+		if len(nodes) != 0 {
+			outdated = append(outdated, nodes...)
+			nodesByState[reason] = append(nodesByState[reason], nodes...)
+		}
 	}
 
 	// Replication targets were not added to the transaction, most likely because they are
 	// either not healthy or out of date. We thus need to make sure to create replication jobs
 	// for them.
-	outdated = append(outdated, route.ReplicationTargets...)
-	recordReplication("outdated", len(route.ReplicationTargets))
-
-	// If the primary errored, then we need to assume that it has modified on-disk state and
-	// thus need to replicate those changes to secondaries.
-	if primaryErr != nil {
-		logReplication.WithError(primaryErr).Info("primary failed transaction")
-		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
-		recordReplication("primary-failed", len(route.Secondaries))
-		return
-	}
+	markOutdated("outdated", route.ReplicationTargets)
 
 	// If no subtransaction happened, then the called RPC may not be aware of transactions or
 	// the nodes failed before casting any votes. If the primary failed the RPC, we assume
 	// no changes were done and the nodes hit an error prior to voting. If the primary processed
 	// the RPC successfully, we assume the RPC is not correctly voting and replicate everywhere.
 	if transaction.CountSubtransactions() == 0 {
-		logReplication.Info("transaction did not create subtransactions")
-		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
-		recordReplication("no-votes", len(route.Secondaries))
+		markOutdated("no-votes", routerNodesToStorages(route.Secondaries))
 		return
 	}
 
@@ -869,9 +955,7 @@ func getUpdatedAndOutdatedSecondaries(
 	// safe route and just replicate to all secondaries.
 	nodeStates, err := transaction.State()
 	if err != nil {
-		logReplication.WithError(err).Error("could not get transaction state")
-		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
-		recordReplication("missing-tx-state", len(route.Secondaries))
+		markOutdated("missing-tx-state", routerNodesToStorages(route.Secondaries))
 		return
 	}
 
@@ -879,30 +963,26 @@ func getUpdatedAndOutdatedSecondaries(
 	// then we must assume that it dirtied on-disk state. This modified state may not be what we want,
 	// but it's what we got. So in order to ensure a consistent state, we need to replicate.
 	if state := nodeStates[route.Primary.Storage]; state != transactions.VoteCommitted {
-		if state == transactions.VoteFailed {
-			logReplication.Error("transaction: primary failed vote")
-		}
-		outdated = append(outdated, routerNodesToStorages(route.Secondaries)...)
-		recordReplication("primary-not-committed", len(route.Secondaries))
+		markOutdated("primary-not-committed", routerNodesToStorages(route.Secondaries))
 		return
 	}
 
-	// Now we finally got the potentially happy case: in case the secondary didn't run into an
-	// error and committed, it's considered up to date and thus does not need replication.
+	// Now we finally got the potentially happy case: when the secondary committed the
+	// transaction and has the same error state as the primary, then it's considered up to date
+	// and thus does not need replication.
 	for _, secondary := range route.Secondaries {
-		if nodeErrors.errByNode[secondary.Storage] != nil {
-			outdated = append(outdated, secondary.Storage)
-			recordReplication("node-failed", 1)
+		if nodeErrors.errByNode[secondary.Storage] != primaryErr {
+			markOutdated("node-error-status", []string{secondary.Storage})
 			continue
 		}
 
 		if nodeStates[secondary.Storage] != transactions.VoteCommitted {
-			outdated = append(outdated, secondary.Storage)
-			recordReplication("node-not-committed", 1)
+			markOutdated("node-not-committed", []string{secondary.Storage})
 			continue
 		}
 
 		updated = append(updated, secondary.Storage)
+		nodesByState["updated"] = append(nodesByState["updated"], secondary.Storage)
 	}
 
 	return
@@ -918,6 +998,7 @@ func routerNodesToStorages(nodes []RouterNode) []string {
 
 func (c *Coordinator) newRequestFinalizer(
 	ctx context.Context,
+	repositoryID int64,
 	virtualStorage string,
 	targetRepo *gitalypb.Repository,
 	primary string,
@@ -953,7 +1034,7 @@ func (c *Coordinator) newRequestFinalizer(
 			// If this fails, the primary might have changes on it that are not recorded in the database. The secondaries will appear
 			// consistent with the primary but might serve different stale data. Follow-up mutator calls will solve this state although
 			// the primary will be a later generation in the mean while.
-			if err := c.rs.IncrementGeneration(ctx, virtualStorage, targetRepo.GetRelativePath(), primary, updatedSecondaries); err != nil {
+			if err := c.rs.IncrementGeneration(ctx, repositoryID, primary, updatedSecondaries); err != nil {
 				return fmt.Errorf("increment generation: %w", err)
 			}
 		case datastore.RenameRepo:
@@ -967,24 +1048,15 @@ func (c *Coordinator) newRequestFinalizer(
 
 				ctxlogrus.Extract(ctx).WithError(err).Info("renamed repository does not have a store entry")
 			}
-		case datastore.DeleteRepo:
-			// If this fails, the repository was already deleted from the primary but we end up still having a record of it in the db.
-			// Ideally we would delete the record from the db first and schedule the repository for deletion later in order to avoid
-			// this problem. Client can reattempt this as deleting a repository is idempotent.
-			if err := c.rs.DeleteRepository(ctx, virtualStorage, targetRepo.GetRelativePath(), append(updatedSecondaries, primary)); err != nil {
-				if !errors.Is(err, datastore.ErrNoRowsAffected) {
-					return fmt.Errorf("delete repository: %w", err)
-				}
-
-				ctxlogrus.Extract(ctx).WithError(err).Info("deleted repository does not have a store entry")
-			}
 		case datastore.CreateRepo:
 			repositorySpecificPrimariesEnabled := c.conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository
 			variableReplicationFactorEnabled := repositorySpecificPrimariesEnabled &&
 				c.conf.DefaultReplicationFactors()[virtualStorage] > 0
 
 			if err := c.rs.CreateRepository(ctx,
+				repositoryID,
 				virtualStorage,
+				targetRepo.GetRelativePath(),
 				targetRepo.GetRelativePath(),
 				primary,
 				updatedSecondaries,
@@ -1007,6 +1079,7 @@ func (c *Coordinator) newRequestFinalizer(
 		for _, secondary := range outdatedSecondaries {
 			event := datastore.ReplicationEvent{
 				Job: datastore.ReplicationJob{
+					RepositoryID:      repositoryID,
 					Change:            change,
 					RelativePath:      targetRepo.GetRelativePath(),
 					VirtualStorage:    virtualStorage,
@@ -1030,13 +1103,13 @@ func (c *Coordinator) newRequestFinalizer(
 
 func (c *Coordinator) validateTargetRepo(repo *gitalypb.Repository) error {
 	if repo.GetStorageName() == "" || repo.GetRelativePath() == "" {
-		return glerrors.ErrInvalidRepository
+		return gitalyerrors.ErrInvalidRepository
 	}
 
 	if _, found := c.conf.StorageNames()[repo.StorageName]; !found {
 		// this needs to be nodes.ErrVirtualStorageNotExist error, but it will break
 		// existing API contract as praefect should be a transparent proxy of the gitaly
-		return glerrors.ErrInvalidRepository
+		return gitalyerrors.ErrInvalidRepository
 	}
 
 	return nil

@@ -8,12 +8,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -47,6 +50,7 @@ func TestListBlobs(t *testing.T) {
 		revisions     []string
 		limit         uint32
 		bytesLimit    int64
+		withPaths     bool
 		expectedErr   error
 		expectedBlobs []*gitalypb.ListBlobsResponse_Blob
 	}{
@@ -72,6 +76,18 @@ func TestListBlobs(t *testing.T) {
 			},
 		},
 		{
+			desc: "single blob with paths",
+			revisions: []string{
+				lfsPointer1,
+			},
+			withPaths: true,
+			// When iterating blobs directly, we cannot deduce a path and thus don't get
+			// any as response.
+			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
+				{Oid: lfsPointer1, Size: lfsPointers[lfsPointer1].Size},
+			},
+		},
+		{
 			desc: "multiple blobs",
 			revisions: []string{
 				lfsPointer1,
@@ -91,6 +107,16 @@ func TestListBlobs(t *testing.T) {
 			},
 			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
 				{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Size: 59},
+			},
+		},
+		{
+			desc: "tree with paths",
+			revisions: []string{
+				"b95c0fad32f4361845f91d9ce4c1721b52b82793",
+			},
+			withPaths: true,
+			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
+				{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Size: 59, Path: []byte("branch-test.txt")},
 			},
 		},
 		{
@@ -121,6 +147,18 @@ func TestListBlobs(t *testing.T) {
 			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
 				{Oid: gitattributesOID, Size: gitattributesSize},
 				{Oid: gitignoreOID, Size: gitignoreSize},
+			},
+		},
+		{
+			desc: "revision with limit and path",
+			revisions: []string{
+				"master",
+			},
+			limit:     2,
+			withPaths: true,
+			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
+				{Oid: gitattributesOID, Size: gitattributesSize, Path: []byte(".gitattributes")},
+				{Oid: gitignoreOID, Size: gitignoreSize, Path: []byte(".gitignore")},
 			},
 		},
 		{
@@ -222,6 +260,7 @@ func TestListBlobs(t *testing.T) {
 				Revisions:  tc.revisions,
 				Limit:      tc.limit,
 				BytesLimit: tc.bytesLimit,
+				WithPaths:  tc.withPaths,
 			})
 			require.NoError(t, err)
 
@@ -239,6 +278,238 @@ func TestListBlobs(t *testing.T) {
 			}
 
 			testassert.ProtoEqual(t, tc.expectedBlobs, blobs)
+		})
+	}
+}
+
+func TestListAllBlobs(t *testing.T) {
+	cfg, repo, _, client := setup(t)
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	quarantine, err := quarantine.New(ctx, repo, config.NewLocator(cfg))
+	require.NoError(t, err)
+
+	quarantineRepoWithoutAlternates := proto.Clone(quarantine.QuarantinedRepo()).(*gitalypb.Repository)
+	quarantineRepoWithoutAlternates.GitAlternateObjectDirectories = []string{}
+
+	emptyRepo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+	singleBlobRepo, singleBlobRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	blobID := gittest.WriteBlob(t, cfg, singleBlobRepoPath, []byte("foobar"))
+
+	for _, tc := range []struct {
+		desc    string
+		request *gitalypb.ListAllBlobsRequest
+		verify  func(*testing.T, []*gitalypb.ListAllBlobsResponse_Blob)
+	}{
+		{
+			desc: "empty repo",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: emptyRepo,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Empty(t, blobs)
+			},
+		},
+		{
+			desc: "repo with single blob",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: singleBlobRepo,
+				BytesLimit: -1,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Equal(t, []*gitalypb.ListAllBlobsResponse_Blob{{
+					Oid:  blobID.String(),
+					Size: 6,
+					Data: []byte("foobar"),
+				}}, blobs)
+			},
+		},
+		{
+			desc: "repo with single blob and bytes limit",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: singleBlobRepo,
+				BytesLimit: 1,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Equal(t, []*gitalypb.ListAllBlobsResponse_Blob{{
+					Oid:  blobID.String(),
+					Size: 6,
+					Data: []byte("f"),
+				}}, blobs)
+			},
+		},
+		{
+			desc: "normal repo",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: repo,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Greater(t, len(blobs), 300)
+			},
+		},
+		{
+			desc: "normal repo with limit",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: repo,
+				Limit:      2,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Len(t, blobs, 2)
+			},
+		},
+		{
+			desc: "normal repo with bytes limit",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: repo,
+				BytesLimit: 1,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Greater(t, len(blobs), 300)
+				for _, blob := range blobs {
+					emptyBlobID := "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+					if blob.Oid == emptyBlobID {
+						require.Empty(t, blob.Data)
+						require.Equal(t, int64(0), blob.Size)
+					} else {
+						require.Len(t, blob.Data, 1)
+					}
+				}
+			},
+		},
+		{
+			desc: "quarantine repo with alternates",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: quarantine.QuarantinedRepo(),
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Greater(t, len(blobs), 300)
+			},
+		},
+		{
+			desc: "quarantine repo without alternates",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: quarantineRepoWithoutAlternates,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				require.Empty(t, blobs)
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.ListAllBlobs(ctx, tc.request)
+			require.NoError(t, err)
+
+			var blobs []*gitalypb.ListAllBlobsResponse_Blob
+			for {
+				resp, err := stream.Recv()
+				if err != nil {
+					if !errors.Is(err, io.EOF) {
+						require.NoError(t, err)
+					}
+					break
+				}
+
+				blobs = append(blobs, resp.Blobs...)
+			}
+
+			tc.verify(t, blobs)
+		})
+	}
+}
+
+func BenchmarkListAllBlobs(b *testing.B) {
+	b.StopTimer()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	_, repoProto, _, client := setup(b)
+
+	for _, tc := range []struct {
+		desc    string
+		request *gitalypb.ListAllBlobsRequest
+	}{
+		{
+			desc: "with contents",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: repoProto,
+				BytesLimit: -1,
+			},
+		},
+		{
+			desc: "without contents",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: repoProto,
+				BytesLimit: 0,
+			},
+		},
+	} {
+		b.Run(tc.desc, func(b *testing.B) {
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				stream, err := client.ListAllBlobs(ctx, tc.request)
+				require.NoError(b, err)
+
+				for {
+					_, err := stream.Recv()
+					if err == io.EOF {
+						break
+					}
+					require.NoError(b, err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkListBlobs(b *testing.B) {
+	b.StopTimer()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	_, repoProto, _, client := setup(b)
+
+	for _, tc := range []struct {
+		desc    string
+		request *gitalypb.ListBlobsRequest
+	}{
+		{
+			desc: "with contents",
+			request: &gitalypb.ListBlobsRequest{
+				Repository: repoProto,
+				Revisions:  []string{"refs/heads/master"},
+				BytesLimit: -1,
+			},
+		},
+		{
+			desc: "without contents",
+			request: &gitalypb.ListBlobsRequest{
+				Repository: repoProto,
+				Revisions:  []string{"refs/heads/master"},
+				BytesLimit: 0,
+			},
+		},
+	} {
+		b.Run(tc.desc, func(b *testing.B) {
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				stream, err := client.ListBlobs(ctx, tc.request)
+				require.NoError(b, err)
+
+				for {
+					_, err := stream.Recv()
+					if err == io.EOF {
+						break
+					}
+					require.NoError(b, err)
+				}
+			}
 		})
 	}
 }

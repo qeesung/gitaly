@@ -8,13 +8,14 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/dontpanic"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 // maps a cache path to the number of active writers
@@ -73,10 +74,14 @@ func withDisabledWalker() Option {
 
 // DiskCache stores and retrieves byte streams for repository related RPCs
 type DiskCache struct {
+	locator     storage.Locator
 	storages    []config.Storage
 	keyer       leaseKeyer
 	af          activeFiles
 	cacheConfig cacheConfig
+
+	walkersDone chan struct{}
+	walkerLoops []*dontpanic.Forever
 
 	requestTotals              prometheus.Counter
 	missTotals                 prometheus.Counter
@@ -99,12 +104,14 @@ func New(cfg config.Cfg, locator storage.Locator, opts ...Option) *DiskCache {
 	}
 
 	cache := &DiskCache{
+		locator:  locator,
 		storages: cfg.Storages,
 		af: activeFiles{
 			Mutex: &sync.Mutex{},
 			m:     map[string]int{},
 		},
 		cacheConfig: cacheConfig,
+		walkersDone: make(chan struct{}),
 
 		requestTotals: prometheus.NewCounter(
 			prometheus.CounterOpts{
@@ -283,11 +290,11 @@ func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, re
 		}
 	}()
 
-	if err := os.MkdirAll(filepath.Dir(reqPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(reqPath), 0o755); err != nil {
 		return err
 	}
 
-	sf, err := safe.CreateFileWriter(reqPath)
+	sf, err := safe.NewFileWriter(reqPath)
 	if err != nil {
 		return err
 	}

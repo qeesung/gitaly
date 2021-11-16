@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"strings"
 
@@ -117,13 +116,14 @@ func printAlert(m gitlab.PostReceiveMessage, w io.Writer) error {
 	return nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (m *GitLabHookManager) PostReceiveHook(ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {
 		return helper.ErrInternalf("extracting hooks payload: %w", err)
 	}
 
-	changes, err := ioutil.ReadAll(stdin)
+	changes, err := io.ReadAll(stdin)
 	if err != nil {
 		return helper.ErrInternalf("reading stdin from request: %w", err)
 	}

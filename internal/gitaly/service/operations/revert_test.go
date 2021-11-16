@@ -1,19 +1,24 @@
 package operations
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestServer_UserRevert_successful(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -30,8 +35,7 @@ func TestServer_UserRevert_successful(t *testing.T) {
 	revertedCommit, err := repo.ReadCommit(ctx, "d59c60028b053793cecfb4022de34602e1a9218e")
 	require.NoError(t, err)
 
-	testRepoCopy, testRepoCopyPath, cleanup := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], "read-only") // read-only repo
-	defer cleanup()
+	testRepoCopy, testRepoCopyPath := gittest.CloneRepo(t, cfg, cfg.Storages[0]) // read-only repo
 
 	gittest.Exec(t, cfg, "-C", testRepoCopyPath, "branch", destinationBranch, "master")
 
@@ -171,7 +175,48 @@ func TestServer_UserRevert_successful(t *testing.T) {
 	}
 }
 
+func TestServer_UserRevert_quarantine(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	// Set up a hook that parses the new object and then aborts the update. Like this, we can
+	// assert that the object does not end up in the main repository.
+	outputPath := filepath.Join(testhelper.TempDir(t), "output")
+	hookScript := fmt.Sprintf("#!/bin/sh\nread oldval newval ref && %s rev-parse $newval^{commit} >%s && exit 1", cfg.Git.BinPath, outputPath)
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(hookScript))
+
+	commitToRevert, err := repo.ReadCommit(ctx, "d59c60028b053793cecfb4022de34602e1a9218e")
+	require.NoError(t, err)
+
+	response, err := client.UserRevert(ctx, &gitalypb.UserRevertRequest{
+		Repository: repoProto,
+		User:       gittest.TestUser,
+		Commit:     commitToRevert,
+		BranchName: []byte("master"),
+		Message:    []byte("Reverting commit"),
+		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	require.NotEmpty(t, response.PreReceiveError)
+
+	hookOutput := testhelper.MustReadFile(t, outputPath)
+	oid, err := git.NewObjectIDFromHex(text.ChompBytes(hookOutput))
+	require.NoError(t, err)
+	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
+	require.NoError(t, err)
+
+	require.False(t, exists, "quarantined commit should have been discarded")
+}
+
 func TestServer_UserRevert_stableID(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -188,7 +233,7 @@ func TestServer_UserRevert_stableID(t *testing.T) {
 		Commit:     commitToRevert,
 		BranchName: []byte("master"),
 		Message:    []byte("Reverting commit"),
-		Timestamp:  &timestamp.Timestamp{Seconds: 12345},
+		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
 	})
 	require.NoError(t, err)
 
@@ -213,19 +258,21 @@ func TestServer_UserRevert_stableID(t *testing.T) {
 		Author: &gitalypb.CommitAuthor{
 			Name:     []byte("Jane Doe"),
 			Email:    []byte("janedoe@gitlab.com"),
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 		Committer: &gitalypb.CommitAuthor{
 			Name:     []byte("Jane Doe"),
 			Email:    []byte("janedoe@gitlab.com"),
-			Date:     &timestamp.Timestamp{Seconds: 12345},
+			Date:     &timestamppb.Timestamp{Seconds: 12345},
 			Timezone: []byte(gittest.TimezoneOffset),
 		},
 	}, revertedCommit)
 }
 
 func TestServer_UserRevert_successfulIntoEmptyRepo(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -239,8 +286,7 @@ func TestServer_UserRevert_successfulIntoEmptyRepo(t *testing.T) {
 	masterHeadCommit, err := startRepo.ReadCommit(ctx, "master")
 	require.NoError(t, err)
 
-	repoProto, _, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	defer cleanup()
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	request := &gitalypb.UserRevertRequest{
@@ -273,6 +319,8 @@ func TestServer_UserRevert_successfulIntoEmptyRepo(t *testing.T) {
 }
 
 func TestServer_UserRevert_successfulGitHooks(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -311,6 +359,8 @@ func TestServer_UserRevert_successfulGitHooks(t *testing.T) {
 }
 
 func TestServer_UserRevert_failuedDueToValidations(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -383,6 +433,8 @@ func TestServer_UserRevert_failuedDueToValidations(t *testing.T) {
 }
 
 func TestServer_UserRevert_failedDueToPreReceiveError(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -418,6 +470,8 @@ func TestServer_UserRevert_failedDueToPreReceiveError(t *testing.T) {
 }
 
 func TestServer_UserRevert_failedDueToCreateTreeErrorConflict(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -447,6 +501,8 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorConflict(t *testing.T) {
 }
 
 func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
@@ -480,6 +536,8 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
 }
 
 func TestServer_UserRevert_failedDueToCommitError(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 

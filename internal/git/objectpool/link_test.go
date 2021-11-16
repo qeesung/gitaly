@@ -1,14 +1,20 @@
 package objectpool
 
 import (
-	"io/ioutil"
+	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"google.golang.org/grpc/peer"
 )
 
 func TestLink(t *testing.T) {
@@ -37,6 +43,38 @@ func TestLink(t *testing.T) {
 	require.Equal(t, content, newContent)
 
 	require.False(t, gittest.RemoteExists(t, pool.cfg, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should not include %v", testRepo)
+}
+
+func TestLink_transactional(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	pool, poolMember := setupObjectPool(t)
+	require.NoError(t, pool.Create(ctx, poolMember))
+
+	votes := 0
+	pool.txManager = &transaction.MockManager{
+		VoteFn: func(context.Context, txinfo.Transaction, voting.Vote) error {
+			votes++
+			return nil
+		},
+	}
+
+	alternatesPath, err := pool.locator.InfoAlternatesPath(poolMember)
+	require.NoError(t, err)
+	require.NoFileExists(t, alternatesPath)
+
+	ctx, err = txinfo.InjectTransaction(ctx, 1, "node", true)
+	require.NoError(t, err)
+	ctx = peer.NewContext(ctx, &peer.Peer{
+		AuthInfo: backchannel.WithID(nil, 1234),
+	})
+
+	require.NoError(t, pool.Link(ctx, poolMember))
+
+	require.Equal(t, 2, votes)
 }
 
 func TestLinkRemoveBitmap(t *testing.T) {
@@ -71,7 +109,7 @@ func TestLinkRemoveBitmap(t *testing.T) {
 }
 
 func listBitmaps(t *testing.T, repoPath string) []string {
-	entries, err := ioutil.ReadDir(filepath.Join(repoPath, "objects/pack"))
+	entries, err := os.ReadDir(filepath.Join(repoPath, "objects/pack"))
 	require.NoError(t, err)
 
 	var bitmaps []string
@@ -82,23 +120,6 @@ func listBitmaps(t *testing.T, repoPath string) []string {
 	}
 
 	return bitmaps
-}
-
-func TestUnlink(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-
-	pool, testRepo := setupObjectPool(t)
-
-	require.Error(t, pool.Unlink(ctx, testRepo), "removing a non-existing pool should be an error")
-
-	require.NoError(t, pool.Create(ctx, testRepo), "create pool")
-	require.NoError(t, pool.Link(ctx, testRepo), "link test repo to pool")
-
-	require.False(t, gittest.RemoteExists(t, pool.cfg, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should include %v", testRepo)
-
-	require.NoError(t, pool.Unlink(ctx, testRepo), "unlink repo")
-	require.False(t, gittest.RemoteExists(t, pool.cfg, pool.FullPath(), testRepo.GetGlRepository()), "pool remotes should no longer include %v", testRepo)
 }
 
 func TestLinkAbsoluteLinkExists(t *testing.T) {
@@ -117,7 +138,7 @@ func TestLinkAbsoluteLinkExists(t *testing.T) {
 
 	fullPath := filepath.Join(pool.FullPath(), "objects")
 
-	require.NoError(t, ioutil.WriteFile(altPath, []byte(fullPath), 0644))
+	require.NoError(t, os.WriteFile(altPath, []byte(fullPath), 0o644))
 
 	require.NoError(t, pool.Link(ctx, testRepo), "we expect this call to change the absolute link to a relative link")
 

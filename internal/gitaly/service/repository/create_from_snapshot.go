@@ -88,7 +88,7 @@ func (s *server) CreateRepositoryFromSnapshot(ctx context.Context, in *gitalypb.
 	// Perform all operations against a temporary directory, only moving it to
 	// the canonical location if retrieving and unpacking the snapshot is a
 	// success
-	tempRepo, tempPath, err := tempdir.NewAsRepository(ctx, in.Repository, s.locator)
+	tempRepo, tempDir, err := tempdir.NewRepository(ctx, in.GetRepository().GetStorageName(), s.locator)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "couldn't create temporary directory: %v", err)
 	}
@@ -105,15 +105,15 @@ func (s *server) CreateRepositoryFromSnapshot(ctx context.Context, in *gitalypb.
 		return nil, status.Errorf(codes.Internal, "couldn't create empty bare repository: %v", err)
 	}
 
-	if err := untar(ctx, tempPath, in); err != nil {
+	if err := untar(ctx, tempDir.Path(), in); err != nil {
 		return nil, err
 	}
 
-	if err = os.MkdirAll(filepath.Dir(realPath), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(realPath), 0o755); err != nil {
 		return nil, fmt.Errorf("create directory hierarchy: %w", err)
 	}
 
-	if err := os.Rename(tempPath, realPath); err != nil {
+	if err := os.Rename(tempDir.Path(), realPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Promoting temporary directory failed: %v", err)
 	}
 

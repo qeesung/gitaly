@@ -1,9 +1,9 @@
 package praefect
 
 import (
+	"math/rand"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -11,21 +11,25 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/promtest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
 
 func TestInfoService_RepositoryReplicas(t *testing.T) {
+	t.Parallel()
 	var cfgs []gconfig.Cfg
 	var cfgNodes []*config.Node
 	var testRepo *gitalypb.Repository
-	for i, storage := range []string{"g-1", "g-2", "g-3"} {
+	storages := []string{"g-1", "g-2", "g-3"}
+	for i, storage := range storages {
 		cfg, repo, _ := testcfg.BuildWithRepo(t, testcfg.WithStorages(storage))
 		if testRepo == nil {
 			testRepo = repo
@@ -39,6 +43,7 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 				deps.GetTxManager(),
 				deps.GetGitCmdFactory(),
 				deps.GetCatfileCache(),
+				deps.GetConnsPool(),
 			))
 		}, testserver.WithDisablePraefect())
 		cfgNodes = append(cfgNodes, &config.Node{
@@ -48,27 +53,54 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 		})
 	}
 
+	const virtualStorage = "default"
 	conf := config.Config{
-		VirtualStorages: []*config.VirtualStorage{{Name: "default", Nodes: cfgNodes}},
+		VirtualStorages: []*config.VirtualStorage{{Name: virtualStorage, Nodes: cfgNodes}},
 		Failover:        config.Failover{Enabled: true},
 	}
 
 	// create a commit in the second replica so we can check that its checksum is different than the primary
 	gittest.WriteCommit(t, cfgs[1], filepath.Join(cfgs[1].Storages[0].Path, testRepo.GetRelativePath()), gittest.WithBranch("master"))
 
-	nodeManager, err := nodes.NewManager(testhelper.DiscardTestEntry(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil)
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	tx := glsql.NewDB(t).Begin(t)
+	defer tx.Rollback(t)
+
+	testdb.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{
+		"praefect-0": {virtualStorage: storages},
+	})
+
+	nodeSet, err := DialNodes(ctx, conf.VirtualStorages, protoregistry.GitalyProtoPreregistered, nil, nil, nil)
 	require.NoError(t, err)
-	nodeManager.Start(0, time.Hour)
-	cc, _, cleanup := runPraefectServer(t, conf, buildOptions{
-		withPrimaryGetter: nodeManager,
-		withConnections:   NodeSetFromNodeManager(nodeManager).Connections(),
+	defer nodeSet.Close()
+
+	elector := nodes.NewPerRepositoryElector(tx)
+	conns := nodeSet.Connections()
+	rs := datastore.NewPostgresRepositoryStore(tx, conf.StorageNames())
+	require.NoError(t,
+		rs.CreateRepository(ctx, 1, virtualStorage, testRepo.GetRelativePath(), testRepo.GetRelativePath(), "g-1", []string{"g-2", "g-3"}, nil, true, false),
+	)
+
+	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
+		withConnections: conns,
+		withRepoStore:   rs,
+		withRouter: NewPerRepositoryRouter(
+			conns,
+			elector,
+			StaticHealthChecker{virtualStorage: storages},
+			NewLockedRandom(rand.New(rand.NewSource(0))),
+			rs,
+			datastore.NewAssignmentStore(tx, conf.StorageNames()),
+			rs,
+			conf.DefaultReplicationFactors(),
+		),
+		withPrimaryGetter: elector,
 	})
 	defer cleanup()
 
 	client := gitalypb.NewPraefectInfoServiceClient(cc)
-
-	ctx, cancel := testhelper.Context()
-	defer cancel()
 
 	// CalculateChecksum through praefect will get the checksum of the primary
 	repoClient := gitalypb.NewRepositoryServiceClient(cc)

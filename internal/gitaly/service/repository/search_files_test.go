@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
@@ -181,7 +182,7 @@ func TestSearchFilesByContentLargeFile(t *testing.T) {
 
 	for _, largeFile := range largeFiles {
 		t.Run(largeFile.filename, func(t *testing.T) {
-			require.NoError(t, ioutil.WriteFile(filepath.Join(repoPath, largeFile.filename), bytes.Repeat([]byte(largeFile.line), largeFile.repeated), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(repoPath, largeFile.filename), bytes.Repeat([]byte(largeFile.line), largeFile.repeated), 0o644))
 			gittest.Exec(t, cfg, "-C", repoPath, "add", ".")
 			gittest.Exec(t, cfg, "-C", repoPath,
 				"-c", fmt.Sprintf("user.name=%s", committerName),
@@ -207,6 +208,11 @@ func TestSearchFilesByContentFailure(t *testing.T) {
 	t.Parallel()
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 	gitCommandFactory := git.NewExecCommandFactory(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+
+	connsPool := client.NewPool()
+	defer testhelper.MustClose(t, connsPool)
 
 	server := NewServer(
 		cfg,
@@ -214,7 +220,8 @@ func TestSearchFilesByContentFailure(t *testing.T) {
 		config.NewLocator(cfg),
 		transaction.NewManager(cfg, backchannel.NewRegistry()),
 		gitCommandFactory,
-		catfile.NewCache(cfg),
+		catfileCache,
+		connsPool,
 	)
 
 	testCases := []struct {
@@ -330,6 +337,11 @@ func TestSearchFilesByNameFailure(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
 	gitCommandFactory := git.NewExecCommandFactory(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+
+	connsPool := client.NewPool()
+	defer testhelper.MustClose(t, connsPool)
 
 	server := NewServer(
 		cfg,
@@ -337,7 +349,8 @@ func TestSearchFilesByNameFailure(t *testing.T) {
 		config.NewLocator(cfg),
 		transaction.NewManager(cfg, backchannel.NewRegistry()),
 		gitCommandFactory,
-		catfile.NewCache(cfg),
+		catfileCache,
+		connsPool,
 	)
 
 	testCases := []struct {
@@ -426,7 +439,7 @@ func consumeFilenameByContentChunked(stream gitalypb.RepositoryService_SearchFil
 func consumeFilenameByName(stream gitalypb.RepositoryService_SearchFilesByNameClient) ([][]byte, error) {
 	var ret [][]byte
 
-	for done := false; !done; {
+	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
 			break

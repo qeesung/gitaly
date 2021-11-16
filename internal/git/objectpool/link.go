@@ -2,22 +2,22 @@ package objectpool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
-// Link will write the relative path to the object pool from the repository that
-// is to join the pool. This does not trigger deduplication, which is the
-// responsibility of the caller.
-func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) error {
+// Link will link the given repository to the object pool. This is done by writing the object pool's
+// path relative to the repository into the repository's "alternates" file. This does not trigger
+// deduplication, which is the responsibility of the caller.
+func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) (returnedErr error) {
 	altPath, err := o.locator.InfoAlternatesPath(repo)
 	if err != nil {
 		return err
@@ -37,22 +37,22 @@ func (o *ObjectPool) Link(ctx context.Context, repo *gitalypb.Repository) error 
 		return nil
 	}
 
-	tmp, err := ioutil.TempFile(filepath.Dir(altPath), "alternates")
+	alternatesWriter, err := safe.NewLockingFileWriter(altPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating alternates writer: %w", err)
 	}
-	defer os.Remove(tmp.Name())
+	defer func() {
+		if err := alternatesWriter.Close(); err != nil && returnedErr == nil {
+			returnedErr = fmt.Errorf("closing alternates writer: %w", err)
+		}
+	}()
 
-	if _, err := io.WriteString(tmp, expectedRelPath); err != nil {
-		return err
+	if _, err := io.WriteString(alternatesWriter, expectedRelPath); err != nil {
+		return fmt.Errorf("writing alternates: %w", err)
 	}
 
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-
-	if err := os.Rename(tmp.Name(), altPath); err != nil {
-		return err
+	if err := transaction.CommitLockedFile(ctx, o.txManager, alternatesWriter); err != nil {
+		return fmt.Errorf("committing alternates: %w", err)
 	}
 
 	return o.removeMemberBitmaps(repo)
@@ -106,7 +106,7 @@ func (o *ObjectPool) removeMemberBitmaps(repo repository.GitRepo) error {
 
 func getBitmaps(repoPath string) ([]string, error) {
 	packDir := filepath.Join(repoPath, "objects/pack")
-	entries, err := ioutil.ReadDir(packDir)
+	entries, err := os.ReadDir(packDir)
 	if err != nil {
 		return nil, err
 	}
@@ -159,24 +159,4 @@ func (o *ObjectPool) LinkedToRepository(repo *gitalypb.Repository) (bool, error)
 	}
 
 	return false, nil
-}
-
-// Unlink removes the remote from the object pool
-func (o *ObjectPool) Unlink(ctx context.Context, repo *gitalypb.Repository) error {
-	if !o.Exists() {
-		return errors.New("pool does not exist")
-	}
-
-	remote := o.poolRepo.Remote()
-
-	// We need to use removeRemote, and can't leverage `git config --remove-section`
-	// as the latter doesn't clean up refs
-	remoteName := repo.GetGlRepository()
-	if err := remote.Remove(ctx, remoteName); err != nil {
-		if present, err2 := remote.Exists(ctx, remoteName); err2 != nil || present {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -14,10 +14,11 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/remote"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
@@ -49,6 +50,27 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 		}
 	}
 
+	repoClient, err := s.newRepoClient(ctx, in.GetSource().GetStorageName())
+	if err != nil {
+		return nil, helper.ErrInternalf("new client: %w", err)
+	}
+
+	// We're checking for repository existence up front such that we can give a conclusive error
+	// in case it doesn't. Otherwise, the error message returned to the client would depend on
+	// the order in which the sync functions were executed. Most importantly, given that
+	// `syncRepository` uses FetchInternalRemote which in turn uses gitaly-ssh, this code path
+	// cannot pass up NotFound errors given that there is no communication channel between
+	// Gitaly and gitaly-ssh.
+	request, err := repoClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+		Repository: in.GetSource(),
+	})
+	if err != nil {
+		return nil, helper.ErrInternalf("checking for repo existence: %w", err)
+	}
+	if !request.GetExists() {
+		return nil, helper.ErrNotFoundf("source repository does not exist")
+	}
+
 	// We're not using the context of the errgroup here, as an error
 	// returned by either of the called functions would cancel the
 	// respective other function. Given that we're doing RPC calls in
@@ -56,7 +78,7 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 	// may still modify the repository even though the local side has
 	// returned already.
 	g, _ := errgroup.WithContext(ctx)
-	outgoingCtx := helper.IncomingToOutgoing(ctx)
+	outgoingCtx := metadata.IncomingToOutgoing(ctx)
 
 	syncFuncs := []func(context.Context, *gitalypb.ReplicateRepositoryRequest) error{
 		s.syncGitconfig,
@@ -99,12 +121,12 @@ func validateReplicateRepository(in *gitalypb.ReplicateRepositoryRequest) error 
 func (s *server) create(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest, repoPath string) error {
 	// if the directory exists, remove it
 	if _, err := os.Stat(repoPath); err == nil {
-		tempDir, err := tempdir.ForDeleteAllRepositories(s.locator, in.GetRepository().GetStorageName())
+		tempDir, err := tempdir.NewWithoutContext(in.GetRepository().GetStorageName(), s.locator)
 		if err != nil {
 			return err
 		}
 
-		if err = os.Rename(repoPath, filepath.Join(tempDir, filepath.Base(repoPath))); err != nil {
+		if err = os.Rename(repoPath, filepath.Join(tempDir.Path(), filepath.Base(repoPath))); err != nil {
 			return fmt.Errorf("error deleting invalid repo: %v", err)
 		}
 
@@ -119,7 +141,7 @@ func (s *server) create(ctx context.Context, in *gitalypb.ReplicateRepositoryReq
 }
 
 func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	tempRepo, tempPath, err := tempdir.NewAsRepository(ctx, in.GetRepository(), s.locator)
+	tempRepo, tempDir, err := tempdir.NewRepository(ctx, in.GetRepository().GetStorageName(), s.locator)
 	if err != nil {
 		return fmt.Errorf("create temporary directory: %w", err)
 	}
@@ -166,7 +188,7 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 	)
 
 	stderr := &bytes.Buffer{}
-	cmd, err := command.New(ctx, exec.Command("tar", "-C", tempPath, "-xvf", "-"), snapshotReader, nil, stderr)
+	cmd, err := command.New(ctx, exec.Command("tar", "-C", tempDir.Path(), "-xvf", "-"), snapshotReader, nil, stderr)
 	if err != nil {
 		return fmt.Errorf("create tar command: %w", err)
 	}
@@ -180,11 +202,11 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 		return fmt.Errorf("locate repository: %w", err)
 	}
 
-	if err = os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return fmt.Errorf("create parent directories: %w", err)
 	}
 
-	if err := os.Rename(tempPath, targetPath); err != nil {
+	if err := os.Rename(tempDir.Path(), targetPath); err != nil {
 		return fmt.Errorf("move temporary directory to target path: %w", err)
 	}
 
@@ -192,31 +214,10 @@ func (s *server) createFromSnapshot(ctx context.Context, in *gitalypb.ReplicateR
 }
 
 func (s *server) syncRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) error {
-	if featureflag.IsEnabled(ctx, featureflag.ReplicateRepositoryDirectFetch) {
-		repo := s.localrepo(in.GetRepository())
+	repo := s.localrepo(in.GetRepository())
 
-		if err := remote.FetchInternalRemote(ctx, s.cfg, s.conns, repo, in.GetSource()); err != nil {
-			return fmt.Errorf("fetch internal remote: %w", err)
-		}
-
-		return nil
-	}
-
-	remoteClient, err := s.newRemoteClient(ctx)
-	if err != nil {
-		return fmt.Errorf("new client: %w", err)
-	}
-
-	resp, err := remoteClient.FetchInternalRemote(ctx, &gitalypb.FetchInternalRemoteRequest{
-		Repository:       in.GetRepository(),
-		RemoteRepository: in.GetSource(),
-	})
-	if err != nil {
+	if err := remote.FetchInternalRemote(ctx, s.cfg, s.conns, repo, in.GetSource()); err != nil {
 		return fmt.Errorf("fetch internal remote: %w", err)
-	}
-
-	if !resp.Result {
-		return errors.New("FetchInternalRemote failed")
 	}
 
 	return nil
@@ -233,31 +234,19 @@ func (s *server) syncGitconfig(ctx context.Context, in *gitalypb.ReplicateReposi
 		return err
 	}
 
-	// At the point of implementing this, the `GetConfig` RPC hasn't been deployed yet and is
-	// thus not available for general use. In theory, we'd have to wait for this release cycle
-	// to finish, and only afterwards would we be able to implement replication of the
-	// gitconfig. In order to allow us to iterate fast, we just try to call `GetConfig()`, but
-	// ignore any errors for the case where the target Gitaly node doesn't support the RPC yet.
-	// TODO: Remove this hack and properly return the error in the next release cycle.
-	if err := func() error {
-		stream, err := repoClient.GetConfig(ctx, &gitalypb.GetConfigRequest{
-			Repository: in.GetSource(),
-		})
-		if err != nil {
-			return err
-		}
+	stream, err := repoClient.GetConfig(ctx, &gitalypb.GetConfigRequest{
+		Repository: in.GetSource(),
+	})
+	if err != nil {
+		return err
+	}
 
-		configPath := filepath.Join(repoPath, "config")
-		if err := writeFile(configPath, 0644, streamio.NewReader(func() ([]byte, error) {
-			resp, err := stream.Recv()
-			return resp.GetData(), err
-		})); err != nil {
-			return err
-		}
-
-		return nil
-	}(); err != nil {
-		ctxlogrus.Extract(ctx).WithError(err).Warn("synchronizing gitconfig failed")
+	configPath := filepath.Join(repoPath, "config")
+	if err := s.writeFile(ctx, configPath, 0o644, streamio.NewReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetData(), err
+	})); err != nil {
+		return err
 	}
 
 	return nil
@@ -282,7 +271,7 @@ func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateR
 	}
 
 	attributesPath := filepath.Join(repoPath, "info", "attributes")
-	if err := writeFile(attributesPath, attributesFileMode, streamio.NewReader(func() ([]byte, error) {
+	if err := s.writeFile(ctx, attributesPath, attributesFileMode, streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetAttributes(), err
 	})); err != nil {
@@ -292,46 +281,40 @@ func (s *server) syncInfoAttributes(ctx context.Context, in *gitalypb.ReplicateR
 	return nil
 }
 
-func writeFile(path string, mode os.FileMode, reader io.Reader) error {
+func (s *server) writeFile(ctx context.Context, path string, mode os.FileMode, reader io.Reader) (returnedErr error) {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
 		return err
 	}
 
-	fw, err := safe.CreateFileWriter(path)
+	lockedFile, err := safe.NewLockingFileWriter(path, safe.LockingFileWriterConfig{
+		FileWriterConfig: safe.FileWriterConfig{
+			FileMode: mode,
+		},
+	})
 	if err != nil {
+		return fmt.Errorf("creating file writer: %w", err)
+	}
+	defer func() {
+		if err := lockedFile.Close(); err != nil && returnedErr == nil {
+			returnedErr = err
+		}
+	}()
+
+	if _, err := io.Copy(lockedFile, reader); err != nil {
 		return err
 	}
-	defer fw.Close()
 
-	if _, err := io.Copy(fw, reader); err != nil {
-		return err
-	}
-
-	if err = fw.Commit(); err != nil {
-		return err
-	}
-
-	if err := os.Chmod(path, mode); err != nil {
+	if err := transaction.CommitLockedFile(ctx, s.txManager, lockedFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// newRemoteClient creates a new RemoteClient that talks to the same gitaly server
-func (s *server) newRemoteClient(ctx context.Context) (gitalypb.RemoteServiceClient, error) {
-	conn, err := s.conns.Dial(ctx, fmt.Sprintf("unix:%s", s.cfg.GitalyInternalSocketPath()), s.cfg.Auth.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return gitalypb.NewRemoteServiceClient(conn), nil
-}
-
 // newRepoClient creates a new RepositoryClient that talks to the gitaly of the source repository
 func (s *server) newRepoClient(ctx context.Context, storageName string) (gitalypb.RepositoryServiceClient, error) {
-	gitalyServerInfo, err := helper.ExtractGitalyServer(ctx, storageName)
+	gitalyServerInfo, err := storage.ExtractGitalyServer(ctx, storageName)
 	if err != nil {
 		return nil, err
 	}

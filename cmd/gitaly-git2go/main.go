@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package main
@@ -9,7 +10,6 @@ import (
 	"io"
 	"os"
 
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/conflicts"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 )
 
@@ -22,13 +22,12 @@ var subcommands = map[string]subcmd{
 	"apply":       &applySubcommand{},
 	"cherry-pick": &cherryPickSubcommand{},
 	"commit":      commitSubcommand{},
-	"conflicts":   &conflicts.Subcommand{},
+	"conflicts":   &conflictsSubcommand{},
 	"merge":       &mergeSubcommand{},
 	"rebase":      &rebaseSubcommand{},
 	"revert":      &revertSubcommand{},
 	"resolve":     &resolveSubcommand{},
 	"submodule":   &submoduleSubcommand{},
-	"set_config":  &setConfigSubcommand{},
 }
 
 func fatalf(format string, args ...interface{}) {
@@ -38,7 +37,10 @@ func fatalf(format string, args ...interface{}) {
 
 func main() {
 	flags := flag.NewFlagSet(git2go.BinaryName, flag.ExitOnError)
-	flags.Parse(os.Args)
+
+	if err := flags.Parse(os.Args); err != nil {
+		fatalf("parsing flags: %s", err)
+	}
 
 	if flags.NArg() < 2 {
 		fatalf("missing subcommand")
@@ -50,7 +52,9 @@ func main() {
 	}
 
 	subcmdFlags := subcmd.Flags()
-	subcmdFlags.Parse(flags.Args()[2:])
+	if err := subcmdFlags.Parse(flags.Args()[2:]); err != nil {
+		fatalf("parsing flags of %q: %s", subcmdFlags.Name(), err)
+	}
 
 	if subcmdFlags.NArg() != 0 {
 		fatalf("%s: trailing arguments", subcmdFlags.Name())

@@ -44,13 +44,21 @@ const sqlMigrateDialect = "postgres"
 
 // MigrateDownPlan does a dry run for rolling back at most max migrations.
 func MigrateDownPlan(conf config.Config, max int) ([]string, error) {
-	db, err := glsql.OpenDB(conf.DB)
+	ctx := context.Background()
+
+	openDBCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	db, err := glsql.OpenDB(openDBCtx, conf.DB)
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
 	}
 	defer db.Close()
 
-	planned, _, err := migrate.PlanMigration(db, sqlMigrateDialect, migrationSource(), migrate.Down, max)
+	migrationSet := migrate.MigrationSet{
+		TableName: migrations.MigrationTableName,
+	}
+
+	planned, _, err := migrationSet.PlanMigration(db, sqlMigrateDialect, migrationSource(), migrate.Down, max)
 	if err != nil {
 		return nil, err
 	}
@@ -65,30 +73,46 @@ func MigrateDownPlan(conf config.Config, max int) ([]string, error) {
 
 // MigrateDown rolls back at most max migrations.
 func MigrateDown(conf config.Config, max int) (int, error) {
-	db, err := glsql.OpenDB(conf.DB)
+	ctx := context.Background()
+
+	openDBCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	db, err := glsql.OpenDB(openDBCtx, conf.DB)
 	if err != nil {
 		return 0, fmt.Errorf("sql open: %v", err)
 	}
 	defer db.Close()
 
-	return migrate.ExecMax(db, sqlMigrateDialect, migrationSource(), migrate.Down, max)
+	migrationSet := migrate.MigrationSet{
+		TableName: migrations.MigrationTableName,
+	}
+
+	return migrationSet.ExecMax(db, sqlMigrateDialect, migrationSource(), migrate.Down, max)
 }
 
 // MigrateStatus returns the status of database migrations. The key of the map
 // indexes the migration ID.
 func MigrateStatus(conf config.Config) (map[string]*MigrationStatusRow, error) {
-	db, err := glsql.OpenDB(conf.DB)
+	ctx := context.Background()
+
+	openDBCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	db, err := glsql.OpenDB(openDBCtx, conf.DB)
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
 	}
 	defer db.Close()
+
+	migrationSet := migrate.MigrationSet{
+		TableName: migrations.MigrationTableName,
+	}
 
 	migrations, err := migrationSource().FindMigrations()
 	if err != nil {
 		return nil, err
 	}
 
-	records, err := migrate.GetMigrationRecords(db, sqlMigrateDialect)
+	records, err := migrationSet.GetMigrationRecords(db, sqlMigrateDialect)
 	if err != nil {
 		return nil, err
 	}

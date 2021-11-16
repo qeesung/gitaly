@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/remoterepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
@@ -13,23 +14,28 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest) (*gitalypb.UserRevertResponse, error) {
 	if err := validateCherryPickOrRevertRequest(req); err != nil {
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	startRevision, err := s.fetchStartRevision(ctx, req)
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
 
-	localRepo := s.localrepo(req.GetRepository())
-	repoHadBranches, err := localRepo.HasBranches(ctx)
+	startRevision, err := s.fetchStartRevision(ctx, quarantineRepo, req)
 	if err != nil {
 		return nil, err
 	}
 
-	repoPath, err := s.locator.GetPath(req.Repository)
+	repoHadBranches, err := quarantineRepo.HasBranches(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	repoPath, err := quarantineRepo.Path()
 	if err != nil {
 		return nil, helper.ErrInternalf("get path: %w", err)
 	}
@@ -44,7 +50,7 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	newrev, err := git2go.RevertCommand{
+	newrev, err := s.git2go.Revert(ctx, quarantineRepo, git2go.RevertCommand{
 		Repository: repoPath,
 		AuthorName: string(req.User.Name),
 		AuthorMail: string(req.User.Email),
@@ -53,7 +59,7 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 		Ours:       startRevision.String(),
 		Revert:     req.Commit.Id,
 		Mainline:   mainline,
-	}.Run(ctx, s.cfg)
+	})
 	if err != nil {
 		if errors.As(err, &git2go.HasConflictsError{}) {
 			return &gitalypb.UserRevertResponse{
@@ -75,7 +81,7 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 	referenceName := git.NewReferenceNameFromBranchName(string(req.BranchName))
 
 	branchCreated := false
-	oldrev, err := localRepo.ResolveRevision(ctx, referenceName.Revision()+"^{commit}")
+	oldrev, err := quarantineRepo.ResolveRevision(ctx, referenceName.Revision()+"^{commit}")
 	if errors.Is(err, git.ErrReferenceNotFound) {
 		branchCreated = true
 		oldrev = git.ZeroOID
@@ -88,7 +94,7 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 	}
 
 	if !branchCreated {
-		ancestor, err := localRepo.IsAncestor(ctx, oldrev.Revision(), newrev.Revision())
+		ancestor, err := quarantineRepo.IsAncestor(ctx, oldrev.Revision(), newrev.Revision())
 		if err != nil {
 			return nil, err
 		}
@@ -99,11 +105,11 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 		}
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, referenceName, newrev, oldrev); err != nil {
-		var preReceiveError updateref.PreReceiveError
-		if errors.As(err, &preReceiveError) {
+	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, newrev, oldrev); err != nil {
+		var hookError updateref.HookError
+		if errors.As(err, &hookError) {
 			return &gitalypb.UserRevertResponse{
-				PreReceiveError: preReceiveError.Message,
+				PreReceiveError: hookError.Error(),
 			}, nil
 		}
 
@@ -120,28 +126,31 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 }
 
 type requestFetchingStartRevision interface {
-	GetRepository() *gitalypb.Repository
 	GetBranchName() []byte
 	GetStartRepository() *gitalypb.Repository
 	GetStartBranchName() []byte
 }
 
-func (s *Server) fetchStartRevision(ctx context.Context, req requestFetchingStartRevision) (git.ObjectID, error) {
+func (s *Server) fetchStartRevision(
+	ctx context.Context,
+	localRepo *localrepo.Repo,
+	req requestFetchingStartRevision,
+) (git.ObjectID, error) {
 	startBranchName := req.GetStartBranchName()
 	if len(startBranchName) == 0 {
 		startBranchName = req.GetBranchName()
 	}
 
-	startRepository := req.GetStartRepository()
-	if startRepository == nil {
-		startRepository = req.GetRepository()
+	var remoteRepo git.Repository = localRepo
+	if startRepository := req.GetStartRepository(); startRepository != nil {
+		var err error
+		remoteRepo, err = remoterepo.New(ctx, startRepository, s.conns)
+		if err != nil {
+			return "", helper.ErrInternal(err)
+		}
 	}
 
-	remote, err := remoterepo.New(ctx, startRepository, s.conns)
-	if err != nil {
-		return "", helper.ErrInternal(err)
-	}
-	startRevision, err := remote.ResolveRevision(ctx, git.Revision(fmt.Sprintf("%s^{commit}", startBranchName)))
+	startRevision, err := remoteRepo.ResolveRevision(ctx, git.Revision(fmt.Sprintf("%s^{commit}", startBranchName)))
 	if err != nil {
 		return "", helper.ErrInvalidArgumentf("resolve start ref: %w", err)
 	}
@@ -150,11 +159,14 @@ func (s *Server) fetchStartRevision(ctx context.Context, req requestFetchingStar
 		return startRevision, nil
 	}
 
-	localRepo := s.localrepo(req.GetRepository())
-
 	_, err = localRepo.ResolveRevision(ctx, startRevision.Revision()+"^{commit}")
 	if errors.Is(err, git.ErrReferenceNotFound) {
-		if err := s.fetchRemoteObject(ctx, localRepo, req.GetStartRepository(), startRevision); err != nil {
+		if err := localRepo.FetchInternal(
+			ctx,
+			req.GetStartRepository(),
+			[]string{startRevision.String()},
+			localrepo.FetchOpts{Tags: localrepo.FetchOptsTagsNone},
+		); err != nil {
 			return "", helper.ErrInternalf("fetch start: %w", err)
 		}
 	} else if err != nil {

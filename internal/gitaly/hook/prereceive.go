@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -20,11 +19,18 @@ import (
 // NotAllowedError is needed to report internal API errors that
 // are made by the pre-receive hook.
 type NotAllowedError struct {
+	// Message is the error message returned by Rails.
 	Message string
+	// Protocol is the protocol used.
+	Protocol string
+	// userID is the ID of the user as whom we have performed access checks.
+	UserID string
+	// Changes is the changes we have requested.
+	Changes []byte
 }
 
 func (e NotAllowedError) Error() string {
-	return e.Message
+	return fmt.Sprintf("GitLab: %s", e.Message)
 }
 
 func getRelativeObjectDirs(repoPath, gitObjectDir, gitAlternateObjectDirs string) (string, []string, error) {
@@ -61,7 +67,7 @@ func (m *GitLabHookManager) PreReceiveHook(ctx context.Context, repo *gitalypb.R
 		return helper.ErrInternalf("extracting hooks payload: %w", err)
 	}
 
-	changes, err := ioutil.ReadAll(stdin)
+	changes, err := io.ReadAll(stdin)
 	if err != nil {
 		return helper.ErrInternalf("reading stdin from request: %w", err)
 	}
@@ -129,10 +135,29 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 
 	allowed, message, err := m.gitlabClient.Allowed(ctx, params)
 	if err != nil {
-		return NotAllowedError{Message: fmt.Sprintf("GitLab: %v", err)}
+		// This logic is broken because we just return every potential error to the
+		// caller, even though we cannot tell whether the error message stems from
+		// the API or if it is a generic error. Ideally, we'd be able to able to
+		// tell whether the error was a PermissionDenied error and only then return
+		// the error message as GitLab message. But this will require upstream
+		// changes in gitlab-shell first.
+		return NotAllowedError{
+			Message:  err.Error(),
+			UserID:   payload.ReceiveHooksPayload.UserID,
+			Protocol: payload.ReceiveHooksPayload.Protocol,
+			Changes:  changes,
+		}
 	}
+	// Due to above comment, it means that this code won't ever be executed: when there
+	// was an access error, then we would see an HTTP code which doesn't indicate
+	// success and thus get an error from `Allowed()`.
 	if !allowed {
-		return NotAllowedError{Message: message}
+		return NotAllowedError{
+			Message:  message,
+			UserID:   payload.ReceiveHooksPayload.UserID,
+			Protocol: payload.ReceiveHooksPayload.Protocol,
+			Changes:  changes,
+		}
 	}
 
 	executor, err := m.newCustomHooksExecutor(repo, "pre-receive")

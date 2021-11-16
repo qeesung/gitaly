@@ -1,3 +1,4 @@
+//go:build static && system_libgit2
 // +build static,system_libgit2
 
 package main
@@ -13,13 +14,13 @@ import (
 	"strings"
 	"time"
 
-	git "github.com/libgit2/git2go/v31"
+	git "github.com/libgit2/git2go/v32"
+	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 )
 
-type resolveSubcommand struct {
-}
+type resolveSubcommand struct{}
 
 func (cmd *resolveSubcommand) Flags() *flag.FlagSet {
 	return flag.NewFlagSet("resolve", flag.ExitOnError)
@@ -35,7 +36,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, r io.Reader, w io.Writer) er
 		request.AuthorDate = time.Now()
 	}
 
-	repo, err := git.OpenRepository(request.Repository)
+	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return fmt.Errorf("could not open repository: %w", err)
 	}
@@ -67,7 +68,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, r io.Reader, w io.Writer) er
 
 	for {
 		c, err := ci.Next()
-		if git.IsErrorCode(err, git.ErrIterOver) {
+		if git.IsErrorCode(err, git.ErrorCodeIterOver) {
 			break
 		}
 		if err != nil {
@@ -162,7 +163,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, r io.Reader, w io.Writer) er
 		var conflictPaths []string
 		for {
 			c, err := ci.Next()
-			if git.IsErrorCode(err, git.ErrIterOver) {
+			if git.IsErrorCode(err, git.ErrorCodeIterOver) {
 				break
 			}
 			if err != nil {
@@ -199,7 +200,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, r io.Reader, w io.Writer) er
 	}
 
 	response := git2go.ResolveResult{
-		git2go.MergeResult{
+		MergeResult: git2go.MergeResult{
 			CommitID: commit.String(),
 		},
 	}

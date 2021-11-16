@@ -20,9 +20,7 @@ const (
 	InvalidUTF8PathPlaceholder = "ENCODING ERROR gitaly#1547"
 )
 
-var (
-	maxNumStatBatchSize = 10
-)
+var maxNumStatBatchSize = 10
 
 func (s *server) ListLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream gitalypb.CommitService_ListLastCommitsForTreeServer) error {
 	if err := validateListLastCommitsForTreeRequest(in); err != nil {
@@ -44,7 +42,7 @@ func (s *server) listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
-	c, err := s.catfileCache.BatchProcess(ctx, repo)
+	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -67,7 +65,7 @@ func (s *server) listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 	}
 
 	for _, entry := range entries[offset:limit] {
-		commit, err := log.LastCommitForPath(ctx, s.gitCmdFactory, c, repo, git.Revision(in.GetRevision()), entry.Path, in.GetGlobalOptions())
+		commit, err := log.LastCommitForPath(ctx, s.gitCmdFactory, objectReader, repo, git.Revision(in.GetRevision()), entry.Path, in.GetGlobalOptions())
 		if err != nil {
 			return err
 		}

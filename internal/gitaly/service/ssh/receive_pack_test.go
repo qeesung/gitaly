@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/hooks"
@@ -22,8 +21,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testassert"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -33,6 +34,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
@@ -92,7 +94,7 @@ func TestReceivePackPushSuccess(t *testing.T) {
 
 	cfg.GitlabShell.Dir = "/foo/bar/gitlab-shell"
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	hookOutputFile, cleanup := gittest.CaptureHookEnv(t)
 	defer cleanup()
@@ -102,12 +104,24 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	glRepository := "project-456"
 	glProjectPath := "project/path"
 
+	// We're explicitly injecting feature flags here because if we didn't, then Praefect would
+	// do so for us and inject them all with their default value. As a result, we'd see
+	// different flag values depending on whether this test runs with Gitaly or with Praefect
+	// when deserializing the HooksPayload. By setting all flags to `true` explicitly, we both
+	// verify that gitaly-ssh picks up feature flags correctly and fix the test to behave the
+	// same with and without Praefect.
+	featureFlags := map[featureflag.FeatureFlag]bool{}
+	for _, featureFlag := range featureflag.All {
+		featureFlags[featureFlag] = true
+	}
+
 	lHead, rHead, err := testCloneAndPush(t, cfg, cfg.Storages[0].Path, serverSocketPath, repo, pushParams{
 		storageName:   cfg.Storages[0].Name,
 		glID:          "123",
 		glUsername:    "user",
 		glRepository:  glRepository,
 		glProjectPath: glProjectPath,
+		featureFlags:  featureFlags,
 	})
 	require.NoError(t, err)
 	require.Equal(t, lHead, rHead, "local and remote head not equal. push failed")
@@ -130,6 +144,11 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	// figuring out their actual contents. So let's just remove it, too.
 	payload.Transaction = nil
 
+	expectedFeatureFlags := featureflag.Raw{}
+	for _, feature := range featureflag.All {
+		expectedFeatureFlags[feature.MetadataKey()] = "true"
+	}
+
 	require.Equal(t, git.HooksPayload{
 		BinDir:              cfg.BinDir,
 		GitPath:             cfg.Git.BinPath,
@@ -141,14 +160,15 @@ func TestReceivePackPushSuccess(t *testing.T) {
 			Protocol: "ssh",
 		},
 		RequestedHooks: git.ReceivePackHooks,
+		FeatureFlags:   expectedFeatureFlags,
 	}, payload)
 }
 
 func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	readProto, cfg := gittest.EnableGitProtocolV2Support(t, cfg)
 
@@ -183,7 +203,7 @@ func TestReceivePackPushFailure(t *testing.T) {
 func TestReceivePackPushHookFailure(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
@@ -192,10 +212,10 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 	defer func(old string) { hooks.Override = old }(hooks.Override)
 	hooks.Override = hookDir
 
-	require.NoError(t, os.MkdirAll(hooks.Path(cfg), 0755))
+	require.NoError(t, os.MkdirAll(hooks.Path(cfg), 0o755))
 
 	hookContent := []byte("#!/bin/sh\nexit 1")
-	require.NoError(t, ioutil.WriteFile(filepath.Join(hooks.Path(cfg), "pre-receive"), hookContent, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooks.Path(cfg), "pre-receive"), hookContent, 0o755))
 
 	_, _, err := testCloneAndPush(t, cfg, cfg.Storages[0].Path, serverSocketPath, repo, pushParams{storageName: cfg.Storages[0].Name, glID: "1"})
 	require.Error(t, err)
@@ -205,7 +225,7 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
@@ -223,6 +243,7 @@ func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
 		config.NewLocator(cfg),
 		git.NewExecCommandFactory(cfg),
 		nil,
+		transaction.NewManager(cfg, backchannel.NewRegistry()),
 		repo.GetStorageName(),
 		gittest.NewObjectPoolName(t),
 	)
@@ -260,7 +281,7 @@ func TestReceivePackTransactional(t *testing.T) {
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	var votes int
 	serverSocketPath := runSSHServer(t, cfg, testserver.WithTransactionManager(
@@ -279,7 +300,7 @@ func TestReceivePackTransactional(t *testing.T) {
 	defer cancel()
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
-	ctx = helper.IncomingToOutgoing(ctx)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
 	masterOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath,
 		"rev-parse", "refs/heads/master"))
@@ -468,8 +489,8 @@ func TestReceivePackTransactional(t *testing.T) {
 func TestSSHReceivePackToHooks(t *testing.T) {
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-	testhelper.ConfigureGitalyHooksBin(t, cfg)
-	testhelper.ConfigureGitalySSHBin(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
 
 	const (
 		secretToken  = "secret token"
@@ -486,7 +507,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	cloneDetails, cleanup := setupSSHClone(t, cfg, cfg.Storages[0].Path, repo)
 	defer cleanup()
 
-	serverURL, cleanup := testhelper.NewGitlabTestServer(t, testhelper.GitlabTestServerOptions{
+	serverURL, cleanup := gitlab.NewTestServer(t, gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
 		SecretToken:                 secretToken,
@@ -498,7 +519,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	})
 	defer cleanup()
 
-	testhelper.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
+	gitlab.WriteShellSecretFile(t, tempGitlabShellDir, secretToken)
 
 	cfg.Gitlab.URL = serverURL
 	cfg.Gitlab.SecretFile = filepath.Join(tempGitlabShellDir, ".gitlab_shell_secret")
@@ -555,8 +576,8 @@ func setupSSHClone(t *testing.T, cfg config.Cfg, storagePath string, testRepo *g
 			RemoteRepoPath: remoteRepoPath,
 			TempRepo:       tempRepo,
 		}, func() {
-			os.RemoveAll(remoteRepoPath)
-			os.RemoveAll(localRepoPath)
+			require.NoError(t, os.RemoveAll(remoteRepoPath))
+			require.NoError(t, os.RemoveAll(localRepoPath))
 		}
 }
 
@@ -567,8 +588,7 @@ func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverS
 		GlProjectPath: params.glProjectPath,
 		GlRepository:  params.glRepository,
 	}
-	pbMarshaler := &jsonpb.Marshaler{}
-	payload, err := pbMarshaler.MarshalToString(&gitalypb.SSHReceivePackRequest{
+	payload, err := protojson.Marshal(&gitalypb.SSHReceivePackRequest{
 		Repository:       pbTempRepo,
 		GlRepository:     params.glRepository,
 		GlId:             params.glID,
@@ -578,11 +598,17 @@ func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverS
 	})
 	require.NoError(t, err)
 
+	featureFlags := []string{}
+	for flag, value := range params.featureFlags {
+		featureFlags = append(featureFlags, fmt.Sprintf("%s:%v", flag.Name, value))
+	}
+
 	cmd := exec.Command(cfg.Git.BinPath, "-C", cloneDetails.LocalRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
 	cmd.Env = []string{
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
-		fmt.Sprintf(`GIT_SSH_COMMAND=%s receive-pack`, filepath.Join(cfg.BinDir, "gitaly-ssh")),
+		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureFlags, ",")),
+		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -615,7 +641,7 @@ func makeCommit(t *testing.T, cfg config.Cfg, localRepoPath string) ([]byte, []b
 	newFilePath := localRepoPath + "/foo.txt"
 
 	// Create a tiny file and add it to the index
-	require.NoError(t, ioutil.WriteFile(newFilePath, []byte("foo bar"), 0644))
+	require.NoError(t, os.WriteFile(newFilePath, []byte("foo bar"), 0o644))
 	gittest.Exec(t, cfg, "-C", localRepoPath, "add", ".")
 
 	// The latest commit ID on the remote repo
@@ -651,4 +677,5 @@ type pushParams struct {
 	glProjectPath    string
 	gitConfigOptions []string
 	gitProtocol      string
+	featureFlags     map[featureflag.FeatureFlag]bool
 }

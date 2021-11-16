@@ -3,14 +3,13 @@ package repository
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
-	gclient "gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -31,7 +30,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
-	gitaly_x509 "gitlab.com/gitlab-org/gitaly/v14/internal/x509"
+	gitalyx509 "gitlab.com/gitlab-org/gitaly/v14/internal/x509"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -56,15 +55,15 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 		{
 			name: "existing empty directory target",
 			beforeRequest: func(repoPath string) {
-				require.NoError(t, os.MkdirAll(repoPath, 0755))
+				require.NoError(t, os.MkdirAll(repoPath, 0o755))
 			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg, repo, _ := testcfg.BuildWithRepo(t)
 
-			testhelper.ConfigureGitalyHooksBin(t, cfg)
-			testhelper.ConfigureGitalySSHBin(t, cfg)
+			testcfg.BuildGitalyHooks(t, cfg)
+			testcfg.BuildGitalySSH(t, cfg)
 
 			var (
 				client gitalypb.RepositoryServiceClient
@@ -83,7 +82,7 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 			ctxOuter, cancel := testhelper.Context()
 			defer cancel()
 
-			md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
+			md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 			ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 			forkedRepo := &gitalypb.Repository{
@@ -112,9 +111,8 @@ func TestSuccessfulCreateForkRequest(t *testing.T) {
 			remotes := gittest.Exec(t, cfg, "-C", forkedRepoPath, "remote")
 			require.NotContains(t, string(remotes), "origin")
 
-			info, err := os.Lstat(filepath.Join(forkedRepoPath, "hooks"))
-			require.NoError(t, err)
-			require.NotEqual(t, 0, info.Mode()&os.ModeSymlink)
+			_, err = os.Lstat(filepath.Join(forkedRepoPath, "hooks"))
+			require.True(t, os.IsNotExist(err), "hooks directory should not have been created")
 		})
 	}
 }
@@ -130,7 +128,7 @@ func newSecureRepoClient(t testing.TB, addr, token string, pool *x509.CertPool) 
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token)),
 	}
 
-	conn, err := gclient.Dial(addr, connOpts)
+	conn, err := client.Dial(addr, connOpts)
 	require.NoError(t, err)
 
 	return gitalypb.NewRepositoryServiceClient(conn), conn
@@ -143,7 +141,7 @@ func TestFailedCreateForkRequestDueToExistingTarget(t *testing.T) {
 	ctxOuter, cancel := testhelper.Context()
 	defer cancel()
 
-	md := testhelper.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 	ctx := metadata.NewOutgoingContext(ctxOuter, md)
 
 	testCases := []struct {
@@ -173,16 +171,16 @@ func TestFailedCreateForkRequestDueToExistingTarget(t *testing.T) {
 			forkedRepoPath := filepath.Join(cfg.Storages[0].Path, forkedRepo.GetRelativePath())
 
 			if testCase.isDir {
-				require.NoError(t, os.MkdirAll(forkedRepoPath, 0770))
-				require.NoError(t, ioutil.WriteFile(
+				require.NoError(t, os.MkdirAll(forkedRepoPath, 0o770))
+				require.NoError(t, os.WriteFile(
 					filepath.Join(forkedRepoPath, "config"),
 					nil,
-					0644,
+					0o644,
 				))
 			} else {
-				require.NoError(t, ioutil.WriteFile(forkedRepoPath, nil, 0644))
+				require.NoError(t, os.WriteFile(forkedRepoPath, nil, 0o644))
 			}
-			defer os.RemoveAll(forkedRepoPath)
+			defer func() { require.NoError(t, os.RemoveAll(forkedRepoPath)) }()
 
 			req := &gitalypb.CreateForkRequest{
 				Repository:       forkedRepo,
@@ -201,7 +199,7 @@ func injectCustomCATestCerts(t *testing.T, cfg *config.Cfg) *x509.CertPool {
 	cfg.TLS.CertPath = certFile
 	cfg.TLS.KeyPath = keyFile
 
-	revertEnv := testhelper.ModifyEnvironment(t, gitaly_x509.SSLCertFile, certFile)
+	revertEnv := testhelper.ModifyEnvironment(t, gitalyx509.SSLCertFile, certFile)
 	t.Cleanup(revertEnv)
 
 	caPEMBytes := testhelper.MustReadFile(t, certFile)
@@ -222,13 +220,19 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 	listener, addr := testhelper.GetLocalhostListener(t)
 
 	txManager := transaction.NewManager(cfg, registry)
-	hookManager := hook.NewManager(locator, txManager, gitlab.NewMockClient(), cfg)
+	hookManager := hook.NewManager(locator, txManager, gitlab.NewMockClient(
+		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
+	), cfg)
 	gitCmdFactory := git.NewExecCommandFactory(cfg)
 	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
 
-	gitalypb.RegisterRepositoryServiceServer(server, NewServer(cfg, rubySrv, locator, txManager, gitCmdFactory, catfileCache))
-	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(cfg, hookManager, gitCmdFactory))
-	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(cfg, rubySrv, locator, gitCmdFactory, catfileCache, txManager))
+	connsPool := client.NewPool()
+	t.Cleanup(func() { testhelper.MustClose(t, connsPool) })
+
+	gitalypb.RegisterRepositoryServiceServer(server, NewServer(cfg, rubySrv, locator, txManager, gitCmdFactory, catfileCache, connsPool))
+	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(cfg, hookManager, gitCmdFactory, nil))
+	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(cfg, locator, gitCmdFactory, catfileCache, txManager, connsPool))
 	gitalypb.RegisterSSHServiceServer(server, ssh.NewServer(cfg, locator, gitCmdFactory, txManager))
 	gitalypb.RegisterRefServiceServer(server, ref.NewServer(cfg, locator, gitCmdFactory, txManager, catfileCache))
 	gitalypb.RegisterCommitServiceServer(server, commit.NewServer(cfg, locator, gitCmdFactory, nil, catfileCache))
@@ -240,7 +244,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 
 	cfg.TLS.KeyPath = ""
 	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetCfg(), deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	})
 
 	t.Cleanup(func() { require.NoError(t, <-errQ) })

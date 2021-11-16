@@ -1,29 +1,70 @@
 package glsql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"net"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	migrate "github.com/rubenv/sql-migrate"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 )
 
-var (
-	// testDB is a shared database connection pool that needs to be used only for testing.
-	// Initialization of it happens on the first call to GetDB and it remains open until call to Clean.
-	testDB         DB
-	testDBInitOnce sync.Once
+const (
+	advisoryLockIDDatabaseTemplate = 1627644550
+	praefectTemplateDatabase       = "praefect_template"
 )
+
+// TxWrapper is a simple wrapper around *sql.Tx.
+type TxWrapper struct {
+	*sql.Tx
+}
+
+// Rollback executes Rollback operation on the wrapped *sql.Tx if it is set.
+// After execution is sets Tx to nil to prevent errors on the repeated invocations (useful
+// for testing when Rollback is deferred).
+func (txw *TxWrapper) Rollback(t testing.TB) {
+	t.Helper()
+	if txw.Tx != nil {
+		require.NoError(t, txw.Tx.Rollback())
+		txw.Tx = nil
+	}
+}
+
+// Commit executes Commit operation on the wrapped *sql.Tx if it is set.
+// After execution is sets Tx to nil to prevent errors on the deferred invocations (useful
+// for testing when Rollback is deferred).
+func (txw *TxWrapper) Commit(t testing.TB) {
+	t.Helper()
+	if txw.Tx != nil {
+		require.NoError(t, txw.Tx.Commit())
+		txw.Tx = nil
+	}
+}
 
 // DB is a helper struct that should be used only for testing purposes.
 type DB struct {
 	*sql.DB
+	// Name is a name of the database.
+	Name string
+}
+
+// Begin starts a new transaction and returns it wrapped into TxWrapper.
+func (db DB) Begin(t testing.TB) *TxWrapper {
+	t.Helper()
+	tx, err := db.DB.Begin()
+	require.NoError(t, err)
+	return &TxWrapper{Tx: tx}
 }
 
 // Truncate removes all data from the list of tables and restarts identities for them.
@@ -59,6 +100,8 @@ func (db DB) TruncateAll(t testing.TB) {
 		"storage_repositories",
 		"repositories",
 		"virtual_storages",
+		"repository_assignments",
+		"storage_cleanups",
 	)
 }
 
@@ -76,128 +119,244 @@ func (db DB) Close() error {
 	return nil
 }
 
-// GetDB returns a wrapper around the database connection pool.
+// NewDB returns a wrapper around the database connection pool.
 // Must be used only for testing.
-// The new `database` will be re-created for each package that uses this function.
-// Each call will also truncate all tables with their identities restarted if any.
-// The best place to call it is in individual testing functions.
+// The new database with empty relations will be created for each call of this function.
 // It uses env vars:
 //   PGHOST - required, URL/socket/dir
 //   PGPORT - required, binding port
 //   PGUSER - optional, user - `$ whoami` would be used if not provided
-func GetDB(t testing.TB, database string) DB {
+// Once the test is completed the database will be dropped on test cleanup execution.
+func NewDB(t testing.TB) DB {
 	t.Helper()
-
-	testDBInitOnce.Do(func() {
-		sqlDB := initGitalyTestDB(t, database)
-
-		_, mErr := Migrate(sqlDB, false)
-		require.NoError(t, mErr, "failed to run database migration")
-		testDB = DB{DB: sqlDB}
-	})
-
-	testDB.TruncateAll(t)
-
-	return testDB
+	database := "praefect_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	return DB{DB: initPraefectTestDB(t, database), Name: database}
 }
 
 // GetDBConfig returns the database configuration determined by
-// environment variables.  See GetDB() for the list of variables.
+// environment variables.  See NewDB() for the list of variables.
 func GetDBConfig(t testing.TB, database string) config.DB {
-	getEnvFromGDK(t)
+	env := getDatabaseEnvironment(t)
 
-	host, hostFound := os.LookupEnv("PGHOST")
-	require.True(t, hostFound, "PGHOST env var expected to be provided to connect to Postgres database")
+	require.Contains(t, env, "PGHOST", "PGHOST env var expected to be provided to connect to Postgres database")
+	require.Contains(t, env, "PGPORT", "PGHOST env var expected to be provided to connect to Postgres database")
 
-	port, portFound := os.LookupEnv("PGPORT")
-	require.True(t, portFound, "PGPORT env var expected to be provided to connect to Postgres database")
-	portNumber, pErr := strconv.Atoi(port)
-	require.NoError(t, pErr, "PGPORT must be a port number of the Postgres database listens for incoming connections")
+	portNumber, err := strconv.Atoi(env["PGPORT"])
+	require.NoError(t, err, "PGPORT must be a port number of the Postgres database listens for incoming connections")
 
 	// connect to 'postgres' database first to re-create testing database from scratch
 	conf := config.DB{
-		Host:    host,
+		Host:    env["PGHOST"],
 		Port:    portNumber,
 		DBName:  database,
 		SSLMode: "disable",
-		User:    os.Getenv("PGUSER"),
+		User:    env["PGUSER"],
 		SessionPooled: config.DBConnection{
-			Host: host,
+			Host: env["PGHOST"],
 			Port: portNumber,
 		},
 	}
 
-	bouncerHost, bouncerHostFound := os.LookupEnv("PGHOST_PGBOUNCER")
-	if bouncerHostFound {
+	if bouncerHost, ok := env["PGHOST_PGBOUNCER"]; ok {
 		conf.Host = bouncerHost
 	}
 
-	bouncerPort, bouncerPortFound := os.LookupEnv("PGPORT_PGBOUNCER")
-	if bouncerPortFound {
-		bouncerPortNumber, pErr := strconv.Atoi(bouncerPort)
-		require.NoError(t, pErr, "PGPORT_PGBOUNCER must be a port number of the PgBouncer")
-
+	if bouncerPort, ok := env["PGPORT_PGBOUNCER"]; ok {
+		bouncerPortNumber, err := strconv.Atoi(bouncerPort)
+		require.NoError(t, err, "PGPORT_PGBOUNCER must be a port number of the PgBouncer")
 		conf.Port = bouncerPortNumber
 	}
 
 	return conf
 }
 
-func initGitalyTestDB(t testing.TB, database string) *sql.DB {
+func requireSQLOpen(t testing.TB, dbCfg config.DB, direct bool) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("postgres", dbCfg.ToPQString(direct))
+	require.NoErrorf(t, err, "failed to connect to %q database", dbCfg.DBName)
+	if !assert.NoErrorf(t, db.Ping(), "failed to communicate with %q database", dbCfg.DBName) {
+		require.NoErrorf(t, db.Close(), "release connection to the %q database", dbCfg.DBName)
+	}
+	return db
+}
+
+func requireTerminateAllConnections(t testing.TB, db *sql.DB, database string) {
+	t.Helper()
+	_, err := db.Exec("SELECT PG_TERMINATE_BACKEND(pid) FROM PG_STAT_ACTIVITY WHERE datname = '" + database + "'")
+	require.NoError(t, err)
+}
+
+func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 	t.Helper()
 
 	dbCfg := GetDBConfig(t, "postgres")
+	// We require a direct connection to the Postgres instance and not through the PgBouncer
+	// because we use transaction pool mood for it and it doesn't work well for system advisory locks.
+	postgresDB := requireSQLOpen(t, dbCfg, true)
+	defer func() { require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", dbCfg.DBName) }()
 
-	postgresDB, oErr := OpenDB(dbCfg)
-	require.NoError(t, oErr, "failed to connect to 'postgres' database")
-	defer func() { require.NoError(t, postgresDB.Close()) }()
+	// Acquire exclusive advisory lock to prevent other concurrent test from doing the same.
+	_, err := postgresDB.Exec(`SELECT pg_advisory_lock($1)`, advisoryLockIDDatabaseTemplate)
+	require.NoError(t, err, "not able to acquire lock for synchronisation")
+	var advisoryUnlock func()
+	advisoryUnlock = func() {
+		require.True(t, scanSingleBool(t, postgresDB, `SELECT pg_advisory_unlock($1)`, advisoryLockIDDatabaseTemplate), "release advisory lock")
+		advisoryUnlock = func() {}
+	}
+	defer func() { advisoryUnlock() }()
 
-	_, tErr := postgresDB.Exec("SELECT PG_TERMINATE_BACKEND(pid) FROM PG_STAT_ACTIVITY WHERE datname = '" + database + "'")
-	require.NoError(t, tErr)
+	templateDBExists := databaseExist(t, postgresDB, praefectTemplateDatabase)
+	if !templateDBExists {
+		_, err := postgresDB.Exec("CREATE DATABASE " + praefectTemplateDatabase + " WITH ENCODING 'UTF8'")
+		require.NoErrorf(t, err, "failed to create %q database", praefectTemplateDatabase)
+	}
 
-	_, dErr := postgresDB.Exec("DROP DATABASE IF EXISTS " + database)
-	require.NoErrorf(t, dErr, "failed to drop %q database", database)
+	templateDBConf := GetDBConfig(t, praefectTemplateDatabase)
+	templateDB := requireSQLOpen(t, templateDBConf, true)
+	defer func() {
+		require.NoErrorf(t, templateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
+	}()
 
-	_, cErr := postgresDB.Exec("CREATE DATABASE " + database + " WITH ENCODING 'UTF8'")
-	require.NoErrorf(t, cErr, "failed to create %q database", database)
-	require.NoError(t, postgresDB.Close(), "error on closing connection to 'postgres' database")
+	if _, err := Migrate(templateDB, false); err != nil {
+		// If database has unknown migration we try to re-create template database with
+		// current migration. It may be caused by other code changes done in another branch.
+		if pErr := (*migrate.PlanError)(nil); errors.As(err, &pErr) {
+			if strings.EqualFold(pErr.ErrorMessage, "unknown migration in database") {
+				require.NoErrorf(t, templateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
 
-	// connect to the testing database
+				_, err = postgresDB.Exec("DROP DATABASE " + praefectTemplateDatabase)
+				require.NoErrorf(t, err, "failed to drop %q database", praefectTemplateDatabase)
+				_, err = postgresDB.Exec("CREATE DATABASE " + praefectTemplateDatabase + " WITH ENCODING 'UTF8'")
+				require.NoErrorf(t, err, "failed to create %q database", praefectTemplateDatabase)
+
+				remigrateTemplateDB := requireSQLOpen(t, templateDBConf, true)
+				defer func() {
+					require.NoErrorf(t, remigrateTemplateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
+				}()
+				_, err = Migrate(remigrateTemplateDB, false)
+				require.NoErrorf(t, err, "failed to run database migration on %q", praefectTemplateDatabase)
+			} else {
+				require.NoErrorf(t, err, "failed to run database migration on %q", praefectTemplateDatabase)
+			}
+		} else {
+			require.NoErrorf(t, err, "failed to run database migration on %q", praefectTemplateDatabase)
+		}
+	}
+
+	// Release advisory lock as soon as possible to unblock other tests from execution.
+	advisoryUnlock()
+
+	require.NoErrorf(t, templateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
+
+	_, err = postgresDB.Exec(`CREATE DATABASE ` + database + ` TEMPLATE ` + praefectTemplateDatabase)
+	require.NoErrorf(t, err, "failed to create %q database", praefectTemplateDatabase)
+
+	t.Cleanup(func() {
+		dbCfg.DBName = "postgres"
+		postgresDB := requireSQLOpen(t, dbCfg, true)
+		defer func() { require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", dbCfg.DBName) }()
+
+		// We need to force-terminate open connections as for the tasks that use PgBouncer
+		// the actual client connected to the database is a PgBouncer and not a test that is
+		// running.
+		requireTerminateAllConnections(t, postgresDB, database)
+
+		_, err = postgresDB.Exec("DROP DATABASE " + database)
+		require.NoErrorf(t, err, "failed to drop %q database", database)
+	})
+
+	// Connect to the testing database with optional PgBouncer
 	dbCfg.DBName = database
-	gitalyTestDB, err := OpenDB(dbCfg)
-	require.NoErrorf(t, err, "failed to connect to %q database", database)
-	return gitalyTestDB
+	praefectTestDB := requireSQLOpen(t, dbCfg, false)
+	t.Cleanup(func() {
+		if err := praefectTestDB.Close(); !errors.Is(err, net.ErrClosed) {
+			require.NoErrorf(t, err, "release connection to the %q database", dbCfg.DBName)
+		}
+	})
+	return praefectTestDB
 }
 
-// Clean removes created schema if any and releases DB connection pool.
-// It needs to be called only once after all tests for package are done.
-// The best place to use it is TestMain(*testing.M) {...} after m.Run().
-func Clean() error {
-	if testDB.DB != nil {
-		return testDB.Close()
-	}
-	return nil
+func databaseExist(t testing.TB, db *sql.DB, database string) bool {
+	return scanSingleBool(t, db, `SELECT EXISTS(SELECT * FROM pg_database WHERE datname = $1)`, database)
 }
 
-func getEnvFromGDK(t testing.TB) {
-	gdkEnv, err := exec.Command("gdk", "env").Output()
-	if err != nil {
-		// Assume we are not in a GDK setup; this is not an error so just return.
-		return
-	}
+func scanSingleBool(t testing.TB, db *sql.DB, query string, args ...interface{}) bool {
+	var flag bool
+	row := db.QueryRow(query, args...)
+	require.NoError(t, row.Scan(&flag))
+	return flag
+}
 
-	for _, line := range strings.Split(string(gdkEnv), "\n") {
-		const prefix = "export "
-		if !strings.HasPrefix(line, prefix) {
-			continue
+var (
+	// Running `gdk env` takes about 250ms on my system and is thus comparatively slow. When
+	// running with Praefect as proxy, this time adds up and may thus slow down tests by quite a
+	// margin. We thus amortize these costs by only running it once.
+	databaseEnvOnce sync.Once
+	databaseEnv     map[string]string
+)
+
+func getDatabaseEnvironment(t testing.TB) map[string]string {
+	databaseEnvOnce.Do(func() {
+		envvars := map[string]string{}
+
+		// We only process output if `gdk env` returned success. If it didn't, we simply assume that
+		// we are not running in a GDK environment and will try to extract variables from the
+		// environment instead.
+		if output, err := exec.Command("gdk", "env").Output(); err == nil {
+			for _, line := range strings.Split(string(output), "\n") {
+				const prefix = "export "
+				if !strings.HasPrefix(line, prefix) {
+					continue
+				}
+
+				split := strings.SplitN(strings.TrimPrefix(line, prefix), "=", 2)
+				if len(split) != 2 {
+					continue
+				}
+
+				envvars[split[0]] = split[1]
+			}
 		}
 
-		split := strings.SplitN(strings.TrimPrefix(line, prefix), "=", 2)
-		if len(split) != 2 {
-			continue
+		for _, key := range []string{"PGHOST", "PGPORT", "PGUSER", "PGHOST_PGBOUNCER", "PGPORT_PGBOUNCER"} {
+			if _, ok := envvars[key]; !ok {
+				value, ok := os.LookupEnv(key)
+				if ok {
+					envvars[key] = value
+				}
+			}
 		}
-		key, value := split[0], split[1]
 
-		require.NoError(t, os.Setenv(key, value), "set env var %v", key)
+		databaseEnv = envvars
+	})
+
+	return databaseEnv
+}
+
+// WaitForQueries is a helper that waits until a certain number of queries matching the prefix are present in the
+// database. This is useful for ensuring multiple transactions are executing the query when testing concurrent
+// execution.
+func WaitForQueries(ctx context.Context, t testing.TB, db Querier, queryPrefix string, count int) {
+	t.Helper()
+
+	for {
+		var queriesPresent bool
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT COUNT(*) = $2
+			FROM pg_stat_activity
+			WHERE TRIM(e'\n' FROM query) LIKE $1
+		`, queryPrefix+"%", count).Scan(&queriesPresent))
+
+		if queriesPresent {
+			return
+		}
+
+		retry := time.NewTimer(time.Millisecond)
+		select {
+		case <-ctx.Done():
+			retry.Stop()
+			return
+		case <-retry.C:
+		}
 	}
 }

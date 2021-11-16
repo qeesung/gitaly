@@ -26,10 +26,10 @@ func (s *server) RenameRepository(ctx context.Context, in *gitalypb.RenameReposi
 	}
 
 	if _, err = os.Stat(toFullPath); !os.IsNotExist(err) {
-		return nil, helper.ErrPreconditionFailed(errors.New("destination already exists"))
+		return nil, helper.ErrFailedPreconditionf("destination already exists")
 	}
 
-	if err = os.MkdirAll(filepath.Dir(toFullPath), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(toFullPath), 0o755); err != nil {
 		return nil, helper.ErrInternal(err)
 	}
 

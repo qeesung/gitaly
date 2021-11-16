@@ -62,9 +62,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.ApplyGitattributesResponse" do
     end
+    add_message "gitaly.FetchBundleRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :data, :bytes, 2
+    end
+    add_message "gitaly.FetchBundleResponse" do
+    end
     add_message "gitaly.FetchRemoteRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
-      optional :remote, :string, 2
       optional :force, :bool, 3
       optional :no_tags, :bool, 4
       optional :timeout, :int32, 5
@@ -144,20 +149,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.CreateForkResponse" do
     end
-    add_message "gitaly.IsRebaseInProgressRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :rebase_id, :string, 2
-    end
-    add_message "gitaly.IsRebaseInProgressResponse" do
-      optional :in_progress, :bool, 1
-    end
-    add_message "gitaly.IsSquashInProgressRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      optional :squash_id, :string, 2
-    end
-    add_message "gitaly.IsSquashInProgressResponse" do
-      optional :in_progress, :bool, 1
-    end
     add_message "gitaly.CreateRepositoryFromURLRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :url, :string, 2
@@ -170,31 +161,18 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.CreateBundleResponse" do
       optional :data, :bytes, 1
     end
+    add_message "gitaly.CreateBundleFromRefListRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      repeated :patterns, :bytes, 2
+    end
+    add_message "gitaly.CreateBundleFromRefListResponse" do
+      optional :data, :bytes, 1
+    end
     add_message "gitaly.GetConfigRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
     end
     add_message "gitaly.GetConfigResponse" do
       optional :data, :bytes, 1
-    end
-    add_message "gitaly.SetConfigRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      repeated :entries, :message, 2, "gitaly.SetConfigRequest.Entry"
-    end
-    add_message "gitaly.SetConfigRequest.Entry" do
-      optional :key, :string, 1
-      oneof :value do
-        optional :value_str, :string, 2
-        optional :value_int32, :int32, 3
-        optional :value_bool, :bool, 4
-      end
-    end
-    add_message "gitaly.SetConfigResponse" do
-    end
-    add_message "gitaly.DeleteConfigRequest" do
-      optional :repository, :message, 1, "gitaly.Repository"
-      repeated :keys, :string, 2
-    end
-    add_message "gitaly.DeleteConfigResponse" do
     end
     add_message "gitaly.RestoreCustomHooksRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
@@ -341,6 +319,12 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.OptimizeRepositoryResponse" do
     end
+    add_message "gitaly.SetFullPathRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :path, :string, 2
+    end
+    add_message "gitaly.SetFullPathResponse" do
+    end
   end
 end
 
@@ -364,6 +348,8 @@ module Gitaly
   RepositorySizeResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RepositorySizeResponse").msgclass
   ApplyGitattributesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ApplyGitattributesRequest").msgclass
   ApplyGitattributesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ApplyGitattributesResponse").msgclass
+  FetchBundleRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FetchBundleRequest").msgclass
+  FetchBundleResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FetchBundleResponse").msgclass
   FetchRemoteRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FetchRemoteRequest").msgclass
   FetchRemoteResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FetchRemoteResponse").msgclass
   CreateRepositoryRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateRepositoryRequest").msgclass
@@ -383,21 +369,14 @@ module Gitaly
   FindMergeBaseResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindMergeBaseResponse").msgclass
   CreateForkRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateForkRequest").msgclass
   CreateForkResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateForkResponse").msgclass
-  IsRebaseInProgressRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsRebaseInProgressRequest").msgclass
-  IsRebaseInProgressResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsRebaseInProgressResponse").msgclass
-  IsSquashInProgressRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsSquashInProgressRequest").msgclass
-  IsSquashInProgressResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.IsSquashInProgressResponse").msgclass
   CreateRepositoryFromURLRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateRepositoryFromURLRequest").msgclass
   CreateRepositoryFromURLResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateRepositoryFromURLResponse").msgclass
   CreateBundleRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleRequest").msgclass
   CreateBundleResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleResponse").msgclass
+  CreateBundleFromRefListRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleFromRefListRequest").msgclass
+  CreateBundleFromRefListResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CreateBundleFromRefListResponse").msgclass
   GetConfigRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetConfigRequest").msgclass
   GetConfigResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetConfigResponse").msgclass
-  SetConfigRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetConfigRequest").msgclass
-  SetConfigRequest::Entry = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetConfigRequest.Entry").msgclass
-  SetConfigResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetConfigResponse").msgclass
-  DeleteConfigRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DeleteConfigRequest").msgclass
-  DeleteConfigResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DeleteConfigResponse").msgclass
   RestoreCustomHooksRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RestoreCustomHooksRequest").msgclass
   RestoreCustomHooksResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.RestoreCustomHooksResponse").msgclass
   BackupCustomHooksRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.BackupCustomHooksRequest").msgclass
@@ -437,4 +416,6 @@ module Gitaly
   ReplicateRepositoryResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReplicateRepositoryResponse").msgclass
   OptimizeRepositoryRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryRequest").msgclass
   OptimizeRepositoryResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.OptimizeRepositoryResponse").msgclass
+  SetFullPathRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathRequest").msgclass
+  SetFullPathResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathResponse").msgclass
 end

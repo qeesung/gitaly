@@ -34,30 +34,6 @@
 //
 //     praefect -config PATH_TO_CONFIG dial-nodes
 //
-// Reconcile
-//
-// The subcommand "reconcile" performs a consistency check of a backend storage
-// against the primary or another storage in the same virtual storage group.
-//
-//     praefect -config PATH_TO_CONFIG reconcile -virtual <vstorage> -target
-//     <t-storage> [-reference <r-storage>] [-f]
-//
-// "-virtual" specifies which virtual storage the target and reference
-// belong to.
-//
-// "-target" specifies the storage name of the backend Gitaly you wish to
-// reconcile.
-//
-// "-reference" is an optional argument that specifies which storage location to
-// check the target against. If an inconsistency is found, the target will
-// attempt to repair itself using the reference as the source of truth. If the
-// reference storage is omitted, Praefect will perform the check against the
-// current primary. If the primary is the same as the target, an error will
-// occur.
-//
-// By default, a dry-run is performed where no replications are scheduled. When
-// the flag "-f" is provided, the replications will actually schedule.
-//
 // Dataloss
 //
 // The subcommand "dataloss" identifies Gitaly nodes which are missing data from the
@@ -103,14 +79,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/importer"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/metrics"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/reconciler"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/repocleaner"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/transactions"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	"gitlab.com/gitlab-org/labkit/tracing"
@@ -167,7 +144,12 @@ func main() {
 		logger.Fatalf("%s", err)
 	}
 
-	if err := run(starterConfigs, conf); err != nil {
+	b, err := bootstrap.New()
+	if err != nil {
+		logger.Fatalf("unable to create a bootstrap: %v", err)
+	}
+
+	if err := run(starterConfigs, conf, b, prometheus.DefaultRegisterer); err != nil {
 		logger.Fatalf("%v", err)
 	}
 }
@@ -210,35 +192,36 @@ func configure(conf config.Config) {
 	sentry.ConfigureSentry(version.GetVersion(), conf.Sentry)
 }
 
-func run(cfgs []starter.Config, conf config.Config) error {
-	nodeLatencyHistogram, err := metrics.RegisterNodeLatency(conf.Prometheus)
+func run(cfgs []starter.Config, conf config.Config, b bootstrap.Listener, promreg prometheus.Registerer) error {
+	nodeLatencyHistogram, err := metrics.RegisterNodeLatency(conf.Prometheus, promreg)
 	if err != nil {
 		return err
 	}
 
-	delayMetric, err := metrics.RegisterReplicationDelay(conf.Prometheus)
+	delayMetric, err := metrics.RegisterReplicationDelay(conf.Prometheus, promreg)
 	if err != nil {
 		return err
 	}
 
-	latencyMetric, err := metrics.RegisterReplicationLatency(conf.Prometheus)
+	latencyMetric, err := metrics.RegisterReplicationLatency(conf.Prometheus, promreg)
 	if err != nil {
 		return err
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	var db *sql.DB
-
 	if conf.NeedsSQL() {
-		dbConn, closedb, err := initDatabase(logger, conf)
+		logger.Infof("establishing database connection to %s:%d ...", conf.DB.Host, conf.DB.Port)
+		dbConn, closedb, err := initDatabase(ctx, logger, conf)
 		if err != nil {
 			return err
 		}
 		defer closedb()
 		db = dbConn
+		logger.Info("database connection established")
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	var queue datastore.ReplicationEventQueue
 	var rs datastore.RepositoryStore
@@ -301,7 +284,8 @@ func run(cfgs []starter.Config, conf config.Config) error {
 	}
 
 	transactionManager := transactions.NewManager(conf)
-	clientHandshaker := backchannel.NewClientHandshaker(logger, praefect.NewBackchannelServerFactory(logger, transaction.NewServer(transactionManager)))
+	sidechannelRegistry := sidechannel.NewRegistry()
+	clientHandshaker := backchannel.NewClientHandshaker(logger, praefect.NewBackchannelServerFactory(logger, transaction.NewServer(transactionManager), sidechannelRegistry))
 	assignmentStore := praefect.NewDisabledAssignmentStore(conf.StorageNames())
 	var (
 		nodeManager   nodes.Manager
@@ -311,7 +295,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		primaryGetter praefect.PrimaryGetter
 	)
 	if conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
-		nodeSet, err = praefect.DialNodes(ctx, conf.VirtualStorages, protoregistry.GitalyProtoPreregistered, errTracker, clientHandshaker)
+		nodeSet, err = praefect.DialNodes(ctx, conf.VirtualStorages, protoregistry.GitalyProtoPreregistered, errTracker, clientHandshaker, sidechannelRegistry)
 		if err != nil {
 			return fmt.Errorf("dial nodes: %w", err)
 		}
@@ -325,15 +309,11 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		}()
 		healthChecker = hm
 
-		elector := nodes.NewPerRepositoryElector(logger, db)
+		// Wait for the first health check to complete so the Praefect doesn't start serving RPC
+		// before the router is ready with the health status of the nodes.
+		<-hm.Updated()
 
-		if conf.Failover.Enabled {
-			go func() {
-				if err := elector.Run(ctx, hm.Updated()); err != nil {
-					logger.WithError(err).Error("primary elector exited")
-				}
-			}()
-		}
+		elector := nodes.NewPerRepositoryElector(db)
 
 		primaryGetter = elector
 		assignmentStore = datastore.NewAssignmentStore(db, conf.StorageNames())
@@ -345,6 +325,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			praefect.NewLockedRandom(rand.New(rand.NewSource(time.Now().UnixNano()))),
 			csg,
 			assignmentStore,
+			rs,
 			conf.DefaultReplicationFactors(),
 		)
 	} else {
@@ -353,7 +334,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 				"Deprecated election stategy in use, migrate to repository specific primary nodes following https://docs.gitlab.com/ee/administration/gitaly/praefect.html#migrate-to-repository-specific-primary-gitaly-nodes. The other election strategies are scheduled for removal in GitLab 14.0.")
 		}
 
-		nodeMgr, err := nodes.NewManager(logger, conf, db, csg, nodeLatencyHistogram, protoregistry.GitalyProtoPreregistered, errTracker, clientHandshaker)
+		nodeMgr, err := nodes.NewManager(logger, conf, db, csg, nodeLatencyHistogram, protoregistry.GitalyProtoPreregistered, errTracker, clientHandshaker, sidechannelRegistry)
 		if err != nil {
 			return err
 		}
@@ -365,6 +346,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		nodeManager = nodeMgr
 
 		nodeMgr.Start(conf.Failover.BootstrapInterval.Duration(), conf.Failover.MonitorInterval.Duration())
+		defer nodeMgr.Stop()
 	}
 
 	logger.Infof("election strategy: %q", conf.Failover.ElectionStrategy)
@@ -383,7 +365,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 
 		repl = praefect.NewReplMgr(
 			logger,
-			conf.VirtualStorageNames(),
+			conf.StorageNames(),
 			queue,
 			rs,
 			healthChecker,
@@ -391,6 +373,7 @@ func run(cfgs []starter.Config, conf config.Config) error {
 			praefect.WithDelayMetric(delayMetric),
 			praefect.WithLatencyMetric(latencyMetric),
 			praefect.WithDequeueBatchSize(conf.Replication.BatchSize),
+			praefect.WithParallelStorageProcessingWorkers(conf.Replication.ParallelStorageProcessingWorkers),
 		)
 		srvFactory = praefect.NewServerFactory(
 			conf,
@@ -407,19 +390,15 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		)
 	)
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
-	prometheus.MustRegister(metricsCollectors...)
+	promreg.MustRegister(metricsCollectors...)
 
-	b, err := bootstrap.New()
-	if err != nil {
-		return fmt.Errorf("unable to create a bootstrap: %v", err)
-	}
-
-	b.StopAction = srvFactory.GracefulStop
 	for _, cfg := range cfgs {
 		srv, err := srvFactory.Create(cfg.IsSecure())
 		if err != nil {
 			return fmt.Errorf("create gRPC server: %w", err)
 		}
+		defer srv.Stop()
+
 		b.RegisterStarter(starter.New(cfg, srv))
 	}
 
@@ -444,39 +423,14 @@ func run(cfgs []starter.Config, conf config.Config) error {
 		})
 	}
 
-	if db != nil && nodeManager != nil {
-		go func() {
-			virtualStorages := conf.VirtualStorageNames()
-			finished := make(map[string]bool, len(virtualStorages))
-			for _, virtualStorage := range virtualStorages {
-				finished[virtualStorage] = true
-			}
-
-			for result := range importer.New(nodeManager, virtualStorages, db).Run(ctx) {
-				if result.Error != nil {
-					logger.WithFields(logrus.Fields{
-						"virtual_storage": result.VirtualStorage,
-						logrus.ErrorKey:   result.Error,
-					}).Error("importing repositories to database failed")
-					finished[result.VirtualStorage] = false
-					continue
-				}
-
-				logger.WithFields(logrus.Fields{
-					"virtual_storage": result.VirtualStorage,
-					"relative_paths":  result.RelativePaths,
-				}).Info("imported repositories to database")
-			}
-
-			logger.WithField("virtual_storages", finished).Info("repository importer finished")
-		}()
-	}
-
 	if err := b.Start(); err != nil {
 		return fmt.Errorf("unable to start the bootstrap: %v", err)
 	}
+	for _, cfg := range cfgs {
+		logger.WithFields(logrus.Fields{"schema": cfg.Name, "address": cfg.Addr}).Info("listening")
+	}
 
-	go repl.ProcessBacklog(ctx, praefect.ExpBackoffFunc(1*time.Second, 5*time.Second))
+	go repl.ProcessBacklog(ctx, praefect.ExpBackoffFactory{Start: time.Second, Max: 5 * time.Second})
 	logger.Info("background started: processing of the replication events")
 	repl.ProcessStale(ctx, 30*time.Second, time.Minute)
 	logger.Info("background started: processing of the stale replication events")
@@ -492,12 +446,39 @@ func run(cfgs []starter.Config, conf config.Config) error {
 				conf.StorageNames(),
 				conf.Reconciliation.HistogramBuckets,
 			)
-			prometheus.MustRegister(r)
-			go r.Run(ctx, helper.NewTimerTicker(interval))
+			promreg.MustRegister(r)
+			go func() {
+				if err := r.Run(ctx, helper.NewTimerTicker(interval)); err != nil {
+					logger.WithError(err).Error("reconciler finished execution")
+				}
+			}()
 		}
 	}
 
-	return b.Wait(conf.GracefulStopTimeout.Duration())
+	if interval := conf.RepositoriesCleanup.RunInterval.Duration(); interval > 0 {
+		if db != nil {
+			go func() {
+				storageSync := datastore.NewStorageCleanup(db)
+				cfg := repocleaner.Cfg{
+					RunInterval:         conf.RepositoriesCleanup.RunInterval.Duration(),
+					LivenessInterval:    30 * time.Second,
+					RepositoriesInBatch: conf.RepositoriesCleanup.RepositoriesInBatch,
+				}
+				repoCleaner := repocleaner.NewRunner(cfg, logger, healthChecker, nodeSet.Connections(), storageSync, storageSync, repocleaner.NewLogWarnAction(logger))
+				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval.Duration())); err != nil && !errors.Is(context.Canceled, err) {
+					logger.WithError(err).Error("repository cleaner finished execution")
+				} else {
+					logger.Info("repository cleaner finished execution")
+				}
+			}()
+		} else {
+			logger.Warn("Repository cleanup background task disabled as there is no database connection configured.")
+		}
+	} else {
+		logger.Warn(`Repository cleanup background task disabled as "repositories_cleanup.run_interval" is not set or 0.`)
+	}
+
+	return b.Wait(conf.GracefulStopTimeout.Duration(), srvFactory.GracefulStop)
 }
 
 func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
@@ -528,8 +509,6 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 		unique[addrConf.Addr] = struct{}{}
 
 		cfgs = append(cfgs, addrConf)
-
-		logger.WithFields(logrus.Fields{"schema": schema, "address": addr}).Info("listening")
 	}
 
 	if len(cfgs) == 0 {
@@ -539,8 +518,10 @@ func getStarterConfigs(conf config.Config) ([]starter.Config, error) {
 	return cfgs, nil
 }
 
-func initDatabase(logger *logrus.Entry, conf config.Config) (*sql.DB, func(), error) {
-	db, err := glsql.OpenDB(conf.DB)
+func initDatabase(ctx context.Context, logger *logrus.Entry, conf config.Config) (*sql.DB, func(), error) {
+	openDBCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	db, err := glsql.OpenDB(openDBCtx, conf.DB)
 	if err != nil {
 		logger.WithError(err).Error("SQL connection open failed")
 		return nil, nil, err

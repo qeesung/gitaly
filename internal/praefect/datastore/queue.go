@@ -40,7 +40,7 @@ type ReplicationEventQueue interface {
 
 func allowToAck(state JobState) error {
 	switch state {
-	case JobStateCompleted, JobStateFailed, JobStateCancelled, JobStateDead:
+	case JobStateCompleted, JobStateFailed, JobStateDead:
 		return nil
 	default:
 		return fmt.Errorf("event state is not supported: %q", state)
@@ -49,14 +49,25 @@ func allowToAck(state JobState) error {
 
 // ReplicationJob is a persistent representation of the replication job.
 type ReplicationJob struct {
-	Change            ChangeType `json:"change"`
-	RelativePath      string     `json:"relative_path"`
-	TargetNodeStorage string     `json:"target_node_storage"`
-	SourceNodeStorage string     `json:"source_node_storage"`
-	VirtualStorage    string     `json:"virtual_storage"`
-	Params            Params     `json:"params"`
+	// RepositoryID is the ID of the repository this job relates to. RepositoryID
+	// may be 0 if the job doesn't relate to any known repository. This can happen
+	// for example when the job is deleting an orphaned replica of a deleted repository.
+	RepositoryID int64 `json:"repository_id"`
+	// ReplicaPath is the relative path where the replicas are stored in the Gitaly storages.
+	ReplicaPath string     `json:"replica_path"`
+	Change      ChangeType `json:"change"`
+	// RelativePath is the virtual relative path the client uses to access the repository on the
+	// virtual storage. The actual path that is used to store the repository on the disks is the
+	// ReplicaPath. This can be removed in the future but is still carried in the jobs as the
+	// replication queue locking depends on this.
+	RelativePath      string `json:"relative_path"`
+	TargetNodeStorage string `json:"target_node_storage"`
+	SourceNodeStorage string `json:"source_node_storage"`
+	VirtualStorage    string `json:"virtual_storage"`
+	Params            Params `json:"params"`
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (job *ReplicationJob) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -70,6 +81,7 @@ func (job *ReplicationJob) Scan(value interface{}) error {
 	return json.Unmarshal(d, job)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (job ReplicationJob) Value() (driver.Value, error) {
 	data, err := json.Marshal(job)
 	if err != nil {
@@ -197,6 +209,7 @@ type PostgresReplicationEventQueue struct {
 	qc glsql.Querier
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
 	// When `Enqueue` method is called:
 	//  1. Insertion of the new record into `replication_queue_lock` table, so we are ensured all events have
@@ -229,6 +242,7 @@ func (rq PostgresReplicationEventQueue) Enqueue(ctx context.Context, event Repli
 	return events[0], nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStorage, nodeStorage string, count int) ([]ReplicationEvent, error) {
 	// When `Dequeue` method is called:
 	//  1. Events with attempts left that are either in `ready` or `failed` state are candidates for dequeuing.
@@ -309,6 +323,7 @@ func (rq PostgresReplicationEventQueue) Dequeue(ctx context.Context, virtualStor
 	return res, nil
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (rq PostgresReplicationEventQueue) Acknowledge(ctx context.Context, state JobState, ids []uint64) ([]uint64, error) {
 	// When `Acknowledge` method is called:
 	//  1. The list of event `id`s and corresponding <lock>s retrieved from `replication_queue` table as passed in by the
@@ -475,15 +490,19 @@ func (rq PostgresReplicationEventQueue) StartHealthUpdate(ctx context.Context, t
 func (rq PostgresReplicationEventQueue) AcknowledgeStale(ctx context.Context, staleAfter time.Duration) error {
 	query := `
 		WITH stale_job_lock AS (
-			DELETE FROM replication_queue_job_lock WHERE triggered_at < NOW() - INTERVAL '1 MILLISECOND' * $1
+			DELETE FROM replication_queue_job_lock WHERE triggered_at < NOW() AT TIME ZONE 'UTC' - INTERVAL '1 MILLISECOND' * $1
 			RETURNING job_id, lock_id
 		)
 		, update_job AS (
 			UPDATE replication_queue AS queue
-			SET state = (CASE WHEN attempt >= 1 THEN 'failed' ELSE 'dead' END)::REPLICATION_JOB_STATE
+			SET state = 'failed'::REPLICATION_JOB_STATE
 			FROM stale_job_lock
-			WHERE stale_job_lock.job_id = queue.id
+			WHERE stale_job_lock.job_id = queue.id AND attempt >= 1
 			RETURNING queue.id, queue.lock_id
+		)
+		, delete_job AS (
+			DELETE FROM replication_queue AS queue
+			WHERE attempt = 0 AND id IN (SELECT job_id FROM stale_job_lock)
 		)
 		UPDATE replication_queue_lock
 		SET acquired = FALSE

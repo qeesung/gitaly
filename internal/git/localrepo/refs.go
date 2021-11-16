@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
@@ -43,7 +43,7 @@ func (repo *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (g
 			Flags: []git.Option{git.Flag{Name: "--verify"}},
 			Args:  []string{revision.String()},
 		},
-		git.WithStderr(ioutil.Discard),
+		git.WithStderr(io.Discard),
 		git.WithStdout(&stdout),
 	); err != nil {
 		if _, ok := command.ExitStatus(err); ok {
@@ -192,8 +192,7 @@ func WithConfig(config ...git.ConfigPair) GetRemoteReferencesOption {
 	}
 }
 
-// GetRemoteReferences lists references of the remote. Symbolic references are dereferenced. Peeled
-// tags are not returned.
+// GetRemoteReferences lists references of the remote. Peeled tags are not returned.
 func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, opts ...GetRemoteReferencesOption) ([]git.Reference, error) {
 	var cfg getRemoteReferenceConfig
 	for _, opt := range opts {
@@ -212,6 +211,7 @@ func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, opts .
 			Name: "ls-remote",
 			Flags: []git.Option{
 				git.Flag{Name: "--refs"},
+				git.Flag{Name: "--symref"},
 			},
 			Args: append([]string{remote}, cfg.patterns...),
 		},
@@ -226,13 +226,122 @@ func (repo *Repo) GetRemoteReferences(ctx context.Context, remote string, opts .
 	var refs []git.Reference
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		split := strings.SplitN(string(scanner.Bytes()), "\t", 2)
+		split := strings.SplitN(scanner.Text(), "\t", 2)
 		if len(split) != 2 {
-			return nil, fmt.Errorf("invalid ls-remote output line: %q", scanner.Bytes())
+			return nil, fmt.Errorf("invalid ls-remote output line: %q", scanner.Text())
+		}
+
+		// Symbolic references are outputted as:
+		//	ref: refs/heads/master	refs/heads/symbolic-ref
+		//	0c9cf732b5774fa948348bbd6f273009bd66e04c	refs/heads/symbolic-ref
+		if strings.HasPrefix(split[0], "ref: ") {
+			symRef := split[1]
+			if !scanner.Scan() {
+				if err := scanner.Err(); err != nil {
+					return nil, fmt.Errorf("scan dereferenced symbolic ref: %w", err)
+				}
+
+				return nil, fmt.Errorf("missing dereferenced symbolic ref line for %q", symRef)
+			}
+
+			split = strings.SplitN(scanner.Text(), "\t", 2)
+			if len(split) != 2 {
+				return nil, fmt.Errorf("invalid dereferenced symbolic ref line: %q", scanner.Text())
+			}
+
+			if split[1] != symRef {
+				return nil, fmt.Errorf("expected dereferenced symbolic ref %q but got reference %q", symRef, split[1])
+			}
+
+			refs = append(refs, git.NewSymbolicReference(git.ReferenceName(symRef), split[0]))
+			continue
 		}
 
 		refs = append(refs, git.NewReference(git.ReferenceName(split[1]), split[0]))
 	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan: %w", err)
+	}
+
 	return refs, nil
+}
+
+// GetDefaultBranch determines the default branch name
+func (repo *Repo) GetDefaultBranch(ctx context.Context) (git.ReferenceName, error) {
+	branches, err := repo.GetBranches(ctx)
+	if err != nil {
+		return "", err
+	}
+	switch len(branches) {
+	case 0:
+		return "", nil
+	case 1:
+		return branches[0].Name, nil
+	}
+
+	headReference, err := repo.headReference(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	// Ideally we would only use HEAD to determine the default branch, but
+	// gitlab-rails depends on the branch being determined like this.
+	var defaultRef, legacyDefaultRef git.ReferenceName
+	for _, branch := range branches {
+		if len(headReference) != 0 && headReference == branch.Name {
+			return branch.Name, nil
+		}
+
+		if string(git.DefaultRef) == branch.Name.String() {
+			defaultRef = branch.Name
+		}
+
+		if string(git.LegacyDefaultRef) == branch.Name.String() {
+			legacyDefaultRef = branch.Name
+		}
+	}
+
+	if len(defaultRef) != 0 {
+		return defaultRef, nil
+	}
+
+	if len(legacyDefaultRef) != 0 {
+		return legacyDefaultRef, nil
+	}
+
+	// If all else fails, return the first branch name
+	return branches[0].Name, nil
+}
+
+func (repo *Repo) headReference(ctx context.Context) (git.ReferenceName, error) {
+	var headRef []byte
+
+	cmd, err := repo.Exec(ctx, git.SubCmd{
+		Name:  "rev-parse",
+		Flags: []git.Option{git.Flag{Name: "--symbolic-full-name"}},
+		Args:  []string{"HEAD"},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(cmd)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	headRef = scanner.Bytes()
+
+	if err := cmd.Wait(); err != nil {
+		// If the ref pointed at by HEAD doesn't exist, the rev-parse fails
+		// returning the string `"HEAD"`, so we return `nil` without error.
+		if bytes.Equal(headRef, []byte("HEAD")) {
+			return "", nil
+		}
+
+		return "", err
+	}
+
+	return git.ReferenceName(headRef), nil
 }

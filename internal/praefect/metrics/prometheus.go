@@ -3,13 +3,13 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	promconfig "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
+	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/prometheus/metrics"
 )
 
 // RegisterReplicationDelay creates and registers a prometheus histogram
 // to observe replication delay times
-func RegisterReplicationDelay(conf promconfig.Config) (metrics.HistogramVec, error) {
+func RegisterReplicationDelay(conf gitalycfgprom.Config, registerer prometheus.Registerer) (metrics.HistogramVec, error) {
 	replicationDelay := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
@@ -20,12 +20,12 @@ func RegisterReplicationDelay(conf promconfig.Config) (metrics.HistogramVec, err
 		[]string{"type"},
 	)
 
-	return replicationDelay, prometheus.Register(replicationDelay)
+	return replicationDelay, registerer.Register(replicationDelay)
 }
 
 // RegisterReplicationLatency creates and registers a prometheus histogram
 // to observe replication latency times
-func RegisterReplicationLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
+func RegisterReplicationLatency(conf gitalycfgprom.Config, registerer prometheus.Registerer) (metrics.HistogramVec, error) {
 	replicationLatency := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
@@ -36,12 +36,12 @@ func RegisterReplicationLatency(conf promconfig.Config) (metrics.HistogramVec, e
 		[]string{"type"},
 	)
 
-	return replicationLatency, prometheus.Register(replicationLatency)
+	return replicationLatency, registerer.Register(replicationLatency)
 }
 
 // RegisterNodeLatency creates and registers a prometheus histogram to
 // observe internal node latency
-func RegisterNodeLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
+func RegisterNodeLatency(conf gitalycfgprom.Config, registerer prometheus.Registerer) (metrics.HistogramVec, error) {
 	nodeLatency := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "gitaly",
@@ -51,9 +51,10 @@ func RegisterNodeLatency(conf promconfig.Config) (metrics.HistogramVec, error) {
 		}, []string{"gitaly_storage"},
 	)
 
-	return nodeLatency, prometheus.Register(nodeLatency)
+	return nodeLatency, registerer.Register(nodeLatency)
 }
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 var MethodTypeCounter = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: "gitaly",
@@ -62,6 +63,7 @@ var MethodTypeCounter = promauto.NewCounterVec(
 	}, []string{"method_type"},
 )
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 var PrimaryGauge = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: "gitaly",
@@ -70,20 +72,13 @@ var PrimaryGauge = promauto.NewGaugeVec(
 	}, []string{"virtual_storage", "gitaly_storage"},
 )
 
+//nolint: revive,stylecheck // This is unintentionally missing documentation.
 var NodeLastHealthcheckGauge = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: "gitaly",
 		Subsystem: "praefect",
 		Name:      "node_last_healthcheck_up",
 	}, []string{"gitaly_storage"},
-)
-
-var ChecksumMismatchCounter = promauto.NewCounterVec(
-	prometheus.CounterOpts{
-		Namespace: "gitaly",
-		Subsystem: "praefect",
-		Name:      "checksum_mismatch_total",
-	}, []string{"target", "source"},
 )
 
 // ReadDistribution counts how many read operations was routed to each storage.

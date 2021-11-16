@@ -24,10 +24,6 @@ func TestFindRemoteRootRefSuccess(t *testing.T) {
 		request *gitalypb.FindRemoteRootRefRequest
 	}{
 		{
-			desc:    "with remote name",
-			request: &gitalypb.FindRemoteRootRefRequest{Repository: repo, Remote: "origin"},
-		},
-		{
 			desc:    "with remote URL",
 			request: &gitalypb.FindRemoteRootRefRequest{Repository: repo, RemoteUrl: originURL},
 		},
@@ -60,22 +56,19 @@ func TestFindRemoteRootRefWithUnbornRemoteHead(t *testing.T) {
 
 	// We're creating an empty repository. Empty repositories do have a HEAD set up, but they
 	// point to an unborn branch because the default branch hasn't yet been created.
-	_, clientRepoPath, cleanup := gittest.InitBareRepoAt(t, cfg, cfg.Storages[0])
-	defer cleanup()
-	gittest.Exec(t, cfg, "-C", remoteRepoPath, "remote", "add",
-		"foo", "file://"+clientRepoPath)
+	_, clientRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	gittest.Exec(t, cfg, "-C", remoteRepoPath, "remote", "add", "foo", "file://"+clientRepoPath)
 
 	ctx, cancel := testhelper.Context()
 	defer cancel()
 
-	for _, request := range []*gitalypb.FindRemoteRootRefRequest{
-		&gitalypb.FindRemoteRootRefRequest{Repository: remoteRepo, Remote: "foo"},
-		&gitalypb.FindRemoteRootRefRequest{Repository: remoteRepo, RemoteUrl: "file://" + clientRepoPath},
-	} {
-		response, err := client.FindRemoteRootRef(ctx, request)
-		testassert.GrpcEqualErr(t, status.Error(codes.NotFound, "no remote HEAD found"), err)
-		require.Nil(t, response)
-	}
+	response, err := client.FindRemoteRootRef(ctx, &gitalypb.FindRemoteRootRefRequest{
+		Repository: remoteRepo,
+		RemoteUrl:  "file://" + clientRepoPath,
+	},
+	)
+	testassert.GrpcEqualErr(t, status.Error(codes.NotFound, "no remote HEAD found"), err)
+	require.Nil(t, response)
 }
 
 func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
@@ -93,7 +86,7 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 			desc: "Invalid repository",
 			request: &gitalypb.FindRemoteRootRefRequest{
 				Repository: invalidRepo,
-				Remote:     "remote-name",
+				RemoteUrl:  "remote-url",
 			},
 			expectedErr: []error{
 				status.Error(codes.InvalidArgument, "GetStorageByName: no such storage: \"fake\""),
@@ -103,7 +96,7 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 		{
 			desc: "Repository is nil",
 			request: &gitalypb.FindRemoteRootRefRequest{
-				Remote: "remote-name",
+				RemoteUrl: "remote-url",
 			},
 			expectedErr: []error{
 				status.Error(codes.InvalidArgument, "missing repository"),
@@ -111,23 +104,12 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 			},
 		},
 		{
-			desc: "Remote name and URL is empty",
+			desc: "Remote URL is empty",
 			request: &gitalypb.FindRemoteRootRefRequest{
 				Repository: repo,
 			},
 			expectedErr: []error{
-				status.Error(codes.InvalidArgument, "got neither remote name nor URL"),
-			},
-		},
-		{
-			desc: "Remote name and URL is set",
-			request: &gitalypb.FindRemoteRootRefRequest{
-				Repository: repo,
-				Remote:     "remote-name",
-				RemoteUrl:  "remote-url",
-			},
-			expectedErr: []error{
-				status.Error(codes.InvalidArgument, "got remote name and URL"),
+				status.Error(codes.InvalidArgument, "missing remote URL"),
 			},
 		},
 	}
@@ -150,15 +132,6 @@ func TestFindRemoteRootRefFailedDueToValidation(t *testing.T) {
 func TestFindRemoteRootRefFailedDueToInvalidRemote(t *testing.T) {
 	t.Parallel()
 	_, repo, _, client := setupRemoteService(t)
-
-	t.Run("invalid remote name", func(t *testing.T) {
-		request := &gitalypb.FindRemoteRootRefRequest{Repository: repo, Remote: "invalid"}
-		ctx, cancel := testhelper.Context()
-		defer cancel()
-
-		_, err := client.FindRemoteRootRef(ctx, request)
-		testhelper.RequireGrpcError(t, err, codes.Internal)
-	})
 
 	t.Run("invalid remote URL", func(t *testing.T) {
 		fakeRepoDir := testhelper.TempDir(t)

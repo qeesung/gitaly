@@ -56,16 +56,19 @@ type filestore struct {
 	id      []byte
 	counter uint64
 	stop    chan struct{}
+
+	sleepLoop *dontpanic.Forever
 }
 
-func newFilestore(dir string, maxAge time.Duration, sleep func(time.Duration), logger logrus.FieldLogger) *filestore {
+func newFilestore(dir string, maxAge time.Duration, sleep func(time.Duration) <-chan time.Time, logger logrus.FieldLogger) *filestore {
 	fs := &filestore{
-		dir:    dir,
-		maxAge: maxAge,
-		stop:   make(chan struct{}),
+		dir:       dir,
+		maxAge:    maxAge,
+		stop:      make(chan struct{}),
+		sleepLoop: dontpanic.NewForever(time.Minute),
 	}
 
-	dontpanic.GoForever(1*time.Minute, func() {
+	fs.sleepLoop.Go(func() {
 		sleepLoop(fs.stop, fs.maxAge, sleep, func() {
 			diskUsageGauge.WithLabelValues(fs.dir).Set(fs.diskUsage())
 
@@ -83,7 +86,7 @@ type namedWriteCloser interface {
 	io.WriteCloser
 }
 
-// Create creates a new tempfile. It does not use ioutil.TempFile because
+// Create creates a new tempfile. It does not use os.CreateTemp because
 // the documentation of TempFile makes no promises about reusing tempfile
 // names after a file has been deleted. By using a very large (uint64)
 // counter, Create makes it clear / explicit how unlikely reuse is.
@@ -103,11 +106,11 @@ func (fs *filestore) Create() (namedWriteCloser, error) {
 	)
 
 	path := filepath.Join(fs.dir, fmt.Sprintf("%02x", uint8(fileID)), name)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("Create: mkdir: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("Create: %w", err)
 	}
@@ -146,6 +149,8 @@ func (fs *filestore) Stop() {
 	default:
 		close(fs.stop)
 	}
+
+	fs.sleepLoop.Cancel()
 }
 
 // cleanWalk removes files but not directories. This is to avoid races

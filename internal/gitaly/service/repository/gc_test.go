@@ -3,7 +3,6 @@ package repository
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -38,7 +38,7 @@ func TestGarbageCollectCommitGraph(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 
-	chainPath := filepath.Join(repoPath, CommitGraphChainRelPath)
+	chainPath := filepath.Join(repoPath, stats.CommitGraphChainRelPath)
 	require.FileExists(t, chainPath, "pre-computed commit-graph should exist after running garbage collect")
 }
 
@@ -222,8 +222,7 @@ func TestGarbageCollectDeletesPackedRefsLock(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			repo, repoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-			t.Cleanup(cleanupFn)
+			repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			// Force the packed-refs file to have an old time to test that even
 			// in that case it doesn't get deleted
@@ -323,8 +322,7 @@ func TestGarbageCollectDeletesPackedRefsNew(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			repo, repoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-			t.Cleanup(cleanupFn)
+			repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 			req := &gitalypb.GarbageCollectRequest{Repository: repo}
 			packedRefsNewPath := filepath.Join(repoPath, "packed-refs.new")
@@ -382,7 +380,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 	cfg, repo, repoPath, client := setupRepositoryService(t)
 
 	// Make the directory, so we can create random reflike things in it
-	require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "refs", "keep-around"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "refs", "keep-around"), 0o755))
 
 	testCases := []struct {
 		desc        string
@@ -401,17 +399,20 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 			refName:     "bogus",
 			refContent:  "bogus",
 			shouldExist: false,
-		}, {
+		},
+		{
 			desc:        "Filled with the blank ref",
 			refName:     "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
 			refContent:  git.ZeroOID.String(),
 			shouldExist: true,
-		}, {
+		},
+		{
 			desc:        "An existing ref with blank content",
 			refName:     "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
 			refContent:  "",
 			shouldExist: true,
-		}, {
+		},
+		{
 			desc:        "A valid sha that does not exist in the repo",
 			refName:     "d669a6f1a70693058cf484318c1cee8526119938",
 			refContent:  "d669a6f1a70693058cf484318c1cee8526119938",
@@ -432,11 +433,11 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 			// Create an invalid ref that should should be removed with the testcase
 			bogusSha := "b3f5e4adf6277b571b7943a4f0405a6dd7ee7e15"
 			bogusPath := filepath.Join(repoPath, fmt.Sprintf("refs/keep-around/%s", bogusSha))
-			require.NoError(t, ioutil.WriteFile(bogusPath, []byte(bogusSha), 0644))
+			require.NoError(t, os.WriteFile(bogusPath, []byte(bogusSha), 0o644))
 
 			// Creating the keeparound without using git so we can create invalid ones in testcases
 			refPath := filepath.Join(repoPath, fmt.Sprintf("refs/keep-around/%s", testcase.refName))
-			require.NoError(t, ioutil.WriteFile(refPath, []byte(testcase.refContent), 0644))
+			require.NoError(t, os.WriteFile(refPath, []byte(testcase.refContent), 0o644))
 
 			// Perform the request
 			req := &gitalypb.GarbageCollectRequest{Repository: repo}
@@ -447,7 +448,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 			commitSha := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", existingRefName)
 			require.Equal(t, existingSha, text.ChompBytes(commitSha))
 
-			//The invalid one was removed
+			// The invalid one was removed
 			require.NoFileExists(t, bogusPath)
 
 			if testcase.shouldExist {
@@ -464,8 +465,8 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 func mustCreateFileWithTimes(t testing.TB, path string, mTime time.Time) {
 	t.Helper()
 
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
-	require.NoError(t, ioutil.WriteFile(path, nil, 0644))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, nil, 0o644))
 	require.NoError(t, os.Chtimes(path, mTime, mTime))
 }
 

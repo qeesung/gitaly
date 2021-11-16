@@ -42,7 +42,9 @@ func (h *tarTesthandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case redirectPath:
 		http.Redirect(w, r, tarPath, http.StatusFound)
 	case tarPath:
-		io.Copy(w, h.tarData)
+		if _, err := io.Copy(w, h.tarData); err != nil {
+			panic(err)
+		}
 	default:
 		http.Error(w, "Not found", 404)
 	}
@@ -73,8 +75,7 @@ func createFromSnapshot(t *testing.T, req *gitalypb.CreateRepositoryFromSnapshot
 func TestCreateRepositoryFromSnapshotSuccess(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
-	_, sourceRepoPath, cleanTestRepo := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanTestRepo)
+	_, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	// Ensure these won't be in the archive
 	require.NoError(t, os.Remove(filepath.Join(sourceRepoPath, "config")))
@@ -119,8 +120,7 @@ func TestCreateRepositoryFromSnapshotSuccess(t *testing.T) {
 func TestCreateRepositoryFromSnapshotFailsIfRepositoryExists(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
-	repo, _, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanupFn)
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	req := &gitalypb.CreateRepositoryFromSnapshotRequest{Repository: repo}
 	rsp, err := createFromSnapshot(t, req, cfg)
@@ -132,8 +132,8 @@ func TestCreateRepositoryFromSnapshotFailsIfRepositoryExists(t *testing.T) {
 func TestCreateRepositoryFromSnapshotFailsIfBadURL(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
-	repo, _, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	cleanupFn() // free up the destination dir for use
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	require.NoError(t, os.RemoveAll(repoPath))
 
 	req := &gitalypb.CreateRepositoryFromSnapshotRequest{
 		Repository: repo,
@@ -148,9 +148,6 @@ func TestCreateRepositoryFromSnapshotFailsIfBadURL(t *testing.T) {
 
 func TestCreateRepositoryFromSnapshotBadRequests(t *testing.T) {
 	t.Parallel()
-	cfg := testcfg.Build(t)
-	repo, _, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	cleanupFn() // free up the destination dir for use
 
 	testCases := []struct {
 		desc        string
@@ -187,6 +184,10 @@ func TestCreateRepositoryFromSnapshotBadRequests(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			cfg := testcfg.Build(t)
+			repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			require.NoError(t, os.RemoveAll(repoPath))
+
 			req := &gitalypb.CreateRepositoryFromSnapshotRequest{
 				Repository: repo,
 				HttpUrl:    srv.URL + tc.url,
@@ -205,8 +206,7 @@ func TestCreateRepositoryFromSnapshotBadRequests(t *testing.T) {
 func TestCreateRepositoryFromSnapshotHandlesMalformedResponse(t *testing.T) {
 	t.Parallel()
 	cfg := testcfg.Build(t)
-	repo, repoPath, cleanupFn := gittest.CloneRepoAtStorage(t, cfg, cfg.Storages[0], t.Name())
-	t.Cleanup(cleanupFn)
+	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	require.NoError(t, os.Remove(filepath.Join(repoPath, "config")))
 	require.NoError(t, os.RemoveAll(filepath.Join(repoPath, "hooks")))

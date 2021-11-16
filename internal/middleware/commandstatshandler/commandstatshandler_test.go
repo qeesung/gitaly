@@ -7,11 +7,12 @@ import (
 	"net"
 	"testing"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -25,35 +26,41 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+func TestMain(m *testing.M) {
+	testhelper.Run(m)
+}
+
 func createNewServer(t *testing.T, cfg config.Cfg) *grpc.Server {
 	logger := testhelper.NewTestLogger(t)
 	logrusEntry := logrus.NewEntry(logger).WithField("test", t.Name())
 
 	opts := []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+		grpc.StreamInterceptor(grpcmw.ChainStreamServer(
 			StreamInterceptor,
-			grpc_logrus.StreamServerInterceptor(logrusEntry,
-				grpc_logrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpc_logrus.WithMessageProducer(CommandStatsMessageProducer)),
+			grpcmwlogrus.StreamServerInterceptor(logrusEntry,
+				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
+				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
 		)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(
 			UnaryInterceptor,
-			grpc_logrus.UnaryServerInterceptor(logrusEntry,
-				grpc_logrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpc_logrus.WithMessageProducer(CommandStatsMessageProducer)),
+			grpcmwlogrus.UnaryServerInterceptor(logrusEntry,
+				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
+				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
 		)),
 	}
 
 	server := grpc.NewServer(opts...)
 
 	gitCommandFactory := git.NewExecCommandFactory(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
 
 	gitalypb.RegisterRefServiceServer(server, ref.NewServer(
 		cfg,
 		config.NewLocator(cfg),
 		gitCommandFactory,
 		transaction.NewManager(cfg, backchannel.NewRegistry()),
-		catfile.NewCache(cfg),
+		catfileCache,
 	))
 
 	return server
@@ -66,9 +73,6 @@ func getBufDialer(listener *bufconn.Listener) func(context.Context, string) (net
 }
 
 func TestInterceptor(t *testing.T) {
-	cleanup := testhelper.Configure()
-	defer cleanup()
-
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 
 	logBuffer := &bytes.Buffer{}
@@ -137,4 +141,15 @@ func TestInterceptor(t *testing.T) {
 			require.Contains(t, logBuffer.String(), tt.expectedLog)
 		})
 	}
+}
+
+func TestFieldsProducer(t *testing.T) {
+	ctx, cancel := testhelper.Context()
+	defer cancel()
+
+	ctx = command.InitContextStats(ctx)
+	stats := command.StatsFromContext(ctx)
+	stats.RecordMax("stub", 42)
+
+	require.Equal(t, logrus.Fields{"stub": 42}, FieldsProducer(ctx))
 }

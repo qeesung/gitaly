@@ -8,6 +8,7 @@ graceful_stop_timeout = "30s"
 
 [replication]
 batch_size = 1
+parallel_storage_processing_workers = 2
 
 [reconciliation]
 scheduling_interval = "1m"
@@ -42,7 +43,8 @@ default_replication_factor = 2
     storage = "praefect-internal-3"
 
 [prometheus]
-  grpc_latency_buckets = [0.1, 0.2, 0.3]
+scrape_timeout = "1s"
+grpc_latency_buckets = [0.1, 0.2, 0.3]
 
 [database]
 host = "1.2.3.4"
@@ -70,3 +72,8 @@ sslrootcert = "/path/to/sp/root-cert"
 error_threshold_window = "20s"
 write_error_threshold_count = 1500
 read_error_threshold_count = 100
+
+[repositories_cleanup]
+check_interval = "1s"
+run_interval = "3s"
+repositories_in_batch = 10
