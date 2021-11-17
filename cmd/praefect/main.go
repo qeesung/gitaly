@@ -390,11 +390,6 @@ func run(cfgs []starter.Config, conf config.Config, b bootstrap.Listener, promre
 		)
 	)
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
-	if db != nil {
-		promreg.MustRegister(
-			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout),
-		)
-	}
 	promreg.MustRegister(metricsCollectors...)
 
 	for _, cfg := range cfgs {
