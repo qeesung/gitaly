@@ -8,8 +8,8 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,7 +57,7 @@ func TestGitalyServerFactory(t *testing.T) {
 				MinVersion: tls.VersionTLS12,
 			})
 
-			cc, err = grpc.DialContext(ctx, listener.Addr().String(), grpc.WithTransportCredentials(creds))
+			cc, err = grpc.DialContext(ctx, listener.Addr().String(), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 			require.NoError(t, err)
 		} else {
 			listener, err := net.Listen(schema, addr)
@@ -72,7 +72,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
 			require.NoError(t, err)
 
-			cc, err = client.Dial(endpoint, nil)
+			cc, err = client.DialContext(ctx, endpoint, []grpc.DialOption{grpc.WithBlock()})
 			require.NoError(t, err)
 		}
 
@@ -135,14 +135,9 @@ func TestGitalyServerFactory(t *testing.T) {
 
 		checkHealth(t, sf, starter.TCP, "localhost:0")
 
-		var entry *logrus.Entry
-		for _, e := range hook.AllEntries() {
-			if e.Message == "finished unary call with code OK" {
-				entry = e
-				break
-			}
-		}
-		require.NotNil(t, entry)
+		require.Eventually(t, func() bool { return len(hook.AllEntries()) > 0 }, time.Second, 10*time.Millisecond)
+		entry := hook.AllEntries()[0]
+		require.Equal(t, entry.Message, "finished unary call with code OK")
 		reqSize, found := entry.Data["grpc.request.payload_bytes"]
 		assert.EqualValues(t, 0, reqSize)
 		require.True(t, found)
