@@ -3,6 +3,9 @@ package ssh
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
@@ -42,4 +45,21 @@ func newSSHClient(t *testing.T, serverSocketPath string) (gitalypb.SSHServiceCli
 	}
 
 	return gitalypb.NewSSHServiceClient(conn), conn
+}
+
+func requireProcessingDetailsLogged(t testing.TB, hook *test.Hook) {
+	t.Helper()
+	var logEntry *logrus.Entry
+	logEntries := hook.AllEntries()
+	for _, e := range logEntries {
+		if e.Message == "transferred bytes" {
+			logEntry = e
+			break
+		}
+	}
+	require.NotNil(t, logEntry, "log entry is missing")
+	_, ok := logEntry.Data["in_bytes"]
+	require.True(t, ok, "no information about request_bytes")
+	_, ok = logEntry.Data["out_bytes"]
+	require.True(t, ok, "no information about response_bytes")
 }

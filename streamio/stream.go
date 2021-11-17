@@ -87,3 +87,49 @@ func (sw *sendWriter) Write(p []byte) (int, error) {
 
 	return sent, nil
 }
+
+// NewWrittenBytes returns new instance of the *WrittenBytes.
+func NewWrittenBytes(underlying io.Writer) *WrittenBytes {
+	return &WrittenBytes{underlying: underlying}
+}
+
+// WrittenBytes wraps io.Writer and calculates amount of the bytes written.
+type WrittenBytes struct {
+	underlying io.Writer
+	total      int64
+}
+
+// Total returns amount of bytes written by the underlying Writer.
+func (twc *WrittenBytes) Total() int64 {
+	return twc.total
+}
+
+// Write proxies call to the underlying Writer and increase the total by amount of written bytes.
+func (twc *WrittenBytes) Write(p []byte) (int, error) {
+	written, err := twc.underlying.Write(p)
+	twc.total += int64(written)
+	return written, err
+}
+
+// NewReadBytes returns new instance of the *ReadBytes.
+func NewReadBytes(underlying io.Reader) *ReadBytes {
+	return &ReadBytes{underlying: underlying}
+}
+
+// ReadBytes wraps io.Reader and calculates amount of the bytes read.
+type ReadBytes struct {
+	underlying io.Reader
+	total      int64
+}
+
+// Total returns amount of bytes read by the underlying Reader.
+func (rb *ReadBytes) Total() int64 {
+	return rb.total
+}
+
+// Read proxies call to the underlying Reader and increase the total by amount of read bytes.
+func (rb *ReadBytes) Read(p []byte) (int, error) {
+	read, err := rb.underlying.Read(p)
+	rb.total += int64(read)
+	return read, err
+}

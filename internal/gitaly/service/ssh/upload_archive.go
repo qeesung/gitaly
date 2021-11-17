@@ -38,18 +38,20 @@ func (s *server) sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 		return err
 	}
 
-	stdin := streamio.NewReader(func() ([]byte, error) {
+	stdin := streamio.NewReadBytes(streamio.NewReader(func() ([]byte, error) {
 		request, err := stream.Recv()
 		return request.GetStdin(), err
-	})
+	}))
 
 	var m sync.Mutex
-	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
+	stdout := streamio.NewWrittenBytes(streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadArchiveResponse{Stdout: p})
-	})
+	}))
 	stderr := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadArchiveResponse{Stderr: p})
 	})
+
+	defer logTransferredBytes(ctx, stdin, stdout)
 
 	cmd, monitor, err := monitorStdinCommand(ctx, s.gitCmdFactory, stdin, stdout, stderr, git.SubCmd{
 		Name: "upload-archive",
