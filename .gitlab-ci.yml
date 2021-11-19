@@ -26,8 +26,10 @@ include:
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Coverage-Fuzzing.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
+
+  # Include Reviewers.gitlab-ci.yml to recommend code reviewers for a given MR
   - project: gitlab-org/modelops/applied-ml/review-recommender/ci-templates
-    ref: v0.1.0
+    ref: v0.1.1
     file: recommender/Reviewers.gitlab-ci.yml
 
 danger-review:
