@@ -189,6 +189,11 @@ test:
         TARGET: test
       - GO_VERSION: "1.17"
         TARGET: [ test-with-proxies, test-with-praefect, race-go ]
+      # While the official stance is that GitLab requires Postgres 12 or newer,
+      # in practice we still require support for Postgres 11. This test should
+      # be removed as soon as we really mandate the minimum required version.
+      - POSTGRES_VERSION: "11.14-alpine"
+        TARGET: [ test, test-with-praefect ]
 
 nightly:git:
   <<: *test_definition
