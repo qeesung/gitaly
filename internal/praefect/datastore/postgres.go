@@ -64,6 +64,17 @@ func getPostgresVersion(db glsql.Querier) (int, error) {
 	return postgresVersion, postgresVersionErr
 }
 
+// supportsMaterialized determines whether the given database supports the MATERIALIZED keyword.
+func supportsMaterialized(db glsql.Querier) (bool, error) {
+	serverVersion, err := getPostgresVersion(db)
+	if err != nil {
+		return false, err
+	}
+
+	// MATERIALIZE is supported starting with Postgres 12.0.
+	return serverVersion >= 12_00_00, nil
+}
+
 const sqlMigrateDialect = "postgres"
 
 // MigrateDownPlan does a dry run for rolling back at most max migrations.
