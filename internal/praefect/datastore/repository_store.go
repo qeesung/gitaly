@@ -615,6 +615,13 @@ func (rs *PostgresRepositoryStore) GetPartiallyAvailableRepositories(ctx context
 		return nil, fmt.Errorf("unknown virtual storage: %q", virtualStorage)
 	}
 
+	var materialized string
+	if useMaterialized, err := supportsMaterialized(rs.db); err != nil {
+		return nil, err
+	} else if useMaterialized {
+		materialized = "MATERIALIZED"
+	}
+
 	// The query below gets the status of every repository which has one or more assigned replicas that
 	// are not able to serve requests at the moment. The status includes how many changes a replica is behind,
 	// whether the replica is assigned host or not, whether the replica is healthy and whether the replica is
@@ -650,9 +657,9 @@ func (rs *PostgresRepositoryStore) GetPartiallyAvailableRepositories(ctx context
 	//    is reached. Status of unassigned storages does not matter as long as they don't contain a later generation
 	//    than the assigned ones.
 	//
-	rows, err := rs.db.QueryContext(ctx, `
-WITH valid_primaries AS MATERIALIZED (
-	SELECT * FROM valid_primaries
+	rows, err := rs.db.QueryContext(ctx, fmt.Sprintf(`
+WITH valid_primaries AS %s (
+	SELECT repository_id, storage FROM valid_primaries
 )
 
 SELECT
@@ -700,7 +707,7 @@ FROM (
 GROUP BY relative_path, "primary"
 HAVING bool_or(NOT valid_primary) FILTER(WHERE assigned)
 ORDER BY relative_path, "primary"
-	`, virtualStorage, pq.StringArray(configuredStorages))
+	`, materialized), virtualStorage, pq.StringArray(configuredStorages))
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
