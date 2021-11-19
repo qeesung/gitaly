@@ -2,8 +2,8 @@ package datastore
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	migrate "github.com/rubenv/sql-migrate"
@@ -20,24 +20,48 @@ type MigrationStatusRow struct {
 	AppliedAt time.Time
 }
 
+var (
+	postgresVersion     int
+	postgresVersionErr  error
+	postgresVersionOnce sync.Once
+)
+
 // CheckPostgresVersion checks the server version of the Postgres DB
 // specified in conf. This is a diagnostic for the Praefect Postgres
 // rollout. https://gitlab.com/gitlab-org/gitaly/issues/1755
-func CheckPostgresVersion(db *sql.DB) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	var serverVersion int
-	if err := db.QueryRowContext(ctx, "SHOW server_version_num").Scan(&serverVersion); err != nil {
-		return fmt.Errorf("get postgres server version: %v", err)
+func CheckPostgresVersion(db glsql.Querier) error {
+	serverVersion, err := getPostgresVersion(db)
+	if err != nil {
+		return err
 	}
 
-	const minimumServerVersion = 90600 // Postgres 9.6
+	const minimumServerVersion = 9_06_00 // Postgres 9.6
 	if serverVersion < minimumServerVersion {
 		return fmt.Errorf("postgres server version too old: %d", serverVersion)
 	}
 
 	return nil
+}
+
+// GetPostgresVersion retrieves the version of the Postgres database server. Note that this function
+// lazily checks the version once and once only: if the database server connected to changes during
+// runtime, then the version won't be reevaluated.
+func getPostgresVersion(db glsql.Querier) (int, error) {
+	postgresVersionOnce.Do(func() {
+		postgresVersion, postgresVersionErr = func() (int, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			var serverVersion int
+			if err := db.QueryRowContext(ctx, "SHOW server_version_num").Scan(&serverVersion); err != nil {
+				return 0, fmt.Errorf("get postgres server version: %v", err)
+			}
+
+			return serverVersion, nil
+		}()
+	})
+
+	return postgresVersion, postgresVersionErr
 }
 
 const sqlMigrateDialect = "postgres"
