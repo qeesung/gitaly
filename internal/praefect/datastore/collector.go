@@ -79,8 +79,15 @@ func (c *RepositoryStoreCollector) Collect(ch chan<- prometheus.Metric) {
 // A repository is unavailable when it has no replicas that can act as a primary, indicating
 // they are either unhealthy or out of date.
 func (c *RepositoryStoreCollector) queryMetrics(ctx context.Context) (map[string]int, error) {
-	rows, err := c.db.QueryContext(ctx, `
-WITH valid_primaries AS MATERIALIZED (
+	var materialized string
+	if useMaterialized, err := supportsMaterialized(c.db); err != nil {
+		return nil, err
+	} else if useMaterialized {
+		materialized = "MATERIALIZED"
+	}
+
+	rows, err := c.db.QueryContext(ctx, fmt.Sprintf(`
+WITH valid_primaries AS %s (
 	SELECT repository_id
 	FROM valid_primaries
 )
@@ -92,7 +99,7 @@ WHERE NOT EXISTS (
 	WHERE valid_primaries.repository_id = repositories.repository_id
 ) AND repositories.virtual_storage = ANY($1)
 GROUP BY virtual_storage
-	`, pq.StringArray(c.virtualStorages))
+	`, materialized), pq.StringArray(c.virtualStorages))
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
