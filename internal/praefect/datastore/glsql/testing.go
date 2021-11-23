@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/migrations"
 )
 
 const (
@@ -127,10 +128,13 @@ func (db DB) Close() error {
 //   PGPORT - required, binding port
 //   PGUSER - optional, user - `$ whoami` would be used if not provided
 // Once the test is completed the database will be dropped on test cleanup execution.
-func NewDB(t testing.TB) DB {
+func NewDB(t testing.TB, mgs ...*migrate.Migration) DB {
 	t.Helper()
 	database := "praefect_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	return DB{DB: initPraefectTestDB(t, database), Name: database}
+	if len(mgs) == 0 {
+		mgs = migrations.All()
+	}
+	return DB{DB: initPraefectTestDB(t, database, mgs...), Name: database}
 }
 
 // GetDBConfig returns the database configuration determined by
@@ -201,14 +205,50 @@ func requireTerminateAllConnections(t testing.TB, db *sql.DB, database string) {
 	}, 20*time.Second, 10*time.Millisecond, "wait for all connections to be terminated")
 }
 
-func initPraefectTestDB(t testing.TB, database string) *sql.DB {
+func initPraefectTestDB(t testing.TB, database string, mgs ...*migrate.Migration) *sql.DB {
 	t.Helper()
 
-	dbCfg := GetDBConfig(t, "postgres")
+	postgresCfg := GetDBConfig(t, "postgres")
 	// We require a direct connection to the Postgres instance and not through the PgBouncer
 	// because we use transaction pool mood for it and it doesn't work well for system advisory locks.
-	postgresDB := requireSQLOpen(t, dbCfg, true)
-	defer func() { require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", dbCfg.DBName) }()
+	postgresDB := requireSQLOpen(t, postgresCfg, true)
+	defer func() {
+		require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", postgresCfg.DBName)
+	}()
+
+	if len(mgs) != len(migrations.All()) {
+		_, err := postgresDB.Exec("CREATE DATABASE " + database + " WITH ENCODING 'UTF8'")
+		require.NoErrorf(t, err, "failed to create %q database", database)
+		require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", postgresCfg.DBName)
+
+		t.Cleanup(func() {
+			postgresCfg := GetDBConfig(t, "postgres")
+			postgresDB := requireSQLOpen(t, postgresCfg, true)
+			defer func() {
+				require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", postgresCfg.DBName)
+			}()
+
+			// We need to force-terminate open connections as for the tasks that use PgBouncer
+			// the actual client connected to the database is a PgBouncer and not a test that is
+			// running.
+			requireTerminateAllConnections(t, postgresDB, database)
+
+			_, err = postgresDB.Exec("DROP DATABASE " + database)
+			require.NoErrorf(t, err, "failed to drop %q database", database)
+		})
+
+		dbCfg := GetDBConfig(t, database)
+		db := requireSQLOpen(t, dbCfg, true)
+		t.Cleanup(func() {
+			if err := db.Close(); !errors.Is(err, net.ErrClosed) {
+				require.NoErrorf(t, err, "release connection to the %q database", dbCfg.DBName)
+			}
+		})
+		n, err := Migrate(db, false, mgs...)
+		require.NoError(t, err)
+		require.Equal(t, len(mgs), n, "incorrect amount of migrations were applied")
+		return db
+	}
 
 	// Acquire exclusive advisory lock to prevent other concurrent test from doing the same.
 	_, err := postgresDB.Exec(`SELECT pg_advisory_lock($1)`, advisoryLockIDDatabaseTemplate)
@@ -232,7 +272,7 @@ func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 		require.NoErrorf(t, templateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
 	}()
 
-	if _, err := Migrate(templateDB, false); err != nil {
+	if _, err := Migrate(templateDB, false, mgs...); err != nil {
 		// If database has unknown migration we try to re-create template database with
 		// current migration. It may be caused by other code changes done in another branch.
 		if pErr := (*migrate.PlanError)(nil); errors.As(err, &pErr) {
@@ -248,7 +288,7 @@ func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 				defer func() {
 					require.NoErrorf(t, remigrateTemplateDB.Close(), "release connection to the %q database", templateDBConf.DBName)
 				}()
-				_, err = Migrate(remigrateTemplateDB, false)
+				_, err = Migrate(remigrateTemplateDB, false, mgs...)
 				require.NoErrorf(t, err, "failed to run database migration on %q", praefectTemplateDatabase)
 			} else {
 				require.NoErrorf(t, err, "failed to run database migration on %q", praefectTemplateDatabase)
@@ -267,9 +307,11 @@ func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 	require.NoErrorf(t, err, "failed to create %q database", praefectTemplateDatabase)
 
 	t.Cleanup(func() {
-		dbCfg.DBName = "postgres"
-		postgresDB := requireSQLOpen(t, dbCfg, true)
-		defer func() { require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", dbCfg.DBName) }()
+		postgresCfg := GetDBConfig(t, "postgres")
+		postgresDB := requireSQLOpen(t, postgresCfg, true)
+		defer func() {
+			require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", postgresCfg.DBName)
+		}()
 
 		// We need to force-terminate open connections as for the tasks that use PgBouncer
 		// the actual client connected to the database is a PgBouncer and not a test that is
@@ -281,7 +323,7 @@ func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 	})
 
 	// Connect to the testing database with optional PgBouncer
-	dbCfg.DBName = database
+	dbCfg := GetDBConfig(t, database)
 	praefectTestDB := requireSQLOpen(t, dbCfg, false)
 	t.Cleanup(func() {
 		if err := praefectTestDB.Close(); !errors.Is(err, net.ErrClosed) {
