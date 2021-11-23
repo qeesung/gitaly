@@ -253,15 +253,17 @@ func initPraefectTestDB(t testing.TB, database string) *sql.DB {
 
 	t.Cleanup(func() {
 		dbCfg.DBName = "postgres"
-		postgresDB := requireSQLOpen(t, dbCfg, true)
-		defer func() { require.NoErrorf(t, postgresDB.Close(), "release connection to the %q database", dbCfg.DBName) }()
+		closeConnectionsDB := requireSQLOpen(t, dbCfg, true)
+		defer func() {
+			require.NoErrorf(t, closeConnectionsDB.Close(), "release connection to the %q database", dbCfg.DBName)
+		}()
 
 		// We need to force-terminate open connections as for the tasks that use PgBouncer
 		// the actual client connected to the database is a PgBouncer and not a test that is
 		// running.
-		requireTerminateAllConnections(t, postgresDB, database)
+		requireTerminateAllConnections(t, closeConnectionsDB, database)
 
-		_, err = postgresDB.Exec("DROP DATABASE " + database)
+		_, err = closeConnectionsDB.Exec("DROP DATABASE " + database)
 		require.NoErrorf(t, err, "failed to drop %q database", database)
 	})
 
