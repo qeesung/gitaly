@@ -11,3 +11,6 @@
 # Configuration and runtime data
 /config.mak
 /*.toml
+
+# Reviewer-Recommender artifacts
+gl-recommended-reviewers-report.json

@@ -27,6 +27,11 @@ include:
   - template: Security/Coverage-Fuzzing.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
 
+  # Include Reviewers.gitlab-ci.yml to recommend code reviewers for a given MR
+  - project: gitlab-org/modelops/applied-ml/review-recommender/ci-templates
+    ref: v0.1.1
+    file: recommender/Reviewers.gitlab-ci.yml
+
 danger-review:
   image: ruby:2.7
   allow_failure: true
