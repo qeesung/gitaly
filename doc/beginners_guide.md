@@ -230,38 +230,13 @@ called on `testing.T`.
 
 ##### Useful snippets for creating a test
 
-###### testhelper.Context()
+###### testhelper package
 
-The testhelper package includes useful utilities for setting up tests, such as
-creating repositories and commits, as well as providing `Context` which is
-used frequently when performing RPC calls.
+The testhelper package provides functions to create configurations to run gitaly and helpers to run a Gitaly gRPC server:
 
-```go
-import (
-	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
-)
-
-func TestExample(t *testing.T) {
-	ctx, cancel := testhelper.Context()
-	defer cancel()
-	require.NoError(t, Example(ctx))
-}
-```
-
-###### config
-
-Import the config directory to provide access to various predefined types
-and settings:
-
-```go
-import (
-	"gitlab.com/gitlab-org/gitaly/internal/config"
-)
-```
-
-This is commonly used for access to the `locator` functions, which are used
-for looking up repositories on disk etc.
+- [Create test configuration](https://gitlab.com/gitlab-org/gitaly/-/blob/aa098de7b267e3d6cb8a05e7862a1ad34f8f2ab5/internal/gitaly/service/ref/testhelper_test.go#L43)
+- [Run Gitaly](https://gitlab.com/gitlab-org/gitaly/-/blob/aa098de7b267e3d6cb8a05e7862a1ad34f8f2ab5/internal/gitaly/service/ref/testhelper_test.go#L57)
+- [Clone test repository](https://gitlab.com/gitlab-org/gitaly/-/blob/aa098de7b267e3d6cb8a05e7862a1ad34f8f2ab5/internal/gitaly/service/ref/find_all_tags_test.go#L30)
 
 #### RSpec tests
 
