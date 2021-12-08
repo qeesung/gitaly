@@ -232,7 +232,7 @@ called on `testing.T`.
 
 ###### testhelper package
 
-The testhelper package provides functions to create configurations to run gitaly and helpers to run a Gitaly gRPC server:
+The `testhelper` package provides functions to create configurations to run gitaly and helpers to run a Gitaly gRPC server:
 
 - [Create test configuration](https://gitlab.com/gitlab-org/gitaly/-/blob/aa098de7b267e3d6cb8a05e7862a1ad34f8f2ab5/internal/gitaly/service/ref/testhelper_test.go#L43)
 - [Run Gitaly](https://gitlab.com/gitlab-org/gitaly/-/blob/aa098de7b267e3d6cb8a05e7862a1ad34f8f2ab5/internal/gitaly/service/ref/testhelper_test.go#L57)
