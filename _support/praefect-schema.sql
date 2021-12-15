@@ -44,7 +44,6 @@ CREATE TYPE public.replication_job_state AS ENUM (
     'ready',
     'in_progress',
     'completed',
-    'cancelled',
     'failed',
     'dead'
 );
@@ -162,13 +161,13 @@ ALTER SEQUENCE public.node_status_id_seq OWNED BY public.node_status.id;
 
 CREATE TABLE public.replication_queue (
     id bigint NOT NULL,
-    state public.replication_job_state DEFAULT 'ready'::public.replication_job_state NOT NULL,
     created_at timestamp without time zone DEFAULT timezone('UTC'::text, now()) NOT NULL,
     updated_at timestamp without time zone,
     attempt integer DEFAULT 3 NOT NULL,
     lock_id text,
     job jsonb,
-    meta jsonb
+    meta jsonb,
+    state public.replication_job_state DEFAULT 'ready'::public.replication_job_state NOT NULL
 );
 
 
@@ -362,7 +361,7 @@ CREATE VIEW public.valid_primaries AS
              LEFT JOIN public.repository_assignments USING (repository_id, storage))
           WHERE (NOT (EXISTS ( SELECT
                    FROM public.replication_queue
-                  WHERE ((replication_queue.state <> ALL (ARRAY['completed'::public.replication_job_state, 'dead'::public.replication_job_state, 'cancelled'::public.replication_job_state])) AND ((replication_queue.job ->> 'change'::text) = 'delete_replica'::text) AND (((replication_queue.job ->> 'repository_id'::text))::bigint = repositories.repository_id) AND ((replication_queue.job ->> 'target_node_storage'::text) = storage_repositories.storage)))))) candidates
+                  WHERE ((replication_queue.state <> ALL (ARRAY['completed'::public.replication_job_state, 'dead'::public.replication_job_state])) AND ((replication_queue.job ->> 'change'::text) = 'delete_replica'::text) AND (((replication_queue.job ->> 'repository_id'::text))::bigint = repositories.repository_id) AND ((replication_queue.job ->> 'target_node_storage'::text) = storage_repositories.storage)))))) candidates
   WHERE candidates.eligible;
 
 
@@ -496,14 +495,14 @@ ALTER TABLE ONLY public.virtual_storages
 -- Name: delete_replica_unique_index; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX delete_replica_unique_index ON public.replication_queue USING btree (((job ->> 'virtual_storage'::text)), ((job ->> 'relative_path'::text))) WHERE ((state <> ALL (ARRAY['completed'::public.replication_job_state, 'cancelled'::public.replication_job_state, 'dead'::public.replication_job_state])) AND ((job ->> 'change'::text) = 'delete_replica'::text));
+CREATE UNIQUE INDEX delete_replica_unique_index ON public.replication_queue USING btree (((job ->> 'virtual_storage'::text)), ((job ->> 'relative_path'::text))) WHERE ((state <> ALL (ARRAY['completed'::public.replication_job_state, 'dead'::public.replication_job_state])) AND ((job ->> 'change'::text) = 'delete_replica'::text));
 
 
 --
 -- Name: replication_queue_target_index; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX replication_queue_target_index ON public.replication_queue USING btree (((job ->> 'virtual_storage'::text)), ((job ->> 'relative_path'::text)), ((job ->> 'target_node_storage'::text)), ((job ->> 'change'::text))) WHERE (state <> ALL (ARRAY['completed'::public.replication_job_state, 'cancelled'::public.replication_job_state, 'dead'::public.replication_job_state]));
+CREATE INDEX replication_queue_target_index ON public.replication_queue USING btree (((job ->> 'virtual_storage'::text)), ((job ->> 'relative_path'::text)), ((job ->> 'target_node_storage'::text)), ((job ->> 'change'::text))) WHERE (state <> ALL (ARRAY['completed'::public.replication_job_state, 'dead'::public.replication_job_state]));
 
 
 --

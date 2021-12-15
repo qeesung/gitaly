@@ -104,14 +104,18 @@ func DSN(db config.DB, direct bool) string {
 }
 
 // Migrate will apply all pending SQL migrations.
-func Migrate(db *sql.DB, ignoreUnknown bool) (int, error) {
+func Migrate(db *sql.DB, ignoreUnknown bool, mgs ...*migrate.Migration) (int, error) {
 	migrationSet := migrate.MigrationSet{
 		IgnoreUnknown: ignoreUnknown,
 		TableName:     migrations.MigrationTableName,
 	}
 
+	if len(mgs) == 0 {
+		mgs = migrations.All()
+	}
+
 	migrationSource := &migrate.MemoryMigrationSource{
-		Migrations: migrations.All(),
+		Migrations: mgs,
 	}
 
 	return migrationSet.Exec(db, "postgres", migrationSource, migrate.Up)
