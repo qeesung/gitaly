@@ -24,6 +24,7 @@ danger.import_dangerfile(path: 'danger/labels')
 danger.import_dangerfile(path: 'danger/merge_request')
 danger.import_dangerfile(path: 'danger/milestones')
 danger.import_dangerfile(path: 'danger/roulette')
+danger.import_dangerfile(path: 'danger/unreview')
 
 anything_to_post = status_report.values.any?(&:any?)
 
