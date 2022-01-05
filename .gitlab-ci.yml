@@ -4,7 +4,15 @@ stages:
   - qa
 
 default:
-  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31
+  image:
+    name: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.31
+    # We run the build and all tests as a special unprivileged user. The
+    # default "root" user would have a bunch of capabilities which a normal
+    # user wouldn't have, like e.g. DAC_OVERRIDE which allows us to read
+    # files for which we don't have read permissions. This is inconsistent
+    # with how Gitaly would normally run, and also different from developer
+    # machines. Testing as a non-root user is thus very much preferable.
+    entrypoint: ['/usr/bin/setpriv', '--inh-caps=-all', '--no-new-privs']
   tags:
     - gitlab-org
 
