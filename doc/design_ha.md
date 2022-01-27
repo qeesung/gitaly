@@ -91,7 +91,7 @@ Praefect relies on replication when a Gitaly RPC doesn't support transactions or
 a repository replica needs to be repaired.
 
 For transaction mutator RPCs, Praefect attempts to make the same change to a
-quorum of a repository replicas in a single transactional write. If a quorum of replicas
+quorum of repository replicas in a single transactional write. If a quorum of replicas
 successfully applies the RPC, then replication will only be scheduled for any
 replicas that were unsuccessful. See the section on [strong consistency
 design](#strong-consistency-design) for more details.
