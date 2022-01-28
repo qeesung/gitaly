@@ -100,6 +100,25 @@ var commandDescriptions = map[string]commandDescription{
 			// us and unreachable from the outside, this is dangerous. We thus have to
 			// disable redirects in all cases.
 			ConfigPair{Key: "http.followRedirects", Value: "false"},
+
+			// When fetching files into a repository, Git will go through all available
+			// local references to figure out which references there are in common with
+			// local and remote side. As part of this, Git will also walk through its
+			// alternate refs, which would always point to its object pool, if set at
+			// all. This is wasting a lot of time: when fetching from a remote the
+			// expectation is that local and remote side are somewhat similar in their
+			// shape, and the remote side already has its alternate refs stubbed out
+			// (see the "receive-pack" definition). Most importantly, we're also
+			// iterating through our pool's "keep-around" refs, which by definition
+			// refer to objects which wouldn't typically be reachable in the pool member
+			// anyway. Chances are thus _really_ low that this helps us negotiate a
+			// smaller packfile.
+			//
+			// We thus disable the use of alternate references during fetches such that
+			// they're not used as part of the packfile negotiation phase anymore. This
+			// was benchmarked to give a 20% speedup in pooled repositories with loads
+			// of keep-around refs.
+			ConfigPair{Key: "core.alternateRefsCommand", Value: "exit 0 #"},
 		}, fsckConfiguration("fetch")...),
 	},
 	"for-each-ref": {
