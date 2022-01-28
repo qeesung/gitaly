@@ -247,6 +247,7 @@ func WriteExecutable(t testing.TB, path string, content []byte) string {
 
 	_, err = io.Copy(executable, bytes.NewReader(content))
 	require.NoError(t, err)
+	require.NoError(t, executable.Sync())
 
 	t.Cleanup(func() {
 		assert.NoError(t, os.RemoveAll(dir))
