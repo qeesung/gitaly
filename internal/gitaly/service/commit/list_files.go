@@ -70,6 +70,7 @@ func (s *server) listFiles(repo git.RepositoryExecutor, revision string, stream 
 		Flags: []git.Option{
 			git.Flag{Name: "-z"},
 			git.Flag{Name: "-r"},
+			git.Flag{Name: "-l"},
 			git.Flag{Name: "--full-tree"},
 			git.Flag{Name: "--full-name"},
 		},

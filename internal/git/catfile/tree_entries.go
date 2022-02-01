@@ -93,7 +93,7 @@ func extractEntryInfoFromTreeData(treeData io.Reader, commitOid, rootOid, rootPa
 			return nil, fmt.Errorf("read entry oid: %v", err)
 		}
 
-		treeEntry, err := git.NewTreeEntry(commitOid, rootOid, rootPath, filename, oidBuf.Bytes(), modeBytes)
+		treeEntry, err := git.NewTreeEntry(commitOid, rootOid, rootPath, filename, oidBuf.Bytes(), modeBytes, 0)
 		if err != nil {
 			return nil, fmt.Errorf("new entry info: %v", err)
 		}

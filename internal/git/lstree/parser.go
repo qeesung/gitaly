@@ -2,9 +2,11 @@ package lstree
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 )
@@ -44,11 +46,25 @@ func (p *Parser) NextEntry() (*Entry, error) {
 	}
 	treeEntryType = treeEntryType[:len(treeEntryType)-1]
 
-	treeEntryID, err := p.reader.ReadBytes('\t')
+	treeEntryID, err := p.reader.ReadBytes(' ')
 	if err != nil {
 		return nil, fmt.Errorf("reading OID: %w", err)
 	}
 	treeEntryID = treeEntryID[:len(treeEntryID)-1]
+
+	treeEntrySizeBytes, err := p.reader.ReadBytes('\t')
+	if err != nil {
+		return nil, fmt.Errorf("reading path: %w", err)
+	}
+	treeEntrySizeBytes = bytes.TrimSpace(treeEntrySizeBytes)
+	treeEntrySizeString := string(treeEntrySizeBytes)
+	treeEntrySize := int64(0)
+	if treeEntrySizeString != "-" {
+		treeEntrySize, err = strconv.ParseInt(treeEntrySizeString, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	treeEntryPath, err := p.reader.ReadBytes(0x00)
 	if err != nil {
@@ -71,6 +87,7 @@ func (p *Parser) NextEntry() (*Entry, error) {
 		Type:     objectType,
 		ObjectID: objectID,
 		Path:     string(treeEntryPath),
+		Size:     treeEntrySize,
 	}, nil
 }
 

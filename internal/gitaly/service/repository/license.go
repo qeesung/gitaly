@@ -115,6 +115,7 @@ func (f *gitFiler) ReadDir(string) ([]filer.File, error) {
 		Name: "ls-tree",
 		Flags: []git.Option{
 			git.Flag{Name: "--full-tree"},
+			git.Flag{Name: "-l"},
 			git.Flag{Name: "-z"},
 		},
 		Args: []string{"HEAD"},

@@ -90,7 +90,7 @@ func TestSuccessfulUserUpdateSubmoduleRequest(t *testing.T) {
 			require.Equal(t, gittest.TestUser.Email, commit.Committer.Email)
 			require.Equal(t, commitMessage, commit.Subject)
 
-			entry := gittest.Exec(t, cfg, "-C", repoPath, "ls-tree", "-z", fmt.Sprintf("%s^{tree}:", response.BranchUpdate.CommitId), testCase.submodule)
+			entry := gittest.Exec(t, cfg, "-C", repoPath, "ls-tree", "-z", "-l", fmt.Sprintf("%s^{tree}:", response.BranchUpdate.CommitId), testCase.submodule)
 			parser := lstree.NewParser(bytes.NewReader(entry))
 			parsedEntry, err := parser.NextEntry()
 			require.NoError(t, err)
