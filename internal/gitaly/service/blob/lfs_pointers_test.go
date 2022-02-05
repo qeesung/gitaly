@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -200,9 +201,11 @@ size 12345`
 					repo: repo,
 					expectedPointers: []*gitalypb.LFSPointer{
 						{
-							Oid:  lfsPointerOID,
-							Data: []byte(lfsPointerContents),
-							Size: int64(len(lfsPointerContents)),
+							Size:     int64(len(lfsPointerContents)),
+							Data:     []byte(lfsPointerContents),
+							Oid:      lfsPointerOID,
+							FileSize: 12345,
+							FileOid:  []byte("1111111111111111111111111111111111111111111111111111111111111111"),
 						},
 						repoInfo.lfsPointers[0],
 						repoInfo.lfsPointers[1],
@@ -268,9 +271,11 @@ size 12345`
 					repo: repo,
 					expectedPointers: []*gitalypb.LFSPointer{
 						{
-							Oid:  text.ChompBytes(buffer.Bytes()),
-							Data: []byte(lfsPointerContents),
-							Size: int64(len(lfsPointerContents)),
+							Oid:      text.ChompBytes(buffer.Bytes()),
+							Data:     []byte(lfsPointerContents),
+							Size:     int64(len(lfsPointerContents)),
+							FileOid:  []byte("1111111111111111111111111111111111111111111111111111111111111111"),
+							FileSize: 12345,
 						},
 					},
 				}
@@ -446,19 +451,43 @@ func setupRepoWithLFS(tb testing.TB, ctx context.Context, cfg config.Cfg) (*gita
 	repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
 
 	var lfsPointers []*gitalypb.LFSPointer
-	for _, lfsPointer := range []string{
-		"version https://git-lfs.github.com/spec/v1\noid sha256:91eff75a492a3ed0dfcb544d7f31326bc4014c8551849c192fd1e48d4dd2c897\nsize 1575078\n\n",
-		"version https://git-lfs.github.com/spec/v1\noid sha256:f2b0a1e7550e9b718dafc9b525a04879a766de62e4fbdfc46593d47f7ab74636\nsize 20\n",
-		"version https://git-lfs.github.com/spec/v1\noid sha256:bad71f905b60729f502ca339f7c9f001281a3d12c68a5da7f15de8009f4bd63d\nsize 18\n",
-		"version https://git-lfs.github.com/spec/v1\noid sha256:47997ea7ecff33be61e3ca1cc287ee72a2125161518f1a169f2893a5a82e9d95\nsize 7501\n",
-		"version https://git-lfs.github.com/spec/v1\noid sha256:8c1e8de917525f83104736f6c64d32f0e2a02f5bf2ee57843a54f222cba8c813\nsize 2797\n",
-		"version https://git-lfs.github.com/spec/v1\noid sha256:96f74c6fe7a2979eefb9ec74a5dfc6888fb25543cf99b77586b79afea1da6f97\nsize 1219696\n",
+	for _, lfsPointer := range []struct {
+		fileOID  string
+		fileSize int64
+	}{
+		{
+			fileOID:  "91eff75a492a3ed0dfcb544d7f31326bc4014c8551849c192fd1e48d4dd2c897",
+			fileSize: 1575078,
+		},
+		{
+			fileOID:  "f2b0a1e7550e9b718dafc9b525a04879a766de62e4fbdfc46593d47f7ab74636",
+			fileSize: 20,
+		},
+		{
+			fileOID:  "bad71f905b60729f502ca339f7c9f001281a3d12c68a5da7f15de8009f4bd63d",
+			fileSize: 18,
+		},
+		{
+			fileOID:  "47997ea7ecff33be61e3ca1cc287ee72a2125161518f1a169f2893a5a82e9d95",
+			fileSize: 7501,
+		},
+		{
+			fileOID:  "8c1e8de917525f83104736f6c64d32f0e2a02f5bf2ee57843a54f222cba8c813",
+			fileSize: 2797,
+		},
+		{
+			fileOID:  "96f74c6fe7a2979eefb9ec74a5dfc6888fb25543cf99b77586b79afea1da6f97",
+			fileSize: 1219696,
+		},
 	} {
-		lfsPointerOID := gittest.WriteBlob(tb, cfg, repoPath, []byte(lfsPointer))
+		content := fmt.Sprintf("version https://git-lfs.github.com/spec/v1\noid sha256:%s\nsize %d\n\n", lfsPointer.fileOID, lfsPointer.fileSize)
+		lfsPointerOID := gittest.WriteBlob(tb, cfg, repoPath, []byte(content))
 		lfsPointers = append(lfsPointers, &gitalypb.LFSPointer{
-			Data: []byte(lfsPointer),
-			Size: int64(len(lfsPointer)),
-			Oid:  lfsPointerOID.String(),
+			Data:     []byte(content),
+			Oid:      lfsPointerOID.String(),
+			Size:     int64(len(content)),
+			FileOid:  []byte(lfsPointer.fileOID),
+			FileSize: lfsPointer.fileSize,
 		})
 	}
 
