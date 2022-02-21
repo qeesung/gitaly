@@ -303,9 +303,10 @@ gosec-sast:
   cache:
     - *cache_go_configuration
   variables:
-    SAST_EXCLUDED_PATHS: "${CI_PROJECT_DIR}/.go"
+    GOPATH: "/go"
   before_script:
     - apk add pkgconfig libgit2-dev gcc libc-dev
+    - mv .go /go
   rules:
     - if: $SAST_DISABLED
       when: never
