@@ -300,9 +300,13 @@ dbschema:
 
 gosec-sast:
   dependencies: []
-  cache: []
+  cache:
+    - *cache_go_configuration
+  variables:
+    GOPATH: "${CI_PROJECT_DIR}/vendor"
   before_script:
     - apk add pkgconfig libgit2-dev gcc libc-dev
+    - mv .go vendor
   rules:
     - if: $SAST_DISABLED
       when: never
