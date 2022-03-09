@@ -23,17 +23,30 @@ type MergeCommand struct {
 	AuthorName string
 	// AuthorMail is the author mail of merge commit.
 	AuthorMail string
-	// AuthorDate is the auithor date of merge commit.
+	// AuthorDate is the author date of merge commit.
 	AuthorDate time.Time
+	// CommitterName. Can be empty if all Committer* vars are empty.
+	// In that case AuthorName is used instead.
+	CommitterName string
+	// CommitterMail. Can be empty if all Committer* vars are empty.
+	// In that case AuthorMail is used instead.
+	CommitterMail string
+	// CommitterDate. Can be empty if all Committer* vars are empty.
+	// In that case AuthorDate is used instead.
+	CommitterDate time.Time
 	// Message is the message to be used for the merge commit.
 	Message string
-	// Ours is the commit that is to be merged into theirs.
+	// Ours is the commit into which theirs is to be merged.
 	Ours string
-	// Theirs is the commit into which ours is to be merged.
+	// Theirs is the commit that is to be merged into ours.
 	Theirs string
 	// AllowConflicts controls whether conflicts are allowed. If they are,
 	// then conflicts will be committed as part of the result.
 	AllowConflicts bool
+	// Squash controls whether to perform squash merge.
+	// If set to `true`, then the resulting commit will have `Ours` as its only parent.
+	// Otherwise, a merge commit will be created with `Ours` and `Theirs` as its parents.
+	Squash bool
 }
 
 // MergeResult contains results from a merge.
@@ -76,6 +89,18 @@ func (m MergeCommand) verify() error {
 	}
 	if m.Theirs == "" {
 		return errors.New("missing theirs")
+	}
+	// If at least one Committer* var is set, require all of them to be set.
+	if m.CommitterMail != "" || !m.CommitterDate.IsZero() || m.CommitterName != "" {
+		if m.CommitterMail == "" {
+			return errors.New("missing committer mail")
+		}
+		if m.CommitterName == "" {
+			return errors.New("missing committer name")
+		}
+		if m.CommitterDate.IsZero() {
+			return errors.New("missing committer date")
+		}
 	}
 	return nil
 }

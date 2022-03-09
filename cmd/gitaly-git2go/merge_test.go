@@ -65,6 +65,22 @@ func TestMerge_missingArguments(t *testing.T) {
 			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing theirs",
 		},
+		// Committer* arguments are required only when at least one of them is non-empty
+		{
+			desc:        "missing committer mail",
+			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			expectedErr: "merge: invalid parameters: missing committer mail",
+		},
+		{
+			desc:        "missing committer name",
+			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			expectedErr: "merge: invalid parameters: missing committer name",
+		},
+		{
+			desc:        "missing committer date",
+			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			expectedErr: "merge: invalid parameters: missing committer date",
+		},
 	}
 
 	for _, tc := range testcases {
@@ -101,6 +117,8 @@ func TestMerge_trees(t *testing.T) {
 		ours             map[string]string
 		theirs           map[string]string
 		expected         map[string]string
+		withCommitter    bool
+		squash           bool
 		expectedResponse git2go.MergeResult
 		expectedErr      error
 	}{
@@ -123,6 +141,44 @@ func TestMerge_trees(t *testing.T) {
 			},
 		},
 		{
+			desc: "trivial merge with different committer succeeds",
+			base: map[string]string{
+				"file": "a",
+			},
+			ours: map[string]string{
+				"file": "a",
+			},
+			theirs: map[string]string{
+				"file": "a",
+			},
+			expected: map[string]string{
+				"file": "a",
+			},
+			withCommitter: true,
+			expectedResponse: git2go.MergeResult{
+				CommitID: "cba8c5ddf5a5a24f2f606e4b62d348feb1214b70",
+			},
+		},
+		{
+			desc: "trivial squash succeeds",
+			base: map[string]string{
+				"file": "a",
+			},
+			ours: map[string]string{
+				"file": "a",
+			},
+			theirs: map[string]string{
+				"file": "a",
+			},
+			expected: map[string]string{
+				"file": "a",
+			},
+			squash: true,
+			expectedResponse: git2go.MergeResult{
+				CommitID: "d4c52f063cd6544959d6b0d9a3d8fa8463c34086",
+			},
+		},
+		{
 			desc: "non-trivial merge succeeds",
 			base: map[string]string{
 				"file": "a\nb\nc\nd\ne\nf\n",
@@ -138,6 +194,25 @@ func TestMerge_trees(t *testing.T) {
 			},
 			expectedResponse: git2go.MergeResult{
 				CommitID: "348b9b489c3ca128a4555c7a51b20335262519c7",
+			},
+		},
+		{
+			desc: "non-trivial squash succeeds",
+			base: map[string]string{
+				"file": "a\nb\nc\nd\ne\nf\n",
+			},
+			ours: map[string]string{
+				"file": "0\na\nb\nc\nd\ne\nf\n",
+			},
+			theirs: map[string]string{
+				"file": "a\nb\nc\nd\ne\nf\n0\n",
+			},
+			expected: map[string]string{
+				"file": "0\na\nb\nc\nd\ne\nf\n0\n",
+			},
+			squash: true,
+			expectedResponse: git2go.MergeResult{
+				CommitID: "7ef7460f69503265a247e06218391cfa57c521fc",
 			},
 		},
 		{
@@ -167,6 +242,33 @@ func TestMerge_trees(t *testing.T) {
 			},
 		},
 		{
+			desc: "multiple files squash succeed",
+			base: map[string]string{
+				"1": "foo",
+				"2": "bar",
+				"3": "qux",
+			},
+			ours: map[string]string{
+				"1": "foo",
+				"2": "modified",
+				"3": "qux",
+			},
+			theirs: map[string]string{
+				"1": "modified",
+				"2": "bar",
+				"3": "qux",
+			},
+			expected: map[string]string{
+				"1": "modified",
+				"2": "modified",
+				"3": "qux",
+			},
+			squash: true,
+			expectedResponse: git2go.MergeResult{
+				CommitID: "a680459fe541be728c8494fb76c233a344c04460",
+			},
+		},
+		{
 			desc: "conflicting merge fails",
 			base: map[string]string{
 				"1": "foo",
@@ -193,9 +295,10 @@ func TestMerge_trees(t *testing.T) {
 		theirs := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, tc.theirs)
 
 		authorDate := time.Date(2020, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
+		committerDate := time.Date(2021, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
 
 		t.Run(tc.desc, func(t *testing.T) {
-			response, err := executor.Merge(ctx, repoProto, git2go.MergeCommand{
+			mergeCommand := git2go.MergeCommand{
 				Repository: repoPath,
 				AuthorName: "John Doe",
 				AuthorMail: "john.doe@example.com",
@@ -203,7 +306,14 @@ func TestMerge_trees(t *testing.T) {
 				Message:    "Merge message",
 				Ours:       ours.String(),
 				Theirs:     theirs.String(),
-			})
+				Squash:     tc.squash,
+			}
+			if tc.withCommitter {
+				mergeCommand.CommitterName = "Jane Doe"
+				mergeCommand.CommitterMail = "jane.doe@example.com"
+				mergeCommand.CommitterDate = committerDate
+			}
+			response, err := executor.Merge(ctx, repoProto, mergeCommand)
 
 			if tc.expectedErr != nil {
 				require.Equal(t, tc.expectedErr, err)
@@ -237,6 +347,66 @@ func TestMerge_trees(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMerge_squash(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	testcfg.BuildGitalyGit2Go(t, cfg)
+	executor := buildExecutor(t, cfg)
+
+	baseFiles := map[string]string{"file.txt": "b\nc"}
+	ourFiles := map[string]string{"file.txt": "a\nb\nc"}
+	theirFiles1 := map[string]string{"file.txt": "b\nc\nd"}
+	theirFiles2 := map[string]string{"file.txt": "b\nc\nd\ne"}
+
+	base := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{nil}, baseFiles)
+	ours := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, ourFiles)
+	theirs1 := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, theirFiles1)
+	theirs2 := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{theirs1}, theirFiles2)
+
+	date := time.Date(2020, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
+	response, err := executor.Merge(ctx, repoProto, git2go.MergeCommand{
+		Repository: repoPath,
+		AuthorName: "John Doe",
+		AuthorMail: "john.doe@example.com",
+		AuthorDate: date,
+		Message:    "Merge message",
+		Ours:       ours.String(),
+		Theirs:     theirs2.String(),
+		Squash:     true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "027d909803fbb3d17c3b10c1dfe8f120d99392e4", response.CommitID)
+
+	repo, err := git2goutil.OpenRepository(repoPath)
+	require.NoError(t, err)
+
+	commitOid, err := git.NewOid(response.CommitID)
+	require.NoError(t, err)
+
+	isDescendant, err := repo.DescendantOf(commitOid, theirs2)
+	require.NoError(t, err)
+	require.False(t, isDescendant)
+
+	commit, err := repo.LookupCommit(commitOid)
+	require.NoError(t, err)
+
+	require.Equal(t, uint(1), commit.ParentCount())
+	require.Equal(t, ours, commit.ParentId(0))
+
+	tree, err := commit.Tree()
+	require.NoError(t, err)
+
+	entry := tree.EntryByName("file.txt")
+	require.NotNil(t, entry)
+
+	blob, err := repo.LookupBlob(entry.Id)
+	require.NoError(t, err)
+	require.Equal(t, "a\nb\nc\nd\ne", string(blob.Contents()))
 }
 
 func TestMerge_recursive(t *testing.T) {

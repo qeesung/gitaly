@@ -92,8 +92,19 @@ func merge(request git2go.MergeCommand) (string, error) {
 		return "", fmt.Errorf("could not write tree: %w", err)
 	}
 
-	committer := git.Signature(git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate))
-	commit, err := repo.CreateCommitFromIds("", &committer, &committer, request.Message, tree, ours.Id(), theirs.Id())
+	author := git.Signature(git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate))
+	committer := author
+	if request.CommitterMail != "" {
+		committer = git.Signature(git2go.NewSignature(request.CommitterName, request.CommitterMail, request.CommitterDate))
+	}
+
+	var parents []*git.Oid
+	if request.Squash {
+		parents = []*git.Oid{ours.Id()}
+	} else {
+		parents = []*git.Oid{ours.Id(), theirs.Id()}
+	}
+	commit, err := repo.CreateCommitFromIds("", &author, &committer, request.Message, tree, parents...)
 	if err != nil {
 		return "", fmt.Errorf("could not create merge commit: %w", err)
 	}
