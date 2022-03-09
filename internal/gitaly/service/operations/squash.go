@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -110,6 +111,24 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	// all parents of the start commit.
 	startCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetStartSha()+"^{commit}"))
 	if err != nil {
+		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrInvalidArgumentf("resolving start revision: %w", err),
+				&gitalypb.UserSquashError{
+					Error: &gitalypb.UserSquashError_ResolveRevision{
+						ResolveRevision: &gitalypb.ResolveRevisionError{
+							Revision: []byte(req.GetStartSha()),
+						},
+					},
+				},
+			)
+			if err != nil {
+				return "", helper.ErrInternalf("error details: %w", err)
+			}
+
+			return "", detailedErr
+		}
+
 		return "", fmt.Errorf("cannot resolve start commit: %w", gitError{
 			// This error is simply for backwards compatibility. We should just
 			// return the plain error eventually.
@@ -121,6 +140,24 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	// And we need to take the tree of the end commit. This tree already is the result
 	endCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetEndSha()+"^{commit}"))
 	if err != nil {
+		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrInvalidArgumentf("resolving end revision: %w", err),
+				&gitalypb.UserSquashError{
+					Error: &gitalypb.UserSquashError_ResolveRevision{
+						ResolveRevision: &gitalypb.ResolveRevisionError{
+							Revision: []byte(req.GetEndSha()),
+						},
+					},
+				},
+			)
+			if err != nil {
+				return "", helper.ErrInternalf("error details: %w", err)
+			}
+
+			return "", detailedErr
+		}
+
 		return "", fmt.Errorf("cannot resolve end commit's tree: %w", gitError{
 			// This error is simply for backwards compatibility. We should just
 			// return the plain error eventually.
@@ -146,6 +183,35 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		SkipEmptyCommits: true,
 	})
 	if err != nil {
+		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
+			var conflictErr git2go.ConflictingFilesError
+
+			if errors.As(err, &conflictErr) {
+				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+				for _, conflictingFile := range conflictErr.ConflictingFiles {
+					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+				}
+
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrInternalf("rebasing commits: %w", err),
+					&gitalypb.UserSquashError{
+						Error: &gitalypb.UserSquashError_RebaseConflict{
+							RebaseConflict: &gitalypb.MergeConflictError{
+								ConflictingFiles: conflictingFiles,
+							},
+						},
+					},
+				)
+				if err != nil {
+					return "", helper.ErrInternalf("error details: %w", err)
+				}
+
+				return "", detailedErr
+			}
+
+			return "", helper.ErrInternalf("rebasing commits: %w", err)
+		}
+
 		return "", fmt.Errorf("rebasing end onto start commit: %w", gitError{
 			Err:    err,
 			ErrMsg: err.Error(),
@@ -185,6 +251,10 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 			treeID.String(),
 		},
 	}, git.WithStdout(&stdout), git.WithStderr(&stderr), git.WithEnv(commitEnv...)); err != nil {
+		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
+			return "", helper.ErrInternalf("creating squashed commit: %w", err)
+		}
+
 		return "", fmt.Errorf("creating commit: %w", gitError{
 			Err:    err,
 			ErrMsg: stderr.String(),
