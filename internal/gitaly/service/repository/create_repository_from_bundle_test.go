@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/praefectutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -29,8 +31,11 @@ import (
 
 func TestCreateRepositoryFromBundle_successful(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleSuccessful)
+}
+
+func testCreateRepositoryFromBundleSuccessful(t *testing.T, ctx context.Context) {
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	locator := config.NewLocator(cfg)
@@ -39,6 +44,10 @@ func TestCreateRepositoryFromBundle_successful(t *testing.T) {
 	bundlePath := filepath.Join(tmpdir.Path(), "original.bundle")
 
 	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/custom-refs/ref1", "HEAD")
+
+	// A user may use a default branch other than "main" or "master"
+	const wantDefaultBranch = "refs/heads/markdown"
+	gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "HEAD", wantDefaultBranch)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
 	defer func() { require.NoError(t, os.RemoveAll(bundlePath)) }()
@@ -87,12 +96,19 @@ func TestCreateRepositoryFromBundle_successful(t *testing.T) {
 	commit, err := importedRepo.ReadCommit(ctx, "refs/custom-refs/ref1")
 	require.NoError(t, err)
 	require.NotNil(t, commit)
+
+	gotDefaultBranch, err := importedRepo.GetDefaultBranch(ctx)
+	require.NoError(t, err)
+	require.Equal(t, wantDefaultBranch, gotDefaultBranch.String())
 }
 
 func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleTransactional)
+}
+
+func testCreateRepositoryFromBundleTransactional(t *testing.T, ctx context.Context) {
 	txManager := transaction.NewTrackingManager()
 
 	cfg, repoProto, repoPath, client := setupRepositoryService(ctx, t, testserver.WithTransactionManager(txManager))
@@ -158,8 +174,11 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 
 func TestCreateRepositoryFromBundle_invalidBundle(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleInvalidBundle)
+}
+
+func testCreateRepositoryFromBundleInvalidBundle(t *testing.T, ctx context.Context) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
@@ -195,8 +214,11 @@ func TestCreateRepositoryFromBundle_invalidBundle(t *testing.T) {
 
 func TestCreateRepositoryFromBundle_invalidArgument(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleInvalidArgument)
+}
+
+func testCreateRepositoryFromBundleInvalidArgument(t *testing.T, ctx context.Context) {
 	_, client := setupRepositoryServiceWithoutRepo(t)
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
@@ -210,8 +232,11 @@ func TestCreateRepositoryFromBundle_invalidArgument(t *testing.T) {
 
 func TestCreateRepositoryFromBundle_existingRepository(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleExistingRepository)
+}
+
+func testCreateRepositoryFromBundleExistingRepository(t *testing.T, ctx context.Context) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	// The above test creates the second repository on the server. As this test can run with Praefect in front of it,
