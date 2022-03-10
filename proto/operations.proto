@@ -652,6 +652,17 @@ message UserSquashResponse {
   string git_error = 3;
 }
 
+message UserRebaseConfirmableError {
+  oneof error {
+    // RebaseConflict is returned in case rebasing commits on top of the start
+    // commit fails with a merge conflict.
+    MergeConflictError rebase_conflict = 1;
+    // AccessCheckError is returned in case GitLab's `/internal/allowed` endpoint rejected
+    // the change.
+    AccessCheckError access_check = 2;
+  }
+}
+
 // UserSquashError is an error that may be returned when the UserSquash RPC
 // fails.
 message UserSquashError {
