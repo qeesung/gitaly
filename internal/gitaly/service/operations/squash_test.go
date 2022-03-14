@@ -520,7 +520,7 @@ func testUserSquashConflicts(t *testing.T, ctx context.Context) {
 
 	if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
 		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrInternalf("rebasing commits: rebase: commit %q: there are conflicting files", ours),
+			helper.ErrFailedPreconditionf("rebasing commits: rebase: commit %q: there are conflicting files", ours),
 			&gitalypb.UserSquashError{
 				Error: &gitalypb.UserSquashError_RebaseConflict{
 					RebaseConflict: &gitalypb.MergeConflictError{

@@ -193,7 +193,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 				}
 
 				detailedErr, err := helper.ErrWithDetails(
-					helper.ErrInternalf("rebasing commits: %w", err),
+					helper.ErrFailedPreconditionf("rebasing commits: %w", err),
 					&gitalypb.UserSquashError{
 						Error: &gitalypb.UserSquashError_RebaseConflict{
 							RebaseConflict: &gitalypb.MergeConflictError{
