@@ -75,6 +75,10 @@ func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_Cr
 			return helper.ErrInternalf("fetch from bundle: %w, stderr: %q", err, sanitizedStderr)
 		}
 
+		if err := s.updateHeadFromBundle(ctx, s.localrepo(repo), bundlePath); err != nil {
+			return helper.ErrInternal(err)
+		}
+
 		return nil
 	}); err != nil {
 		return helper.ErrInternalf("creating repository: %w", err)
