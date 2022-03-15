@@ -206,6 +206,52 @@ func TestCreateRepository(t *testing.T) {
 			},
 			expectedErr: fmt.Errorf("locking repository: %w", errors.New("file already locked")),
 		},
+		{
+			desc:          "vote is deterministic",
+			transactional: true,
+			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
+				txManager.VoteFn = func(_ context.Context, _ txinfo.Transaction, vote voting.Vote, _ voting.Phase) error {
+					require.Equal(t, voting.VoteFromData([]byte("headcfgfoo")), vote)
+					return nil
+				}
+			},
+			seed: func(t *testing.T, repo *gitalypb.Repository, repoPath string) error {
+				// Remove the repository first so we can start from a clean state.
+				require.NoError(t, os.RemoveAll(repoPath))
+				require.NoError(t, os.Mkdir(repoPath, 0o777))
+
+				// Objects and FETCH_HEAD should both be ignored. They may contain
+				// indeterministic data that's different across replicas and would
+				// thus cause us to not reach quorum.
+				require.NoError(t, os.Mkdir(filepath.Join(repoPath, "objects"), 0o777))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "objects", "object"), []byte("object"), 0o666))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "FETCH_HEAD"), []byte("fetch-head"), 0o666))
+
+				// All the other files should be hashed though.
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "HEAD"), []byte("head"), 0o666))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "config"), []byte("cfg"), 0o666))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "refs", "heads"), 0o777))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "refs", "heads", "foo"), []byte("foo"), 0o666))
+
+				return nil
+			},
+			verify: func(t *testing.T, _ *gitalypb.Repository, tempRepoPath string, _ *gitalypb.Repository, realRepoPath string) {
+				require.NoDirExists(t, tempRepoPath)
+				require.DirExists(t, realRepoPath)
+
+				// Even though a subset of data wasn't voted on, it should still be
+				// part of the final repository.
+				for expectedPath, expectedContents := range map[string]string{
+					filepath.Join(realRepoPath, "objects", "object"):    "object",
+					filepath.Join(realRepoPath, "HEAD"):                 "head",
+					filepath.Join(realRepoPath, "FETCH_HEAD"):           "fetch-head",
+					filepath.Join(realRepoPath, "config"):               "cfg",
+					filepath.Join(realRepoPath, "refs", "heads", "foo"): "foo",
+				} {
+					require.Equal(t, expectedContents, string(testhelper.MustReadFile(t, expectedPath)))
+				}
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			repo := &gitalypb.Repository{

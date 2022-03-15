@@ -124,11 +124,12 @@ func (s *server) createRepository(
 		// The way packfiles are generated may not be deterministic, so we skip over the
 		// object database.
 		case filepath.Join(newRepoDir.Path(), "objects"):
+			return fs.SkipDir
 		// FETCH_HEAD refers to the remote we're fetching from. This URL may not be
 		// deterministic, e.g. when fetching from a temporary file like we do in
 		// CreateRepositoryFromBundle.
 		case filepath.Join(newRepoDir.Path(), "FETCH_HEAD"):
-			return fs.SkipDir
+			return nil
 		}
 
 		// We do not care about directories.
