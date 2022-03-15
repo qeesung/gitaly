@@ -250,6 +250,7 @@ TEST_REPORT      ?= ${BUILD_DIR}/reports/go-tests-report.xml
 TEST_TMP_DIR     ?=
 TEST_REPO_DIR    := ${BUILD_DIR}/testrepos
 TEST_REPO        := ${TEST_REPO_DIR}/gitlab-test.git
+TEST_REPO_MIRROR := ${TEST_REPO_DIR}/gitlab-test-mirror.git
 TEST_REPO_GIT    := ${TEST_REPO_DIR}/gitlab-git-test.git
 BENCHMARK_REPO   := ${TEST_REPO_DIR}/benchmark.git
 
@@ -385,7 +386,7 @@ prepare-tests: libgit2 prepare-test-repos ${SOURCE_DIR}/.ruby-bundle ${GOTESTSUM
 	${Q}mkdir -p "$(dir ${TEST_REPORT})"
 
 .PHONY: prepare-test-repos
-prepare-test-repos: ${TEST_REPO} ${TEST_REPO_GIT}
+prepare-test-repos: ${TEST_REPO_MIRROR} ${TEST_REPO} ${TEST_REPO_GIT}
 
 .PHONY: test
 ## Run Go and Ruby tests.
@@ -729,6 +730,9 @@ ${PROTOC_GEN_GO}:     TOOL_PACKAGE = google.golang.org/protobuf/cmd/protoc-gen-g
 ${PROTOC_GEN_GO}:     TOOL_VERSION = v${PROTOC_GEN_GO_VERSION}
 ${PROTOC_GEN_GO_GRPC}:TOOL_PACKAGE = google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ${PROTOC_GEN_GO_GRPC}:TOOL_VERSION = v${PROTOC_GEN_GO_GRPC_VERSION}
+
+${TEST_REPO_MIRROR}:
+	${GIT} clone --mirror ${GIT_QUIET} https://gitlab.com/gitlab-org/gitlab-test.git $@
 
 ${TEST_REPO}:
 	${GIT} clone --bare ${GIT_QUIET} https://gitlab.com/gitlab-org/gitlab-test.git $@

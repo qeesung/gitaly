@@ -33,8 +33,11 @@ const (
 	// repos.
 	GlProjectPath = "gitlab-org/gitlab-test"
 
-	// SeedGitLabTest is the path of the gitlab-test.git repository in _build/testrepos.
+	// SeedGitLabTest is the path of the gitlab-test.git repository in _build/testrepos
 	SeedGitLabTest = "gitlab-test.git"
+
+	// SeedGitLabTestMirror is the path of the gitlab-test-mirror.git repository in _build/testrepos
+	SeedGitLabTestMirror = "gitlab-test-mirror.git"
 )
 
 // InitRepoDir creates a temporary directory for a repo, without initializing it
@@ -144,6 +147,7 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		_, err := client.CreateRepositoryFromURL(ctx, &gitalypb.CreateRepositoryFromURLRequest{
 			Repository: repository,
 			Url:        testRepositoryPath(t, opts.Seed),
+			Mirror:     true,
 		})
 		require.NoError(t, err)
 	} else {

@@ -526,6 +526,12 @@ message CreateRepositoryFromURLRequest {
   // http_authorization_header is the HTTP header which can be added to
   // the request in order to authenticate against the repository.
   string http_authorization_header = 4;
+  // Mirror defines whether to clone with `--mirror` flag or `--bare`. The default
+  // value `false` will cause us to use `--bare`, which results in a clone that
+  // contains only branches (`refs/heads/`) and tags (`refs/tags/`) of the remote
+  // repository. If set to `true`, create a complete mirror-clone which maps all
+  // remote references into the local repository.
+  bool mirror = 5;
 }
 
 message CreateRepositoryFromURLResponse {}

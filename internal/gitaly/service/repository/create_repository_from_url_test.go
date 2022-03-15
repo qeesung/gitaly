@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestCreateRepotitoryFromURL_successful(t *testing.T) {
+func TestCreateRepositoryFromURL_successful(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
@@ -54,6 +54,55 @@ func TestCreateRepotitoryFromURL_successful(t *testing.T) {
 
 	remotes := gittest.Exec(t, cfg, "-C", importedRepoPath, "remote")
 	require.NotContains(t, string(remotes), "origin")
+
+	_, err = os.Lstat(filepath.Join(importedRepoPath, "hooks"))
+	require.True(t, os.IsNotExist(err), "hooks directory should not have been created")
+}
+
+func TestCreateRepositoryFromURL_successfulWithOptionalParameters(t *testing.T) {
+	t.Parallel()
+	ctx := testhelper.Context(t)
+
+	cfg, _, repoPath, client := setupRepositoryServiceFromMirror(ctx, t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+
+	importedRepo := &gitalypb.Repository{
+		RelativePath: "imports/test-repo-imported-mirror.git",
+		StorageName:  cfg.Storages[0].Name,
+	}
+
+	user := "username123"
+	password := "password321localhost"
+	port, stopGitServer := gitServerWithBasicAuth(ctx, t, gitCmdFactory, user, password, repoPath)
+	defer func() {
+		require.NoError(t, stopGitServer())
+	}()
+
+	url := fmt.Sprintf("http://%s:%s@localhost:%d/%s", user, password, port, filepath.Base(repoPath))
+	host := "www.example.com"
+	authToken := "GL-Geo EhEhKSUk_385GSLnS7BI:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoie1wic2NvcGVcIjpcInJvb3QvZ2l0bGFiLWNlXCJ9IiwianRpIjoiNmQ4ZDM1NGQtZjUxYS00MDQ5LWExZjctMjUyMjk4YmQwMTI4IiwiaWF0IjoxNjQyMDk1MzY5LCJuYmYiOjE2NDIwOTUzNjQsImV4cCI6MTY0MjA5NTk2OX0.YEpfzg8305dUqkYOiB7_dhbL0FVSaUPgpSpMuKrgNrg"
+	mirror := true
+
+	req := &gitalypb.CreateRepositoryFromURLRequest{
+		Repository:              importedRepo,
+		Url:                     url,
+		HttpHost:                host,
+		HttpAuthorizationHeader: authToken,
+		Mirror:                  mirror,
+	}
+
+	_, err := client.CreateRepositoryFromURL(ctx, req)
+	require.NoError(t, err)
+
+	importedRepoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(ctx, t, cfg, importedRepo))
+
+	gittest.Exec(t, cfg, "-C", importedRepoPath, "fsck")
+
+	remotes := gittest.Exec(t, cfg, "-C", importedRepoPath, "remote")
+	require.NotContains(t, string(remotes), "origin")
+
+	references := gittest.Exec(t, cfg, "-C", importedRepoPath, "show-ref", "--abbrev")
+	require.Contains(t, string(references), "refs/merge-requests")
 
 	_, err = os.Lstat(filepath.Join(importedRepoPath, "hooks"))
 	require.True(t, os.IsNotExist(err), "hooks directory should not have been created")
@@ -147,15 +196,17 @@ func TestServer_CloneFromURLCommand(t *testing.T) {
 
 	cfg := testcfg.Build(t)
 	s := server{cfg: cfg, gitCmdFactory: gittest.NewCommandFactory(t, cfg)}
-	cmd, err := s.cloneFromURLCommand(ctx, url, host, repositoryFullPath, authToken, git.WithDisabledHooks())
+	cmd, err := s.cloneFromURLCommand(ctx, url, host, repositoryFullPath, authToken, false, git.WithDisabledHooks())
 	require.NoError(t, err)
 
+	expectedBareFlag := "--bare"
 	expectedScrubbedURL := "https://192.0.2.1/secretrepo.git"
 	expectedBasicAuthHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte("user:pass!?@")))
 	expectedAuthHeader := fmt.Sprintf("http.extraHeader=%s", expectedBasicAuthHeader)
 	expectedHostHeader := "http.extraHeader=Host: www.example.com"
 
 	args := cmd.Args()
+	require.Contains(t, args, expectedBareFlag)
 	require.Contains(t, args, expectedScrubbedURL)
 	require.Contains(t, args, expectedAuthHeader)
 	require.Contains(t, args, expectedHostHeader)
@@ -172,7 +223,7 @@ func TestServer_CloneFromURLCommand_withToken(t *testing.T) {
 
 	cfg := testcfg.Build(t)
 	s := server{cfg: cfg, gitCmdFactory: gittest.NewCommandFactory(t, cfg)}
-	cmd, err := s.cloneFromURLCommand(ctx, url, "", repositoryFullPath, authToken, git.WithDisabledHooks())
+	cmd, err := s.cloneFromURLCommand(ctx, url, "", repositoryFullPath, authToken, false, git.WithDisabledHooks())
 	require.NoError(t, err)
 
 	expectedScrubbedURL := "https://www.example.com/secretrepo.git"
@@ -182,6 +233,23 @@ func TestServer_CloneFromURLCommand_withToken(t *testing.T) {
 	args := cmd.Args()
 	require.Contains(t, args, expectedScrubbedURL)
 	require.Contains(t, args, expectedHeader)
+}
+
+func TestServer_CloneFromURLCommand_withMirror(t *testing.T) {
+	t.Parallel()
+	ctx := testhelper.Context(t)
+
+	repositoryFullPath := "full/path/to/repository"
+	url := "https://www.example.com/secretrepo.git"
+
+	cfg := testcfg.Build(t)
+	s := server{cfg: cfg, gitCmdFactory: gittest.NewCommandFactory(t, cfg)}
+	cmd, err := s.cloneFromURLCommand(ctx, url, "", repositoryFullPath, "", true, git.WithDisabledHooks())
+	require.NoError(t, err)
+
+	args := cmd.Args()
+	require.Contains(t, args, "--mirror")
+	require.NotContains(t, args, "--bare")
 }
 
 func gitServerWithBasicAuth(ctx context.Context, t testing.TB, gitCmdFactory git.CommandFactory, user, pass, repoPath string) (int, func() error) {

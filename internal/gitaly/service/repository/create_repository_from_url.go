@@ -18,7 +18,7 @@ import (
 
 func (s *server) cloneFromURLCommand(
 	ctx context.Context,
-	repoURL, repoHost, repositoryFullPath, authorizationToken string,
+	repoURL, repoHost, repositoryFullPath, authorizationToken string, mirror bool,
 	opts ...git.CmdOpt,
 ) (*command.Command, error) {
 	u, err := url.Parse(repoURL)
@@ -29,8 +29,13 @@ func (s *server) cloneFromURLCommand(
 	var config []git.ConfigPair
 
 	cloneFlags := []git.Option{
-		git.Flag{Name: "--bare"},
 		git.Flag{Name: "--quiet"},
+	}
+
+	if mirror {
+		cloneFlags = append(cloneFlags, git.Flag{Name: "--mirror"})
+	} else {
+		cloneFlags = append(cloneFlags, git.Flag{Name: "--bare"})
 	}
 
 	if u.User != nil {
@@ -92,6 +97,7 @@ func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.Crea
 			req.GetHttpHost(),
 			targetPath,
 			req.GetHttpAuthorizationHeader(),
+			req.GetMirror(),
 			git.WithStderr(&stderr),
 			git.WithDisabledHooks(),
 		)
