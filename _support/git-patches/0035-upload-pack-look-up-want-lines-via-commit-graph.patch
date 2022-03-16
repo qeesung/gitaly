@@ -1,0 +1,97 @@
+From 4de656263aa195080495fc0a103351b9eaac8160 Mon Sep 17 00:00:00 2001
+Message-Id: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+From: Patrick Steinhardt <ps@pks.im>
+Date: Tue, 1 Mar 2022 10:33:37 +0100
+Subject: [PATCH 35/39] upload-pack: look up "want" lines via commit-graph
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+During packfile negotiation the client will send "want" and "want-ref"
+lines to the server to tell it which objects it is interested in. The
+server-side parses each of those and looks them up to see whether it
+actually has requested objects. This lookup is performed by calling
+`parse_object()` directly, which thus hits the object database. In the
+general case though most of the objects the client requests will be
+commits. We can thus try to look up the object via the commit-graph
+opportunistically, which is much faster than doing the same via the
+object database.
+
+Refactor parsing of both "want" and "want-ref" lines to do so.
+
+The following benchmark is executed in a repository with a huge number
+of references. It uses cached request from git-fetch(1) as input to
+git-upload-pack(1) that contains about 876,000 "want" lines:
+
+    Benchmark 1: HEAD~
+      Time (mean ± σ):      7.113 s ±  0.028 s    [User: 6.900 s, System: 0.662 s]
+      Range (min … max):    7.072 s …  7.168 s    10 runs
+
+    Benchmark 2: HEAD
+      Time (mean ± σ):      6.622 s ±  0.061 s    [User: 6.452 s, System: 0.650 s]
+      Range (min … max):    6.535 s …  6.727 s    10 runs
+
+    Summary
+      'HEAD' ran
+        1.07 ± 0.01 times faster than 'HEAD~'
+
+Signed-off-by: Patrick Steinhardt <ps@pks.im>
+Signed-off-by: Junio C Hamano <gitster@pobox.com>
+---
+ upload-pack.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/upload-pack.c b/upload-pack.c
+index 8acc98741b..3a851b3606 100644
+--- a/upload-pack.c
++++ b/upload-pack.c
+@@ -1400,13 +1400,19 @@ static int parse_want(struct packet_writer *writer, const char *line,
+ 	const char *arg;
+ 	if (skip_prefix(line, "want ", &arg)) {
+ 		struct object_id oid;
++		struct commit *commit;
+ 		struct object *o;
+ 
+ 		if (get_oid_hex(arg, &oid))
+ 			die("git upload-pack: protocol error, "
+ 			    "expected to get oid, not '%s'", line);
+ 
+-		o = parse_object(the_repository, &oid);
++		commit = lookup_commit_in_graph(the_repository, &oid);
++		if (commit)
++			o = &commit->object;
++		else
++			o = parse_object(the_repository, &oid);
++
+ 		if (!o) {
+ 			packet_writer_error(writer,
+ 					    "upload-pack: not our ref %s",
+@@ -1434,7 +1440,7 @@ static int parse_want_ref(struct packet_writer *writer, const char *line,
+ 	if (skip_prefix(line, "want-ref ", &refname_nons)) {
+ 		struct object_id oid;
+ 		struct string_list_item *item;
+-		struct object *o;
++		struct object *o = NULL;
+ 		struct strbuf refname = STRBUF_INIT;
+ 
+ 		strbuf_addf(&refname, "%s%s", get_git_namespace(), refname_nons);
+@@ -1448,7 +1454,15 @@ static int parse_want_ref(struct packet_writer *writer, const char *line,
+ 		item = string_list_append(wanted_refs, refname_nons);
+ 		item->util = oiddup(&oid);
+ 
+-		o = parse_object_or_die(&oid, refname_nons);
++		if (!starts_with(refname_nons, "refs/tags/")) {
++			struct commit *commit = lookup_commit_in_graph(the_repository, &oid);
++			if (commit)
++				o = &commit->object;
++		}
++
++		if (!o)
++			o = parse_object_or_die(&oid, refname_nons);
++
+ 		if (!(o->flags & WANTED)) {
+ 			o->flags |= WANTED;
+ 			add_object_array(o, NULL, want_obj);
+-- 
+2.35.1
+

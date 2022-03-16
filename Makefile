@@ -685,6 +685,17 @@ ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0032-refs-add-int
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0033-fetch-make-atomic-flag-cover-backfilling-of-tags.patch
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0034-fetch-make-atomic-flag-cover-pruning-of-refs.patch
 
+# Some more optimizations to git-fetch(1). Most importantly, these patches
+# cause us to skip reading the packed-refs file to find symbolic references,
+# which provides a 13% speedup in benchmarks. These patches have been merged
+# into `next` via 60aae8731c (Merge branch 'ps/fetch-mirror-optim' into next,
+# 2022-03-08).
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0035-upload-pack-look-up-want-lines-via-commit-graph.patch
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0036-fetch-avoid-lookup-of-commits-when-not-appending-to-.patch
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0037-refs-add-ability-for-backends-to-special-case-readin.patch
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0038-remote-read-symbolic-refs-via-refs_read_symbolic_ref.patch
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0039-refs-files-backend-optimize-reading-of-symbolic-refs.patch
+
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_VERSION = v2.35.1
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_EXTRA_VERSION = gl1
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: ${DEPENDENCY_DIR}/git-v2.35.1.gl1/% | ${BUILD_DIR}/bin

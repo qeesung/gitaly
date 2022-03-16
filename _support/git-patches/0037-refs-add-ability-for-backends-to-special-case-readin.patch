@@ -1,0 +1,166 @@
+From cd475b3b03809b1b1c664e0dca9f16f815456719 Mon Sep 17 00:00:00 2001
+Message-Id: <cd475b3b03809b1b1c664e0dca9f16f815456719.1647334702.git.ps@pks.im>
+In-Reply-To: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+References: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+From: Patrick Steinhardt <ps@pks.im>
+Date: Tue, 1 Mar 2022 10:33:46 +0100
+Subject: [PATCH 37/39] refs: add ability for backends to special-case reading
+ of symbolic refs
+
+Reading of symbolic and non-symbolic references is currently treated the
+same in reference backends: we always call `refs_read_raw_ref()` and
+then decide based on the returned flags what type it is. This has one
+downside though: symbolic references may be treated different from
+normal references in a backend from normal references. The packed-refs
+backend for example doesn't even know about symbolic references, and as
+a result it is pointless to even ask it for one.
+
+There are cases where we really only care about whether a reference is
+symbolic or not, but don't care about whether it exists at all or may be
+a non-symbolic reference. But it is not possible to optimize for this
+case right now, and as a consequence we will always first check for a
+loose reference to exist, and if it doesn't, we'll query the packed-refs
+backend for a known-to-not-be-symbolic reference. This is inefficient
+and requires us to search all packed references even though we know to
+not care for the result at all.
+
+Introduce a new function `refs_read_symbolic_ref()` which allows us to
+fix this case. This function will only ever return symbolic references
+and can thus optimize for the scenario layed out above. By default, if
+the backend doesn't provide an implementation for it, we just use the
+old code path and fall back to `read_raw_ref()`. But in case the backend
+provides its own, more efficient implementation, we will use that one
+instead.
+
+Note that this function is explicitly designed to not distinguish
+between missing references and non-symbolic references. If it did, we'd
+be forced to always search the packed-refs backend to see whether the
+symbolic reference the user asked for really doesn't exist, or if it
+exists as a non-symbolic reference.
+
+Signed-off-by: Patrick Steinhardt <ps@pks.im>
+Signed-off-by: Junio C Hamano <gitster@pobox.com>
+---
+ refs.c                | 17 +++++++++++++++++
+ refs.h                |  3 +++
+ refs/debug.c          |  1 +
+ refs/files-backend.c  |  1 +
+ refs/packed-backend.c |  1 +
+ refs/refs-internal.h  | 16 ++++++++++++++++
+ 6 files changed, 39 insertions(+)
+
+diff --git a/refs.c b/refs.c
+index 35d4e69687..d75a5dd53d 100644
+--- a/refs.c
++++ b/refs.c
+@@ -1672,6 +1672,23 @@ int refs_read_raw_ref(struct ref_store *ref_store, const char *refname,
+ 					   type, failure_errno);
+ }
+ 
++int refs_read_symbolic_ref(struct ref_store *ref_store, const char *refname,
++			   struct strbuf *referent)
++{
++	struct object_id oid;
++	int ret, failure_errno = 0;
++	unsigned int type = 0;
++
++	if (ref_store->be->read_symbolic_ref)
++		return ref_store->be->read_symbolic_ref(ref_store, refname, referent);
++
++	ret = refs_read_raw_ref(ref_store, refname, &oid, referent, &type, &failure_errno);
++	if (ret || !(type & REF_ISSYMREF))
++		return -1;
++
++	return 0;
++}
++
+ const char *refs_resolve_ref_unsafe(struct ref_store *refs,
+ 				    const char *refname,
+ 				    int resolve_flags,
+diff --git a/refs.h b/refs.h
+index 1ae12c410a..23479c7ee0 100644
+--- a/refs.h
++++ b/refs.h
+@@ -82,6 +82,9 @@ int read_ref_full(const char *refname, int resolve_flags,
+ 		  struct object_id *oid, int *flags);
+ int read_ref(const char *refname, struct object_id *oid);
+ 
++int refs_read_symbolic_ref(struct ref_store *ref_store, const char *refname,
++			   struct strbuf *referent);
++
+ /*
+  * Return 0 if a reference named refname could be created without
+  * conflicting with the name of an existing reference. Otherwise,
+diff --git a/refs/debug.c b/refs/debug.c
+index 2b0771ca53..c590d37720 100644
+--- a/refs/debug.c
++++ b/refs/debug.c
+@@ -435,6 +435,7 @@ struct ref_storage_be refs_be_debug = {
+ 
+ 	debug_ref_iterator_begin,
+ 	debug_read_raw_ref,
++	NULL,
+ 
+ 	debug_reflog_iterator_begin,
+ 	debug_for_each_reflog_ent,
+diff --git a/refs/files-backend.c b/refs/files-backend.c
+index f59589d6cc..f3428a9f12 100644
+--- a/refs/files-backend.c
++++ b/refs/files-backend.c
+@@ -3286,6 +3286,7 @@ struct ref_storage_be refs_be_files = {
+ 
+ 	files_ref_iterator_begin,
+ 	files_read_raw_ref,
++	NULL,
+ 
+ 	files_reflog_iterator_begin,
+ 	files_for_each_reflog_ent,
+diff --git a/refs/packed-backend.c b/refs/packed-backend.c
+index 27dd8c3922..f56e2cc635 100644
+--- a/refs/packed-backend.c
++++ b/refs/packed-backend.c
+@@ -1684,6 +1684,7 @@ struct ref_storage_be refs_be_packed = {
+ 
+ 	packed_ref_iterator_begin,
+ 	packed_read_raw_ref,
++	NULL,
+ 
+ 	packed_reflog_iterator_begin,
+ 	packed_for_each_reflog_ent,
+diff --git a/refs/refs-internal.h b/refs/refs-internal.h
+index 6e15db3ca4..001ef15835 100644
+--- a/refs/refs-internal.h
++++ b/refs/refs-internal.h
+@@ -649,6 +649,21 @@ typedef int read_raw_ref_fn(struct ref_store *ref_store, const char *refname,
+ 			    struct object_id *oid, struct strbuf *referent,
+ 			    unsigned int *type, int *failure_errno);
+ 
++/*
++ * Read a symbolic reference from the specified reference store. This function
++ * is optional: if not implemented by a backend, then `read_raw_ref_fn` is used
++ * to read the symbolcic reference instead. It is intended to be implemented
++ * only in case the backend can optimize the reading of symbolic references.
++ *
++ * Return 0 on success, or -1 on failure. `referent` will be set to the target
++ * of the symbolic reference on success. This function explicitly does not
++ * distinguish between error cases and the reference not being a symbolic
++ * reference to allow backends to optimize this operation in case symbolic and
++ * non-symbolic references are treated differently.
++ */
++typedef int read_symbolic_ref_fn(struct ref_store *ref_store, const char *refname,
++				 struct strbuf *referent);
++
+ struct ref_storage_be {
+ 	struct ref_storage_be *next;
+ 	const char *name;
+@@ -668,6 +683,7 @@ struct ref_storage_be {
+ 
+ 	ref_iterator_begin_fn *iterator_begin;
+ 	read_raw_ref_fn *read_raw_ref;
++	read_symbolic_ref_fn *read_symbolic_ref;
+ 
+ 	reflog_iterator_begin_fn *reflog_iterator_begin;
+ 	for_each_reflog_ent_fn *for_each_reflog_ent;
+-- 
+2.35.1
+

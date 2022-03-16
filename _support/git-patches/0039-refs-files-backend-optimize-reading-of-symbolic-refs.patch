@@ -1,0 +1,122 @@
+From 0a7b38707d5d5c8a7baeb88a85d6259cee4f4e4d Mon Sep 17 00:00:00 2001
+Message-Id: <0a7b38707d5d5c8a7baeb88a85d6259cee4f4e4d.1647334703.git.ps@pks.im>
+In-Reply-To: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+References: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+From: Patrick Steinhardt <ps@pks.im>
+Date: Tue, 1 Mar 2022 10:33:54 +0100
+Subject: [PATCH 39/39] refs/files-backend: optimize reading of symbolic refs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When reading references via `files_read_raw_ref()` we always consult
+both the loose reference, and if that wasn't found, we also consult the
+packed-refs file. While this makes sense to read a generic reference, it
+is wasteful in the case where we only care about symbolic references:
+the packed-refs backend does not support them, and thus it cannot ever
+return one for us.
+
+Special-case reading of symbolic references for the files backend such
+that we always skip asking the packed-refs backend.
+
+We use `refs_read_symbolic_ref()` extensively to determine whether we
+need to skip updating local symbolic references during a fetch, which is
+why the change results in a significant speedup when doing fetches in
+repositories with huge numbers of references. The following benchmark
+executes a mirror-fetch in a repository with about 2 million references
+via `git fetch --prune --no-write-fetch-head +refs/*:refs/*`:
+
+    Benchmark 1: HEAD~
+      Time (mean ± σ):     68.372 s ±  2.344 s    [User: 65.629 s, System: 8.786 s]
+      Range (min … max):   65.745 s … 70.246 s    3 runs
+
+    Benchmark 2: HEAD
+      Time (mean ± σ):     60.259 s ±  0.343 s    [User: 61.019 s, System: 7.245 s]
+      Range (min … max):   60.003 s … 60.649 s    3 runs
+
+    Summary
+      'HEAD' ran
+        1.13 ± 0.04 times faster than 'HEAD~'
+
+Signed-off-by: Patrick Steinhardt <ps@pks.im>
+Signed-off-by: Junio C Hamano <gitster@pobox.com>
+---
+ refs/files-backend.c | 34 ++++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/refs/files-backend.c b/refs/files-backend.c
+index f3428a9f12..0457ecdb42 100644
+--- a/refs/files-backend.c
++++ b/refs/files-backend.c
+@@ -338,9 +338,9 @@ static struct ref_cache *get_loose_ref_cache(struct files_ref_store *refs)
+ 	return refs->loose;
+ }
+ 
+-static int files_read_raw_ref(struct ref_store *ref_store, const char *refname,
+-			      struct object_id *oid, struct strbuf *referent,
+-			      unsigned int *type, int *failure_errno)
++static int read_ref_internal(struct ref_store *ref_store, const char *refname,
++			     struct object_id *oid, struct strbuf *referent,
++			     unsigned int *type, int *failure_errno, int skip_packed_refs)
+ {
+ 	struct files_ref_store *refs =
+ 		files_downcast(ref_store, REF_STORE_READ, "read_raw_ref");
+@@ -381,7 +381,7 @@ static int files_read_raw_ref(struct ref_store *ref_store, const char *refname,
+ 	if (lstat(path, &st) < 0) {
+ 		int ignore_errno;
+ 		myerr = errno;
+-		if (myerr != ENOENT)
++		if (myerr != ENOENT || skip_packed_refs)
+ 			goto out;
+ 		if (refs_read_raw_ref(refs->packed_ref_store, refname, oid,
+ 				      referent, type, &ignore_errno)) {
+@@ -425,7 +425,8 @@ static int files_read_raw_ref(struct ref_store *ref_store, const char *refname,
+ 		 * ref is supposed to be, there could still be a
+ 		 * packed ref:
+ 		 */
+-		if (refs_read_raw_ref(refs->packed_ref_store, refname, oid,
++		if (skip_packed_refs ||
++		    refs_read_raw_ref(refs->packed_ref_store, refname, oid,
+ 				      referent, type, &ignore_errno)) {
+ 			myerr = EISDIR;
+ 			goto out;
+@@ -470,6 +471,27 @@ static int files_read_raw_ref(struct ref_store *ref_store, const char *refname,
+ 	return ret;
+ }
+ 
++static int files_read_raw_ref(struct ref_store *ref_store, const char *refname,
++			      struct object_id *oid, struct strbuf *referent,
++			      unsigned int *type, int *failure_errno)
++{
++	return read_ref_internal(ref_store, refname, oid, referent, type, failure_errno, 0);
++}
++
++static int files_read_symbolic_ref(struct ref_store *ref_store, const char *refname,
++				   struct strbuf *referent)
++{
++	struct object_id oid;
++	int failure_errno, ret;
++	unsigned int type;
++
++	ret = read_ref_internal(ref_store, refname, &oid, referent, &type, &failure_errno, 1);
++	if (ret)
++		return ret;
++
++	return !(type & REF_ISSYMREF);
++}
++
+ int parse_loose_ref_contents(const char *buf, struct object_id *oid,
+ 			     struct strbuf *referent, unsigned int *type,
+ 			     int *failure_errno)
+@@ -3286,7 +3308,7 @@ struct ref_storage_be refs_be_files = {
+ 
+ 	files_ref_iterator_begin,
+ 	files_read_raw_ref,
+-	NULL,
++	files_read_symbolic_ref,
+ 
+ 	files_reflog_iterator_begin,
+ 	files_for_each_reflog_ent,
+-- 
+2.35.1
+

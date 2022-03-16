@@ -1,0 +1,101 @@
+From 1553f5e76c72243f61b454412b651706a869388f Mon Sep 17 00:00:00 2001
+Message-Id: <1553f5e76c72243f61b454412b651706a869388f.1647334702.git.ps@pks.im>
+In-Reply-To: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+References: <4de656263aa195080495fc0a103351b9eaac8160.1647334702.git.ps@pks.im>
+From: Patrick Steinhardt <ps@pks.im>
+Date: Tue, 1 Mar 2022 10:33:50 +0100
+Subject: [PATCH 38/39] remote: read symbolic refs via
+ `refs_read_symbolic_ref()`
+
+We have two cases in the remote code where we check whether a reference
+is symbolic or not, but don't mind in case it doesn't exist or in case
+it exists but is a non-symbolic reference. Convert these two callsites
+to use the new `refs_read_symbolic_ref()` function, whose intent is to
+implement exactly that usecase.
+
+No change in behaviour is expected from this change.
+
+Signed-off-by: Patrick Steinhardt <ps@pks.im>
+Signed-off-by: Junio C Hamano <gitster@pobox.com>
+---
+ builtin/remote.c |  8 +++++---
+ remote.c         | 14 +++++++-------
+ 2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/builtin/remote.c b/builtin/remote.c
+index 299c466116..805a517192 100644
+--- a/builtin/remote.c
++++ b/builtin/remote.c
+@@ -766,13 +766,15 @@ static int mv(int argc, const char **argv)
+ 	for_each_ref(read_remote_branches, &rename);
+ 	for (i = 0; i < remote_branches.nr; i++) {
+ 		struct string_list_item *item = remote_branches.items + i;
+-		int flag = 0;
++		struct strbuf referent = STRBUF_INIT;
+ 
+-		read_ref_full(item->string, RESOLVE_REF_READING, NULL, &flag);
+-		if (!(flag & REF_ISSYMREF))
++		if (refs_read_symbolic_ref(get_main_ref_store(the_repository), item->string,
++					   &referent))
+ 			continue;
+ 		if (delete_ref(NULL, item->string, NULL, REF_NO_DEREF))
+ 			die(_("deleting '%s' failed"), item->string);
++
++		strbuf_release(&referent);
+ 	}
+ 	for (i = 0; i < remote_branches.nr; i++) {
+ 		struct string_list_item *item = remote_branches.items + i;
+diff --git a/remote.c b/remote.c
+index c97c626eaa..42a4e7106e 100644
+--- a/remote.c
++++ b/remote.c
+@@ -1945,13 +1945,9 @@ const char *branch_get_push(struct branch *branch, struct strbuf *err)
+ 	return branch->push_tracking_ref;
+ }
+ 
+-static int ignore_symref_update(const char *refname)
++static int ignore_symref_update(const char *refname, struct strbuf *scratch)
+ {
+-	int flag;
+-
+-	if (!resolve_ref_unsafe(refname, 0, NULL, &flag))
+-		return 0; /* non-existing refs are OK */
+-	return (flag & REF_ISSYMREF);
++	return !refs_read_symbolic_ref(get_main_ref_store(the_repository), refname, scratch);
+ }
+ 
+ /*
+@@ -1964,6 +1960,7 @@ static int ignore_symref_update(const char *refname)
+ static struct ref *get_expanded_map(const struct ref *remote_refs,
+ 				    const struct refspec_item *refspec)
+ {
++	struct strbuf scratch = STRBUF_INIT;
+ 	const struct ref *ref;
+ 	struct ref *ret = NULL;
+ 	struct ref **tail = &ret;
+@@ -1971,11 +1968,13 @@ static struct ref *get_expanded_map(const struct ref *remote_refs,
+ 	for (ref = remote_refs; ref; ref = ref->next) {
+ 		char *expn_name = NULL;
+ 
++		strbuf_reset(&scratch);
++
+ 		if (strchr(ref->name, '^'))
+ 			continue; /* a dereference item */
+ 		if (match_name_with_pattern(refspec->src, ref->name,
+ 					    refspec->dst, &expn_name) &&
+-		    !ignore_symref_update(expn_name)) {
++		    !ignore_symref_update(expn_name, &scratch)) {
+ 			struct ref *cpy = copy_ref(ref);
+ 
+ 			cpy->peer_ref = alloc_ref(expn_name);
+@@ -1987,6 +1986,7 @@ static struct ref *get_expanded_map(const struct ref *remote_refs,
+ 		free(expn_name);
+ 	}
+ 
++	strbuf_release(&scratch);
+ 	return ret;
+ }
+ 
+-- 
+2.35.1
+
