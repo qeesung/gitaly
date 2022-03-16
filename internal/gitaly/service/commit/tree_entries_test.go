@@ -380,6 +380,19 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			entries:     nil,
 		},
 		{
+			description: "with a non-existing revision, nonrecursive",
+			revision:    []byte("this-revision-does-not-exist"),
+			path:        []byte("."),
+			entries:     nil,
+		},
+		{
+			description: "with a non-existing revision, recursive",
+			revision:    []byte("this-revision-does-not-exist"),
+			path:        []byte("."),
+			entries:     nil,
+			recursive:   true,
+		},
+		{
 			description: "with root path and sorted by trees first",
 			revision:    []byte(commitID),
 			path:        []byte("."),
