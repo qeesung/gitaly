@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestGetTreeEntries_curlyBraces(t *testing.T) {
@@ -488,7 +489,7 @@ func TestGetTreeEntries_unsuccessful(t *testing.T) {
 			revision:      []byte(commitID),
 			path:          []byte("."),
 			pageToken:     "non-existent",
-			expectedError: fmt.Errorf("could not get find starting OID: non-existent"),
+			expectedError: status.Error(codes.Unknown, "could not find starting OID: non-existent"),
 		},
 	}
 
@@ -699,11 +700,11 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client gitalypb.CommitServi
 
 	for {
 		resp, err := client.Recv()
-		if err == io.EOF {
-			break
-		}
 
 		if expectedError == nil {
+			if err == io.EOF {
+				break
+			}
 			require.NoError(t, err)
 			entries = append(entries, resp.Entries...)
 
@@ -714,7 +715,7 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client gitalypb.CommitServi
 				require.Equal(t, nil, resp.PaginationCursor)
 			}
 		} else {
-			require.Error(t, expectedError, err)
+			testhelper.RequireGrpcError(t, expectedError, err)
 			break
 		}
 	}
