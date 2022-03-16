@@ -121,13 +121,17 @@ func TestPruneIfNeeded(t *testing.T) {
 			require.NoError(t, housekeeping.NewManager(nil).OptimizeRepository(ctx, repo))
 			require.Equal(t,
 				struct {
-					PackedObjects bool `json:"packed_objects"`
-					PrunedObjects bool `json:"pruned_objects"`
-					PackedRefs    bool `json:"packed_refs"`
+					PackedObjectsIncremental bool `json:"packed_objects_incremental"`
+					PackedObjectsFull        bool `json:"packed_objects_full"`
+					PrunedObjects            bool `json:"pruned_objects"`
+					PackedRefs               bool `json:"packed_refs"`
+					WrittenBitmap            bool `json:"written_bitmap"`
 				}{
-					PackedObjects: true,
-					PrunedObjects: tc.expectedPrune,
-					PackedRefs:    false,
+					PackedObjectsIncremental: false,
+					PackedObjectsFull:        true,
+					PrunedObjects:            tc.expectedPrune,
+					PackedRefs:               false,
+					WrittenBitmap:            true,
 				},
 				hook.Entries[len(hook.Entries)-1].Data["optimizations"],
 			)

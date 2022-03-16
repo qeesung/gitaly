@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
@@ -116,10 +118,47 @@ func d(name string, mode os.FileMode, age time.Duration, finalState entryFinalSt
 	return &dirEntry{fileEntry{name, mode, age, finalState}, entries}
 }
 
+type cleanStaleDataMetrics struct {
+	objects        int
+	locks          int
+	refs           int
+	reflocks       int
+	refsEmptyDir   int
+	packedRefsLock int
+	packedRefsNew  int
+}
+
+func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cleanStaleDataMetrics) {
+	t.Helper()
+
+	var builder strings.Builder
+
+	_, err := builder.WriteString("# HELP gitaly_housekeeping_pruned_files_total Total number of files pruned\n")
+	require.NoError(t, err)
+	_, err = builder.WriteString("# TYPE gitaly_housekeeping_pruned_files_total counter\n")
+	require.NoError(t, err)
+
+	for metric, expectedValue := range map[string]int{
+		"objects":        metrics.objects,
+		"locks":          metrics.locks,
+		"refs":           metrics.refs,
+		"reflocks":       metrics.reflocks,
+		"packedrefslock": metrics.packedRefsLock,
+		"packedrefsnew":  metrics.packedRefsNew,
+		"refsemptydir":   metrics.refsEmptyDir,
+	} {
+		_, err := builder.WriteString(fmt.Sprintf("gitaly_housekeeping_pruned_files_total{filetype=%q} %d\n", metric, expectedValue))
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, testutil.CollectAndCompare(m, strings.NewReader(builder.String()), "gitaly_housekeeping_pruned_files_total"))
+}
+
 func TestPerform(t *testing.T) {
 	testcases := []struct {
-		name    string
-		entries []entry
+		name            string
+		entries         []entry
+		expectedMetrics cleanStaleDataMetrics
 	}{
 		{
 			name: "clean",
@@ -157,6 +196,9 @@ func TestPerform(t *testing.T) {
 					f("b", 0o700, 24*time.Hour, Keep),
 				}),
 			},
+			expectedMetrics: cleanStaleDataMetrics{
+				objects: 1,
+			},
 		},
 		{
 			name: "subdir temp file",
@@ -166,6 +208,9 @@ func TestPerform(t *testing.T) {
 						f("tmp_b", 0o700, 240*time.Hour, Delete),
 					}),
 				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				objects: 1,
 			},
 		},
 		{
@@ -188,6 +233,9 @@ func TestPerform(t *testing.T) {
 						}),
 					}),
 				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				objects: 1,
 			},
 		},
 		{
@@ -217,11 +265,15 @@ func TestPerform(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+			mgr := NewManager(nil)
+
+			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
 			for _, e := range tc.entries {
 				e.validate(t, repoPath)
 			}
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
 		})
 	}
 }
@@ -234,9 +286,10 @@ func TestPerform_references(t *testing.T) {
 	}
 
 	testcases := []struct {
-		desc     string
-		refs     []ref
-		expected []string
+		desc            string
+		refs            []ref
+		expected        []string
+		expectedMetrics cleanStaleDataMetrics
 	}{
 		{
 			desc: "normal reference",
@@ -262,6 +315,9 @@ func TestPerform_references(t *testing.T) {
 				{name: "refs/heads/master", age: 25 * time.Hour, size: 0},
 			},
 			expected: nil,
+			expectedMetrics: cleanStaleDataMetrics{
+				refs: 1,
+			},
 		},
 		{
 			desc: "multiple references",
@@ -284,6 +340,9 @@ func TestPerform_references(t *testing.T) {
 				"refs/heads/kept-because-recent",
 				"refs/heads/kept-because-nonempty",
 			},
+			expectedMetrics: cleanStaleDataMetrics{
+				refs: 3,
+			},
 		},
 	}
 
@@ -302,7 +361,9 @@ func TestPerform_references(t *testing.T) {
 			}
 			ctx := testhelper.Context(t)
 
-			require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+			mgr := NewManager(nil)
+
+			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
 			var actual []string
 			require.NoError(t, filepath.Walk(filepath.Join(repoPath, "refs"), func(path string, info os.FileInfo, _ error) error {
@@ -315,14 +376,17 @@ func TestPerform_references(t *testing.T) {
 			}))
 
 			require.ElementsMatch(t, tc.expected, actual)
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
 		})
 	}
 }
 
 func TestPerform_emptyRefDirs(t *testing.T) {
 	testcases := []struct {
-		name    string
-		entries []entry
+		name            string
+		entries         []entry
+		expectedMetrics cleanStaleDataMetrics
 	}{
 		{
 			name: "unrelated empty directories",
@@ -353,6 +417,9 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 					d("nested", 0o700, 240*time.Hour, Delete, []entry{}),
 				}),
 			},
+			expectedMetrics: cleanStaleDataMetrics{
+				refsEmptyDir: 1,
+			},
 		},
 		{
 			name: "hierarchy of nested stale ref dirs gets pruned",
@@ -362,6 +429,9 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 						d("second", 0o700, 240*time.Hour, Delete, []entry{}),
 					}),
 				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				refsEmptyDir: 2,
 			},
 		},
 		{
@@ -374,6 +444,9 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 						}),
 					}),
 				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				refsEmptyDir: 1,
 			},
 		},
 		{
@@ -390,6 +463,9 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 					}),
 				}),
 			},
+			expectedMetrics: cleanStaleDataMetrics{
+				refsEmptyDir: 2,
+			},
 		},
 	}
 
@@ -403,85 +479,128 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
-
-			for _, e := range tc.entries {
-				e.validate(t, repoPath)
-			}
-		})
-	}
-}
-
-func TestPerform_withSpecificFile(t *testing.T) {
-	for file, finder := range map[string]staleFileFinderFn{
-		"HEAD.lock":        findStaleLockfiles,
-		"config.lock":      findStaleLockfiles,
-		"packed-refs.lock": findPackedRefsLock,
-		"packed-refs.new":  findPackedRefsNew,
-	} {
-		testPerformWithSpecificFile(t, file, finder)
-	}
-}
-
-func testPerformWithSpecificFile(t *testing.T, file string, finder staleFileFinderFn) {
-	ctx := testhelper.Context(t)
-
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-	mgr := NewManager(nil)
-
-	require.NoError(t, mgr.CleanStaleData(ctx, repo))
-	for _, tc := range []struct {
-		desc          string
-		entries       []entry
-		expectedFiles []string
-	}{
-		{
-			desc: fmt.Sprintf("fresh %s is kept", file),
-			entries: []entry{
-				f(file, 0o700, 10*time.Minute, Keep),
-			},
-		},
-		{
-			desc: fmt.Sprintf("stale %s in subdir is kept", file),
-			entries: []entry{
-				d("subdir", 0o700, 240*time.Hour, Keep, []entry{
-					f(file, 0o700, 24*time.Hour, Keep),
-				}),
-			},
-		},
-		{
-			desc: fmt.Sprintf("stale %s is deleted", file),
-			entries: []entry{
-				f(file, 0o700, 61*time.Minute, Delete),
-			},
-			expectedFiles: []string{
-				filepath.Join(repoPath, file),
-			},
-		},
-		{
-			desc: fmt.Sprintf("variations of %s are kept", file),
-			entries: []entry{
-				f(file[:len(file)-1], 0o700, 61*time.Minute, Keep),
-				f("~"+file, 0o700, 61*time.Minute, Keep),
-				f(file+"~", 0o700, 61*time.Minute, Keep),
-			},
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			for _, e := range tc.entries {
-				e.create(t, repoPath)
-			}
-
-			staleFiles, err := finder(ctx, repoPath)
-			require.NoError(t, err)
-			require.ElementsMatch(t, tc.expectedFiles, staleFiles)
+			mgr := NewManager(nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
 			for _, e := range tc.entries {
 				e.validate(t, repoPath)
 			}
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
+		})
+	}
+}
+
+func TestPerform_withSpecificFile(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc            string
+		file            string
+		finder          staleFileFinderFn
+		expectedMetrics cleanStaleDataMetrics
+	}{
+		{
+			desc:   "locked HEAD",
+			file:   "HEAD.lock",
+			finder: findStaleLockfiles,
+			expectedMetrics: cleanStaleDataMetrics{
+				locks: 1,
+			},
+		},
+		{
+			desc:   "locked config",
+			file:   "config.lock",
+			finder: findStaleLockfiles,
+			expectedMetrics: cleanStaleDataMetrics{
+				locks: 1,
+			},
+		},
+		{
+			desc:   "locked packed-refs",
+			file:   "packed-refs.lock",
+			finder: findPackedRefsLock,
+			expectedMetrics: cleanStaleDataMetrics{
+				packedRefsLock: 1,
+			},
+		},
+		{
+			desc:   "temporary packed-refs",
+			file:   "packed-refs.new",
+			finder: findPackedRefsNew,
+			expectedMetrics: cleanStaleDataMetrics{
+				packedRefsNew: 1,
+			},
+		},
+	} {
+		tc := tc
+
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testhelper.Context(t)
+
+			cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+			mgr := NewManager(nil)
+
+			require.NoError(t, mgr.CleanStaleData(ctx, repo))
+			for _, subcase := range []struct {
+				desc          string
+				entries       []entry
+				expectedFiles []string
+			}{
+				{
+					desc: fmt.Sprintf("fresh %s is kept", tc.file),
+					entries: []entry{
+						f(tc.file, 0o700, 10*time.Minute, Keep),
+					},
+				},
+				{
+					desc: fmt.Sprintf("stale %s in subdir is kept", tc.file),
+					entries: []entry{
+						d("subdir", 0o700, 240*time.Hour, Keep, []entry{
+							f(tc.file, 0o700, 24*time.Hour, Keep),
+						}),
+					},
+				},
+				{
+					desc: fmt.Sprintf("stale %s is deleted", tc.file),
+					entries: []entry{
+						f(tc.file, 0o700, 61*time.Minute, Delete),
+					},
+					expectedFiles: []string{
+						filepath.Join(repoPath, tc.file),
+					},
+				},
+				{
+					desc: fmt.Sprintf("variations of %s are kept", tc.file),
+					entries: []entry{
+						f(tc.file[:len(tc.file)-1], 0o700, 61*time.Minute, Keep),
+						f("~"+tc.file, 0o700, 61*time.Minute, Keep),
+						f(tc.file+"~", 0o700, 61*time.Minute, Keep),
+					},
+				},
+			} {
+				t.Run(subcase.desc, func(t *testing.T) {
+					for _, e := range subcase.entries {
+						e.create(t, repoPath)
+					}
+
+					staleFiles, err := tc.finder(ctx, repoPath)
+					require.NoError(t, err)
+					require.ElementsMatch(t, subcase.expectedFiles, staleFiles)
+
+					require.NoError(t, mgr.CleanStaleData(ctx, repo))
+
+					for _, e := range subcase.entries {
+						e.validate(t, repoPath)
+					}
+				})
+			}
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
 		})
 	}
 }
@@ -493,6 +612,7 @@ func TestPerform_referenceLocks(t *testing.T) {
 		desc                   string
 		entries                []entry
 		expectedReferenceLocks []string
+		expectedMetrics        cleanStaleDataMetrics
 	}{
 		{
 			desc: "fresh lock is kept",
@@ -513,6 +633,9 @@ func TestPerform_referenceLocks(t *testing.T) {
 			},
 			expectedReferenceLocks: []string{
 				"refs/main.lock",
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				reflocks: 1,
 			},
 		},
 		{
@@ -538,6 +661,9 @@ func TestPerform_referenceLocks(t *testing.T) {
 				"refs/heads/main.lock",
 				"refs/foobar/main.lock",
 			},
+			expectedMetrics: cleanStaleDataMetrics{
+				reflocks: 3,
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -560,11 +686,15 @@ func TestPerform_referenceLocks(t *testing.T) {
 			require.NoError(t, err)
 			require.ElementsMatch(t, expectedReferenceLocks, staleLockfiles)
 
-			require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+			mgr := NewManager(nil)
+
+			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
 			for _, e := range tc.entries {
 				e.validate(t, repoPath)
 			}
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
 		})
 	}
 }

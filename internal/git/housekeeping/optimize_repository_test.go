@@ -479,7 +479,8 @@ func TestOptimizeRepository(t *testing.T) {
 				return repo
 			},
 			expectedOptimizations: map[string]float64{
-				"packed_objects": 1,
+				"packed_objects_full": 1,
+				"written_bitmap":      1,
 			},
 		},
 		{
@@ -489,7 +490,8 @@ func TestOptimizeRepository(t *testing.T) {
 				return repo
 			},
 			expectedOptimizations: map[string]float64{
-				"packed_objects": 1,
+				"packed_objects_full": 1,
+				"written_bitmap":      1,
 			},
 		},
 		{
@@ -500,7 +502,8 @@ func TestOptimizeRepository(t *testing.T) {
 				return repo
 			},
 			expectedOptimizations: map[string]float64{
-				"packed_objects": 1,
+				"packed_objects_full": 1,
+				"written_bitmap":      1,
 			},
 		},
 		{
@@ -530,8 +533,8 @@ func TestOptimizeRepository(t *testing.T) {
 				return repo
 			},
 			expectedOptimizations: map[string]float64{
-				"packed_objects": 1,
-				"pruned_objects": 1,
+				"packed_objects_incremental": 1,
+				"pruned_objects":             1,
 			},
 		},
 		{
@@ -565,9 +568,11 @@ func TestOptimizeRepository(t *testing.T) {
 			require.Equal(t, tc.expectedErr, err)
 
 			for _, metric := range []string{
-				"packed_objects",
+				"packed_objects_incremental",
+				"packed_objects_full",
 				"pruned_objects",
 				"packed_refs",
+				"written_bitmap",
 			} {
 				value := testutil.ToFloat64(manager.tasksTotal.WithLabelValues(metric))
 				require.Equal(t, tc.expectedOptimizations[metric], value, metric)

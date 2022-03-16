@@ -25,18 +25,22 @@ func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localr
 	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
 
 	optimizations := struct {
-		PackedObjects bool `json:"packed_objects"`
-		PrunedObjects bool `json:"pruned_objects"`
-		PackedRefs    bool `json:"packed_refs"`
+		PackedObjectsIncremental bool `json:"packed_objects_incremental"`
+		PackedObjectsFull        bool `json:"packed_objects_full"`
+		PrunedObjects            bool `json:"pruned_objects"`
+		PackedRefs               bool `json:"packed_refs"`
+		WrittenBitmap            bool `json:"written_bitmap"`
 	}{}
 	defer func() {
 		totalTimer.ObserveDuration()
 		ctxlogrus.Extract(ctx).WithField("optimizations", optimizations).Info("optimized repository")
 
 		for task, executed := range map[string]bool{
-			"packed_objects": optimizations.PackedObjects,
-			"pruned_objects": optimizations.PrunedObjects,
-			"packed_refs":    optimizations.PackedRefs,
+			"packed_objects_incremental": optimizations.PackedObjectsIncremental,
+			"packed_objects_full":        optimizations.PackedObjectsFull,
+			"pruned_objects":             optimizations.PrunedObjects,
+			"packed_refs":                optimizations.PackedRefs,
+			"written_bitmap":             optimizations.WrittenBitmap,
 		} {
 			if executed {
 				m.tasksTotal.WithLabelValues(task).Add(1)
@@ -57,11 +61,15 @@ func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localr
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("repack"))
-	didRepack, err := repackIfNeeded(ctx, repo)
+	didRepack, repackCfg, err := repackIfNeeded(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("could not repack: %w", err)
 	}
-	optimizations.PackedObjects = didRepack
+	if didRepack {
+		optimizations.PackedObjectsIncremental = !repackCfg.FullRepack
+		optimizations.PackedObjectsFull = repackCfg.FullRepack
+		optimizations.WrittenBitmap = repackCfg.WriteBitmap
+	}
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("prune"))
@@ -85,21 +93,21 @@ func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localr
 
 // repackIfNeeded uses a set of heuristics to determine whether the repository needs a
 // full repack and, if so, repacks it.
-func repackIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
+func repackIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 	repackNeeded, cfg, err := needsRepacking(repo)
 	if err != nil {
-		return false, fmt.Errorf("determining whether repo needs repack: %w", err)
+		return false, RepackObjectsConfig{}, fmt.Errorf("determining whether repo needs repack: %w", err)
 	}
 
 	if !repackNeeded {
-		return false, nil
+		return false, RepackObjectsConfig{}, nil
 	}
 
 	if err := RepackObjects(ctx, repo, cfg); err != nil {
-		return false, err
+		return false, RepackObjectsConfig{}, err
 	}
 
-	return true, nil
+	return true, cfg, nil
 }
 
 func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {

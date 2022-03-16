@@ -192,7 +192,9 @@ test:
 test:coverage:
   <<: *test_definition
   script:
-    - make cover
+    # We need to explicitly build all prerequisites so that we can run tests unprivileged.
+    - make build prepare-tests $(pwd)/_build/tools/gocover-cobertura
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make cover SKIP_RSPEC_BUILD=YesPlease
   artifacts:
     reports:
       cobertura: _build/cover/cobertura.xml

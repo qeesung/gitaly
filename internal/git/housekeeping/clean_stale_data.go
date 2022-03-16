@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -31,25 +30,10 @@ const (
 	packedRefsNewGracePeriod         = 15 * time.Minute
 )
 
-var (
-	lockfiles = []string{
-		"config.lock",
-		"HEAD.lock",
-		"objects/info/commit-graphs/commit-graph-chain.lock",
-	}
-
-	optimizeEmptyDirRemovalTotals = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "gitaly",
-			Subsystem: "repository",
-			Name:      "optimizerepository_empty_dir_removal_total",
-			Help:      "Total number of empty directories removed by OptimizeRepository RPC",
-		},
-	)
-)
-
-func init() {
-	prometheus.MustRegister(optimizeEmptyDirRemovalTotals)
+var lockfiles = []string{
+	"config.lock",
+	"HEAD.lock",
+	"objects/info/commit-graphs/commit-graph-chain.lock",
 }
 
 type staleFileFinderFn func(context.Context, string) ([]string, error)
@@ -83,6 +67,8 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 
 		filesToPrune = append(filesToPrune, staleFiles...)
 		logEntry = logEntry.WithField(field, len(staleFiles))
+
+		m.prunedFilesTotal.WithLabelValues(field).Add(float64(len(staleFiles)))
 	}
 
 	unremovableFiles := 0
@@ -98,12 +84,15 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 		}
 	}
 
-	if len(filesToPrune) > 0 {
-		logEntry.WithField("failures", unremovableFiles).Info("removed files")
-	}
-
-	if err := removeRefEmptyDirs(ctx, repo); err != nil {
+	prunedRefDirs, err := removeRefEmptyDirs(ctx, repo)
+	m.prunedFilesTotal.WithLabelValues("refsemptydir").Add(float64(prunedRefDirs))
+	if err != nil {
 		return fmt.Errorf("housekeeping could not remove empty refs: %w", err)
+	}
+	logEntry = logEntry.WithField("refsemptydir", prunedRefDirs)
+
+	if len(filesToPrune) > 0 || prunedRefDirs > 0 {
+		logEntry.WithField("failures", unremovableFiles).Info("removed files")
 	}
 
 	// TODO: https://gitlab.com/gitlab-org/gitaly/-/issues/3987
@@ -411,10 +400,10 @@ func fixDirectoryPermissions(ctx context.Context, path string, retriedPaths map[
 	})
 }
 
-func removeRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) error {
+func removeRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) (int, error) {
 	rPath, err := repository.Path()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	repoRefsPath := filepath.Join(rPath, "refs")
 
@@ -422,26 +411,28 @@ func removeRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) error {
 	// recursive functions for each subdirectory
 	entries, err := os.ReadDir(repoRefsPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	prunedDirsTotal := 0
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 
-		ePath := filepath.Join(repoRefsPath, e.Name())
-		if err := removeEmptyDirs(ctx, ePath); err != nil {
-			return err
+		prunedDirs, err := removeEmptyDirs(ctx, filepath.Join(repoRefsPath, e.Name()))
+		if err != nil {
+			return prunedDirsTotal, err
 		}
+		prunedDirsTotal += prunedDirs
 	}
 
-	return nil
+	return prunedDirsTotal, nil
 }
 
-func removeEmptyDirs(ctx context.Context, target string) error {
+func removeEmptyDirs(ctx context.Context, target string) (int, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return 0, err
 	}
 
 	// We need to stat the directory early on in order to get its current mtime. If we
@@ -450,54 +441,55 @@ func removeEmptyDirs(ctx context.Context, target string) error {
 	dirStat, err := os.Stat(target)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return 0, nil
 		}
-		return err
+		return 0, err
 	}
 
 	entries, err := os.ReadDir(target)
 	switch {
 	case os.IsNotExist(err):
-		return nil // race condition: someone else deleted it first
+		return 0, nil // race condition: someone else deleted it first
 	case err != nil:
-		return err
+		return 0, err
 	}
 
+	prunedDirsTotal := 0
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 
-		ePath := filepath.Join(target, e.Name())
-		if err := removeEmptyDirs(ctx, ePath); err != nil {
-			return err
+		prunedDirs, err := removeEmptyDirs(ctx, filepath.Join(target, e.Name()))
+		if err != nil {
+			return prunedDirsTotal, err
 		}
+		prunedDirsTotal += prunedDirs
 	}
 
 	// If the directory is older than the grace period for empty refs, then we can
 	// consider it for deletion in case it's empty.
 	if time.Since(dirStat.ModTime()) < emptyRefsGracePeriod {
-		return nil
+		return prunedDirsTotal, nil
 	}
 
 	// recheck entries now that we have potentially removed some dirs
 	entries, err = os.ReadDir(target)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return prunedDirsTotal, err
 	}
 	if len(entries) > 0 {
-		return nil
+		return prunedDirsTotal, nil
 	}
 
 	switch err := os.Remove(target); {
 	case os.IsNotExist(err):
-		return nil // race condition: someone else deleted it first
+		return prunedDirsTotal, nil // race condition: someone else deleted it first
 	case err != nil:
-		return err
+		return prunedDirsTotal, err
 	}
-	optimizeEmptyDirRemovalTotals.Inc()
 
-	return nil
+	return prunedDirsTotal + 1, nil
 }
 
 func myLogger(ctx context.Context) *log.Entry {
