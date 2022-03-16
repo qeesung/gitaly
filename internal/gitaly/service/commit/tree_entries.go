@@ -98,7 +98,7 @@ func (s *server) sendTreeEntries(
 
 		rootTreeInfo, err := repo.ResolveRevision(ctx, git.Revision(revision+"^{tree}"))
 		if err != nil {
-			if catfile.IsNotFound(err) {
+			if errors.Is(err, git.ErrReferenceNotFound) {
 				return nil
 			}
 
