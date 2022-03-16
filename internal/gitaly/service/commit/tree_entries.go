@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/lstree"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -98,8 +99,8 @@ func (s *server) sendTreeEntries(
 
 		rootTreeInfo, err := repo.ResolveRevision(ctx, git.Revision(revision+"^{tree}"))
 		if err != nil {
-			if catfile.IsNotFound(err) {
-				return nil
+			if errors.Is(err, git.ErrReferenceNotFound) {
+				return helper.ErrNotFoundf("repo.ResolveRevision: %w", err)
 			}
 
 			return err
@@ -160,6 +161,9 @@ func (s *server) sendTreeEntries(
 
 		entries, err = catfile.TreeEntries(ctx, objectReader, objectInfoReader, revision, path)
 		if err != nil {
+			if errors.Is(err, git.ErrReferenceNotFound) {
+				return helper.ErrNotFoundf("catfile.TreeEntries: %w", err)
+			}
 			return err
 		}
 	}

@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -37,7 +38,7 @@ func sendGetBlobsResponse(
 		}
 
 		treeEntry, err := tef.FindByRevisionAndPath(ctx, revision, string(path))
-		if err != nil {
+		if err != nil && !errors.Is(err, git.ErrReferenceNotFound) {
 			return err
 		}
 

@@ -124,7 +124,7 @@ func TreeEntries(
 	rootTreeInfo, err := objectInfoReader.Info(ctx, git.Revision(revision+"^{tree}"))
 	if err != nil {
 		if IsNotFound(err) {
-			return nil, nil
+			return nil, git.ErrReferenceNotFound
 		}
 
 		return nil, err

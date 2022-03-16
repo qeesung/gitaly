@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestGetTreeEntries_curlyBraces(t *testing.T) {
@@ -482,13 +483,28 @@ func TestGetTreeEntries_unsuccessful(t *testing.T) {
 		path          []byte
 		pageToken     string
 		expectedError error
+		recursive     bool
 	}{
 		{
 			description:   "with non-existent token",
 			revision:      []byte(commitID),
 			path:          []byte("."),
 			pageToken:     "non-existent",
-			expectedError: fmt.Errorf("could not get find starting OID: non-existent"),
+			expectedError: status.Error(codes.Unknown, "could not find starting OID: non-existent"),
+		},
+		{
+			description:   "with non-existent revision, nonrecursive",
+			revision:      []byte("blabla"),
+			path:          []byte("."),
+			expectedError: status.Error(codes.NotFound, "catfile.TreeEntries: reference not found"),
+			recursive:     false,
+		},
+		{
+			description:   "with non-existent revision, recursive",
+			revision:      []byte("blabla"),
+			path:          []byte("."),
+			expectedError: status.Error(codes.NotFound, "repo.ResolveRevision: reference not found"),
+			recursive:     true,
 		},
 	}
 
@@ -498,6 +514,7 @@ func TestGetTreeEntries_unsuccessful(t *testing.T) {
 				Repository: repo,
 				Revision:   testCase.revision,
 				Path:       testCase.path,
+				Recursive:  testCase.recursive,
 			}
 
 			if testCase.pageToken != "" {
@@ -699,11 +716,10 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client gitalypb.CommitServi
 
 	for {
 		resp, err := client.Recv()
-		if err == io.EOF {
-			break
-		}
-
 		if expectedError == nil {
+			if err == io.EOF {
+				break
+			}
 			require.NoError(t, err)
 			entries = append(entries, resp.Entries...)
 
@@ -714,7 +730,7 @@ func getTreeEntriesFromTreeEntryClient(t *testing.T, client gitalypb.CommitServi
 				require.Equal(t, nil, resp.PaginationCursor)
 			}
 		} else {
-			require.Error(t, expectedError, err)
+			require.ErrorIs(t, err, expectedError)
 			break
 		}
 	}

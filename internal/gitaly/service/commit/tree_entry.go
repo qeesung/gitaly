@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -23,6 +24,9 @@ func sendTreeEntry(
 
 	treeEntry, err := catfile.NewTreeEntryFinder(objectReader, objectInfoReader).FindByRevisionAndPath(ctx, revision, path)
 	if err != nil {
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return helper.ErrNotFoundf("reference not found: %s", revision)
+		}
 		return err
 	}
 

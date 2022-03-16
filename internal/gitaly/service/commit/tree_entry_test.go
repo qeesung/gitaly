@@ -209,8 +209,13 @@ func TestFailedTreeEntry(t *testing.T) {
 			expectedCode: codes.NotFound,
 		},
 		{
-			name:         "Missing file with space in path",
+			name:         "Revision is valid but does not exist",
 			req:          &gitalypb.TreeEntryRequest{Repository: repo, Revision: []byte("deadfacedeadfacedeadfacedeadfacedeadface"), Path: []byte("with space/README.md")},
+			expectedCode: codes.NotFound,
+		},
+		{
+			name:         "Missing file with space in path",
+			req:          &gitalypb.TreeEntryRequest{Repository: repo, Revision: []byte("913c66a37b4a45b9769037c55c2d238bd0942d2e"), Path: []byte("with space/README.md")},
 			expectedCode: codes.NotFound,
 		},
 		{
