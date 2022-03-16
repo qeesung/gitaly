@@ -95,6 +95,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      12292,
 		},
 		{
 			Oid:       "470ad2fcf1e33798f1afc5781d08e60c40f51e7a",
@@ -104,6 +105,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      231,
 		},
 		{
 			Oid:       "fdaada1754989978413d618ee1fb1c0469d6a664",
@@ -113,6 +115,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      68,
 		},
 		{
 			Oid:       "c74175afd117781cbc983664339a0f599b5bb34e",
@@ -122,6 +125,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      22839,
 		},
 		{
 			Oid:       "c1788657b95998a2f177a4f86d68a60f2a80117f",
@@ -131,6 +135,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      9031,
 		},
 		{
 			Oid:       "50b27c6518be44c42c4d87966ae2481ce895624c",
@@ -140,6 +145,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      1075,
 		},
 		{
 			Oid:       "95d9f0a5e7bb054e9dd3975589b8dfc689e20e88",
@@ -149,6 +155,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      1367,
 		},
 		{
 			Oid:       "bf757025c40c62e6ffa6f11d3819c769a76dbe09",
@@ -158,6 +165,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      8959,
 		},
 		{
 			Oid:       "faaf198af3a36dbf41961466703cc1d47c61d051",
@@ -167,6 +175,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      55,
 		},
 		{
 			Oid:       "998707b421c89bd9a3063333f9f728ef3e43d101",
@@ -176,6 +185,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      10,
 		},
 		{
 			Oid:       "3c122d2b7830eca25235131070602575cf8b41a1",
@@ -229,6 +239,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			Type:      gitalypb.TreeEntry_BLOB,
 			Mode:      0o100644,
 			CommitOid: commitID,
+			Size:      15364,
 		},
 		{
 			Oid:       "2132d150328bd9334cc4e62a16a5d998a7e399b9",

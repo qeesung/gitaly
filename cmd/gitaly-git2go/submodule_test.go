@@ -117,6 +117,7 @@ func TestSubmodule(t *testing.T) {
 				repoPath,
 				"ls-tree",
 				"-z",
+				"-l",
 				fmt.Sprintf("%s^{tree}:", response.CommitID),
 				tc.command.Submodule,
 			)

@@ -77,95 +77,63 @@ func (s *server) sendTreeEntries(
 
 	var entries []*gitalypb.TreeEntry
 
-	var (
-		objectReader     catfile.ObjectReader
-		objectInfoReader catfile.ObjectInfoReader
-	)
+	if path == "." {
+		path = ""
+	}
 
-	// When we want to do a recursive listing, then it's a _lot_ more efficient to let
-	// git-ls-tree(1) handle this for us. In theory, we'd also want to do this for the
-	// non-recursive case. But in practice, we must populate a so-called "flat path" when doing
-	// a non-recursive listing, where the flat path of a directory entry points to the first
-	// subdirectory which has more than a single entry.
-	//
-	// Answering this query efficiently is not possible with Git's tooling, and solving it via
-	// git-ls-tree(1) is worse than using a long-lived catfile process. We thus fall back to
-	// using catfile readers to answer these non-recursive queries.
-	if recursive {
-		if path == "." {
-			path = ""
+	rootTreeInfo, err := repo.ResolveRevision(ctx, git.Revision(revision+"^{tree}"))
+	if err != nil {
+		if catfile.IsNotFound(err) {
+			return nil
 		}
 
-		rootTreeInfo, err := repo.ResolveRevision(ctx, git.Revision(revision+"^{tree}"))
+		return err
+	}
+
+	treeEntries, err := lstree.ListEntries(ctx, repo, git.Revision(revision), &lstree.ListEntriesConfig{
+		Recursive:    recursive,
+		RelativePath: path,
+	})
+	if err != nil {
+		// Design wart: we do not return an error if the request does not
+		// point to a tree object, but just return nothing.
+		if errors.Is(err, lstree.ErrNotTreeish) {
+			return nil
+		}
+
+		// Same if we try to list tree entries of a revision which doesn't exist.
+		if errors.Is(err, lstree.ErrNotExist) {
+			return nil
+		}
+
+		return fmt.Errorf("listing tree entries: %w", err)
+	}
+
+	entries = make([]*gitalypb.TreeEntry, 0, len(treeEntries))
+	for _, entry := range treeEntries {
+		objectID, err := entry.ObjectID.Bytes()
 		if err != nil {
-			if catfile.IsNotFound(err) {
-				return nil
-			}
-
-			return err
+			return fmt.Errorf("converting tree entry OID: %w", err)
 		}
 
-		treeEntries, err := lstree.ListEntries(ctx, repo, git.Revision(revision), &lstree.ListEntriesConfig{
-			Recursive:    recursive,
-			RelativePath: path,
-		})
+		treeEntry, err := git.NewTreeEntry(
+			revision,
+			rootTreeInfo.String(),
+			path,
+			[]byte(entry.Path),
+			objectID,
+			entry.Mode,
+			entry.Size,
+		)
 		if err != nil {
-			// Design wart: we do not return an error if the request does not
-			// point to a tree object, but just return nothing.
-			if errors.Is(err, lstree.ErrNotTreeish) {
-				return nil
-			}
-
-			// Same if we try to list tree entries of a revision which doesn't exist.
-			if errors.Is(err, lstree.ErrNotExist) {
-				return nil
-			}
-
-			return fmt.Errorf("listing tree entries: %w", err)
+			return fmt.Errorf("converting tree entry: %w", err)
 		}
 
-		entries = make([]*gitalypb.TreeEntry, 0, len(treeEntries))
-		for _, entry := range treeEntries {
-			objectID, err := entry.ObjectID.Bytes()
-			if err != nil {
-				return fmt.Errorf("converting tree entry OID: %w", err)
-			}
-
-			treeEntry, err := git.NewTreeEntry(
-				revision,
-				rootTreeInfo.String(),
-				path,
-				[]byte(entry.Path),
-				objectID,
-				entry.Mode,
-			)
-			if err != nil {
-				return fmt.Errorf("converting tree entry: %w", err)
-			}
-
-			entries = append(entries, treeEntry)
-		}
-	} else {
-		var err error
-
-		objectReader, err = s.catfileCache.ObjectReader(stream.Context(), repo)
-		if err != nil {
-			return err
-		}
-
-		objectInfoReader, err = s.catfileCache.ObjectInfoReader(stream.Context(), repo)
-		if err != nil {
-			return err
-		}
-
-		entries, err = catfile.TreeEntries(ctx, objectReader, objectInfoReader, revision, path)
-		if err != nil {
-			return err
-		}
+		entries = append(entries, treeEntry)
 	}
 
 	// We sort before we paginate to ensure consistent results with ListLastCommitsForTree
-	entries, err := sortTrees(entries, sort)
+	entries, err = sortTrees(entries, sort)
 	if err != nil {
 		return err
 	}
@@ -198,6 +166,16 @@ func (s *server) sendTreeEntries(
 		// of my knowledge is as good as we can get. Doing this via git-ls-tree(1)
 		// wouldn't fly: we'd have to spawn a separate process for each of the
 		// subtrees, which is a lot of overhead.
+		objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
+		if err != nil {
+			return err
+		}
+
+		objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+		if err != nil {
+			return err
+		}
+
 		if err := populateFlatPath(ctx, objectReader, objectInfoReader, entries); err != nil {
 			return err
 		}

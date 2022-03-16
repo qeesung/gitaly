@@ -12,6 +12,7 @@ type Entry struct {
 	Type     ObjectType
 	ObjectID git.ObjectID
 	Path     string
+	Size     int64
 }
 
 // Entries holds every ls-tree Entry

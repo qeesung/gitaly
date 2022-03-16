@@ -323,6 +323,8 @@ message TreeEntry {
   string commit_oid = 6;
   // Relative path of the first subdir that doesn't have only one directory descendant
   bytes flat_path = 7;
+  // Size of the entry if blob
+  int64 size = 8;
 }
 
 message GetTreeEntriesRequest {

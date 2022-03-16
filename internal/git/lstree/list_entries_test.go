@@ -53,8 +53,8 @@ func TestListEntries(t *testing.T) {
 			desc:    "tree with blob",
 			treeish: treeWithBlob.Revision(),
 			expectedResults: []*Entry{
-				{Mode: []byte("100755"), Type: Blob, ObjectID: blobID, Path: "executable"},
-				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "nonexecutable"},
+				{Mode: []byte("100755"), Type: Blob, ObjectID: blobID, Path: "executable", Size: 13},
+				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "nonexecutable", Size: 13},
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestListEntries(t *testing.T) {
 				Recursive:    true,
 			},
 			expectedResults: []*Entry{
-				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "blob"},
+				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "blob", Size: 13},
 				{Mode: []byte("040000"), Type: Tree, ObjectID: treeWithSubtree, Path: "subdir"},
 				{Mode: []byte("040000"), Type: Tree, ObjectID: emptyTreeID, Path: "subdir/subdir"},
 			},
@@ -112,7 +112,7 @@ func TestListEntries(t *testing.T) {
 				Recursive: true,
 			},
 			expectedResults: []*Entry{
-				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "blob"},
+				{Mode: []byte("100644"), Type: Blob, ObjectID: blobID, Path: "blob", Size: 13},
 				{Mode: []byte("040000"), Type: Tree, ObjectID: treeWithSubtree, Path: "subdir"},
 				{Mode: []byte("040000"), Type: Tree, ObjectID: emptyTreeID, Path: "subdir/subdir"},
 			},

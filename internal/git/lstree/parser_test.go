@@ -23,12 +23,14 @@ func TestParser(t *testing.T) {
 					Type:     Blob,
 					ObjectID: "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
 					Path:     ".gitignore",
+					Size:     90,
 				},
 				{
 					Mode:     []byte("100644"),
 					Type:     Blob,
 					ObjectID: "0792c58905eff3432b721f8c4a64363d8e28d9ae",
 					Path:     ".gitmodules",
+					Size:     13,
 				},
 				{
 					Mode:     []byte("040000"),
@@ -53,12 +55,14 @@ func TestParser(t *testing.T) {
 					Type:     Blob,
 					ObjectID: "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
 					Path:     ".gitignore",
+					Size:     86,
 				},
 				{
 					Mode:     []byte("100644"),
 					Type:     Blob,
 					ObjectID: "0792c58905eff3432b721f8c4a64363d8e28d9ae",
 					Path:     ".gitmodules",
+					Size:     13,
 				},
 				{
 					Mode:     []byte("040000"),

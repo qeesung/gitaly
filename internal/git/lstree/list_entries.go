@@ -42,7 +42,10 @@ func ListEntries(
 		cfg = &ListEntriesConfig{}
 	}
 
-	flags := []git.Option{git.Flag{Name: "-z"}}
+	flags := []git.Option{
+		git.Flag{Name: "-z"},
+		git.Flag{Name: "-l"},
+	}
 	if cfg.Recursive {
 		flags = append(flags,
 			git.Flag{Name: "-r"},
