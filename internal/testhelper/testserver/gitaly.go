@@ -314,7 +314,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 	}
 
 	if gsd.housekeepingManager == nil {
-		gsd.housekeepingManager = housekeeping.NewManager(gsd.txMgr)
+		gsd.housekeepingManager = housekeeping.NewManager(cfg.Prometheus, gsd.txMgr)
 	}
 
 	return &service.Dependencies{

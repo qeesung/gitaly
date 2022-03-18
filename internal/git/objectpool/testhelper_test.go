@@ -36,7 +36,7 @@ func setupObjectPool(t *testing.T, ctx context.Context) (config.Cfg, *ObjectPool
 		gitCommandFactory,
 		catfileCache,
 		txManager,
-		housekeeping.NewManager(txManager),
+		housekeeping.NewManager(cfg.Prometheus, txManager),
 		repo.GetStorageName(),
 		gittest.NewObjectPoolName(t),
 	)

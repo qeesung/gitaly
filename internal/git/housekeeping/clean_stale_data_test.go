@@ -265,7 +265,7 @@ func TestPerform(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			mgr := NewManager(nil)
+			mgr := NewManager(cfg.Prometheus, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
@@ -361,7 +361,7 @@ func TestPerform_references(t *testing.T) {
 			}
 			ctx := testhelper.Context(t)
 
-			mgr := NewManager(nil)
+			mgr := NewManager(cfg.Prometheus, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
@@ -479,7 +479,7 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			mgr := NewManager(nil)
+			mgr := NewManager(cfg.Prometheus, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
@@ -543,7 +543,7 @@ func TestPerform_withSpecificFile(t *testing.T) {
 
 			cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
-			mgr := NewManager(nil)
+			mgr := NewManager(cfg.Prometheus, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 			for _, subcase := range []struct {
@@ -686,7 +686,7 @@ func TestPerform_referenceLocks(t *testing.T) {
 			require.NoError(t, err)
 			require.ElementsMatch(t, expectedReferenceLocks, staleLockfiles)
 
-			mgr := NewManager(nil)
+			mgr := NewManager(cfg.Prometheus, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo))
 
@@ -780,7 +780,7 @@ func TestPerformRepoDoesNotExist(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(repoPath))
 
-	require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+	require.NoError(t, NewManager(cfg.Prometheus, nil).CleanStaleData(ctx, repo))
 }
 
 func TestPerform_UnsetConfiguration(t *testing.T) {
@@ -816,7 +816,7 @@ func TestPerform_UnsetConfiguration(t *testing.T) {
 	unrelated = untouched
 `), 0o644))
 
-	require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+	require.NoError(t, NewManager(cfg.Prometheus, nil).CleanStaleData(ctx, repo))
 	require.Equal(t,
 		`[core]
 	repositoryformatversion = 0
@@ -849,7 +849,7 @@ func TestPerform_UnsetConfiguration_transactional(t *testing.T) {
 		AuthInfo: backchannel.WithID(nil, 1234),
 	})
 
-	require.NoError(t, NewManager(txManager).CleanStaleData(ctx, repo))
+	require.NoError(t, NewManager(cfg.Prometheus, txManager).CleanStaleData(ctx, repo))
 	require.Equal(t, 2, len(txManager.Votes()))
 
 	configKeys := gittest.Exec(t, cfg, "-C", repoPath, "config", "--list", "--local", "--name-only")
@@ -893,7 +893,7 @@ func TestPerform_cleanupConfig(t *testing.T) {
 [remote "tmp-8c948ca94832c2725733e48cb2902287"]
 `), 0o644))
 
-	require.NoError(t, NewManager(nil).CleanStaleData(ctx, repo))
+	require.NoError(t, NewManager(cfg.Prometheus, nil).CleanStaleData(ctx, repo))
 	require.Equal(t, `[core]
 	repositoryformatversion = 0
 	filemode = true

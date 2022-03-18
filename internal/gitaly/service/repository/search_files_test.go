@@ -219,7 +219,7 @@ func TestSearchFilesByContentFailure(t *testing.T) {
 
 	git2goExecutor := git2go.NewExecutor(cfg, gitCommandFactory, locator)
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(txManager)
+	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, txManager)
 
 	server := NewServer(
 		cfg,
@@ -355,7 +355,7 @@ func TestSearchFilesByNameFailure(t *testing.T) {
 
 	git2goExecutor := git2go.NewExecutor(cfg, gitCommandFactory, locator)
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(txManager)
+	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, txManager)
 
 	server := NewServer(
 		cfg,

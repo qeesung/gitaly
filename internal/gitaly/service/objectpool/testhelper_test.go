@@ -90,7 +90,7 @@ func newObjectPool(t testing.TB, cfg config.Cfg, storage, relativePath string) *
 		gittest.NewCommandFactory(t, cfg),
 		catfileCache,
 		txManager,
-		housekeeping.NewManager(txManager),
+		housekeeping.NewManager(cfg.Prometheus, txManager),
 		storage,
 		relativePath,
 	)

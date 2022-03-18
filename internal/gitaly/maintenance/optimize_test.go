@@ -39,7 +39,7 @@ func (mo *mockOptimizer) OptimizeRepository(ctx context.Context, req *gitalypb.O
 	mo.t.Cleanup(catfileCache.Stop)
 	git2goExecutor := git2go.NewExecutor(mo.cfg, gitCmdFactory, l)
 	txManager := transaction.NewManager(mo.cfg, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(txManager)
+	housekeepingManager := housekeeping.NewManager(mo.cfg.Prometheus, txManager)
 
 	connsPool := client.NewPool()
 	mo.t.Cleanup(func() { testhelper.MustClose(mo.t, connsPool) })

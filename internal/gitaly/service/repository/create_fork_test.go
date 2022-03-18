@@ -272,7 +272,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 	catfileCache := catfile.NewCache(cfg)
 	t.Cleanup(catfileCache.Stop)
 
-	housekeepingManager := housekeeping.NewManager(txManager)
+	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, txManager)
 
 	connsPool := client.NewPool()
 	t.Cleanup(func() { testhelper.MustClose(t, connsPool) })

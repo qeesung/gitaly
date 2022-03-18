@@ -166,7 +166,7 @@ func run(cfg config.Cfg) error {
 	transactionManager := transaction.NewManager(cfg, registry)
 	prometheus.MustRegister(transactionManager)
 
-	housekeepingManager := housekeeping.NewManager(transactionManager)
+	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, transactionManager)
 	prometheus.MustRegister(housekeepingManager)
 
 	hookManager := hook.Manager(hook.DisabledManager{})

@@ -118,7 +118,7 @@ func TestPruneIfNeeded(t *testing.T) {
 			logger, hook := test.NewNullLogger()
 			ctx := ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
-			require.NoError(t, housekeeping.NewManager(nil).OptimizeRepository(ctx, repo))
+			require.NoError(t, housekeeping.NewManager(cfg.Prometheus, nil).OptimizeRepository(ctx, repo))
 			require.Equal(t,
 				struct {
 					PackedObjectsIncremental bool `json:"packed_objects_incremental"`

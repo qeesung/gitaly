@@ -94,7 +94,7 @@ func testReplMgr_ProcessBacklog(t *testing.T, ctx context.Context) {
 		gittest.NewCommandFactory(t, primaryCfg),
 		nil,
 		txManager,
-		housekeeping.NewManager(txManager),
+		housekeeping.NewManager(primaryCfg.Prometheus, txManager),
 		testRepoProto.GetStorageName(),
 		objectPoolPath,
 	)

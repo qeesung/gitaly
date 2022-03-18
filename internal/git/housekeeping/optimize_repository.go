@@ -46,6 +46,8 @@ func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localr
 				m.tasksTotal.WithLabelValues(task).Add(1)
 			}
 		}
+
+		m.tasksTotal.WithLabelValues("total").Add(1)
 	}()
 
 	timer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-stale-data"))

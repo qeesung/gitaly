@@ -200,7 +200,7 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 		gitCmdFactory,
 		catfileCache,
 		txManager,
-		housekeeping.NewManager(txManager),
+		housekeeping.NewManager(cfg.Prometheus, txManager),
 	)
 	ctx := testhelper.Context(t)
 

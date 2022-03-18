@@ -5,6 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 )
 
@@ -28,7 +29,7 @@ type RepositoryManager struct {
 }
 
 // NewManager creates a new RepositoryManager.
-func NewManager(txManager transaction.Manager) *RepositoryManager {
+func NewManager(promCfg gitalycfgprom.Config, txManager transaction.Manager) *RepositoryManager {
 	return &RepositoryManager{
 		txManager: txManager,
 
@@ -41,8 +42,9 @@ func NewManager(txManager transaction.Manager) *RepositoryManager {
 		),
 		tasksLatency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name: "gitaly_housekeeping_tasks_latency",
-				Help: "Latency of the housekeeping tasks performed",
+				Name:    "gitaly_housekeeping_tasks_latency",
+				Help:    "Latency of the housekeeping tasks performed",
+				Buckets: promCfg.GRPCLatencyBuckets,
 			},
 			[]string{"housekeeping_task"},
 		),

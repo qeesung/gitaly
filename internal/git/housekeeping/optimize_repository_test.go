@@ -562,7 +562,7 @@ func TestOptimizeRepository(t *testing.T) {
 			repoProto := tc.setup(t)
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-			manager := NewManager(txManager)
+			manager := NewManager(cfg.Prometheus, txManager)
 
 			err := manager.OptimizeRepository(ctx, repo)
 			require.Equal(t, tc.expectedErr, err)

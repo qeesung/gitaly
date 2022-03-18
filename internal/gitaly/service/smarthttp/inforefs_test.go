@@ -228,7 +228,7 @@ func TestObjectPoolRefAdvertisementHiding(t *testing.T) {
 		gittest.NewCommandFactory(t, cfg),
 		nil,
 		txManager,
-		housekeeping.NewManager(txManager),
+		housekeeping.NewManager(cfg.Prometheus, txManager),
 		repo.GetStorageName(),
 		gittest.NewObjectPoolName(t),
 	)
