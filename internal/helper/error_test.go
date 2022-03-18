@@ -60,6 +60,11 @@ func TestError(t *testing.T) {
 			errorf: ErrAlreadyExists,
 			code:   codes.AlreadyExists,
 		},
+		{
+			desc:   "Aborted",
+			errorf: ErrAborted,
+			code:   codes.Aborted,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			// tc.code and our canary test code must not
@@ -132,6 +137,11 @@ func testErrorfFormat(t *testing.T, errorFormat, errorFormatEqual string) {
 			desc:   "ErrUnavailablef",
 			errorf: ErrUnavailablef,
 			code:   codes.Unavailable,
+		},
+		{
+			desc:   "ErrAbortedf",
+			errorf: ErrAbortedf,
+			code:   codes.Aborted,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

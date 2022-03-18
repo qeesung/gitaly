@@ -8,10 +8,14 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -101,10 +105,26 @@ func (er gitError) Error() string {
 
 func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest) (string, error) {
 	repo := s.localrepo(req.GetRepository())
-
 	repoPath, err := repo.Path()
 	if err != nil {
 		return "", helper.ErrInternalf("cannot resolve repo path: %w", err)
+	}
+
+	// All new objects are staged into a quarantine directory first so that we can do
+	// transactional voting before we commit data to disk.
+	var quarantineDir *quarantine.Dir
+	if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
+		var quarantineRepo *localrepo.Repo
+		quarantineDir, quarantineRepo, err = s.quarantinedRepo(ctx, req.GetRepository())
+		if err != nil {
+			return "", helper.ErrInternalf("creating quarantine: %w", err)
+		}
+
+		repo = quarantineRepo
+		repoPath, err = quarantineRepo.Path()
+		if err != nil {
+			return "", helper.ErrInternalf("getting quarantine path: %w", err)
+		}
 	}
 
 	// We need to retrieve the start commit such that we can create the new commit with
@@ -261,5 +281,36 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		})
 	}
 
-	return text.ChompBytes(stdout.Bytes()), nil
+	commitID := text.ChompBytes(stdout.Bytes())
+
+	// The RPC is badly designed in that it never updates any references, but only creates the
+	// objects and writes them to disk. We still use a quarantine directory to stage the new
+	// objects, vote on them and migrate them into the main directory if quorum was reached so
+	// that we don't pollute the object directory with objects we don't want to have in the
+	// first place.
+	if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
+		if err := transaction.VoteOnContext(
+			ctx,
+			s.txManager,
+			voting.VoteFromData([]byte(commitID)),
+			voting.Prepared,
+		); err != nil {
+			return "", helper.ErrAbortedf("preparatory vote on squashed commit: %w", err)
+		}
+
+		if err := quarantineDir.Migrate(); err != nil {
+			return "", helper.ErrInternalf("migrating quarantine directory: %w", err)
+		}
+
+		if err := transaction.VoteOnContext(
+			ctx,
+			s.txManager,
+			voting.VoteFromData([]byte(commitID)),
+			voting.Committed,
+		); err != nil {
+			return "", helper.ErrAbortedf("committing vote on squashed commit: %w", err)
+		}
+	}
+
+	return commitID, nil
 }

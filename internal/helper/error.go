@@ -48,6 +48,9 @@ func ErrPermissionDenied(err error) error { return wrapError(codes.PermissionDen
 // ErrAlreadyExists wraps err with codes.AlreadyExists, unless err is already a gRPC error.
 func ErrAlreadyExists(err error) error { return wrapError(codes.AlreadyExists, err) }
 
+// ErrAborted wraps err with codes.Aborted, unless err is already a gRPC error.
+func ErrAborted(err error) error { return wrapError(codes.Aborted, err) }
+
 // wrapError wraps the given error with the error code unless it's already a gRPC error. If given
 // nil it will return nil.
 func wrapError(code codes.Code, err error) error {
@@ -97,6 +100,12 @@ func ErrPermissionDeniedf(format string, a ...interface{}) error {
 // a wrapped gRPC error.
 func ErrAlreadyExistsf(format string, a ...interface{}) error {
 	return formatError(codes.AlreadyExists, format, a...)
+}
+
+// ErrAbortedf wraps a formatted error with codes.Aborted, unless the formatted error is a wrapped
+// gRPC error.
+func ErrAbortedf(format string, a ...interface{}) error {
+	return formatError(codes.Aborted, format, a...)
 }
 
 // formatError will create a new error from the given format string. If the error string contains a

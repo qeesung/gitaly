@@ -13,10 +13,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -36,6 +41,11 @@ var (
 
 func TestUserSquash_successful(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashSuccessful)
+}
+
+func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	for _, tc := range []struct {
 		desc             string
@@ -53,8 +63,6 @@ func TestUserSquash_successful(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
-
 			ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -90,9 +98,143 @@ func TestUserSquash_successful(t *testing.T) {
 	}
 }
 
+func TestUserSquash_transactional(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashTransactional)
+}
+
+func testUserSquashTransactional(t *testing.T, ctx context.Context) {
+	t.Parallel()
+	txManager := transaction.MockManager{}
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx,
+		testserver.WithTransactionManager(&txManager),
+	)
+
+	squashedCommitID := "c653dc8f98dba7f7a42c2e3c4b8d850d195e60b6"
+	squashedCommitVote := voting.VoteFromData([]byte(squashedCommitID))
+
+	for _, tc := range []struct {
+		desc           string
+		voteFn         func(context.Context, txinfo.Transaction, voting.Vote, voting.Phase) error
+		expectedErr    error
+		expectedVotes  []voting.Vote
+		expectedExists bool
+	}{
+		{
+			desc: "successful",
+			voteFn: func(context.Context, txinfo.Transaction, voting.Vote, voting.Phase) error {
+				return nil
+			},
+			expectedVotes: []voting.Vote{
+				// Only a single vote because we abort on the first one.
+				squashedCommitVote,
+				squashedCommitVote,
+			},
+			expectedExists: true,
+		},
+		{
+			desc: "preparatory vote failure",
+			voteFn: func(ctx context.Context, tx txinfo.Transaction, vote voting.Vote, phase voting.Phase) error {
+				return fmt.Errorf("vote failed")
+			},
+			expectedErr: helper.ErrAbortedf("preparatory vote on squashed commit: vote failed"),
+			expectedVotes: []voting.Vote{
+				squashedCommitVote,
+			},
+			expectedExists: false,
+		},
+		{
+			desc: "committing vote failure",
+			voteFn: func(ctx context.Context, tx txinfo.Transaction, vote voting.Vote, phase voting.Phase) error {
+				if phase == voting.Committed {
+					return fmt.Errorf("vote failed")
+				}
+				return nil
+			},
+			expectedErr: helper.ErrAbortedf("committing vote on squashed commit: vote failed"),
+			expectedVotes: []voting.Vote{
+				squashedCommitVote,
+				squashedCommitVote,
+			},
+			// Even though the committing vote has failed, we expect objects to have
+			// been migrated after the preparatory vote. The commit should thus exist in
+			// the repository.
+			expectedExists: true,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
+			require.NoError(t, err)
+			ctx = metadata.IncomingToOutgoing(ctx)
+
+			// We need to use a voting function which simply does nothing at first so
+			// that `CreateRepository()` isn't impacted.
+			txManager.VoteFn = func(_ context.Context, _ txinfo.Transaction, _ voting.Vote, _ voting.Phase) error {
+				return nil
+			}
+
+			repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				Seed: gittest.SeedGitLabTest,
+			})
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+			var votes []voting.Vote
+			txManager.VoteFn = func(ctx context.Context, tx txinfo.Transaction, vote voting.Vote, phase voting.Phase) error {
+				votes = append(votes, vote)
+				return tc.voteFn(ctx, tx, vote, phase)
+			}
+
+			response, err := client.UserSquash(ctx, &gitalypb.UserSquashRequest{
+				Repository:    repoProto,
+				User:          gittest.TestUser,
+				Author:        author,
+				CommitMessage: []byte("Squashed commit"),
+				StartSha:      startSha,
+				EndSha:        endSha,
+				Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
+			})
+
+			if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
+				if tc.expectedErr == nil {
+					require.NoError(t, err)
+					require.Equal(t, squashedCommitID, response.SquashSha)
+				} else {
+					testhelper.RequireGrpcError(t, tc.expectedErr, err)
+				}
+
+				require.Equal(t, tc.expectedVotes, votes)
+			} else {
+				// There is no transactional voting when the feature flag is
+				// disabled, so we'd never return an error from it either.
+				require.NoError(t, err)
+				require.Empty(t, votes)
+			}
+
+			exists, err := repo.HasRevision(ctx, git.Revision(squashedCommitID+"^{commit}"))
+			require.NoError(t, err)
+
+			// In case the feature flag is enabled we use a quarantine directory to
+			// stage the new objects. So if we fail to reach quorum in the preparatory
+			// vote we expect the object to not have been migrated to the repository. On
+			// the other hand, if the feature flag is disabled, the object would always
+			// exist no matter whether the RPC is successful or not.
+			if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
+				require.Equal(t, tc.expectedExists, exists)
+			} else {
+				require.True(t, exists)
+			}
+		})
+	}
+}
+
 func TestUserSquash_stableID(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashStableID)
+}
+
+func testUserSquashStableID(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
@@ -150,7 +292,11 @@ func ensureSplitIndexExists(t *testing.T, cfg config.Cfg, repoDir string) bool {
 
 func TestUserSquash_threeWayMerge(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashThreeWayMerge)
+}
+
+func testUserSquashThreeWayMerge(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
@@ -184,7 +330,11 @@ func TestUserSquash_threeWayMerge(t *testing.T) {
 
 func TestUserSquash_splitIndex(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashSplitIndex)
+}
+
+func testUserSquashSplitIndex(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -206,8 +356,11 @@ func TestUserSquash_splitIndex(t *testing.T) {
 }
 
 func TestUserSquash_renames(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashRenames)
+}
+
+func testUserSquashRenames(t *testing.T, ctx context.Context) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
@@ -266,7 +419,11 @@ func TestUserSquash_renames(t *testing.T) {
 
 func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashMissingFileOnTargetBranch)
+}
+
+func testUserSquashMissingFileOnTargetBranch(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
@@ -288,7 +445,11 @@ func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {
 
 func TestUserSquash_emptyCommit(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashEmptyCommit)
+}
+
+func testUserSquashEmptyCommit(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -486,7 +647,10 @@ func TestUserSquash_validation(t *testing.T) {
 }
 
 func TestUserSquash_conflicts(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.UserSquashImprovedErrorHandling).Run(t, testUserSquashConflicts)
+	testhelper.NewFeatureSets(
+		featureflag.UserSquashImprovedErrorHandling,
+		featureflag.UserSquashQuarantinedVoting,
+	).Run(t, testUserSquashConflicts)
 }
 
 func testUserSquashConflicts(t *testing.T, ctx context.Context) {
@@ -542,7 +706,11 @@ func testUserSquashConflicts(t *testing.T, ctx context.Context) {
 
 func TestUserSquash_ancestry(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserSquashQuarantinedVoting).Run(t, testUserSquashAncestry)
+}
+
+func testUserSquashAncestry(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -575,7 +743,11 @@ func TestUserSquash_ancestry(t *testing.T) {
 }
 
 func TestUserSquash_gitError(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.UserSquashImprovedErrorHandling).Run(t, testUserSquashGitError)
+	t.Parallel()
+	testhelper.NewFeatureSets(
+		featureflag.UserSquashImprovedErrorHandling,
+		featureflag.UserSquashQuarantinedVoting,
+	).Run(t, testUserSquashGitError)
 }
 
 func testUserSquashGitError(t *testing.T, ctx context.Context) {
