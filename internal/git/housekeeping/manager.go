@@ -2,6 +2,7 @@ package housekeeping
 
 import (
 	"context"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -26,6 +27,8 @@ type RepositoryManager struct {
 	tasksTotal       *prometheus.CounterVec
 	tasksLatency     *prometheus.HistogramVec
 	prunedFilesTotal *prometheus.CounterVec
+	optimizeFunc     func(ctx context.Context, m *RepositoryManager, repo *localrepo.Repo) error
+	reposInProgress  sync.Map
 }
 
 // NewManager creates a new RepositoryManager.
@@ -55,6 +58,7 @@ func NewManager(promCfg gitalycfgprom.Config, txManager transaction.Manager) *Re
 			},
 			[]string{"filetype"},
 		),
+		optimizeFunc: optimizeRepository,
 	}
 }
 

@@ -22,6 +22,23 @@ import (
 // OptimizeRepository performs optimizations on the repository. Whether optimizations are performed
 // or not depends on a set of heuristics.
 func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localrepo.Repo) error {
+	path, err := repo.Path()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := m.reposInProgress.LoadOrStore(path, struct{}{}); ok {
+		return nil
+	}
+
+	defer func() {
+		m.reposInProgress.Delete(path)
+	}()
+
+	return m.optimizeFunc(ctx, m, repo)
+}
+
+func optimizeRepository(ctx context.Context, m *RepositoryManager, repo *localrepo.Repo) error {
 	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
 
 	optimizations := struct {

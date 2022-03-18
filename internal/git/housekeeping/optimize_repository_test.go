@@ -1,15 +1,18 @@
 package housekeeping
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -579,6 +582,128 @@ func TestOptimizeRepository(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+
+	t.Run("subsequent calls get skipped", func(t *testing.T) {
+		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
+
+		repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		manager := &RepositoryManager{
+			optimizeFunc: func(_ context.Context, _ *RepositoryManager, _ *localrepo.Repo) error {
+				reqReceivedCh <- struct{}{}
+				ch <- struct{}{}
+
+				return nil
+			},
+		}
+
+		go func() {
+			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		}()
+
+		<-reqReceivedCh
+		// When repository optimizations are performed for a specific repository already,
+		// then any subsequent calls to the same repository should just return immediately
+		// without doing any optimizations at all.
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+
+		<-ch
+	})
+
+	t.Run("multiple repositories concurrently", func(t *testing.T) {
+		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
+
+		repoProtoFirst, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repoFirst := localrepo.NewTestRepo(t, cfg, repoProtoFirst)
+		repoProtoSecond, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repoSecond := localrepo.NewTestRepo(t, cfg, repoProtoSecond)
+
+		reposOptimized := make(map[string]struct{})
+
+		manager := &RepositoryManager{
+			optimizeFunc: func(_ context.Context, _ *RepositoryManager, repo *localrepo.Repo) error {
+				reposOptimized[repo.GetRelativePath()] = struct{}{}
+
+				if repo.GitRepo.GetRelativePath() == repoFirst.GetRelativePath() {
+					reqReceivedCh <- struct{}{}
+					ch <- struct{}{}
+				}
+
+				return nil
+			},
+		}
+
+		// We block in the first call so that we can assert that a second call
+		// to a different repository performs the optimization regardless without blocking.
+		go func() {
+			require.NoError(t, manager.OptimizeRepository(ctx, repoFirst))
+		}()
+
+		<-reqReceivedCh
+
+		// Because this optimizes a different repository this call shouldn't block.
+		require.NoError(t, manager.OptimizeRepository(ctx, repoSecond))
+
+		<-ch
+
+		assert.Contains(t, reposOptimized, repoFirst.GetRelativePath())
+		assert.Contains(t, reposOptimized, repoSecond.GetRelativePath())
+	})
+
+	t.Run("serialized optimizations", func(t *testing.T) {
+		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
+		repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+		var optimizations int
+
+		manager := &RepositoryManager{
+			optimizeFunc: func(_ context.Context, _ *RepositoryManager, _ *localrepo.Repo) error {
+				optimizations++
+
+				if optimizations == 1 {
+					reqReceivedCh <- struct{}{}
+					ch <- struct{}{}
+				}
+
+				return nil
+			},
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		}()
+
+		<-reqReceivedCh
+
+		// Because we already have a concurrent call which optimizes the repository we expect
+		// that all subsequent calls which try to optimize the same repository return immediately.
+		// Furthermore, we expect to see only a single call to the optimizing function because we
+		// don't want to optimize the same repository concurrently.
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		assert.Equal(t, 1, optimizations)
+
+		<-ch
+		wg.Wait()
+
+		// When performing optimizations sequentially though the repository
+		// should be unlocked after every call, and consequentially we should
+		// also see multiple calls to the optimizing function.
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		require.NoError(t, manager.OptimizeRepository(ctx, repo))
+		assert.Equal(t, 4, optimizations)
+	})
 }
 
 func TestPruneIfNeeded(t *testing.T) {
