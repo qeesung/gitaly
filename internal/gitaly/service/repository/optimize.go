@@ -341,6 +341,14 @@ func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 
 	if err := repo.ExecAndWait(ctx, git.SubCmd{
 		Name: "prune",
+		Flags: []git.Option{
+			// By default, this prunes all unreachable objects regardless of when they
+			// have last been accessed. This opens us up for races when there are
+			// concurrent commands which are just at the point of writing objects into
+			// the repository, but which haven't yet updated any references to make them
+			// reachable. We thus use the same two-week grace period as git-gc(1) does.
+			git.ValueFlag{Name: "--expire", Value: "two.weeks.ago"},
+		},
 	}); err != nil {
 		return false, fmt.Errorf("pruning objects: %w", err)
 	}

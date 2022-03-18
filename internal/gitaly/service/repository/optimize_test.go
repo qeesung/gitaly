@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
@@ -741,5 +743,101 @@ func TestEstimateLooseObjectCount(t *testing.T) {
 		looseObjects, err = estimateLooseObjectCount(repo)
 		require.NoError(t, err)
 		require.Equal(t, int64(512), looseObjects)
+	})
+}
+
+func TestPruneIfNeededWithRealObjects(t *testing.T) {
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+
+	t.Run("empty repo does not prune", func(t *testing.T) {
+		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		didPrune, err := pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.False(t, didPrune)
+	})
+
+	t.Run("repo with single object does not prune", func(t *testing.T) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		gittest.WriteBlob(t, cfg, repoPath, []byte("something"))
+
+		didPrune, err := pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.False(t, didPrune)
+	})
+
+	t.Run("repo with single 17-prefixed objects does not prune", func(t *testing.T) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("32"))
+		require.True(t, strings.HasPrefix(blobID.String(), "17"))
+
+		didPrune, err := pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.False(t, didPrune)
+	})
+
+	t.Run("repo with four 17-prefixed objects does not prune", func(t *testing.T) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		for _, contents := range []string{"32", "119", "334", "782"} {
+			blobID := gittest.WriteBlob(t, cfg, repoPath, []byte(contents))
+			require.True(t, strings.HasPrefix(blobID.String(), "17"))
+		}
+
+		didPrune, err := pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.False(t, didPrune)
+	})
+
+	t.Run("repo with five 17-prefixed objects does prune", func(t *testing.T) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		objectPath := func(oid git.ObjectID) string {
+			return filepath.Join(repoPath, "objects", oid.String()[0:2], oid.String()[2:])
+		}
+
+		// Contents with 17-prefix were brute forced with git-hash-object(1).
+		var blobs []git.ObjectID
+		for _, contents := range []string{"32", "119", "334", "782", "907"} {
+			blobID := gittest.WriteBlob(t, cfg, repoPath, []byte(contents))
+			require.True(t, strings.HasPrefix(blobID.String(), "17"))
+			blobs = append(blobs, blobID)
+		}
+
+		didPrune, err := pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.True(t, didPrune)
+
+		// We shouldn't prune any objects which aren't older than the grace period of two
+		// weeks.
+		for _, blob := range blobs {
+			require.FileExists(t, objectPath(blob))
+		}
+
+		// Now we modify the object's times to be older than two weeks.
+		twoWeeksAgo := time.Now().Add(-1 * 2 * 7 * 24 * time.Hour)
+		for _, blob := range blobs {
+			require.NoError(t, os.Chtimes(objectPath(blob), twoWeeksAgo, twoWeeksAgo))
+		}
+
+		// Because we didn't prune objects before due to the grace period, the still exist
+		// and thus we would still want to prune here.
+		didPrune, err = pruneIfNeeded(ctx, repo)
+		require.NoError(t, err)
+		require.True(t, didPrune)
+
+		// But this time the objects shouldn't exist anymore because they were older than
+		// the grace period.
+		for _, blob := range blobs {
+			require.NoFileExists(t, objectPath(blob))
+		}
 	})
 }
