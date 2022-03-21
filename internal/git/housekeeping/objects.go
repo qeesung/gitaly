@@ -43,8 +43,14 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 	}
 
 	if err := repo.ExecAndWait(ctx, git.SubCmd{
-		Name:  "repack",
-		Flags: append([]git.Option{git.Flag{Name: "-d"}}, options...),
+		Name: "repack",
+		Flags: append([]git.Option{
+			git.Flag{Name: "-d"},
+			// This can be removed as soon as we have upstreamed a
+			// `repack.updateServerInfo` config option. See gitlab-org/git#105 for more
+			// details.
+			git.Flag{Name: "-n"},
+		}, options...),
 	}, git.WithConfig(GetRepackGitConfig(ctx, cfg.WriteBitmap)...)); err != nil {
 		return err
 	}

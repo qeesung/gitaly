@@ -81,6 +81,9 @@ func TestFetchFromOriginDangling(t *testing.T) {
 	for _, id := range []git.ObjectID{newBlob, newTree, newCommit, newTag} {
 		require.Contains(t, refsAfterLines, fmt.Sprintf("refs/dangling/%s %s", id, id))
 	}
+
+	require.NoFileExists(t, filepath.Join(pool.FullPath(), "info", "refs"))
+	require.NoFileExists(t, filepath.Join(pool.FullPath(), "objects", "info", "packs"))
 }
 
 func TestFetchFromOriginFsck(t *testing.T) {

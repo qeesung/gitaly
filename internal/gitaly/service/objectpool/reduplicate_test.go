@@ -2,6 +2,7 @@ package objectpool
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,12 @@ func TestReduplicate(t *testing.T) {
 
 	gittest.Exec(t, cfg, "-C", repoPath, "gc")
 
+	// git-gc(1) invokes git-repack(1), which by defaults generates these files. Manually remove
+	// them so that we can assert further down that repository reduplication doesn't regenerate
+	// those paths.
+	require.NoError(t, os.Remove(filepath.Join(repoPath, "info", "refs")))
+	require.NoError(t, os.Remove(filepath.Join(repoPath, "objects", "info", "packs")))
+
 	existingObjectID := "55bc176024cfa3baaceb71db584c7e5df900ea65"
 
 	// Corrupt the repository to check if the object can't be found
@@ -43,4 +50,7 @@ func TestReduplicate(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(altPath))
 	gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-e", existingObjectID)
+
+	require.NoFileExists(t, filepath.Join(repoPath, "info", "refs"))
+	require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "packs"))
 }

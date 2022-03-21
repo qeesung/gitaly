@@ -44,6 +44,8 @@ type fileEntry struct {
 }
 
 func (f *fileEntry) create(t *testing.T, parent string) {
+	t.Helper()
+
 	filename := filepath.Join(parent, f.name)
 	ff, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0o700)
 	assert.NoError(t, err, "file creation failed: %v", filename)
@@ -55,22 +57,29 @@ func (f *fileEntry) create(t *testing.T, parent string) {
 }
 
 func (f *fileEntry) validate(t *testing.T, parent string) {
+	t.Helper()
+
 	filename := filepath.Join(parent, f.name)
 	f.checkExistence(t, filename)
 }
 
 func (f *fileEntry) chmod(t *testing.T, filename string) {
+	t.Helper()
+
 	err := os.Chmod(filename, f.mode)
 	assert.NoError(t, err, "chmod failed")
 }
 
 func (f *fileEntry) chtimes(t *testing.T, filename string) {
+	t.Helper()
+
 	filetime := time.Now().Add(-f.age)
 	err := os.Chtimes(filename, filetime, filetime)
 	assert.NoError(t, err, "chtimes failed")
 }
 
 func (f *fileEntry) checkExistence(t *testing.T, filename string) {
+	t.Helper()
 	_, err := os.Stat(filename)
 	if err == nil && f.finalState == Delete {
 		t.Errorf("Expected %v to have been deleted.", filename)
@@ -86,6 +95,8 @@ type dirEntry struct {
 }
 
 func (d *dirEntry) create(t *testing.T, parent string) {
+	t.Helper()
+
 	dirname := filepath.Join(parent, d.name)
 
 	if err := os.Mkdir(dirname, 0o700); err != nil {
@@ -102,6 +113,8 @@ func (d *dirEntry) create(t *testing.T, parent string) {
 }
 
 func (d *dirEntry) validate(t *testing.T, parent string) {
+	t.Helper()
+
 	dirname := filepath.Join(parent, d.name)
 	d.checkExistence(t, dirname)
 
@@ -126,6 +139,7 @@ type cleanStaleDataMetrics struct {
 	refsEmptyDir   int
 	packedRefsLock int
 	packedRefsNew  int
+	serverInfo     int
 }
 
 func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cleanStaleDataMetrics) {
@@ -146,6 +160,7 @@ func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cl
 		"packedrefslock": metrics.packedRefsLock,
 		"packedrefsnew":  metrics.packedRefsNew,
 		"refsemptydir":   metrics.refsEmptyDir,
+		"serverinfo":     metrics.serverInfo,
 	} {
 		_, err := builder.WriteString(fmt.Sprintf("gitaly_housekeeping_pruned_files_total{filetype=%q} %d\n", metric, expectedValue))
 		require.NoError(t, err)
@@ -154,7 +169,7 @@ func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cl
 	require.NoError(t, testutil.CollectAndCompare(m, strings.NewReader(builder.String()), "gitaly_housekeeping_pruned_files_total"))
 }
 
-func TestPerform(t *testing.T) {
+func TestRepositoryManager_CleanStaleData(t *testing.T) {
 	testcases := []struct {
 		name            string
 		entries         []entry
@@ -278,7 +293,7 @@ func TestPerform(t *testing.T) {
 	}
 }
 
-func TestPerform_references(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 	type ref struct {
 		name string
 		age  time.Duration
@@ -382,7 +397,7 @@ func TestPerform_references(t *testing.T) {
 	}
 }
 
-func TestPerform_emptyRefDirs(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_emptyRefDirs(t *testing.T) {
 	testcases := []struct {
 		name            string
 		entries         []entry
@@ -492,7 +507,7 @@ func TestPerform_emptyRefDirs(t *testing.T) {
 	}
 }
 
-func TestPerform_withSpecificFile(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -605,7 +620,56 @@ func TestPerform_withSpecificFile(t *testing.T) {
 	}
 }
 
-func TestPerform_referenceLocks(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
+	ctx := testhelper.Context(t)
+
+	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	entries := []entry{
+		d("info", 0o755, 0, Keep, []entry{
+			f("ref", 0, 0o644, Keep),
+			f("refs", 0, 0o644, Delete),
+			f("refsx", 0, 0o644, Keep),
+			f("refs_123456", 0, 0o644, Delete),
+		}),
+		d("objects", 0o755, 0, Keep, []entry{
+			d("info", 0o755, 0, Keep, []entry{
+				f("pack", 0, 0o644, Keep),
+				f("packs", 0, 0o644, Delete),
+				f("packsx", 0, 0o644, Keep),
+				f("packs_123456", 0, 0o644, Delete),
+			}),
+		}),
+	}
+
+	for _, entry := range entries {
+		entry.create(t, repoPath)
+	}
+
+	staleFiles, err := findServerInfo(ctx, repoPath)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{
+		filepath.Join(repoPath, "info/refs"),
+		filepath.Join(repoPath, "info/refs_123456"),
+		filepath.Join(repoPath, "objects/info/packs"),
+		filepath.Join(repoPath, "objects/info/packs_123456"),
+	}, staleFiles)
+
+	mgr := NewManager(cfg.Prometheus, nil)
+
+	require.NoError(t, mgr.CleanStaleData(ctx, repo))
+
+	for _, entry := range entries {
+		entry.validate(t, repoPath)
+	}
+
+	requireCleanStaleDataMetrics(t, mgr, cleanStaleDataMetrics{
+		serverInfo: 4,
+	})
+}
+
+func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	for _, tc := range []struct {
@@ -773,7 +837,7 @@ func TestShouldRemoveTemporaryObject(t *testing.T) {
 	}
 }
 
-func TestPerformRepoDoesNotExist(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_missingRepo(t *testing.T) {
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	ctx := testhelper.Context(t)
@@ -783,7 +847,7 @@ func TestPerformRepoDoesNotExist(t *testing.T) {
 	require.NoError(t, NewManager(cfg.Prometheus, nil).CleanStaleData(ctx, repo))
 }
 
-func TestPerform_UnsetConfiguration(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 	cfg := testcfg.Build(t)
 	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -831,7 +895,7 @@ func TestPerform_UnsetConfiguration(t *testing.T) {
 `, string(testhelper.MustReadFile(t, configPath)))
 }
 
-func TestPerform_UnsetConfiguration_transactional(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
@@ -862,7 +926,7 @@ func TestPerform_UnsetConfiguration_transactional(t *testing.T) {
 	require.Equal(t, expectedConfig, string(configKeys))
 }
 
-func TestPerform_cleanupConfig(t *testing.T) {
+func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

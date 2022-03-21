@@ -147,8 +147,14 @@ func (o *ObjectPool) repackPool(ctx context.Context, pool repository.GitRepo) er
 	}
 
 	if err := o.Repo.ExecAndWait(ctx, git.SubCmd{
-		Name:  "repack",
-		Flags: []git.Option{git.Flag{Name: "-aidb"}},
+		Name: "repack",
+		Flags: []git.Option{
+			git.Flag{Name: "-aidb"},
+			// This can be removed as soon as we have upstreamed a
+			// `repack.updateServerInfo` config option. See gitlab-org/git#105 for more
+			// details.
+			git.Flag{Name: "-n"},
+		},
 	}, git.WithConfig(config...)); err != nil {
 		return err
 	}
