@@ -78,6 +78,7 @@ func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 
 			response, err := client.UserSquash(ctx, request)
 			require.NoError(t, err)
+			//nolint:staticcheck
 			require.Empty(t, response.GetGitError())
 
 			commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
@@ -250,6 +251,7 @@ func testUserSquashStableID(t *testing.T, ctx context.Context) {
 		Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
 	})
 	require.NoError(t, err)
+	//nolint:staticcheck
 	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
@@ -314,6 +316,7 @@ func testUserSquashThreeWayMerge(t *testing.T, ctx context.Context) {
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
+	//nolint:staticcheck
 	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
@@ -351,6 +354,7 @@ func testUserSquashSplitIndex(t *testing.T, ctx context.Context) {
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
+	//nolint:staticcheck
 	require.Empty(t, response.GetGitError())
 	require.False(t, ensureSplitIndexExists(t, cfg, repoPath))
 }
@@ -403,6 +407,7 @@ func testUserSquashRenames(t *testing.T, ctx context.Context) {
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
+	//nolint:staticcheck
 	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
@@ -440,6 +445,7 @@ func testUserSquashMissingFileOnTargetBranch(t *testing.T, ctx context.Context) 
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
+	//nolint:staticcheck
 	require.Empty(t, response.GetGitError())
 }
 
@@ -648,7 +654,6 @@ func TestUserSquash_validation(t *testing.T) {
 
 func TestUserSquash_conflicts(t *testing.T) {
 	testhelper.NewFeatureSets(
-		featureflag.UserSquashImprovedErrorHandling,
 		featureflag.UserSquashQuarantinedVoting,
 	).Run(t, testUserSquashConflicts)
 }
@@ -682,26 +687,19 @@ func testUserSquashConflicts(t *testing.T, ctx context.Context) {
 		EndSha:        ours.String(),
 	})
 
-	if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrFailedPreconditionf("rebasing commits: rebase: commit %q: there are conflicting files", ours),
-			&gitalypb.UserSquashError{
-				Error: &gitalypb.UserSquashError_RebaseConflict{
-					RebaseConflict: &gitalypb.MergeConflictError{
-						ConflictingFiles: [][]byte{
-							[]byte("b"),
-						},
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPreconditionf("rebasing commits: rebase: commit %q: there are conflicting files", ours),
+		&gitalypb.UserSquashError{
+			Error: &gitalypb.UserSquashError_RebaseConflict{
+				RebaseConflict: &gitalypb.MergeConflictError{
+					ConflictingFiles: [][]byte{
+						[]byte("b"),
 					},
 				},
 			},
-		), err)
-		require.Nil(t, response)
-	} else {
-		require.NoError(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.UserSquashResponse{
-			GitError: fmt.Sprintf("rebase: commit %q: there are conflicting files", ours),
-		}, response)
-	}
+		},
+	), err)
+	require.Nil(t, response)
 }
 
 func TestUserSquash_ancestry(t *testing.T) {
@@ -745,7 +743,6 @@ func testUserSquashAncestry(t *testing.T, ctx context.Context) {
 func TestUserSquash_gitError(t *testing.T) {
 	t.Parallel()
 	testhelper.NewFeatureSets(
-		featureflag.UserSquashImprovedErrorHandling,
 		featureflag.UserSquashQuarantinedVoting,
 	).Run(t, testUserSquashGitError)
 }
@@ -771,31 +768,16 @@ func testUserSquashGitError(t *testing.T, ctx context.Context) {
 				StartSha:      "doesntexisting",
 				EndSha:        endSha,
 			},
-			expectedErr: func() error {
-				if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-					return errWithDetails(t,
-						helper.ErrInvalidArgumentf("resolving start revision: reference not found"),
-						&gitalypb.UserSquashError{
-							Error: &gitalypb.UserSquashError_ResolveRevision{
-								ResolveRevision: &gitalypb.ResolveRevisionError{
-									Revision: []byte("doesntexisting"),
-								},
-							},
+			expectedErr: errWithDetails(t,
+				helper.ErrInvalidArgumentf("resolving start revision: reference not found"),
+				&gitalypb.UserSquashError{
+					Error: &gitalypb.UserSquashError_ResolveRevision{
+						ResolveRevision: &gitalypb.ResolveRevisionError{
+							Revision: []byte("doesntexisting"),
 						},
-					)
-				}
-
-				return nil
-			}(),
-			expectedResponse: func() *gitalypb.UserSquashResponse {
-				if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-					return nil
-				}
-
-				return &gitalypb.UserSquashResponse{
-					GitError: "fatal: ambiguous argument 'doesntexisting...54cec5282aa9f21856362fe321c800c236a61615': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n",
-				}
-			}(),
+					},
+				},
+			),
 		},
 		{
 			desc: "not existing end SHA",
@@ -807,31 +789,16 @@ func testUserSquashGitError(t *testing.T, ctx context.Context) {
 				StartSha:      startSha,
 				EndSha:        "doesntexisting",
 			},
-			expectedErr: func() error {
-				if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-					return errWithDetails(t,
-						helper.ErrInvalidArgumentf("resolving end revision: reference not found"),
-						&gitalypb.UserSquashError{
-							Error: &gitalypb.UserSquashError_ResolveRevision{
-								ResolveRevision: &gitalypb.ResolveRevisionError{
-									Revision: []byte("doesntexisting"),
-								},
-							},
+			expectedErr: errWithDetails(t,
+				helper.ErrInvalidArgumentf("resolving end revision: reference not found"),
+				&gitalypb.UserSquashError{
+					Error: &gitalypb.UserSquashError_ResolveRevision{
+						ResolveRevision: &gitalypb.ResolveRevisionError{
+							Revision: []byte("doesntexisting"),
 						},
-					)
-				}
-
-				return nil
-			}(),
-			expectedResponse: func() *gitalypb.UserSquashResponse {
-				if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-					return nil
-				}
-
-				return &gitalypb.UserSquashResponse{
-					GitError: "fatal: ambiguous argument 'b83d6e391c22777fca1ed3012fce84f633d7fed0...doesntexisting': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n",
-				}
-			}(),
+					},
+				},
+			),
 		},
 		{
 			desc: "user has no name set",

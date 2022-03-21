@@ -22,6 +22,17 @@ import (
 
 var errNoDefaultBranch = errors.New("no default branch")
 
+type gitError struct {
+	// ErrMsg error message from 'git' executable if any.
+	ErrMsg string
+	// Err is an error that happened during rebase process.
+	Err error
+}
+
+func (er gitError) Error() string {
+	return er.ErrMsg + ": " + er.Err.Error()
+}
+
 //nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserApplyPatch(stream gitalypb.OperationService_UserApplyPatchServer) error {
 	firstRequest, err := stream.Recv()

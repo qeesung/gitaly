@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
@@ -21,7 +20,6 @@ import (
 
 const (
 	gitlabWorktreesSubDir = "gitlab-worktree"
-	ambiguousArgumentFmt  = "fatal: ambiguous argument '%s...%s': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n"
 )
 
 // UserSquash collapses a range of commits identified via a start and end revision into a single
@@ -33,15 +31,6 @@ func (s *Server) UserSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 
 	sha, err := s.userSquash(ctx, req)
 	if err != nil {
-		var gitErr gitError
-		if errors.As(err, &gitErr) {
-			if gitErr.ErrMsg != "" {
-				// we log an actual error as it would be lost otherwise (it is not sent back to the client)
-				ctxlogrus.Extract(ctx).WithError(err).Error("user squash")
-				return &gitalypb.UserSquashResponse{GitError: gitErr.ErrMsg}, nil
-			}
-		}
-
 		return nil, helper.ErrInternal(err)
 	}
 
@@ -92,17 +81,6 @@ func validateUserSquashRequest(req *gitalypb.UserSquashRequest) error {
 	return nil
 }
 
-type gitError struct {
-	// ErrMsg error message from 'git' executable if any.
-	ErrMsg string
-	// Err is an error that happened during rebase process.
-	Err error
-}
-
-func (er gitError) Error() string {
-	return er.ErrMsg + ": " + er.Err.Error()
-}
-
 func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest) (string, error) {
 	repo := s.localrepo(req.GetRepository())
 	repoPath, err := repo.Path()
@@ -131,59 +109,41 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	// all parents of the start commit.
 	startCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetStartSha()+"^{commit}"))
 	if err != nil {
-		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-			detailedErr, err := helper.ErrWithDetails(
-				helper.ErrInvalidArgumentf("resolving start revision: %w", err),
-				&gitalypb.UserSquashError{
-					Error: &gitalypb.UserSquashError_ResolveRevision{
-						ResolveRevision: &gitalypb.ResolveRevisionError{
-							Revision: []byte(req.GetStartSha()),
-						},
+		detailedErr, err := helper.ErrWithDetails(
+			helper.ErrInvalidArgumentf("resolving start revision: %w", err),
+			&gitalypb.UserSquashError{
+				Error: &gitalypb.UserSquashError_ResolveRevision{
+					ResolveRevision: &gitalypb.ResolveRevisionError{
+						Revision: []byte(req.GetStartSha()),
 					},
 				},
-			)
-			if err != nil {
-				return "", helper.ErrInternalf("error details: %w", err)
-			}
-
-			return "", detailedErr
+			},
+		)
+		if err != nil {
+			return "", helper.ErrInternalf("error details: %w", err)
 		}
 
-		return "", fmt.Errorf("cannot resolve start commit: %w", gitError{
-			// This error is simply for backwards compatibility. We should just
-			// return the plain error eventually.
-			Err:    err,
-			ErrMsg: fmt.Sprintf(ambiguousArgumentFmt, req.GetStartSha(), req.GetEndSha()),
-		})
+		return "", detailedErr
 	}
 
 	// And we need to take the tree of the end commit. This tree already is the result
 	endCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetEndSha()+"^{commit}"))
 	if err != nil {
-		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-			detailedErr, err := helper.ErrWithDetails(
-				helper.ErrInvalidArgumentf("resolving end revision: %w", err),
-				&gitalypb.UserSquashError{
-					Error: &gitalypb.UserSquashError_ResolveRevision{
-						ResolveRevision: &gitalypb.ResolveRevisionError{
-							Revision: []byte(req.GetEndSha()),
-						},
+		detailedErr, err := helper.ErrWithDetails(
+			helper.ErrInvalidArgumentf("resolving end revision: %w", err),
+			&gitalypb.UserSquashError{
+				Error: &gitalypb.UserSquashError_ResolveRevision{
+					ResolveRevision: &gitalypb.ResolveRevisionError{
+						Revision: []byte(req.GetEndSha()),
 					},
 				},
-			)
-			if err != nil {
-				return "", helper.ErrInternalf("error details: %w", err)
-			}
-
-			return "", detailedErr
+			},
+		)
+		if err != nil {
+			return "", helper.ErrInternalf("error details: %w", err)
 		}
 
-		return "", fmt.Errorf("cannot resolve end commit's tree: %w", gitError{
-			// This error is simply for backwards compatibility. We should just
-			// return the plain error eventually.
-			Err:    err,
-			ErrMsg: fmt.Sprintf(ambiguousArgumentFmt, req.GetStartSha(), req.GetEndSha()),
-		})
+		return "", detailedErr
 	}
 
 	commitDate, err := dateFromProto(req)
@@ -203,39 +163,32 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		SkipEmptyCommits: true,
 	})
 	if err != nil {
-		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-			var conflictErr git2go.ConflictingFilesError
+		var conflictErr git2go.ConflictingFilesError
 
-			if errors.As(err, &conflictErr) {
-				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
-				for _, conflictingFile := range conflictErr.ConflictingFiles {
-					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
-				}
-
-				detailedErr, err := helper.ErrWithDetails(
-					helper.ErrFailedPreconditionf("rebasing commits: %w", err),
-					&gitalypb.UserSquashError{
-						Error: &gitalypb.UserSquashError_RebaseConflict{
-							RebaseConflict: &gitalypb.MergeConflictError{
-								ConflictingFiles: conflictingFiles,
-							},
-						},
-					},
-				)
-				if err != nil {
-					return "", helper.ErrInternalf("error details: %w", err)
-				}
-
-				return "", detailedErr
+		if errors.As(err, &conflictErr) {
+			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+			for _, conflictingFile := range conflictErr.ConflictingFiles {
+				conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
 			}
 
-			return "", helper.ErrInternalf("rebasing commits: %w", err)
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrFailedPreconditionf("rebasing commits: %w", err),
+				&gitalypb.UserSquashError{
+					Error: &gitalypb.UserSquashError_RebaseConflict{
+						RebaseConflict: &gitalypb.MergeConflictError{
+							ConflictingFiles: conflictingFiles,
+						},
+					},
+				},
+			)
+			if err != nil {
+				return "", helper.ErrInternalf("error details: %w", err)
+			}
+
+			return "", detailedErr
 		}
 
-		return "", fmt.Errorf("rebasing end onto start commit: %w", gitError{
-			Err:    err,
-			ErrMsg: err.Error(),
-		})
+		return "", helper.ErrInternalf("rebasing commits: %w", err)
 	}
 
 	treeID, err := repo.ResolveRevision(ctx, rebasedCommitID.Revision()+"^{tree}")
@@ -271,14 +224,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 			treeID.String(),
 		},
 	}, git.WithStdout(&stdout), git.WithStderr(&stderr), git.WithEnv(commitEnv...)); err != nil {
-		if featureflag.UserSquashImprovedErrorHandling.IsEnabled(ctx) {
-			return "", helper.ErrInternalf("creating squashed commit: %w", err)
-		}
-
-		return "", fmt.Errorf("creating commit: %w", gitError{
-			Err:    err,
-			ErrMsg: stderr.String(),
-		})
+		return "", helper.ErrInternalf("creating squashed commit: %w", err)
 	}
 
 	commitID := text.ChompBytes(stdout.Bytes())

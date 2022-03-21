@@ -649,7 +649,11 @@ message UserSquashResponse {
   // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/proto/merge_requests/161
   reserved 2;
   reserved "pre_receive_error";
-  string git_error = 3;
+
+  // GitError is not used anymore. Instead, this RPC always returns a real
+  // error with an optional UserRebaseConfirmableError, which may be set on
+  // special errors.
+  string git_error = 3 [deprecated=true];
 }
 
 message UserRebaseConfirmableError {
