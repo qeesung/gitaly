@@ -34,6 +34,12 @@ func TestLoadEmptyConfig(t *testing.T) {
 		InternalSocketDir: cfg.InternalSocketDir,
 	}
 	require.NoError(t, expectedCfg.setDefaults())
+
+	// The runtime directory is a temporary path, so we need to take the value from the loaded
+	// config. Furthermore, because `setDefaults()` would append the PID, we can't do so before
+	// calling that function.
+	expectedCfg.RuntimeDir = cfg.RuntimeDir
+
 	require.Equal(t, expectedCfg, cfg)
 }
 
@@ -1044,4 +1050,72 @@ func TestValidateBinDir(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCfg_RuntimeDir(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		t.Run("empty runtime directory", func(t *testing.T) {
+			cfg := Cfg{}
+			require.NoError(t, cfg.setDefaults())
+
+			require.Equal(t, os.TempDir(), filepath.Dir(cfg.RuntimeDir))
+			require.True(t, strings.HasPrefix(filepath.Base(cfg.RuntimeDir), "gitaly-"))
+			require.DirExists(t, cfg.RuntimeDir)
+		})
+
+		t.Run("non-existent runtime directory", func(t *testing.T) {
+			cfg := Cfg{
+				RuntimeDir: "/does/not/exist",
+			}
+
+			require.EqualError(t, cfg.setDefaults(), fmt.Sprintf("creating runtime directory: mkdir /does/not/exist/gitaly-%d: no such file or directory", os.Getpid()))
+		})
+
+		t.Run("existent runtime directory", func(t *testing.T) {
+			dir := testhelper.TempDir(t)
+			cfg := Cfg{
+				RuntimeDir: dir,
+			}
+			require.NoError(t, cfg.setDefaults())
+			require.Equal(t, filepath.Join(dir, fmt.Sprintf("gitaly-%d", os.Getpid())), cfg.RuntimeDir)
+			require.DirExists(t, cfg.RuntimeDir)
+		})
+	})
+
+	t.Run("validation", func(t *testing.T) {
+		dirPath := testhelper.TempDir(t)
+		filePath := filepath.Join(dirPath, "file")
+		require.NoError(t, os.WriteFile(filePath, nil, 0o644))
+
+		for _, tc := range []struct {
+			desc        string
+			runtimeDir  string
+			expectedErr error
+		}{
+			{
+				desc:       "valid runtime directory",
+				runtimeDir: dirPath,
+			},
+			{
+				desc:        "unset",
+				runtimeDir:  "",
+				expectedErr: fmt.Errorf("runtime_dir: is not set"),
+			},
+			{
+				desc:        "path doesn't exist",
+				runtimeDir:  "/does/not/exist",
+				expectedErr: fmt.Errorf("runtime_dir: path doesn't exist: %q", "/does/not/exist"),
+			},
+			{
+				desc:        "path is not a directory",
+				runtimeDir:  filePath,
+				expectedErr: fmt.Errorf(`runtime_dir: not a directory: %q`, filePath),
+			},
+		} {
+			t.Run(tc.desc, func(t *testing.T) {
+				err := (&Cfg{RuntimeDir: tc.runtimeDir}).validateRuntimeDir()
+				require.Equal(t, tc.expectedErr, err)
+			})
+		}
+	})
 }

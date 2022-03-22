@@ -177,7 +177,7 @@ func (c BundledGitEnvironmentConstructor) Construct(cfg config.Cfg) (_ Execution
 	// In order to support having a single Git binary only as compared to a complete Git
 	// installation, we create our own GIT_EXEC_PATH which contains symlinks to the Git
 	// binary for executables which Git expects to be present.
-	gitExecPath, err := os.MkdirTemp("", "gitaly-git-exec-path-*")
+	gitExecPath, err := os.MkdirTemp(cfg.RuntimeDir, "git-exec-*.d")
 	if err != nil {
 		return ExecutionEnvironment{}, fmt.Errorf("creating Git exec path: %w", err)
 	}

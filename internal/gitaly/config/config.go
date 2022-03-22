@@ -48,6 +48,7 @@ type Cfg struct {
 	TLSListenAddr          string            `toml:"tls_listen_addr" split_words:"true"`
 	PrometheusListenAddr   string            `toml:"prometheus_listen_addr" split_words:"true"`
 	BinDir                 string            `toml:"bin_dir"`
+	RuntimeDir             string            `toml:"runtime_dir"`
 	Git                    Git               `toml:"git" envconfig:"git"`
 	Storages               []Storage         `toml:"storage" envconfig:"storage"`
 	Logging                Logging           `toml:"logging" envconfig:"logging"`
@@ -187,6 +188,7 @@ func (cfg *Cfg) Validate() error {
 		cfg.validateShell,
 		cfg.ConfigureRuby,
 		cfg.validateBinDir,
+		cfg.validateRuntimeDir,
 		cfg.validateInternalSocketDir,
 		cfg.validateMaintenance,
 		cfg.validateCgroups,
@@ -213,17 +215,57 @@ func (cfg *Cfg) setDefaults() error {
 		cfg.Hooks.CustomHooksDir = filepath.Join(cfg.GitlabShell.Dir, "hooks")
 	}
 
+	if cfg.RuntimeDir == "" {
+		// If there is no runtime directory configured we just use a temporary runtime
+		// directory. This may not always be an ideal choice given that it's typically
+		// created at `/tmp`, which may get periodically pruned if `noatime` is set.
+		runtimeDir, err := os.MkdirTemp("", "gitaly-")
+		if err != nil {
+			return fmt.Errorf("creating temporary runtime directory: %w", err)
+		}
+
+		cfg.RuntimeDir = runtimeDir
+	} else {
+		// Otherwise, we use the configured runtime directory. Note that we don't use the
+		// runtime directory directly, but instead create a subdirectory within it which is
+		// based on the process's PID. While we could use `MkdirTemp()` instead and don't
+		// bother with preexisting directories, the benefit of using the PID here is that we
+		// can determine whether the directory may still be in use by checking whether the
+		// PID exists. Furthermore, it allows easier debugging in case one wants to inspect
+		// the runtime directory of a running Gitaly node.
+
+		runtimeDir := filepath.Join(cfg.RuntimeDir, fmt.Sprintf("gitaly-%d", os.Getpid()))
+
+		if _, err := os.Stat(runtimeDir); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("statting runtime directory: %w", err)
+		} else if err != nil {
+			// If the directory exists already then it must be from an old invocation of
+			// Gitaly. Because we use the PID as path component we know that the old
+			// instance cannot exist anymore though, so it's safe to remove this
+			// directory now.
+			if err := os.RemoveAll(runtimeDir); err != nil {
+				return fmt.Errorf("removing old runtime directory: %w", err)
+			}
+		}
+
+		if err := os.Mkdir(runtimeDir, 0o700); err != nil {
+			return fmt.Errorf("creating runtime directory: %w", err)
+		}
+
+		cfg.RuntimeDir = runtimeDir
+	}
+
 	if cfg.InternalSocketDir == "" {
 		// The socket path must be short-ish because listen(2) fails on long
 		// socket paths. We hope/expect that os.MkdirTemp creates a directory
 		// that is not too deep. We need a directory, not a tempfile, because we
 		// will later want to set its permissions to 0700
-
-		tmpDir, err := os.MkdirTemp("", "gitaly-internal")
-		if err != nil {
+		socketDir := filepath.Join(cfg.RuntimeDir, "sock.d")
+		if err := os.Mkdir(socketDir, 0o700); err != nil {
 			return fmt.Errorf("create internal socket directory: %w", err)
 		}
-		cfg.InternalSocketDir = tmpDir
+
+		cfg.InternalSocketDir = socketDir
 	}
 
 	if reflect.DeepEqual(cfg.DailyMaintenance, DailyJob{}) {
@@ -347,6 +389,20 @@ func (cfg *Cfg) validateBinDir() error {
 
 	var err error
 	cfg.BinDir, err = filepath.Abs(cfg.BinDir)
+	return err
+}
+
+func (cfg *Cfg) validateRuntimeDir() error {
+	if len(cfg.RuntimeDir) == 0 {
+		return fmt.Errorf("runtime_dir: is not set")
+	}
+
+	if err := validateIsDirectory(cfg.RuntimeDir, "runtime_dir"); err != nil {
+		return err
+	}
+
+	var err error
+	cfg.RuntimeDir, err = filepath.Abs(cfg.RuntimeDir)
 	return err
 }
 

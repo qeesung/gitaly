@@ -266,7 +266,7 @@ func setupHookDirectories(cfg config.Cfg, factoryCfg execCommandFactoryConfig) (
 
 	// This sets up the new hook location. Hooks now live in a temporary directory, where all
 	// hooks are symlinks to the `gitaly-hooks` binary.
-	tempHooksPath, err := os.MkdirTemp("", "gitaly-hooks-")
+	tempHooksPath, err := os.MkdirTemp(cfg.RuntimeDir, "hooks-*.d")
 	if err != nil {
 		return hookDirectories{}, nil, fmt.Errorf("creating temporary hooks directory: %w", err)
 	}

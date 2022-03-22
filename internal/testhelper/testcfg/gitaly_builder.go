@@ -106,8 +106,13 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 		require.NoError(t, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
 	}
 
+	if cfg.RuntimeDir == "" {
+		cfg.RuntimeDir = filepath.Join(root, "runtime.d")
+		require.NoError(t, os.Mkdir(cfg.RuntimeDir, 0o700))
+	}
+
 	if cfg.InternalSocketDir == "" {
-		cfg.InternalSocketDir = filepath.Join(root, "internal_socks.d")
+		cfg.InternalSocketDir = filepath.Join(cfg.RuntimeDir, "sock.d")
 		require.NoError(t, os.Mkdir(cfg.InternalSocketDir, 0o755))
 	}
 

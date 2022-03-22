@@ -130,6 +130,12 @@ func run(cfg config.Cfg) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	defer func() {
+		if err := os.RemoveAll(cfg.RuntimeDir); err != nil {
+			log.Warn("could not clean up runtime dir")
+		}
+	}()
+
 	b, err := bootstrap.New(promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gitaly_connections_total",
