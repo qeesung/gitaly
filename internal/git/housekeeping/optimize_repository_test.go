@@ -424,7 +424,7 @@ func TestEstimateLooseObjectCount(t *testing.T) {
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	t.Run("empty repository", func(t *testing.T) {
-		looseObjects, err := estimateLooseObjectCount(repo)
+		looseObjects, err := estimateLooseObjectCount(repo, time.Now())
 		require.NoError(t, err)
 		require.Zero(t, looseObjects)
 	})
@@ -437,7 +437,7 @@ func TestEstimateLooseObjectCount(t *testing.T) {
 		require.NoError(t, err)
 		testhelper.MustClose(t, object)
 
-		looseObjects, err := estimateLooseObjectCount(repo)
+		looseObjects, err := estimateLooseObjectCount(repo, time.Now())
 		require.NoError(t, err)
 		require.Zero(t, looseObjects)
 	})
@@ -450,7 +450,7 @@ func TestEstimateLooseObjectCount(t *testing.T) {
 		require.NoError(t, err)
 		testhelper.MustClose(t, object)
 
-		looseObjects, err := estimateLooseObjectCount(repo)
+		looseObjects, err := estimateLooseObjectCount(repo, time.Now())
 		require.NoError(t, err)
 		require.Equal(t, int64(256), looseObjects)
 
@@ -459,9 +459,42 @@ func TestEstimateLooseObjectCount(t *testing.T) {
 		require.NoError(t, err)
 		testhelper.MustClose(t, object)
 
-		looseObjects, err = estimateLooseObjectCount(repo)
+		looseObjects, err = estimateLooseObjectCount(repo, time.Now())
 		require.NoError(t, err)
 		require.Equal(t, int64(512), looseObjects)
+	})
+
+	t.Run("object in estimation shard with grace period", func(t *testing.T) {
+		estimationShard := filepath.Join(repoPath, "objects", "17")
+		require.NoError(t, os.MkdirAll(estimationShard, 0o755))
+
+		objectPaths := []string{
+			filepath.Join(estimationShard, "123456"),
+			filepath.Join(estimationShard, "654321"),
+		}
+
+		cutoffDate := time.Now()
+		afterCutoffDate := cutoffDate.Add(1 * time.Minute)
+		beforeCutoffDate := cutoffDate.Add(-1 * time.Minute)
+
+		for _, objectPath := range objectPaths {
+			require.NoError(t, os.WriteFile(objectPath, nil, 0o644))
+			require.NoError(t, os.Chtimes(objectPath, afterCutoffDate, afterCutoffDate))
+		}
+
+		// Objects are recent, so with the cutoff-date they shouldn't be counted.
+		looseObjects, err := estimateLooseObjectCount(repo, cutoffDate)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), looseObjects)
+
+		for i, objectPath := range objectPaths {
+			// Modify the object's mtime should cause it to be counted.
+			require.NoError(t, os.Chtimes(objectPath, beforeCutoffDate, beforeCutoffDate))
+
+			looseObjects, err = estimateLooseObjectCount(repo, cutoffDate)
+			require.NoError(t, err)
+			require.Equal(t, int64((i+1)*256), looseObjects)
+		}
 	})
 }
 
@@ -519,7 +552,7 @@ func TestOptimizeRepository(t *testing.T) {
 			},
 		},
 		{
-			desc: "loose objects get pruned",
+			desc: "recent loose objects don't get pruned",
 			setup: func(t *testing.T) *gitalypb.Repository {
 				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
@@ -528,9 +561,41 @@ func TestOptimizeRepository(t *testing.T) {
 				// The repack won't repack the following objects because they're
 				// broken, and thus we'll retry to prune them afterwards.
 				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), 0o755))
+
+				// We set the object's mtime to be almost two weeks ago. Given that
+				// our timeout is at exactly two weeks this shouldn't caused them to
+				// get pruned.
+				almostTwoWeeksAgo := time.Now().AddDate(0, 0, -14).Add(time.Minute)
+
 				for i := 0; i < 10; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
 					require.NoError(t, os.WriteFile(blobPath, nil, 0o644))
+					require.NoError(t, os.Chtimes(blobPath, almostTwoWeeksAgo, almostTwoWeeksAgo))
+				}
+
+				return repo
+			},
+			expectedOptimizations: map[string]float64{
+				"packed_objects_incremental": 1,
+			},
+		},
+		{
+			desc: "old loose objects get pruned",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
+				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
+
+				// The repack won't repack the following objects because they're
+				// broken, and thus we'll retry to prune them afterwards.
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), 0o755))
+
+				moreThanTwoWeeksAgo := time.Now().AddDate(0, 0, -14).Add(-time.Minute)
+
+				for i := 0; i < 10; i++ {
+					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
+					require.NoError(t, os.WriteFile(blobPath, nil, 0o644))
+					require.NoError(t, os.Chtimes(blobPath, moreThanTwoWeeksAgo, moreThanTwoWeeksAgo))
 				}
 
 				return repo
@@ -756,7 +821,7 @@ func TestPruneIfNeeded(t *testing.T) {
 		require.False(t, didPrune)
 	})
 
-	t.Run("repo with five 17-prefixed objects does prune", func(t *testing.T) {
+	t.Run("repo with five 17-prefixed objects does prune after grace period", func(t *testing.T) {
 		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -772,15 +837,21 @@ func TestPruneIfNeeded(t *testing.T) {
 			blobs = append(blobs, blobID)
 		}
 
+		// We also write one blob that stays recent to verify it doesn't get pruned.
+		recentBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("922"))
+		require.True(t, strings.HasPrefix(recentBlob.String(), "17"))
+
+		// We shouldn't want to prune anything yet because there is no object older than two
+		// weeks.
 		didPrune, err := pruneIfNeeded(ctx, repo)
 		require.NoError(t, err)
-		require.True(t, didPrune)
+		require.False(t, didPrune)
 
-		// We shouldn't prune any objects which aren't older than the grace period of two
-		// weeks.
+		// Consequentially, the objects shouldn't have been pruned.
 		for _, blob := range blobs {
 			require.FileExists(t, objectPath(blob))
 		}
+		require.FileExists(t, objectPath(recentBlob))
 
 		// Now we modify the object's times to be older than two weeks.
 		twoWeeksAgo := time.Now().Add(-1 * 2 * 7 * 24 * time.Hour)
@@ -799,5 +870,8 @@ func TestPruneIfNeeded(t *testing.T) {
 		for _, blob := range blobs {
 			require.NoFileExists(t, objectPath(blob))
 		}
+
+		// The recent blob should continue to exist though.
+		require.FileExists(t, objectPath(recentBlob))
 	})
 }

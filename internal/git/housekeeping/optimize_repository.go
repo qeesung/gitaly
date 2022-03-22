@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -226,7 +227,7 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 		}, nil
 	}
 
-	looseObjectCount, err := estimateLooseObjectCount(repo)
+	looseObjectCount, err := estimateLooseObjectCount(repo, time.Now())
 	if err != nil {
 		return false, RepackObjectsConfig{}, fmt.Errorf("estimating loose object count: %w", err)
 	}
@@ -300,7 +301,10 @@ func packfileSizeAndCount(repo *localrepo.Repo) (int64, int64, error) {
 // object name being derived via a cryptographic hash we know that in the general case, objects are
 // evenly distributed across their sharding directories. We can thus estimate the number of loose
 // objects by opening a single sharding directory and counting its entries.
-func estimateLooseObjectCount(repo *localrepo.Repo) (int64, error) {
+//
+// If a cutoff date is given, then this function will only take into account objects which are
+// older than the given point in time.
+func estimateLooseObjectCount(repo *localrepo.Repo, cutoffDate time.Time) (int64, error) {
 	repoPath, err := repo.Path()
 	if err != nil {
 		return 0, fmt.Errorf("getting repository path: %w", err)
@@ -322,6 +326,19 @@ func estimateLooseObjectCount(repo *localrepo.Repo) (int64, error) {
 			continue
 		}
 
+		entryInfo, err := entry.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+
+			return 0, fmt.Errorf("reading object info: %w", err)
+		}
+
+		if entryInfo.ModTime().After(cutoffDate) {
+			continue
+		}
+
 		looseObjects++
 	}
 
@@ -338,7 +355,9 @@ func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 		return false, nil
 	}
 
-	looseObjectCount, err := estimateLooseObjectCount(repo)
+	// Only count objects older than two weeks. Objects which are more recent than that wouldn't
+	// get pruned anyway and thus cause us to prune all the time during the grace period.
+	looseObjectCount, err := estimateLooseObjectCount(repo, time.Now().AddDate(0, 0, -14))
 	if err != nil {
 		return false, fmt.Errorf("estimating loose object count: %w", err)
 	}
@@ -350,9 +369,9 @@ func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 	// time.
 	//
 	// Using the same limit here doesn't quite fix this case: the unreachable objects would only
-	// be pruned after a grace period of two weeks. But at least we know that we will eventually
-	// prune up those unreachable objects, at which point we won't try to do another incremental
-	// repack.
+	// be pruned after a grace period of two weeks. Because of that we only count objects which
+	// are older than this grace period such that we don't prune if there aren't any old and
+	// unreachable objects.
 	if looseObjectCount <= looseObjectLimit {
 		return false, nil
 	}
