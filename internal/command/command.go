@@ -101,6 +101,8 @@ type Command struct {
 	waitOnce  sync.Once
 
 	span opentracing.Span
+
+	cgroupPath string
 }
 
 type stdinSentinel struct{}
@@ -142,6 +144,11 @@ func (c *Command) Wait() error {
 	c.waitOnce.Do(c.wait)
 
 	return c.waitError
+}
+
+// SetCgroupPath sets the cgroup path for logging
+func (c *Command) SetCgroupPath(path string) {
+	c.cgroupPath = path
 }
 
 type contextWithoutDonePanic string
@@ -337,7 +344,7 @@ func (c *Command) logProcessComplete() {
 	userTime := cmd.ProcessState.UserTime()
 	realTime := time.Since(c.startTime)
 
-	entry := ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
+	fields := logrus.Fields{
 		"pid":                    cmd.ProcessState.Pid(),
 		"path":                   cmd.Path,
 		"args":                   cmd.Args,
@@ -346,7 +353,13 @@ func (c *Command) logProcessComplete() {
 		"command.user_time_ms":   userTime.Seconds() * 1000,
 		"command.cpu_time_ms":    (systemTime.Seconds() + userTime.Seconds()) * 1000,
 		"command.real_time_ms":   realTime.Seconds() * 1000,
-	})
+	}
+
+	if c.cgroupPath != "" {
+		fields["command.cgroup_path"] = c.cgroupPath
+	}
+
+	entry := ctxlogrus.Extract(ctx).WithFields(fields)
 
 	rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if ok {

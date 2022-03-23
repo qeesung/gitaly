@@ -14,6 +14,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -363,4 +364,23 @@ func extractLastMessage(logMessage string) string {
 	}
 
 	return subMatches[1]
+}
+
+func TestCommand_logMessage(t *testing.T) {
+	logger, hook := test.NewNullLogger()
+	logger.SetLevel(logrus.DebugLevel)
+
+	ctx := ctxlogrus.ToContext(testhelper.Context(t), logrus.NewEntry(logger))
+
+	cmd, err := New(ctx, exec.Command("echo", "hello world"), nil, nil, nil)
+	require.NoError(t, err)
+	cgroupPath := "/sys/fs/cgroup/1"
+	cmd.SetCgroupPath(cgroupPath)
+
+	require.NoError(t, cmd.Wait())
+	logEntry := hook.LastEntry()
+	assert.Equal(t, cmd.Pid(), logEntry.Data["pid"])
+	assert.Equal(t, []string{"echo", "hello world"}, logEntry.Data["args"])
+	assert.Equal(t, 0, logEntry.Data["command.exitCode"])
+	assert.Equal(t, cgroupPath, logEntry.Data["command.cgroup_path"])
 }

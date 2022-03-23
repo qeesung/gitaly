@@ -100,6 +100,8 @@ func (cg *CGroupV1Manager) AddCommand(cmd *command.Command) error {
 		return fmt.Errorf("failed adding process to cgroup: %w", err)
 	}
 
+	cmd.SetCgroupPath(cgroupPath)
+
 	return nil
 }
 

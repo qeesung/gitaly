@@ -11,7 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
@@ -127,14 +130,18 @@ func TestMetrics(t *testing.T) {
 	require.NoError(t, v1Manager1.Setup())
 	ctx := testhelper.Context(t)
 
+	logger, hook := test.NewNullLogger()
+	logger.SetLevel(logrus.DebugLevel)
+	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
+
 	cmd1 := exec.Command("ls", "-hal", ".")
 	cmd2, err := command.New(ctx, cmd1, nil, nil, nil)
 	require.NoError(t, err)
-	require.NoError(t, cmd2.Wait())
 
 	require.NoError(t, v1Manager1.AddCommand(cmd2))
+	require.NoError(t, cmd2.Wait())
 
-	cgroupPath := v1Manager1.currentProcessCgroup()
+	processCgroupPath := v1Manager1.currentProcessCgroup()
 
 	expected := bytes.NewBufferString(fmt.Sprintf(`# HELP gitaly_cgroup_cpu_usage CPU Usage of Cgroup
 # TYPE gitaly_cgroup_cpu_usage gauge
@@ -147,13 +154,21 @@ gitaly_cgroup_memory_failed_total{path="%s"} 2
 # TYPE gitaly_cgroup_procs_total gauge
 gitaly_cgroup_procs_total{path="%s",subsystem="memory"} 1
 gitaly_cgroup_procs_total{path="%s",subsystem="cpu"} 1
-`, cgroupPath, cgroupPath, cgroupPath, cgroupPath, cgroupPath))
+`, processCgroupPath, processCgroupPath, processCgroupPath, processCgroupPath, processCgroupPath))
 	assert.NoError(t, testutil.CollectAndCompare(
 		v1Manager1,
 		expected,
 		"gitaly_cgroup_memory_failed_total",
 		"gitaly_cgroup_cpu_usage",
 		"gitaly_cgroup_procs_total"))
+
+	logEntry := hook.LastEntry()
+	assert.Contains(
+		t,
+		logEntry.Data["command.cgroup_path"],
+		processCgroupPath,
+		"log field includes a cgroup path that is a subdirectory of the current process' cgroup path",
+	)
 }
 
 func readCgroupFile(t *testing.T, path string) []byte {
