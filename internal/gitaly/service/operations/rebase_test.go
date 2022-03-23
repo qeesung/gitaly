@@ -1,6 +1,8 @@
 package operations
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -14,7 +16,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
@@ -507,8 +511,11 @@ func TestFailedUserRebaseConfirmableDueToApplyBeingFalse(t *testing.T) {
 
 func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserRebaseConfirmableImprovedErrorHandling).
+		Run(t, testFailedUserRebaseConfirmableRequestDueToPreReceiveError)
+}
 
+func testFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -541,11 +548,23 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 
 			secondResponse, err := rebaseStream.Recv()
 
-			require.NoError(t, err, "receive second response")
-			require.Contains(t, secondResponse.PreReceiveError, "failure")
-
-			_, err = rebaseStream.Recv()
-			require.Equal(t, io.EOF, err)
+			if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
+				testhelper.RequireGrpcError(t, errWithDetails(t,
+					helper.ErrPermissionDeniedf(`access check: "failure\n"`),
+					&gitalypb.UserRebaseConfirmableError{
+						Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
+							AccessCheck: &gitalypb.AccessCheckError{
+								ErrorMessage: "failure\n",
+							},
+						},
+					},
+				), err)
+			} else {
+				require.NoError(t, err, "receive second response")
+				require.Contains(t, secondResponse.PreReceiveError, "failure")
+				_, err = rebaseStream.Recv()
+				require.Equal(t, io.EOF, err)
+			}
 
 			_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
 			if hookName == "pre-receive" {
@@ -561,10 +580,13 @@ func TestFailedUserRebaseConfirmableRequestDueToPreReceiveError(t *testing.T) {
 	}
 }
 
-func TestFailedUserRebaseConfirmableDueToGitError(t *testing.T) {
+func TestUserRebaseConfirmable_gitError(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserRebaseConfirmableImprovedErrorHandling).
+		Run(t, testFailedUserRebaseConfirmableDueToGitError)
+}
 
+func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repoCopyProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
@@ -578,14 +600,28 @@ func TestFailedUserRebaseConfirmableDueToGitError(t *testing.T) {
 	require.NoError(t, err)
 
 	headerRequest := buildHeaderRequest(repoProto, gittest.TestUser, "1", failedBranchName, branchSha, repoCopyProto, "master")
+
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
 	firstResponse, err := rebaseStream.Recv()
-	require.NoError(t, err, "receive first response")
-	require.Contains(t, firstResponse.GitError, "conflict")
+	if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
+		testhelper.RequireGrpcError(t, errWithDetails(t,
+			helper.ErrFailedPrecondition(errors.New(`rebasing commits: rebase: commit "eb8f5fb9523b868cef583e09d4bf70b99d2dd404": there are conflicting files`)),
+			&gitalypb.UserRebaseConfirmableError{
+				Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
+					RebaseConflict: &gitalypb.MergeConflictError{
+						ConflictingFiles: [][]byte{[]byte("README.md")},
+					},
+				},
+			},
+		), err)
+	} else {
+		require.NoError(t, err, "receive first response")
+		require.Contains(t, firstResponse.GitError, "conflict")
 
-	_, err = rebaseStream.Recv()
-	require.Equal(t, io.EOF, err)
+		_, err = rebaseStream.Recv()
+		require.Equal(t, io.EOF, err)
+	}
 
 	newBranchSha := getBranchSha(t, cfg, repoPath, failedBranchName)
 	require.Equal(t, branchSha, newBranchSha, "branch should not change when the rebase fails due to GitError")
