@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
@@ -19,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"gitlab.com/gitlab-org/labkit/correlation"
+	"google.golang.org/protobuf/proto"
 )
 
 type archiveParams struct {
@@ -91,6 +95,8 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 	if err != nil {
 		return err
 	}
+
+	ctxlogrus.Extract(ctx).WithField("request_hash", requestHash(in)).Info("request details")
 
 	return s.handleArchive(archiveParams{
 		ctx:         ctx,
@@ -242,4 +248,14 @@ func (s *server) handleArchive(p archiveParams) error {
 	}
 
 	return archiveCommand.Wait()
+}
+
+func requestHash(req proto.Message) string {
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		return "failed to hash request"
+	}
+
+	hash := sha256.Sum256(reqBytes)
+	return hex.EncodeToString(hash[:])
 }
