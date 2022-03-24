@@ -175,13 +175,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// ConcurrencyQueueMaxWait is in the codepath of every RPC call since it's in the limithandler
 	// middleware.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueMaxWait, true)
-	// We support using both bundled and non-bundled Git, which can be toggled via a feature
-	// flag if both are configured. Naturally, this kicks in whenever we spawn a Git command,
-	// and thus it's not feasible to inject the feature flag everywhere. Instead, we just use
-	// one of both randomly.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseBundledGit, mrand.Int()%2 == 0)
-	// Same as with the preceding feature flag, this flag is checked whenever we execute a Git
-	// command.
+	// This flag is checked whenever we execute a Git command, making it infeasible to inject it
+	// at every callsite.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2351WithFetchSpeedups, mrand.Int()%2 == 0)
 
 	for _, opt := range opts {

@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 )
@@ -180,6 +181,10 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	})
 
 	t.Run("set using GITALY_TESTING_BUNDLED_GIT_PATH", func(t *testing.T) {
+		// Force use of Git v2.35.1 so that we can easily handle the expected suffix.
+		ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2351WithFetchSpeedups, true)
+		suffix := "-v2.35.1.gl1"
+
 		bundledGitDir := testhelper.TempDir(t)
 
 		var bundledGitConstructors []git.BundledGitEnvironmentConstructor
@@ -190,8 +195,6 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 			}
 		}
 		require.NotEmpty(t, bundledGitConstructors)
-
-		suffix := bundledGitConstructors[0].Suffix
 
 		bundledGitExecutable := filepath.Join(bundledGitDir, "gitaly-git"+suffix)
 		bundledGitRemoteExecutable := filepath.Join(bundledGitDir, "gitaly-git-remote-http"+suffix)

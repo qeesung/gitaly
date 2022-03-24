@@ -28,7 +28,6 @@ var (
 		BundledGitEnvironmentConstructor{
 			Suffix: "-v2.35.1.gl1",
 			FeatureFlags: []featureflag.FeatureFlag{
-				featureflag.UseBundledGit,
 				featureflag.GitV2351WithFetchSpeedups,
 			},
 		},
@@ -36,9 +35,6 @@ var (
 			// This is the current default bundled Git environment, which does not yet
 			// have a version suffix.
 			Suffix: "",
-			FeatureFlags: []featureflag.FeatureFlag{
-				featureflag.UseBundledGit,
-			},
 		},
 		DistributedGitEnvironmentConstructor{},
 		FallbackGitEnvironmentConstructor{},
