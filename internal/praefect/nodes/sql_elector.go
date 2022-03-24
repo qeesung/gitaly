@@ -144,6 +144,8 @@ func (s *sqlElector) stop() {
 
 func (s *sqlElector) bootstrap(d time.Duration) {
 	ctx := context.Background()
+	//nolint:errcheck // We don't care for this error. The nodes manager is only
+	// used for the deprecated SQL elector anyway.
 	s.checkNodes(ctx)
 }
 
@@ -159,6 +161,9 @@ func (s *sqlElector) monitor(d time.Duration) {
 			return
 		case <-ticker.C:
 		}
+
+		//nolint:errcheck // We don't care for this error. The nodes manager is only
+		// used for the deprecated SQL elector anyway.
 		s.checkNodes(ctx)
 	}
 }

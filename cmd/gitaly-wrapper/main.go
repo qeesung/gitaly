@@ -58,7 +58,7 @@ func main() {
 	} else {
 		logger.Info("spawning a process")
 
-		proc, err := spawnProcess(binary, arguments)
+		proc, err := spawnProcess(logger, binary, arguments)
 		if err != nil {
 			logger.WithError(err).Fatal("spawn gitaly")
 		}
@@ -103,7 +103,7 @@ func findProcess(pidFilePath string) (*os.Process, error) {
 	return nil, nil
 }
 
-func spawnProcess(bin string, args []string) (*os.Process, error) {
+func spawnProcess(logger *logrus.Entry, bin string, args []string) (*os.Process, error) {
 	cmd := exec.Command(bin, args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=true", bootstrap.EnvUpgradesEnabled))
 
@@ -116,7 +116,11 @@ func spawnProcess(bin string, args []string) (*os.Process, error) {
 	}
 
 	// This cmd.Wait() is crucial. Without it we cannot detect if the command we just spawned has crashed.
-	go cmd.Wait()
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			logger.WithError(err).Error("waiting for supervised command")
+		}
+	}()
 
 	return cmd.Process, nil
 }

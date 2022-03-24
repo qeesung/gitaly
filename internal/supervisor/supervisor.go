@@ -200,6 +200,8 @@ spawnLoop:
 				break waitLoop
 			case <-p.shutdown:
 				if cmd.Process != nil {
+					//nolint:errcheck // TODO: do we want to report
+					// errors?
 					cmd.Process.Kill()
 				}
 				<-waitCh

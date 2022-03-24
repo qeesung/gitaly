@@ -217,10 +217,12 @@ func (w *worker) waitTerminate(pid int) {
 	terminationCounter.WithLabelValues(w.Name).Inc()
 
 	w.logPid(pid).Info("sending SIGTERM")
+	//nolint:errcheck // TODO: do we want to report errors?
 	syscall.Kill(pid, syscall.SIGTERM)
 
 	time.Sleep(w.gracefulRestartTimeout)
 
 	w.logPid(pid).Info("sending SIGKILL")
+	//nolint:errcheck // TODO: do we want to report errors?
 	syscall.Kill(pid, syscall.SIGKILL)
 }

@@ -254,6 +254,7 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		<-ctx.Done()
 
 		if process := cmd.Process; process != nil && process.Pid > 0 {
+			//nolint:errcheck // TODO: do we want to report errors?
 			// Send SIGTERM to the process group of cmd
 			syscall.Kill(-process.Pid, syscall.SIGTERM)
 		}

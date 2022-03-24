@@ -64,7 +64,8 @@ func NewPerRepositoryRouter(
 	csg datastore.ConsistentStoragesGetter,
 	ag AssignmentGetter,
 	rs datastore.RepositoryStore,
-	defaultReplicationFactors map[string]int) *PerRepositoryRouter {
+	defaultReplicationFactors map[string]int,
+) *PerRepositoryRouter {
 	return &PerRepositoryRouter{
 		conns:                     conns,
 		pg:                        pg,

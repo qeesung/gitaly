@@ -71,12 +71,12 @@ GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERS
 GO_BUILD_TAGS     := tracer_static,tracer_static_jaeger,tracer_static_stackdriver,continuous_profiler_stackdriver,static,system_libgit2
 
 # Dependency versions
-GOLANGCI_LINT_VERSION     ?= 1.43.0
+GOLANGCI_LINT_VERSION     ?= 1.44.2
 GOCOVER_COBERTURA_VERSION ?= aaee18c8195c3f2d90e5ef80ca918d265463842a
-GOFUMPT_VERSION           ?= 0.2.0
+GOFUMPT_VERSION           ?= 0.3.1
 GOIMPORTS_VERSION         ?= 2538eef75904eff384a2551359968e40c207d9d2
-GOSUMTEST_VERSION         ?= v1.7.0
-GO_LICENSES_VERSION       ?= 73411c8fa237ccc6a75af79d0a5bc021c9487aad
+GOTESTSUM_VERSION         ?= v1.7.0
+GO_LICENSES_VERSION       ?= v1.0.0
 # https://pkg.go.dev/github.com/protocolbuffers/protobuf
 PROTOC_VERSION            ?= v3.17.3
 # https://pkg.go.dev/google.golang.org/protobuf
@@ -416,11 +416,6 @@ test-with-proxies: prepare-tests
 test-with-praefect: prepare-tests
 	${Q}GITALY_TEST_WITH_PRAEFECT=YesPlease $(call run_go_tests)
 
-.PHONY: test-postgres
-## Run Go tests with Postgres.
-test-postgres: TEST_PACKAGES := gitlab.com/gitlab-org/gitaly/v14/internal/praefect/...
-test-postgres: test-go
-
 .PHONY: race-go
 ## Run Go tests with race detection enabled.
 race-go: TEST_OPTIONS := ${TEST_OPTIONS} -race
@@ -459,7 +454,6 @@ lint: ${GOLANGCI_LINT} libgit2
 format: ${GOIMPORTS} ${GOFUMPT}
 	${Q}${GOIMPORTS} -w -l $(call find_go_sources)
 	${Q}${GOFUMPT} -w $(call find_go_sources)
-	${Q}${GOIMPORTS} -w -l $(call find_go_sources)
 
 .PHONY: notice-up-to-date
 notice-up-to-date: ${BUILD_DIR}/NOTICE
@@ -478,9 +472,6 @@ clean:
 clean-ruby-vendor-go:
 	mkdir -p ${SOURCE_DIR}/ruby/vendor && find ${SOURCE_DIR}/ruby/vendor -type f -name '*.go' -delete
 
-.PHONY: check-proto
-check-proto: proto no-proto-changes lint-proto
-
 .PHONY: rubocop
 ## Run Rubocop.
 rubocop: ${SOURCE_DIR}/.ruby-bundle
@@ -490,9 +481,8 @@ rubocop: ${SOURCE_DIR}/.ruby-bundle
 ## Generate coverage report via Go tests.
 cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${COVERAGE_DIR}/all.merged"
 cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
-	${Q}echo "NOTE: make cover does not exit 1 on failure, don't use it to check for tests success!"
+	${Q}rm -rf "${COVERAGE_DIR}"
 	${Q}mkdir -p "${COVERAGE_DIR}"
-	${Q}rm -f "${COVERAGE_DIR}/all.merged" "${COVERAGE_DIR}/all.html"
 	${Q}$(call run_go_tests)
 	${Q}go tool cover -html  "${COVERAGE_DIR}/all.merged" -o "${COVERAGE_DIR}/all.html"
 	@ # sed is used below to convert file paths to repository root relative paths. See https://gitlab.com/gitlab-org/gitlab/-/issues/217664
@@ -519,6 +509,9 @@ proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${SOURCE_DIR}/.ruby-bund
 		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto
 	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/proto --go-grpc_out=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto/go/internal/linter/testdata/*.proto
 
+.PHONY: check-proto
+check-proto: proto no-proto-changes lint-proto
+
 .PHONY: lint-proto
 lint-proto: ${PROTOC} ${PROTOC_GEN_GITALY}
 	${Q}${PROTOC} --plugin=${PROTOC_GEN_GITALY} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --gitaly_out=proto_dir=${SOURCE_DIR}/proto,gitalypb_dir=${SOURCE_DIR}/proto/go/gitalypb:${SOURCE_DIR} ${SOURCE_DIR}/proto/*.proto
@@ -529,18 +522,12 @@ no-changes:
 
 .PHONY: no-proto-changes
 no-proto-changes: | ${BUILD_DIR}
-	${Q}${GIT} diff -- '*.pb.go' 'ruby/proto/gitaly' >${BUILD_DIR}/proto.diff
-	${Q}if [ -s ${BUILD_DIR}/proto.diff ]; then echo "There is a difference in generated proto files. Please take a look at ${BUILD_DIR}/proto.diff file." && exit 1; fi
+	${Q}${GIT} diff --exit-code -- '*.pb.go' 'ruby/proto/gitaly'
 
 .PHONY: dump-database-schema
 ## Dump the clean database schema of Praefect into a file.
 dump-database-schema: build
 	${Q}"${SOURCE_DIR}"/_support/generate-praefect-schema >"${SOURCE_DIR}"/_support/praefect-schema.sql
-
-.PHONY: smoke-test
-smoke-test: TEST_PACKAGES := ${SOURCE_DIR}/internal/gitaly/rubyserver
-smoke-test: all rspec
-	$(call run_go_tests)
 
 .PHONY: upgrade-module
 upgrade-module:
@@ -567,12 +554,7 @@ ${SOURCE_DIR}/NOTICE: ${BUILD_DIR}/NOTICE
 
 ${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go
 	${Q}rm -rf ${BUILD_DIR}/licenses
-	${Q}GOOS=linux GOFLAGS="-tags=${GO_BUILD_TAGS}" ${GO_LICENSES} save ./... --save_path=${BUILD_DIR}/licenses
-	@ # some projects may be copied from the Go module cache
-	@ # (GOPATH/pkg/mod) and retain strict permissions (444). These
-	@ # permissions are not desirable when removing and rebuilding:
-	${Q}find ${BUILD_DIR}/licenses -type d -exec chmod 0755 {} \;
-	${Q}find ${BUILD_DIR}/licenses -type f -exec chmod 0644 {} \;
+	${Q}GOOS=linux GOFLAGS="-tags=${GO_BUILD_TAGS}" ${GO_LICENSES} save ${SOURCE_DIR}/... --save_path=${BUILD_DIR}/licenses
 	${Q}go run ${SOURCE_DIR}/_support/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/_support/noticegen/notice.template > ${BUILD_DIR}/NOTICE
 
 ${BUILD_DIR}:
@@ -734,7 +716,7 @@ ${GOIMPORTS}:         TOOL_VERSION = ${GOIMPORTS_VERSION}
 ${GOLANGCI_LINT}:     TOOL_PACKAGE = github.com/golangci/golangci-lint/cmd/golangci-lint
 ${GOLANGCI_LINT}:     TOOL_VERSION = v${GOLANGCI_LINT_VERSION}
 ${GOTESTSUM}:         TOOL_PACKAGE = gotest.tools/gotestsum
-${GOTESTSUM}:         TOOL_VERSION = ${GOSUMTEST_VERSION}
+${GOTESTSUM}:         TOOL_VERSION = ${GOTESTSUM_VERSION}
 ${GO_LICENSES}:       TOOL_PACKAGE = github.com/google/go-licenses
 ${GO_LICENSES}:       TOOL_VERSION = ${GO_LICENSES_VERSION}
 ${PROTOC_GEN_GO}:     TOOL_PACKAGE = google.golang.org/protobuf/cmd/protoc-gen-go

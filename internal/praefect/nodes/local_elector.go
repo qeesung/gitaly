@@ -52,7 +52,11 @@ func (s *localElector) bootstrap(d time.Duration) {
 		<-timer.C
 
 		ctx := context.TODO()
-		s.checkNodes(ctx)
+
+		if err := s.checkNodes(ctx); err != nil {
+			s.log.WithError(err).Warn("error checking nodes")
+		}
+
 		timer.Reset(d)
 	}
 }

@@ -218,7 +218,9 @@ test:pgbouncer:
     - *test_before_script
     - while ! psql -h "${PGHOST_PGBOUNCER}" -p "${PGPORT_PGBOUNCER}" -U "${PGUSER}" -c 'SELECT 1' > /dev/null; do echo "awaiting PgBouncer service to be ready..." && sleep 1 ; done && echo "PgBouncer service is ready!"
   script:
-    - make test-postgres
+    # We need to explicitly build all prerequisites so that we can run tests unprivileged.
+    - make build prepare-tests
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
 test:nightly:
   <<: *test_definition

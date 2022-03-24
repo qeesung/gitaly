@@ -229,6 +229,9 @@ func (n *Mgr) Stop() {
 func (n *Mgr) checkShards() {
 	for _, strategy := range n.strategies {
 		ctx := context.Background()
+
+		//nolint:errcheck // We don't care for this error. The nodes manager is only
+		// used for the deprecated SQL elector anyway.
 		strategy.checkNodes(ctx)
 	}
 }

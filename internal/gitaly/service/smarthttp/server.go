@@ -18,7 +18,8 @@ type server struct {
 
 // NewServer creates a new instance of a grpc SmartHTTPServer
 func NewServer(locator storage.Locator, gitCmdFactory git.CommandFactory,
-	cache cache.Streamer, serverOpts ...ServerOpt) gitalypb.SmartHTTPServiceServer {
+	cache cache.Streamer, serverOpts ...ServerOpt,
+) gitalypb.SmartHTTPServiceServer {
 	s := &server{
 		locator:       locator,
 		gitCmdFactory: gitCmdFactory,
