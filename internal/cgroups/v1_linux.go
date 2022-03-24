@@ -181,7 +181,7 @@ func (cg *CGroupV1Manager) currentProcessCgroup() string {
 
 func defaultSubsystems(root string) ([]cgroups.Subsystem, error) {
 	subsystems := []cgroups.Subsystem{
-		cgroups.NewMemory(root),
+		cgroups.NewMemory(root, cgroups.OptionalSwap()),
 		cgroups.NewCpu(root),
 	}
 
