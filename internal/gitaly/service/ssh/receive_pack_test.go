@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -118,18 +119,16 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	// when deserializing the HooksPayload. By setting all flags to `true` explicitly, we both
 	// verify that gitaly-ssh picks up feature flags correctly and fix the test to behave the
 	// same with and without Praefect.
-	featureFlags := map[featureflag.FeatureFlag]bool{}
 	for _, featureFlag := range featureflag.All {
-		featureFlags[featureFlag] = true
+		ctx = featureflag.ContextWithFeatureFlag(ctx, featureFlag, true)
 	}
 
-	lHead, rHead, err := testCloneAndPush(t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
+	lHead, rHead, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
 		storageName:   cfg.Storages[0].Name,
 		glID:          "123",
 		glUsername:    "user",
 		glRepository:  glRepository,
 		glProjectPath: glProjectPath,
-		featureFlags:  featureFlags,
 	})
 	require.NoError(t, err)
 	require.Equal(t, lHead, rHead, "local and remote head not equal. push failed")
@@ -187,7 +186,7 @@ func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
 		Seed: gittest.SeedGitLabTest,
 	})
 
-	lHead, rHead, err := testCloneAndPush(t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
+	lHead, rHead, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
 		storageName:  testhelper.DefaultStorageName,
 		glRepository: "project-123",
 		glID:         "1",
@@ -204,14 +203,16 @@ func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
 func TestReceivePackPushFailure(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
+
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	serverSocketPath := runSSHServer(t, cfg)
 
-	_, _, err := testCloneAndPush(t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: "foobar", glID: "1"})
+	_, _, err := testCloneAndPush(ctx, t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: "foobar", glID: "1"})
 	require.Error(t, err, "local and remote head equal. push did not fail")
 
-	_, _, err = testCloneAndPush(t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: ""})
+	_, _, err = testCloneAndPush(ctx, t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: ""})
 	require.Error(t, err, "local and remote head equal. push did not fail")
 }
 
@@ -233,7 +234,7 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 	hookContent := []byte("#!/bin/sh\nexit 1")
 	require.NoError(t, os.WriteFile(filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), hookContent, 0o755))
 
-	_, _, err := testCloneAndPush(t, cfg, cfg.SocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: "1"})
+	_, _, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: "1"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "(pre-receive hook declined)")
 }
@@ -549,7 +550,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 
 	gittest.WriteCheckNewObjectExistsHook(t, cloneDetails.RemoteRepoPath)
 
-	lHead, rHead, err := sshPush(t, cfg, cloneDetails, cfg.SocketPath, pushParams{
+	lHead, rHead, err := sshPush(ctx, t, cfg, cloneDetails, cfg.SocketPath, pushParams{
 		storageName:  cfg.Storages[0].Name,
 		glID:         glID,
 		glRepository: glRepository,
@@ -571,18 +572,23 @@ type SSHCloneDetails struct {
 
 // setupSSHClone sets up a test clone
 func setupSSHClone(t *testing.T, cfg config.Cfg, remoteRepo *gitalypb.Repository, remoteRepoPath string) (SSHCloneDetails, func()) {
-	// Make a non-bare clone of the test repo to act as a local one
-	_, localRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		WithWorktree: true,
-	})
+	_, localRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
-	// We need git thinking we're pushing over SSH...
-	oldHead, newHead, success := makeCommit(t, cfg, localRepoPath)
-	require.True(t, success)
+	oldHead := text.ChompBytes(gittest.Exec(t, cfg, "-C", localRepoPath, "rev-parse", "HEAD"))
+	newHead := gittest.WriteCommit(t, cfg, localRepoPath,
+		gittest.WithMessage(fmt.Sprintf("Testing ReceivePack RPC around %d", time.Now().Unix())),
+		gittest.WithTreeEntries(gittest.TreeEntry{
+			Path:    "foo.txt",
+			Mode:    "100644",
+			Content: "foo bar",
+		}),
+		gittest.WithBranch("master"),
+		gittest.WithParents(git.ObjectID(oldHead)),
+	)
 
 	return SSHCloneDetails{
-			OldHead:        oldHead,
-			NewHead:        newHead,
+			OldHead:        []byte(oldHead),
+			NewHead:        []byte(newHead.String()),
 			LocalRepoPath:  localRepoPath,
 			RemoteRepoPath: remoteRepoPath,
 			TempRepo:       remoteRepo.GetRelativePath(),
@@ -592,7 +598,7 @@ func setupSSHClone(t *testing.T, cfg config.Cfg, remoteRepo *gitalypb.Repository
 		}
 }
 
-func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverSocketPath string, params pushParams) (string, string, error) {
+func sshPush(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverSocketPath string, params pushParams) (string, string, error) {
 	pbTempRepo := &gitalypb.Repository{
 		StorageName:   params.storageName,
 		RelativePath:  cloneDetails.TempRepo,
@@ -609,16 +615,11 @@ func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverS
 	})
 	require.NoError(t, err)
 
-	featureFlags := []string{}
-	for flag, value := range params.featureFlags {
-		featureFlags = append(featureFlags, fmt.Sprintf("%s:%v", flag.Name, value))
-	}
-
 	cmd := gittest.NewCommand(t, cfg, "-C", cloneDetails.LocalRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
 	cmd.Env = []string{
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
-		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureFlags, ",")),
+		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureflag.AllFlags(ctx), ",")),
 		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
 	}
 
@@ -637,39 +638,11 @@ func sshPush(t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverS
 	return string(localHead), string(remoteHead), nil
 }
 
-func testCloneAndPush(t *testing.T, cfg config.Cfg, serverSocketPath string, remoteRepo *gitalypb.Repository, remoteRepoPath string, params pushParams) (string, string, error) {
+func testCloneAndPush(ctx context.Context, t *testing.T, cfg config.Cfg, serverSocketPath string, remoteRepo *gitalypb.Repository, remoteRepoPath string, params pushParams) (string, string, error) {
 	cloneDetails, cleanup := setupSSHClone(t, cfg, remoteRepo, remoteRepoPath)
 	defer cleanup()
 
-	return sshPush(t, cfg, cloneDetails, serverSocketPath, params)
-}
-
-// makeCommit creates a new commit and returns oldHead, newHead, success
-func makeCommit(t *testing.T, cfg config.Cfg, localRepoPath string) ([]byte, []byte, bool) {
-	commitMsg := fmt.Sprintf("Testing ReceivePack RPC around %d", time.Now().Unix())
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
-	newFilePath := localRepoPath + "/foo.txt"
-
-	// Create a tiny file and add it to the index
-	require.NoError(t, os.WriteFile(newFilePath, []byte("foo bar"), 0o644))
-	gittest.Exec(t, cfg, "-C", localRepoPath, "add", ".")
-
-	// The latest commit ID on the remote repo
-	oldHead := bytes.TrimSpace(gittest.Exec(t, cfg, "-C", localRepoPath, "rev-parse", "master"))
-
-	gittest.Exec(t, cfg, "-C", localRepoPath,
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
-		"commit", "-m", commitMsg)
-	if t.Failed() {
-		return nil, nil, false
-	}
-
-	// The commit ID we want to push to the remote repo
-	newHead := bytes.TrimSpace(gittest.Exec(t, cfg, "-C", localRepoPath, "rev-parse", "master"))
-
-	return oldHead, newHead, true
+	return sshPush(ctx, t, cfg, cloneDetails, serverSocketPath, params)
 }
 
 func drainPostReceivePackResponse(stream gitalypb.SSHService_SSHReceivePackClient) error {
@@ -688,5 +661,4 @@ type pushParams struct {
 	glProjectPath    string
 	gitConfigOptions []string
 	gitProtocol      string
-	featureFlags     map[featureflag.FeatureFlag]bool
 }
