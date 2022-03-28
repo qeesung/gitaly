@@ -375,10 +375,9 @@ install: install-bundled-git
 
 export GITALY_TESTING_BUNDLED_GIT_PATH ?= ${BUILD_DIR}/bin
 else
-prepare-tests: git build-bundled-git
+prepare-tests: git
 
-export GITALY_TESTING_BUNDLED_GIT_PATH ?= ${BUILD_DIR}/bin
-export GITALY_TESTING_GIT_BINARY       ?= ${GIT_PREFIX}/bin/git
+export GITALY_TESTING_GIT_BINARY ?= ${GIT_PREFIX}/bin/git
 endif
 
 .PHONY: prepare-tests
