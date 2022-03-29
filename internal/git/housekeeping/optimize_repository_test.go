@@ -1,6 +1,7 @@
 package housekeeping
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -503,10 +504,10 @@ func TestOptimizeRepository(t *testing.T) {
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
 
 	for _, tc := range []struct {
-		desc                  string
-		setup                 func(t *testing.T) *gitalypb.Repository
-		expectedErr           error
-		expectedOptimizations map[string]float64
+		desc            string
+		setup           func(t *testing.T) *gitalypb.Repository
+		expectedErr     error
+		expectedMetrics string
 	}{
 		{
 			desc: "empty repository tries to write bitmap",
@@ -514,10 +515,12 @@ func TestOptimizeRepository(t *testing.T) {
 				repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_objects_full": 1,
-				"written_bitmap":      1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_full", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="written_bitmap", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "repository without bitmap repacks objects",
@@ -525,10 +528,12 @@ func TestOptimizeRepository(t *testing.T) {
 				repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_objects_full": 1,
-				"written_bitmap":      1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_full", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="written_bitmap", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "repository without commit-graph repacks objects",
@@ -537,10 +542,12 @@ func TestOptimizeRepository(t *testing.T) {
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_objects_full": 1,
-				"written_bitmap":      1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_full", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="written_bitmap", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "well-packed repository does not optimize",
@@ -550,6 +557,10 @@ func TestOptimizeRepository(t *testing.T) {
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
 				return repo
 			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "recent loose objects don't get pruned",
@@ -575,9 +586,11 @@ func TestOptimizeRepository(t *testing.T) {
 
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_objects_incremental": 1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_incremental", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "old loose objects get pruned",
@@ -600,10 +613,12 @@ func TestOptimizeRepository(t *testing.T) {
 
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_objects_incremental": 1,
-				"pruned_objects":             1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_incremental", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="pruned_objects",status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "loose refs get packed",
@@ -619,9 +634,11 @@ func TestOptimizeRepository(t *testing.T) {
 
 				return repo
 			},
-			expectedOptimizations: map[string]float64{
-				"packed_refs": 1,
-			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_refs", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -635,16 +652,11 @@ func TestOptimizeRepository(t *testing.T) {
 			err := manager.OptimizeRepository(ctx, repo)
 			require.Equal(t, tc.expectedErr, err)
 
-			for _, metric := range []string{
-				"packed_objects_incremental",
-				"packed_objects_full",
-				"pruned_objects",
-				"packed_refs",
-				"written_bitmap",
-			} {
-				value := testutil.ToFloat64(manager.tasksTotal.WithLabelValues(metric))
-				require.Equal(t, tc.expectedOptimizations[metric], value, metric)
-			}
+			assert.NoError(t, testutil.CollectAndCompare(
+				manager.tasksTotal,
+				bytes.NewBufferString(tc.expectedMetrics),
+				"gitaly_housekeeping_tasks_total",
+			))
 		})
 	}
 }

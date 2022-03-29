@@ -41,7 +41,7 @@ func NewManager(promCfg gitalycfgprom.Config, txManager transaction.Manager) *Re
 				Name: "gitaly_housekeeping_tasks_total",
 				Help: "Total number of housekeeping tasks performed in the repository",
 			},
-			[]string{"housekeeping_task"},
+			[]string{"housekeeping_task", "status"},
 		),
 		tasksLatency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{

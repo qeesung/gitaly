@@ -1,22 +1,13 @@
 package server
 
 import (
-	"context"
-	"fmt"
-	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
-	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
-	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/maintenance"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
 
@@ -47,59 +38,6 @@ func NewGitalyServerFactory(
 		cacheInvalidator: cacheInvalidator,
 		limitHandler:     limitHandler,
 	}
-}
-
-// StartWorkers will start any auxiliary background workers that are allowed
-// to fail without stopping the rest of the server.
-func (s *GitalyServerFactory) StartWorkers(ctx context.Context, l logrus.FieldLogger, cfg config.Cfg) (func(), error) {
-	var opts []grpc.DialOption
-	if cfg.Auth.Token != "" {
-		opts = append(opts, grpc.WithPerRPCCredentials(
-			gitalyauth.RPCCredentialsV2(cfg.Auth.Token),
-		))
-	}
-
-	cc, err := client.Dial("unix:"+cfg.GitalyInternalSocketPath(), opts)
-	if err != nil {
-		return nil, err
-	}
-
-	errQ := make(chan error)
-
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		errQ <- maintenance.NewDailyWorker().StartDaily(
-			ctx,
-			l,
-			cfg.DailyMaintenance,
-			maintenance.OptimizeReposRandomly(
-				cfg.Storages,
-				gitalypb.NewRepositoryServiceClient(cc),
-				helper.NewTimerTicker(1*time.Second),
-				rand.New(rand.NewSource(time.Now().UnixNano())),
-			),
-		)
-	}()
-
-	shutdown := func() {
-		cancel()
-
-		// give the worker 5 seconds to shutdown gracefully
-		timeout := 5 * time.Second
-
-		var err error
-		select {
-		case err = <-errQ:
-			break
-		case <-time.After(timeout):
-			err = fmt.Errorf("timed out after %s", timeout)
-		}
-		if err != nil && err != context.Canceled {
-			l.WithError(err).Error("maintenance worker shutdown")
-		}
-	}
-
-	return shutdown, nil
 }
 
 // Stop immediately stops all servers created by the GitalyServerFactory.

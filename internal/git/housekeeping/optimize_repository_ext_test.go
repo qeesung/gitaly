@@ -119,22 +119,16 @@ func TestPruneIfNeeded(t *testing.T) {
 			ctx := ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 			require.NoError(t, housekeeping.NewManager(cfg.Prometheus, nil).OptimizeRepository(ctx, repo))
-			require.Equal(t,
-				struct {
-					PackedObjectsIncremental bool `json:"packed_objects_incremental"`
-					PackedObjectsFull        bool `json:"packed_objects_full"`
-					PrunedObjects            bool `json:"pruned_objects"`
-					PackedRefs               bool `json:"packed_refs"`
-					WrittenBitmap            bool `json:"written_bitmap"`
-				}{
-					PackedObjectsIncremental: false,
-					PackedObjectsFull:        true,
-					PrunedObjects:            tc.expectedPrune,
-					PackedRefs:               false,
-					WrittenBitmap:            true,
-				},
-				hook.Entries[len(hook.Entries)-1].Data["optimizations"],
-			)
+			expectedLogEntry := map[string]string{
+				"packed_objects_full": "success",
+				"written_bitmap":      "success",
+			}
+
+			if tc.expectedPrune {
+				expectedLogEntry["pruned_objects"] = "success"
+			}
+
+			require.Equal(t, expectedLogEntry, hook.Entries[len(hook.Entries)-1].Data["optimizations"])
 		})
 	}
 }

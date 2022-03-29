@@ -3,30 +3,61 @@ package maintenance
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc"
 )
 
-var repoOptimizationHistogram = prometheus.NewHistogram(
-	prometheus.HistogramOpts{
-		Name:    "gitaly_daily_maintenance_repo_optimization_seconds",
-		Help:    "How many seconds each repo takes to successfully optimize during daily maintenance",
-		Buckets: []float64{0.01, 0.1, 1.0, 10.0, 100},
-	},
-)
+// WorkerFunc is a function that does a unit of work meant to run in the background
+type WorkerFunc func(context.Context, logrus.FieldLogger) error
 
-func init() {
-	prometheus.MustRegister(repoOptimizationHistogram)
+// StartWorkers will start any background workers and returns a function that
+// can be used to shut down the background workers.
+func StartWorkers(
+	ctx context.Context,
+	l logrus.FieldLogger,
+	workers ...WorkerFunc,
+) (func(), error) {
+	errQ := make(chan error)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	for _, worker := range workers {
+		worker := worker
+		go func() {
+			errQ <- worker(ctx, l)
+		}()
+	}
+
+	shutdown := func() {
+		cancel()
+
+		// give the worker 5 seconds to shutdown gracefully
+		timeout := 5 * time.Second
+
+		var err error
+		select {
+		case err = <-errQ:
+			break
+		case <-time.After(timeout):
+			err = fmt.Errorf("timed out after %s", timeout)
+		}
+		if err != nil && err != context.Canceled {
+			l.WithError(err).Error("maintenance worker shutdown")
+		}
+	}
+
+	return shutdown, nil
 }
 
 func shuffledStoragesCopy(randSrc *rand.Rand, storages []config.Storage) []config.Storage {
@@ -38,7 +69,32 @@ func shuffledStoragesCopy(randSrc *rand.Rand, storages []config.Storage) []confi
 
 // Optimizer knows how to optimize a repository
 type Optimizer interface {
-	OptimizeRepository(context.Context, *gitalypb.OptimizeRepositoryRequest, ...grpc.CallOption) (*gitalypb.OptimizeRepositoryResponse, error)
+	OptimizeRepository(context.Context, repository.GitRepo) error
+}
+
+// OptimizerFunc is an adapter to allow the use of an ordinary function as an Optimizer
+type OptimizerFunc func(context.Context, repository.GitRepo) error
+
+// OptimizeRepository calls o(ctx, repo)
+func (o OptimizerFunc) OptimizeRepository(ctx context.Context, repo repository.GitRepo) error {
+	return o(ctx, repo)
+}
+
+// DailyOptimizationWorker creates a worker that runs repository maintenance daily
+func DailyOptimizationWorker(cfg config.Cfg, optimizer Optimizer) WorkerFunc {
+	return func(ctx context.Context, l logrus.FieldLogger) error {
+		return NewDailyWorker().StartDaily(
+			ctx,
+			l,
+			cfg.DailyMaintenance,
+			OptimizeReposRandomly(
+				cfg.Storages,
+				optimizer,
+				helper.NewTimerTicker(1*time.Second),
+				rand.New(rand.NewSource(time.Now().UnixNano())),
+			),
+		)
+	}
 }
 
 func optimizeRepoAtPath(ctx context.Context, l logrus.FieldLogger, s config.Storage, absPath string, o Optimizer) error {
@@ -52,28 +108,26 @@ func optimizeRepoAtPath(ctx context.Context, l logrus.FieldLogger, s config.Stor
 		RelativePath: relPath,
 	}
 
-	optimizeReq := &gitalypb.OptimizeRepositoryRequest{
-		Repository: repo,
-	}
+	start := time.Now()
+	logEntry := l.WithFields(map[string]interface{}{
+		"relative_path": relPath,
+		"storage":       s.Name,
+		"source":        "maintenance.daily",
+		"start_time":    start.UTC(),
+	})
 
-	// In order to prevent RPC cancellation because of the parent context cancellation
-	// (job execution duration passed) we suppress cancellation of the parent and add a
-	// new time limit to make sure it won't block forever.
-	// It also helps us to be protected over repositories that are taking too long to complete
-	// a request, so no any other repository can be optimized.
-	ctx, cancel := context.WithTimeout(helper.SuppressCancellation(ctx), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(ctxlogrus.ToContext(ctx, logEntry), 5*time.Minute)
 	defer cancel()
 
-	start := time.Now()
-	if _, err := o.OptimizeRepository(ctx, optimizeReq); err != nil {
-		l.WithFields(map[string]interface{}{
-			"relative_path": relPath,
-			"storage":       s.Name,
-		}).WithError(err).
-			Errorf("maintenance: repo optimization failure")
-	}
-	repoOptimizationHistogram.Observe(time.Since(start).Seconds())
+	err = o.OptimizeRepository(ctx, repo)
+	logEntry = logEntry.WithField("time_ms", time.Since(start).Milliseconds())
 
+	if err != nil {
+		logEntry.WithError(err).Errorf("maintenance: repo optimization failure")
+		return err
+	}
+
+	logEntry.Info("maintenance: repo optimization succeeded")
 	return nil
 }
 

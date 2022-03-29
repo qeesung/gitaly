@@ -9,51 +9,36 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/client"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/housekeeping"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
+	repo "gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc"
 )
 
 type mockOptimizer struct {
 	t      testing.TB
-	actual []*gitalypb.Repository
+	actual []repo.GitRepo
 	cfg    config.Cfg
 }
 
-func (mo *mockOptimizer) OptimizeRepository(ctx context.Context, req *gitalypb.OptimizeRepositoryRequest, _ ...grpc.CallOption) (*gitalypb.OptimizeRepositoryResponse, error) {
-	mo.actual = append(mo.actual, req.Repository)
+func (mo *mockOptimizer) OptimizeRepository(ctx context.Context, repository repo.GitRepo) error {
+	mo.actual = append(mo.actual, repository)
 	l := config.NewLocator(mo.cfg)
 	gitCmdFactory := gittest.NewCommandFactory(mo.t, mo.cfg)
 	catfileCache := catfile.NewCache(mo.cfg)
 	mo.t.Cleanup(catfileCache.Stop)
-	git2goExecutor := git2go.NewExecutor(mo.cfg, gitCmdFactory, l)
 	txManager := transaction.NewManager(mo.cfg, backchannel.NewRegistry())
 	housekeepingManager := housekeeping.NewManager(mo.cfg.Prometheus, txManager)
 
-	connsPool := client.NewPool()
-	mo.t.Cleanup(func() { testhelper.MustClose(mo.t, connsPool) })
-
-	resp, err := repository.NewServer(mo.cfg, nil, l,
-		txManager,
-		gitCmdFactory,
-		catfileCache,
-		connsPool,
-		git2goExecutor,
-		housekeepingManager,
-	).OptimizeRepository(ctx, req)
-	assert.NoError(mo.t, err)
-	return resp, err
+	return housekeepingManager.OptimizeRepository(ctx, localrepo.New(l, gitCmdFactory, catfileCache, repository))
 }
 
 func TestOptimizeReposRandomly(t *testing.T) {
@@ -131,14 +116,14 @@ type mockOptimizerCancel struct {
 	startedAt time.Time
 }
 
-func (m mockOptimizerCancel) OptimizeRepository(ctx context.Context, _ *gitalypb.OptimizeRepositoryRequest, _ ...grpc.CallOption) (*gitalypb.OptimizeRepositoryResponse, error) {
+func (m mockOptimizerCancel) OptimizeRepository(ctx context.Context, _ repo.GitRepo) error {
 	timeline, ok := ctx.Deadline()
 	if assert.True(m.t, ok) {
 		assert.True(m.t, timeline.After(m.startedAt), m.startedAt)
 		future := m.startedAt.Add(10 * time.Minute)
 		assert.True(m.t, timeline.Before(future), future)
 	}
-	return &gitalypb.OptimizeRepositoryResponse{}, nil
+	return nil
 }
 
 func TestOptimizeReposRandomly_cancellationOverride(t *testing.T) {

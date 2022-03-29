@@ -41,31 +41,18 @@ func (m *RepositoryManager) OptimizeRepository(ctx context.Context, repo *localr
 
 func optimizeRepository(ctx context.Context, m *RepositoryManager, repo *localrepo.Repo) error {
 	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
+	totalStatus := "failure"
 
-	optimizations := struct {
-		PackedObjectsIncremental bool `json:"packed_objects_incremental"`
-		PackedObjectsFull        bool `json:"packed_objects_full"`
-		PrunedObjects            bool `json:"pruned_objects"`
-		PackedRefs               bool `json:"packed_refs"`
-		WrittenBitmap            bool `json:"written_bitmap"`
-	}{}
+	optimizations := make(map[string]string)
 	defer func() {
 		totalTimer.ObserveDuration()
 		ctxlogrus.Extract(ctx).WithField("optimizations", optimizations).Info("optimized repository")
 
-		for task, executed := range map[string]bool{
-			"packed_objects_incremental": optimizations.PackedObjectsIncremental,
-			"packed_objects_full":        optimizations.PackedObjectsFull,
-			"pruned_objects":             optimizations.PrunedObjects,
-			"packed_refs":                optimizations.PackedRefs,
-			"written_bitmap":             optimizations.WrittenBitmap,
-		} {
-			if executed {
-				m.tasksTotal.WithLabelValues(task).Add(1)
-			}
+		for task, status := range optimizations {
+			m.tasksTotal.WithLabelValues(task, status).Inc()
 		}
 
-		m.tasksTotal.WithLabelValues("total").Add(1)
+		m.tasksTotal.WithLabelValues("total", totalStatus).Add(1)
 	}()
 
 	timer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-stale-data"))
@@ -83,30 +70,45 @@ func optimizeRepository(ctx context.Context, m *RepositoryManager, repo *localre
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("repack"))
 	didRepack, repackCfg, err := repackIfNeeded(ctx, repo)
 	if err != nil {
+		optimizations["packed_objects_full"] = "failure"
+		optimizations["packed_objects_incremental"] = "failure"
+		optimizations["written_bitmap"] = "failure"
 		return fmt.Errorf("could not repack: %w", err)
 	}
 	if didRepack {
-		optimizations.PackedObjectsIncremental = !repackCfg.FullRepack
-		optimizations.PackedObjectsFull = repackCfg.FullRepack
-		optimizations.WrittenBitmap = repackCfg.WriteBitmap
+		if repackCfg.FullRepack {
+			optimizations["packed_objects_full"] = "success"
+		} else {
+			optimizations["packed_objects_incremental"] = "success"
+		}
+		if repackCfg.WriteBitmap {
+			optimizations["written_bitmap"] = "success"
+		}
 	}
+
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("prune"))
 	didPrune, err := pruneIfNeeded(ctx, repo)
 	if err != nil {
+		optimizations["pruned_objects"] = "failure"
 		return fmt.Errorf("could not prune: %w", err)
+	} else if didPrune {
+		optimizations["pruned_objects"] = "success"
 	}
-	optimizations.PrunedObjects = didPrune
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("pack-refs"))
 	didPackRefs, err := packRefsIfNeeded(ctx, repo)
 	if err != nil {
+		optimizations["packed_refs"] = "failure"
 		return fmt.Errorf("could not pack refs: %w", err)
+	} else if didPackRefs {
+		optimizations["packed_refs"] = "success"
 	}
-	optimizations.PackedRefs = didPackRefs
+
 	timer.ObserveDuration()
+	totalStatus = "success"
 
 	return nil
 }
