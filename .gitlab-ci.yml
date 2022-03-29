@@ -27,7 +27,6 @@ include:
   - template: Security/License-Scanning.gitlab-ci.yml
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
-  - template: Security/Coverage-Fuzzing.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
   - project: 'gitlab-org/quality/pipeline-common'
     file:
@@ -235,16 +234,6 @@ test:praefect_smoke:
     - ruby -rerb -e 'ERB.new(ARGF.read).run' _support/config.praefect.toml.ci-sql-test.erb > config.praefect.toml
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
-
-test:fuzz_objectinfo:
-  extends: .fuzz_base
-  stage: test
-  script:
-    - apt update && apt install -y clang-7
-    - go get github.com/dvyukov/go-fuzz/go-fuzz && go get github.com/dvyukov/go-fuzz/go-fuzz-build
-    - /root/go/bin/go-fuzz-build -libfuzzer -o objectinfo_fuzzer.a ./internal/git/catfile
-    - clang-7 -fsanitize=fuzzer objectinfo_fuzzer.a -o objectinfo_fuzzer
-    - ./gitlab-cov-fuzz run -- ./objectinfo_fuzzer -max_total_time=300
 
 verify:
   stage: test
