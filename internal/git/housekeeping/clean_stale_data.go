@@ -49,10 +49,22 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 		return fmt.Errorf("housekeeping failed to get repo path: %w", err)
 	}
 
-	logEntry := myLogger(ctx)
-	var filesToPrune []string
+	staleDataByType := map[string]int{}
+	defer func() {
+		if len(staleDataByType) == 0 {
+			return
+		}
 
-	for field, staleFileFinder := range map[string]staleFileFinderFn{
+		logEntry := myLogger(ctx)
+		for staleDataType, count := range staleDataByType {
+			logEntry = logEntry.WithField(fmt.Sprintf("stale_data.%s", staleDataType), count)
+			m.prunedFilesTotal.WithLabelValues(staleDataType).Add(float64(count))
+		}
+		logEntry.Info("removed files")
+	}()
+
+	var filesToPrune []string
+	for staleFileType, staleFileFinder := range map[string]staleFileFinderFn{
 		"objects":        findTemporaryObjects,
 		"locks":          findStaleLockfiles,
 		"refs":           findBrokenLooseReferences,
@@ -63,37 +75,27 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 	} {
 		staleFiles, err := staleFileFinder(ctx, repoPath)
 		if err != nil {
-			return fmt.Errorf("housekeeping failed to find %s: %w", field, err)
+			return fmt.Errorf("housekeeping failed to find %s: %w", staleFileType, err)
 		}
 
 		filesToPrune = append(filesToPrune, staleFiles...)
-		logEntry = logEntry.WithField(field, len(staleFiles))
-
-		m.prunedFilesTotal.WithLabelValues(field).Add(float64(len(staleFiles)))
+		staleDataByType[staleFileType] = len(staleFiles)
 	}
 
-	unremovableFiles := 0
 	for _, path := range filesToPrune {
 		if err := os.Remove(path); err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
-			unremovableFiles++
-			// We cannot use `logEntry` here as it's already seeded
-			// with the statistics fields.
+			staleDataByType["failures"]++
 			myLogger(ctx).WithError(err).WithField("path", path).Warn("unable to remove stale file")
 		}
 	}
 
 	prunedRefDirs, err := removeRefEmptyDirs(ctx, repo)
-	m.prunedFilesTotal.WithLabelValues("refsemptydir").Add(float64(prunedRefDirs))
+	staleDataByType["refsemptydir"] = prunedRefDirs
 	if err != nil {
 		return fmt.Errorf("housekeeping could not remove empty refs: %w", err)
-	}
-	logEntry = logEntry.WithField("refsemptydir", prunedRefDirs)
-
-	if len(filesToPrune) > 0 || prunedRefDirs > 0 {
-		logEntry.WithField("failures", unremovableFiles).Info("removed files")
 	}
 
 	// TODO: https://gitlab.com/gitlab-org/gitaly/-/issues/3987
@@ -103,9 +105,19 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 		if !errors.Is(err, git.ErrNotFound) {
 			return fmt.Errorf("housekeeping could not unset unnecessary config lines: %w", err)
 		}
+		staleDataByType["configkeys"] = 0
+	} else {
+		// If we didn't get an error we know that we've deleted _something_. We just set
+		// this variable to `1` because we don't count how many keys we have deleted. It's
+		// probably good enough: we only want to know whether we're still pruning such old
+		// configuration or not, but typically don't care how many there are so that we know
+		// when to delete this cleanup of legacy data.
+		staleDataByType["configkeys"] = 1
 	}
 
-	if err := pruneEmptyConfigSections(ctx, repo); err != nil {
+	skippedSections, err := pruneEmptyConfigSections(ctx, repo)
+	staleDataByType["configsections"] = skippedSections
+	if err != nil {
 		return fmt.Errorf("failed pruning empty sections: %w", err)
 	}
 
@@ -113,10 +125,10 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 }
 
 // pruneEmptyConfigSections prunes all empty sections from the repo's config.
-func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (returnedErr error) {
+func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (_ int, returnedErr error) {
 	repoPath, err := repo.Path()
 	if err != nil {
-		return fmt.Errorf("getting repo path: %w", err)
+		return 0, fmt.Errorf("getting repo path: %w", err)
 	}
 	configPath := filepath.Join(repoPath, "config")
 
@@ -124,13 +136,15 @@ func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (return
 	// values into it anymore. Slurping it into memory should thus be fine.
 	configContents, err := os.ReadFile(configPath)
 	if err != nil {
-		return fmt.Errorf("reading config: %w", err)
+		return 0, fmt.Errorf("reading config: %w", err)
 	}
 	configLines := strings.SplitAfter(string(configContents), "\n")
 	if configLines[len(configLines)-1] == "" {
 		// Strip the last line if it's empty.
 		configLines = configLines[:len(configLines)-1]
 	}
+
+	skippedSections := 0
 
 	// We now filter out any empty sections. A section is empty if the next line is a section
 	// header as well, or if it is the last line in the gitconfig. This isn't quite the whole
@@ -141,24 +155,26 @@ func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (return
 	for i := 0; i < len(configLines)-1; i++ {
 		// Skip if we have two consecutive section headers.
 		if isSectionHeader(configLines[i]) && isSectionHeader(configLines[i+1]) {
+			skippedSections++
 			continue
 		}
 		filteredLines = append(filteredLines, configLines[i])
 	}
 	// The final line is always stripped in case it is a section header.
 	if len(configLines) > 0 && !isSectionHeader(configLines[len(configLines)-1]) {
+		skippedSections++
 		filteredLines = append(filteredLines, configLines[len(configLines)-1])
 	}
 
 	// If we haven't filtered out anything then there is no need to update the target file.
 	if len(configLines) == len(filteredLines) {
-		return
+		return 0, nil
 	}
 
 	// Otherwise, we need to update the repository's configuration.
 	configWriter, err := safe.NewLockingFileWriter(configPath)
 	if err != nil {
-		return fmt.Errorf("creating config configWriter: %w", err)
+		return 0, fmt.Errorf("creating config configWriter: %w", err)
 	}
 	defer func() {
 		if err := configWriter.Close(); err != nil && returnedErr == nil {
@@ -168,7 +184,7 @@ func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (return
 
 	for _, filteredLine := range filteredLines {
 		if _, err := configWriter.Write([]byte(filteredLine)); err != nil {
-			return fmt.Errorf("writing filtered config: %w", err)
+			return 0, fmt.Errorf("writing filtered config: %w", err)
 		}
 	}
 
@@ -187,25 +203,25 @@ func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (return
 				git.Flag{Name: "-l"},
 			},
 		}, git.WithStdout(&configOutput)); err != nil {
-			return fmt.Errorf("listing config: %w", err)
+			return 0, fmt.Errorf("listing config: %w", err)
 		}
 
 		configOutputs = append(configOutputs, configOutput.String())
 	}
 	if configOutputs[0] != configOutputs[1] {
-		return fmt.Errorf("section pruning has caused config change")
+		return 0, fmt.Errorf("section pruning has caused config change")
 	}
 
 	// We don't use transactional voting but commit the file directly -- we have asserted that
 	// the change is idempotent anyway.
 	if err := configWriter.Lock(); err != nil {
-		return fmt.Errorf("failed locking config: %w", err)
+		return 0, fmt.Errorf("failed locking config: %w", err)
 	}
 	if err := configWriter.Commit(); err != nil {
-		return fmt.Errorf("failed committing pruned config: %w", err)
+		return 0, fmt.Errorf("failed committing pruned config: %w", err)
 	}
 
-	return nil
+	return skippedSections, nil
 }
 
 func isSectionHeader(line string) bool {

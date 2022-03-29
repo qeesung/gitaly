@@ -308,6 +308,7 @@ func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Clo
 
 	absolutePath := filepath.Join(storage.Path, relativePath)
 	Exec(t, cfg, append(args, testRepositoryPath(t, sourceRepo), absolutePath)...)
+	Exec(t, cfg, "-C", absolutePath, "remote", "remove", "origin")
 
 	t.Cleanup(func() { require.NoError(t, os.RemoveAll(absolutePath)) })
 
