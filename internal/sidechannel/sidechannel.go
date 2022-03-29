@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/yamux"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
@@ -133,12 +134,23 @@ func NewServerHandshaker(registry *Registry) *ServerHandshaker {
 // NewClientHandshaker is used to enable sidechannel support on outbound
 // gRPC connections.
 func NewClientHandshaker(logger *logrus.Entry, registry *Registry) client.Handshaker {
-	return backchannel.NewClientHandshaker(
+	return backchannel.NewClientHandshakerWithYamuxConfig(
 		logger,
 		func() backchannel.Server {
 			lm := listenmux.New(insecure.NewCredentials())
 			lm.Register(NewServerHandshaker(registry))
 			return grpc.NewServer(grpc.Creds(lm))
+		},
+		func(cfg *yamux.Config) {
+			// Backchannel sets a very large custom window size (16MB). This is not
+			// necessary for sidechannels because we use one stream per connection.
+			// Worse, this is wasteful, because a client that is serving many
+			// concurrent sidechannel calls may end up lazily creating a 16MB buffer
+			// for each ongoing call. See
+			// https://gitlab.com/gitlab-org/gitaly/-/issues/4132. To prevent this
+			// waste we change this value back to 256KB which is the default and
+			// minimum value.
+			cfg.MaxStreamWindowSize = 256 * 1024
 		},
 	)
 }

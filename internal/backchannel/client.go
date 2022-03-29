@@ -28,25 +28,36 @@ type ServerFactory func() Server
 type ClientHandshaker struct {
 	logger        *logrus.Entry
 	serverFactory ServerFactory
+	yamuxConfig   func(*yamux.Config)
 }
 
 // NewClientHandshaker returns a new client side implementation of the backchannel. The provided
 // logger is used to log multiplexing errors.
 func NewClientHandshaker(logger *logrus.Entry, serverFactory ServerFactory) ClientHandshaker {
-	return ClientHandshaker{logger: logger, serverFactory: serverFactory}
+	return NewClientHandshakerWithYamuxConfig(logger, serverFactory, nil)
+}
+
+// NewClientHandshakerWithYamuxConfig returns a new client side implementation of the
+// backchannel. The provided logger is used to log multiplexing errors.
+// For each connection that we accept, the yamuxConfig callback is
+// invoked to allow yamux configuration overrides. If yamuxConfig is nil
+// it is ignored.
+func NewClientHandshakerWithYamuxConfig(logger *logrus.Entry, serverFactory ServerFactory, yamuxConfig func(*yamux.Config)) ClientHandshaker {
+	return ClientHandshaker{logger: logger, serverFactory: serverFactory, yamuxConfig: yamuxConfig}
 }
 
 // ClientHandshake returns TransportCredentials that perform the client side multiplexing handshake and
 // start the backchannel Server on the established connections. The transport credentials are used to intiliaze the
 // connection prior to the multiplexing.
 func (ch ClientHandshaker) ClientHandshake(tc credentials.TransportCredentials) credentials.TransportCredentials {
-	return clientHandshake{TransportCredentials: tc, serverFactory: ch.serverFactory, logger: ch.logger}
+	return clientHandshake{TransportCredentials: tc, serverFactory: ch.serverFactory, logger: ch.logger, yamuxConfig: ch.yamuxConfig}
 }
 
 type clientHandshake struct {
 	credentials.TransportCredentials
 	serverFactory ServerFactory
 	logger        *logrus.Entry
+	yamuxConfig   func(*yamux.Config)
 }
 
 func (ch clientHandshake) ClientHandshake(ctx context.Context, serverName string, conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
@@ -92,7 +103,7 @@ func (ch clientHandshake) serve(ctx context.Context, conn net.Conn) (net.Conn, e
 	logger := ch.logger.WriterLevel(logrus.ErrorLevel)
 
 	// Initiate the multiplexing session.
-	muxSession, err := yamux.Client(conn, muxConfig(logger))
+	muxSession, err := yamux.Client(conn, muxConfig(logger, ch.yamuxConfig))
 	if err != nil {
 		logger.Close()
 		return nil, fmt.Errorf("open multiplexing session: %w", err)

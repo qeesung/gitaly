@@ -40,7 +40,7 @@ import (
 var magicBytes = []byte("backchannel")
 
 // muxConfig returns a new config to use with the multiplexing session.
-func muxConfig(logger io.Writer) *yamux.Config {
+func muxConfig(logger io.Writer, extra func(*yamux.Config)) *yamux.Config {
 	cfg := yamux.DefaultConfig()
 	cfg.LogOutput = logger
 	// The server only accepts a single stream from the client, which is the client's gRPC stream.
@@ -55,6 +55,10 @@ func muxConfig(logger io.Writer) *yamux.Config {
 	// receiver. This is can have a big impact on throughput as the latency increases, as the sender
 	// can't proceed sending without receiving an acknowledgement back.
 	cfg.MaxStreamWindowSize = 16 * 1024 * 1024
+
+	if extra != nil {
+		extra(cfg)
+	}
 	return cfg
 }
 
