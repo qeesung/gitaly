@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -22,6 +23,18 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
+
+func runTestsWithRuntimeDir(t *testing.T, testFunc func(*testing.T, string)) {
+	t.Helper()
+
+	t.Run("no runtime dir", func(t *testing.T) {
+		testFunc(t, "")
+	})
+
+	t.Run("with runtime dir", func(t *testing.T) {
+		testFunc(t, testhelper.TempDir(t))
+	})
+}
 
 func cfgWithCache(t *testing.T) config.Cfg {
 	cfg := testcfg.Build(t)
@@ -59,6 +72,11 @@ func TestParsePackObjectsArgs(t *testing.T) {
 }
 
 func TestServer_PackObjectsHook_separateContext(t *testing.T) {
+	t.Parallel()
+	runTestsWithRuntimeDir(t, testServerPackObjectsHookSeparateContextWithRuntimeDir)
+}
+
+func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, runtimeDir string) {
 	cfg := cfgWithCache(t)
 	cfg.SocketPath = runHooksServer(t, cfg, nil)
 
@@ -85,6 +103,9 @@ func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 
 	ctx1, wt1, err := hookPkg.SetupSidechannel(
 		ctx1,
+		git.HooksPayload{
+			RuntimeDir: runtimeDir,
+		},
 		func(c *net.UnixConn) error {
 			defer close(start2)
 			<-start1
@@ -121,6 +142,9 @@ func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 	var stdout2 []byte
 	ctx2, wt2, err := hookPkg.SetupSidechannel(
 		ctx2,
+		git.HooksPayload{
+			RuntimeDir: runtimeDir,
+		},
 		func(c *net.UnixConn) error {
 			<-start2
 			if _, err := io.WriteString(c, stdin); err != nil {
@@ -161,6 +185,11 @@ func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 }
 
 func TestServer_PackObjectsHook_usesCache(t *testing.T) {
+	t.Parallel()
+	runTestsWithRuntimeDir(t, testServerPackObjectsHookUsesCache)
+}
+
+func testServerPackObjectsHookUsesCache(t *testing.T, runtimeDir string) {
 	cfg := cfgWithCache(t)
 
 	tlc := &streamcache.TestLoggingCache{}
@@ -178,6 +207,9 @@ func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 		var stdout []byte
 		ctx, wt, err := hookPkg.SetupSidechannel(
 			ctx,
+			git.HooksPayload{
+				RuntimeDir: runtimeDir,
+			},
 			func(c *net.UnixConn) error {
 				if _, err := io.WriteString(c, "3dd08961455abf80ef9115f4afdc1c6f968b503c\n--not\n\n"); err != nil {
 					return err
@@ -236,7 +268,10 @@ func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 
 func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
 	t.Parallel()
+	runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelWithRuntimeDir)
+}
 
+func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, runtimeDir string) {
 	testCases := []struct {
 		desc  string
 		stdin string
@@ -268,6 +303,9 @@ func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
 			var packets []string
 			ctx, wt, err := hookPkg.SetupSidechannel(
 				ctx,
+				git.HooksPayload{
+					RuntimeDir: runtimeDir,
+				},
 				func(c *net.UnixConn) error {
 					if _, err := io.WriteString(c, tc.stdin); err != nil {
 						return err
@@ -351,6 +389,8 @@ func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
 }
 
 func TestServer_PackObjectsHookWithSidechannel_invalidArgument(t *testing.T) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runHooksServer(t, cfg, nil)
 	ctx := testhelper.Context(t)
@@ -389,11 +429,19 @@ func TestServer_PackObjectsHookWithSidechannel_invalidArgument(t *testing.T) {
 }
 
 func TestServer_PackObjectsHookWithSidechannel_Canceled(t *testing.T) {
+	t.Parallel()
+	runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir)
+}
+
+func testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir(t *testing.T, runtimeDir string) {
 	cfg := cfgWithCache(t)
 	ctx := testhelper.Context(t)
 
 	ctx, wt, err := hookPkg.SetupSidechannel(
 		ctx,
+		git.HooksPayload{
+			RuntimeDir: runtimeDir,
+		},
 		func(c *net.UnixConn) error {
 			// Simulate a client that successfully initiates a request, but hangs up
 			// before fully consuming the response.

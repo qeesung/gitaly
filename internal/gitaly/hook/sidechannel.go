@@ -2,12 +2,16 @@ package hook
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	gitaly_metadata "gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
 	"google.golang.org/grpc/metadata"
 )
@@ -39,8 +43,28 @@ func GetSidechannel(ctx context.Context) (net.Conn, error) {
 // receives a connection. The address of the listener is stored in the
 // returned context, so that the caller can propagate it to a server. The
 // caller must Close the SidechannelWaiter to prevent resource leaks.
-func SetupSidechannel(ctx context.Context, callback func(*net.UnixConn) error) (_ context.Context, _ *SidechannelWaiter, err error) {
-	socketDir, err := os.MkdirTemp("", "gitaly")
+func SetupSidechannel(ctx context.Context, payload git.HooksPayload, callback func(*net.UnixConn) error) (_ context.Context, _ *SidechannelWaiter, err error) {
+	var sidechannelDir, sidechannelName string
+
+	// If there is a runtime directory we try to create a sidechannel directory in there that
+	// will hold all the temporary sidechannel subdirectories. Otherwise, we fall back to create
+	// the sidechannel directory in the system's temporary directory.
+	if payload.RuntimeDir != "" {
+		sidechannelDir := filepath.Join(payload.RuntimeDir, "chan.d")
+
+		// Note that we don't use `os.MkdirAll()` here: we don't want to accidentally create
+		// the full directory hierarchy, and the assumption is that the runtime directory
+		// must exist already.
+		if err := os.Mkdir(sidechannelDir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+			return nil, nil, err
+		}
+
+		sidechannelName = "*"
+	} else {
+		sidechannelName = "gitaly*"
+	}
+
+	socketDir, err := os.MkdirTemp(sidechannelDir, sidechannelName)
 	if err != nil {
 		return nil, nil, err
 	}

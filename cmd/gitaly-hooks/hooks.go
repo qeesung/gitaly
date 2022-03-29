@@ -371,15 +371,15 @@ func referenceTransactionHook(ctx context.Context, payload git.HooksPayload, hoo
 }
 
 func packObjectsHook(ctx context.Context, payload git.HooksPayload, hookClient gitalypb.HookServiceClient, args []string) error {
-	if err := handlePackObjectsWithSidechannel(ctx, hookClient, payload.Repo, args); err != nil {
+	if err := handlePackObjectsWithSidechannel(ctx, payload, hookClient, args); err != nil {
 		return hookError{returnCode: 1, err: fmt.Errorf("RPC failed: %w", err)}
 	}
 
 	return nil
 }
 
-func handlePackObjectsWithSidechannel(ctx context.Context, hookClient gitalypb.HookServiceClient, repo *gitalypb.Repository, args []string) error {
-	ctx, wt, err := hook.SetupSidechannel(ctx, func(c *net.UnixConn) error {
+func handlePackObjectsWithSidechannel(ctx context.Context, payload git.HooksPayload, hookClient gitalypb.HookServiceClient, args []string) error {
+	ctx, wt, err := hook.SetupSidechannel(ctx, payload, func(c *net.UnixConn) error {
 		return stream.ProxyPktLine(c, os.Stdin, os.Stdout, os.Stderr)
 	})
 	if err != nil {
@@ -389,7 +389,7 @@ func handlePackObjectsWithSidechannel(ctx context.Context, hookClient gitalypb.H
 
 	if _, err := hookClient.PackObjectsHookWithSidechannel(
 		ctx,
-		&gitalypb.PackObjectsHookWithSidechannelRequest{Repository: repo, Args: args},
+		&gitalypb.PackObjectsHookWithSidechannelRequest{Repository: payload.Repo, Args: args},
 	); err != nil {
 		return fmt.Errorf("call PackObjectsHookWithSidechannel: %w", err)
 	}

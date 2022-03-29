@@ -58,6 +58,9 @@ type HooksPayload struct {
 
 	// Repo is the repository in which the hook is running.
 	Repo *gitalypb.Repository `json:"-"`
+
+	// RuntimeDir is the path to Gitaly's runtime directory.
+	RuntimeDir string `json:"runtime_dir"`
 	// InternalSocket is the path to Gitaly's internal socket.
 	InternalSocket string `json:"internal_socket"`
 	// InternalSocketToken is the token required to authenticate with
@@ -105,6 +108,7 @@ func NewHooksPayload(
 ) HooksPayload {
 	return HooksPayload{
 		Repo:                repo,
+		RuntimeDir:          cfg.RuntimeDir,
 		InternalSocket:      cfg.GitalyInternalSocketPath(),
 		InternalSocketToken: cfg.Auth.Token,
 		Transaction:         tx,

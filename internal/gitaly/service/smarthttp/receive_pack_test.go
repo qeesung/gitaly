@@ -101,6 +101,7 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 	payload.Transaction = nil
 
 	require.Equal(t, git.HooksPayload{
+		RuntimeDir:          cfg.RuntimeDir,
 		InternalSocket:      cfg.GitalyInternalSocketPath(),
 		InternalSocketToken: cfg.Auth.Token,
 		ReceiveHooksPayload: &git.ReceiveHooksPayload{
