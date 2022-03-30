@@ -21,6 +21,9 @@ type InternalGitalyClient interface {
 	// WalkRepos walks the storage and streams back all known git repos on the
 	// requested storage
 	WalkRepos(ctx context.Context, in *WalkReposRequest, opts ...grpc.CallOption) (InternalGitaly_WalkReposClient, error)
+	// CleanRepos walks the storage and streams back all known git repos on the
+	// requested storage
+	CleanRepos(ctx context.Context, in *CleanReposRequest, opts ...grpc.CallOption) (*CleanReposResponse, error)
 }
 
 type internalGitalyClient struct {
@@ -63,6 +66,15 @@ func (x *internalGitalyWalkReposClient) Recv() (*WalkReposResponse, error) {
 	return m, nil
 }
 
+func (c *internalGitalyClient) CleanRepos(ctx context.Context, in *CleanReposRequest, opts ...grpc.CallOption) (*CleanReposResponse, error) {
+	out := new(CleanReposResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.InternalGitaly/CleanRepos", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InternalGitalyServer is the server API for InternalGitaly service.
 // All implementations must embed UnimplementedInternalGitalyServer
 // for forward compatibility
@@ -70,6 +82,9 @@ type InternalGitalyServer interface {
 	// WalkRepos walks the storage and streams back all known git repos on the
 	// requested storage
 	WalkRepos(*WalkReposRequest, InternalGitaly_WalkReposServer) error
+	// CleanRepos walks the storage and streams back all known git repos on the
+	// requested storage
+	CleanRepos(context.Context, *CleanReposRequest) (*CleanReposResponse, error)
 	mustEmbedUnimplementedInternalGitalyServer()
 }
 
@@ -79,6 +94,9 @@ type UnimplementedInternalGitalyServer struct {
 
 func (UnimplementedInternalGitalyServer) WalkRepos(*WalkReposRequest, InternalGitaly_WalkReposServer) error {
 	return status.Errorf(codes.Unimplemented, "method WalkRepos not implemented")
+}
+func (UnimplementedInternalGitalyServer) CleanRepos(context.Context, *CleanReposRequest) (*CleanReposResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CleanRepos not implemented")
 }
 func (UnimplementedInternalGitalyServer) mustEmbedUnimplementedInternalGitalyServer() {}
 
@@ -114,13 +132,36 @@ func (x *internalGitalyWalkReposServer) Send(m *WalkReposResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _InternalGitaly_CleanRepos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CleanReposRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InternalGitalyServer).CleanRepos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.InternalGitaly/CleanRepos",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InternalGitalyServer).CleanRepos(ctx, req.(*CleanReposRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InternalGitaly_ServiceDesc is the grpc.ServiceDesc for InternalGitaly service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var InternalGitaly_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "gitaly.InternalGitaly",
 	HandlerType: (*InternalGitalyServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CleanRepos",
+			Handler:    _InternalGitaly_CleanRepos_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "WalkRepos",

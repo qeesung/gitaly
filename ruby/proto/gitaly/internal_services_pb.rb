@@ -19,6 +19,9 @@ module Gitaly
       # WalkRepos walks the storage and streams back all known git repos on the
       # requested storage
       rpc :WalkRepos, ::Gitaly::WalkReposRequest, stream(::Gitaly::WalkReposResponse)
+      # CleanRepos walks the storage and streams back all known git repos on the
+      # requested storage
+      rpc :CleanRepos, ::Gitaly::CleanReposRequest, ::Gitaly::CleanReposResponse
     end
 
     Stub = Service.rpc_stub_class

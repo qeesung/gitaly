@@ -5,6 +5,7 @@ package gitaly;
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 import "lint.proto";
+import "google/protobuf/timestamp.proto";
 
 // InternalGitaly is a gRPC service meant to be served by a Gitaly node, but
 // only reachable by Praefect or other Gitalies
@@ -17,6 +18,14 @@ service InternalGitaly {
       scope_level: STORAGE
     };
   }
+  // CleanRepos walks the storage and streams back all known git repos on the
+  // requested storage
+  rpc CleanRepos (CleanReposRequest) returns (CleanReposResponse) {
+    option (op_type) = {
+      op:          MUTATOR
+      scope_level: STORAGE
+    };
+  }
 }
 
 message WalkReposRequest {
@@ -25,4 +34,13 @@ message WalkReposRequest {
 
 message WalkReposResponse {
   string relative_path = 1;
+  google.protobuf.Timestamp last_accessed = 2;
 }
+
+
+message CleanReposRequest {
+  string storage_name = 1 [(storage)=true];
+  repeated string relative_paths = 2;
+}
+
+message CleanReposResponse {}

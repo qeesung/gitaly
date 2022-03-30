@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -42,15 +43,25 @@ func TestWalkRepos(t *testing.T) {
 
 	// file walk happens lexicographically, so we delete repository in the middle
 	// of the seqeuence to ensure the walk proceeds normally
-	testRepo1, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+	testRepo1, testRepo1Path := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
 		RelativePath: "a",
 	})
 	deletedRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
 		RelativePath: "b",
 	})
-	testRepo2, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+	testRepo2, testRepo2Path := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
 		RelativePath: "c",
 	})
+
+	headModifiedDate := time.Now().Add(10 * time.Hour)
+	require.NoError(
+		t,
+		os.Chtimes(filepath.Join(testRepo1Path, "HEAD"), headModifiedDate, headModifiedDate),
+	)
+	require.NoError(
+		t,
+		os.Chtimes(filepath.Join(testRepo2Path, "HEAD"), headModifiedDate, headModifiedDate),
+	)
 
 	// to test a directory being deleted during a walk, we must delete a directory after
 	// the file walk has started. To achieve that, we wrap the server to pass down a wrapped
@@ -93,14 +104,14 @@ func TestWalkRepos(t *testing.T) {
 	require.NoError(t, err)
 
 	actualRepos := consumeWalkReposStream(t, stream)
-	require.Equal(t, []string{
-		testRepo1.GetRelativePath(),
-		testRepo2.GetRelativePath(),
-	}, actualRepos)
+	require.Equal(t, testRepo1.GetRelativePath(), actualRepos[0].GetRelativePath())
+	require.Equal(t, headModifiedDate.UTC(), actualRepos[0].GetLastAccessed().AsTime())
+	require.Equal(t, testRepo2.GetRelativePath(), actualRepos[1].GetRelativePath())
+	require.Equal(t, headModifiedDate.UTC(), actualRepos[1].GetLastAccessed().AsTime())
 }
 
-func consumeWalkReposStream(t *testing.T, stream gitalypb.InternalGitaly_WalkReposClient) []string {
-	var repos []string
+func consumeWalkReposStream(t *testing.T, stream gitalypb.InternalGitaly_WalkReposClient) []*gitalypb.WalkReposResponse {
+	var repos []*gitalypb.WalkReposResponse
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
@@ -108,7 +119,7 @@ func consumeWalkReposStream(t *testing.T, stream gitalypb.InternalGitaly_WalkRep
 		} else {
 			require.NoError(t, err)
 		}
-		repos = append(repos, resp.RelativePath)
+		repos = append(repos, resp)
 	}
 	return repos
 }
