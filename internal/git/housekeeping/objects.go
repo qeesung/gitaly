@@ -2,9 +2,6 @@ package housekeeping
 
 import (
 	"context"
-	"fmt"
-	"math"
-	"runtime"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
@@ -38,7 +35,6 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 			git.Flag{Name: "-A"},
 			git.Flag{Name: "--pack-kept-objects"},
 			git.Flag{Name: "-l"},
-			log2Threads(runtime.NumCPU()),
 		)
 	}
 
@@ -81,12 +77,4 @@ func GetRepackGitConfig(ctx context.Context, bitmap bool) []git.ConfigPair {
 	}
 
 	return config
-}
-
-// log2Threads returns the log-2 number of threads based on the number of
-// provided CPUs. This prevents repacking operations from exhausting all
-// available CPUs and increasing request latency
-func log2Threads(numCPUs int) git.ValueFlag {
-	n := math.Max(1, math.Floor(math.Log2(float64(numCPUs))))
-	return git.ValueFlag{Name: "--threads", Value: fmt.Sprint(n)}
 }

@@ -3,6 +3,8 @@ package git
 import (
 	"fmt"
 	"log"
+	"math"
+	"runtime"
 	"strings"
 )
 
@@ -126,6 +128,12 @@ var commandDescriptions = map[string]commandDescription{
 		// git-grep(1) does not support disambiguating options from paths from
 		// revisions.
 		flags: scNoRefUpdates | scNoEndOfOptions,
+		opts: []GlobalOption{
+			// This command by default spawns as many threads as there are CPUs. This
+			// easily impacts concurrently running commands by exhausting cores and
+			// generating excessive I/O load.
+			ConfigPair{Key: "grep.threads", Value: threadsConfigValue(runtime.NumCPU())},
+		},
 	},
 	"hash-object": {
 		flags: scNoRefUpdates,
@@ -434,5 +442,12 @@ func packConfiguration() []GlobalOption {
 	return []GlobalOption{
 		ConfigPair{Key: "pack.windowMemory", Value: "100m"},
 		ConfigPair{Key: "pack.writeReverseIndex", Value: "true"},
+		ConfigPair{Key: "pack.threads", Value: threadsConfigValue(runtime.NumCPU())},
 	}
+}
+
+// threadsConfigValue returns the log-2 number of threads based on the number of provided CPUs. This
+// prevents us from using excessively many threads and thus avoids exhaustion of all available CPUs.
+func threadsConfigValue(numCPUs int) string {
+	return fmt.Sprintf("%d", int(math.Max(1, math.Floor(math.Log2(float64(numCPUs))))))
 }

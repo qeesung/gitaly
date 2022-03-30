@@ -45,3 +45,25 @@ func TestCommandDescriptions_revListPositionalArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestThreadsConfigValue(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		cpus    int
+		threads string
+	}{
+		{1, "1"},
+		{2, "1"},
+		{3, "1"},
+		{4, "2"},
+		{8, "3"},
+		{9, "3"},
+		{13, "3"},
+		{16, "4"},
+		{27, "4"},
+		{32, "5"},
+	} {
+		actualThreads := threadsConfigValue(tt.cpus)
+		require.Equal(t, tt.threads, actualThreads)
+	}
+}
