@@ -2,6 +2,7 @@ package repocleaner
 
 import (
 	"context"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -71,19 +72,23 @@ func TestRunner_Run(t *testing.T) {
 		RepositoriesInBatch: 2,
 	}
 
+	// each gitaly has an extra repo-4.git repository
 	gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo1RelPath})
 	gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo2RelPath})
 	gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo3RelPath})
+	_, repo4Path := gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo-4.git"})
+	require.NoError(t, os.Chtimes(repo4Path, time.Now().Add(-25*time.Hour), time.Now().Add(-25*time.Hour)))
 
-	// second gitaly is missing repo-3.git repository
 	gittest.CloneRepo(t, g2Cfg, g2Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo1RelPath})
 	gittest.CloneRepo(t, g2Cfg, g2Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo2RelPath})
+	_, repo4Path = gittest.CloneRepo(t, g2Cfg, g2Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo-4.git"})
+	require.NoError(t, os.Chtimes(repo4Path, time.Now().Add(-25*time.Hour), time.Now().Add(-25*time.Hour)))
 
-	// third gitaly has an extra repo-4.git repository
 	gittest.CloneRepo(t, g3Cfg, g3Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo1RelPath})
 	gittest.CloneRepo(t, g3Cfg, g3Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo2RelPath})
 	gittest.CloneRepo(t, g3Cfg, g3Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo3RelPath})
-	gittest.CloneRepo(t, g3Cfg, g3Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo-4.git"})
+	_, repo4Path = gittest.CloneRepo(t, g3Cfg, g3Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: "repo-4.git"})
+	require.NoError(t, os.Chtimes(repo4Path, time.Now().Add(-25*time.Hour), time.Now().Add(-25*time.Hour)))
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	repoStore := datastore.NewPostgresRepositoryStore(db.DB, nil)
@@ -125,33 +130,18 @@ func TestRunner_Run(t *testing.T) {
 	var iteration int32
 	runner := NewRunner(cfg, logger, praefect.StaticHealthChecker{virtualStorage: []string{storage1, storage2, storage3}}, nodeSet.Connections(), storageCleanup, storageCleanup, actionStub{
 		PerformMethod: func(ctx context.Context, argVirtualStoage, argStorage string, notExisting []string) error {
-			assert.Equal(t, virtualStorage, argVirtualStoage)
-			// Because action invocation happens for batches each run could result
-			// multiple invocations of the action. Amount of invocations can be calculated
-			// as amount of storage repositories divided on the size of the batch and rounded up.
-			// For storages:
-			//	'gitaly-1' is it 3 repos / 2 = 2 calls [0,1]
-			// 	'gitaly-2' is it 2 repos / 2 = 1 call [2]
-			// 	'gitaly-3' is it 4 repos / 2 = 2 calls [3,4]
+			// There should be three iterations, as each storage has
+			// one repository that is unused by praefect.
+			atomic.AddInt32(&iteration, 1)
+
 			i := atomic.LoadInt32(&iteration)
-			switch i {
-			case 0, 1:
-				assert.Equal(t, storage1, argStorage)
-				assert.ElementsMatch(t, nil, notExisting)
-			case 2:
-				assert.Equal(t, storage2, argStorage)
-				assert.ElementsMatch(t, []string{repo1RelPath}, notExisting)
-			case 3:
-				assert.Equal(t, storage3, argStorage)
-				assert.ElementsMatch(t, nil, notExisting)
-			case 4:
-				assert.Equal(t, storage3, argStorage)
+			assert.Equal(t, virtualStorage, argVirtualStoage)
+			assert.Equal(t, []string{"repo-4.git"}, notExisting)
+
+			if i == 3 {
 				// Terminates the loop.
 				defer cancel()
-				assert.Equal(t, []string{"repo-4.git"}, notExisting)
-				return nil
 			}
-			atomic.AddInt32(&iteration, 1)
 			return nil
 		},
 	})
@@ -169,7 +159,6 @@ func TestRunner_Run(t *testing.T) {
 	}
 	waitReceive(t, done)
 
-	require.Equal(t, int32(4), atomic.LoadInt32(&iteration))
 	require.GreaterOrEqual(t, len(loggerHook.AllEntries()), 2)
 	require.Equal(
 		t,
@@ -216,7 +205,8 @@ func TestRunner_Run_noAvailableStorages(t *testing.T) {
 		RepositoriesInBatch: 2,
 	}
 
-	gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo1RelPath})
+	_, repoPath := gittest.CloneRepo(t, g1Cfg, g1Cfg.Storages[0], gittest.CloneRepoOpts{RelativePath: repo1RelPath})
+	require.NoError(t, os.Chtimes(repoPath, time.Now().Add(-25*time.Hour), time.Now().Add(-25*time.Hour)))
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	repoStore := datastore.NewPostgresRepositoryStore(db.DB, nil)

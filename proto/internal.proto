@@ -5,6 +5,7 @@ package gitaly;
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 import "lint.proto";
+import "google/protobuf/timestamp.proto";
 
 // InternalGitaly is a gRPC service meant to be served by a Gitaly node, but
 // only reachable by Praefect or other Gitalies
@@ -25,4 +26,8 @@ message WalkReposRequest {
 
 message WalkReposResponse {
   string relative_path = 1;
+  // modification_time is the modification time of the repository directory.
+  // This can be used as a proxy for when the repository was last
+  // modified.
+  google.protobuf.Timestamp modification_time = 2;
 }

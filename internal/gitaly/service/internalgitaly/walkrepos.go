@@ -9,6 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *server) WalkRepos(req *gitalypb.WalkReposRequest, stream gitalypb.InternalGitaly_WalkReposServer) error {
@@ -55,8 +56,14 @@ func walkStorage(ctx context.Context, storagePath string, stream gitalypb.Intern
 				return err
 			}
 
+			gitDirInfo, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+
 			if err := stream.Send(&gitalypb.WalkReposResponse{
-				RelativePath: relPath,
+				RelativePath:     relPath,
+				ModificationTime: timestamppb.New(gitDirInfo.ModTime()),
 			}); err != nil {
 				return err
 			}

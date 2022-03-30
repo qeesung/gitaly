@@ -2,6 +2,7 @@
 # source: internal.proto
 
 require 'lint_pb'
+require 'google/protobuf/timestamp_pb'
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
@@ -11,6 +12,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.WalkReposResponse" do
       optional :relative_path, :string, 1
+      optional :modification_time, :message, 2, "google.protobuf.Timestamp"
     end
   end
 end

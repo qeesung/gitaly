@@ -5,8 +5,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
@@ -53,9 +55,18 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 	g2Cfg := testcfg.Build(t, testcfg.WithStorages("gitaly-2"))
 
 	// Repositories not managed by praefect.
-	repo1, _ := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	repo2, _ := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	repo3, _ := gittest.InitRepo(t, g2Cfg, g2Cfg.Storages[0])
+	repo1, repo1Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
+	repo2, repo2Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
+	_, _ = gittest.InitRepo(t, g2Cfg, g2Cfg.Storages[0])
+
+	require.NoError(t, os.Chtimes(
+		repo1Path,
+		time.Now().Add(-(24*time.Hour+1*time.Second)),
+		time.Now().Add(-(24*time.Hour+1*time.Second))))
+	require.NoError(t, os.Chtimes(
+		repo2Path,
+		time.Now().Add(-(24*time.Hour+1*time.Second)),
+		time.Now().Add(-(24*time.Hour+1*time.Second))))
 
 	g1Addr := testserver.RunGitalyServer(t, g1Cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 	g2Addr := testserver.RunGitalyServer(t, g2Cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
@@ -99,7 +110,6 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 		"The following repositories were found on disk, but missing from the tracking database:",
 		fmt.Sprintf(`{"relative_path":%q,"storage":"gitaly-1","virtual_storage":"praefect"}`, repo1.RelativePath),
 		fmt.Sprintf(`{"relative_path":%q,"storage":"gitaly-1","virtual_storage":"praefect"}`, repo2.RelativePath),
-		fmt.Sprintf(`{"relative_path":%q,"storage":"gitaly-2","virtual_storage":"praefect"}`, repo3.RelativePath),
 		"", // an empty extra element required as each line ends with "delimiter" and strings.Split returns all parts
 	}
 	require.ElementsMatch(t, exp, strings.Split(out.String(), "\n"))

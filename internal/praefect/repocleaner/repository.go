@@ -187,6 +187,12 @@ func (wr *Walker) ExecOnRepositories(ctx context.Context, virtualStorage, storag
 			break
 		}
 
+		// repositories that are in the process of being created, where
+		// they do not yet have a record in Praefect.
+		if res.GetModificationTime().AsTime().After(time.Now().Add(-24 * time.Hour)) {
+			continue
+		}
+
 		batch = append(batch, res.RelativePath)
 
 		if len(batch) == cap(batch) {
