@@ -1,7 +1,6 @@
 package testcfg
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,26 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
 )
 
 var buildOnceByName sync.Map
 
 // BuildGitalyGit2Go builds the gitaly-git2go command and installs it into the binary directory.
 func BuildGitalyGit2Go(t testing.TB, cfg config.Cfg) string {
-	binaryPath := BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go"))
-	symlinkPath := filepath.Join(cfg.BinDir, "gitaly-git2go-"+version.GetModuleVersion())
-
-	// The link is needed because gitaly uses version-named binary.
-	// Please check out https://gitlab.com/gitlab-org/gitaly/-/issues/3647 for more info.
-	if err := os.Link(binaryPath, symlinkPath); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return symlinkPath
-		}
-		require.NoError(t, err)
-	}
-
-	return symlinkPath
+	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go-v14"))
 }
 
 // BuildGitalyWrapper builds the gitaly-wrapper command and installs it into the binary directory.

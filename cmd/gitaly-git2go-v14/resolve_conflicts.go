@@ -14,7 +14,7 @@ import (
 	"time"
 
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go/git2goutil"
+	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 )
