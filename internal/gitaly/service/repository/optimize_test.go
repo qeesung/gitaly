@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,6 +107,11 @@ func TestOptimizeRepository(t *testing.T) {
 			gittest.WithParents(),
 		)
 	}
+
+	// Write a blob whose OID is known to have a "17" prefix, which is required such that
+	// OptimizeRepository would try to repack at all.
+	blobOIDWith17Prefix := gittest.WriteBlob(t, cfg, testRepoPath, []byte("32"))
+	require.True(t, strings.HasPrefix(blobOIDWith17Prefix.String(), "17"))
 
 	bitmaps, err := filepath.Glob(filepath.Join(testRepoPath, "objects", "pack", "*.bitmap"))
 	require.NoError(t, err)

@@ -138,6 +138,22 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 		return false, RepackObjectsConfig{}, fmt.Errorf("getting repository path: %w", err)
 	}
 
+	largestPackfileSize, packfileCount, err := packfileSizeAndCount(repo)
+	if err != nil {
+		return false, RepackObjectsConfig{}, fmt.Errorf("checking largest packfile size: %w", err)
+	}
+
+	looseObjectCount, err := estimateLooseObjectCount(repo, time.Now())
+	if err != nil {
+		return false, RepackObjectsConfig{}, fmt.Errorf("estimating loose object count: %w", err)
+	}
+
+	// If there are neither packfiles nor loose objects in this repository then there is no need
+	// to repack anything.
+	if packfileCount == 0 && looseObjectCount == 0 {
+		return false, RepackObjectsConfig{}, nil
+	}
+
 	altFile, err := repo.InfoAlternatesPath()
 	if err != nil {
 		return false, RepackObjectsConfig{}, helper.ErrInternal(err)
@@ -190,11 +206,6 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 		}, nil
 	}
 
-	largestPackfileSize, packfileCount, err := packfileSizeAndCount(repo)
-	if err != nil {
-		return false, RepackObjectsConfig{}, fmt.Errorf("checking largest packfile size: %w", err)
-	}
-
 	// Whenever we do an incremental repack we create a new packfile, and as a result Git may
 	// have to look into every one of the packfiles to find objects. This is less efficient the
 	// more packfiles we have, but we cannot repack the whole repository every time either given
@@ -227,11 +238,6 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 			FullRepack:  true,
 			WriteBitmap: !hasAlternate,
 		}, nil
-	}
-
-	looseObjectCount, err := estimateLooseObjectCount(repo, time.Now())
-	if err != nil {
-		return false, RepackObjectsConfig{}, fmt.Errorf("estimating loose object count: %w", err)
 	}
 
 	// Most Git commands do not write packfiles directly, but instead write loose objects into

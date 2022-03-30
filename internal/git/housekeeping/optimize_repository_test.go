@@ -48,19 +48,10 @@ func TestNeedsRepacking(t *testing.T) {
 		expectedConfig RepackObjectsConfig
 	}{
 		{
-			desc: "empty repo",
+			desc: "empty repo does nothing",
 			setup: func(t *testing.T) *gitalypb.Repository {
 				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 				return repoProto
-			},
-			// This is a bug: if the repo is empty then we wouldn't ever generate a
-			// packfile, but we determine a repack is needed because it's missing a
-			// bitmap. It's a rather benign bug though: git-repack(1) will exit
-			// immediately because it knows that there's nothing to repack.
-			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				FullRepack:  true,
-				WriteBitmap: true,
 			},
 		},
 		{
@@ -510,15 +501,13 @@ func TestOptimizeRepository(t *testing.T) {
 		expectedMetrics string
 	}{
 		{
-			desc: "empty repository tries to write bitmap",
+			desc: "empty repository does nothing",
 			setup: func(t *testing.T) *gitalypb.Repository {
 				repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 				return repo
 			},
 			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
 # TYPE gitaly_housekeeping_tasks_total counter
-gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_full", status="success"} 1
-gitaly_housekeeping_tasks_total{housekeeping_task="written_bitmap", status="success"} 1
 gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 `,
 		},
