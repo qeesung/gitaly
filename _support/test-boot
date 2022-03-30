@@ -1,10 +1,11 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'tempfile'
 require 'socket'
 require 'optparse'
 
-ADDR = 'socket'.freeze
+ADDR = 'socket'
 
 def main(params)
   gitaly_dir = File.realpath(params[:dir])
@@ -13,7 +14,7 @@ def main(params)
 
   git_path, use_bundled_git =
     if params[:"bundled-git"]
-      ["", true]
+      ['', true]
     else
       [File.join(build_dir, 'deps', 'git', 'install', 'bin', 'git'), false]
     end
@@ -23,8 +24,11 @@ def main(params)
 
   # Use start_with? instead of == because the version output could use git describe, if it is a source install
   # eg: Gitaly, version 1.75.0-14-gd1ecb43f
-  abort "\nversion check failed: VERSION file contained '#{version_from_file}' but 'gitaly -version' reported '#{version}'."\
-  " If you are working from a fork, please fetch the latest tags." unless version.start_with?(version_from_file)
+  unless version.start_with?(version_from_file)
+    abort "\nversion check failed: VERSION file contained '#{version_from_file}'"\
+      " but 'gitaly -version' reported '#{version}'."\
+      " If you are working from a fork, please fetch the latest tags."
+  end
 
   Dir.mktmpdir do |dir|
     Dir.chdir(dir)
@@ -32,30 +36,13 @@ def main(params)
     gitlab_shell_dir = File.join(dir, 'gitlab-shell')
     Dir.mkdir(gitlab_shell_dir)
     File.write(File.join(gitlab_shell_dir, '.gitlab_shell_secret'), 'test_gitlab_shell_token')
-
-    File.write('config.toml', <<~CONFIG
-      socket_path = "#{ADDR}"
-      bin_dir = "#{bin_dir}"
-
-      [[storage]]
-      name = "default"
-      path = "#{dir}"
-
-      [git]
-      use_bundled_binaries = #{use_bundled_git}
-      bin_path = "#{git_path}"
-
-      [gitaly-ruby]
-      dir = "#{gitaly_dir}/ruby"
-
-      [gitlab-shell]
-      dir = "#{gitlab_shell_dir}"
-
-      [gitlab]
-      url = 'http://gitlab_url'
-
-      CONFIG
-              )
+    write_gitaly_config('config.toml',
+                        bin_dir: bin_dir,
+                        dir: dir,
+                        use_bundled_git: use_bundled_git,
+                        git_path: git_path,
+                        gitaly_dir: gitaly_dir,
+                        gitlab_shell_dir: gitlab_shell_dir)
 
     pid = nil
 
@@ -67,11 +54,37 @@ def main(params)
       puts "\n\nconnection established after #{Time.now - start} seconds\n\n"
     ensure
       if pid
-        Process.kill("KILL", pid)
+        Process.kill('KILL', pid)
         Process.wait(pid)
       end
     end
   end
+end
+
+def write_gitaly_config(config_path, bin_dir:, dir:, use_bundled_git:, git_path:, gitaly_dir:, gitlab_shell_dir:)
+  File.write(config_path, <<~CONFIG
+    socket_path = "#{ADDR}"
+    bin_dir = "#{bin_dir}"
+
+    [[storage]]
+    name = "default"
+    path = "#{dir}"
+
+    [git]
+    use_bundled_binaries = #{use_bundled_git}
+    bin_path = "#{git_path}"
+
+    [gitaly-ruby]
+    dir = "#{gitaly_dir}/ruby"
+
+    [gitlab-shell]
+    dir = "#{gitlab_shell_dir}"
+
+    [gitlab]
+    url = 'http://gitlab_url'
+
+  CONFIG
+  )
 end
 
 def wait_connect
@@ -79,13 +92,11 @@ def wait_connect
   sleep_time = 0.1
 
   repeats.times do
-    begin
-      Socket.unix(ADDR)
-      return
-    rescue # rubocop:disable Lint/RescueWithoutErrorClass
-      print '.'
-      sleep(sleep_time)
-    end
+    Socket.unix(ADDR)
+    return
+  rescue StandardError
+    print '.'
+    sleep(sleep_time)
   end
 
   puts "failed to connect to gitaly after #{repeats * sleep_time}s"
@@ -95,13 +106,13 @@ end
 
 params = {}
 OptionParser.new do |parser|
-  parser.banner = "Usage: #{$PROGRAM_NAME} [options] <GITALY_DIR>"
+  parser.banner = "Usage: #{$0} [options] <GITALY_DIR>"
   parser.on('--[no-]bundled-git', 'Set up Gitaly with bundled Git binaries')
 end.parse!(into: params)
 
 params[:dir] = ARGV.pop
-abort "Gitaly source directory not provided" if params[:dir].nil?
+abort 'Gitaly source directory not provided' if params[:dir].nil?
 
-abort "Extra arguments" unless ARGV.count == 0
+abort 'Extra arguments' unless ARGV.count.zero?
 
 main(params)

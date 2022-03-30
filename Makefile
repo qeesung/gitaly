@@ -474,7 +474,7 @@ clean-ruby-vendor-go:
 .PHONY: rubocop
 ## Run Rubocop.
 rubocop: ${SOURCE_DIR}/.ruby-bundle
-	${Q}cd ${GITALY_RUBY_DIR} && bundle exec rubocop --parallel
+	${Q}cd ${GITALY_RUBY_DIR} && bundle exec rubocop --parallel --config ${GITALY_RUBY_DIR}/.rubocop.yml ${GITALY_RUBY_DIR} ${SOURCE_DIR}/_support/test-boot
 
 .PHONY: cover
 ## Generate coverage report via Go tests.
