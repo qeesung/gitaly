@@ -3,6 +3,7 @@ package housekeeping
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -767,76 +768,86 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 	}
 }
 
-func TestShouldRemoveTemporaryObject(t *testing.T) {
-	type args struct {
-		path    string
-		modTime time.Time
-		mode    os.FileMode
-	}
-	testcases := []struct {
-		name string
-		args args
-		want bool
+type mockDirEntry struct {
+	fs.DirEntry
+	isDir bool
+	name  string
+	fi    fs.FileInfo
+}
+
+func (m mockDirEntry) Name() string {
+	return m.name
+}
+
+func (m mockDirEntry) IsDir() bool {
+	return m.isDir
+}
+
+func (m mockDirEntry) Info() (fs.FileInfo, error) {
+	return m.fi, nil
+}
+
+type mockFileInfo struct {
+	fs.FileInfo
+	modTime time.Time
+}
+
+func (m mockFileInfo) ModTime() time.Time {
+	return m.modTime
+}
+
+func TestIsStaleTemporaryObject(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		dirEntry      fs.DirEntry
+		expectIsStale bool
 	}{
 		{
 			name: "regular_file",
-			args: args{
-				path:    "/tmp/objects",
-				modTime: time.Now().Add(-1 * time.Hour),
-				mode:    0o700,
+			dirEntry: mockDirEntry{
+				name: "objects",
+				fi: mockFileInfo{
+					modTime: time.Now().Add(-1 * time.Hour),
+				},
 			},
-			want: false,
+			expectIsStale: false,
 		},
 		{
 			name: "directory",
-			args: args{
-				path:    "/tmp/",
-				modTime: time.Now().Add(-1 * time.Hour),
-				mode:    0o770,
+			dirEntry: mockDirEntry{
+				name:  "tmp",
+				isDir: true,
+				fi: mockFileInfo{
+					modTime: time.Now().Add(-1 * time.Hour),
+				},
 			},
-			want: false,
+			expectIsStale: false,
 		},
 		{
 			name: "recent_time_file",
-			args: args{
-				path:    "/tmp/tmp_DELETEME",
-				modTime: time.Now().Add(-1 * time.Hour),
-				mode:    0o600,
+			dirEntry: mockDirEntry{
+				name: "tmp_DELETEME",
+				fi: mockFileInfo{
+					modTime: time.Now().Add(-1 * time.Hour),
+				},
 			},
-			want: false,
+			expectIsStale: false,
 		},
 		{
 			name: "old temp file",
-			args: args{
-				path:    "/tmp/tmp_DELETEME",
-				modTime: time.Now().Add(-8 * 24 * time.Hour),
-				mode:    0o600,
+			dirEntry: mockDirEntry{
+				name: "tmp_DELETEME",
+				fi: mockFileInfo{
+					modTime: time.Now().Add(-8 * 24 * time.Hour),
+				},
 			},
-			want: true,
+			expectIsStale: true,
 		},
-		{
-			name: "old_temp_file",
-			args: args{
-				path:    "/tmp/tmp_DELETEME",
-				modTime: time.Now().Add(-1 * time.Hour),
-				mode:    0o000,
-			},
-			want: false,
-		},
-		{
-			name: "inaccessible_recent_file",
-			args: args{
-				path:    "/tmp/tmp_DELETEME",
-				modTime: time.Now().Add(-1 * time.Hour),
-				mode:    0o000,
-			},
-			want: false,
-		},
-	}
-
-	for _, tc := range testcases {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, isStaleTemporaryObject(tc.args.path, tc.args.modTime, tc.args.mode))
+			isStale, err := isStaleTemporaryObject(tc.dirEntry)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectIsStale, isStale)
 		})
 	}
 }

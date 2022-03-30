@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -268,72 +269,97 @@ func findStaleLockfiles(ctx context.Context, repoPath string) ([]string, error) 
 func findTemporaryObjects(ctx context.Context, repoPath string) ([]string, error) {
 	var temporaryObjects []string
 
-	logger := myLogger(ctx)
+	if err := filepath.WalkDir(filepath.Join(repoPath, "objects"), func(path string, dirEntry fs.DirEntry, err error) error {
+		if err != nil {
+			if errors.Is(err, fs.ErrPermission) || errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
 
-	err := filepath.Walk(filepath.Join(repoPath, "objects"), func(path string, info os.FileInfo, err error) error {
-		if info == nil {
-			logger.WithFields(log.Fields{
-				"path": path,
-			}).WithError(err).Error("nil FileInfo in housekeeping.Perform")
-
+		// Git will never create temporary directories, but only temporary objects,
+		// packfiles and packfile indices.
+		if dirEntry.IsDir() {
 			return nil
 		}
 
-		// Git will never create temporary directories, but only
-		// temporary objects, packfiles and packfile indices.
-		if info.IsDir() {
-			return nil
+		isStale, err := isStaleTemporaryObject(dirEntry)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+
+			return fmt.Errorf("checking for stale temporary object: %w", err)
 		}
 
-		if !isStaleTemporaryObject(path, info.ModTime(), info.Mode()) {
+		if !isStale {
 			return nil
 		}
 
 		temporaryObjects = append(temporaryObjects, path)
 
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, fmt.Errorf("walking object directory: %w", err)
 	}
 
 	return temporaryObjects, nil
 }
 
-func isStaleTemporaryObject(path string, modTime time.Time, mode os.FileMode) bool {
-	base := filepath.Base(path)
+func isStaleTemporaryObject(dirEntry fs.DirEntry) (bool, error) {
+	// Check the entry's name first so that we can ideally avoid stat'ting the entry.
+	if !strings.HasPrefix(dirEntry.Name(), "tmp_") {
+		return false, nil
+	}
 
-	// Only delete entries starting with `tmp_` and older than a week
-	return strings.HasPrefix(base, "tmp_") && time.Since(modTime) >= deleteTempFilesOlderThanDuration
+	fi, err := dirEntry.Info()
+	if err != nil {
+		return false, err
+	}
+
+	if time.Since(fi.ModTime()) <= deleteTempFilesOlderThanDuration {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func findBrokenLooseReferences(ctx context.Context, repoPath string) ([]string, error) {
-	logger := myLogger(ctx)
-
 	var brokenRefs []string
-	err := filepath.Walk(filepath.Join(repoPath, "refs"), func(path string, info os.FileInfo, err error) error {
-		if info == nil {
-			logger.WithFields(log.Fields{
-				"path": path,
-			}).WithError(err).Error("nil FileInfo in housekeeping.Perform")
+	if err := filepath.WalkDir(filepath.Join(repoPath, "refs"), func(path string, dirEntry fs.DirEntry, err error) error {
+		if err != nil {
+			if errors.Is(err, fs.ErrPermission) || errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
 
+		if dirEntry.IsDir() {
 			return nil
+		}
+
+		fi, err := dirEntry.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+
+			return fmt.Errorf("statting loose ref: %w", err)
 		}
 
 		// When git crashes or a node reboots, it may happen that it leaves behind empty
 		// references. These references break various assumptions made by git and cause it
 		// to error in various circumstances. We thus clean them up to work around the
 		// issue.
-		if info.IsDir() || info.Size() > 0 || time.Since(info.ModTime()) < brokenRefsGracePeriod {
+		if fi.Size() > 0 || time.Since(fi.ModTime()) < brokenRefsGracePeriod {
 			return nil
 		}
 
 		brokenRefs = append(brokenRefs, path)
 
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, fmt.Errorf("walking references: %w", err)
 	}
 
 	return brokenRefs, nil
@@ -343,29 +369,40 @@ func findBrokenLooseReferences(ctx context.Context, repoPath string) ([]string, 
 func findStaleReferenceLocks(ctx context.Context, repoPath string) ([]string, error) {
 	var staleReferenceLocks []string
 
-	err := filepath.Walk(filepath.Join(repoPath, "refs"), func(path string, info os.FileInfo, err error) error {
-		if os.IsNotExist(err) {
-			// Race condition: somebody already deleted the file for us. Ignore this file.
-			return nil
-		}
-
+	if err := filepath.WalkDir(filepath.Join(repoPath, "refs"), func(path string, dirEntry fs.DirEntry, err error) error {
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+				return nil
+			}
+
 			return err
 		}
 
-		if info.IsDir() {
+		if dirEntry.IsDir() {
 			return nil
 		}
 
-		if !strings.HasSuffix(info.Name(), ".lock") || time.Since(info.ModTime()) < referenceLockfileGracePeriod {
+		if !strings.HasSuffix(dirEntry.Name(), ".lock") {
+			return nil
+		}
+
+		fi, err := dirEntry.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+
+			return fmt.Errorf("statting reference lock: %w", err)
+		}
+
+		if time.Since(fi.ModTime()) < referenceLockfileGracePeriod {
 			return nil
 		}
 
 		staleReferenceLocks = append(staleReferenceLocks, path)
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, fmt.Errorf("walking refs: %w", err)
 	}
 
 	return staleReferenceLocks, nil
