@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -128,21 +129,27 @@ func testServerPostUploadPackGitConfigOptions(t *testing.T, ctx context.Context,
 
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	want := "3dd08961455abf80ef9115f4afdc1c6f968b503c" // refs/heads/csv
-	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/hidden/csv", want)
-	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/csv")
-
-	have := "6ff234d2889b27d91c3442924ef6a100b1fc6f2b" // refs/heads/csv~1
+	// We write two commits: the first commit is a common base commit that is available via
+	// normal refs. And the second commit is a child of the base commit, but its reference is
+	// created as `refs/hidden/csv`. This allows us to hide this reference and thus verify that
+	// the gitconfig indeed is applied because we should not be able to fetch the hidden ref.
+	baseID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithMessage("base commit"),
+		gittest.WithParents(),
+		gittest.WithBranch("main"),
+	)
+	hiddenID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithMessage("hidden commit"),
+		gittest.WithParents(baseID),
+	)
+	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/hidden/csv", hiddenID.String())
 
 	requestBody := &bytes.Buffer{}
-
-	gittest.WritePktlineString(t, requestBody, fmt.Sprintf("want %s %s\n", want, clientCapabilities))
+	gittest.WritePktlineString(t, requestBody, fmt.Sprintf("want %s %s\n", hiddenID, clientCapabilities))
 	gittest.WritePktlineFlush(t, requestBody)
-	gittest.WritePktlineString(t, requestBody, fmt.Sprintf("have %s\n", have))
+	gittest.WritePktlineString(t, requestBody, fmt.Sprintf("have %s\n", baseID))
 	gittest.WritePktlineFlush(t, requestBody)
 
 	t.Run("sanity check: ref exists and can be fetched", func(t *testing.T) {
@@ -151,7 +158,7 @@ func testServerPostUploadPackGitConfigOptions(t *testing.T, ctx context.Context,
 		response, err := makeRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, rpcRequest, bytes.NewReader(requestBody.Bytes()))
 		require.NoError(t, err)
 		_, _, count := extractPackDataFromResponse(t, response)
-		require.Equal(t, 5, count, "pack should have 5 entries")
+		require.Equal(t, 1, count, "pack should have the hidden ID as single object")
 	})
 
 	t.Run("failing request because of hidden ref config", func(t *testing.T) {
@@ -167,7 +174,7 @@ func testServerPostUploadPackGitConfigOptions(t *testing.T, ctx context.Context,
 
 		// The failure message proves that upload-pack failed because of
 		// GitConfigOptions, and that proves that passing GitConfigOptions works.
-		expected := fmt.Sprintf("0049ERR upload-pack: not our ref %v", want)
+		expected := fmt.Sprintf("0049ERR upload-pack: not our ref %v", hiddenID)
 		require.Equal(t, expected, response.String(), "Ref is hidden, expected error message did not appear")
 	})
 }
@@ -582,8 +589,13 @@ func makePostUploadPackWithSidechannelRequest(ctx context.Context, t *testing.T,
 
 	responseBuffer := &bytes.Buffer{}
 	ctxOut, waiter := sidechannel.RegisterSidechannel(ctx, registry, func(sideConn *sidechannel.ClientConn) error {
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		wg.Add(1)
 		errC := make(chan error, 1)
 		go func() {
+			defer wg.Done()
 			_, err := io.Copy(responseBuffer, sideConn)
 			errC <- err
 		}()
