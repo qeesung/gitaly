@@ -112,4 +112,36 @@ service ValidService {
   rpc TestMethod10(ValidStorageRequest) returns (ValidResponse) {
     option (gitaly.intercepted_method) = true;
   }
+
+  rpc TestMaintenance(ValidRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
+  rpc TestMaintenanceWithExplicitScope(ValidRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+      scope_level: REPOSITORY // repo can be explicitly included
+    };
+  }
+
+  rpc TestMaintenanceWithNestedRequest(ValidNestedRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
+  rpc TestMaintenanceWithNestedSharedRequest(ValidNestedSharedRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
+  rpc TestMutatorWithInnerNestedRequest(ValidInnerNestedRequest) returns (ValidResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
 }

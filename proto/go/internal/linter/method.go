@@ -49,6 +49,17 @@ func (ml methodLinter) validateMutator() error {
 	}
 }
 
+// validateMaintenance ensures that the message is repository-scoped and that it's got a target
+// repository.
+func (ml methodLinter) validateMaintenance() error {
+	switch scope := ml.opMsg.GetScopeLevel(); scope {
+	case gitalypb.OperationMsg_REPOSITORY:
+		return ml.ensureValidRepoScope()
+	default:
+		return fmt.Errorf("unknown operation scope level %d", scope)
+	}
+}
+
 func (ml methodLinter) ensureValidStorageScope() error {
 	if err := ml.ensureValidTargetRepository(0); err != nil {
 		return err

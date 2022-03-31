@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -43,8 +45,12 @@ func getNewestPackfileModtime(t *testing.T, repoPath string) time.Time {
 
 func TestOptimizeRepository(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testOptimizeRepository)
+}
 
-	ctx := testhelper.Context(t)
+func testOptimizeRepository(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repoProto, repoPath, client := setupRepositoryService(ctx, t)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-b")
@@ -157,9 +163,18 @@ func TestOptimizeRepository(t *testing.T) {
 
 func TestOptimizeRepositoryValidation(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testOptimizeRepositoryValidation)
+}
 
-	ctx := testhelper.Context(t)
+func testOptimizeRepositoryValidation(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, _, client := setupRepositoryService(ctx, t)
+
+	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"path/not/exist" not found`
+	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
+		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
+	}
 
 	testCases := []struct {
 		desc string
@@ -183,7 +198,7 @@ func TestOptimizeRepositoryValidation(t *testing.T) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/path/not/exist"`, cfg.Storages[0].Path),
-					`mutator call: route repository mutator: get repository id: repository "default"/"path/not/exist" not found`,
+					praefectErr,
 				),
 			),
 		},
@@ -193,7 +208,7 @@ func TestOptimizeRepositoryValidation(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, err := client.OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{Repository: tc.repo})
 			require.Error(t, err)
-			testhelper.RequireGrpcError(t, err, tc.exp)
+			testhelper.RequireGrpcError(t, tc.exp, err)
 		})
 	}
 

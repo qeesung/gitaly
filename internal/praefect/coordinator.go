@@ -92,20 +92,9 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.ObjectPoolService/ReduplicateRepository":      transactionsDisabled,
 	"/gitaly.RepositoryService/RenameRepository":           transactionsDisabled,
 
-	// The following list of RPCs are considered idempotent RPCs: while they write into the
-	// target repository, this shouldn't ever have any user-visible impact given that they're
-	// purely optimizations of the on-disk state. These RPCs are thus treated specially and
-	// shouldn't ever cause a repository generation bump.
-	"/gitaly.RefService/PackRefs":                       transactionsDisabled,
-	"/gitaly.RepositoryService/Cleanup":                 transactionsDisabled,
-	"/gitaly.RepositoryService/GarbageCollect":          transactionsDisabled,
-	"/gitaly.RepositoryService/MidxRepack":              transactionsDisabled,
-	"/gitaly.RepositoryService/OptimizeRepository":      transactionsDisabled,
-	"/gitaly.RepositoryService/PruneUnreachableObjects": transactionsDisabled,
-	"/gitaly.RepositoryService/RepackFull":              transactionsDisabled,
-	"/gitaly.RepositoryService/RepackIncremental":       transactionsDisabled,
-	"/gitaly.RepositoryService/RestoreCustomHooks":      transactionsDisabled,
-	"/gitaly.RepositoryService/WriteCommitGraph":        transactionsDisabled,
+	// This RPC call should be made transactional. Furthermore, we should consider whether we
+	// have to replicate custom hooks.
+	"/gitaly.RepositoryService/RestoreCustomHooks": transactionsDisabled,
 }
 
 // forcePrimaryRoutingRPCs tracks RPCs which need to always get routed to the primary. This should
@@ -331,12 +320,22 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 		ps, err = c.accessorStreamParameters(ctx, call)
 	case protoregistry.OpMutator:
 		ps, err = c.mutatorStreamParameters(ctx, call)
+	case protoregistry.OpMaintenance:
+		if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
+			ps, err = c.maintenanceStreamParameters(ctx, call)
+		} else {
+			ps, err = c.mutatorStreamParameters(ctx, call)
+		}
 	default:
 		err = fmt.Errorf("unknown operation type: %v", call.methodInfo.Operation)
 	}
 
 	if err != nil {
 		if errors.As(err, new(commonerr.RepositoryNotFoundError)) {
+			return nil, helper.ErrNotFound(err)
+		}
+
+		if errors.Is(err, commonerr.ErrRepositoryNotFound) {
 			return nil, helper.ErrNotFound(err)
 		}
 
@@ -578,6 +577,69 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return firstErr
 	}
 	return proxy.NewStreamParameters(primaryDest, secondaryDests, reqFinalizer, nil), nil
+}
+
+// maintenanceStreamParameters returns stream parameters for a maintenance-style RPC. The RPC call
+// is proxied to all nodes. Because it shouldn't matter whether a node is the primary or not in this
+// context, we just pick the first node returned by the router to be the primary. Returns an error
+// in case any of the nodes has failed to perform the maintenance RPC.
+func (c *Coordinator) maintenanceStreamParameters(ctx context.Context, call grpcCall) (*proxy.StreamParameters, error) {
+	route, err := c.router.RouteRepositoryMaintenance(ctx, call.targetRepo.StorageName, call.targetRepo.RelativePath)
+	if err != nil {
+		return nil, fmt.Errorf("routing repository maintenance: %w", err)
+	}
+
+	peerCtx := streamParametersContext(ctx)
+
+	nodeDests := make([]proxy.Destination, 0, len(route.Nodes))
+	nodeErrors := &nodeErrors{
+		errByNode: make(map[string]error),
+	}
+
+	for _, node := range route.Nodes {
+		node := node
+
+		nodeMsg, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, node.Storage, route.ReplicaPath, "")
+		if err != nil {
+			return nil, err
+		}
+
+		nodeDests = append(nodeDests, proxy.Destination{
+			Ctx:  peerCtx,
+			Conn: node.Connection,
+			Msg:  nodeMsg,
+			ErrHandler: func(err error) error {
+				nodeErrors.Lock()
+				defer nodeErrors.Unlock()
+				nodeErrors.errByNode[node.Storage] = err
+
+				ctxlogrus.Extract(ctx).WithField("gitaly_storage", node.Storage).WithError(err).Error("proxying maintenance RPC to node failed")
+
+				// We ignore any errors returned by nodes such that they all have a
+				// chance to finish their maintenance RPC in a best-effort strategy.
+				// In case any node fails though, the RPC call will return with an
+				// error after all nodes have finished.
+				return nil
+			},
+		})
+	}
+
+	return proxy.NewStreamParameters(nodeDests[0], nodeDests[1:], func() error {
+		nodeErrors.Lock()
+		defer nodeErrors.Unlock()
+
+		// In case any of the nodes has recorded an error we will return it. It shouldn't
+		// matter which error we return exactly, so we just return errors in the order we've
+		// got from the router. This also has the nice property that any error returned by
+		// the primary node would be prioritized over all the others.
+		for _, node := range route.Nodes {
+			if nodeErr, ok := nodeErrors.errByNode[node.Storage]; ok && nodeErr != nil {
+				return nodeErr
+			}
+		}
+
+		return nil
+	}, nil), nil
 }
 
 // streamParametersContexts converts the contexts with incoming metadata into a context that is

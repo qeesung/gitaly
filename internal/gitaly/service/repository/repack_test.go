@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -21,8 +23,12 @@ import (
 
 func TestRepackIncrementalSuccess(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalSuccess)
+}
 
-	ctx := testhelper.Context(t)
+func testRepackIncrementalSuccess(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	packPath := filepath.Join(repoPath, "objects", "pack")
@@ -48,7 +54,11 @@ func TestRepackIncrementalSuccess(t *testing.T) {
 
 func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalCollectLogStatistics)
+}
+
+func testRepackIncrementalCollectLogStatistics(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	logger, hook := test.NewNullLogger()
 	_, repo, _, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
@@ -62,8 +72,12 @@ func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
 
 func TestRepackLocal(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackLocal)
+}
 
-	ctx := testhelper.Context(t)
+func testRepackLocal(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	altObjectsDir := "./alt-objects"
@@ -99,7 +113,17 @@ func TestRepackLocal(t *testing.T) {
 
 func TestRepackIncrementalFailure(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalFailure)
+}
+
+func testRepackIncrementalFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
+
+	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
+	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
+		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
+	}
 
 	tests := []struct {
 		repo *gitalypb.Repository
@@ -128,7 +152,7 @@ func TestRepackIncrementalFailure(t *testing.T) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
-					`mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`,
+					praefectErr,
 				),
 			),
 		},
@@ -136,7 +160,6 @@ func TestRepackIncrementalFailure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
 			//nolint:staticcheck
 			_, err := client.RepackIncremental(ctx, &gitalypb.RepackIncrementalRequest{Repository: tc.repo})
 			testhelper.RequireGrpcError(t, err, tc.err)
@@ -145,6 +168,11 @@ func TestRepackIncrementalFailure(t *testing.T) {
 }
 
 func TestRepackFullSuccess(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullSuccess)
+}
+
+func testRepackFullSuccess(t *testing.T, ctx context.Context) {
 	t.Parallel()
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
@@ -158,8 +186,6 @@ func TestRepackFullSuccess(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
-
 			var repoPath string
 			test.req.Repository, repoPath = gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 				Seed: gittest.SeedGitLabTest,
@@ -202,7 +228,11 @@ func TestRepackFullSuccess(t *testing.T) {
 
 func TestRepackFullCollectLogStatistics(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullCollectLogStatistics)
+}
+
+func testRepackFullCollectLogStatistics(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	logger, hook := test.NewNullLogger()
 	_, repo, _, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
@@ -243,7 +273,17 @@ func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {
 
 func TestRepackFullFailure(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullFailure)
+}
+
+func testRepackFullFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
+
+	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
+	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
+		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
+	}
 
 	tests := []struct {
 		desc string
@@ -272,7 +312,7 @@ func TestRepackFullFailure(t *testing.T) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
-					`mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`,
+					praefectErr,
 				),
 			),
 		},
@@ -280,7 +320,6 @@ func TestRepackFullFailure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
 			//nolint:staticcheck
 			_, err := client.RepackFull(ctx, &gitalypb.RepackFullRequest{Repository: tc.repo})
 			testhelper.RequireGrpcError(t, err, tc.err)
@@ -290,8 +329,12 @@ func TestRepackFullFailure(t *testing.T) {
 
 func TestRepackFullDeltaIslands(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullDeltaIslands)
+}
 
-	ctx := testhelper.Context(t)
+func testRepackFullDeltaIslands(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	gittest.TestDeltaIslands(t, cfg, repoPath, func() error {

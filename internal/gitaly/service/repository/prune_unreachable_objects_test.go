@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,12 +11,18 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func TestPruneUnreachableObjects(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testPruneUnreachableObjects)
+}
+
+func testPruneUnreachableObjects(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 

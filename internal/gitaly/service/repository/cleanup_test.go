@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -23,6 +25,11 @@ const (
 // TODO: replace emulated rebase RPC with actual
 // https://gitlab.com/gitlab-org/gitaly/issues/1750
 func TestCleanupDeletesStaleWorktrees(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testCleanupDeletesStaleWorktrees)
+}
+
+func testCleanupDeletesStaleWorktrees(t *testing.T, ctx context.Context) {
 	t.Parallel()
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
@@ -50,7 +57,6 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
 			repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 				Seed: gittest.SeedGitLabTest,
 			})
@@ -86,8 +92,12 @@ func TestCleanupDeletesStaleWorktrees(t *testing.T) {
 
 func TestCleanupDeletesOrphanedWorktrees(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testCleanupDeletesOrphanedWorktrees)
+}
 
-	ctx := testhelper.Context(t)
+func testCleanupDeletesOrphanedWorktrees(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	worktreeCheckoutPath := filepath.Join(repoPath, worktreePrefix, "test-worktree")
@@ -110,12 +120,16 @@ func TestCleanupDeletesOrphanedWorktrees(t *testing.T) {
 // https://gitlab.com/gitlab-org/gitaly/issues/1750
 func TestCleanupDisconnectedWorktrees(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testCleanupDisconnectedWorktrees)
+}
+
+func testCleanupDisconnectedWorktrees(t *testing.T, ctx context.Context) {
+	t.Parallel()
 	const (
 		worktreeName     = "test-worktree"
 		worktreeAdminDir = "worktrees"
 	)
 
-	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	worktreePath := filepath.Join(repoPath, worktreePrefix, worktreeName)
@@ -151,9 +165,18 @@ func TestCleanupDisconnectedWorktrees(t *testing.T) {
 
 func TestCleanup_invalidRequest(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testCleanupInvalidRequest)
+}
 
-	ctx := testhelper.Context(t)
+func testCleanupInvalidRequest(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
+
+	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"so/me/some.git" not found`
+	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
+		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
+	}
 
 	for _, tc := range []struct {
 		desc string
@@ -176,7 +199,7 @@ func TestCleanup_invalidRequest(t *testing.T) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: %q`, filepath.Join(cfg.Storages[0].Path, "so/me/some.git")),
-					`mutator call: route repository mutator: get repository id: repository "default"/"so/me/some.git" not found`,
+					praefectErr,
 				),
 			),
 		},

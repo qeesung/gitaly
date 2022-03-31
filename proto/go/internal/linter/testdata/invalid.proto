@@ -162,4 +162,50 @@ service InvalidService {
       option (gitaly.intercepted_method) = true;
       option (gitaly.op_type) = {};
   };
+
+  rpc MaintenanceWithMissingRepository(InvalidMethodRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type).op = MAINTENANCE;
+  }
+
+  rpc MaintenanceWithUnflaggedRepository(RequestWithNestedRepoNotFlagged) returns (InvalidMethodResponse) {
+    option (gitaly.op_type).op = MAINTENANCE;
+  }
+
+  rpc MaintenanceWithWrongNestedRepositoryType(RequestWithWrongTypeRepository) returns (InvalidMethodResponse) {
+    option (gitaly.op_type).op = MAINTENANCE;
+  }
+
+  rpc MaintenanceWithInvalidTargetType(InvalidTargetType) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
+  rpc MaintenanceWithInvalidNestedRequest(InvalidNestedRequest) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+    };
+  }
+
+  rpc MaintenanceWithStorageAndRepository(RequestWithStorageAndRepo) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+      scope_level: REPOSITORY
+    };
+  }
+
+  rpc MaintenanceWithNestedStorageAndRepository(RequestWithNestedStorageAndRepo) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+      scope_level: REPOSITORY
+    };
+  }
+
+  rpc MaintenanceWithStorageScope(InvalidMethodRequestWithRepo) returns (InvalidMethodResponse) {
+    option (gitaly.op_type) = {
+      op: MAINTENANCE
+      scope_level: STORAGE
+    };
+  }
+
 }

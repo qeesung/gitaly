@@ -114,6 +114,11 @@ type ValidServiceClient interface {
 	TestMethod9(ctx context.Context, in *ValidStorageNestedRequest, opts ...grpc.CallOption) (*ValidResponse, error)
 	// Intercepted methods do not need operation type annotations.
 	TestMethod10(ctx context.Context, in *ValidStorageRequest, opts ...grpc.CallOption) (*ValidResponse, error)
+	TestMaintenance(ctx context.Context, in *ValidRequest, opts ...grpc.CallOption) (*ValidResponse, error)
+	TestMaintenanceWithExplicitScope(ctx context.Context, in *ValidRequest, opts ...grpc.CallOption) (*ValidResponse, error)
+	TestMaintenanceWithNestedRequest(ctx context.Context, in *ValidNestedRequest, opts ...grpc.CallOption) (*ValidResponse, error)
+	TestMaintenanceWithNestedSharedRequest(ctx context.Context, in *ValidNestedSharedRequest, opts ...grpc.CallOption) (*ValidResponse, error)
+	TestMutatorWithInnerNestedRequest(ctx context.Context, in *ValidInnerNestedRequest, opts ...grpc.CallOption) (*ValidResponse, error)
 }
 
 type validServiceClient struct {
@@ -205,6 +210,51 @@ func (c *validServiceClient) TestMethod10(ctx context.Context, in *ValidStorageR
 	return out, nil
 }
 
+func (c *validServiceClient) TestMaintenance(ctx context.Context, in *ValidRequest, opts ...grpc.CallOption) (*ValidResponse, error) {
+	out := new(ValidResponse)
+	err := c.cc.Invoke(ctx, "/test.ValidService/TestMaintenance", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *validServiceClient) TestMaintenanceWithExplicitScope(ctx context.Context, in *ValidRequest, opts ...grpc.CallOption) (*ValidResponse, error) {
+	out := new(ValidResponse)
+	err := c.cc.Invoke(ctx, "/test.ValidService/TestMaintenanceWithExplicitScope", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *validServiceClient) TestMaintenanceWithNestedRequest(ctx context.Context, in *ValidNestedRequest, opts ...grpc.CallOption) (*ValidResponse, error) {
+	out := new(ValidResponse)
+	err := c.cc.Invoke(ctx, "/test.ValidService/TestMaintenanceWithNestedRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *validServiceClient) TestMaintenanceWithNestedSharedRequest(ctx context.Context, in *ValidNestedSharedRequest, opts ...grpc.CallOption) (*ValidResponse, error) {
+	out := new(ValidResponse)
+	err := c.cc.Invoke(ctx, "/test.ValidService/TestMaintenanceWithNestedSharedRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *validServiceClient) TestMutatorWithInnerNestedRequest(ctx context.Context, in *ValidInnerNestedRequest, opts ...grpc.CallOption) (*ValidResponse, error) {
+	out := new(ValidResponse)
+	err := c.cc.Invoke(ctx, "/test.ValidService/TestMutatorWithInnerNestedRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ValidServiceServer is the server API for ValidService service.
 // All implementations must embed UnimplementedValidServiceServer
 // for forward compatibility
@@ -219,6 +269,11 @@ type ValidServiceServer interface {
 	TestMethod9(context.Context, *ValidStorageNestedRequest) (*ValidResponse, error)
 	// Intercepted methods do not need operation type annotations.
 	TestMethod10(context.Context, *ValidStorageRequest) (*ValidResponse, error)
+	TestMaintenance(context.Context, *ValidRequest) (*ValidResponse, error)
+	TestMaintenanceWithExplicitScope(context.Context, *ValidRequest) (*ValidResponse, error)
+	TestMaintenanceWithNestedRequest(context.Context, *ValidNestedRequest) (*ValidResponse, error)
+	TestMaintenanceWithNestedSharedRequest(context.Context, *ValidNestedSharedRequest) (*ValidResponse, error)
+	TestMutatorWithInnerNestedRequest(context.Context, *ValidInnerNestedRequest) (*ValidResponse, error)
 	mustEmbedUnimplementedValidServiceServer()
 }
 
@@ -252,6 +307,21 @@ func (UnimplementedValidServiceServer) TestMethod9(context.Context, *ValidStorag
 }
 func (UnimplementedValidServiceServer) TestMethod10(context.Context, *ValidStorageRequest) (*ValidResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestMethod10 not implemented")
+}
+func (UnimplementedValidServiceServer) TestMaintenance(context.Context, *ValidRequest) (*ValidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestMaintenance not implemented")
+}
+func (UnimplementedValidServiceServer) TestMaintenanceWithExplicitScope(context.Context, *ValidRequest) (*ValidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestMaintenanceWithExplicitScope not implemented")
+}
+func (UnimplementedValidServiceServer) TestMaintenanceWithNestedRequest(context.Context, *ValidNestedRequest) (*ValidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestMaintenanceWithNestedRequest not implemented")
+}
+func (UnimplementedValidServiceServer) TestMaintenanceWithNestedSharedRequest(context.Context, *ValidNestedSharedRequest) (*ValidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestMaintenanceWithNestedSharedRequest not implemented")
+}
+func (UnimplementedValidServiceServer) TestMutatorWithInnerNestedRequest(context.Context, *ValidInnerNestedRequest) (*ValidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestMutatorWithInnerNestedRequest not implemented")
 }
 func (UnimplementedValidServiceServer) mustEmbedUnimplementedValidServiceServer() {}
 
@@ -428,6 +498,96 @@ func _ValidService_TestMethod10_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ValidService_TestMaintenance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ValidServiceServer).TestMaintenance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.ValidService/TestMaintenance",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ValidServiceServer).TestMaintenance(ctx, req.(*ValidRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ValidService_TestMaintenanceWithExplicitScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ValidServiceServer).TestMaintenanceWithExplicitScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.ValidService/TestMaintenanceWithExplicitScope",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ValidServiceServer).TestMaintenanceWithExplicitScope(ctx, req.(*ValidRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ValidService_TestMaintenanceWithNestedRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidNestedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ValidServiceServer).TestMaintenanceWithNestedRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.ValidService/TestMaintenanceWithNestedRequest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ValidServiceServer).TestMaintenanceWithNestedRequest(ctx, req.(*ValidNestedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ValidService_TestMaintenanceWithNestedSharedRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidNestedSharedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ValidServiceServer).TestMaintenanceWithNestedSharedRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.ValidService/TestMaintenanceWithNestedSharedRequest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ValidServiceServer).TestMaintenanceWithNestedSharedRequest(ctx, req.(*ValidNestedSharedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ValidService_TestMutatorWithInnerNestedRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidInnerNestedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ValidServiceServer).TestMutatorWithInnerNestedRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.ValidService/TestMutatorWithInnerNestedRequest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ValidServiceServer).TestMutatorWithInnerNestedRequest(ctx, req.(*ValidInnerNestedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ValidService_ServiceDesc is the grpc.ServiceDesc for ValidService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -470,6 +630,26 @@ var ValidService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TestMethod10",
 			Handler:    _ValidService_TestMethod10_Handler,
+		},
+		{
+			MethodName: "TestMaintenance",
+			Handler:    _ValidService_TestMaintenance_Handler,
+		},
+		{
+			MethodName: "TestMaintenanceWithExplicitScope",
+			Handler:    _ValidService_TestMaintenanceWithExplicitScope_Handler,
+		},
+		{
+			MethodName: "TestMaintenanceWithNestedRequest",
+			Handler:    _ValidService_TestMaintenanceWithNestedRequest_Handler,
+		},
+		{
+			MethodName: "TestMaintenanceWithNestedSharedRequest",
+			Handler:    _ValidService_TestMaintenanceWithNestedSharedRequest_Handler,
+		},
+		{
+			MethodName: "TestMutatorWithInnerNestedRequest",
+			Handler:    _ValidService_TestMutatorWithInnerNestedRequest_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

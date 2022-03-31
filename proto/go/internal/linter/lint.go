@@ -43,6 +43,9 @@ func ensureMethodOpType(fileDesc *descriptorpb.FileDescriptorProto, m *descripto
 		// if mutator, we need to make sure we specify scope or target repo
 		return ml.validateMutator()
 
+	case gitalypb.OperationMsg_MAINTENANCE:
+		return ml.validateMaintenance()
+
 	case gitalypb.OperationMsg_UNKNOWN:
 		return errors.New("op set to UNKNOWN")
 

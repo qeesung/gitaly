@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
@@ -442,6 +443,218 @@ func TestPerRepositoryRouter_RouteRepositoryMutator(t *testing.T) {
 					},
 					Secondaries:        secondaries,
 					ReplicationTargets: tc.replicationTargets,
+				}, route)
+			}
+		})
+	}
+}
+
+func TestPerRepositoryRouter_RouteRepositoryMaintenance(t *testing.T) {
+	t.Parallel()
+
+	db := testdb.New(t)
+
+	var (
+		virtualStorage = "virtual-storage-1"
+		relativePath   = gittest.NewRepositoryName(t, true)
+	)
+
+	configuredStorages := []string{"primary", "secondary-1", "secondary-2"}
+
+	for _, tc := range []struct {
+		desc               string
+		virtualStorage     string
+		healthyStorages    []string
+		assignedStorages   []string
+		storageGenerations map[string]int
+		expectedStorages   []string
+		expectedErr        error
+	}{
+		{
+			desc:           "unknown virtual storage",
+			virtualStorage: "unknown",
+			expectedErr:    nodes.ErrVirtualStorageNotExist,
+		},
+		{
+			desc:           "all nodes unhealthy",
+			virtualStorage: virtualStorage,
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedErr: ErrNoHealthyNodes,
+		},
+		{
+			desc:            "unhealthy primary",
+			virtualStorage:  virtualStorage,
+			healthyStorages: []string{"secondary-1", "secondary-2"},
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"secondary-1", "secondary-2"},
+		},
+		{
+			desc:            "unhealthy secondaries",
+			virtualStorage:  virtualStorage,
+			healthyStorages: []string{"primary"},
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"primary"},
+		},
+		{
+			desc:            "all nodes healthy",
+			virtualStorage:  virtualStorage,
+			healthyStorages: configuredStorages,
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"primary", "secondary-1", "secondary-2"},
+		},
+		{
+			desc:             "unassigned primary is ignored",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  configuredStorages,
+			assignedStorages: []string{"secondary-1", "secondary-2"},
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"secondary-1", "secondary-2"},
+		},
+		{
+			desc:             "unassigned secondary is ignored",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  configuredStorages,
+			assignedStorages: []string{"primary", "secondary-1"},
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"primary", "secondary-1"},
+		},
+		{
+			desc:            "no assigned nodes",
+			virtualStorage:  virtualStorage,
+			healthyStorages: configuredStorages,
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"primary", "secondary-1", "secondary-2"},
+		},
+		{
+			desc:             "unhealthy and unassigned nodes",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  []string{"primary", "secondary-1"},
+			assignedStorages: []string{"primary", "secondary-2"},
+			storageGenerations: map[string]int{
+				"primary":     1,
+				"secondary-1": 1,
+				"secondary-2": 1,
+			},
+			expectedStorages: []string{"primary"},
+		},
+		{
+			desc:             "missing repo on primary",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  configuredStorages,
+			assignedStorages: configuredStorages,
+			storageGenerations: map[string]int{
+				"primary":     -1,
+				"secondary-1": 9000,
+				"secondary-2": 9000,
+			},
+			expectedStorages: []string{"secondary-1", "secondary-2"},
+		},
+		{
+			desc:             "missing repo on secondary",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  configuredStorages,
+			assignedStorages: configuredStorages,
+			storageGenerations: map[string]int{
+				"primary":     9000,
+				"secondary-1": 9000,
+				"secondary-2": -1,
+			},
+			expectedStorages: []string{"primary", "secondary-1"},
+		},
+		{
+			desc:             "mixed generations",
+			virtualStorage:   virtualStorage,
+			healthyStorages:  configuredStorages,
+			assignedStorages: configuredStorages,
+			storageGenerations: map[string]int{
+				"primary":     0,
+				"secondary-1": 1,
+				"secondary-2": 2,
+			},
+			expectedStorages: []string{"primary", "secondary-1", "secondary-2"},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := testhelper.Context(t)
+
+			tx := db.Begin(t)
+			defer tx.Rollback(t)
+
+			conns := Connections{
+				virtualStorage: {
+					"primary":     &grpc.ClientConn{},
+					"secondary-1": &grpc.ClientConn{},
+					"secondary-2": &grpc.ClientConn{},
+				},
+			}
+
+			rs := datastore.NewPostgresRepositoryStore(tx, map[string][]string{
+				virtualStorage: configuredStorages,
+			})
+
+			repositoryID, err := rs.ReserveRepositoryID(ctx, virtualStorage, relativePath)
+			require.NoError(t, err)
+			require.NoError(t, rs.CreateRepository(ctx, repositoryID, virtualStorage, relativePath, relativePath, "primary", []string{"secondary-1", "secondary-2"}, nil, true, false))
+
+			for _, storage := range tc.assignedStorages {
+				_, err := tx.ExecContext(ctx, `
+				INSERT INTO repository_assignments
+				VALUES ($1, $2, $3, $4)
+				`, virtualStorage, relativePath, storage, repositoryID)
+				require.NoError(t, err)
+			}
+
+			for storage, generation := range tc.storageGenerations {
+				require.NoError(t, rs.SetGeneration(ctx, repositoryID, storage, relativePath, generation))
+			}
+
+			router := NewPerRepositoryRouter(conns, nil, StaticHealthChecker{
+				virtualStorage: tc.healthyStorages,
+			}, nil, nil, nil, rs, nil)
+
+			route, err := router.RouteRepositoryMaintenance(ctx, tc.virtualStorage, relativePath)
+			require.Equal(t, tc.expectedErr, err)
+			if err == nil {
+				var expectedStorages []RouterNode
+				for _, expectedNode := range tc.expectedStorages {
+					expectedStorages = append(expectedStorages, RouterNode{
+						Storage:    expectedNode,
+						Connection: conns[tc.virtualStorage][expectedNode],
+					})
+				}
+
+				require.Equal(t, RepositoryMaintenanceRoute{
+					RepositoryID: repositoryID,
+					ReplicaPath:  relativePath,
+					Nodes:        expectedStorages,
 				}, route)
 			}
 		})

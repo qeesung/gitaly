@@ -135,6 +135,14 @@ type InvalidServiceClient interface {
 	InvalidMethod14(ctx context.Context, in *RequestWithMultipleNestedStorage, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
 	// Intercepted methods must not have operation type annotations.
 	InvalidMethod15(ctx context.Context, in *RequestWithStorageAndRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithMissingRepository(ctx context.Context, in *InvalidMethodRequest, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithUnflaggedRepository(ctx context.Context, in *RequestWithNestedRepoNotFlagged, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithWrongNestedRepositoryType(ctx context.Context, in *RequestWithWrongTypeRepository, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithInvalidTargetType(ctx context.Context, in *InvalidTargetType, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithInvalidNestedRequest(ctx context.Context, in *InvalidNestedRequest, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithStorageAndRepository(ctx context.Context, in *RequestWithStorageAndRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithNestedStorageAndRepository(ctx context.Context, in *RequestWithNestedStorageAndRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
+	MaintenanceWithStorageScope(ctx context.Context, in *InvalidMethodRequestWithRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error)
 }
 
 type invalidServiceClient struct {
@@ -271,6 +279,78 @@ func (c *invalidServiceClient) InvalidMethod15(ctx context.Context, in *RequestW
 	return out, nil
 }
 
+func (c *invalidServiceClient) MaintenanceWithMissingRepository(ctx context.Context, in *InvalidMethodRequest, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithMissingRepository", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithUnflaggedRepository(ctx context.Context, in *RequestWithNestedRepoNotFlagged, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithUnflaggedRepository", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithWrongNestedRepositoryType(ctx context.Context, in *RequestWithWrongTypeRepository, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithWrongNestedRepositoryType", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithInvalidTargetType(ctx context.Context, in *InvalidTargetType, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithInvalidTargetType", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithInvalidNestedRequest(ctx context.Context, in *InvalidNestedRequest, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithInvalidNestedRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithStorageAndRepository(ctx context.Context, in *RequestWithStorageAndRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithStorageAndRepository", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithNestedStorageAndRepository(ctx context.Context, in *RequestWithNestedStorageAndRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithNestedStorageAndRepository", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *invalidServiceClient) MaintenanceWithStorageScope(ctx context.Context, in *InvalidMethodRequestWithRepo, opts ...grpc.CallOption) (*InvalidMethodResponse, error) {
+	out := new(InvalidMethodResponse)
+	err := c.cc.Invoke(ctx, "/test.InvalidService/MaintenanceWithStorageScope", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InvalidServiceServer is the server API for InvalidService service.
 // All implementations must embed UnimplementedInvalidServiceServer
 // for forward compatibility
@@ -303,6 +383,14 @@ type InvalidServiceServer interface {
 	InvalidMethod14(context.Context, *RequestWithMultipleNestedStorage) (*InvalidMethodResponse, error)
 	// Intercepted methods must not have operation type annotations.
 	InvalidMethod15(context.Context, *RequestWithStorageAndRepo) (*InvalidMethodResponse, error)
+	MaintenanceWithMissingRepository(context.Context, *InvalidMethodRequest) (*InvalidMethodResponse, error)
+	MaintenanceWithUnflaggedRepository(context.Context, *RequestWithNestedRepoNotFlagged) (*InvalidMethodResponse, error)
+	MaintenanceWithWrongNestedRepositoryType(context.Context, *RequestWithWrongTypeRepository) (*InvalidMethodResponse, error)
+	MaintenanceWithInvalidTargetType(context.Context, *InvalidTargetType) (*InvalidMethodResponse, error)
+	MaintenanceWithInvalidNestedRequest(context.Context, *InvalidNestedRequest) (*InvalidMethodResponse, error)
+	MaintenanceWithStorageAndRepository(context.Context, *RequestWithStorageAndRepo) (*InvalidMethodResponse, error)
+	MaintenanceWithNestedStorageAndRepository(context.Context, *RequestWithNestedStorageAndRepo) (*InvalidMethodResponse, error)
+	MaintenanceWithStorageScope(context.Context, *InvalidMethodRequestWithRepo) (*InvalidMethodResponse, error)
 	mustEmbedUnimplementedInvalidServiceServer()
 }
 
@@ -351,6 +439,30 @@ func (UnimplementedInvalidServiceServer) InvalidMethod14(context.Context, *Reque
 }
 func (UnimplementedInvalidServiceServer) InvalidMethod15(context.Context, *RequestWithStorageAndRepo) (*InvalidMethodResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InvalidMethod15 not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithMissingRepository(context.Context, *InvalidMethodRequest) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithMissingRepository not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithUnflaggedRepository(context.Context, *RequestWithNestedRepoNotFlagged) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithUnflaggedRepository not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithWrongNestedRepositoryType(context.Context, *RequestWithWrongTypeRepository) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithWrongNestedRepositoryType not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithInvalidTargetType(context.Context, *InvalidTargetType) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithInvalidTargetType not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithInvalidNestedRequest(context.Context, *InvalidNestedRequest) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithInvalidNestedRequest not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithStorageAndRepository(context.Context, *RequestWithStorageAndRepo) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithStorageAndRepository not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithNestedStorageAndRepository(context.Context, *RequestWithNestedStorageAndRepo) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithNestedStorageAndRepository not implemented")
+}
+func (UnimplementedInvalidServiceServer) MaintenanceWithStorageScope(context.Context, *InvalidMethodRequestWithRepo) (*InvalidMethodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MaintenanceWithStorageScope not implemented")
 }
 func (UnimplementedInvalidServiceServer) mustEmbedUnimplementedInvalidServiceServer() {}
 
@@ -617,6 +729,150 @@ func _InvalidService_InvalidMethod15_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InvalidService_MaintenanceWithMissingRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvalidMethodRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithMissingRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithMissingRepository",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithMissingRepository(ctx, req.(*InvalidMethodRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithUnflaggedRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestWithNestedRepoNotFlagged)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithUnflaggedRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithUnflaggedRepository",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithUnflaggedRepository(ctx, req.(*RequestWithNestedRepoNotFlagged))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithWrongNestedRepositoryType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestWithWrongTypeRepository)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithWrongNestedRepositoryType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithWrongNestedRepositoryType",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithWrongNestedRepositoryType(ctx, req.(*RequestWithWrongTypeRepository))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithInvalidTargetType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvalidTargetType)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithInvalidTargetType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithInvalidTargetType",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithInvalidTargetType(ctx, req.(*InvalidTargetType))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithInvalidNestedRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvalidNestedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithInvalidNestedRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithInvalidNestedRequest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithInvalidNestedRequest(ctx, req.(*InvalidNestedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithStorageAndRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestWithStorageAndRepo)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithStorageAndRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithStorageAndRepository",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithStorageAndRepository(ctx, req.(*RequestWithStorageAndRepo))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithNestedStorageAndRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestWithNestedStorageAndRepo)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithNestedStorageAndRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithNestedStorageAndRepository",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithNestedStorageAndRepository(ctx, req.(*RequestWithNestedStorageAndRepo))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InvalidService_MaintenanceWithStorageScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvalidMethodRequestWithRepo)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvalidServiceServer).MaintenanceWithStorageScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/test.InvalidService/MaintenanceWithStorageScope",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvalidServiceServer).MaintenanceWithStorageScope(ctx, req.(*InvalidMethodRequestWithRepo))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InvalidService_ServiceDesc is the grpc.ServiceDesc for InvalidService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -679,6 +935,38 @@ var InvalidService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InvalidMethod15",
 			Handler:    _InvalidService_InvalidMethod15_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithMissingRepository",
+			Handler:    _InvalidService_MaintenanceWithMissingRepository_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithUnflaggedRepository",
+			Handler:    _InvalidService_MaintenanceWithUnflaggedRepository_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithWrongNestedRepositoryType",
+			Handler:    _InvalidService_MaintenanceWithWrongNestedRepositoryType_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithInvalidTargetType",
+			Handler:    _InvalidService_MaintenanceWithInvalidTargetType_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithInvalidNestedRequest",
+			Handler:    _InvalidService_MaintenanceWithInvalidNestedRequest_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithStorageAndRepository",
+			Handler:    _InvalidService_MaintenanceWithStorageAndRepository_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithNestedStorageAndRepository",
+			Handler:    _InvalidService_MaintenanceWithNestedStorageAndRepository_Handler,
+		},
+		{
+			MethodName: "MaintenanceWithStorageScope",
+			Handler:    _InvalidService_MaintenanceWithStorageScope_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

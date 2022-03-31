@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -20,8 +22,12 @@ import (
 
 func TestWriteCommitGraph_withExistingCommitGraphCreatedWithDefaults(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testWriteCommitGraphWithExistingCommitGraphCreatedWithDefaults)
+}
 
-	ctx := testhelper.Context(t)
+func testWriteCommitGraphWithExistingCommitGraphCreatedWithDefaults(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	commitGraphPath := filepath.Join(repoPath, stats.CommitGraphRelPath)
@@ -58,8 +64,12 @@ func TestWriteCommitGraph_withExistingCommitGraphCreatedWithDefaults(t *testing.
 
 func TestWriteCommitGraph_withExistingCommitGraphCreatedWithSplit(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testWriteCommitGraphWithExistingCommitGraphCreatedWithSplit)
+}
 
-	ctx := testhelper.Context(t)
+func testWriteCommitGraphWithExistingCommitGraphCreatedWithSplit(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	commitGraphPath := filepath.Join(repoPath, stats.CommitGraphRelPath)
@@ -96,8 +106,12 @@ func TestWriteCommitGraph_withExistingCommitGraphCreatedWithSplit(t *testing.T) 
 
 func TestWriteCommitGraph(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testWriteCommitGraph)
+}
 
-	ctx := testhelper.Context(t)
+func testWriteCommitGraph(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	chainPath := filepath.Join(repoPath, stats.CommitGraphChainRelPath)
@@ -160,8 +174,12 @@ func TestWriteCommitGraph_validationChecks(t *testing.T) {
 
 func TestUpdateCommitGraph(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testUpdateCommitGraph)
+}
 
-	ctx := testhelper.Context(t)
+func testUpdateCommitGraph(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	chainPath := filepath.Join(repoPath, stats.CommitGraphChainRelPath)

@@ -367,3 +367,56 @@ func (r *PerRepositoryRouter) RouteRepositoryCreation(ctx context.Context, virtu
 		ReplicationTargets:    replicationTargets,
 	}, nil
 }
+
+// RouteRepositoryMaintenance will route the maintenance call to all healthy nodes in a best-effort
+// strategy. We do not raise an error in case the primary node is unhealthy, but will in case all
+// nodes are unhealthy.
+func (r *PerRepositoryRouter) RouteRepositoryMaintenance(ctx context.Context, virtualStorage, relativePath string) (RepositoryMaintenanceRoute, error) {
+	healthyNodes, err := r.healthyNodes(virtualStorage)
+	if err != nil {
+		return RepositoryMaintenanceRoute{}, err
+	}
+
+	healthyNodesByStorage := map[string]RouterNode{}
+	for _, healthyNode := range healthyNodes {
+		healthyNodesByStorage[healthyNode.Storage] = healthyNode
+	}
+
+	metadata, err := r.rs.GetRepositoryMetadataByPath(ctx, virtualStorage, relativePath)
+	if err != nil {
+		return RepositoryMaintenanceRoute{}, fmt.Errorf("getting repository metadata: %w", err)
+	}
+
+	nodes := make([]RouterNode, 0, len(metadata.Replicas))
+	for _, replica := range metadata.Replicas {
+		node, ok := healthyNodesByStorage[replica.Storage]
+		if !ok {
+			continue
+		}
+
+		// If the is not assigned to the replica it either hasn't yet been created
+		// or it will eventually get deleted. In neither case does it make sense to
+		// maintain it, so we skip such nodes.
+		if !replica.Assigned {
+			continue
+		}
+
+		// If the repository doesn't exist on the replica there is no need to perform any
+		// maintenance tasks at all.
+		if replica.Generation < 0 {
+			continue
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	if len(nodes) == 0 {
+		return RepositoryMaintenanceRoute{}, ErrNoHealthyNodes
+	}
+
+	return RepositoryMaintenanceRoute{
+		RepositoryID: metadata.RepositoryID,
+		ReplicaPath:  metadata.ReplicaPath,
+		Nodes:        nodes,
+	}, nil
+}
