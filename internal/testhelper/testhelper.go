@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	mrand "math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -175,9 +174,6 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// ConcurrencyQueueMaxWait is in the codepath of every RPC call since it's in the limithandler
 	// middleware.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueMaxWait, true)
-	// This flag is checked whenever we execute a Git command, making it infeasible to inject it
-	// at every callsite.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2351WithFetchSpeedups, mrand.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)

@@ -120,55 +120,7 @@ GIT_EXECUTABLES += git-http-backend
 # The default version is used in case the caller does not set the variable or
 # if it is either set to the empty string or "default".
 ifeq (${GIT_VERSION:default=},)
-    override GIT_VERSION := v2.33.1
-
-    # Before adding custom patches, please read doc/PROCESS.md#Patching-git
-    # first to make sure your patches meet our acceptance criteria. Patches
-    # must be put into `_support/git-patches`.
-
-    # The following set of patches speeds up connectivity checks and thus
-    # pushes into Gitaly. They have been merged into next via a5619d4f8d (Merge
-    # branch 'ps/connectivity-optim', 2021-09-03)
-    GIT_PATCHES += 0001-fetch-pack-speed-up-loading-of-refs-via-commit-graph.patch
-    GIT_PATCHES += 0002-revision-separate-walk-and-unsorted-flags.patch
-    GIT_PATCHES += 0003-connected-do-not-sort-input-revisions.patch
-    GIT_PATCHES += 0004-revision-stop-retrieving-reference-twice.patch
-    GIT_PATCHES += 0005-commit-graph-split-out-function-to-search-commit-pos.patch
-    GIT_PATCHES += 0006-revision-avoid-hitting-packfiles-when-commits-are-in.patch
-
-    # Due to a bug, fetches with `--quiet` were slower than those without
-    # because Git formatted each reference into the output buffer even though
-    # it wasn't used. This has been merged into next via 2440a8a2aa (Merge
-    # branch 'ps/fetch-omit-formatting-under-quiet' into next, 2021-09-01)
-    GIT_PATCHES += 0007-fetch-skip-formatting-updated-refs-with-quiet.patch
-
-    # This patch set speeds up fetches, most importantly by making better use
-    # of the commit graph. They have been merged into next via 99f865125d
-    # (Merge branch 'ps/fetch-optim' into next, 2021-09-08).
-    GIT_PATCHES += 0008-fetch-speed-up-lookup-of-want-refs-via-commit-graph.patch
-    GIT_PATCHES += 0009-fetch-avoid-unpacking-headers-in-object-existence-ch.patch
-    GIT_PATCHES += 0010-connected-refactor-iterator-to-return-next-object-ID.patch
-    GIT_PATCHES += 0011-fetch-pack-optimize-loading-of-refs-via-commit-graph.patch
-    GIT_PATCHES += 0012-fetch-refactor-fetch-refs-to-be-more-extendable.patch
-    GIT_PATCHES += 0013-fetch-merge-fetching-and-consuming-refs.patch
-    GIT_PATCHES += 0014-fetch-avoid-second-connectivity-check-if-we-already-.patch
-
-    # Buffer ref advertisement writes in upload-pack. Merged into next via
-    # c31d871c (Merge branch 'jv/pkt-line-batch' into next, 2021-09-10).
-    GIT_PATCHES += 0016-pkt-line-add-stdio-packet-write-functions.patch
-    GIT_PATCHES += 0017-upload-pack-use-stdio-in-send_ref-callbacks.patch
-
-    # Increase upload-pack copy buffer size. Merged into next via 3a1afc1ef8
-    # (Merge branch 'jv/use-larger-buffer-in-upload-pack' into next,
-    # 2021-12-27).
-    GIT_PATCHES += 0018-upload-pack.c-increase-output-buffer-size.patch
-
-    # Speed up fetches by making better use of the commit-graph and by not
-    # computing the output-width if not requested. Merged into next via
-    # 2b331293fb (Merge branch 'ps/fetch-optim-with-commit-graph' into next,
-    # 2022-02-14).
-    GIT_PATCHES += 0019-fetch-pack-use-commit-graph-when-computing-cutoff.patch
-    GIT_PATCHES += 0020-fetch-skip-computing-output-width-when-not-printing-.patch
+    override GIT_VERSION := v2.35.1
 
     # This extra version has two intentions: first, it allows us to detect
     # capabilities of the command at runtime. Second, it helps admins to
@@ -176,7 +128,12 @@ ifeq (${GIT_VERSION:default=},)
     # incremented whenever a new patch is added above. When no patches exist,
     # then this should be undefined. Otherwise, it must be set to at least
     # `gl1` given that `0` is the "default" GitLab patch level.
-    GIT_EXTRA_VERSION := gl3
+    GIT_EXTRA_VERSION := gl1
+
+    # Before adding custom patches, please read doc/PROCESS.md#Patching-git
+    # first to make sure your patches meet our acceptance criteria. Patches
+    # must be put into `_support/git-patches`.
+    GIT_PATCHES := $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*)
 else
     # Support both vX.Y.Z and X.Y.Z version patterns, since callers across GitLab
     # use both.
@@ -590,7 +547,7 @@ ${DEPENDENCY_DIR}/git-%/Makefile: ${DEPENDENCY_DIR}/git-%.version
 	${Q}${GIT} -C "${@D}" fetch --depth 1 ${GIT_QUIET} origin ${GIT_VERSION}
 	${Q}${GIT} -C "${@D}" reset --hard
 	${Q}${GIT} -C "${@D}" checkout ${GIT_QUIET} --detach FETCH_HEAD
-	${Q}if test -n "${GIT_PATCHES}"; then ${GIT} -C "${@D}" apply $(addprefix "${SOURCE_DIR}"/_support/git-patches/,${GIT_PATCHES}); fi
+	${Q}if test -n "${GIT_PATCHES}"; then ${GIT} -C "${@D}" apply ${GIT_PATCHES}; fi
 	@ # We're writing the version into the "version" file in Git's own source
 	@ # directory. If it exists, Git's Makefile will pick it up and use it as
 	@ # the version instead of auto-detecting via git-describe(1).
@@ -611,57 +568,13 @@ ${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-${GIT_VERSION}.${GIT_EXTRA_VERSION}
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
 	${Q}touch $@
 
-${BUILD_DIR}/bin/gitaly-%: ${DEPENDENCY_DIR}/git-${GIT_VERSION}.${GIT_EXTRA_VERSION}/% | ${BUILD_DIR}/bin
+${BUILD_DIR}/bin/gitaly-%: override GIT_PATCHES := $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.33.1.gl3/*)
+${BUILD_DIR}/bin/gitaly-%: override GIT_VERSION = v2.33.1
+${BUILD_DIR}/bin/gitaly-%: override GIT_EXTRA_VERSION = gl3
+${BUILD_DIR}/bin/gitaly-%: ${DEPENDENCY_DIR}/git-v2.33.1.gl3/% | ${BUILD_DIR}/bin
 	${Q}install $< $@
 
-# Speed up fetches by making better use of the commit-graph and by not
-# computing the output-width if not requested. Merged into next via
-# 2b331293fb (Merge branch 'ps/fetch-optim-with-commit-graph' into next,
-# 2022-02-14).
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := 0019-fetch-pack-use-commit-graph-when-computing-cutoff.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0020-fetch-skip-computing-output-width-when-not-printing-.patch
-
-# Skip execution of the reference-transaction hook a second time via the
-# packed-refs backend in case loose references are deleted. This will
-# eventually make a workaround obsolete where we had to filter out all
-# invocations of the hook where we only saw force-deletions of references such
-# that we don't depend on whether refs are packed or not. Merged into main via
-# 991b4d47f0 (Merge branch
-# 'ps/avoid-unnecessary-hook-invocation-with-packed-refs', 2022-02-18).
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0021-refs-extract-packed_refs_delete_refs-to-allow-contro.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0022-refs-allow-passing-flags-when-beginning-transactions.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0023-refs-allow-skipping-the-reference-transaction-hook.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0024-refs-demonstrate-excessive-execution-of-the-referenc.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0025-refs-do-not-execute-reference-transaction-hook-on-pa.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0026-refs-skip-hooks-when-deleting-uncovered-packed-refs.patch
-
-# Fix atomicity of git-fetch(1) to also cover pruning of references and
-# backfilling of tags. Previously, each reference modified via any of both
-# means would have created its own transaction and thus led to multiple hook
-# invocations. Merged into next via 3824153b23 (Merge branch 'ps/fetch-atomic'
-# into next, 2022-02-18). The first patch is unrelated, but required to fix a
-# merge conflict. It has been merged to main via c73d46b3a8 (Merge branch
-# 'tg/fetch-prune-exit-code-fix', 2022-02-11).
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0027-fetch-prune-exit-with-error-if-pruning-fails.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0028-fetch-increase-test-coverage-of-fetches.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0029-fetch-backfill-tags-before-setting-upstream.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0030-fetch-control-lifecycle-of-FETCH_HEAD-in-a-single-pl.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0031-fetch-report-errors-when-backfilling-tags-fails.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0032-refs-add-interface-to-iterate-over-queued-transactio.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0033-fetch-make-atomic-flag-cover-backfilling-of-tags.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0034-fetch-make-atomic-flag-cover-pruning-of-refs.patch
-
-# Some more optimizations to git-fetch(1). Most importantly, these patches
-# cause us to skip reading the packed-refs file to find symbolic references,
-# which provides a 13% speedup in benchmarks. These patches have been merged
-# into `next` via 60aae8731c (Merge branch 'ps/fetch-mirror-optim' into next,
-# 2022-03-08).
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0035-upload-pack-look-up-want-lines-via-commit-graph.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0036-fetch-avoid-lookup-of-commits-when-not-appending-to-.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0037-refs-add-ability-for-backends-to-special-case-readin.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0038-remote-read-symbolic-refs-via-refs_read_symbolic_ref.patch
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES += 0039-refs-files-backend-optimize-reading-of-symbolic-refs.patch
-
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*)
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_VERSION = v2.35.1
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_EXTRA_VERSION = gl1
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: ${DEPENDENCY_DIR}/git-v2.35.1.gl1/% | ${BUILD_DIR}/bin
