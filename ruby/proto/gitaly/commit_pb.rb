@@ -133,6 +133,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.ListFilesResponse" do
       repeated :paths, :bytes, 1
+      repeated :oids, :string, 2
     end
     add_message "gitaly.FindCommitRequest" do
       optional :repository, :message, 1, "gitaly.Repository"

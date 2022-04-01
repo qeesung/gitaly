@@ -94,7 +94,10 @@ func (s *server) listFiles(repo git.RepositoryExecutor, revision string, stream 
 			continue
 		}
 
-		if err := sender.Send(&gitalypb.ListFilesResponse{Paths: [][]byte{[]byte(entry.Path)}}); err != nil {
+		if err := sender.Send(&gitalypb.ListFilesResponse{
+			Paths: [][]byte{[]byte(entry.Path)},
+			Oids:  []string{entry.ObjectID.String()},
+		}); err != nil {
 			return err
 		}
 	}
@@ -111,4 +114,5 @@ func (s *listFilesSender) Reset()      { s.response = &gitalypb.ListFilesRespons
 func (s *listFilesSender) Send() error { return s.stream.Send(s.response) }
 func (s *listFilesSender) Append(m proto.Message) {
 	s.response.Paths = append(s.response.Paths, m.(*gitalypb.ListFilesResponse).Paths...)
+	s.response.Oids = append(s.response.Oids, m.(*gitalypb.ListFilesResponse).Oids...)
 }

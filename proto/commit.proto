@@ -357,6 +357,7 @@ message ListFilesRequest {
 message ListFilesResponse {
   // Remember to force encoding utf-8 on the client side
   repeated bytes paths = 1;
+  repeated string oids = 2;
 }
 
 message FindCommitRequest {
