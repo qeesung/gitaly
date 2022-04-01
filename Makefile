@@ -43,9 +43,6 @@ INSTALL_DEST_DIR := ${DESTDIR}${bindir}
 ## The prefix where Git will be installed to.
 GIT_PREFIX       ?= ${GIT_DEFAULT_PREFIX}
 
-## Skip generation of the GNU build ID if set to speed up builds.
-WITHOUT_BUILD_ID ?=
-
 # Tools
 GIT               := $(shell command -v git)
 GOIMPORTS         := ${TOOLS_DIR}/goimports
@@ -68,7 +65,8 @@ GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly/v14
 BUILD_TIME        := $(shell date +"%Y%m%d.%H%M%S")
 GITALY_VERSION    := $(shell ${GIT} describe --match v* 2>/dev/null | sed 's/^v//' || cat ${SOURCE_DIR}/VERSION 2>/dev/null || echo unknown)
 GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERSION} -X ${GITALY_PACKAGE}/internal/version.buildtime=${BUILD_TIME} -X ${GITALY_PACKAGE}/internal/version.moduleVersion=${MODULE_VERSION}
-GO_BUILD_TAGS     := tracer_static,tracer_static_jaeger,tracer_static_stackdriver,continuous_profiler_stackdriver,static,system_libgit2
+SERVER_BUILD_TAGS := tracer_static,tracer_static_jaeger,tracer_static_stackdriver,continuous_profiler_stackdriver
+GIT2GO_BUILD_TAGS := static,system_libgit2
 
 # Dependency versions
 GOLANGCI_LINT_VERSION     ?= 1.44.2
@@ -219,12 +217,11 @@ find_go_sources       = $(shell find ${SOURCE_DIR} -type d \( -name ruby -o -nam
 # run_go_tests will execute Go tests with all required parameters. Its
 # behaviour can be modified via the following variables:
 #
-# GO_BUILD_TAGS: tags used to build the executables
 # TEST_OPTIONS: any additional options
 # TEST_PACKAGES: packages which shall be tested
 run_go_tests = PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}' \
     TEST_TMP_DIR='${TEST_TMP_DIR}' \
-    ${GOTESTSUM} --format ${TEST_FORMAT} --junitfile ${TEST_REPORT} -- -ldflags '${GO_LDFLAGS}' -tags '${GO_BUILD_TAGS}' ${TEST_OPTIONS} ${TEST_PACKAGES}
+    ${GOTESTSUM} --format ${TEST_FORMAT} --junitfile ${TEST_REPORT} -- -ldflags '${GO_LDFLAGS}' -tags '${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}' ${TEST_OPTIONS} ${TEST_PACKAGES}
 
 unexport GOROOT
 export GOBIN                      = ${BUILD_DIR}/bin
@@ -269,13 +266,12 @@ help:
 
 .PHONY: build
 ## Build Go binaries and install required Ruby Gems.
-build: ${SOURCE_DIR}/.ruby-bundle libgit2
-ifdef WITHOUT_BUILD_ID
-	go install -ldflags '${GO_LDFLAGS}' -tags "${GO_BUILD_TAGS}" $(addprefix ${GITALY_PACKAGE}/cmd/, ${GITALY_EXECUTABLES})
-endif
+build: ${SOURCE_DIR}/.ruby-bundle ${GITALY_EXECUTABLES}
 
-ifndef WITHOUT_BUILD_ID
-build: ${GITALY_EXECUTABLES}
+gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
+praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
+gitaly-git2go-v14: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
+gitaly-git2go-v14: libgit2
 
 .PHONY: ${GITALY_EXECUTABLES}
 ${GITALY_EXECUTABLES}:
@@ -286,10 +282,9 @@ ${GITALY_EXECUTABLES}:
 	@ # If we cannot extract a Go build-id, we punt and fallback to using a random 32-byte hex string.
 	@ # This fallback is unique but non-deterministic, making it sufficient to avoid generating the
 	@ # GNU build-id from the empty string and causing guaranteed collisions.
-	GO_BUILD_ID=$$( go tool buildid $(addprefix ${BUILD_DIR}/bin/, $@) || openssl rand -hex 32 ) && \
+	${Q}GO_BUILD_ID=$$( go tool buildid $(addprefix ${BUILD_DIR}/bin/, $@) || openssl rand -hex 32 ) && \
 	GNU_BUILD_ID=$$( echo $$GO_BUILD_ID | sha1sum | cut -d' ' -f1 ) && \
 	go install -ldflags '${GO_LDFLAGS}'" -B 0x$$GNU_BUILD_ID" -tags "${GO_BUILD_TAGS}" $(addprefix ${GITALY_PACKAGE}/cmd/, $@)
-endif
 
 .PHONY: install
 ## Install Gitaly binaries. The target directory can be modified by setting PREFIX and DESTDIR.
@@ -388,7 +383,7 @@ check-mod-tidy:
 .PHONY: lint
 ## Run Go linter.
 lint: ${GOLANGCI_LINT} libgit2
-	${Q}${GOLANGCI_LINT} run --build-tags "${GO_BUILD_TAGS}" --out-format tab --config ${GOLANGCI_LINT_CONFIG} ${GOLANGCI_LINT_OPTIONS}
+	${Q}${GOLANGCI_LINT} run --build-tags "${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}" --out-format tab --config ${GOLANGCI_LINT_CONFIG} ${GOLANGCI_LINT_OPTIONS}
 
 .PHONY: format
 ## Run Go formatter and adjust imports.
@@ -495,7 +490,7 @@ ${SOURCE_DIR}/NOTICE: ${BUILD_DIR}/NOTICE
 
 ${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go
 	${Q}rm -rf ${BUILD_DIR}/licenses
-	${Q}GOOS=linux GOFLAGS="-tags=${GO_BUILD_TAGS}" ${GO_LICENSES} save ${SOURCE_DIR}/... --save_path=${BUILD_DIR}/licenses
+	${Q}GOOS=linux GOFLAGS="-tags=${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}" ${GO_LICENSES} save ${SOURCE_DIR}/... --save_path=${BUILD_DIR}/licenses
 	${Q}go run ${SOURCE_DIR}/_support/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/_support/noticegen/notice.template > ${BUILD_DIR}/NOTICE
 
 ${BUILD_DIR}:

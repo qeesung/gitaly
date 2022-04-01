@@ -110,7 +110,7 @@ build:
       policy: pull-push
   script:
     - go version
-    - make build $(pwd)/_build/tools/protoc $(test "${GIT_VERSION}" = "default" && echo "build-bundled-git" || echo "git")
+    - make -j$(nproc) build $(pwd)/_build/tools/protoc $(test "${GIT_VERSION}" = "default" && echo "build-bundled-git" || echo "git")
     - _support/test-boot . ${TEST_BOOT_ARGS}
   parallel:
     matrix:
@@ -128,7 +128,7 @@ build:binaries:
   script:
     # Just in case we start running CI builds on other architectures in future
     - go version
-    - make build
+    - make -j$(nproc) build
     - cd _build && sha256sum bin/* | tee checksums.sha256.txt
   artifacts:
     paths:
@@ -144,7 +144,7 @@ test:
   <<: *test_definition
   script:
     # We need to prepare test dependencies as privileged user.
-    - make build prepare-tests $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
+    - make -j$(nproc) build prepare-tests $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
     # But the actual tests should run unprivileged. This assures that we pay
     # proper attention to permission bits and that we don't modify the source
     # directory.
@@ -171,7 +171,7 @@ test:coverage:
   <<: *test_definition
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
-    - make build prepare-tests $(pwd)/_build/tools/gocover-cobertura
+    - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura
     - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make cover SKIP_RSPEC_BUILD=YesPlease
   artifacts:
     reports:
@@ -211,14 +211,14 @@ test:pgbouncer:
     - while ! psql -h "${PGHOST_PGBOUNCER}" -p "${PGPORT_PGBOUNCER}" -U "${PGUSER}" -c 'SELECT 1' > /dev/null; do echo "awaiting PgBouncer service to be ready..." && sleep 1 ; done && echo "PgBouncer service is ready!"
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
-    - make build prepare-tests
+    - make -j$(nproc) build prepare-tests
     - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
 test:nightly:
   <<: *test_definition
   script:
     - go version
-    - make build prepare-tests
+    - make -j$(nproc) build prepare-tests
     - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
   parallel:
     matrix:
@@ -230,7 +230,7 @@ test:nightly:
 test:praefect_smoke:
   <<: *test_definition
   script:
-    - make
+    - make -j$(nproc)
     - ruby -rerb -e 'ERB.new(ARGF.read).run' _support/config.praefect.toml.ci-sql-test.erb > config.praefect.toml
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
@@ -242,7 +242,7 @@ verify:
     - *cache_gems_configuration
     - *cache_go_configuration
   script:
-    - make verify
+    - make -j$(nproc) verify
   artifacts:
     paths:
       - _build/proto.diff
