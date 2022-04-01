@@ -16,7 +16,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/labkit/correlation"
 )
 
 var (
@@ -29,9 +31,10 @@ var (
 
 // Executor executes gitaly-git2go.
 type Executor struct {
-	binaryPath    string
-	gitCmdFactory git.CommandFactory
-	locator       storage.Locator
+	binaryPath          string
+	gitCmdFactory       git.CommandFactory
+	locator             storage.Locator
+	logFormat, logLevel string
 }
 
 // NewExecutor returns a new gitaly-git2go executor using binaries as configured in the given
@@ -41,6 +44,8 @@ func NewExecutor(cfg config.Cfg, gitCmdFactory git.CommandFactory, locator stora
 		binaryPath:    filepath.Join(cfg.BinDir, BinaryName),
 		gitCmdFactory: gitCmdFactory,
 		locator:       locator,
+		logFormat:     cfg.Logging.Format,
+		logLevel:      cfg.Logging.Level,
 	}
 }
 
@@ -52,16 +57,24 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 
 	env := alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
 
-	var stderr, stdout bytes.Buffer
-	cmd, err := command.New(ctx, exec.Command(b.binaryPath, args...), stdin, &stdout, &stderr, env...)
+	// Pass the log output directly to gitaly-git2go. No need to reinterpret
+	// these logs as long as the destination is an append-only file. See
+	// https://pkg.go.dev/github.com/sirupsen/logrus#readme-thread-safety
+	log := glog.Default().Logger.Out
+
+	args = append([]string{
+		"-log-format", b.logFormat,
+		"-log-level", b.logLevel,
+		"-correlation-id", correlation.ExtractFromContext(ctx),
+	}, args...)
+
+	var stdout bytes.Buffer
+	cmd, err := command.New(ctx, exec.Command(b.binaryPath, args...), stdin, &stdout, log, env...)
 	if err != nil {
 		return nil, err
 	}
 
 	if err := cmd.Wait(); err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("%s", stderr.String())
-		}
 		return nil, err
 	}
 

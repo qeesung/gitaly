@@ -10,8 +10,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	git "github.com/libgit2/git2go/v33"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/labkit/correlation"
 )
 
 type subcmd interface {
@@ -31,51 +35,81 @@ var subcommands = map[string]subcmd{
 	"submodule":   &submoduleSubcommand{},
 }
 
-func fatalf(encoder *gob.Encoder, format string, args ...interface{}) {
-	// Once logging has been implemented these encoding errors can be logged.
-	// Until then these will be ignored as we can no longer use stderr.
-	// https://gitlab.com/gitlab-org/gitaly/-/issues/3229
-	_ = encoder.Encode(git2go.Result{
+func fatalf(logger logrus.FieldLogger, encoder *gob.Encoder, format string, args ...interface{}) {
+	err := encoder.Encode(git2go.Result{
 		Err: git2go.SerializableError(fmt.Errorf(format, args...)),
 	})
+	if err != nil {
+		logger.WithError(err).Error("encode to gob failed")
+	}
 	// An exit code of 1 would indicate an error over stderr. Since our errors
 	// are encoded over gob, we need to exit cleanly
 	os.Exit(0)
+}
+
+func configureLogging(format, level string) {
+	// Gitaly logging by default goes to stdout, which would interfere with gob
+	// encoding.
+	for _, l := range glog.Loggers {
+		l.Out = os.Stderr
+	}
+	glog.Configure(glog.Loggers, format, level)
 }
 
 func main() {
 	decoder := gob.NewDecoder(os.Stdin)
 	encoder := gob.NewEncoder(os.Stdout)
 
-	flags := flag.NewFlagSet(git2go.BinaryName, flag.ContinueOnError)
+	var logFormat, logLevel, correlationID string
 
-	if err := flags.Parse(os.Args); err != nil {
-		fatalf(encoder, "parsing flags: %s", err)
+	flags := flag.NewFlagSet(git2go.BinaryName, flag.PanicOnError)
+	flags.StringVar(&logFormat, "log-format", "", "logging format")
+	flags.StringVar(&logLevel, "log-level", "", "logging level")
+	flags.StringVar(&correlationID, "correlation-id", "", "correlation ID used for request tracing")
+	_ = flags.Parse(os.Args[1:])
+
+	if correlationID == "" {
+		correlationID = correlation.SafeRandomID()
 	}
 
-	if flags.NArg() < 2 {
-		fatalf(encoder, "missing subcommand")
+	configureLogging(logFormat, logLevel)
+
+	ctx := correlation.ContextWithCorrelation(context.Background(), correlationID)
+	logger := glog.Default().WithFields(logrus.Fields{
+		"command.name":   git2go.BinaryName,
+		"correlation_id": correlationID,
+	})
+
+	if flags.NArg() < 1 {
+		fatalf(logger, encoder, "missing subcommand")
 	}
 
-	subcmd, ok := subcommands[flags.Arg(1)]
+	subcmd, ok := subcommands[flags.Arg(0)]
 	if !ok {
-		fatalf(encoder, "unknown subcommand: %q", flags.Arg(0))
+		fatalf(logger, encoder, "unknown subcommand: %q", flags.Arg(0))
 	}
 
 	subcmdFlags := subcmd.Flags()
-	if err := subcmdFlags.Parse(flags.Args()[2:]); err != nil {
-		fatalf(encoder, "parsing flags of %q: %s", subcmdFlags.Name(), err)
+	if err := subcmdFlags.Parse(flags.Args()[1:]); err != nil {
+		fatalf(logger, encoder, "parsing flags of %q: %s", subcmdFlags.Name(), err)
 	}
 
 	if subcmdFlags.NArg() != 0 {
-		fatalf(encoder, "%s: trailing arguments", subcmdFlags.Name())
+		fatalf(logger, encoder, "%s: trailing arguments", subcmdFlags.Name())
 	}
 
 	if err := git.EnableFsyncGitDir(true); err != nil {
-		fatalf(encoder, "enable fsync: %s", err)
+		fatalf(logger, encoder, "enable fsync: %s", err)
 	}
 
-	if err := subcmd.Run(context.Background(), decoder, encoder); err != nil {
-		fatalf(encoder, "%s: %s", subcmdFlags.Name(), err)
+	subcmdLogger := logger.WithField("command.subcommand", subcmdFlags.Name())
+	subcmdLogger.Infof("starting %s command", subcmdFlags.Name())
+
+	ctx = ctxlogrus.ToContext(ctx, subcmdLogger)
+	if err := subcmd.Run(ctx, decoder, encoder); err != nil {
+		subcmdLogger.WithError(err).Errorf("%s command failed", subcmdFlags.Name())
+		fatalf(logger, encoder, "%s: %s", subcmdFlags.Name(), err)
 	}
+
+	subcmdLogger.Infof("%s command finished", subcmdFlags.Name())
 }
