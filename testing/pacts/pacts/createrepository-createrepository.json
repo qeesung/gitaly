@@ -1,0 +1,38 @@
+{
+  "consumer": {
+    "name": "CreateRepository"
+  },
+  "provider": {
+    "name": "CreateRepository"
+  },
+  "interactions": [
+    {
+      "description": "A request to CreateRepository",
+      "providerState": "Repository does not exist",
+      "request": {
+        "method": "POST",
+        "path": "/gitaly.RepositoryService/CreateRepository",
+        "body": {
+          "defaultBranch": "bWFpbg==",
+          "repository": {
+            "relativePath": "ae300491-9af0-49a8-9d52-c8e685524fb4",
+            "storageName": "default"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}
