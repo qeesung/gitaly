@@ -10,16 +10,31 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySizeRequest) (*gitalypb.RepositorySizeResponse, error) {
-	path, err := s.locator.GetPath(in.Repository)
-	if err != nil {
-		return nil, err
+	repo := s.localrepo(in.GetRepository())
+	var size int64
+	var err error
+
+	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
+		size, err = repo.Size(ctx)
+		if err != nil {
+			return nil, err
+		}
+		// return the size in kb to remain consistent
+		size = size / 1024
+	} else {
+		path, err := repo.Path()
+		if err != nil {
+			return nil, err
+		}
+		size = getPathSize(ctx, path)
 	}
 
-	return &gitalypb.RepositorySizeResponse{Size: getPathSize(ctx, path)}, nil
+	return &gitalypb.RepositorySizeResponse{Size: size}, nil
 }
 
 func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObjectDirectorySizeRequest) (*gitalypb.GetObjectDirectorySizeResponse, error) {

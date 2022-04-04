@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -17,10 +19,13 @@ import (
 // repository, even in optimally packed state, is greater than this.
 const testRepoMinSizeKB = 10000
 
-func TestSuccessfulRepositorySizeRequest(t *testing.T) {
+func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
+		Run(t, testSuccessfulRepositorySizeRequest)
+}
 
-	ctx := testhelper.Context(t)
+func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {
 	_, repo, _, client := setupRepositoryService(ctx, t)
 
 	request := &gitalypb.RepositorySizeRequest{Repository: repo}
@@ -33,8 +38,13 @@ func TestSuccessfulRepositorySizeRequest(t *testing.T) {
 	)
 }
 
-func TestFailedRepositorySizeRequest(t *testing.T) {
+func TestRepositorySixe_FailedRequest(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
+		Run(t, testFailedRepositorySizeRequest)
+}
+
+func testFailedRepositorySizeRequest(t *testing.T, ctx context.Context) {
 	_, client := setupRepositoryServiceWithoutRepo(t)
 
 	testCases := []struct {
@@ -52,17 +62,19 @@ func TestFailedRepositorySizeRequest(t *testing.T) {
 			request := &gitalypb.RepositorySizeRequest{
 				Repository: testCase.repo,
 			}
-			ctx := testhelper.Context(t)
 			_, err := client.RepositorySize(ctx, request)
 			testhelper.RequireGrpcCode(t, err, codes.InvalidArgument)
 		})
 	}
 }
 
-func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
+func TestRepositorySize_SuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
+		Run(t, testSuccessfulGetObjectDirectorySizeRequest)
+}
 
-	ctx := testhelper.Context(t)
+func testSuccessfulGetObjectDirectorySizeRequest(t *testing.T, ctx context.Context) {
 	_, repo, _, client := setupRepositoryService(ctx, t)
 	repo.GitObjectDirectory = "objects/"
 
@@ -76,12 +88,15 @@ func TestSuccessfulGetObjectDirectorySizeRequest(t *testing.T) {
 	)
 }
 
-func TestGetObjectDirectorySize_quarantine(t *testing.T) {
+func TestRepositorySize_GetObjectDirectorySize_quarantine(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
+		Run(t, testGetObjectDirectorySizeQuarantine)
+}
 
+func testGetObjectDirectorySizeQuarantine(t *testing.T, ctx context.Context) {
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 	locator := config.NewLocator(cfg)
-	ctx := testhelper.Context(t)
 
 	t.Run("quarantined repo", func(t *testing.T) {
 		repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{

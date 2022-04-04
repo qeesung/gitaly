@@ -1,8 +1,11 @@
 package localrepo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -89,4 +92,30 @@ func errorWithStderr(err error, stderr []byte) error {
 		return err
 	}
 	return fmt.Errorf("%w, stderr: %q", err, stderr)
+}
+
+// Size calculates the size of all reachable objects in bytes
+func (repo *Repo) Size(ctx context.Context) (int64, error) {
+	var stdout bytes.Buffer
+	if err := repo.ExecAndWait(ctx,
+		git.SubCmd{
+			Name: "rev-list",
+			Flags: []git.Option{
+				git.Flag{Name: "--all"},
+				git.Flag{Name: "--objects"},
+				git.Flag{Name: "--use-bitmap-index"},
+				git.Flag{Name: "--disk-usage"},
+			},
+		},
+		git.WithStdout(&stdout),
+	); err != nil {
+		return -1, err
+	}
+
+	size, err := strconv.ParseInt(strings.TrimSuffix(stdout.String(), "\n"), 10, 64)
+	if err != nil {
+		return -1, err
+	}
+
+	return size, nil
 }
