@@ -101,7 +101,15 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	// git-receive-pack(1) which led to a different outcome across voters, then this final vote
 	// would fail because the sequence of votes would be different.
 	if err := transaction.VoteOnContext(ctx, s.txManager, voting.Vote{}, voting.Committed); err != nil {
-		return status.Errorf(codes.Aborted, "final transactional vote: %v", err)
+		// When the pre-receive hook failed, git-receive-pack(1) exits with code 0.
+		// It's arguable whether this is the expected behavior, but anyhow it means
+		// cmd.Wait() did not error out. On the other hand, the gitaly-hooks command did
+		// stop the transaction upon failure. So this final vote fails.
+		// To avoid this error being presented to the end user, ignore it when the
+		// transaction was stopped.
+		if !errors.Is(err, transaction.ErrTransactionStopped) {
+			return status.Errorf(codes.Aborted, "final transactional vote: %v", err)
+		}
 	}
 
 	return nil

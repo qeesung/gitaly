@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -238,6 +239,57 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 	_, _, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: "1"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "(pre-receive hook declined)")
+}
+
+func TestReceivePackPushHookFailureWithCustomHook(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
+	ctx := testhelper.Context(t)
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
+
+	cloneDetails, cleanup := setupSSHClone(t, cfg, repo, repoPath)
+	defer cleanup()
+
+	hookContent := []byte("#!/bin/sh\necho 'this is wrong' >&2;exit 1")
+	gittest.WriteCustomHook(t, cloneDetails.RemoteRepoPath, "pre-receive", hookContent)
+
+	cmd := sshPushCommand(ctx, t, cfg, cloneDetails, cfg.SocketPath,
+		pushParams{
+			storageName:  cfg.Storages[0].Name,
+			glID:         "1",
+			glRepository: repo.GlRepository,
+		})
+
+	stdout, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+	stderr, err := cmd.StderrPipe()
+	require.NoError(t, err)
+
+	require.NoError(t, cmd.Start())
+
+	c, err := io.Copy(io.Discard, stdout)
+	require.NoError(t, err)
+	require.Equal(t, c, int64(0))
+
+	slurpErr, err := io.ReadAll(stderr)
+	require.NoError(t, err)
+
+	require.Error(t, cmd.Wait())
+
+	require.Contains(t, string(slurpErr), "remote: this is wrong")
+	require.Contains(t, string(slurpErr), "(pre-receive hook declined)")
+
+	require.NotContains(t, string(slurpErr), "final transactional vote: transaction was stopped")
 }
 
 func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
@@ -599,7 +651,7 @@ func setupSSHClone(t *testing.T, cfg config.Cfg, remoteRepo *gitalypb.Repository
 		}
 }
 
-func sshPush(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverSocketPath string, params pushParams) (string, string, error) {
+func sshPushCommand(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverSocketPath string, params pushParams) *exec.Cmd {
 	pbTempRepo := &gitalypb.Repository{
 		StorageName:   params.storageName,
 		RelativePath:  cloneDetails.TempRepo,
@@ -623,6 +675,12 @@ func sshPush(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDetails SSH
 		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureflag.AllFlags(ctx), ",")),
 		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
 	}
+
+	return cmd
+}
+
+func sshPush(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDetails SSHCloneDetails, serverSocketPath string, params pushParams) (string, string, error) {
+	cmd := sshPushCommand(ctx, t, cfg, cloneDetails, serverSocketPath, params)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
