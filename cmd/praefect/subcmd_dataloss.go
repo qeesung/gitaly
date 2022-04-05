@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -16,9 +17,18 @@ import (
 
 const datalossCmdName = "dataloss"
 
+var errDatalossFlagsConflict = errors.New("fully-unavailable flag and partially-unavailable flag " +
+	"cannot be used together")
+
 type datalossSubcommand struct {
-	output                    io.Writer
-	virtualStorage            string
+	output                      io.Writer
+	virtualStorage              string
+	onlyIncludeFullyUnAvailable bool
+	/*
+	  includePartiallyAvailable is just a variable for holding a deprecated partially-unavailable
+	  flag's parsed value.
+	  But we don't need this variable.
+	*/
 	includePartiallyAvailable bool
 }
 
@@ -28,8 +38,19 @@ func newDatalossSubcommand() *datalossSubcommand {
 
 func (cmd *datalossSubcommand) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet(datalossCmdName, flag.ContinueOnError)
+	fs.Usage = func() {
+		printfErr("Description:\n" +
+			"	This command checks whether all repositories in specified virtual storage are available or not.\n" +
+			"	The default behavior is to show all partially unavailable repositories.\n" +
+			"	Partially unavailable repositories are ones where some replicas are unavailable." +
+			" These repositories are available but not fully replicated.")
+		fs.PrintDefaults()
+	}
 	fs.StringVar(&cmd.virtualStorage, "virtual-storage", "", "virtual storage to check for data loss")
+	fs.BoolVar(&cmd.onlyIncludeFullyUnAvailable, "fully-unavailable", false, strings.TrimSpace(`
+Only show repositories whose primaries are unavailable.`))
 	fs.BoolVar(&cmd.includePartiallyAvailable, "partially-unavailable", false, strings.TrimSpace(`
+(Deprecated, this is the default behavior of the command)
 Additionally include repositories which are available but some assigned replicas
 are unavailable. Such repositories are available but are not fully replicated. This
 increases the chance of data loss on primary failure`))
@@ -46,6 +67,10 @@ func (cmd *datalossSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) erro
 	if flags.NArg() > 0 {
 		return unexpectedPositionalArgsError{Command: flags.Name()}
 	}
+	if cmd.onlyIncludeFullyUnAvailable && cmd.includePartiallyAvailable {
+		return errDatalossFlagsConflict
+	}
+	includePartiallyAvailable := !cmd.onlyIncludeFullyUnAvailable
 
 	virtualStorages := []string{cmd.virtualStorage}
 	if cmd.virtualStorage == "" {
@@ -77,7 +102,7 @@ func (cmd *datalossSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) erro
 	for _, vs := range virtualStorages {
 		resp, err := client.DatalossCheck(ctx, &gitalypb.DatalossCheckRequest{
 			VirtualStorage:             vs,
-			IncludePartiallyReplicated: cmd.includePartiallyAvailable,
+			IncludePartiallyReplicated: includePartiallyAvailable,
 		})
 		if err != nil {
 			return fmt.Errorf("error checking: %v", err)
@@ -86,7 +111,7 @@ func (cmd *datalossSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) erro
 		cmd.println(0, "Virtual storage: %s", vs)
 		if len(resp.Repositories) == 0 {
 			msg := "All repositories are available!"
-			if cmd.includePartiallyAvailable {
+			if includePartiallyAvailable {
 				msg = "All repositories are fully available on all assigned storages!"
 			}
 
