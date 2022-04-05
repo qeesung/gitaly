@@ -19,22 +19,31 @@ func TestSuccessfulRawBlameRequest(t *testing.T) {
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
 
 	testCases := []struct {
-		revision, path, data []byte
+		revision, path, data, blameRange []byte
 	}{
 		{
-			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
-			path:     []byte("files/ruby/popen.rb"),
-			data:     testhelper.MustReadFile(t, "testdata/files-ruby-popen-e63f41f-blame.txt"),
+			revision:   []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			path:       []byte("files/ruby/popen.rb"),
+			data:       testhelper.MustReadFile(t, "testdata/files-ruby-popen-e63f41f-blame.txt"),
+			blameRange: []byte{},
 		},
 		{
-			revision: []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
-			path:     []byte("files/ruby/../ruby/popen.rb"),
-			data:     testhelper.MustReadFile(t, "testdata/files-ruby-popen-e63f41f-blame.txt"),
+			revision:   []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			path:       []byte("files/ruby/popen.rb"),
+			data:       testhelper.MustReadFile(t, "testdata/files-ruby-popen-e63f41f-blame.txt")[0:956],
+			blameRange: []byte("1,5"),
 		},
 		{
-			revision: []byte("93dcf076a236c837dd47d61f86d95a6b3d71b586"),
-			path:     []byte("gitaly/empty-file"),
-			data:     []byte{},
+			revision:   []byte("e63f41fe459e62e1228fcef60d7189127aeba95a"),
+			path:       []byte("files/ruby/../ruby/popen.rb"),
+			data:       testhelper.MustReadFile(t, "testdata/files-ruby-popen-e63f41f-blame.txt"),
+			blameRange: []byte{},
+		},
+		{
+			revision:   []byte("93dcf076a236c837dd47d61f86d95a6b3d71b586"),
+			path:       []byte("gitaly/empty-file"),
+			data:       []byte{},
+			blameRange: []byte{},
 		},
 	}
 
@@ -44,6 +53,7 @@ func TestSuccessfulRawBlameRequest(t *testing.T) {
 				Repository: repo,
 				Revision:   testCase.revision,
 				Path:       testCase.path,
+				Range:      testCase.blameRange,
 			}
 			c, err := client.RawBlame(ctx, request)
 			require.NoError(t, err)
@@ -73,6 +83,7 @@ func TestFailedRawBlameRequest(t *testing.T) {
 		description    string
 		repo           *gitalypb.Repository
 		revision, path []byte
+		blameRange     []byte
 		code           codes.Code
 	}{
 		{
@@ -80,6 +91,7 @@ func TestFailedRawBlameRequest(t *testing.T) {
 			repo:        invalidRepo,
 			revision:    []byte("master"),
 			path:        []byte("a/b/c"),
+			blameRange:  []byte{},
 			code:        codes.InvalidArgument,
 		},
 		{
@@ -87,6 +99,7 @@ func TestFailedRawBlameRequest(t *testing.T) {
 			repo:        repo,
 			revision:    []byte(""),
 			path:        []byte("a/b/c"),
+			blameRange:  []byte{},
 			code:        codes.InvalidArgument,
 		},
 		{
@@ -94,6 +107,7 @@ func TestFailedRawBlameRequest(t *testing.T) {
 			repo:        repo,
 			revision:    []byte("abcdef"),
 			path:        []byte(""),
+			blameRange:  []byte{},
 			code:        codes.InvalidArgument,
 		},
 		{
@@ -101,6 +115,15 @@ func TestFailedRawBlameRequest(t *testing.T) {
 			repo:        repo,
 			revision:    []byte("--output=/meow"),
 			path:        []byte("a/b/c"),
+			blameRange:  []byte{},
+			code:        codes.InvalidArgument,
+		},
+		{
+			description: "Invalid range",
+			repo:        repo,
+			revision:    []byte("abcdef"),
+			path:        []byte("a/b/c"),
+			blameRange:  []byte("foo"),
 			code:        codes.InvalidArgument,
 		},
 	}
@@ -111,6 +134,7 @@ func TestFailedRawBlameRequest(t *testing.T) {
 				Repository: testCase.repo,
 				Revision:   testCase.revision,
 				Path:       testCase.path,
+				Range:      testCase.blameRange,
 			}
 			c, err := client.RawBlame(ctx, &request)
 			require.NoError(t, err)

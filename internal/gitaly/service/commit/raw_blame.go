@@ -3,6 +3,7 @@ package commit
 import (
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -12,6 +13,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var validBlameRange = regexp.MustCompile(`\A\d+,\d+\z`)
+
 func (s *server) RawBlame(in *gitalypb.RawBlameRequest, stream gitalypb.CommitService_RawBlameServer) error {
 	if err := validateRawBlameRequest(in); err != nil {
 		return status.Errorf(codes.InvalidArgument, "RawBlame: %v", err)
@@ -20,10 +23,16 @@ func (s *server) RawBlame(in *gitalypb.RawBlameRequest, stream gitalypb.CommitSe
 	ctx := stream.Context()
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
+	blameRange := string(in.GetRange())
+
+	flags := []git.Option{git.Flag{Name: "-p"}}
+	if blameRange != "" {
+		flags = append(flags, git.ValueFlag{Name: "-L", Value: blameRange})
+	}
 
 	cmd, err := s.gitCmdFactory.New(ctx, in.Repository, git.SubCmd{
 		Name:        "blame",
-		Flags:       []git.Option{git.Flag{Name: "-p"}},
+		Flags:       flags,
 		Args:        []string{revision},
 		PostSepArgs: []string{path},
 	})
@@ -57,6 +66,11 @@ func validateRawBlameRequest(in *gitalypb.RawBlameRequest) error {
 
 	if len(in.GetPath()) == 0 {
 		return fmt.Errorf("empty Path")
+	}
+
+	blameRange := in.GetRange()
+	if len(blameRange) > 0 && !validBlameRange.Match(blameRange) {
+		return fmt.Errorf("invalid Range")
 	}
 
 	return nil

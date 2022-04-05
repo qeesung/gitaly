@@ -463,6 +463,9 @@ message RawBlameRequest {
   Repository repository = 1 [(target_repository)=true];
   bytes revision = 2;
   bytes path = 3;
+  // Comma-separated range of line numbers to perform the blame on: "1,1000".
+  // Optional - if no range is provided, the whole file will be blamed.
+  bytes range = 4;
 }
 
 message RawBlameResponse {

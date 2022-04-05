@@ -218,6 +218,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :revision, :bytes, 2
       optional :path, :bytes, 3
+      optional :range, :bytes, 4
     end
     add_message "gitaly.RawBlameResponse" do
       optional :data, :bytes, 1
