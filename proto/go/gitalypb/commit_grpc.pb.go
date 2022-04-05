@@ -46,6 +46,11 @@ type CommitServiceClient interface {
 	FilterShasWithSignatures(ctx context.Context, opts ...grpc.CallOption) (CommitService_FilterShasWithSignaturesClient, error)
 	GetCommitSignatures(ctx context.Context, in *GetCommitSignaturesRequest, opts ...grpc.CallOption) (CommitService_GetCommitSignaturesClient, error)
 	GetCommitMessages(ctx context.Context, in *GetCommitMessagesRequest, opts ...grpc.CallOption) (CommitService_GetCommitMessagesClient, error)
+	// CheckObjectsExist will check for the existence of revisions against a
+	// repository. It returns two sets of data. An array containing the revisions
+	// fromm the input that it found on the repository, and an array that contains all
+	// revisions from the input it did not find on the repository.
+	CheckObjectsExist(ctx context.Context, opts ...grpc.CallOption) (CommitService_CheckObjectsExistClient, error)
 }
 
 type commitServiceClient struct {
@@ -598,6 +603,37 @@ func (x *commitServiceGetCommitMessagesClient) Recv() (*GetCommitMessagesRespons
 	return m, nil
 }
 
+func (c *commitServiceClient) CheckObjectsExist(ctx context.Context, opts ...grpc.CallOption) (CommitService_CheckObjectsExistClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CommitService_ServiceDesc.Streams[15], "/gitaly.CommitService/CheckObjectsExist", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &commitServiceCheckObjectsExistClient{stream}
+	return x, nil
+}
+
+type CommitService_CheckObjectsExistClient interface {
+	Send(*CheckObjectsExistRequest) error
+	Recv() (*CheckObjectsExistResponse, error)
+	grpc.ClientStream
+}
+
+type commitServiceCheckObjectsExistClient struct {
+	grpc.ClientStream
+}
+
+func (x *commitServiceCheckObjectsExistClient) Send(m *CheckObjectsExistRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *commitServiceCheckObjectsExistClient) Recv() (*CheckObjectsExistResponse, error) {
+	m := new(CheckObjectsExistResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // CommitServiceServer is the server API for CommitService service.
 // All implementations must embed UnimplementedCommitServiceServer
 // for forward compatibility
@@ -630,6 +666,11 @@ type CommitServiceServer interface {
 	FilterShasWithSignatures(CommitService_FilterShasWithSignaturesServer) error
 	GetCommitSignatures(*GetCommitSignaturesRequest, CommitService_GetCommitSignaturesServer) error
 	GetCommitMessages(*GetCommitMessagesRequest, CommitService_GetCommitMessagesServer) error
+	// CheckObjectsExist will check for the existence of revisions against a
+	// repository. It returns two sets of data. An array containing the revisions
+	// fromm the input that it found on the repository, and an array that contains all
+	// revisions from the input it did not find on the repository.
+	CheckObjectsExist(CommitService_CheckObjectsExistServer) error
 	mustEmbedUnimplementedCommitServiceServer()
 }
 
@@ -702,6 +743,9 @@ func (UnimplementedCommitServiceServer) GetCommitSignatures(*GetCommitSignatures
 }
 func (UnimplementedCommitServiceServer) GetCommitMessages(*GetCommitMessagesRequest, CommitService_GetCommitMessagesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetCommitMessages not implemented")
+}
+func (UnimplementedCommitServiceServer) CheckObjectsExist(CommitService_CheckObjectsExistServer) error {
+	return status.Errorf(codes.Unimplemented, "method CheckObjectsExist not implemented")
 }
 func (UnimplementedCommitServiceServer) mustEmbedUnimplementedCommitServiceServer() {}
 
@@ -1162,6 +1206,32 @@ func (x *commitServiceGetCommitMessagesServer) Send(m *GetCommitMessagesResponse
 	return x.ServerStream.SendMsg(m)
 }
 
+func _CommitService_CheckObjectsExist_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CommitServiceServer).CheckObjectsExist(&commitServiceCheckObjectsExistServer{stream})
+}
+
+type CommitService_CheckObjectsExistServer interface {
+	Send(*CheckObjectsExistResponse) error
+	Recv() (*CheckObjectsExistRequest, error)
+	grpc.ServerStream
+}
+
+type commitServiceCheckObjectsExistServer struct {
+	grpc.ServerStream
+}
+
+func (x *commitServiceCheckObjectsExistServer) Send(m *CheckObjectsExistResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *commitServiceCheckObjectsExistServer) Recv() (*CheckObjectsExistRequest, error) {
+	m := new(CheckObjectsExistRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // CommitService_ServiceDesc is the grpc.ServiceDesc for CommitService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1274,6 +1344,12 @@ var CommitService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetCommitMessages",
 			Handler:       _CommitService_GetCommitMessages_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "CheckObjectsExist",
+			Handler:       _CommitService_CheckObjectsExist_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "commit.proto",

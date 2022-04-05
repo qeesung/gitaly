@@ -293,6 +293,17 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :commit_id, :string, 1
       optional :message, :bytes, 2
     end
+    add_message "gitaly.CheckObjectsExistRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      repeated :revisions, :bytes, 2
+    end
+    add_message "gitaly.CheckObjectsExistResponse" do
+      repeated :revisions, :message, 1, "gitaly.CheckObjectsExistResponse.RevisionExistence"
+    end
+    add_message "gitaly.CheckObjectsExistResponse.RevisionExistence" do
+      optional :name, :bytes, 1
+      optional :exists, :bool, 2
+    end
   end
 end
 
@@ -353,4 +364,7 @@ module Gitaly
   GetCommitSignaturesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetCommitSignaturesResponse").msgclass
   GetCommitMessagesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetCommitMessagesRequest").msgclass
   GetCommitMessagesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetCommitMessagesResponse").msgclass
+  CheckObjectsExistRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CheckObjectsExistRequest").msgclass
+  CheckObjectsExistResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CheckObjectsExistResponse").msgclass
+  CheckObjectsExistResponse::RevisionExistence = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CheckObjectsExistResponse.RevisionExistence").msgclass
 end

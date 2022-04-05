@@ -42,6 +42,11 @@ module Gitaly
       rpc :FilterShasWithSignatures, stream(::Gitaly::FilterShasWithSignaturesRequest), stream(::Gitaly::FilterShasWithSignaturesResponse)
       rpc :GetCommitSignatures, ::Gitaly::GetCommitSignaturesRequest, stream(::Gitaly::GetCommitSignaturesResponse)
       rpc :GetCommitMessages, ::Gitaly::GetCommitMessagesRequest, stream(::Gitaly::GetCommitMessagesResponse)
+      # CheckObjectsExist will check for the existence of revisions against a
+      # repository. It returns two sets of data. An array containing the revisions
+      # fromm the input that it found on the repository, and an array that contains all
+      # revisions from the input it did not find on the repository.
+      rpc :CheckObjectsExist, stream(::Gitaly::CheckObjectsExistRequest), stream(::Gitaly::CheckObjectsExistResponse)
     end
 
     Stub = Service.rpc_stub_class

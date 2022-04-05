@@ -130,6 +130,16 @@ service CommitService {
       op: ACCESSOR
     };
   }
+
+  // CheckObjectsExist will check for the existence of revisions against a
+  // repository. It returns two sets of data. An array containing the revisions
+  // fromm the input that it found on the repository, and an array that contains all
+  // revisions from the input it did not find on the repository.
+  rpc CheckObjectsExist(stream CheckObjectsExistRequest) returns (stream CheckObjectsExistResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
 }
 
 // ListCommitsRequest is a request for the ListCommits RPC.
@@ -564,4 +574,23 @@ message GetCommitMessagesResponse {
   // Only present for a new commit message
   string commit_id = 1;
   bytes message = 2;
+}
+
+// CheckObjectsExistRequest is a request for the CheckObjectsExist RPC.
+message CheckObjectsExistRequest {
+  // Repository is the repository in which existence of objects and refs
+  // are checked.
+  Repository repository = 1 [(target_repository)=true];
+  // Revisions contains the revisions that shall be checked for existence. This accepts all revisions
+  // as documented in gitrevisions(7)
+  repeated bytes revisions = 2;
+}
+
+message CheckObjectsExistResponse {
+  message RevisionExistence {
+    bytes name = 1;
+    bool exists = 2;
+  };
+
+  repeated RevisionExistence revisions = 1;
 }
