@@ -37,14 +37,19 @@ type promMonitor struct {
 
 // newPromMonitor creates a new ConcurrencyMonitor that tracks limiter
 // activity in Prometheus.
-func newPromMonitor(lh *LimiterMiddleware, system string, fullMethod string) ConcurrencyMonitor {
+func newPromMonitor(
+	system, fullMethod string,
+	queuedMetric, inProgressMetric *prometheus.GaugeVec,
+	acquiringSecondsMetric prometheus.ObserverVec,
+	requestsDroppedMetric *prometheus.CounterVec,
+) ConcurrencyMonitor {
 	serviceName, methodName := splitMethodName(fullMethod)
 
 	return &promMonitor{
-		lh.queuedMetric.WithLabelValues(system, serviceName, methodName),
-		lh.inProgressMetric.WithLabelValues(system, serviceName, methodName),
-		lh.acquiringSecondsMetric.WithLabelValues(system, serviceName, methodName),
-		lh.requestsDroppedMetric.MustCurryWith(prometheus.Labels{
+		queuedMetric.WithLabelValues(system, serviceName, methodName),
+		inProgressMetric.WithLabelValues(system, serviceName, methodName),
+		acquiringSecondsMetric.WithLabelValues(system, serviceName, methodName),
+		requestsDroppedMetric.MustCurryWith(prometheus.Labels{
 			"system":       system,
 			"grpc_service": serviceName,
 			"grpc_method":  methodName,

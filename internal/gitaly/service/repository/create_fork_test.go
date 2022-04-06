@@ -259,8 +259,8 @@ func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) s
 	registry := backchannel.NewRegistry()
 	locator := config.NewLocator(cfg)
 	cache := cache.New(cfg, locator)
-	limitHandler := limithandler.New(cfg, limithandler.LimitConcurrencyByRepo)
-	server, err := gserver.New(true, cfg, testhelper.NewDiscardingLogEntry(t), registry, cache, limitHandler)
+	limitHandler := limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)
+	server, err := gserver.New(true, cfg, testhelper.NewDiscardingLogEntry(t), registry, cache, []*limithandler.LimiterMiddleware{limitHandler})
 	require.NoError(t, err)
 	listener, addr := testhelper.GetLocalhostListener(t)
 

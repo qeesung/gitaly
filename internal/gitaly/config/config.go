@@ -60,6 +60,7 @@ type Cfg struct {
 	GitlabShell            GitlabShell       `toml:"gitlab-shell"`
 	Hooks                  Hooks             `toml:"hooks"`
 	Concurrency            []Concurrency     `toml:"concurrency"`
+	RateLimiting           []RateLimiting    `toml:"rate_limiting"`
 	GracefulRestartTimeout Duration          `toml:"graceful_restart_timeout"`
 	InternalSocketDir      string            `toml:"internal_socket_dir"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
@@ -147,6 +148,22 @@ type Concurrency struct {
 	// MaxQueueWait is the maximum time a request can remain in the concurrency queue
 	// waiting to be picked up by Gitaly
 	MaxQueueWait Duration `toml:"max_queue_wait"`
+}
+
+// RateLimiting allows endpoints to be limited to a maximum request rate per
+// second. The rate limiter uses a concept of a "token bucket". In order to serve a
+// request, a token is retrieved from the token bucket. The size of the token
+// bucket is configured through the Burst value, while the rate at which the
+// token bucket is refilled per second is configured through the RequestsPerSecond
+// value.
+type RateLimiting struct {
+	// RPC is the full name of the RPC including the service name
+	RPC string `toml:"rpc"`
+	// Interval sets the interval with which the token bucket will
+	// be refilled to what is configured in Burst.
+	Interval time.Duration `toml:"interval"`
+	// Burst sets the capacity of the token bucket (see above).
+	Burst int `toml:"burst"`
 }
 
 // StreamCacheConfig contains settings for a streamcache instance.

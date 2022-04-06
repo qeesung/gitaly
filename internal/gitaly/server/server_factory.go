@@ -15,7 +15,7 @@ import (
 type GitalyServerFactory struct {
 	registry         *backchannel.Registry
 	cacheInvalidator cache.Invalidator
-	limitHandler     *limithandler.LimiterMiddleware
+	limitHandlers    []*limithandler.LimiterMiddleware
 	cfg              config.Cfg
 	logger           *logrus.Entry
 	externalServers  []*grpc.Server
@@ -29,14 +29,14 @@ func NewGitalyServerFactory(
 	logger *logrus.Entry,
 	registry *backchannel.Registry,
 	cacheInvalidator cache.Invalidator,
-	limitHandler *limithandler.LimiterMiddleware,
+	limitHandlers []*limithandler.LimiterMiddleware,
 ) *GitalyServerFactory {
 	return &GitalyServerFactory{
 		cfg:              cfg,
 		logger:           logger,
 		registry:         registry,
 		cacheInvalidator: cacheInvalidator,
-		limitHandler:     limitHandler,
+		limitHandlers:    limitHandlers,
 	}
 }
 
@@ -78,7 +78,14 @@ func (s *GitalyServerFactory) GracefulStop() {
 // CreateExternal creates a new external gRPC server. The external servers are closed
 // before the internal servers when gracefully shutting down.
 func (s *GitalyServerFactory) CreateExternal(secure bool) (*grpc.Server, error) {
-	server, err := New(secure, s.cfg, s.logger, s.registry, s.cacheInvalidator, s.limitHandler)
+	server, err := New(
+		secure,
+		s.cfg,
+		s.logger,
+		s.registry,
+		s.cacheInvalidator,
+		s.limitHandlers,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +97,13 @@ func (s *GitalyServerFactory) CreateExternal(secure bool) (*grpc.Server, error) 
 // CreateInternal creates a new internal gRPC server. Internal servers are closed
 // after the external ones when gracefully shutting down.
 func (s *GitalyServerFactory) CreateInternal() (*grpc.Server, error) {
-	server, err := New(false, s.cfg, s.logger, s.registry, s.cacheInvalidator, s.limitHandler)
+	server, err := New(
+		false,
+		s.cfg,
+		s.logger,
+		s.registry,
+		s.cacheInvalidator,
+		s.limitHandlers)
 	if err != nil {
 		return nil, err
 	}

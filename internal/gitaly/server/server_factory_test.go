@@ -93,7 +93,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			limithandler.New(cfg, limithandler.LimitConcurrencyByRepo),
+			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
 		)
 
 		checkHealth(t, sf, starter.TCP, "localhost:0")
@@ -112,7 +112,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			limithandler.New(cfg, limithandler.LimitConcurrencyByRepo),
+			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
 		)
 		t.Cleanup(sf.Stop)
 
@@ -126,7 +126,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			limithandler.New(cfg, limithandler.LimitConcurrencyByRepo),
+			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
 		)
 		t.Cleanup(sf.Stop)
 
@@ -156,7 +156,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			logger.WithContext(ctx),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			limithandler.New(cfg, limithandler.LimitConcurrencyByRepo),
+			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
 		)
 
 		checkHealth(t, sf, starter.TCP, "localhost:0")
@@ -190,7 +190,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 		testhelper.NewDiscardingLogEntry(t),
 		backchannel.NewRegistry(),
 		cache.New(cfg, config.NewLocator(cfg)),
-		limithandler.New(cfg, limithandler.LimitConcurrencyByRepo),
+		[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
 	)
 	defer sf.Stop()
 

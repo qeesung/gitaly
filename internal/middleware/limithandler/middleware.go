@@ -7,7 +7,6 @@ import (
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"google.golang.org/grpc"
 )
 
@@ -30,50 +29,27 @@ func LimitConcurrencyByRepo(ctx context.Context) string {
 	return ""
 }
 
-// LimiterMiddleware contains rate limiter state
-type LimiterMiddleware struct {
-	methodLimiters map[string]*ConcurrencyLimiter
-	getLockKey     GetLockKey
-
-	acquiringSecondsMetric *prometheus.HistogramVec
-	inProgressMetric       *prometheus.GaugeVec
-	queuedMetric           *prometheus.GaugeVec
-	requestsDroppedMetric  *prometheus.CounterVec
+// Limiter limits incoming requests
+type Limiter interface {
+	Limit(ctx context.Context, lockKey string, f LimitedFunc) (interface{}, error)
 }
 
-// New creates a new rate limiter
-func New(cfg config.Cfg, getLockKey GetLockKey) *LimiterMiddleware {
+// LimitedFunc represents a function that will be limited
+type LimitedFunc func() (resp interface{}, err error)
+
+// LimiterMiddleware contains rate limiter state
+type LimiterMiddleware struct {
+	methodLimiters        map[string]Limiter
+	getLockKey            GetLockKey
+	requestsDroppedMetric *prometheus.CounterVec
+	collect               func(metrics chan<- prometheus.Metric)
+}
+
+// New creates a new middleware that limits requests. SetupFunc sets up the
+// middlware with a specific kind of limiter.
+func New(cfg config.Cfg, getLockKey GetLockKey, setupMiddleware SetupFunc) *LimiterMiddleware {
 	middleware := &LimiterMiddleware{
 		getLockKey: getLockKey,
-
-		acquiringSecondsMetric: prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Namespace: "gitaly",
-				Subsystem: "rate_limiting",
-				Name:      "acquiring_seconds",
-				Help:      "Histogram of time calls are rate limited (in seconds)",
-				Buckets:   cfg.Prometheus.GRPCLatencyBuckets,
-			},
-			[]string{"system", "grpc_service", "grpc_method"},
-		),
-		inProgressMetric: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace: "gitaly",
-				Subsystem: "rate_limiting",
-				Name:      "in_progress",
-				Help:      "Gauge of number of concurrent in-progress calls",
-			},
-			[]string{"system", "grpc_service", "grpc_method"},
-		),
-		queuedMetric: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace: "gitaly",
-				Subsystem: "rate_limiting",
-				Name:      "queued",
-				Help:      "Gauge of number of queued calls",
-			},
-			[]string{"system", "grpc_service", "grpc_method"},
-		),
 		requestsDroppedMetric: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "gitaly_requests_dropped_total",
@@ -87,7 +63,9 @@ func New(cfg config.Cfg, getLockKey GetLockKey) *LimiterMiddleware {
 			},
 		),
 	}
-	middleware.methodLimiters = createLimiterConfig(middleware, cfg)
+
+	setupMiddleware(cfg, middleware)
+
 	return middleware
 }
 
@@ -98,10 +76,10 @@ func (c *LimiterMiddleware) Describe(descs chan<- *prometheus.Desc) {
 
 // Collect is used to collect Prometheus metrics.
 func (c *LimiterMiddleware) Collect(metrics chan<- prometheus.Metric) {
-	c.acquiringSecondsMetric.Collect(metrics)
-	c.inProgressMetric.Collect(metrics)
-	c.queuedMetric.Collect(metrics)
 	c.requestsDroppedMetric.Collect(metrics)
+	if c.collect != nil {
+		c.collect(metrics)
+	}
 }
 
 // UnaryInterceptor returns a Unary Interceptor
@@ -132,43 +110,8 @@ func (c *LimiterMiddleware) StreamInterceptor() grpc.StreamServerInterceptor {
 	}
 }
 
-func createLimiterConfig(middleware *LimiterMiddleware, cfg config.Cfg) map[string]*ConcurrencyLimiter {
-	result := make(map[string]*ConcurrencyLimiter)
-
-	newTickerFunc := func() helper.Ticker {
-		return helper.NewManualTicker()
-	}
-
-	for _, limit := range cfg.Concurrency {
-		if limit.MaxQueueWait > 0 {
-			limit := limit
-			newTickerFunc = func() helper.Ticker {
-				return helper.NewTimerTicker(limit.MaxQueueWait.Duration())
-			}
-		}
-
-		result[limit.RPC] = NewLimiter(
-			limit.MaxPerRepo,
-			limit.MaxQueueSize,
-			newTickerFunc,
-			newPromMonitor(middleware, "gitaly", limit.RPC),
-		)
-	}
-
-	// Set default for ReplicateRepository.
-	replicateRepositoryFullMethod := "/gitaly.RepositoryService/ReplicateRepository"
-	if _, ok := result[replicateRepositoryFullMethod]; !ok {
-		result[replicateRepositoryFullMethod] = NewLimiter(
-			1,
-			0,
-			func() helper.Ticker {
-				return helper.NewManualTicker()
-			},
-			newPromMonitor(middleware, "gitaly", replicateRepositoryFullMethod))
-	}
-
-	return result
-}
+// SetupFunc set up a middleware to limiting requests
+type SetupFunc func(cfg config.Cfg, middleware *LimiterMiddleware)
 
 type wrappedStream struct {
 	grpc.ServerStream

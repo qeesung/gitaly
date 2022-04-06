@@ -158,7 +158,7 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 		gsd.logger.WithField("test", t.Name()),
 		deps.GetBackchannelRegistry(),
 		deps.GetDiskCache(),
-		deps.GetLimitHandler(),
+		[]*limithandler.LimiterMiddleware{deps.GetLimitHandler()},
 	)
 
 	if cfg.InternalSocketDir != "" {
@@ -302,7 +302,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 	}
 
 	if gsd.limitHandler == nil {
-		gsd.limitHandler = limithandler.New(cfg, limithandler.LimitConcurrencyByRepo)
+		gsd.limitHandler = limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)
 	}
 
 	if gsd.git2goExecutor == nil {

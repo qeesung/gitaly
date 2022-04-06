@@ -150,9 +150,9 @@ func runServer(t *testing.T, secure bool, cfg config.Cfg, connectionType string,
 	hookManager := hook.NewManager(cfg, locator, gitCmdFactory, txManager, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
 	))
-	limitHandler := limithandler.New(cfg, limithandler.LimitConcurrencyByRepo)
+	limitHandler := limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)
 	diskCache := cache.New(cfg, locator)
-	srv, err := server.New(secure, cfg, testhelper.NewDiscardingLogEntry(t), registry, diskCache, limitHandler)
+	srv, err := server.New(secure, cfg, testhelper.NewDiscardingLogEntry(t), registry, diskCache, []*limithandler.LimiterMiddleware{limitHandler})
 	require.NoError(t, err)
 	setup.RegisterAll(srv, &service.Dependencies{
 		Cfg:                cfg,
