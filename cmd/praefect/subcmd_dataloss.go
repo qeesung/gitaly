@@ -27,7 +27,7 @@ type datalossSubcommand struct {
 	/*
 	  includePartiallyAvailable is just a variable for holding a deprecated partially-unavailable
 	  flag's parsed value.
-	  But we don't need this variable.
+	  This variable is not read, and will be removed in the future.
 	*/
 	includePartiallyAvailable bool
 }
