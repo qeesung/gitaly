@@ -52,12 +52,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestReplMgr_ProcessBacklog(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.LinkRepositoryToObjectPoolNotFound).Run(t, testReplMgr_ProcessBacklog)
-}
-
-//nolint:revive,stylecheck
-func testReplMgr_ProcessBacklog(t *testing.T, ctx context.Context) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	primaryCfg, testRepoProto, testRepoPath := testcfg.BuildWithRepo(t, testcfg.WithStorages("primary"))
 	testRepo := localrepo.NewTestRepo(t, primaryCfg, testRepoProto)
