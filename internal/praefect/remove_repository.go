@@ -20,25 +20,57 @@ import (
 // RemoveRepositoryHandler intercepts RemoveRepository calls, deletes the database records and
 // deletes the repository from every backing Gitaly node.
 func RemoveRepositoryHandler(rs datastore.RepositoryStore, conns Connections) grpc.StreamHandler {
-	return func(srv interface{}, stream grpc.ServerStream) error {
-		var req gitalypb.RemoveRepositoryRequest
-		if err := stream.RecvMsg(&req); err != nil {
-			return fmt.Errorf("receive request: %w", err)
+	return removeRepositoryHandler(rs, conns,
+		func(stream grpc.ServerStream) (*gitalypb.Repository, error) {
+			var req gitalypb.RemoveRepositoryRequest
+			if err := stream.RecvMsg(&req); err != nil {
+				return nil, fmt.Errorf("receive request: %w", err)
+			}
+
+			repo := req.GetRepository()
+			if repo == nil {
+				return nil, errMissingRepository
+			}
+
+			return repo, nil
+		},
+		func(ctx context.Context, conn *grpc.ClientConn, rewritten *gitalypb.Repository) error {
+			_, err := gitalypb.NewRepositoryServiceClient(conn).RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
+				Repository: rewritten,
+			})
+			return err
+		},
+		func() proto.Message { return &gitalypb.RemoveRepositoryResponse{} },
+		true,
+	)
+}
+
+type requestParser func(grpc.ServerStream) (*gitalypb.Repository, error)
+
+type requestProxier func(context.Context, *grpc.ClientConn, *gitalypb.Repository) error
+
+type responseFactory func() proto.Message
+
+func removeRepositoryHandler(rs datastore.RepositoryStore, conns Connections, parseRequest requestParser, proxyRequest requestProxier, buildResponse responseFactory, errorOnNotFound bool) grpc.StreamHandler {
+	return func(_ interface{}, stream grpc.ServerStream) error {
+		repo, err := parseRequest(stream)
+		if err != nil {
+			return err
 		}
 
 		ctx := stream.Context()
-		repo := req.GetRepository()
-		if repo == nil {
-			return errMissingRepository
-		}
 
 		virtualStorage := repo.StorageName
 		replicaPath, storages, err := rs.DeleteRepository(ctx, virtualStorage, repo.RelativePath)
 		if err != nil {
-			// Gitaly doesn't return an error if the repository is not found, so Praefect follows the
-			// same protocol.
 			if errors.As(err, new(commonerr.RepositoryNotFoundError)) {
-				return helper.ErrNotFoundf("repository does not exist")
+				if errorOnNotFound {
+					if errors.As(err, new(commonerr.RepositoryNotFoundError)) {
+						return helper.ErrNotFoundf("repository does not exist")
+					}
+				}
+
+				return stream.SendMsg(buildResponse())
 			}
 
 			return fmt.Errorf("delete repository: %w", err)
@@ -46,19 +78,15 @@ func RemoveRepositoryHandler(rs datastore.RepositoryStore, conns Connections) gr
 
 		var wg sync.WaitGroup
 
-		storageSet := make(map[string]struct{}, len(storages))
-		for _, storage := range storages {
-			storageSet[storage] = struct{}{}
-		}
-
 		// It's not critical these deletions complete as the background crawler will identify these repos as deleted.
 		// To rather return a successful code to the client, we limit the timeout here to 10s.
 		ctx, cancel := context.WithTimeout(stream.Context(), 10*time.Second)
 		defer cancel()
 
-		for storage, conn := range conns[virtualStorage] {
-			if _, ok := storageSet[storage]; !ok {
-				// There may be database records for replicas which exist on storages that are not configured in the
+		for _, storage := range storages {
+			conn, ok := conns[virtualStorage][storage]
+			if !ok {
+				// There may be database records for object pools which exist on storages that are not configured in the
 				// local Praefect. We'll just ignore them here and not explicitly attempt to delete them. They'll be handled
 				// by the background cleaner like any other stale repository if the storages are returned to the configuration.
 				continue
@@ -68,11 +96,11 @@ func RemoveRepositoryHandler(rs datastore.RepositoryStore, conns Connections) gr
 			go func(rewrittenStorage string, conn *grpc.ClientConn) {
 				defer wg.Done()
 
-				req := proto.Clone(&req).(*gitalypb.RemoveRepositoryRequest)
-				req.Repository.StorageName = rewrittenStorage
-				req.Repository.RelativePath = replicaPath
+				rewritten := proto.Clone(repo).(*gitalypb.Repository)
+				rewritten.StorageName = rewrittenStorage
+				rewritten.RelativePath = replicaPath
 
-				if _, err := gitalypb.NewRepositoryServiceClient(conn).RemoveRepository(ctx, req); err != nil {
+				if err := proxyRequest(ctx, conn, rewritten); err != nil {
 					ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
 						"virtual_storage": virtualStorage,
 						"relative_path":   repo.RelativePath,
@@ -84,6 +112,6 @@ func RemoveRepositoryHandler(rs datastore.RepositoryStore, conns Connections) gr
 
 		wg.Wait()
 
-		return stream.SendMsg(&gitalypb.RemoveRepositoryResponse{})
+		return stream.SendMsg(buildResponse())
 	}
 }

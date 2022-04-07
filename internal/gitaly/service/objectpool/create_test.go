@@ -1,7 +1,6 @@
 package objectpool
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -143,6 +140,8 @@ func TestDelete(t *testing.T) {
 	cfg, repoProto, _, _, client := setup(ctx, t)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
+	repositoryClient := gitalypb.NewRepositoryServiceClient(extractConn(client))
+
 	pool := initObjectPool(t, cfg, cfg.Storages[0])
 	_, err := client.CreateObjectPool(ctx, &gitalypb.CreateObjectPoolRequest{
 		ObjectPool: pool.ToProto(),
@@ -154,9 +153,20 @@ func TestDelete(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc         string
+		noPool       bool
 		relativePath string
 		error        error
 	}{
+		{
+			desc:   "no pool in request fails",
+			noPool: true,
+			error:  errMissingPool,
+		},
+		{
+			desc:         "deleting outside pools directory fails",
+			relativePath: ".",
+			error:        errInvalidPoolDir,
+		},
 		{
 			desc:         "deleting outside pools directory fails",
 			relativePath: ".",
@@ -197,22 +207,25 @@ func TestDelete(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, err := client.DeleteObjectPool(ctx, &gitalypb.DeleteObjectPoolRequest{ObjectPool: &gitalypb.ObjectPool{
+			request := &gitalypb.DeleteObjectPoolRequest{ObjectPool: &gitalypb.ObjectPool{
 				Repository: &gitalypb.Repository{
 					StorageName:  repo.GetStorageName(),
 					RelativePath: tc.relativePath,
 				},
-			}})
+			}}
 
-			expectedErr := tc.error
-			if tc.error == errInvalidPoolDir && testhelper.IsPraefectEnabled() {
-				expectedErr = helper.ErrNotFound(fmt.Errorf(
-					"mutator call: route repository mutator: get repository id: %w",
-					commonerr.NewRepositoryNotFoundError(repo.GetStorageName(), tc.relativePath),
-				))
+			if tc.noPool {
+				request.ObjectPool = nil
 			}
 
-			testhelper.RequireGrpcError(t, expectedErr, err)
+			_, err := client.DeleteObjectPool(ctx, request)
+			testhelper.RequireGrpcError(t, tc.error, err)
+
+			response, err := repositoryClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+				Repository: pool.ToProto().GetRepository(),
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.error != nil, response.GetExists())
 		})
 	}
 }

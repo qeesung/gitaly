@@ -41,8 +41,7 @@ func TestRemoveRepository_doesNotExist(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	// Praefect special-cases repository removals, so we disable Praefect here.
-	cfg, client := setupRepositoryServiceWithoutRepo(t, testserver.WithDisablePraefect())
+	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	_, err := client.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{
 		Repository: &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: "/does/not/exist"},
@@ -54,7 +53,7 @@ func TestRemoveRepository_locking(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	// Praefect special-cases repository removals, so we disable Praefect here.
+	// Praefect does not acquire a lock on repository deletion so disable the test case for Praefect.
 	_, repo, repoPath, client := setupRepositoryService(ctx, t, testserver.WithDisablePraefect())
 
 	// Simulate a concurrent RPC holding the repository lock.

@@ -57,16 +57,26 @@ func (s *server) DeleteObjectPool(ctx context.Context, in *gitalypb.DeleteObject
 	return &gitalypb.DeleteObjectPoolResponse{}, nil
 }
 
-type poolRequest interface {
+// PoolRequest is the interface of a gRPC request that carries an object pool.
+type PoolRequest interface {
 	GetObjectPool() *gitalypb.ObjectPool
 }
 
-func (s *server) poolForRequest(req poolRequest) (*objectpool.ObjectPool, error) {
-	reqPool := req.GetObjectPool()
-
-	poolRepo := reqPool.GetRepository()
+// ExtractPool returns the pool repository from the request or an error if the
+// request did no contain a pool.
+func ExtractPool(req PoolRequest) (*gitalypb.Repository, error) {
+	poolRepo := req.GetObjectPool().GetRepository()
 	if poolRepo == nil {
 		return nil, errMissingPool
+	}
+
+	return poolRepo, nil
+}
+
+func (s *server) poolForRequest(req PoolRequest) (*objectpool.ObjectPool, error) {
+	poolRepo, err := ExtractPool(req)
+	if err != nil {
+		return nil, err
 	}
 
 	pool, err := objectpool.NewObjectPool(s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, s.housekeepingManager, poolRepo.GetStorageName(), poolRepo.GetRelativePath())
