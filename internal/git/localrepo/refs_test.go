@@ -18,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
@@ -456,10 +455,7 @@ func TestRepo_UpdateRef(t *testing.T) {
 }
 
 func TestRepo_SetDefaultBranch(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testRepoSetBranchFeatures)
-}
-
-func testRepoSetBranchFeatures(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	_, repo, _ := setupRepo(t)
 
 	txManager := transaction.NewTrackingManager()
@@ -498,19 +494,17 @@ func testRepoSetBranchFeatures(t *testing.T, ctx context.Context) {
 
 			require.Equal(t, tc.expectedRef, newRef)
 
-			if featureflag.TransactionalSymbolicRefUpdates.IsEnabled(ctx) {
-				require.Len(t, txManager.Votes(), 2)
-				h := voting.NewVoteHash()
-				_, err = h.Write([]byte("ref: " + tc.ref.String() + "\n"))
-				require.NoError(t, err)
-				vote, err := h.Vote()
-				require.NoError(t, err)
+			require.Len(t, txManager.Votes(), 2)
+			h := voting.NewVoteHash()
+			_, err = h.Write([]byte("ref: " + tc.ref.String() + "\n"))
+			require.NoError(t, err)
+			vote, err := h.Vote()
+			require.NoError(t, err)
 
-				require.Equal(t, voting.Prepared, txManager.Votes()[0].Phase)
-				require.Equal(t, vote.String(), txManager.Votes()[0].Vote.String())
-				require.Equal(t, voting.Committed, txManager.Votes()[1].Phase)
-				require.Equal(t, vote.String(), txManager.Votes()[1].Vote.String())
-			}
+			require.Equal(t, voting.Prepared, txManager.Votes()[0].Phase)
+			require.Equal(t, vote.String(), txManager.Votes()[0].Vote.String())
+			require.Equal(t, voting.Committed, txManager.Votes()[1].Phase)
+			require.Equal(t, vote.String(), txManager.Votes()[1].Vote.String())
 		})
 	}
 }
@@ -535,10 +529,7 @@ func (b *blockingManager) Stop(_ context.Context, _ txinfo.Transaction) error {
 }
 
 func TestRepo_SetDefaultBranch_errors(t *testing.T) {
-	ctx := featureflag.ContextWithFeatureFlag(
-		testhelper.Context(t),
-		featureflag.TransactionalSymbolicRefUpdates,
-		true)
+	ctx := testhelper.Context(t)
 
 	t.Run("malformed refname", func(t *testing.T) {
 		_, repo, _ := setupRepo(t)

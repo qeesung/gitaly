@@ -14,7 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
@@ -28,10 +27,7 @@ import (
 func TestServer_FetchBundle_success(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testServerFetchBundlesuccess)
-}
-
-func testServerFetchBundlesuccess(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, _, repoPath, client := setupRepositoryService(ctx, t)
 
 	tmp := testhelper.TempDir(t)
@@ -76,10 +72,7 @@ func testServerFetchBundlesuccess(t *testing.T, ctx context.Context) {
 func TestServer_FetchBundle_transaction(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testServerFetchBundleTransaction)
-}
-
-func testServerFetchBundleTransaction(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	testcfg.BuildGitalyHooks(t, cfg)

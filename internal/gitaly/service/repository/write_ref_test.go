@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -10,7 +9,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
@@ -57,37 +55,33 @@ func TestWriteRefSuccessful(t *testing.T) {
 		},
 	}
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, func(t *testing.T, ctx context.Context) {
-		ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
-		require.NoError(t, err)
-		ctx = metadata.IncomingToOutgoing(ctx)
+	ctx, err := txinfo.InjectTransaction(testhelper.Context(t), 1, "node", true)
+	require.NoError(t, err)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
-		for _, tc := range testCases {
-			t.Run(tc.desc, func(t *testing.T) {
-				txManager.Reset()
-				_, err = client.WriteRef(ctx, tc.req)
-				require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			txManager.Reset()
+			_, err = client.WriteRef(ctx, tc.req)
+			require.NoError(t, err)
 
-				if featureflag.TransactionalSymbolicRefUpdates.IsEnabled(ctx) {
-					require.Len(t, txManager.Votes(), tc.expectedVotes)
-				}
+			require.Len(t, txManager.Votes(), tc.expectedVotes)
 
-				if bytes.Equal(tc.req.Ref, []byte("HEAD")) {
-					content := testhelper.MustReadFile(t, filepath.Join(repoPath, "HEAD"))
+			if bytes.Equal(tc.req.Ref, []byte("HEAD")) {
+				content := testhelper.MustReadFile(t, filepath.Join(repoPath, "HEAD"))
 
-					refRevision := bytes.Join([][]byte{[]byte("ref: "), tc.req.Revision, []byte("\n")}, nil)
+				refRevision := bytes.Join([][]byte{[]byte("ref: "), tc.req.Revision, []byte("\n")}, nil)
 
-					require.EqualValues(t, refRevision, content)
-					return
-				}
-				rev := gittest.Exec(t, cfg, "--git-dir", repoPath, "log", "--pretty=%H", "-1", string(tc.req.Ref))
+				require.EqualValues(t, refRevision, content)
+				return
+			}
+			rev := gittest.Exec(t, cfg, "--git-dir", repoPath, "log", "--pretty=%H", "-1", string(tc.req.Ref))
 
-				rev = bytes.Replace(rev, []byte("\n"), nil, 1)
+			rev = bytes.Replace(rev, []byte("\n"), nil, 1)
 
-				require.Equal(t, string(tc.req.Revision), string(rev))
-			})
-		}
-	})
+			require.Equal(t, string(tc.req.Revision), string(rev))
+		})
+	}
 }
 
 func TestWriteRefValidationError(t *testing.T) {

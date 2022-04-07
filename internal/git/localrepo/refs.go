@@ -14,7 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/safe"
 )
 
@@ -168,17 +167,7 @@ func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, ne
 // SetDefaultBranch sets the repository's HEAD to point to the given reference.
 // It will not verify the reference actually exists.
 func (repo *Repo) SetDefaultBranch(ctx context.Context, txManager transaction.Manager, reference git.ReferenceName) error {
-	if featureflag.TransactionalSymbolicRefUpdates.IsEnabled(ctx) {
-		return repo.setDefaultBranchWithTransaction(ctx, txManager, reference)
-	}
-
-	if err := repo.ExecAndWait(ctx, git.SubCmd{
-		Name: "symbolic-ref",
-		Args: []string{"HEAD", reference.String()},
-	}, git.WithRefTxHook(repo)); err != nil {
-		return err
-	}
-	return nil
+	return repo.setDefaultBranchWithTransaction(ctx, txManager, reference)
 }
 
 // setDefaultBranchWithTransaction sets the repostory's HEAD to point to the given reference

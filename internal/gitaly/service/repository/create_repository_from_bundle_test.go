@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/praefectutil"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
@@ -31,11 +29,8 @@ import (
 
 func TestCreateRepositoryFromBundle_successful(t *testing.T) {
 	t.Parallel()
+	ctx := testhelper.Context(t)
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleSuccessful)
-}
-
-func testCreateRepositoryFromBundleSuccessful(t *testing.T, ctx context.Context) {
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	locator := config.NewLocator(cfg)
@@ -105,10 +100,7 @@ func testCreateRepositoryFromBundleSuccessful(t *testing.T, ctx context.Context)
 func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleTransactional)
-}
-
-func testCreateRepositoryFromBundleTransactional(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	txManager := transaction.NewTrackingManager()
 
 	cfg, repoProto, repoPath, client := setupRepositoryService(ctx, t, testserver.WithTransactionManager(txManager))
@@ -175,10 +167,7 @@ func testCreateRepositoryFromBundleTransactional(t *testing.T, ctx context.Conte
 func TestCreateRepositoryFromBundle_invalidBundle(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleInvalidBundle)
-}
-
-func testCreateRepositoryFromBundleInvalidBundle(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
@@ -215,10 +204,7 @@ func testCreateRepositoryFromBundleInvalidBundle(t *testing.T, ctx context.Conte
 func TestCreateRepositoryFromBundle_invalidArgument(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleInvalidArgument)
-}
-
-func testCreateRepositoryFromBundleInvalidArgument(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	_, client := setupRepositoryServiceWithoutRepo(t)
 
 	stream, err := client.CreateRepositoryFromBundle(ctx)
@@ -233,10 +219,7 @@ func testCreateRepositoryFromBundleInvalidArgument(t *testing.T, ctx context.Con
 func TestCreateRepositoryFromBundle_existingRepository(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.TransactionalSymbolicRefUpdates).Run(t, testCreateRepositoryFromBundleExistingRepository)
-}
-
-func testCreateRepositoryFromBundleExistingRepository(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	// The above test creates the second repository on the server. As this test can run with Praefect in front of it,
