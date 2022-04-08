@@ -7,15 +7,20 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command/commandcounter"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -32,6 +37,51 @@ func init() {
 		GitEnv = append(GitEnv, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
 	}
 }
+
+var (
+	cpuSecondsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_cpu_seconds_total",
+			Help: "Sum of CPU time spent by shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd", "mode"},
+	)
+	realSecondsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_real_seconds_total",
+			Help: "Sum of real time spent by shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd"},
+	)
+	minorPageFaultsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_minor_page_faults_total",
+			Help: "Sum of minor page faults performed while shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd"},
+	)
+	majorPageFaultsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_major_page_faults_total",
+			Help: "Sum of major page faults performed while shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd"},
+	)
+	signalsReceivedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_signals_received_total",
+			Help: "Sum of signals received while shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd"},
+	)
+	contextSwitchesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_context_switches_total",
+			Help: "Sum of context switches performed while shelling out",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd", "subcmd", "ctxswitchtype"},
+	)
+)
 
 // GitEnv contains the ENV variables for git commands
 var GitEnv = []string{
@@ -102,7 +152,9 @@ type Command struct {
 
 	span opentracing.Span
 
-	cgroupPath string
+	metricsCmd    string
+	metricsSubCmd string
+	cgroupPath    string
 }
 
 type stdinSentinel struct{}
@@ -149,6 +201,16 @@ func (c *Command) Wait() error {
 // SetCgroupPath sets the cgroup path for logging
 func (c *Command) SetCgroupPath(path string) {
 	c.cgroupPath = path
+}
+
+// SetMetricsCmd overrides the "cmd" label used in metrics
+func (c *Command) SetMetricsCmd(metricsCmd string) {
+	c.metricsCmd = metricsCmd
+}
+
+// SetMetricsSubCmd sets the "subcmd" label used in metrics
+func (c *Command) SetMetricsSubCmd(metricsSubCmd string) {
+	c.metricsSubCmd = metricsSubCmd
 }
 
 type contextWithoutDonePanic string
@@ -392,6 +454,24 @@ func (c *Command) logProcessComplete() {
 		}
 	}
 
+	if featureflag.CommandStatsMetrics.IsEnabled(ctx) {
+		service, method := methodFromContext(ctx)
+		cmdName := path.Base(c.cmd.Path)
+		if c.metricsCmd != "" {
+			cmdName = c.metricsCmd
+		}
+		cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "system").Add(systemTime.Seconds())
+		cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "user").Add(userTime.Seconds())
+		realSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(realTime.Seconds())
+		if ok {
+			minorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Minflt))
+			majorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Majflt))
+			signalsReceivedTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Nsignals))
+			contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "voluntary").Add(float64(rusage.Nvcsw))
+			contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "nonvoluntary").Add(float64(rusage.Nivcsw))
+		}
+	}
+
 	c.span.LogKV(
 		"pid", cmd.ProcessState.Pid(),
 		"exit_code", exitCode,
@@ -409,6 +489,26 @@ func (c *Command) logProcessComplete() {
 		)
 	}
 	c.span.Finish()
+}
+
+func methodFromContext(ctx context.Context) (service string, method string) {
+	tags := grpcmwtags.Extract(ctx)
+	ctxValue := tags.Values()["grpc.request.fullMethod"]
+	if ctxValue == nil {
+		return "", ""
+	}
+
+	if s, ok := ctxValue.(string); ok {
+		// Expect: "/foo.BarService/Qux"
+		split := strings.Split(s, "/")
+		if len(split) != 3 {
+			return "", ""
+		}
+
+		return split[1], split[2]
+	}
+
+	return "", ""
 }
 
 // Command arguments will be passed to the exec syscall as

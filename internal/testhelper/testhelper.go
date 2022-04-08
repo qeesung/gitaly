@@ -174,6 +174,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// ConcurrencyQueueMaxWait is in the codepath of every RPC call since it's in the limithandler
 	// middleware.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueMaxWait, true)
+	// CommandStatsMetrics is checked on every shelled out command, which may happen outside of
+	// RPC context.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.CommandStatsMetrics, true)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)

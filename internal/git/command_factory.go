@@ -390,6 +390,8 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo repository.Gi
 		return nil, err
 	}
 
+	command.SetMetricsSubCmd(sc.Subcommand())
+
 	if featureflag.RunCommandsInCGroup.IsEnabled(ctx) {
 		if err := cf.cgroupsManager.AddCommand(command); err != nil {
 			return nil, err

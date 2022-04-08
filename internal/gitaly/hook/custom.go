@@ -73,6 +73,8 @@ func (m *GitLabHookManager) newCustomHooksExecutor(repo *gitalypb.Repository, ho
 				return err
 			}
 
+			c.SetMetricsSubCmd(hookName)
+
 			if err = c.Wait(); err != nil {
 				// Custom hook errors need to be handled specially when we update
 				// refs via updateref.UpdaterWithHooks: their stdout and stderr must

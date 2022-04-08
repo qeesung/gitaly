@@ -128,6 +128,9 @@ func (inst *Instance) startGitLinguist(ctx context.Context, repoPath string, com
 		return nil, fmt.Errorf("creating command: %w", err)
 	}
 
+	internalCmd.SetMetricsCmd("git-linguist")
+	internalCmd.SetMetricsSubCmd(linguistCommand)
+
 	return internalCmd, nil
 }
 

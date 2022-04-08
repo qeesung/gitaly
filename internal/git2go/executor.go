@@ -49,7 +49,7 @@ func NewExecutor(cfg config.Cfg, gitCmdFactory git.CommandFactory, locator stora
 	}
 }
 
-func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Reader, args ...string) (*bytes.Buffer, error) {
+func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Reader, subcmd string, args ...string) (*bytes.Buffer, error) {
 	repoPath, err := b.locator.GetRepoPath(repo)
 	if err != nil {
 		return nil, fmt.Errorf("gitaly-git2go: %w", err)
@@ -66,6 +66,7 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 		"-log-format", b.logFormat,
 		"-log-level", b.logLevel,
 		"-correlation-id", correlation.ExtractFromContext(ctx),
+		subcmd,
 	}, args...)
 
 	var stdout bytes.Buffer
@@ -73,6 +74,8 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 	if err != nil {
 		return nil, err
 	}
+
+	cmd.SetMetricsSubCmd(subcmd)
 
 	if err := cmd.Wait(); err != nil {
 		return nil, err
