@@ -167,6 +167,10 @@ For more information on how to set it up, see the [LabKit monitoring docs](https
 
 ## Presentations
 
+- [How to configure backpressure in Gitaly](https://youtu.be/wX9CtFdLYxE)
+
+    An overview of the knobs in the Gitaly config to set limits on incoming traffic.
+
 - [How Gitaly fits into GitLab (Youtube)](https://www.youtube.com/playlist?list=PL05JrBw4t0KqoFUiX42JG7BAc7pipMBAy) - a series of 1-hour training videos for contributors new to GitLab and Gitaly.
   - [Part 1: the Gitaly client in gitlab-ce, 2019-02-21](https://www.youtube.com/watch?v=j0HNiKCnLTI&list=PL05JrBw4t0KqoFUiX42JG7BAc7pipMBAy)
 
