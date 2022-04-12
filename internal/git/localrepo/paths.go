@@ -24,7 +24,7 @@ func (repo *Repo) ObjectDirectoryPath() (string, error) {
 
 	objectDirectoryPath := repo.GetGitObjectDirectory()
 	if objectDirectoryPath == "" {
-		return "", helper.ErrInvalidArgumentf("object directory path is not set")
+		objectDirectoryPath = "objects"
 	}
 
 	// We need to check whether the relative object directory as given by the repository is

@@ -82,7 +82,7 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 		{
 			desc: "no GitObjectDirectoryPath",
 			repo: repoProto,
-			err:  codes.InvalidArgument,
+			path: filepath.Join(repoPath, "objects/"),
 		},
 		{
 			desc: "with directory traversal",
