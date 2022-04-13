@@ -17,8 +17,7 @@ import (
 
 const datalossCmdName = "dataloss"
 
-var errDatalossFlagsConflict = errors.New("fully-unavailable flag and partially-unavailable flag " +
-	"cannot be used together")
+var errDatalossFlagsConflict = errors.New("fully-unavailable option conflicts with partially-unavailable option." +
 
 type datalossSubcommand struct {
 	output                      io.Writer
@@ -40,20 +39,16 @@ func (cmd *datalossSubcommand) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet(datalossCmdName, flag.ContinueOnError)
 	fs.Usage = func() {
 		printfErr("Description:\n" +
-			"	This command checks whether all repositories in specified virtual storage are available or not.\n" +
-			"	The default behavior is to show all partially unavailable repositories.\n" +
-			"	Partially unavailable repositories are ones where some replicas are unavailable." +
-			" These repositories are available but not fully replicated.")
+			"	Displays unavailable repositories in the specified virtual storage.\n" +
+			"	By default, also shows all partially-unavailable repositories. Partially-unavailable repositories\n" +
+			"       have some unavailable and unreplicated nodes.")
 		fs.PrintDefaults()
 	}
 	fs.StringVar(&cmd.virtualStorage, "virtual-storage", "", "virtual storage to check for data loss")
 	fs.BoolVar(&cmd.onlyIncludeFullyUnAvailable, "fully-unavailable", false, strings.TrimSpace(`
-Only show repositories whose primaries are unavailable.`))
+Display only fully-unavailable repositories. Partially-unavailable repositories are not displayed.`))
 	fs.BoolVar(&cmd.includePartiallyAvailable, "partially-unavailable", false, strings.TrimSpace(`
-(Deprecated, this is the default behavior of the command)
-Additionally include repositories which are available but some assigned replicas
-are unavailable. Such repositories are available but are not fully replicated. This
-increases the chance of data loss on primary failure`))
+Display both fully-unavailable repositories and partially-unavailable repositories. Default behavior of command.`))
 	return fs
 }
 
