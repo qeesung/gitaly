@@ -349,6 +349,24 @@ func run(
 			rs,
 			conf.DefaultReplicationFactors(),
 		)
+
+		go func() {
+			if conf.BackgroundVerification.VerificationInterval <= 0 {
+				logger.Info("background verifier is disabled")
+				return
+			}
+
+			logger.WithField("config", conf.BackgroundVerification).Info("background verifier started")
+			if err := praefect.NewMetadataVerifier(
+				logger,
+				db,
+				nodeSet.Connections(),
+				hm,
+				conf.BackgroundVerification.VerificationInterval,
+			).Run(ctx, helper.NewTimerTicker(2*time.Second)); err != nil {
+				logger.WithError(err).Error("metadata verifier finished")
+			}
+		}()
 	} else {
 		if conf.Failover.Enabled {
 			logger.WithField("election_strategy", conf.Failover.ElectionStrategy).Warn(

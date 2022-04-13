@@ -78,6 +78,18 @@ func (f Failover) ErrorThresholdsConfigured() (bool, error) {
 	return true, nil
 }
 
+// BackgroundVerification contains configuration options for the repository background verification.
+type BackgroundVerification struct {
+	// VerificationInterval determines the duration after a replica due for reverification.
+	// The feature is disabled if verification interval is 0 or below.
+	VerificationInterval time.Duration `toml:"verification_interval,omitempty"`
+}
+
+// DefaultBackgroundVerificationConfig returns the default background verification configuration.
+func DefaultBackgroundVerificationConfig() BackgroundVerification {
+	return BackgroundVerification{}
+}
+
 // Reconciliation contains reconciliation specific configuration options.
 type Reconciliation struct {
 	// SchedulingInterval the interval between each automatic reconciliation run. If set to 0,
@@ -112,17 +124,18 @@ func DefaultReplicationConfig() Replication {
 
 // Config is a container for everything found in the TOML config file
 type Config struct {
-	AllowLegacyElectors  bool              `toml:"i_understand_my_election_strategy_is_unsupported_and_will_be_removed_without_warning,omitempty"`
-	Reconciliation       Reconciliation    `toml:"reconciliation,omitempty"`
-	Replication          Replication       `toml:"replication,omitempty"`
-	ListenAddr           string            `toml:"listen_addr,omitempty"`
-	TLSListenAddr        string            `toml:"tls_listen_addr,omitempty"`
-	SocketPath           string            `toml:"socket_path,omitempty"`
-	VirtualStorages      []*VirtualStorage `toml:"virtual_storage,omitempty"`
-	Logging              log.Config        `toml:"logging,omitempty"`
-	Sentry               sentry.Config     `toml:"sentry,omitempty"`
-	PrometheusListenAddr string            `toml:"prometheus_listen_addr,omitempty"`
-	Prometheus           prometheus.Config `toml:"prometheus,omitempty"`
+	AllowLegacyElectors    bool                   `toml:"i_understand_my_election_strategy_is_unsupported_and_will_be_removed_without_warning,omitempty"`
+	BackgroundVerification BackgroundVerification `toml:"background_verification,omitempty"`
+	Reconciliation         Reconciliation         `toml:"reconciliation,omitempty"`
+	Replication            Replication            `toml:"replication,omitempty"`
+	ListenAddr             string                 `toml:"listen_addr,omitempty"`
+	TLSListenAddr          string                 `toml:"tls_listen_addr,omitempty"`
+	SocketPath             string                 `toml:"socket_path,omitempty"`
+	VirtualStorages        []*VirtualStorage      `toml:"virtual_storage,omitempty"`
+	Logging                log.Config             `toml:"logging,omitempty"`
+	Sentry                 sentry.Config          `toml:"sentry,omitempty"`
+	PrometheusListenAddr   string                 `toml:"prometheus_listen_addr,omitempty"`
+	Prometheus             prometheus.Config      `toml:"prometheus,omitempty"`
 	// PrometheusExcludeDatabaseFromDefaultMetrics excludes database-related metrics from the
 	// default metrics. If set to `false`, then database metrics will be available both via
 	// `/metrics` and `/db_metrics`. Otherwise, they will only be accessible via `/db_metrics`.
@@ -160,9 +173,10 @@ func FromFile(filePath string) (Config, error) {
 	}
 
 	conf := &Config{
-		Reconciliation: DefaultReconciliationConfig(),
-		Replication:    DefaultReplicationConfig(),
-		Prometheus:     prometheus.DefaultConfig(),
+		BackgroundVerification: DefaultBackgroundVerificationConfig(),
+		Reconciliation:         DefaultReconciliationConfig(),
+		Replication:            DefaultReplicationConfig(),
+		Prometheus:             prometheus.DefaultConfig(),
 		PrometheusExcludeDatabaseFromDefaultMetrics: true,
 		// Sets the default Failover, to be overwritten when deserializing the TOML
 		Failover:            Failover{Enabled: true, ElectionStrategy: ElectionStrategyPerRepository},

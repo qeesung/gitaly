@@ -335,6 +335,9 @@ func TestConfigParsing(t *testing.T) {
 					RunInterval:         config.Duration(3 * time.Second),
 					RepositoriesInBatch: 10,
 				},
+				BackgroundVerification: BackgroundVerification{
+					VerificationInterval: 24 * time.Hour,
+				},
 			},
 		},
 		{
@@ -360,6 +363,7 @@ func TestConfigParsing(t *testing.T) {
 					RunInterval:         config.Duration(4 * time.Second),
 					RepositoriesInBatch: 11,
 				},
+				BackgroundVerification: DefaultBackgroundVerificationConfig(),
 			},
 		},
 		{
@@ -382,6 +386,7 @@ func TestConfigParsing(t *testing.T) {
 					RunInterval:         config.Duration(24 * time.Hour),
 					RepositoriesInBatch: 16,
 				},
+				BackgroundVerification: DefaultBackgroundVerificationConfig(),
 			},
 		},
 		{

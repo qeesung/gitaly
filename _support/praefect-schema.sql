@@ -266,7 +266,9 @@ CREATE TABLE public.storage_repositories (
     relative_path text NOT NULL,
     storage text NOT NULL,
     generation bigint NOT NULL,
-    repository_id bigint NOT NULL
+    repository_id bigint NOT NULL,
+    verified_at timestamp with time zone,
+    verification_leased_until timestamp with time zone
 );
 
 
@@ -553,6 +555,13 @@ CREATE UNIQUE INDEX shard_node_names_on_node_status_idx ON public.node_status US
 --
 
 CREATE UNIQUE INDEX storage_repositories_new_pkey ON public.storage_repositories USING btree (repository_id, storage);
+
+
+--
+-- Name: verification_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verification_queue ON public.storage_repositories USING btree (verified_at NULLS FIRST) WHERE (verification_leased_until IS NULL);
 
 
 --
