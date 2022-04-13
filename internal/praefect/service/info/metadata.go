@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // GetRepositoryMetadata returns the cluster metadata for a repository.
@@ -37,12 +38,18 @@ func (s *Server) GetRepositoryMetadata(ctx context.Context, req *gitalypb.GetRep
 
 	replicas := make([]*gitalypb.GetRepositoryMetadataResponse_Replica, 0, len(metadata.Replicas))
 	for _, replica := range metadata.Replicas {
+		var verifiedAt *timestamppb.Timestamp
+		if !replica.VerifiedAt.IsZero() {
+			verifiedAt = timestamppb.New(replica.VerifiedAt)
+		}
+
 		replicas = append(replicas, &gitalypb.GetRepositoryMetadataResponse_Replica{
 			Storage:      replica.Storage,
 			Assigned:     replica.Assigned,
 			Generation:   replica.Generation,
 			Healthy:      replica.Healthy,
 			ValidPrimary: replica.ValidPrimary,
+			VerifiedAt:   verifiedAt,
 		})
 	}
 

@@ -99,9 +99,15 @@ func (cmd *metadataSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) erro
 			generationText = fmt.Sprintf("%d, behind by %d changes", replica.Generation, metadata.Generation-replica.Generation)
 		}
 
+		verifiedAt := "unverified"
+		if replica.VerifiedAt.IsValid() {
+			verifiedAt = replica.VerifiedAt.AsTime().String()
+		}
+
 		cmd.println("  Generation: %s", generationText)
 		cmd.println("  Healthy: %v", replica.Healthy)
 		cmd.println("  Valid Primary: %v", replica.ValidPrimary)
+		cmd.println("  Verified At: %s", verifiedAt)
 	}
 	return nil
 }

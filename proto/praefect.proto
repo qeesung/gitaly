@@ -6,6 +6,7 @@ option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 import "lint.proto";
 import "shared.proto";
+import "google/protobuf/timestamp.proto";
 
 service PraefectInfoService {
   option (intercepted) = true;
@@ -64,6 +65,8 @@ message GetRepositoryMetadataResponse {
     bool healthy = 5;
     // valid_primary indicates whether the replica is considered a valid primary.
     bool valid_primary = 6;
+    // verified_at is the last successful verification time of the replica.
+    google.protobuf.Timestamp verified_at = 7;
   }
 
   // repository_id is the internal ID of the repository.

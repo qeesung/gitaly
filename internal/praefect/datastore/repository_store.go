@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
@@ -629,6 +630,8 @@ type Replica struct {
 	Healthy bool
 	// ValidPrimary indicates whether the replica is ready to serve as the primary if necessary.
 	ValidPrimary bool
+	// VerifiedAt is the last successful verification time of the replica.
+	VerifiedAt time.Time
 }
 
 // RepositoryMetadata contains the repository's metadata.
@@ -773,7 +776,7 @@ repositories AS (
 ),
 
 storage_repositories AS (
-	SELECT repository_id, storage, storage_repositories.generation
+	SELECT repository_id, storage, storage_repositories.generation, verified_at
 	FROM repositories
 	JOIN storage_repositories USING (repository_id)
 ),
@@ -798,7 +801,8 @@ SELECT
 				'Generation', COALESCE(replicas.generation, -1),
 				'Assigned', assigned,
 				'Healthy', healthy_storages.storage IS NOT NULL,
-				'ValidPrimary', valid_primaries.storage IS NOT NULL
+				'ValidPrimary', valid_primaries.storage IS NOT NULL,
+				'VerifiedAt', verified_at
 			)
 		)
 	)
@@ -808,7 +812,8 @@ JOIN (
 		repository_id,
 		storage,
 		generation,
-		repository_assignments.storage IS NOT NULL AS assigned
+		repository_assignments.storage IS NOT NULL AS assigned,
+		verified_at
 	FROM storage_repositories
 	FULL JOIN (
 		SELECT repository_id, storage

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
@@ -1176,6 +1177,20 @@ func TestRepositoryStore_incrementGenerationConcurrently(t *testing.T) {
 func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 	t.Parallel()
 	db := testdb.New(t)
+
+	// Truncate the time to millisecond as Postgres returns timestamps with that precision.
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	// Scanning from Postgres doesn't set the UTC location as Go does, just the offset and DST
+	// information. Convert to UTC so we can verify the time is correct with require.Equal.
+	replicasAtUTC := func(metadata []RepositoryMetadata) {
+		for i := range metadata {
+			for j := range metadata[i].Replicas {
+				metadata[i].Replicas[j].VerifiedAt = metadata[i].Replicas[j].VerifiedAt.UTC()
+			}
+		}
+	}
+
 	for _, tc := range []struct {
 		desc                  string
 		nonExistentRepository bool
@@ -1190,7 +1205,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "all up to date without assignments",
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
 			},
 		},
@@ -1198,7 +1213,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "unconfigured node outdated without assignments",
 			existingGenerations: map[string]int{"primary": 1, "secondary-1": 1, "unconfigured": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
 				{Storage: "unconfigured", Generation: 0},
 			},
@@ -1207,7 +1222,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "unconfigured node contains the latest",
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0, "unconfigured": 1},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true, Healthy: true},
 				{Storage: "unconfigured", Generation: 1, Assigned: false},
 			},
@@ -1217,7 +1232,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "node has no repository without assignments",
 			existingGenerations: map[string]int{"primary": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: -1, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1226,7 +1241,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "node has outdated repository without assignments",
 			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1235,7 +1250,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "node with no repository heavily outdated",
 			existingGenerations: map[string]int{"primary": 10},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 10, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 10, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: -1, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1244,7 +1259,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			desc:                "node with a heavily outdated repository",
 			existingGenerations: map[string]int{"primary": 10, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 10, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 10, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1259,7 +1274,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary"},
 			existingGenerations: map[string]int{"primary": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 			},
 		},
 		{
@@ -1267,7 +1282,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary"},
 			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Healthy: true},
 			},
 		},
@@ -1276,7 +1291,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "secondary-1"},
 			existingGenerations: map[string]int{"primary": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: -1, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1286,7 +1301,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "secondary-1"},
 			existingGenerations: map[string]int{"primary": 1, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true, Healthy: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1296,7 +1311,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary"},
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 1},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 1, Assigned: false, Healthy: true, ValidPrimary: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1326,7 +1341,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "unconfigured"},
 			existingGenerations: map[string]int{"primary": 1},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 			},
 		},
 		{
@@ -1334,7 +1349,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "unconfigured"},
 			existingGenerations: map[string]int{"primary": 1, "unconfigured": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 1, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "unconfigured", Generation: 0, Assigned: false},
 			},
 		},
@@ -1355,7 +1370,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "secondary-1"},
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true},
+				{Storage: "primary", Generation: 0, Assigned: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1366,7 +1381,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary"},
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true},
+				{Storage: "primary", Generation: 0, Assigned: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Healthy: true, ValidPrimary: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1377,7 +1392,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary"},
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0},
 			},
 		},
@@ -1387,7 +1402,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 			existingAssignments: []string{"primary", "secondary-1"},
 			existingGenerations: map[string]int{"primary": 0, "secondary-1": 0},
 			replicas: []Replica{
-				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true},
+				{Storage: "primary", Generation: 0, Assigned: true, Healthy: true, ValidPrimary: true, VerifiedAt: now},
 				{Storage: "secondary-1", Generation: 0, Assigned: true},
 			},
 			hasPartiallyReplicated: true,
@@ -1440,6 +1455,11 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 				require.NoError(t, rs.SetGeneration(ctx, repositoryID, storage, relativePath, generation))
 			}
 
+			// Set the primary always having been verified. This is just to verify the data is correctly
+			// returned, there's no real logic to test.
+			_, err = tx.ExecContext(ctx, "UPDATE storage_repositories SET verified_at = $1 WHERE storage = 'primary'", now)
+			require.NoError(t, err)
+
 			for _, storage := range tc.existingAssignments {
 				_, err := tx.ExecContext(ctx, `
 					INSERT INTO repository_assignments (repository_id, virtual_storage, relative_path, storage)
@@ -1472,6 +1492,7 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 
 			partiallyReplicated, err := rs.GetPartiallyAvailableRepositories(ctx, virtualStorage)
 			require.NoError(t, err)
+			replicasAtUTC(partiallyReplicated)
 			require.Equal(t, expectedPartiallyReplicated, partiallyReplicated)
 
 			var expectedErr error
@@ -1482,10 +1503,12 @@ func TestPostgresRepositoryStore_GetRepositoryMetadata(t *testing.T) {
 
 			metadata, err := rs.GetRepositoryMetadata(ctx, repositoryID)
 			require.Equal(t, expectedErr, err)
+			replicasAtUTC([]RepositoryMetadata{metadata})
 			require.Equal(t, expectedMetadata, metadata)
 
 			metadata, err = rs.GetRepositoryMetadataByPath(ctx, virtualStorage, relativePath)
 			require.Equal(t, expectedErr, err)
+			replicasAtUTC([]RepositoryMetadata{metadata})
 			require.Equal(t, expectedMetadata, metadata)
 		})
 	}

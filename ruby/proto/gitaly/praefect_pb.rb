@@ -3,6 +3,7 @@
 
 require 'lint_pb'
 require 'shared_pb'
+require 'google/protobuf/timestamp_pb'
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
@@ -32,6 +33,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :generation, :int64, 4
       optional :healthy, :bool, 5
       optional :valid_primary, :bool, 6
+      optional :verified_at, :message, 7, "google.protobuf.Timestamp"
     end
     add_message "gitaly.SetReplicationFactorRequest" do
       optional :virtual_storage, :string, 1

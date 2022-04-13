@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
@@ -32,6 +33,11 @@ func TestMetadataSubcommand(t *testing.T) {
 	})
 	require.NoError(t, rs.CreateRepository(ctx, 1, "virtual-storage", "relative-path", "replica-path", "primary", []string{"secondary-1"}, []string{"secondary-2"}, true, true))
 	require.NoError(t, rs.IncrementGeneration(ctx, 1, "primary", nil))
+
+	_, err := tx.ExecContext(ctx, "UPDATE storage_repositories SET verified_at = $1 WHERE storage = 'primary'",
+		time.Date(2021, time.April, 1, 10, 4, 20, 64, time.UTC),
+	)
+	require.NoError(t, err)
 
 	ln, clean := listenAndServe(t, []svcRegistrar{
 		registerPraefectInfoServer(info.NewServer(config.Config{}, rs, nil, nil, nil)),
@@ -105,16 +111,19 @@ Replicas:
   Generation: 1, fully up to date
   Healthy: true
   Valid Primary: true
+  Verified At: 2021-04-01 10:04:20 +0000 UTC
 - Storage: "secondary-1"
   Assigned: true
   Generation: 0, behind by 1 changes
   Healthy: true
   Valid Primary: false
+  Verified At: unverified
 - Storage: "secondary-2"
   Assigned: true
   Generation: replica not yet created
   Healthy: false
   Valid Primary: false
+  Verified At: unverified
 `, stdout.String())
 		})
 	}
