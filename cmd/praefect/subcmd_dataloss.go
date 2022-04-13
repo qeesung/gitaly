@@ -17,7 +17,7 @@ import (
 
 const datalossCmdName = "dataloss"
 
-var errDatalossFlagsConflict = errors.New("fully-unavailable option conflicts with partially-unavailable option." +
+var errDatalossFlagsConflict = errors.New("fully-unavailable option conflicts with partially-unavailable option.")
 
 type datalossSubcommand struct {
 	output                      io.Writer
