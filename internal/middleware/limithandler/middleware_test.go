@@ -3,6 +3,7 @@ package limithandler_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"testing"
@@ -12,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestMain(m *testing.M) {
@@ -285,7 +286,18 @@ func TestConcurrencyLimitHandlerMetrics(t *testing.T) {
 
 	var errs int
 	for err := range errChan {
-		testhelper.RequireGrpcError(t, limithandler.ErrMaxQueueSize, err)
+		testhelper.RequireGrpcError(
+			t,
+			limithandler.ErrWithDetails(
+				t,
+				helper.ErrResourceExhausted(limithandler.ErrMaxQueueSize),
+				&gitalypb.SystemResourceError{
+					ErrorMessage: limithandler.ErrMaxQueueSize.Error(),
+					Retryable:    false,
+				},
+			),
+			err,
+		)
 		errs++
 		if errs == 9 {
 			break
@@ -357,7 +369,18 @@ func testRateLimitHandler(t *testing.T, ctx context.Context) {
 			_, err := client.Unary(ctx, &pb.UnaryRequest{})
 
 			if featureflag.RateLimit.IsEnabled(ctx) {
-				testhelper.RequireGrpcError(t, status.Error(codes.Unavailable, "too many requests"), err)
+				testhelper.RequireGrpcError(
+					t,
+					limithandler.ErrWithDetails(
+						t,
+						helper.ErrResourceExhausted(errors.New("too many requests")),
+						&gitalypb.SystemResourceError{
+							ErrorMessage: "too many requests",
+							Retryable:    false,
+						},
+					),
+					err,
+				)
 			} else {
 				require.NoError(t, err)
 			}

@@ -43,3 +43,8 @@ message ResolveRevisionError {
   // Revision is the name of the revision that was tried to be resolved.
   bytes revision = 1;
 }
+
+message SystemResourceError {
+	string error_message = 1;
+	bool retryable = 2;
+}

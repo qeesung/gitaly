@@ -22,6 +22,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.ResolveRevisionError" do
       optional :revision, :bytes, 1
     end
+    add_message "gitaly.SystemResourceError" do
+      optional :error_message, :string, 1
+      optional :retryable, :bool, 2
+    end
   end
 end
 
@@ -30,4 +34,5 @@ module Gitaly
   MergeConflictError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MergeConflictError").msgclass
   ReferenceUpdateError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceUpdateError").msgclass
   ResolveRevisionError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ResolveRevisionError").msgclass
+  SystemResourceError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SystemResourceError").msgclass
 end

@@ -65,6 +65,11 @@ func TestError(t *testing.T) {
 			errorf: ErrAborted,
 			code:   codes.Aborted,
 		},
+		{
+			desc:   "ResourceExhausted",
+			errorf: ErrResourceExhausted,
+			code:   codes.ResourceExhausted,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			// tc.code and our canary test code must not
@@ -142,6 +147,11 @@ func testErrorfFormat(t *testing.T, errorFormat, errorFormatEqual string) {
 			desc:   "ErrAbortedf",
 			errorf: ErrAbortedf,
 			code:   codes.Aborted,
+		},
+		{
+			desc:   "ErrResourceExhaustedf",
+			errorf: ErrResourceExhaustedf,
+			code:   codes.ResourceExhausted,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

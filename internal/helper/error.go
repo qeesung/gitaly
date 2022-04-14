@@ -51,6 +51,9 @@ func ErrAlreadyExists(err error) error { return wrapError(codes.AlreadyExists, e
 // ErrAborted wraps err with codes.Aborted, unless err is already a gRPC error.
 func ErrAborted(err error) error { return wrapError(codes.Aborted, err) }
 
+// ErrResourceExhausted wraps err with codes.Aborted, unless err is already a gRPC error.
+func ErrResourceExhausted(err error) error { return wrapError(codes.ResourceExhausted, err) }
+
 // wrapError wraps the given error with the error code unless it's already a gRPC error. If given
 // nil it will return nil.
 func wrapError(code codes.Code, err error) error {
@@ -106,6 +109,12 @@ func ErrAlreadyExistsf(format string, a ...interface{}) error {
 // gRPC error.
 func ErrAbortedf(format string, a ...interface{}) error {
 	return formatError(codes.Aborted, format, a...)
+}
+
+// ErrResourceExhaustedf wraps a formatted error with codes.ResourceExhausted, unless the formatted error is a wrapped
+// gRPC error.
+func ErrResourceExhaustedf(format string, a ...interface{}) error {
+	return formatError(codes.ResourceExhausted, format, a...)
 }
 
 // formatError will create a new error from the given format string. If the error string contains a

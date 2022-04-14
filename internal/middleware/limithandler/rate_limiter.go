@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"golang.org/x/time/rate"
 )
 
@@ -37,7 +38,18 @@ func (r *RateLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) 
 		// of traffic.
 		r.requestsDroppedMetric.Inc()
 		if featureflag.RateLimit.IsEnabled(ctx) {
-			return nil, helper.ErrUnavailable(errors.New("too many requests"))
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrResourceExhausted(errors.New("too many requests")),
+				&gitalypb.SystemResourceError{
+					ErrorMessage: "too many requests",
+					Retryable:    false,
+				},
+			)
+			if err != nil {
+				return nil, helper.ErrInternalf("error details: %w", err)
+			}
+
+			return nil, detailedErr
 		}
 	}
 

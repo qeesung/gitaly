@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 // ErrMaxQueueTime indicates a request has reached the maximum time allowed to wait in the
@@ -62,7 +63,18 @@ func (sem *semaphoreReference) acquire(ctx context.Context) error {
 	case sem.tokens <- struct{}{}:
 		return nil
 	case <-ticker.C():
-		return ErrMaxQueueTime
+		detailedErr, err := helper.ErrWithDetails(
+			helper.ErrResourceExhausted(ErrMaxQueueTime),
+			&gitalypb.SystemResourceError{
+				ErrorMessage: ErrMaxQueueTime.Error(),
+				Retryable:    false,
+			},
+		)
+		if err != nil {
+			return helper.ErrInternalf("error details: %w", err)
+		}
+
+		return detailedErr
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -120,7 +132,18 @@ func (c *ConcurrencyLimiter) queueInc(ctx context.Context) error {
 		c.queuedLimit > 0 &&
 		c.queued >= c.queuedLimit {
 		c.monitor.Dropped(ctx, "max_size")
-		return ErrMaxQueueSize
+		detailedErr, err := helper.ErrWithDetails(
+			helper.ErrResourceExhausted(ErrMaxQueueSize),
+			&gitalypb.SystemResourceError{
+				ErrorMessage: ErrMaxQueueSize.Error(),
+				Retryable:    false,
+			},
+		)
+		if err != nil {
+			return helper.ErrInternalf("error details: %w", err)
+		}
+
+		return detailedErr
 	}
 
 	c.queued++

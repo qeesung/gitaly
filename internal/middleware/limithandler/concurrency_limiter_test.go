@@ -12,6 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 type counter struct {
@@ -391,7 +393,17 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 		<-dequeuedCh
 		err := <-errChan
 
-		assert.Equal(t, ErrMaxQueueTime, err)
+		testhelper.RequireGrpcError(
+			t,
+			ErrWithDetails(
+				t,
+				helper.ErrResourceExhausted(ErrMaxQueueTime),
+				&gitalypb.SystemResourceError{
+					ErrorMessage: ErrMaxQueueTime.Error(),
+					Retryable:    false,
+				},
+			),
+			err)
 		assert.Equal(t, monitor.droppedTime, 1)
 		close(ch)
 		wg.Wait()
@@ -446,4 +458,10 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, monitor.droppedTime, 0)
 	})
+}
+
+func ErrWithDetails(tb testing.TB, err error, details ...proto.Message) error {
+	detailedErr, err := helper.ErrWithDetails(err, details...)
+	require.NoError(tb, err)
+	return detailedErr
 }
