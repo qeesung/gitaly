@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -31,20 +30,20 @@ func TestListUntrackedRepositories_FlagSet(t *testing.T) {
 		exp  []interface{}
 	}{
 		{
-			desc: "custom value",
-			args: []string{"--delimiter", ","},
-			exp:  []interface{}{","},
+			desc: "custom values",
+			args: []string{"--delimiter", ",", "--older-than", "1s"},
+			exp:  []interface{}{",", time.Second},
 		},
 		{
-			desc: "default value",
+			desc: "default values",
 			args: nil,
-			exp:  []interface{}{"\n"},
+			exp:  []interface{}{"\n", 6 * time.Hour},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			fs := cmd.FlagSet()
 			require.NoError(t, fs.Parse(tc.args))
-			require.ElementsMatch(t, tc.exp, []interface{}{cmd.delimiter})
+			require.ElementsMatch(t, tc.exp, []interface{}{cmd.delimiter, cmd.onlyIncludeOlderThan})
 		})
 	}
 }
@@ -53,20 +52,6 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 	t.Parallel()
 	g1Cfg := testcfg.Build(t, testcfg.WithStorages("gitaly-1"))
 	g2Cfg := testcfg.Build(t, testcfg.WithStorages("gitaly-2"))
-
-	// Repositories not managed by praefect.
-	repo1, repo1Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	repo2, repo2Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	_, _ = gittest.InitRepo(t, g2Cfg, g2Cfg.Storages[0])
-
-	require.NoError(t, os.Chtimes(
-		repo1Path,
-		time.Now().Add(-(24*time.Hour+1*time.Second)),
-		time.Now().Add(-(24*time.Hour+1*time.Second))))
-	require.NoError(t, os.Chtimes(
-		repo2Path,
-		time.Now().Add(-(24*time.Hour+1*time.Second)),
-		time.Now().Add(-(24*time.Hour+1*time.Second))))
 
 	g1Addr := testserver.RunGitalyServer(t, g1Cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 	g2Addr := testserver.RunGitalyServer(t, g2Cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
@@ -104,7 +89,24 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 	createRepo(t, ctx, repoClient, praefectStorage, "path/to/test/repo")
 	out := &bytes.Buffer{}
 	cmd := newListUntrackedRepositories(testhelper.NewDiscardingLogger(t), out)
-	require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
+	fs := cmd.FlagSet()
+	require.NoError(t, fs.Parse([]string{}))
+
+	// Repositories not managed by praefect.
+	repo1, repo1Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
+	repo2, repo2Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
+	_, _ = gittest.InitRepo(t, g2Cfg, g2Cfg.Storages[0])
+
+	require.NoError(t, os.Chtimes(
+		repo1Path,
+		time.Now().Add(-(6*time.Hour+1*time.Second)),
+		time.Now().Add(-(6*time.Hour+1*time.Second))))
+	require.NoError(t, os.Chtimes(
+		repo2Path,
+		time.Now().Add(-(6*time.Hour+1*time.Second)),
+		time.Now().Add(-(6*time.Hour+1*time.Second))))
+
+	require.NoError(t, cmd.Exec(fs, conf))
 
 	exp := []string{
 		"The following repositories were found on disk, but missing from the tracking database:",

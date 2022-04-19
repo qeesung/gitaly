@@ -65,7 +65,7 @@ func NewRunner(cfg Cfg, logger logrus.FieldLogger, healthChecker praefect.Health
 		logger:        logger.WithField("component", "repocleaner.repository_existence"),
 		healthChecker: healthChecker,
 		conns:         conns,
-		walker:        NewWalker(conns, cfg.RepositoriesInBatch),
+		walker:        NewWalker(conns, cfg.RepositoriesInBatch, 24*time.Hour),
 		stateOwner:    stateOwner,
 		acquirer:      acquirer,
 		action:        action,
@@ -155,13 +155,14 @@ func (gs *Runner) loggerWith(virtualStorage, storage string) logrus.FieldLogger 
 
 // Walker allows walk by the repositories of the gitaly storage.
 type Walker struct {
-	conns     praefect.Connections
-	batchSize int
+	conns       praefect.Connections
+	gracePeriod time.Duration
+	batchSize   int
 }
 
 // NewWalker returns a new *Walker instance.
-func NewWalker(conns praefect.Connections, batchSize int) *Walker {
-	return &Walker{conns: conns, batchSize: batchSize}
+func NewWalker(conns praefect.Connections, batchSize int, gracePeriod time.Duration) *Walker {
+	return &Walker{conns: conns, batchSize: batchSize, gracePeriod: gracePeriod}
 }
 
 // ExecOnRepositories runs through all the repositories on a Gitaly storage and executes the provided action.
@@ -189,7 +190,7 @@ func (wr *Walker) ExecOnRepositories(ctx context.Context, virtualStorage, storag
 
 		// repositories that are in the process of being created, where
 		// they do not yet have a record in Praefect.
-		if res.GetModificationTime().AsTime().After(time.Now().Add(-24 * time.Hour)) {
+		if res.GetModificationTime().AsTime().After(time.Now().Add(-wr.gracePeriod)) {
 			continue
 		}
 

@@ -26,9 +26,10 @@ const (
 var errNoConnectionToGitalies = errors.New("no connection established to gitaly nodes")
 
 type listUntrackedRepositories struct {
-	logger    logrus.FieldLogger
-	delimiter string
-	out       io.Writer
+	logger               logrus.FieldLogger
+	onlyIncludeOlderThan time.Duration
+	delimiter            string
+	out                  io.Writer
 }
 
 func newListUntrackedRepositories(logger logrus.FieldLogger, out io.Writer) *listUntrackedRepositories {
@@ -38,6 +39,12 @@ func newListUntrackedRepositories(logger logrus.FieldLogger, out io.Writer) *lis
 func (cmd *listUntrackedRepositories) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet(listUntrackedRepositoriesName, flag.ExitOnError)
 	fs.StringVar(&cmd.delimiter, "delimiter", "\n", "string used as a delimiter in output")
+	fs.DurationVar(
+		&cmd.onlyIncludeOlderThan,
+		"older-than",
+		6*time.Hour,
+		"only include repositories created before this duration",
+	)
 	fs.Usage = func() {
 		printfErr("Description:\n" +
 			"	This command checks if all repositories on all gitaly nodes tracked by praefect.\n" +
@@ -81,7 +88,7 @@ func (cmd listUntrackedRepositories) Exec(flags *flag.FlagSet, cfg config.Config
 	defer func() { _ = db.Close() }()
 	logger.Debug("connected to praefect database")
 
-	walker := repocleaner.NewWalker(nodeSet.Connections(), 16)
+	walker := repocleaner.NewWalker(nodeSet.Connections(), 16, cmd.onlyIncludeOlderThan)
 	reporter := reportUntrackedRepositories{
 		ctx:         ctx,
 		checker:     datastore.NewStorageCleanup(db),
