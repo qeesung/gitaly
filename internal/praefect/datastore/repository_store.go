@@ -140,6 +140,12 @@ type RepositoryStore interface {
 	GetRepositoryMetadata(ctx context.Context, repositoryID int64) (RepositoryMetadata, error)
 	// GetRepositoryMetadataByPath retrieves a repository's metadata by its virtual path.
 	GetRepositoryMetadataByPath(ctx context.Context, virtualStorage, relativePath string) (RepositoryMetadata, error)
+	// MarkUnverified marks replicas of the repository unverified.
+	MarkUnverified(ctx context.Context, repositoryID int64) (int64, error)
+	// MarkVirtualStorageUnverified marks all replicas on the virtual storage as unverified.
+	MarkVirtualStorageUnverified(ctx context.Context, virtualStorage string) (int64, error)
+	// MarkStorageUnverified marsk all replicas on the storage as unverified.
+	MarkStorageUnverified(ctx context.Context, virtualStorage, storage string) (int64, error)
 }
 
 // PostgresRepositoryStore is a Postgres implementation of RepositoryStore.
@@ -152,6 +158,56 @@ type PostgresRepositoryStore struct {
 // NewPostgresRepositoryStore returns a Postgres implementation of RepositoryStore.
 func NewPostgresRepositoryStore(db glsql.Querier, configuredStorages map[string][]string) *PostgresRepositoryStore {
 	return &PostgresRepositoryStore{db: db, storages: storages(configuredStorages)}
+}
+
+// MarkUnverified marks replicas of the repository unverified.
+func (rs *PostgresRepositoryStore) MarkUnverified(ctx context.Context, repositoryID int64) (int64, error) {
+	result, err := rs.db.ExecContext(ctx, `
+		UPDATE storage_repositories
+		SET verified_at = NULL
+		WHERE repository_id = $1
+		AND verified_at IS NOT NULL
+	`, repositoryID)
+	if err != nil {
+		return 0, fmt.Errorf("query: %w", err)
+	}
+
+	return result.RowsAffected()
+}
+
+// MarkVirtualStorageUnverified marks all replicas on the virtual storage as unverified.
+func (rs *PostgresRepositoryStore) MarkVirtualStorageUnverified(ctx context.Context, virtualStorage string) (int64, error) {
+	result, err := rs.db.ExecContext(ctx, `
+		UPDATE storage_repositories
+		SET verified_at = NULL
+		FROM repositories
+		WHERE repositories.virtual_storage = $1
+		AND   repositories.repository_id   = storage_repositories.repository_id
+		AND   verified_at IS NOT NULL
+	`, virtualStorage)
+	if err != nil {
+		return 0, fmt.Errorf("query: %w", err)
+	}
+
+	return result.RowsAffected()
+}
+
+// MarkStorageUnverified marsk all replicas on the storage as unverified.
+func (rs *PostgresRepositoryStore) MarkStorageUnverified(ctx context.Context, virtualStorage, storage string) (int64, error) {
+	result, err := rs.db.ExecContext(ctx, `
+		UPDATE storage_repositories
+		SET verified_at = NULL
+		FROM repositories
+		WHERE repositories.repository_id = storage_repositories.repository_id
+		AND   repositories.virtual_storage = $1
+		AND   storage_repositories.storage = $2
+		AND   verified_at IS NOT NULL
+	`, virtualStorage, storage)
+	if err != nil {
+		return 0, fmt.Errorf("query: %w", err)
+	}
+
+	return result.RowsAffected()
 }
 
 //nolint: revive,stylecheck // This is unintentionally missing documentation.

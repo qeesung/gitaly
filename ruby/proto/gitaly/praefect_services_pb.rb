@@ -21,6 +21,9 @@ module Gitaly
       # This causes the current version of the repository on the authoritative storage to be considered the
       # latest and overwrite any other version on the virtual storage.
       rpc :SetAuthoritativeStorage, ::Gitaly::SetAuthoritativeStorageRequest, ::Gitaly::SetAuthoritativeStorageResponse
+      # MarkUnverified marks replicas as unverified. This will trigger verification as Praefect's metadata
+      # verifier prioritizes unverified replicas.
+      rpc :MarkUnverified, ::Gitaly::MarkUnverifiedRequest, ::Gitaly::MarkUnverifiedResponse
       # SetReplicationFactor assigns or unassigns host nodes from the repository to meet the desired replication factor.
       # SetReplicationFactor returns an error when trying to set a replication factor that exceeds the storage node count
       # in the virtual storage. An error is also returned when trying to set a replication factor below one. The primary node

@@ -25,6 +25,9 @@ type PraefectInfoServiceClient interface {
 	// This causes the current version of the repository on the authoritative storage to be considered the
 	// latest and overwrite any other version on the virtual storage.
 	SetAuthoritativeStorage(ctx context.Context, in *SetAuthoritativeStorageRequest, opts ...grpc.CallOption) (*SetAuthoritativeStorageResponse, error)
+	// MarkUnverified marks replicas as unverified. This will trigger verification as Praefect's metadata
+	// verifier prioritizes unverified replicas.
+	MarkUnverified(ctx context.Context, in *MarkUnverifiedRequest, opts ...grpc.CallOption) (*MarkUnverifiedResponse, error)
 	// SetReplicationFactor assigns or unassigns host nodes from the repository to meet the desired replication factor.
 	// SetReplicationFactor returns an error when trying to set a replication factor that exceeds the storage node count
 	// in the virtual storage. An error is also returned when trying to set a replication factor below one. The primary node
@@ -73,6 +76,15 @@ func (c *praefectInfoServiceClient) SetAuthoritativeStorage(ctx context.Context,
 	return out, nil
 }
 
+func (c *praefectInfoServiceClient) MarkUnverified(ctx context.Context, in *MarkUnverifiedRequest, opts ...grpc.CallOption) (*MarkUnverifiedResponse, error) {
+	out := new(MarkUnverifiedResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.PraefectInfoService/MarkUnverified", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *praefectInfoServiceClient) SetReplicationFactor(ctx context.Context, in *SetReplicationFactorRequest, opts ...grpc.CallOption) (*SetReplicationFactorResponse, error) {
 	out := new(SetReplicationFactorResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.PraefectInfoService/SetReplicationFactor", in, out, opts...)
@@ -102,6 +114,9 @@ type PraefectInfoServiceServer interface {
 	// This causes the current version of the repository on the authoritative storage to be considered the
 	// latest and overwrite any other version on the virtual storage.
 	SetAuthoritativeStorage(context.Context, *SetAuthoritativeStorageRequest) (*SetAuthoritativeStorageResponse, error)
+	// MarkUnverified marks replicas as unverified. This will trigger verification as Praefect's metadata
+	// verifier prioritizes unverified replicas.
+	MarkUnverified(context.Context, *MarkUnverifiedRequest) (*MarkUnverifiedResponse, error)
 	// SetReplicationFactor assigns or unassigns host nodes from the repository to meet the desired replication factor.
 	// SetReplicationFactor returns an error when trying to set a replication factor that exceeds the storage node count
 	// in the virtual storage. An error is also returned when trying to set a replication factor below one. The primary node
@@ -128,6 +143,9 @@ func (UnimplementedPraefectInfoServiceServer) DatalossCheck(context.Context, *Da
 }
 func (UnimplementedPraefectInfoServiceServer) SetAuthoritativeStorage(context.Context, *SetAuthoritativeStorageRequest) (*SetAuthoritativeStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetAuthoritativeStorage not implemented")
+}
+func (UnimplementedPraefectInfoServiceServer) MarkUnverified(context.Context, *MarkUnverifiedRequest) (*MarkUnverifiedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MarkUnverified not implemented")
 }
 func (UnimplementedPraefectInfoServiceServer) SetReplicationFactor(context.Context, *SetReplicationFactorRequest) (*SetReplicationFactorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetReplicationFactor not implemented")
@@ -202,6 +220,24 @@ func _PraefectInfoService_SetAuthoritativeStorage_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PraefectInfoService_MarkUnverified_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkUnverifiedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PraefectInfoServiceServer).MarkUnverified(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.PraefectInfoService/MarkUnverified",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PraefectInfoServiceServer).MarkUnverified(ctx, req.(*MarkUnverifiedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PraefectInfoService_SetReplicationFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetReplicationFactorRequest)
 	if err := dec(in); err != nil {
@@ -256,6 +292,10 @@ var PraefectInfoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetAuthoritativeStorage",
 			Handler:    _PraefectInfoService_SetAuthoritativeStorage_Handler,
+		},
+		{
+			MethodName: "MarkUnverified",
+			Handler:    _PraefectInfoService_MarkUnverified_Handler,
 		},
 		{
 			MethodName: "SetReplicationFactor",

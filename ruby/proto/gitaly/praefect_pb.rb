@@ -8,6 +8,20 @@ require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("praefect.proto", :syntax => :proto3) do
+    add_message "gitaly.MarkUnverifiedRequest" do
+      oneof :selector do
+        optional :repository_id, :int64, 1
+        optional :virtual_storage, :string, 2
+        optional :storage, :message, 3, "gitaly.MarkUnverifiedRequest.Storage"
+      end
+    end
+    add_message "gitaly.MarkUnverifiedRequest.Storage" do
+      optional :virtual_storage, :string, 1
+      optional :storage, :string, 2
+    end
+    add_message "gitaly.MarkUnverifiedResponse" do
+      optional :replicas_marked, :int64, 1
+    end
     add_message "gitaly.GetRepositoryMetadataRequest" do
       oneof :query do
         optional :repository_id, :int64, 1
@@ -85,6 +99,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 
 module Gitaly
+  MarkUnverifiedRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MarkUnverifiedRequest").msgclass
+  MarkUnverifiedRequest::Storage = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MarkUnverifiedRequest.Storage").msgclass
+  MarkUnverifiedResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MarkUnverifiedResponse").msgclass
   GetRepositoryMetadataRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetRepositoryMetadataRequest").msgclass
   GetRepositoryMetadataRequest::Path = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetRepositoryMetadataRequest.Path").msgclass
   GetRepositoryMetadataResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.GetRepositoryMetadataResponse").msgclass

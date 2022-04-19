@@ -21,6 +21,10 @@ service PraefectInfoService {
   // latest and overwrite any other version on the virtual storage.
   rpc SetAuthoritativeStorage(SetAuthoritativeStorageRequest) returns (SetAuthoritativeStorageResponse);
 
+  // MarkUnverified marks replicas as unverified. This will trigger verification as Praefect's metadata
+  // verifier prioritizes unverified replicas.
+  rpc MarkUnverified(MarkUnverifiedRequest) returns (MarkUnverifiedResponse);
+
   // SetReplicationFactor assigns or unassigns host nodes from the repository to meet the desired replication factor.
   // SetReplicationFactor returns an error when trying to set a replication factor that exceeds the storage node count
   // in the virtual storage. An error is also returned when trying to set a replication factor below one. The primary node
@@ -32,6 +36,34 @@ service PraefectInfoService {
   rpc SetReplicationFactor(SetReplicationFactorRequest) returns (SetReplicationFactorResponse);
   // GetRepositoryMetadata returns the cluster metadata for a repository. Returns NotFound if the repository does not exist.
   rpc GetRepositoryMetadata(GetRepositoryMetadataRequest) returns (GetRepositoryMetadataResponse);
+}
+
+// MarkUnverifiedRequest specifies the replicas which to mark unverified.
+message MarkUnverifiedRequest {
+  // Storage identifies a single storage in a virtual storage.
+  message Storage {
+    // virtual_storage is the virtual storage the storage is part of.
+    string virtual_storage = 1;
+    // storage is the name of the storage.
+    string storage = 2;
+  }
+
+  // selector specifies the replicas which to mark unverified.
+  oneof selector {
+    // repository_id is the id of a repository to mark all replicas for unverified.
+    int64 repository_id = 1;
+    // virtual_storage is the name of virtual storage which will have all of its replicas
+    // marked unverified.
+    string virtual_storage = 2;
+    // storage specifies a single storage. The replicas on the storage marked unverified.
+    Storage storage = 3;
+  }
+}
+
+// MarkUnverifiedResponse returns the number of replicas marked unverified.
+message MarkUnverifiedResponse {
+  // replicas_marked indicates the number of replicas that were marked unverified.
+  int64 replicas_marked = 1;
 }
 
 // GetRepositoryMetadataRequest specifies the repository to retrieve metadata for.

@@ -52,6 +52,7 @@ var subcommands = map[string]subcmd{
 		praefect.NewClockSyncCheck(helper.CheckClockSync),
 	),
 	metadataCmdName: newMetadataSubcommand(os.Stdout),
+	verifyCmdName:   newVerifySubcommand(os.Stdout),
 }
 
 // subCommand returns an exit code, to be fed into os.Exit.
