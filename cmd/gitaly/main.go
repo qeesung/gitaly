@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/boring"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -91,6 +92,8 @@ func main() {
 	}
 
 	log.Info("Starting Gitaly", "version", version.GetVersionString())
+	boring.CheckBoring()
+
 	cfg, err := configure(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)

@@ -42,6 +42,7 @@ bindir           ?= ${exec_prefix}/bin
 INSTALL_DEST_DIR := ${DESTDIR}${bindir}
 ## The prefix where Git will be installed to.
 GIT_PREFIX       ?= ${GIT_DEFAULT_PREFIX}
+FIPS_MODE        ?= 0
 
 # Tools
 GIT               := $(shell command -v git)
@@ -67,6 +68,11 @@ GITALY_VERSION    := $(shell ${GIT} describe --match v* 2>/dev/null | sed 's/^v/
 GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERSION} -X ${GITALY_PACKAGE}/internal/version.buildtime=${BUILD_TIME} -X ${GITALY_PACKAGE}/internal/version.moduleVersion=${MODULE_VERSION}
 SERVER_BUILD_TAGS := tracer_static,tracer_static_jaeger,tracer_static_stackdriver,continuous_profiler_stackdriver
 GIT2GO_BUILD_TAGS := static,system_libgit2
+
+ifeq (${FIPS_MODE}, 1)
+    SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},boringcrypto
+    GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},boringcrypto
+endif
 
 # Dependency versions
 GOLANGCI_LINT_VERSION     ?= 1.44.2
