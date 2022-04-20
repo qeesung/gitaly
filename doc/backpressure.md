@@ -36,8 +36,8 @@ first request is finished.
 
 In this way, an in-memory queue of requests can build up in Gitaly that are
 waiting their turn. Since this is a potential vector for a memory leak, there
-are two other values in the `[[concurrency]]` config to prevent an unbounded in
-memory queue of requests.
+are two other values in the `[[concurrency]]` config to prevent an unbounded
+in-memory queue of requests.
 
 ```toml
 [[concurrency]]
@@ -52,7 +52,7 @@ concurrency queue. When a request waits longer than this time, it returns
 an error to the client.
 
 `max_queue_size` is the maximum size the concurrency queue can grow for a given
-repository/rpc. If a concurrency queue is at its maximum, subsequent requests
+RPC for a repository. If a concurrency queue is at its maximum, subsequent requests
 will return with an error.
 
 ### Rate Limiting
