@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -45,12 +43,8 @@ func getNewestPackfileModtime(t *testing.T, repoPath string) time.Time {
 
 func TestOptimizeRepository(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testOptimizeRepository)
-}
 
-func testOptimizeRepository(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repoProto, repoPath, client := setupRepositoryService(ctx, t)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-b")
@@ -163,18 +157,9 @@ func testOptimizeRepository(t *testing.T, ctx context.Context) {
 
 func TestOptimizeRepositoryValidation(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testOptimizeRepositoryValidation)
-}
 
-func testOptimizeRepositoryValidation(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, _, client := setupRepositoryService(ctx, t)
-
-	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"path/not/exist" not found`
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
-	}
 
 	testCases := []struct {
 		desc string
@@ -198,7 +183,7 @@ func testOptimizeRepositoryValidation(t *testing.T, ctx context.Context) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/path/not/exist"`, cfg.Storages[0].Path),
-					praefectErr,
+					`routing repository maintenance: getting repository metadata: repository not found`,
 				),
 			),
 		},

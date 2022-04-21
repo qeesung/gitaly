@@ -495,8 +495,6 @@ func TestStreamDirector_maintenance(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Behaviour between the new and old routing are sufficiently different that
 			// it doesn't make sense to try and cram both tests in here.
-			ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.MaintenanceOperationRouting, true)
-
 			queueInterceptor.OnEnqueue(func(context.Context, datastore.ReplicationEvent, datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
 				require.FailNow(t, "no replication jobs should have been created")
 				return datastore.ReplicationEvent{}, fmt.Errorf("unexpected call")
@@ -549,36 +547,6 @@ func TestStreamDirector_maintenance(t *testing.T) {
 			require.Equal(t, tc.expectedErr, streamParams.RequestFinalizer())
 		})
 	}
-
-	t.Run("disabled maintenance routing", func(t *testing.T) {
-		ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.MaintenanceOperationRouting, false)
-
-		replicationEventCounter := 0
-		queueInterceptor.OnEnqueue(func(context.Context, datastore.ReplicationEvent, datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-			replicationEventCounter++
-			return datastore.ReplicationEvent{}, nil
-		})
-
-		streamParams, err := coordinator.StreamDirector(ctx, methodInfo.FullMethodName(), &mockPeeker{message})
-		require.NoError(t, err)
-
-		// We're cheating a bit: the method we use here is not something that the
-		// coordinator would know, and thus it wouldn't ever set up transactions for that
-		// call either. This is accidentally the same behaviour like for any of the other
-		// preexisting maintenance-style RPCs though, so it's good enough. Furthermore, we
-		// really only want to ensure that the feature flag does its thing. The actual logic
-		// of mutator stream parameters is tested elsewhere already.
-		require.Equal(t, node1.Address, streamParams.Primary().Conn.Target())
-		require.Empty(t, streamParams.Secondaries())
-
-		// There shouldn't be any replication event yet.
-		require.Zero(t, replicationEventCounter)
-
-		require.NoError(t, streamParams.RequestFinalizer())
-
-		// But there should be one after having called the request finalizer.
-		require.Equal(t, 1, replicationEventCounter)
-	})
 }
 
 type mockRouter struct {

@@ -2,7 +2,6 @@ package ref
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -23,12 +21,8 @@ import (
 
 func TestPackRefsSuccessfulRequest(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testPackRefsSuccessfulRequest)
-}
 
-func testPackRefsSuccessfulRequest(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repoProto, repoPath, client := setupRefService(ctx, t)
 
 	packedRefs := linesInPackfile(t, repoPath)
@@ -74,18 +68,9 @@ func linesInPackfile(t *testing.T, repoPath string) int {
 
 func TestPackRefs_invalidRequest(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testPackRefsInvalidRequest)
-}
 
-func testPackRefsInvalidRequest(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, client := setupRefServiceWithoutRepo(t)
-
-	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
-	}
 
 	tests := []struct {
 		repo *gitalypb.Repository
@@ -109,7 +94,7 @@ func testPackRefsInvalidRequest(t *testing.T, ctx context.Context) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
-					praefectErr,
+					`routing repository maintenance: getting repository metadata: repository not found`,
 				),
 			),
 		},

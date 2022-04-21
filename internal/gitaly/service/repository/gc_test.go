@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -32,12 +30,8 @@ var (
 
 func TestGarbageCollectCommitGraph(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectCommitGraph)
-}
 
-func testGarbageCollectCommitGraph(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	//nolint:staticcheck
@@ -51,12 +45,8 @@ func testGarbageCollectCommitGraph(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectSuccess(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectSuccess)
-}
 
-func testGarbageCollectSuccess(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	tests := []struct {
@@ -108,12 +98,8 @@ func testGarbageCollectSuccess(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectWithPrune(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectWithPrune)
-}
 
-func testGarbageCollectWithPrune(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	blobHashes := gittest.WriteBlobs(t, cfg, repoPath, 3)
@@ -155,12 +141,8 @@ func testGarbageCollectWithPrune(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectLogStatistics(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectLogStatistics)
-}
 
-func testGarbageCollectLogStatistics(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	logger, hook := test.NewNullLogger()
 	_, repo, _, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
 
@@ -173,12 +155,8 @@ func testGarbageCollectLogStatistics(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectDeletesRefsLocks(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectDeletesRefsLocks)
-}
 
-func testGarbageCollectDeletesRefsLocks(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	req := &gitalypb.GarbageCollectRequest{Repository: repo}
@@ -219,11 +197,8 @@ func testGarbageCollectDeletesRefsLocks(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectDeletesPackedRefsLock(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectDeletesPackedRefsLock)
-}
 
-func testGarbageCollectDeletesPackedRefsLock(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	testCases := []struct {
@@ -290,12 +265,8 @@ func testGarbageCollectDeletesPackedRefsLock(t *testing.T, ctx context.Context) 
 
 func TestGarbageCollectDeletesFileLocks(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectDeletesFileLocks)
-}
 
-func testGarbageCollectDeletesFileLocks(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	req := &gitalypb.GarbageCollectRequest{Repository: repo}
@@ -331,11 +302,8 @@ func testGarbageCollectDeletesFileLocks(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectDeletesPackedRefsNew(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectDeletesPackedRefsNew)
-}
 
-func testGarbageCollectDeletesPackedRefsNew(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	testCases := []struct {
@@ -390,19 +358,10 @@ func testGarbageCollectDeletesPackedRefsNew(t *testing.T, ctx context.Context) {
 
 func TestGarbageCollectFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectFailure)
-}
 
-func testGarbageCollectFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 	storagePath := strings.TrimSuffix(repoPath, "/"+repo.RelativePath)
-
-	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
-	}
 
 	tests := []struct {
 		repo *gitalypb.Repository
@@ -422,7 +381,7 @@ func testGarbageCollectFailure(t *testing.T, ctx context.Context) {
 				codes.NotFound,
 				gitalyOrPraefect(
 					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, storagePath),
-					praefectErr,
+					`routing repository maintenance: getting repository metadata: repository not found`,
 				),
 			),
 		},
@@ -439,12 +398,8 @@ func testGarbageCollectFailure(t *testing.T, ctx context.Context) {
 
 func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testCleanupInvalidKeepAroundRefs)
-}
 
-func testCleanupInvalidKeepAroundRefs(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	// Make the directory, so we can create random reflike things in it
@@ -538,12 +493,8 @@ func mustCreateFileWithTimes(t testing.TB, path string, mTime time.Time) {
 
 func TestGarbageCollectDeltaIslands(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testGarbageCollectDeltaIslands)
-}
 
-func testGarbageCollectDeltaIslands(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	gittest.TestDeltaIslands(t, cfg, repoPath, func() error {

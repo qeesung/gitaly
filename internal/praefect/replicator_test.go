@@ -27,7 +27,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
@@ -281,11 +280,9 @@ func TestReplicatorDowngradeAttempt(t *testing.T) {
 }
 
 func TestReplicator_PropagateReplicationJob(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testReplicatorPropagateReplicationJob)
-}
-
-func testReplicatorPropagateReplicationJob(t *testing.T, ctx context.Context) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 	primaryStorage, secondaryStorage := "internal-gitaly-0", "internal-gitaly-1"
 
 	primCfg := testcfg.Build(t, testcfg.WithStorages(primaryStorage))
@@ -322,26 +319,14 @@ func testReplicatorPropagateReplicationJob(t *testing.T, ctx context.Context) {
 	queue := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(testdb.New(t)))
 
 	var wg sync.WaitGroup
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		// When maintenance operation routing is enabled we don't expect to see any
-		// replication events. The observed behaviour should still be the same though: we
-		// expect to observe the RPC calls on both the primary and secondary node because we
-		// route them to both at the same time.
-		queue.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-			require.FailNow(t, "no replication jobs should have been created")
-			return datastore.ReplicationEvent{}, fmt.Errorf("unexpected enqueue")
-		})
-	} else {
-		queue.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
-			wg.Add(1)
-			return queue.Enqueue(ctx, event)
-		})
-		queue.OnAcknowledge(func(ctx context.Context, state datastore.JobState, eventIDs []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
-			acknowledged, err := queue.Acknowledge(ctx, state, eventIDs)
-			wg.Add(-len(eventIDs))
-			return acknowledged, err
-		})
-	}
+	// When maintenance operation routing is enabled we don't expect to see any
+	// replication events. The observed behaviour should still be the same though: we
+	// expect to observe the RPC calls on both the primary and secondary node because we
+	// route them to both at the same time.
+	queue.OnEnqueue(func(ctx context.Context, event datastore.ReplicationEvent, queue datastore.ReplicationEventQueue) (datastore.ReplicationEvent, error) {
+		require.FailNow(t, "no replication jobs should have been created")
+		return datastore.ReplicationEvent{}, fmt.Errorf("unexpected enqueue")
+	})
 
 	logEntry := testhelper.NewDiscardingLogEntry(t)
 

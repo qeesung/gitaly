@@ -321,11 +321,7 @@ func (c *Coordinator) directRepositoryScopedMessage(ctx context.Context, call gr
 	case protoregistry.OpMutator:
 		ps, err = c.mutatorStreamParameters(ctx, call)
 	case protoregistry.OpMaintenance:
-		if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-			ps, err = c.maintenanceStreamParameters(ctx, call)
-		} else {
-			ps, err = c.mutatorStreamParameters(ctx, call)
-		}
+		ps, err = c.maintenanceStreamParameters(ctx, call)
 	default:
 		err = fmt.Errorf("unknown operation type: %v", call.methodInfo.Operation)
 	}

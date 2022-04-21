@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/stats"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -23,12 +21,8 @@ import (
 
 func TestRepackIncrementalSuccess(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalSuccess)
-}
 
-func testRepackIncrementalSuccess(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	packPath := filepath.Join(repoPath, "objects", "pack")
@@ -54,12 +48,8 @@ func testRepackIncrementalSuccess(t *testing.T, ctx context.Context) {
 
 func TestRepackIncrementalCollectLogStatistics(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalCollectLogStatistics)
-}
 
-func testRepackIncrementalCollectLogStatistics(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	logger, hook := test.NewNullLogger()
 	_, repo, _, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
 
@@ -72,12 +62,8 @@ func testRepackIncrementalCollectLogStatistics(t *testing.T, ctx context.Context
 
 func TestRepackLocal(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackLocal)
-}
 
-func testRepackLocal(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	altObjectsDir := "./alt-objects"
@@ -111,19 +97,13 @@ func testRepackLocal(t *testing.T, ctx context.Context) {
 	require.Contains(t, string(packContents), repoCommit.String())
 }
 
+const praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
+
 func TestRepackIncrementalFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackIncrementalFailure)
-}
 
-func testRepackIncrementalFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
-
-	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
-	}
 
 	tests := []struct {
 		repo *gitalypb.Repository
@@ -169,11 +149,8 @@ func testRepackIncrementalFailure(t *testing.T, ctx context.Context) {
 
 func TestRepackFullSuccess(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullSuccess)
-}
 
-func testRepackFullSuccess(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	tests := []struct {
@@ -228,12 +205,8 @@ func testRepackFullSuccess(t *testing.T, ctx context.Context) {
 
 func TestRepackFullCollectLogStatistics(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullCollectLogStatistics)
-}
 
-func testRepackFullCollectLogStatistics(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	logger, hook := test.NewNullLogger()
 	_, repo, _, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
 
@@ -273,17 +246,9 @@ func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {
 
 func TestRepackFullFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullFailure)
-}
 
-func testRepackFullFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
-
-	praefectErr := `mutator call: route repository mutator: get repository id: repository "default"/"bar" not found`
-	if featureflag.MaintenanceOperationRouting.IsEnabled(ctx) {
-		praefectErr = `routing repository maintenance: getting repository metadata: repository not found`
-	}
 
 	tests := []struct {
 		desc string
@@ -329,12 +294,8 @@ func testRepackFullFailure(t *testing.T, ctx context.Context) {
 
 func TestRepackFullDeltaIslands(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testRepackFullDeltaIslands)
-}
 
-func testRepackFullDeltaIslands(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	gittest.TestDeltaIslands(t, cfg, repoPath, func() error {

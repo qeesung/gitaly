@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
@@ -29,12 +28,8 @@ import (
 
 func TestMidxWrite(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testMidxWrite)
-}
 
-func testMidxWrite(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	//nolint:staticcheck
@@ -52,12 +47,8 @@ func testMidxWrite(t *testing.T, ctx context.Context) {
 
 func TestMidxRewrite(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testMidxRewrite)
-}
 
-func testMidxRewrite(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	midxPath := filepath.Join(repoPath, MidxRelPath)
@@ -84,12 +75,8 @@ func testMidxRewrite(t *testing.T, ctx context.Context) {
 
 func TestMidxRepack(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testMidxRepack)
-}
 
-func testMidxRepack(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	// add some pack files with different sizes
@@ -128,12 +115,8 @@ func testMidxRepack(t *testing.T, ctx context.Context) {
 
 func TestMidxRepack_transactional(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testMidxRepackTransactional)
-}
 
-func testMidxRepackTransactional(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	txManager := transaction.NewTrackingManager()
 
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t, testserver.WithTransactionManager(txManager))
@@ -162,11 +145,8 @@ func testMidxRepackTransactional(t *testing.T, ctx context.Context) {
 
 func TestMidxRepackExpire(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.MaintenanceOperationRouting).Run(t, testMidxRepackExpire)
-}
 
-func testMidxRepackExpire(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
 	for _, packsAdded := range []int{3, 5, 11, 20} {
