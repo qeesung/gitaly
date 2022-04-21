@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
@@ -588,4 +589,87 @@ func getAllReplicas(ctx context.Context, t testing.TB, db glsql.Querier) map[str
 	require.NoError(t, rows.Err())
 
 	return results
+}
+
+func TestVerifier_runExpiredLeaseReleaser(t *testing.T) {
+	ctx := testhelper.Context(t)
+
+	db := testdb.New(t)
+
+	rs := datastore.NewPostgresRepositoryStore(db, nil)
+	require.NoError(t,
+		rs.CreateRepository(ctx, 1, "virtual-storage-1", "relative-path-1", "replica-path-1", "no-lease", []string{
+			"valid-lease", "expired-lease-1", "expired-lease-2", "expired-lease-3", "locked-lease",
+		}, nil, true, true),
+	)
+
+	// lock one lease record to ensure the worker doesn't block on it
+	result, err := db.ExecContext(ctx, `
+		UPDATE storage_repositories
+		SET verification_leased_until = now() - interval '1 week'
+		WHERE storage = 'locked-lease'
+	`)
+	require.NoError(t, err)
+	locked, err := result.RowsAffected()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), locked)
+
+	lockingTx := db.Begin(t)
+	defer lockingTx.Rollback(t)
+	_, err = lockingTx.ExecContext(ctx, "SELECT FROM storage_repositories WHERE storage = 'locked-lease' FOR UPDATE")
+	require.NoError(t, err)
+
+	tx := db.Begin(t)
+	defer tx.Rollback(t)
+
+	logger, hook := test.NewNullLogger()
+	verifier := NewMetadataVerifier(logrus.NewEntry(logger), tx, nil, nil, 0)
+	// set batch size lower than the number of locked leases to ensure the batching works
+	verifier.batchSize = 2
+
+	_, err = tx.ExecContext(ctx, `
+			UPDATE storage_repositories
+			SET verification_leased_until = lease_time
+			FROM ( VALUES
+				( 'valid-lease', now() - $1 * interval '1 microsecond' ),
+				( 'expired-lease-1', now() - $1 * interval '1 microsecond' - interval '1 microsecond'),
+				( 'expired-lease-2', now() - $1 * interval '2 microsecond'),
+				( 'expired-lease-3', now() - $1 * interval '2 microsecond')
+			) AS fixture (storage, lease_time)
+			WHERE storage_repositories.storage = fixture.storage
+		`, verifier.leaseDuration.Microseconds())
+	require.NoError(t, err)
+
+	runCtx, cancelRun := context.WithCancel(ctx)
+	ticker := helper.NewCountTicker(1, cancelRun)
+
+	err = verifier.RunExpiredLeaseReleaser(runCtx, ticker)
+	require.Equal(t, context.Canceled, err)
+
+	// actualReleased contains the released leases from the logs. It's keyed
+	// as virtual storage -> relative path -> storage.
+	actualReleased := map[string]map[string]map[string]struct{}{}
+	require.Equal(t, 2, len(hook.AllEntries()))
+	for i := range hook.Entries {
+		require.Equal(t, "released stale verification leases", hook.Entries[i].Message, hook.Entries[i].Data[logrus.ErrorKey])
+		for virtualStorage, relativePaths := range hook.Entries[i].Data["leases_released"].(map[string]map[string][]string) {
+			for relativePath, storages := range relativePaths {
+				for _, storage := range storages {
+					if actualReleased[virtualStorage] == nil {
+						actualReleased[virtualStorage] = map[string]map[string]struct{}{}
+					}
+
+					if actualReleased[virtualStorage][relativePath] == nil {
+						actualReleased[virtualStorage][relativePath] = map[string]struct{}{}
+					}
+
+					actualReleased[virtualStorage][relativePath][storage] = struct{}{}
+				}
+			}
+		}
+	}
+
+	require.Equal(t, map[string]map[string]map[string]struct{}{
+		"virtual-storage-1": {"relative-path-1": {"expired-lease-1": {}, "expired-lease-2": {}, "expired-lease-3": {}}},
+	}, actualReleased)
 }

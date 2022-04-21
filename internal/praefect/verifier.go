@@ -80,6 +80,88 @@ func (v *MetadataVerifier) Run(ctx context.Context, ticker helper.Ticker) error 
 	}
 }
 
+// RunExpiredLeaseReleaser releases expired leases on every tick. It keeps running until the context is
+// canceled.
+func (v *MetadataVerifier) RunExpiredLeaseReleaser(ctx context.Context, ticker helper.Ticker) error {
+	defer ticker.Stop()
+
+	for {
+		ticker.Reset()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C():
+			if err := v.releaseExpiredLeases(ctx); err != nil {
+				v.log.WithError(err).Error("failed releasing expired leases")
+			}
+		}
+	}
+}
+
+func (v *MetadataVerifier) releaseExpiredLeases(ctx context.Context) error {
+	// The update is batched as there could potentially be a lot of stale leases. A long
+	// transaction could block other operational queries such as generation increments on
+	// write acknowledgement.
+	for {
+		rows, err := v.db.QueryContext(ctx, `
+			WITH to_release AS (
+				SELECT repository_id, repositories.virtual_storage, repositories.relative_path, storage
+				FROM storage_repositories
+				JOIN repositories USING (repository_id)
+				WHERE verification_leased_until < now() - $1 * interval '1 microsecond'
+				LIMIT $2
+				FOR NO KEY UPDATE SKIP LOCKED
+			), release AS (
+				UPDATE storage_repositories
+				SET verification_leased_until = NULL
+				FROM to_release
+				WHERE storage_repositories.repository_id = to_release.repository_id
+				AND   storage_repositories.storage       = to_release.storage
+			)
+
+			SELECT virtual_storage, relative_path, storage
+			FROM to_release
+		`, v.leaseDuration.Microseconds(), v.batchSize)
+		if err != nil {
+			return fmt.Errorf("query execution: %w", err)
+		}
+		defer rows.Close()
+
+		released := map[string]map[string][]string{}
+		totalReleased := 0
+		for rows.Next() {
+			totalReleased++
+
+			var virtualStorage, relativePath, storage string
+			if err := rows.Scan(&virtualStorage, &relativePath, &storage); err != nil {
+				return fmt.Errorf("scan: %w", err)
+			}
+
+			if released[virtualStorage] == nil {
+				released[virtualStorage] = make(map[string][]string)
+			}
+
+			released[virtualStorage][relativePath] = append(released[virtualStorage][relativePath], storage)
+		}
+
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("rows: %w", err)
+		}
+
+		if totalReleased > 0 {
+			v.log.WithField("leases_released", released).Info("released stale verification leases")
+		}
+
+		// If fewer leases than the batch size were released, there's no more work for us
+		// and we can wait until the next tick. There could still be some given the query
+		// skips locked rows but these can be handled on the next run.
+		if totalReleased < v.batchSize {
+			return nil
+		}
+	}
+}
+
 func (v *MetadataVerifier) run(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, v.leaseDuration)
 	defer cancel()

@@ -558,6 +558,13 @@ CREATE UNIQUE INDEX storage_repositories_new_pkey ON public.storage_repositories
 
 
 --
+-- Name: verification_leases; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verification_leases ON public.storage_repositories USING btree (verification_leased_until) WHERE (verification_leased_until IS NOT NULL);
+
+
+--
 -- Name: verification_queue; Type: INDEX; Schema: public; Owner: -
 --
 
