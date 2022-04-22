@@ -542,7 +542,7 @@ message UserCommitFilesRequestHeader {
 // UserCommitFiles is the request of UserCommitFiles.
 message UserCommitFilesRequest {
   oneof user_commit_files_request_payload {
-    // header defines the details of where to comnit, the details and which commit to use as the parent.
+    // header defines the details of where to commit, the details and which commit to use as the parent.
     // header must always be sent as the first request of the stream.
     UserCommitFilesRequestHeader header = 1;
     // action contains an action to build a commit. There can be multiple actions per stream.

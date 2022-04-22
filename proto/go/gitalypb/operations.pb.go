@@ -2326,7 +2326,7 @@ type isUserCommitFilesRequest_UserCommitFilesRequestPayload interface {
 }
 
 type UserCommitFilesRequest_Header struct {
-	// header defines the details of where to comnit, the details and which commit to use as the parent.
+	// header defines the details of where to commit, the details and which commit to use as the parent.
 	// header must always be sent as the first request of the stream.
 	Header *UserCommitFilesRequestHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
