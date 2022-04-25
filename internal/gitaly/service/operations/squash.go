@@ -7,13 +7,10 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
@@ -82,32 +79,21 @@ func validateUserSquashRequest(req *gitalypb.UserSquashRequest) error {
 }
 
 func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest) (string, error) {
-	repo := s.localrepo(req.GetRepository())
-	repoPath, err := repo.Path()
-	if err != nil {
-		return "", helper.ErrInternalf("cannot resolve repo path: %w", err)
-	}
-
 	// All new objects are staged into a quarantine directory first so that we can do
 	// transactional voting before we commit data to disk.
-	var quarantineDir *quarantine.Dir
-	if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
-		var quarantineRepo *localrepo.Repo
-		quarantineDir, quarantineRepo, err = s.quarantinedRepo(ctx, req.GetRepository())
-		if err != nil {
-			return "", helper.ErrInternalf("creating quarantine: %w", err)
-		}
+	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	if err != nil {
+		return "", helper.ErrInternalf("creating quarantine: %w", err)
+	}
 
-		repo = quarantineRepo
-		repoPath, err = quarantineRepo.Path()
-		if err != nil {
-			return "", helper.ErrInternalf("getting quarantine path: %w", err)
-		}
+	quarantineRepoPath, err := quarantineRepo.Path()
+	if err != nil {
+		return "", helper.ErrInternalf("getting quarantine path: %w", err)
 	}
 
 	// We need to retrieve the start commit such that we can create the new commit with
 	// all parents of the start commit.
-	startCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetStartSha()+"^{commit}"))
+	startCommit, err := quarantineRepo.ResolveRevision(ctx, git.Revision(req.GetStartSha()+"^{commit}"))
 	if err != nil {
 		detailedErr, err := helper.ErrWithDetails(
 			helper.ErrInvalidArgumentf("resolving start revision: %w", err),
@@ -127,7 +113,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	}
 
 	// And we need to take the tree of the end commit. This tree already is the result
-	endCommit, err := repo.ResolveRevision(ctx, git.Revision(req.GetEndSha()+"^{commit}"))
+	endCommit, err := quarantineRepo.ResolveRevision(ctx, git.Revision(req.GetEndSha()+"^{commit}"))
 	if err != nil {
 		detailedErr, err := helper.ErrWithDetails(
 			helper.ErrInvalidArgumentf("resolving end revision: %w", err),
@@ -153,8 +139,8 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 
 	// We're now rebasing the end commit on top of the start commit. The resulting tree
 	// is then going to be the tree of the squashed commit.
-	rebasedCommitID, err := s.git2goExecutor.Rebase(ctx, repo, git2go.RebaseCommand{
-		Repository: repoPath,
+	rebasedCommitID, err := s.git2goExecutor.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
+		Repository: quarantineRepoPath,
 		Committer: git2go.NewSignature(
 			string(req.GetUser().Name), string(req.GetUser().Email), commitDate,
 		),
@@ -191,7 +177,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		return "", helper.ErrInternalf("rebasing commits: %w", err)
 	}
 
-	treeID, err := repo.ResolveRevision(ctx, rebasedCommitID.Revision()+"^{tree}")
+	treeID, err := quarantineRepo.ResolveRevision(ctx, rebasedCommitID.Revision()+"^{tree}")
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve rebased tree: %w", err)
 	}
@@ -217,7 +203,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	}
 
 	var stdout, stderr bytes.Buffer
-	if err := repo.ExecAndWait(ctx, git.SubCmd{
+	if err := quarantineRepo.ExecAndWait(ctx, git.SubCmd{
 		Name:  "commit-tree",
 		Flags: flags,
 		Args: []string{
@@ -234,28 +220,26 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	// objects, vote on them and migrate them into the main directory if quorum was reached so
 	// that we don't pollute the object directory with objects we don't want to have in the
 	// first place.
-	if featureflag.UserSquashQuarantinedVoting.IsEnabled(ctx) {
-		if err := transaction.VoteOnContext(
-			ctx,
-			s.txManager,
-			voting.VoteFromData([]byte(commitID)),
-			voting.Prepared,
-		); err != nil {
-			return "", helper.ErrAbortedf("preparatory vote on squashed commit: %w", err)
-		}
+	if err := transaction.VoteOnContext(
+		ctx,
+		s.txManager,
+		voting.VoteFromData([]byte(commitID)),
+		voting.Prepared,
+	); err != nil {
+		return "", helper.ErrAbortedf("preparatory vote on squashed commit: %w", err)
+	}
 
-		if err := quarantineDir.Migrate(); err != nil {
-			return "", helper.ErrInternalf("migrating quarantine directory: %w", err)
-		}
+	if err := quarantineDir.Migrate(); err != nil {
+		return "", helper.ErrInternalf("migrating quarantine directory: %w", err)
+	}
 
-		if err := transaction.VoteOnContext(
-			ctx,
-			s.txManager,
-			voting.VoteFromData([]byte(commitID)),
-			voting.Committed,
-		); err != nil {
-			return "", helper.ErrAbortedf("committing vote on squashed commit: %w", err)
-		}
+	if err := transaction.VoteOnContext(
+		ctx,
+		s.txManager,
+		voting.VoteFromData([]byte(commitID)),
+		voting.Committed,
+	); err != nil {
+		return "", helper.ErrAbortedf("committing vote on squashed commit: %w", err)
 	}
 
 	return commitID, nil
