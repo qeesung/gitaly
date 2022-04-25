@@ -72,8 +72,10 @@ CREATE FUNCTION public.notify_on_change() RETURNS trigger
 						SELECT JSON_AGG(obj) INTO msg
 						FROM (
 							SELECT JSONB_BUILD_OBJECT('virtual_storage', virtual_storage, 'relative_paths', ARRAY_AGG(DISTINCT relative_path)) AS obj
-							FROM NEW
-							FULL JOIN OLD USING (virtual_storage, relative_path)
+							FROM NEW AS new_value
+							FULL JOIN OLD AS old_value USING (virtual_storage, relative_path)
+							WHERE ( COALESCE(new_value.generation, -1) != COALESCE(old_value.generation, -1) )
+							OR ( new_value.relative_path != old_value.relative_path )
 							GROUP BY virtual_storage
 						) t;
 					WHEN 'DELETE' THEN

@@ -309,7 +309,7 @@ func TestListener_Listen_storage_repositories_insert(t *testing.T) {
 	)
 }
 
-func TestListener_Listen_storage_repositories_update(t *testing.T) {
+func TestListener_Listen_storage_repositories_generation_update(t *testing.T) {
 	t.Parallel()
 	db := testdb.New(t)
 	dbConf := testdb.GetConfig(t, db.Name)
@@ -332,6 +332,55 @@ func TestListener_Listen_storage_repositories_update(t *testing.T) {
 			require.Equal(t, StorageRepositoriesUpdatesChannel, n.Channel)
 			requireEqualNotificationEntries(t, n.Payload, []notificationEntry{{VirtualStorage: "praefect-1", RelativePaths: []string{"/path/to/repo"}}})
 		},
+	)
+}
+
+func TestListener_Listen_storage_repositories_relative_path_update(t *testing.T) {
+	t.Parallel()
+	db := testdb.New(t)
+	dbConf := testdb.GetConfig(t, db.Name)
+	ctx := testhelper.Context(t)
+
+	verifyListener(
+		t,
+		ctx,
+		dbConf,
+		StorageRepositoriesUpdatesChannel,
+		func(t *testing.T) {
+			rs := NewPostgresRepositoryStore(db, nil)
+			require.NoError(t, rs.CreateRepository(ctx, 1, "praefect-1", "/path/to/repo", "replica-path", "gitaly-1", nil, nil, true, false))
+		},
+		func(t *testing.T) {
+			_, err := db.DB.Exec(`UPDATE storage_repositories SET relative_path = 'updated-relative-path'`)
+			require.NoError(t, err)
+		},
+		func(t *testing.T, n glsql.Notification) {
+			require.Equal(t, StorageRepositoriesUpdatesChannel, n.Channel)
+			requireEqualNotificationEntries(t, n.Payload, []notificationEntry{{VirtualStorage: "praefect-1", RelativePaths: []string{"/path/to/repo", "updated-relative-path"}}})
+		},
+	)
+}
+
+func TestListener_Listen_storage_repositories_verification_updates_ignored(t *testing.T) {
+	t.Parallel()
+	db := testdb.New(t)
+	dbConf := testdb.GetConfig(t, db.Name)
+	ctx := testhelper.Context(t)
+
+	verifyListener(
+		t,
+		ctx,
+		dbConf,
+		StorageRepositoriesUpdatesChannel,
+		func(t *testing.T) {
+			rs := NewPostgresRepositoryStore(db, nil)
+			require.NoError(t, rs.CreateRepository(ctx, 1, "praefect-1", "/path/to/repo", "replica-path", "gitaly-1", nil, nil, true, false))
+		},
+		func(t *testing.T) {
+			_, err := db.DB.Exec(`UPDATE storage_repositories SET verified_at = now(), verification_leased_until = now()`)
+			require.NoError(t, err)
+		},
+		nil, // no notification events expected
 	)
 }
 
