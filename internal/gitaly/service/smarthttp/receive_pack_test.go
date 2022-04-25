@@ -3,6 +3,7 @@ package smarthttp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	gitalyhook "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
@@ -761,6 +763,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
+			deps.GetTxManager(),
 			deps.GetDiskCache(),
 		))
 		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
@@ -788,7 +791,7 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 
 		expectedResponse := "0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n00000000"
 		require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
-		require.Equal(t, 4, refTransactionServer.called)
+		require.Equal(t, 5, refTransactionServer.called)
 	})
 
 	t.Run("delete", func(t *testing.T) {
@@ -816,6 +819,60 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 
 		expectedResponse := "0033\x01000eunpack ok\n001cok refs/heads/delete-me\n00000000"
 		require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
-		require.Equal(t, 2, refTransactionServer.called)
+		require.Equal(t, 3, refTransactionServer.called)
 	})
+}
+
+func TestPostReceive_allRejected(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	refTransactionServer := &testTransactionServer{}
+
+	hookManager := gitalyhook.NewMockManager(
+		t,
+		func(
+			t *testing.T,
+			ctx context.Context,
+			repo *gitalypb.Repository,
+			pushOptions, env []string,
+			stdin io.Reader, stdout, stderr io.Writer) error {
+			return errors.New("not allowed")
+		},
+		gitalyhook.NopPostReceive,
+		gitalyhook.NopUpdate,
+		gitalyhook.NopReferenceTransaction,
+	)
+	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(
+			deps.GetLocator(),
+			deps.GetGitCmdFactory(),
+			deps.GetTxManager(),
+			deps.GetDiskCache(),
+		))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+	}, testserver.WithDisablePraefect(), testserver.WithHookManager(hookManager))
+
+	ctx, err := txinfo.InjectTransaction(testhelper.Context(t), 1234, "primary", true)
+	require.NoError(t, err)
+	ctx = metadata.IncomingToOutgoing(ctx)
+
+	client := newMuxedSmartHTTPClient(t, ctx, addr, cfg.Auth.Token, func() backchannel.Server {
+		srv := grpc.NewServer()
+		gitalypb.RegisterRefTransactionServer(srv, refTransactionServer)
+		return srv
+	})
+
+	stream, err := client.PostReceivePack(ctx)
+	require.NoError(t, err)
+
+	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+
+	request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
+	doPush(t, stream, request, newTestPush(t, cfg, nil).body)
+
+	require.Equal(t, 1, refTransactionServer.called)
 }

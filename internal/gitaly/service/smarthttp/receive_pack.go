@@ -1,10 +1,14 @@
 package smarthttp
 
 import (
+	"errors"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 	"google.golang.org/grpc/codes"
@@ -65,6 +69,27 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 
 	if err := cmd.Wait(); err != nil {
 		return status.Errorf(codes.Unavailable, "PostReceivePack: %v", err)
+	}
+
+	// In cases where all reference updates are rejected by git-receive-pack(1), we would end up
+	// with no transactional votes at all. This would lead to scheduling
+	// replication jobs, which wouldn't accomplish anything since no refs
+	// were updated.
+	// To prevent replication jobs from being unnecessarily created, do a
+	// final vote which concludes this RPC to ensure there's always at least
+	// one vote. In case there was diverging behaviour in git-receive-pack(1)
+	// which led to a different outcome across voters, then this final vote
+	// would fail because the sequence of votes would be different.
+	if err := transaction.VoteOnContext(ctx, s.txManager, voting.Vote{}, voting.Committed); err != nil {
+		// When the pre-receive hook failed, git-receive-pack(1) exits with code 0.
+		// It's arguable whether this is the expected behavior, but anyhow it means
+		// cmd.Wait() did not error out. On the other hand, the gitaly-hooks command did
+		// stop the transaction upon failure. So this final vote fails.
+		// To avoid this error being presented to the end user, ignore it when the
+		// transaction was stopped.
+		if !errors.Is(err, transaction.ErrTransactionStopped) {
+			return status.Errorf(codes.Aborted, "final transactional vote: %v", err)
+		}
 	}
 
 	return nil

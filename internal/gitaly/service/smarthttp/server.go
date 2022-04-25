@@ -5,6 +5,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
@@ -14,15 +15,21 @@ type server struct {
 	gitCmdFactory              git.CommandFactory
 	packfileNegotiationMetrics *prometheus.CounterVec
 	infoRefCache               infoRefCache
+	txManager                  transaction.Manager
 }
 
 // NewServer creates a new instance of a grpc SmartHTTPServer
-func NewServer(locator storage.Locator, gitCmdFactory git.CommandFactory,
-	cache cache.Streamer, serverOpts ...ServerOpt,
+func NewServer(
+	locator storage.Locator,
+	gitCmdFactory git.CommandFactory,
+	txManager transaction.Manager,
+	cache cache.Streamer,
+	serverOpts ...ServerOpt,
 ) gitalypb.SmartHTTPServiceServer {
 	s := &server{
 		locator:       locator,
 		gitCmdFactory: gitCmdFactory,
+		txManager:     txManager,
 		packfileNegotiationMetrics: prometheus.NewCounterVec(
 			prometheus.CounterOpts{},
 			[]string{"git_negotiation_feature"},

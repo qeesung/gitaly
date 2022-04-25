@@ -111,6 +111,7 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 	gitalypb.RegisterSmartHTTPServiceServer(srv, smarthttp.NewServer(
 		deps.GetLocator(),
 		deps.GetGitCmdFactory(),
+		deps.GetTxManager(),
 		deps.GetDiskCache(),
 		smarthttp.WithPackfileNegotiationMetrics(smarthttpPackfileNegotiationMetrics),
 	))

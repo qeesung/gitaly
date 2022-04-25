@@ -31,6 +31,7 @@ func startSmartHTTPServerWithOptions(t *testing.T, cfg config.Cfg, opts []Server
 		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
+			deps.GetTxManager(),
 			deps.GetDiskCache(),
 			opts...,
 		))
