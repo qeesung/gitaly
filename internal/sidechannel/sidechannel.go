@@ -151,6 +151,12 @@ func NewClientHandshaker(logger *logrus.Entry, registry *Registry) client.Handsh
 			// waste we change this value back to 256KB which is the default and
 			// minimum value.
 			cfg.MaxStreamWindowSize = 256 * 1024
+
+			// If a client hangs up while the server is writing data to it then the
+			// server will block for 5 minutes by default before erroring out. This
+			// makes testing difficult and there is no reason to have such a long
+			// timeout in the case of sidechannels. A 1 second timeout is also OK.
+			cfg.StreamCloseTimeout = time.Second
 		},
 	)
 }
