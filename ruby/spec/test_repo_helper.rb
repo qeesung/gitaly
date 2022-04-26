@@ -9,7 +9,7 @@ require 'gitaly'
 if ENV.key?('GITALY_TESTING_GIT_BINARY')
   GIT_BINARY_PATH = ENV['GITALY_TESTING_GIT_BINARY']
 elsif ENV.key?('GITALY_TESTING_BUNDLED_GIT_PATH')
-  GIT_BINARY_PATH = File.join(ENV['GITALY_TESTING_BUNDLED_GIT_PATH'], 'gitaly-git')
+  GIT_BINARY_PATH = File.join(ENV['GITALY_TESTING_BUNDLED_GIT_PATH'], 'gitaly-git-v2.35.1.gl1')
   GIT_EXEC_PATH = File.join(TMP_DIR, 'git-exec-path')
 
   # We execute git-clone(1) to set up the test repo, and this requires Git to

@@ -300,15 +300,13 @@ install: build
 
 .PHONY: build-bundled-git
 ## Build bundled Git binaries.
-build-bundled-git: build-bundled-git-v2.33.1.gl2 build-bundled-git-v2.35.1.gl1
-build-bundled-git-v2.33.1.gl2: $(patsubst %,${BUILD_DIR}/bin/gitaly-%,${GIT_EXECUTABLES})
+build-bundled-git: build-bundled-git-v2.35.1.gl1
 build-bundled-git-v2.35.1.gl1: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1,${GIT_EXECUTABLES})
 
 .PHONY: install-bundled-git
 ## Install bundled Git binaries. The target directory can be modified by
 ## setting PREFIX and DESTDIR.
-install-bundled-git: install-bundled-git-v2.33.1.gl2 install-bundled-git-v2.35.1.gl1
-install-bundled-git-v2.33.1.gl2: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%,${GIT_EXECUTABLES})
+install-bundled-git: install-bundled-git-v2.35.1.gl1
 install-bundled-git-v2.35.1.gl1: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.35.1.gl1,${GIT_EXECUTABLES})
 
 ifdef WITH_BUNDLED_GIT
@@ -568,12 +566,6 @@ ${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-${GIT_VERSION}.${GIT_EXTRA_VERSION}
 	${Q}if [ "x${GIT_DEFAULT_PREFIX}" = "x${GIT_PREFIX}" ]; then rm -rf "${GIT_DEFAULT_PREFIX}"; fi
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
 	${Q}touch $@
-
-${BUILD_DIR}/bin/gitaly-%: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.33.1.gl3/*))
-${BUILD_DIR}/bin/gitaly-%: override GIT_VERSION = v2.33.1
-${BUILD_DIR}/bin/gitaly-%: override GIT_EXTRA_VERSION = gl3
-${BUILD_DIR}/bin/gitaly-%: ${DEPENDENCY_DIR}/git-v2.33.1.gl3/% | ${BUILD_DIR}/bin
-	${Q}install $< $@
 
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*))
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_VERSION = v2.35.1
