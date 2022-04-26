@@ -178,3 +178,97 @@ GROUP BY job->>'virtual_storage', job->>'target_node_storage', state
 		q.log.WithError(err).Error("failed to iterate over rows for queue depth metrics")
 	}
 }
+
+const (
+	statusUnverified = "unverified"
+	statusExpired    = "expired"
+)
+
+// VerificationQueueDepthCollector collects the verification queue depth metric from the database.
+type VerificationQueueDepthCollector struct {
+	log                    logrus.FieldLogger
+	timeout                time.Duration
+	db                     glsql.Querier
+	verificationInterval   time.Duration
+	verificationQueueDepth *prometheus.GaugeVec
+}
+
+// NewVerificationQueueDepthCollector returns a new VerificationQueueDepthCollector
+func NewVerificationQueueDepthCollector(log logrus.FieldLogger, db glsql.Querier, timeout, verificationInterval time.Duration, configuredStorages map[string][]string) *VerificationQueueDepthCollector {
+	v := &VerificationQueueDepthCollector{
+		log:                  log.WithField("component", "verification_queue_depth_collector"),
+		timeout:              timeout,
+		db:                   db,
+		verificationInterval: verificationInterval,
+		verificationQueueDepth: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "gitaly_praefect_verification_queue_depth",
+			Help: "Number of replicas pending verification.",
+		}, []string{"virtual_storage", "storage", "status"}),
+	}
+
+	// pre-warm metrics to produce output even for storages which have an empty queue.
+	for virtualStorage, storages := range configuredStorages {
+		for _, storage := range storages {
+			for _, status := range []string{statusUnverified, statusExpired} {
+				v.verificationQueueDepth.WithLabelValues(virtualStorage, storage, status)
+			}
+		}
+	}
+
+	return v
+}
+
+// Describe describes the collected metrics to Prometheus.
+func (c *VerificationQueueDepthCollector) Describe(ch chan<- *prometheus.Desc) {
+	c.verificationQueueDepth.Describe(ch)
+}
+
+// Collect collects the verification queue depth metric from the database.
+func (c *VerificationQueueDepthCollector) Collect(ch chan<- prometheus.Metric) {
+	ctx, cancel := context.WithTimeout(context.TODO(), c.timeout)
+	defer cancel()
+
+	rows, err := c.db.QueryContext(ctx, `
+SELECT
+	repositories.virtual_storage,
+	storage,
+	COUNT(*) FILTER (WHERE verified_at IS NULL),
+	COUNT(*) FILTER (WHERE verified_at IS NOT NULL)
+FROM repositories
+JOIN storage_repositories USING (repository_id)
+WHERE verified_at IS NULL
+OR    verified_at < now() - $1 * '1 microsecond'::interval
+GROUP BY repositories.virtual_storage, storage
+`, c.verificationInterval.Microseconds())
+	if err != nil {
+		c.log.WithError(err).Error("failed to query verification queue depth metric")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var virtualStorage, storage string
+		var unverified, expired float64
+
+		if err := rows.Scan(&virtualStorage, &storage, &unverified, &expired); err != nil {
+			c.log.WithError(err).Error("failed to scan verification queue depth row")
+			return
+		}
+
+		for _, metric := range []struct {
+			status string
+			value  float64
+		}{
+			{status: statusUnverified, value: unverified},
+			{status: statusExpired, value: expired},
+		} {
+			c.verificationQueueDepth.WithLabelValues(virtualStorage, storage, metric.status).Set(metric.value)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		c.log.WithError(err).Error("failed read verification queue depth rows")
+	}
+
+	c.verificationQueueDepth.Collect(ch)
+}

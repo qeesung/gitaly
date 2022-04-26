@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
@@ -27,7 +28,17 @@ type MetadataVerifier struct {
 	leaseDuration        time.Duration
 	healthChecker        HealthChecker
 	verificationInterval time.Duration
+
+	dequeuedJobsTotal        *prometheus.CounterVec
+	completedJobsTotal       *prometheus.CounterVec
+	staleLeasesReleasedTotal prometheus.Counter
 }
+
+const (
+	resultError   = "error"
+	resultInvalid = "invalid"
+	resultValid   = "valid"
+)
 
 // NewMetadataVerifier creates a new MetadataVerifier.
 func NewMetadataVerifier(
@@ -37,7 +48,7 @@ func NewMetadataVerifier(
 	healthChecker HealthChecker,
 	verificationInterval time.Duration,
 ) *MetadataVerifier {
-	return &MetadataVerifier{
+	v := &MetadataVerifier{
 		log:                  log,
 		db:                   db,
 		conns:                conns,
@@ -45,7 +56,39 @@ func NewMetadataVerifier(
 		leaseDuration:        30 * time.Second,
 		healthChecker:        healthChecker,
 		verificationInterval: verificationInterval,
+		dequeuedJobsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "gitaly_praefect_verification_jobs_dequeued_total",
+				Help: "Number of verification jobs dequeud.",
+			},
+			[]string{"virtual_storage", "storage"},
+		),
+		completedJobsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "gitaly_praefect_verification_jobs_completed_total",
+				Help: "Number of verification jobs completed and their result",
+			},
+			[]string{"virtual_storage", "storage", "result"},
+		),
+		staleLeasesReleasedTotal: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "gitaly_praefect_stale_verification_leases_released_total",
+				Help: "Number of stale verification leases released.",
+			},
+		),
 	}
+
+	// pre-warm the metrics so all labels are exported prior to their first observation
+	for virtualStorage, storages := range conns {
+		for storage := range storages {
+			v.dequeuedJobsTotal.WithLabelValues(virtualStorage, storage)
+			for _, result := range []string{resultError, resultInvalid, resultValid} {
+				v.completedJobsTotal.WithLabelValues(virtualStorage, storage, result)
+			}
+		}
+	}
+
+	return v
 }
 
 type verificationJob struct {
@@ -150,6 +193,7 @@ func (v *MetadataVerifier) releaseExpiredLeases(ctx context.Context) error {
 		}
 
 		if totalReleased > 0 {
+			v.staleLeasesReleasedTotal.Add(float64(totalReleased))
 			v.log.WithField("leases_released", released).Info("released stale verification leases")
 		}
 
@@ -179,6 +223,8 @@ func (v *MetadataVerifier) run(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 
+			v.dequeuedJobsTotal.WithLabelValues(job.virtualStorage, job.storage).Inc()
+
 			exists, err := v.verify(ctx, jobs[i])
 			results[i] = verificationResult{
 				job:    job,
@@ -190,7 +236,23 @@ func (v *MetadataVerifier) run(ctx context.Context) error {
 
 	wg.Wait()
 
-	return v.updateMetadata(ctx, results)
+	if err := v.updateMetadata(ctx, results); err != nil {
+		return fmt.Errorf("update metadata: %w", err)
+	}
+
+	for _, r := range results {
+		result := resultError
+		if r.error == nil {
+			result = resultInvalid
+			if r.exists {
+				result = resultValid
+			}
+		}
+
+		v.completedJobsTotal.WithLabelValues(r.job.virtualStorage, r.job.storage, result).Inc()
+	}
+
+	return nil
 }
 
 // logRecord is a helper type for gathering the removed replicas and logging them.
@@ -356,4 +418,16 @@ func (v *MetadataVerifier) verify(ctx context.Context, job verificationJob) (boo
 	}
 
 	return resp.Exists, nil
+}
+
+// Describe describes the collected metrics to Prometheus.
+func (v *MetadataVerifier) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(v, ch)
+}
+
+// Collect collects the metrics exposed from the MetadataVerifier.
+func (v *MetadataVerifier) Collect(ch chan<- prometheus.Metric) {
+	v.dequeuedJobsTotal.Collect(ch)
+	v.completedJobsTotal.Collect(ch)
+	v.staleLeasesReleasedTotal.Collect(ch)
 }

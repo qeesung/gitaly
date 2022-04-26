@@ -359,6 +359,7 @@ func run(
 				hm,
 				conf.BackgroundVerification.VerificationInterval,
 			)
+			promreg.MustRegister(verifier)
 
 			go func() {
 				if err := verifier.Run(ctx, helper.NewTimerTicker(2*time.Second)); err != nil {
@@ -437,12 +438,20 @@ func run(
 	)
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
 	if db != nil {
-		repositoryStoreCollector := datastore.NewRepositoryStoreCollector(
-			logger,
-			conf.VirtualStorageNames(),
-			db,
-			conf.Prometheus.ScrapeTimeout)
-		queueDepthCollector := datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout)
+		dbMetricCollectors := []prometheus.Collector{
+			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout),
+			datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout),
+		}
+
+		if conf.BackgroundVerification.VerificationInterval > 0 {
+			dbMetricCollectors = append(dbMetricCollectors, datastore.NewVerificationQueueDepthCollector(
+				logger,
+				db,
+				conf.Prometheus.ScrapeTimeout,
+				conf.BackgroundVerification.VerificationInterval,
+				conf.StorageNames(),
+			))
+		}
 
 		// Eventually, database-related metrics will always be exported via a separate
 		// endpoint such that it's possible to set a different scraping interval and thus to
@@ -450,9 +459,9 @@ func run(
 		// standard and once for the database-specific endpoint. This is done to ensure a
 		// transitory period where deployments can be moved to the new endpoint without
 		// causing breakage if they still use the old endpoint.
-		dbPromRegistry.MustRegister(repositoryStoreCollector, queueDepthCollector)
+		dbPromRegistry.MustRegister(dbMetricCollectors...)
 		if !conf.PrometheusExcludeDatabaseFromDefaultMetrics {
-			promreg.MustRegister(repositoryStoreCollector, queueDepthCollector)
+			promreg.MustRegister(dbMetricCollectors...)
 		}
 	}
 	promreg.MustRegister(metricsCollectors...)

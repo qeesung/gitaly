@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
@@ -73,16 +75,18 @@ func TestVerifier(t *testing.T) {
 	type step struct {
 		expectedRemovals logRecord
 		expectedErrors   map[string]map[string][]string
-		healthyStorages  StaticHealthChecker
 		expectedReplicas map[string]map[string][]string
 	}
 
 	for _, tc := range []struct {
-		desc            string
-		erroringGitalys map[string]bool
-		replicas        replicas
-		batchSize       int
-		steps           []step
+		desc               string
+		erroringGitalys    map[string]bool
+		replicas           replicas
+		healthyStorages    StaticHealthChecker
+		batchSize          int
+		steps              []step
+		dequeuedJobsTotal  map[string]map[string]int
+		completedJobsTotal map[string]map[string]map[string]int
 	}{
 		{
 			desc: "all replicas exist",
@@ -102,6 +106,18 @@ func TestVerifier(t *testing.T) {
 							"repository-1": {gitaly1, gitaly2, gitaly3},
 						},
 					},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly3: {"valid": 1},
 				},
 			},
 		},
@@ -137,14 +153,26 @@ func TestVerifier(t *testing.T) {
 					},
 				},
 			},
+			healthyStorages: StaticHealthChecker{"virtual-storage": {gitaly1, gitaly2}},
 			steps: []step{
 				{
-					healthyStorages: StaticHealthChecker{"virtual-storage": {gitaly1, gitaly2}},
 					expectedReplicas: map[string]map[string][]string{
 						"virtual-storage": {
 							"repository-1": {gitaly1, gitaly2, gitaly3},
 						},
 					},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly2: {"valid": 1},
 				},
 			},
 		},
@@ -172,6 +200,20 @@ func TestVerifier(t *testing.T) {
 							"repository-1": {gitaly1, gitaly2, gitaly3},
 						},
 					},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly2: {"valid": 1},
+					gitaly3: {"error": 1},
 				},
 			},
 		},
@@ -221,6 +263,20 @@ func TestVerifier(t *testing.T) {
 					},
 				},
 			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly2: {"invalid": 1},
+					gitaly3: {"invalid": 1},
+				},
+			},
 		},
 		{
 			desc: "verification time is updated when repository exists",
@@ -265,6 +321,20 @@ func TestVerifier(t *testing.T) {
 							"repository-1": {gitaly1},
 						},
 					},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly2: {"invalid": 1},
+					gitaly3: {"invalid": 1},
 				},
 			},
 		},
@@ -314,6 +384,20 @@ func TestVerifier(t *testing.T) {
 						},
 					},
 					expectedReplicas: map[string]map[string][]string{},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"invalid": 1},
+					gitaly2: {"invalid": 1},
+					gitaly3: {"invalid": 1},
 				},
 			},
 		},
@@ -490,18 +574,20 @@ func TestVerifier(t *testing.T) {
 			).Scan(&lockedRows))
 			require.Equal(t, 3, lockedRows)
 
+			logger, hook := test.NewNullLogger()
+
+			healthyStorages := StaticHealthChecker{"virtual-storage": []string{gitaly1, gitaly2, gitaly3}}
+			if tc.healthyStorages != nil {
+				healthyStorages = tc.healthyStorages
+			}
+
+			verifier := NewMetadataVerifier(logger, db, conns, healthyStorages, 24*7*time.Hour)
+			if tc.batchSize > 0 {
+				verifier.batchSize = tc.batchSize
+			}
+
 			for _, step := range tc.steps {
-				logger, hook := test.NewNullLogger()
-
-				healthyStorages := StaticHealthChecker{"virtual-storage": []string{gitaly1, gitaly2, gitaly3}}
-				if step.healthyStorages != nil {
-					healthyStorages = step.healthyStorages
-				}
-
-				verifier := NewMetadataVerifier(logger, db, conns, healthyStorages, 24*7*time.Hour)
-				if tc.batchSize > 0 {
-					verifier.batchSize = tc.batchSize
-				}
+				hook.Reset()
 
 				runCtx, cancelRun := context.WithCancel(ctx)
 				err = verifier.Run(runCtx, helper.NewCountTicker(1, cancelRun))
@@ -558,6 +644,41 @@ func TestVerifier(t *testing.T) {
 				// Ensure all the metadata still contains the expected replicas
 				require.Equal(t, step.expectedReplicas, getAllReplicas(ctx, t, db))
 			}
+
+			require.NoError(t, testutil.CollectAndCompare(verifier, strings.NewReader(fmt.Sprintf(`
+# HELP gitaly_praefect_stale_verification_leases_released_total Number of stale verification leases released.
+# TYPE gitaly_praefect_stale_verification_leases_released_total counter
+gitaly_praefect_stale_verification_leases_released_total 0
+# HELP gitaly_praefect_verification_jobs_completed_total Number of verification jobs completed and their result
+# TYPE gitaly_praefect_verification_jobs_completed_total counter
+gitaly_praefect_verification_jobs_completed_total{result="error",storage="gitaly-0",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="error",storage="gitaly-1",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="error",storage="gitaly-2",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="invalid",storage="gitaly-0",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="invalid",storage="gitaly-1",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="invalid",storage="gitaly-2",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="valid",storage="gitaly-0",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="valid",storage="gitaly-1",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_completed_total{result="valid",storage="gitaly-2",virtual_storage="virtual-storage"} %d
+# HELP gitaly_praefect_verification_jobs_dequeued_total Number of verification jobs dequeud.
+# TYPE gitaly_praefect_verification_jobs_dequeued_total counter
+gitaly_praefect_verification_jobs_dequeued_total{storage="gitaly-0",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_dequeued_total{storage="gitaly-1",virtual_storage="virtual-storage"} %d
+gitaly_praefect_verification_jobs_dequeued_total{storage="gitaly-2",virtual_storage="virtual-storage"} %d
+			`,
+				tc.completedJobsTotal["virtual-storage"][gitaly1][resultError],
+				tc.completedJobsTotal["virtual-storage"][gitaly2][resultError],
+				tc.completedJobsTotal["virtual-storage"][gitaly3][resultError],
+				tc.completedJobsTotal["virtual-storage"][gitaly1][resultInvalid],
+				tc.completedJobsTotal["virtual-storage"][gitaly2][resultInvalid],
+				tc.completedJobsTotal["virtual-storage"][gitaly3][resultInvalid],
+				tc.completedJobsTotal["virtual-storage"][gitaly1][resultValid],
+				tc.completedJobsTotal["virtual-storage"][gitaly2][resultValid],
+				tc.completedJobsTotal["virtual-storage"][gitaly3][resultValid],
+				tc.dequeuedJobsTotal["virtual-storage"][gitaly1],
+				tc.dequeuedJobsTotal["virtual-storage"][gitaly2],
+				tc.dequeuedJobsTotal["virtual-storage"][gitaly3],
+			))))
 		})
 	}
 }
@@ -672,4 +793,9 @@ func TestVerifier_runExpiredLeaseReleaser(t *testing.T) {
 	require.Equal(t, map[string]map[string]map[string]struct{}{
 		"virtual-storage-1": {"relative-path-1": {"expired-lease-1": {}, "expired-lease-2": {}, "expired-lease-3": {}}},
 	}, actualReleased)
+	require.NoError(t, testutil.CollectAndCompare(verifier, strings.NewReader(`
+# HELP gitaly_praefect_stale_verification_leases_released_total Number of stale verification leases released.
+# TYPE gitaly_praefect_stale_verification_leases_released_total counter
+gitaly_praefect_stale_verification_leases_released_total 3
+	`)))
 }

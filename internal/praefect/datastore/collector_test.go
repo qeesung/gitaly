@@ -324,3 +324,56 @@ gitaly_praefect_replication_queue_depth{state="ready",target_node="storage-1",vi
 gitaly_praefect_replication_queue_depth{state="ready",target_node="storage-4",virtual_storage="praefect-1"} %d
 `, 1, 1, readyJobs-1, readyJobs-1))))
 }
+
+func TestVerificationQueueDepthCollector(t *testing.T) {
+	ctx := testhelper.Context(t)
+
+	tx := testdb.New(t).Begin(t)
+	defer tx.Rollback(t)
+
+	rs := NewPostgresRepositoryStore(tx, nil)
+	require.NoError(t,
+		rs.CreateRepository(ctx, 1, "virtual-storage-1", "relative-path-1", "replica-path-1", "gitaly-1", []string{"gitaly-2", "gitaly-3"}, nil, true, false),
+	)
+	require.NoError(t,
+		rs.CreateRepository(ctx, 2, "virtual-storage-1", "relative-path-2", "replica-path-2", "gitaly-1", []string{"gitaly-2", "gitaly-3"}, nil, true, false),
+	)
+	require.NoError(t,
+		rs.CreateRepository(ctx, 3, "virtual-storage-2", "relative-path-1", "replica-path-3", "gitaly-1", []string{"gitaly-2", "gitaly-3"}, nil, true, false),
+	)
+
+	_, err := tx.ExecContext(ctx, `
+UPDATE storage_repositories
+SET verified_at = CASE
+	WHEN storage = 'gitaly-2' THEN now() - '30 seconds'::interval
+	ELSE now() - '30 seconds'::interval - '1 microsecond'::interval
+END
+WHERE virtual_storage = 'virtual-storage-1' AND storage != 'gitaly-1'
+	`)
+	require.NoError(t, err)
+
+	logger, hook := test.NewNullLogger()
+	require.NoError(t, testutil.CollectAndCompare(
+		NewVerificationQueueDepthCollector(logrus.NewEntry(logger), tx, time.Minute, 30*time.Second, map[string][]string{
+			"virtual-storage-1": {"gitaly-1", "gitaly-2", "gitaly-3"},
+			"virtual-storage-2": {"gitaly-1", "gitaly-2", "gitaly-3"},
+		}),
+		strings.NewReader(`
+# HELP gitaly_praefect_verification_queue_depth Number of replicas pending verification.
+# TYPE gitaly_praefect_verification_queue_depth gauge
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-1",virtual_storage="virtual-storage-1"} 0
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-1",virtual_storage="virtual-storage-2"} 0
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-2",virtual_storage="virtual-storage-1"} 0
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-2",virtual_storage="virtual-storage-2"} 0
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-3",virtual_storage="virtual-storage-1"} 2
+gitaly_praefect_verification_queue_depth{status="expired",storage="gitaly-3",virtual_storage="virtual-storage-2"} 0
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-1",virtual_storage="virtual-storage-1"} 2
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-1",virtual_storage="virtual-storage-2"} 1
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-2",virtual_storage="virtual-storage-1"} 0
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-2",virtual_storage="virtual-storage-2"} 1
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-3",virtual_storage="virtual-storage-1"} 0
+gitaly_praefect_verification_queue_depth{status="unverified",storage="gitaly-3",virtual_storage="virtual-storage-2"} 1
+		`),
+	))
+	require.Empty(t, hook.AllEntries())
+}
