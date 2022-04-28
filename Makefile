@@ -157,7 +157,6 @@ ifeq ($(origin GIT_BUILD_OPTIONS),undefined)
     GIT_BUILD_OPTIONS += NO_TCLTK=YesPlease
     GIT_BUILD_OPTIONS += NO_GETTEXT=YesPlease
     GIT_BUILD_OPTIONS += NO_PYTHON=YesPlease
-    GIT_BUILD_OPTIONS += NO_INSTALL_HARDLINKS=YesPlease
     PCRE_PC=libpcre2-8
     ifeq ($(shell pkg-config --exists ${PCRE_PC} && echo exists),exists)
 	    GIT_BUILD_OPTIONS += LIBPCREDIR=$(shell pkg-config ${PCRE_PC} --variable prefix)
@@ -557,7 +556,8 @@ $(patsubst %,${DEPENDENCY_DIR}/git-\%/%,${GIT_EXECUTABLES}): ${DEPENDENCY_DIR}/g
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "${@D}" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} ${GIT_EXECUTABLES}
 	${Q}touch $@
 
-${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-${GIT_VERSION}.${GIT_EXTRA_VERSION}/Makefile
+# This target builds a full Git distribution and installs it into GIT_PREFIX.
+${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
 	@ # Remove the Git installation first in case GIT_PREFIX is the default
 	@ # prefix which always points into our build directory. This is done so
 	@ # we never end up with mixed Git installations on developer machines.
