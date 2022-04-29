@@ -3,6 +3,7 @@ package limithandler_test
 import (
 	"bytes"
 	"context"
+	"io"
 	"net"
 	"sync"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
@@ -221,6 +223,86 @@ func TestStreamLimitHandler(t *testing.T) {
 	}
 }
 
+func TestStreamLimitHandler_error(t *testing.T) {
+	t.Parallel()
+
+	s := &queueTestServer{reqArrivedCh: make(chan struct{})}
+	s.blockCh = make(chan struct{})
+
+	cfg := config.Cfg{
+		Concurrency: []config.Concurrency{
+			{RPC: "/test.limithandler.Test/Bidirectional", MaxPerRepo: 1, MaxQueueSize: 1},
+		},
+	}
+
+	lh := limithandler.New(cfg, fixedLockKey, limithandler.WithConcurrencyLimiters)
+	interceptor := lh.StreamInterceptor()
+	srv, serverSocketPath := runServer(t, s, grpc.StreamInterceptor(interceptor))
+	defer srv.Stop()
+
+	client, conn := newClient(t, serverSocketPath)
+	defer conn.Close()
+
+	ctx := featureflag.IncomingCtxWithFeatureFlag(
+		testhelper.Context(t),
+		featureflag.ConcurrencyQueueEnforceMax,
+		true,
+	)
+
+	respChan := make(chan *pb.BidirectionalResponse)
+	go func() {
+		stream, err := client.Bidirectional(ctx)
+		require.NoError(t, err)
+		require.NoError(t, stream.Send(&pb.BidirectionalRequest{}))
+		require.NoError(t, stream.CloseSend())
+		resp, err := stream.Recv()
+		require.NoError(t, err)
+		respChan <- resp
+	}()
+	// The first request will be blocked by blockCh.
+	<-s.reqArrivedCh
+
+	// These are the second and third requests to be sent.
+	// The second request will be waiting in the queue.
+	// The third request should return with an error.
+	errChan := make(chan error)
+	for i := 0; i < 2; i++ {
+		go func() {
+			stream, err := client.Bidirectional(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, stream)
+			require.NoError(t, stream.Send(&pb.BidirectionalRequest{}))
+			require.NoError(t, stream.CloseSend())
+			resp, err := stream.Recv()
+
+			if err != nil {
+				errChan <- err
+			} else {
+				respChan <- resp
+			}
+		}()
+	}
+
+	err := <-errChan
+	testhelper.RequireGrpcError(
+		t,
+		helper.ErrInternalf("rate limiting stream request: %w",
+			limithandler.ErrMaxQueueSize),
+		err)
+
+	// allow the first request to finish
+	close(s.blockCh)
+
+	// This allows the second request to finish
+	<-s.reqArrivedCh
+
+	// we expect two responses. The first request, and the second
+	// request. The third request returned immediately with an error
+	// from the limit handler.
+	<-respChan
+	<-respChan
+}
+
 type queueTestServer struct {
 	server
 	reqArrivedCh chan struct{}
@@ -233,6 +315,25 @@ func (q *queueTestServer) Unary(ctx context.Context, in *pb.UnaryRequest) (*pb.U
 	<-q.blockCh                  // Block to ensure concurrency
 
 	return &pb.UnaryResponse{Ok: true}, nil
+}
+
+func (q *queueTestServer) Bidirectional(stream pb.Test_BidirectionalServer) error {
+	// Read all the input
+	for {
+		if _, err := stream.Recv(); err != nil {
+			if err != io.EOF {
+				return err
+			}
+
+			break
+		}
+		q.reqArrivedCh <- struct{}{}
+
+		q.registerRequest()
+	}
+	<-q.blockCh // Block to ensure concurrency
+
+	return stream.Send(&pb.BidirectionalResponse{Ok: true})
 }
 
 func TestConcurrencyLimitHandlerMetrics(t *testing.T) {
