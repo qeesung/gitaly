@@ -81,6 +81,13 @@ var (
 		},
 		[]string{"grpc_service", "grpc_method", "cmd", "subcmd", "ctxswitchtype"},
 	)
+	spawnTokenAcquiringSeconds = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gitaly_command_spawn_token_acquiring_seconds_total",
+			Help: "Sum of time spent waiting for a spawn token",
+		},
+		[]string{"grpc_service", "grpc_method", "cmd"},
+	)
 )
 
 // GitEnv contains the ENV variables for git commands
@@ -215,6 +222,10 @@ func (c *Command) SetMetricsSubCmd(metricsSubCmd string) {
 
 type contextWithoutDonePanic string
 
+var getSpawnTokenAcquiringSeconds = func(t time.Time) float64 {
+	return time.Since(t).Seconds()
+}
+
 // New creates a Command from an exec.Cmd. On success, the Command
 // contains a running subprocess. When ctx is canceled the embedded
 // process will be terminated and reaped automatically.
@@ -236,10 +247,17 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		opentracing.Tag{Key: "args", Value: strings.Join(cmd.Args, " ")},
 	)
 
+	spawnStartTime := time.Now()
 	putToken, err := getSpawnToken(ctx)
 	if err != nil {
 		return nil, err
 	}
+	service, method := methodFromContext(ctx)
+	cmdName := path.Base(cmd.Path)
+	spawnTokenAcquiringSeconds.
+		WithLabelValues(service, method, cmdName).
+		Add(getSpawnTokenAcquiringSeconds(spawnStartTime))
+
 	defer putToken()
 
 	logPid := -1

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -383,4 +385,34 @@ func TestCommand_logMessage(t *testing.T) {
 	assert.Equal(t, []string{"echo", "hello world"}, logEntry.Data["args"])
 	assert.Equal(t, 0, logEntry.Data["command.exitCode"])
 	assert.Equal(t, cgroupPath, logEntry.Data["command.cgroup_path"])
+}
+
+func TestNewCommandSpawnTokenMetrics(t *testing.T) {
+	spawnTokenAcquiringSeconds.Reset()
+
+	ctx := testhelper.Context(t)
+	getSpawnTokenAcquiringSeconds = func(t time.Time) float64 {
+		return 1
+	}
+
+	tags := grpcmwtags.NewTags()
+	tags.Set("grpc.request.fullMethod", "/test.Service/TestRPC")
+	ctx = grpcmwtags.SetInContext(ctx, tags)
+
+	cmd, err := New(ctx, exec.Command("echo", "goodbye, cruel world."), nil, nil, nil)
+
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	expectedMetrics := `# HELP gitaly_command_spawn_token_acquiring_seconds_total Sum of time spent waiting for a spawn token
+# TYPE gitaly_command_spawn_token_acquiring_seconds_total counter
+gitaly_command_spawn_token_acquiring_seconds_total{cmd="echo",grpc_method="TestRPC",grpc_service="test.Service"} 1
+`
+	assert.NoError(
+		t,
+		testutil.CollectAndCompare(
+			spawnTokenAcquiringSeconds,
+			bytes.NewBufferString(expectedMetrics),
+		),
+	)
 }
