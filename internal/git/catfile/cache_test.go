@@ -218,7 +218,9 @@ func TestCache_ObjectReader(t *testing.T) {
 		}
 		require.Empty(t, output)
 
-		require.True(t, reader.isClosed())
+		// The clean up happens in a goroutine on context cancellation. require.Eventually
+		// is used to here to avoid the flakiness.
+		require.Eventually(t, reader.isClosed, 5*time.Second, time.Millisecond)
 		require.Empty(t, keys(t, &cache.objectReaders))
 	})
 
