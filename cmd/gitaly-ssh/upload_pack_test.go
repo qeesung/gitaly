@@ -32,7 +32,7 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 	_, clean := runServer(t, false, cfg, "unix", socketPath)
 	defer clean()
 
-	_, clean = runServer(t, false, cfg, "unix", cfg.GitalyInternalSocketPath())
+	_, clean = runServer(t, false, cfg, "unix", cfg.InternalSocketPath())
 	defer clean()
 
 	// Create a keep-around ref

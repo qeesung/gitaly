@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -30,8 +29,7 @@ func TestLoadEmptyConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedCfg := Cfg{
-		Prometheus:        prometheus.DefaultConfig(),
-		InternalSocketDir: cfg.InternalSocketDir,
+		Prometheus: prometheus.DefaultConfig(),
 	}
 	require.NoError(t, expectedCfg.setDefaults())
 
@@ -604,78 +602,110 @@ dir = '%s'`, gitlabShellDir))
 }
 
 func TestValidateInternalSocketDir(t *testing.T) {
-	// create a valid socket directory
-	tmpDir := testhelper.TempDir(t)
-	// create a symlinked socket directory
-	dirName := "internal_socket_dir"
-	validSocketDirSymlink := filepath.Join(tmpDir, dirName)
-	tmpSocketDir, err := os.MkdirTemp(tmpDir, "")
-	require.NoError(t, err)
-	tmpSocketDir, err = filepath.Abs(tmpSocketDir)
-	require.NoError(t, err)
-	require.NoError(t, os.Symlink(tmpSocketDir, validSocketDirSymlink))
-
-	// create a broken symlink
-	dirName = "internal_socket_dir_broken"
-	brokenSocketDirSymlink := filepath.Join(tmpDir, dirName)
-	require.NoError(t, os.Symlink("/does/not/exist", brokenSocketDirSymlink))
-
-	pathTooLongForSocket := filepath.Join(tmpDir, strings.Repeat("/nested_directory", 10))
-	require.NoError(t, os.MkdirAll(pathTooLongForSocket, os.ModePerm))
+	verifyPathDoesNotExist := func(t *testing.T, runtimeDir string, actualErr error) {
+		require.Equal(t, fmt.Errorf("internal_socket_dir: path doesn't exist: %q", filepath.Join(runtimeDir, "sock.d")), actualErr)
+	}
 
 	testCases := []struct {
-		desc              string
-		internalSocketDir string
-		expErrMsgRegexp   string
+		desc   string
+		setup  func(t *testing.T) string
+		verify func(t *testing.T, runtimeDir string, actualErr error)
 	}{
 		{
-			desc:              "empty socket dir",
-			internalSocketDir: "",
+			desc: "unconfigured runtime directory",
+			setup: func(t *testing.T) string {
+				return ""
+			},
+			verify: verifyPathDoesNotExist,
 		},
 		{
-			desc:              "non existing directory",
-			internalSocketDir: "/tmp/relative/path/to/nowhere",
-			expErrMsgRegexp:   `internal_socket_dir: path doesn't exist: "/tmp/relative/path/to/nowhere"`,
+			desc: "non existing directory",
+			setup: func(t *testing.T) string {
+				return "/path/does/not/exist"
+			},
+			verify: verifyPathDoesNotExist,
 		},
 		{
-			desc:              "valid socket directory",
-			internalSocketDir: tmpDir,
+			desc: "runtime directory missing sock.d",
+			setup: func(t *testing.T) string {
+				runtimeDir := testhelper.TempDir(t)
+				return runtimeDir
+			},
+			verify: verifyPathDoesNotExist,
 		},
 		{
-			desc:              "valid symlinked directory",
-			internalSocketDir: validSocketDirSymlink,
+			desc: "runtime directory with valid sock.d",
+			setup: func(t *testing.T) string {
+				runtimeDir := testhelper.TempDir(t)
+				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), os.ModePerm))
+				return runtimeDir
+			},
 		},
 		{
-			desc:              "broken symlinked directory",
-			internalSocketDir: brokenSocketDirSymlink,
-			expErrMsgRegexp:   fmt.Sprintf(`internal_socket_dir: path doesn't exist: %q`, brokenSocketDirSymlink),
+			desc: "symlinked runtime directory",
+			setup: func(t *testing.T) string {
+				runtimeDir := testhelper.TempDir(t)
+				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), os.ModePerm))
+
+				// Create a symlink which points to the real runtime directory.
+				symlinkDir := testhelper.TempDir(t)
+				symlink := filepath.Join(symlinkDir, "symlink-to-runtime-dir")
+				require.NoError(t, os.Symlink(runtimeDir, symlink))
+
+				return symlink
+			},
 		},
 		{
-			desc:              "socket can't be created",
-			internalSocketDir: pathTooLongForSocket,
-			expErrMsgRegexp:   `internal_socket_dir: try create socket: socket could not be created in .*\/test-.{8}\.sock: bind: invalid argument`,
+			desc: "broken symlinked runtime directory",
+			setup: func(t *testing.T) string {
+				symlinkDir := testhelper.TempDir(t)
+				symlink := filepath.Join(symlinkDir, "symlink-to-runtime-dir")
+				require.NoError(t, os.Symlink("/path/does/not/exist", symlink))
+				return symlink
+			},
+			verify: verifyPathDoesNotExist,
+		},
+		{
+			desc: "socket can't be created",
+			setup: func(t *testing.T) string {
+				tempDir := testhelper.TempDir(t)
+
+				runtimeDirTooLongForSockets := filepath.Join(tempDir, strings.Repeat("/nested_directory", 10))
+				socketDir := filepath.Join(runtimeDirTooLongForSockets, "sock.d")
+				require.NoError(t, os.MkdirAll(socketDir, os.ModePerm))
+
+				return runtimeDirTooLongForSockets
+			},
+			verify: func(t *testing.T, runtimeDir string, actualErr error) {
+				require.Error(t, actualErr)
+				require.Regexp(t,
+					fmt.Sprintf(
+						"internal_socket_dir: try create socket: socket could not be created in %s: listen unix %s: bind: invalid argument",
+						filepath.Join(runtimeDir, "sock\\.d"),
+						filepath.Join(runtimeDir, "sock\\.d", "test-.{8}\\.sock"),
+					),
+					actualErr.Error(),
+				)
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			err := (&Cfg{InternalSocketDir: tc.internalSocketDir}).validateInternalSocketDir()
-			if tc.expErrMsgRegexp != "" {
-				assert.Regexp(t, tc.expErrMsgRegexp, err)
+			runtimeDir := tc.setup(t)
+
+			cfg := Cfg{
+				RuntimeDir: runtimeDir,
+			}
+
+			actualErr := cfg.validateInternalSocketDir()
+			if tc.verify == nil {
+				require.NoError(t, actualErr)
 			} else {
-				assert.NoError(t, err)
+				tc.verify(t, runtimeDir, actualErr)
 			}
 		})
 	}
-}
-
-func TestInternalSocketDir(t *testing.T) {
-	cfg, err := Load(bytes.NewReader(nil))
-	require.NoError(t, err)
-	socketDir := cfg.InternalSocketDir
-
-	require.NoError(t, trySocketCreation(socketDir))
-	require.NoError(t, os.RemoveAll(socketDir))
 }
 
 func TestLoadDailyMaintenance(t *testing.T) {

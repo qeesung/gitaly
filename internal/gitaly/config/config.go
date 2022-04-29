@@ -62,7 +62,6 @@ type Cfg struct {
 	Concurrency            []Concurrency     `toml:"concurrency"`
 	RateLimiting           []RateLimiting    `toml:"rate_limiting"`
 	GracefulRestartTimeout Duration          `toml:"graceful_restart_timeout"`
-	InternalSocketDir      string            `toml:"internal_socket_dir"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
 	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
@@ -272,17 +271,12 @@ func (cfg *Cfg) setDefaults() error {
 		cfg.RuntimeDir = runtimeDir
 	}
 
-	if cfg.InternalSocketDir == "" {
-		// The socket path must be short-ish because listen(2) fails on long
-		// socket paths. We hope/expect that os.MkdirTemp creates a directory
-		// that is not too deep. We need a directory, not a tempfile, because we
-		// will later want to set its permissions to 0700
-		socketDir := filepath.Join(cfg.RuntimeDir, "sock.d")
-		if err := os.Mkdir(socketDir, 0o700); err != nil {
-			return fmt.Errorf("create internal socket directory: %w", err)
-		}
-
-		cfg.InternalSocketDir = socketDir
+	// The socket path must be short-ish because listen(2) fails on long
+	// socket paths. We hope/expect that os.MkdirTemp creates a directory
+	// that is not too deep. We need a directory, not a tempfile, because we
+	// will later want to set its permissions to 0700
+	if err := os.Mkdir(cfg.InternalSocketDir(), 0o700); err != nil {
+		return fmt.Errorf("create internal socket directory: %w", err)
 	}
 
 	if reflect.DeepEqual(cfg.DailyMaintenance, DailyJob{}) {
@@ -390,9 +384,14 @@ func (cfg *Cfg) Storage(storageName string) (Storage, bool) {
 	return Storage{}, false
 }
 
-// GitalyInternalSocketPath is the path to the internal gitaly socket
-func (cfg *Cfg) GitalyInternalSocketPath() string {
-	return filepath.Join(cfg.InternalSocketDir, fmt.Sprintf("internal_%d.sock", os.Getpid()))
+// InternalSocketDir returns the location of the internal socket directory.
+func (cfg *Cfg) InternalSocketDir() string {
+	return filepath.Join(cfg.RuntimeDir, "sock.d")
+}
+
+// InternalSocketPath is the path to the internal Gitaly socket.
+func (cfg *Cfg) InternalSocketPath() string {
+	return filepath.Join(cfg.InternalSocketDir(), fmt.Sprintf("internal_%d.sock", os.Getpid()))
 }
 
 func (cfg *Cfg) validateBinDir() error {
@@ -466,17 +465,14 @@ func (cfg *Cfg) validateToken() error {
 }
 
 func (cfg *Cfg) validateInternalSocketDir() error {
-	if cfg.InternalSocketDir == "" {
-		return nil
-	}
-
-	if err := validateIsDirectory(cfg.InternalSocketDir, "internal_socket_dir"); err != nil {
+	if err := validateIsDirectory(cfg.InternalSocketDir(), "internal_socket_dir"); err != nil {
 		return err
 	}
 
-	if err := trySocketCreation(cfg.InternalSocketDir); err != nil {
+	if err := trySocketCreation(cfg.InternalSocketDir()); err != nil {
 		return fmt.Errorf("internal_socket_dir: try create socket: %w", err)
 	}
+
 	return nil
 }
 

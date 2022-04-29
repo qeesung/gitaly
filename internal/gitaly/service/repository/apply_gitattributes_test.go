@@ -111,7 +111,7 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 	// carefully crafted transaction and server information.
 	logger := testhelper.NewDiscardingLogEntry(t)
 
-	client := newMuxedRepositoryClient(t, ctx, cfg, "unix://"+cfg.GitalyInternalSocketPath(),
+	client := newMuxedRepositoryClient(t, ctx, cfg, "unix://"+cfg.InternalSocketPath(),
 		backchannel.NewClientHandshaker(logger, func() backchannel.Server {
 			srv := grpc.NewServer()
 			gitalypb.RegisterRefTransactionServer(srv, transactionServer)

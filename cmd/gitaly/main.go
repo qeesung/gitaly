@@ -260,7 +260,7 @@ func run(cfg config.Cfg) error {
 
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
-		{Name: starter.Unix, Addr: cfg.GitalyInternalSocketPath(), HandoverOnUpgrade: false},
+		{Name: starter.Unix, Addr: cfg.InternalSocketPath(), HandoverOnUpgrade: false},
 		{Name: starter.TCP, Addr: cfg.ListenAddr, HandoverOnUpgrade: true},
 		{Name: starter.TLS, Addr: cfg.TLSListenAddr, HandoverOnUpgrade: true},
 	} {

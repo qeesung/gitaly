@@ -273,7 +273,7 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 	// transaction information we inject further down below. So we instead
 	// use internal socket so we can circumvent Praefect and just talk
 	// to Gitaly directly.
-	client := newMuxedOperationClient(t, ctx, "unix://"+cfg.GitalyInternalSocketPath(), cfg.Auth.Token,
+	client := newMuxedOperationClient(t, ctx, "unix://"+cfg.InternalSocketPath(), cfg.Auth.Token,
 		backchannel.NewClientHandshaker(
 			testhelper.NewDiscardingLogEntry(t),
 			func() backchannel.Server {

@@ -47,6 +47,7 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 
 	cfg.RuntimeDir = filepath.Join(rootDir, "run.d")
 	require.NoError(t, os.Mkdir(cfg.RuntimeDir, 0o700))
+	require.NoError(t, os.Mkdir(cfg.InternalSocketDir(), 0o700))
 
 	require.NoError(t, cfg.Validate())
 

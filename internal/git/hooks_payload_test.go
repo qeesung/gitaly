@@ -41,7 +41,7 @@ func TestHooksPayload(t *testing.T) {
 		require.Equal(t, git.HooksPayload{
 			Repo:           repo,
 			RuntimeDir:     cfg.RuntimeDir,
-			InternalSocket: cfg.GitalyInternalSocketPath(),
+			InternalSocket: cfg.InternalSocketPath(),
 			RequestedHooks: git.PreReceiveHook,
 			FeatureFlags:   featureflag.Raw{"flag-key": "flag-value"},
 		}, payload)
@@ -57,7 +57,7 @@ func TestHooksPayload(t *testing.T) {
 		require.Equal(t, git.HooksPayload{
 			Repo:           repo,
 			RuntimeDir:     cfg.RuntimeDir,
-			InternalSocket: cfg.GitalyInternalSocketPath(),
+			InternalSocket: cfg.InternalSocketPath(),
 			Transaction:    &tx,
 			RequestedHooks: git.UpdateHook,
 		}, payload)
@@ -93,7 +93,7 @@ func TestHooksPayload(t *testing.T) {
 		require.Equal(t, git.HooksPayload{
 			Repo:                repo,
 			RuntimeDir:          cfg.RuntimeDir,
-			InternalSocket:      cfg.GitalyInternalSocketPath(),
+			InternalSocket:      cfg.InternalSocketPath(),
 			InternalSocketToken: cfg.Auth.Token,
 			ReceiveHooksPayload: &git.ReceiveHooksPayload{
 				UserID:   "1234",

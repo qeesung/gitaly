@@ -109,7 +109,7 @@ func NewHooksPayload(
 	return HooksPayload{
 		Repo:                repo,
 		RuntimeDir:          cfg.RuntimeDir,
-		InternalSocket:      cfg.GitalyInternalSocketPath(),
+		InternalSocket:      cfg.InternalSocketPath(),
 		InternalSocketToken: cfg.Auth.Token,
 		Transaction:         tx,
 		ReceiveHooksPayload: receiveHooksPayload,

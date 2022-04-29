@@ -55,7 +55,7 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) []string {
 		"GITALY_RUBY_GITALY_BIN_DIR="+cfg.BinDir,
 		"GITALY_VERSION="+version.GetVersion(),
 		"GITALY_GIT_HOOKS_DIR="+hooksPath,
-		"GITALY_SOCKET="+cfg.GitalyInternalSocketPath(),
+		"GITALY_SOCKET="+cfg.InternalSocketPath(),
 		"GITALY_TOKEN="+cfg.Auth.Token,
 		"GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH="+cfg.Ruby.RuggedGitConfigSearchPath,
 	)
@@ -142,7 +142,7 @@ func (s *Server) start() error {
 
 	for i := 0; i < numWorkers; i++ {
 		name := fmt.Sprintf("gitaly-ruby.%d", i)
-		socketPath := filepath.Join(cfg.InternalSocketDir, fmt.Sprintf("ruby.%d", i))
+		socketPath := filepath.Join(cfg.InternalSocketDir(), fmt.Sprintf("ruby.%d", i))
 
 		// Use 'ruby-cd' to make sure gitaly-ruby has the same working directory
 		// as the current process. This is a hack to sort-of support relative

@@ -147,7 +147,7 @@ func TestUserCreateBranchWithTransaction(t *testing.T) {
 		},
 		{
 			desc:    "Unix socket",
-			address: "unix://" + cfg.GitalyInternalSocketPath(),
+			address: "unix://" + cfg.InternalSocketPath(),
 		},
 	}
 
@@ -490,7 +490,7 @@ func TestUserDeleteBranch_transaction(t *testing.T) {
 	require.NoError(t, err)
 	ctx = metadata.IncomingToOutgoing(ctx)
 
-	client := newMuxedOperationClient(t, ctx, fmt.Sprintf("unix://"+cfg.GitalyInternalSocketPath()), cfg.Auth.Token,
+	client := newMuxedOperationClient(t, ctx, fmt.Sprintf("unix://"+cfg.InternalSocketPath()), cfg.Auth.Token,
 		backchannel.NewClientHandshaker(
 			testhelper.NewDiscardingLogEntry(t),
 			func() backchannel.Server {
