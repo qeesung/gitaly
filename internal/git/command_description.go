@@ -233,6 +233,10 @@ var commandDescriptions = map[string]commandDescription{
 			// Write bitmap indices when packing objects, which
 			// speeds up packfile creation for fetches.
 			ConfigPair{Key: "repack.writeBitmaps", Value: "true"},
+			// Do not run git-update-server-info(1), which generates data structures
+			// required to server repositories via the dumb HTTP protocol. We don't
+			// serve this protocol though, so it's fine to skip it.
+			ConfigPair{Key: "repack.updateServerInfo", Value: "false"},
 		}, packConfiguration()...),
 	},
 	"rev-list": {
