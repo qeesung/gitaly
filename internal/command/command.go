@@ -20,7 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command/commandcounter"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -472,22 +471,20 @@ func (c *Command) logProcessComplete() {
 		}
 	}
 
-	if featureflag.CommandStatsMetrics.IsEnabled(ctx) {
-		service, method := methodFromContext(ctx)
-		cmdName := path.Base(c.cmd.Path)
-		if c.metricsCmd != "" {
-			cmdName = c.metricsCmd
-		}
-		cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "system").Add(systemTime.Seconds())
-		cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "user").Add(userTime.Seconds())
-		realSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(realTime.Seconds())
-		if ok {
-			minorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Minflt))
-			majorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Majflt))
-			signalsReceivedTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Nsignals))
-			contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "voluntary").Add(float64(rusage.Nvcsw))
-			contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "nonvoluntary").Add(float64(rusage.Nivcsw))
-		}
+	service, method := methodFromContext(ctx)
+	cmdName := path.Base(c.cmd.Path)
+	if c.metricsCmd != "" {
+		cmdName = c.metricsCmd
+	}
+	cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "system").Add(systemTime.Seconds())
+	cpuSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "user").Add(userTime.Seconds())
+	realSecondsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(realTime.Seconds())
+	if ok {
+		minorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Minflt))
+		majorPageFaultsTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Majflt))
+		signalsReceivedTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd).Add(float64(rusage.Nsignals))
+		contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "voluntary").Add(float64(rusage.Nvcsw))
+		contextSwitchesTotal.WithLabelValues(service, method, cmdName, c.metricsSubCmd, "nonvoluntary").Add(float64(rusage.Nivcsw))
 	}
 
 	c.span.LogKV(
