@@ -39,10 +39,11 @@ func (s *server) GetTagSignatures(req *gitalypb.GetTagSignaturesRequest, stream 
 	ctx := stream.Context()
 	repo := s.localrepo(req.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternalf("creating object reader: %w", err)
 	}
+	defer cancel()
 
 	chunker := chunk.New(&tagSignatureSender{
 		send: func(signatures []*gitalypb.GetTagSignaturesResponse_TagSignature) error {

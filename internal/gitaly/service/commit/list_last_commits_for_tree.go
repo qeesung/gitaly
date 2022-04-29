@@ -35,10 +35,11 @@ func (s *server) listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	batch := make([]*gitalypb.ListLastCommitsForTreeResponse_CommitForTree, 0, maxNumStatBatchSize)
 	entries, err := getLSTreeEntries(parser)

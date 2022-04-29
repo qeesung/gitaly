@@ -147,16 +147,19 @@ func (s *server) sendTreeEntries(
 		}
 	} else {
 		var err error
+		var cancel func()
 
-		objectReader, err = s.catfileCache.ObjectReader(stream.Context(), repo)
+		objectReader, cancel, err = s.catfileCache.ObjectReader(stream.Context(), repo)
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
-		objectInfoReader, err = s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+		objectInfoReader, cancel, err = s.catfileCache.ObjectInfoReader(stream.Context(), repo)
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
 		entries, err = catfile.TreeEntries(ctx, objectReader, objectInfoReader, revision, path)
 		if err != nil {

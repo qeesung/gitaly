@@ -60,8 +60,9 @@ func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectRea
 	cache := newCache(1*time.Hour, 1000, helper.NewTimerTicker(defaultEvictionInterval))
 	t.Cleanup(cache.Stop)
 
-	objectReader, err := cache.ObjectReader(ctx, repoExecutor)
+	objectReader, cancel, err := cache.ObjectReader(ctx, repoExecutor)
 	require.NoError(t, err)
+	t.Cleanup(cancel)
 
 	return cfg, objectReader, repo
 }

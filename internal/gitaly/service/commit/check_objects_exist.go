@@ -26,13 +26,14 @@ func (s *server) CheckObjectsExist(
 		return err
 	}
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(
 		ctx,
 		s.localrepo(request.GetRepository()),
 	)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	chunker := chunk.New(&checkObjectsExistSender{stream: stream})
 	for {

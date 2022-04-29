@@ -132,8 +132,9 @@ func TestCatfileInfo(t *testing.T) {
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
-			objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+			objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 			require.NoError(t, err)
+			defer cancel()
 
 			it, err := CatfileInfo(ctx, objectInfoReader, NewRevisionIterator(tc.revlistInputs), tc.opts...)
 			require.NoError(t, err)

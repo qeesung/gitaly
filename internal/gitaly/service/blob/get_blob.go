@@ -20,10 +20,11 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 		return helper.ErrInvalidArgumentf("GetBlob: %v", err)
 	}
 
-	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
 		return helper.ErrInternalf("GetBlob: %v", err)
 	}
+	defer cancel()
 
 	blob, err := objectReader.Object(ctx, git.Revision(in.Oid))
 	if err != nil {

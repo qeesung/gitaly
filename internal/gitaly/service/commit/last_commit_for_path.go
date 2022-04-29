@@ -29,10 +29,11 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 	}
 
 	repo := s.localrepo(in.GetRepository())
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 
 	options := in.GetGlobalOptions()
 

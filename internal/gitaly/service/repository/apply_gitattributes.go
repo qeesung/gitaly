@@ -132,10 +132,11 @@ func (s *server) ApplyGitattributes(ctx context.Context, in *gitalypb.ApplyGitat
 		return nil, helper.ErrInvalidArgumentf("revision: %v", err)
 	}
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 
 	if err := s.applyGitattributes(ctx, repo, objectReader, repoPath, in.GetRevision()); err != nil {
 		return nil, err

@@ -98,10 +98,11 @@ func (s *server) processBlobs(
 		// object iterator. We thus support an optional `catfileInfoIter` parameter: if set,
 		// we just use that one and ignore the object iterator.
 		if catfileInfoIter == nil {
-			objectInfoReader, err := s.catfileCache.ObjectInfoReader(ctx, repo)
+			objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(ctx, repo)
 			if err != nil {
 				return helper.ErrInternal(fmt.Errorf("creating object info reader: %w", err))
 			}
+			defer cancel()
 
 			catfileInfoIter, err = gitpipe.CatfileInfo(ctx, objectInfoReader, objectIter)
 			if err != nil {
@@ -132,10 +133,11 @@ func (s *server) processBlobs(
 			return helper.ErrInternal(err)
 		}
 	} else {
-		objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+		objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 		if err != nil {
 			return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
 		}
+		defer cancel()
 
 		catfileObjectIter, err := gitpipe.CatfileObject(ctx, objectReader, objectIter)
 		if err != nil {

@@ -30,10 +30,11 @@ func (s *server) ListAllCommits(
 	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternalf("creating object reader: %w", err)
 	}
+	defer cancel()
 
 	// If we've got a pagination token, then we will only start to print commits as soon as
 	// we've seen the token.

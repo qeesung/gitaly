@@ -38,10 +38,11 @@ func (s *server) filterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	ctx := bidi.Context()
 	repo := s.localrepo(firstRequest.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	request := firstRequest
 	for {

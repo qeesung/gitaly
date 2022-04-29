@@ -178,15 +178,17 @@ func (s *Server) createTag(
 	committer *gitalypb.User,
 	committerTime time.Time,
 ) (*gitalypb.Tag, git.ObjectID, error) {
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, "", status.Error(codes.Internal, err.Error())
 	}
+	defer cancel()
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(ctx, repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(ctx, repo)
 	if err != nil {
 		return nil, "", status.Error(codes.Internal, err.Error())
 	}
+	defer cancel()
 
 	// We allow all ways to name a revision that cat-file
 	// supports, not just OID. Resolve it.

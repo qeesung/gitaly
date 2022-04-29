@@ -30,10 +30,11 @@ func (s *server) getCommitSignatures(request *gitalypb.GetCommitSignaturesReques
 	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
+	defer cancel()
 
 	for _, commitID := range request.CommitIds {
 		commitObj, err := objectReader.Object(ctx, git.Revision(commitID)+"^{commit}")

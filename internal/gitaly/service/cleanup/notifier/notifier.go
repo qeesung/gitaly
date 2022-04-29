@@ -17,13 +17,13 @@ type Notifier struct {
 }
 
 // New instantiates a new Notifier
-func New(ctx context.Context, catfileCache catfile.Cache, repo git.RepositoryExecutor, chunker *chunk.Chunker) (*Notifier, error) {
-	objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+func New(ctx context.Context, catfileCache catfile.Cache, repo git.RepositoryExecutor, chunker *chunk.Chunker) (*Notifier, func(), error) {
+	objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &Notifier{objectInfoReader: objectInfoReader, chunker: chunker}, nil
+	return &Notifier{objectInfoReader: objectInfoReader, chunker: chunker}, cancel, nil
 }
 
 // Notify builds a new message and sends it to the chunker

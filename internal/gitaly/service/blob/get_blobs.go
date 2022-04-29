@@ -159,15 +159,17 @@ func (s *server) GetBlobs(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 
 	repo := s.localrepo(req.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	return sendGetBlobsResponse(req, stream, objectReader, objectInfoReader)
 }

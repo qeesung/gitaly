@@ -23,10 +23,10 @@ type Parser struct {
 }
 
 // NewParser returns a new Parser
-func NewParser(ctx context.Context, catfileCache catfile.Cache, repo git.RepositoryExecutor, src io.Reader) (*Parser, error) {
-	objectReader, err := catfileCache.ObjectReader(ctx, repo)
+func NewParser(ctx context.Context, catfileCache catfile.Cache, repo git.RepositoryExecutor, src io.Reader) (*Parser, func(), error) {
+	objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	parser := &Parser{
@@ -34,7 +34,7 @@ func NewParser(ctx context.Context, catfileCache catfile.Cache, repo git.Reposit
 		objectReader: objectReader,
 	}
 
-	return parser, nil
+	return parser, cancel, nil
 }
 
 // Parse parses a single git log line. It returns true if successful, false if it finished

@@ -58,10 +58,11 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 		return fmt.Errorf("error when creating git log command: %v", err)
 	}
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("creating catfile: %v", err)
 	}
+	defer cancel()
 
 	getCommits := NewGetCommits(logCmd, objectReader)
 

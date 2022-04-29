@@ -40,10 +40,11 @@ func (s *server) ApplyBfgObjectMapStream(server gitalypb.CleanupService_ApplyBfg
 	reader := &bfgStreamReader{firstRequest: firstRequest, server: server}
 	chunker := chunk.New(&bfgStreamWriter{server: server})
 
-	notifier, err := notifier.New(ctx, s.catfileCache, repo, chunker)
+	notifier, cancel, err := notifier.New(ctx, s.catfileCache, repo, chunker)
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
+	defer cancel()
 
 	// It doesn't matter if new internal references are added after this RPC
 	// starts running - they shouldn't point to the objects removed by the BFG

@@ -25,10 +25,11 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	sender := chunk.New(&commitsByOidSender{stream: stream})
 	listCommitsbyOidHistogram.Observe(float64(len(in.Oid)))

@@ -224,11 +224,13 @@ func TestPipeline_revlist(t *testing.T) {
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
-			objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+			objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 			require.NoError(t, err)
+			defer cancel()
 
-			objectReader, err := catfileCache.ObjectReader(ctx, repo)
+			objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 			require.NoError(t, err)
+			defer cancel()
 
 			revlistIter := Revlist(ctx, repo, tc.revisions, tc.revlistOptions...)
 
@@ -280,11 +282,13 @@ func TestPipeline_revlist(t *testing.T) {
 		catfileCache := catfile.NewCache(cfg)
 		defer catfileCache.Stop()
 
-		objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+		objectInfoReader, cancelReader, err := catfileCache.ObjectInfoReader(ctx, repo)
 		require.NoError(t, err)
+		defer cancelReader()
 
-		objectReader, err := catfileCache.ObjectReader(ctx, repo)
+		objectReader, cancelReader, err := catfileCache.ObjectReader(ctx, repo)
 		require.NoError(t, err)
+		defer cancelReader()
 
 		revlistIter := Revlist(ctx, repo, []string{"--all"})
 
@@ -320,11 +324,13 @@ func TestPipeline_revlist(t *testing.T) {
 		catfileCache := catfile.NewCache(cfg)
 		defer catfileCache.Stop()
 
-		objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+		objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 		require.NoError(t, err)
+		defer cancel()
 
-		objectReader, err := catfileCache.ObjectReader(ctx, repo)
+		objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 		require.NoError(t, err)
+		defer cancel()
 
 		revlistIter := Revlist(ctx, repo, []string{"--all"}, WithObjects())
 
@@ -372,11 +378,13 @@ func TestPipeline_forEachRef(t *testing.T) {
 	catfileCache := catfile.NewCache(cfg)
 	defer catfileCache.Stop()
 
-	objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+	objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 	require.NoError(t, err)
+	defer cancel()
 
-	objectReader, err := catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 	require.NoError(t, err)
+	defer cancel()
 
 	forEachRefIter := ForEachRef(ctx, repo, nil)
 

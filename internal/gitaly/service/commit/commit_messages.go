@@ -27,10 +27,11 @@ func (s *server) getAndStreamCommitMessages(request *gitalypb.GetCommitMessagesR
 	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	for _, commitID := range request.GetCommitIds() {
 		msg, err := catfile.GetCommitMessage(ctx, objectReader, repo, git.Revision(commitID))

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -139,8 +138,6 @@ func newObjectInfoReader(
 	repo git.RepositoryExecutor,
 	counter *prometheus.CounterVec,
 ) (*objectInfoReader, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "catfile.ObjectInfoReader")
-
 	batchCmd, err := repo.Exec(ctx,
 		git.SubCmd{
 			Name: "cat-file",
@@ -163,12 +160,6 @@ func newObjectInfoReader(
 			stdin:  bufio.NewWriter(batchCmd),
 		},
 	}
-	go func() {
-		<-ctx.Done()
-		// This is crucial to prevent leaking file descriptors.
-		objectInfoReader.close()
-		span.Finish()
-	}()
 
 	return objectInfoReader, nil
 }

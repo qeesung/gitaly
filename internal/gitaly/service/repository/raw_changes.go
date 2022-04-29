@@ -20,10 +20,11 @@ func (s *server) GetRawChanges(req *gitalypb.GetRawChangesRequest, stream gitaly
 	ctx := stream.Context()
 	repo := s.localrepo(req.GetRepository())
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
+	defer cancel()
 
 	if err := validateRawChangesRequest(ctx, req, objectInfoReader); err != nil {
 		return helper.ErrInvalidArgument(err)

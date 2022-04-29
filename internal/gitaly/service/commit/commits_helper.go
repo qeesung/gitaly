@@ -29,10 +29,11 @@ func (s *server) sendCommits(
 		return err
 	}
 
-	logParser, err := log.NewParser(ctx, s.catfileCache, repo, cmd)
+	logParser, cancel, err := log.NewParser(ctx, s.catfileCache, repo, cmd)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	chunker := chunk.New(sender)
 	for logParser.Parse(ctx) {

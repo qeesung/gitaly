@@ -96,10 +96,11 @@ func (s *server) cleanupKeepArounds(ctx context.Context, repo *localrepo.Repo) e
 		return nil
 	}
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(ctx, repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(ctx, repo)
 	if err != nil {
 		return nil
 	}
+	defer cancel()
 
 	keepAroundsPrefix := "refs/keep-around"
 	keepAroundsPath := filepath.Join(repoPath, keepAroundsPrefix)

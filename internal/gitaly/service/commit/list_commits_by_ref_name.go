@@ -13,10 +13,11 @@ func (s *server) ListCommitsByRefName(in *gitalypb.ListCommitsByRefNameRequest, 
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(err)
 	}
+	defer cancel()
 
 	sender := chunk.New(&commitsByRefNameSender{stream: stream})
 

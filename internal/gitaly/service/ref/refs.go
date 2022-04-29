@@ -109,10 +109,11 @@ func (s *server) findLocalBranches(in *gitalypb.FindLocalBranchesRequest, stream
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	writer := newFindLocalBranchesWriter(stream, objectReader)
 	opts := buildFindRefsOpts(ctx, in.GetPaginationParams())
@@ -161,10 +162,11 @@ func (s *server) findAllBranches(in *gitalypb.FindAllBranchesRequest, stream git
 	}
 
 	ctx := stream.Context()
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	opts := buildFindRefsOpts(ctx, nil)
 	opts.cmdArgs = args
@@ -240,10 +242,11 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 		return nil, fmt.Errorf("for-each-ref error: %v", err)
 	}
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 
 	var tag *gitalypb.Tag
 

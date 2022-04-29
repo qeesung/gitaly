@@ -52,10 +52,11 @@ func (s *server) ListLFSPointers(in *gitalypb.ListLFSPointersRequest, stream git
 
 	repo := s.localrepo(in.GetRepository())
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
 	}
+	defer cancel()
 
 	revlistIter := gitpipe.Revlist(ctx, repo, in.GetRevisions(),
 		gitpipe.WithObjects(),
@@ -94,10 +95,11 @@ func (s *server) ListAllLFSPointers(in *gitalypb.ListAllLFSPointersRequest, stre
 		},
 	})
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
 	}
+	defer cancel()
 
 	catfileInfoIter := gitpipe.CatfileInfoAllObjects(ctx, repo,
 		gitpipe.WithSkipCatfileInfoResult(func(objectInfo *catfile.ObjectInfo) bool {
@@ -137,15 +139,17 @@ func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gita
 		},
 	})
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(ctx, repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(fmt.Errorf("creating object info reader: %w", err))
 	}
+	defer cancel()
 
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
 	}
+	defer cancel()
 
 	blobs := make([]gitpipe.RevisionResult, len(req.GetBlobIds()))
 	for i, blobID := range req.GetBlobIds() {
@@ -160,6 +164,7 @@ func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gita
 	if err != nil {
 		return helper.ErrInternalf("creating object info iterator: %w", err)
 	}
+	defer cancel()
 
 	catfileObjectIter, err := gitpipe.CatfileObject(ctx, objectReader, catfileInfoIter)
 	if err != nil {

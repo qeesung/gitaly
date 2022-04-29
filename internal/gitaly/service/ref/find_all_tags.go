@@ -40,10 +40,11 @@ func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.Re
 }
 
 func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortField string, stream gitalypb.RefService_FindAllTagsServer, opts *paginationOpts) error {
-	objectReader, err := s.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("error creating object reader: %v", err)
 	}
+	defer cancel()
 
 	forEachRefIter := gitpipe.ForEachRef(
 		ctx,

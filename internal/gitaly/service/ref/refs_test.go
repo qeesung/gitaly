@@ -1129,11 +1129,13 @@ func TestFindTagNestedTag(t *testing.T) {
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
-			objectReader, err := catfileCache.ObjectReader(ctx, repo)
+			objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 			require.NoError(t, err)
+			defer cancel()
 
-			objectInfoReader, err := catfileCache.ObjectInfoReader(ctx, repo)
+			objectInfoReader, cancel, err := catfileCache.ObjectInfoReader(ctx, repo)
 			require.NoError(t, err)
+			defer cancel()
 
 			info, err := objectInfoReader.Info(ctx, git.Revision(tc.originalOid))
 			require.NoError(t, err)

@@ -132,15 +132,17 @@ func (s *server) TreeEntry(in *gitalypb.TreeEntryRequest, stream gitalypb.Commit
 		requestPath = strings.TrimRight(requestPath, "/")
 	}
 
-	objectReader, err := s.catfileCache.ObjectReader(stream.Context(), repo)
+	objectReader, cancel, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
-	objectInfoReader, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
+	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(stream.Context(), repo)
 	if err != nil {
 		return err
 	}
+	defer cancel()
 
 	return sendTreeEntry(stream, objectReader, objectInfoReader, string(in.GetRevision()), requestPath, in.GetLimit(), in.GetMaxSize())
 }

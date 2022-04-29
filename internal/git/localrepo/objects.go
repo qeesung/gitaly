@@ -226,10 +226,11 @@ func (repo *Repo) ReadCommit(ctx context.Context, revision git.Revision, opts ..
 		opt(&cfg)
 	}
 
-	objectReader, err := repo.catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := repo.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 
 	var commit *gitalypb.GitCommit
 	if cfg.withTrailers {

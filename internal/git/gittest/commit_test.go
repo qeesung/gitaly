@@ -22,8 +22,9 @@ func TestWriteCommit(t *testing.T) {
 	catfileCache := catfile.NewCache(cfg)
 	defer catfileCache.Stop()
 
-	objectReader, err := catfileCache.ObjectReader(ctx, repo)
+	objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
 	require.NoError(t, err)
+	defer cancel()
 
 	defaultCommitter := &gitalypb.CommitAuthor{
 		Name:  []byte("Scrooge McDuck"),
