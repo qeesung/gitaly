@@ -37,7 +37,7 @@ type UpdateRemoteMirrorRequest struct {
 	// branch name without the 'refs/heads/' prefix. "*" can be used as a
 	// wildcard to match anything. only_branches_matching can be streamed to the
 	// server over multiple messages. Optional.
-	OnlyBranchesMatching [][]byte `protobuf:"bytes,3,rep,name=only_branches_matching,json=onlyBranchesMatching,proto3" json:"only_branches_matching,omitempty"`
+	OnlyBranchesMatching [][]byte `protobuf:"bytes,3,rep,name=only_branches_matching,json=onlyBranchesMatching,proto3" json:"only_branches_matching,omitempty"` // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
 	// SshKey is the SSH key to use for accessing to the mirror repository.
 	// Optional.
 	SshKey string `protobuf:"bytes,4,opt,name=ssh_key,json=sshKey,proto3" json:"ssh_key,omitempty"`

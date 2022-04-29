@@ -2017,5 +2017,5 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "repository-service.proto",
+	Metadata: "repository.proto",
 }

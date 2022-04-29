@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "google/protobuf/timestamp.proto";
 import "lint.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 enum ObjectType {
   UNKNOWN = 0;
@@ -128,19 +128,19 @@ message ObjectPool {
 }
 
 message PaginationParameter {
-	// Instructs pagination to start sending results after the provided page
-	// token appears. A page token allows for a generic pattern to uniquely
-	// identify a result or 'page'. Each paginated RPC may interpret a page
-	// token differently.
-	string page_token = 1;
-	// When fully consuming the response the client will receive _at most_
-	// `limit` number of resulting objects. Note that the number of response
-	// messages might be much lower, as some response messages already send
-	// multiple objects per message.
-	// When the limit is smaller than 0, it will be normalized to 2147483647
-	// on the server side. When limit is not set, it defaults to 0, and no
-	// results are send in the response.
-	int32 limit = 2;
+  // Instructs pagination to start sending results after the provided page
+  // token appears. A page token allows for a generic pattern to uniquely
+  // identify a result or 'page'. Each paginated RPC may interpret a page
+  // token differently.
+  string page_token = 1;
+  // When fully consuming the response the client will receive _at most_
+  // `limit` number of resulting objects. Note that the number of response
+  // messages might be much lower, as some response messages already send
+  // multiple objects per message.
+  // When the limit is smaller than 0, it will be normalized to 2147483647
+  // on the server side. When limit is not set, it defaults to 0, and no
+  // results are send in the response.
+  int32 limit = 2;
 }
 
 message PaginationCursor {
@@ -151,8 +151,8 @@ message PaginationCursor {
 
 // https://git-scm.com/docs/git/#_options
 message GlobalOptions {
-    // Treat pathspecs literally (i.e. no globbing, no pathspec magic)
-    bool literal_pathspecs = 1;
+  // Treat pathspecs literally (i.e. no globbing, no pathspec magic)
+  bool literal_pathspecs = 1;
 }
 
 // SortDirection defines the sort direction.

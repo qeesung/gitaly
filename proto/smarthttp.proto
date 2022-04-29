@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service SmartHTTPService {
   // The response body for GET /info/refs?service=git-upload-pack
@@ -87,7 +87,8 @@ message PostUploadPackWithSidechannelRequest {
   string git_protocol = 3;
 }
 
-message PostUploadPackWithSidechannelResponse { }
+message PostUploadPackWithSidechannelResponse {
+}
 
 message PostReceivePackRequest {
   // repository should only be present in the first message of the stream

@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
+import "google/protobuf/timestamp.proto";
 import "lint.proto";
 import "shared.proto";
-import "google/protobuf/timestamp.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service RefService {
   rpc FindDefaultBranchName(FindDefaultBranchNameRequest) returns (FindDefaultBranchNameResponse) {
@@ -270,7 +270,8 @@ message DeleteBranchRequest {
 }
 
 // Not clear if we need to do status signaling; we can add fields later.
-message DeleteBranchResponse {}
+message DeleteBranchResponse {
+}
 
 message FindBranchRequest {
   // repository is the repository in which the branch should be looked up.
@@ -287,7 +288,7 @@ message FindBranchResponse {
 message DeleteRefsRequest{
   Repository repository = 1 [(target_repository)=true];
   // The following two fields are mutually exclusive
-  repeated bytes except_with_prefix = 2;
+  repeated bytes except_with_prefix = 2; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
   repeated bytes refs = 3;
 }
 
@@ -388,7 +389,8 @@ message PackRefsRequest {
   reserved "all_refs";
 }
 
-message PackRefsResponse{}
+message PackRefsResponse{
+}
 
 // ListRefsRequest is a request for the ListRefs RPC.
 message ListRefsRequest {

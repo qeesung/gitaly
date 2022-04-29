@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service NamespaceService {
   rpc AddNamespace(AddNamespaceRequest) returns (AddNamespaceResponse) {
@@ -58,6 +58,9 @@ message NamespaceExistsResponse {
   bool exists = 1;
 }
 
-message AddNamespaceResponse {}
-message RemoveNamespaceResponse {}
-message RenameNamespaceResponse {}
+message AddNamespaceResponse {
+}
+message RemoveNamespaceResponse {
+}
+message RenameNamespaceResponse {
+}

@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "google/protobuf/duration.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 // AccessCheckError is an error returned by GitLab's `/internal/allowed`
 // endpoint.
@@ -48,9 +48,9 @@ message ResolveRevisionError {
 
 // LimitError is an error returned when Gitaly enforces request limits.
 message LimitError {
-	// ErrorMessage provides context into why a limit was enforced.
-	string error_message = 1;
-	// RetryAfter provides the duration after which a retry is safe.
-	// 0 indicates non-retryable.
-	google.protobuf.Duration retry_after = 2;
+  // ErrorMessage provides context into why a limit was enforced.
+  string error_message = 1;
+  // RetryAfter provides the duration after which a retry is safe.
+  // 0 indicates non-retryable.
+  google.protobuf.Duration retry_after = 2;
 }

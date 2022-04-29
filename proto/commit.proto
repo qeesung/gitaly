@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
+import "google/protobuf/timestamp.proto";
 import "lint.proto";
 import "shared.proto";
-import "google/protobuf/timestamp.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service CommitService {
 
@@ -382,7 +382,7 @@ message FindCommitResponse {
 
 message ListCommitsByOidRequest {
   Repository repository = 1 [(target_repository)=true];
-  repeated string oid = 2;
+  repeated string oid = 2; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
 }
 
 message ListCommitsByOidResponse {

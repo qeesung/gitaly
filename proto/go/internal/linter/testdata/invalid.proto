@@ -2,12 +2,13 @@ syntax = "proto3";
 
 package test;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
-
 import "lint.proto";
 import "shared.proto";
 
-message InvalidMethodRequest {}
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
+
+message InvalidMethodRequest {
+}
 
 message InvalidMethodRequestWithRepo {
   gitaly.Repository destination = 1 [(gitaly.target_repository)=true];
@@ -17,7 +18,8 @@ message InvalidTargetType {
   int32 wrong_type = 1 [(gitaly.target_repository)=true];
 }
 
-message InvalidMethodResponse{}
+message InvalidMethodResponse{
+}
 
 message InvalidNestedRequest{
   InvalidTargetType inner_message = 1;
@@ -159,8 +161,8 @@ service InvalidService {
 
   // Intercepted methods must not have operation type annotations.
   rpc InvalidMethod15(RequestWithStorageAndRepo) returns (InvalidMethodResponse) {
-      option (gitaly.intercepted_method) = true;
-      option (gitaly.op_type) = {};
+    option (gitaly.intercepted_method) = true;
+    option (gitaly.op_type) = {};
   };
 
   rpc MaintenanceWithMissingRepository(InvalidMethodRequest) returns (InvalidMethodResponse) {

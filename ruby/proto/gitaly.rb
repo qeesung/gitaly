@@ -29,7 +29,7 @@ require 'gitaly/ref_services_pb'
 
 require 'gitaly/remote_services_pb'
 
-require 'gitaly/repository-service_services_pb'
+require 'gitaly/repository_services_pb'
 
 require 'gitaly/server_services_pb'
 

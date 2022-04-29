@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package test;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
 
 message ValidRequest {
   gitaly.Repository destination = 1 [(gitaly.target_repository)=true];
@@ -18,7 +18,8 @@ message ValidStorageRequest {
   string storage_name = 1 [(gitaly.storage)=true];
 }
 
-message ValidResponse{}
+message ValidResponse{
+}
 
 message ValidNestedRequest{
   ValidRequest inner_message = 1;

@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service ObjectPoolService {
   rpc CreateObjectPool(CreateObjectPoolRequest) returns (CreateObjectPoolResponse) {
@@ -54,38 +54,44 @@ message CreateObjectPoolRequest {
   ObjectPool object_pool = 1 [(target_repository)=true];
   Repository origin = 2 [(additional_repository)=true];
 }
-message CreateObjectPoolResponse {}
+message CreateObjectPoolResponse {
+}
 
 // Removes the directory from disk, caller is responsible for leaving the object
 // pool before calling this RPC
 message DeleteObjectPoolRequest {
   ObjectPool object_pool = 1 [(target_repository)=true];
 }
-message DeleteObjectPoolResponse {}
+message DeleteObjectPoolResponse {
+}
 
 message LinkRepositoryToObjectPoolRequest {
   ObjectPool object_pool = 1 [(additional_repository)=true];
   Repository repository = 2 [(target_repository)=true];
 }
-message LinkRepositoryToObjectPoolResponse {}
+message LinkRepositoryToObjectPoolResponse {
+}
 
 message ReduplicateRepositoryRequest {
   Repository repository = 1 [(target_repository)=true];
 }
-message ReduplicateRepositoryResponse {}
+message ReduplicateRepositoryResponse {
+}
 
 message DisconnectGitAlternatesRequest {
   Repository repository = 1  [(target_repository)=true];
 }
 
-message DisconnectGitAlternatesResponse {}
+message DisconnectGitAlternatesResponse {
+}
 
 message FetchIntoObjectPoolRequest {
   Repository origin = 1 [(additional_repository)=true];
   ObjectPool object_pool = 2 [(target_repository)=true];
   bool repack = 3;
 }
-message FetchIntoObjectPoolResponse {}
+message FetchIntoObjectPoolResponse {
+}
 
 message GetObjectPoolRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -94,5 +100,3 @@ message GetObjectPoolRequest {
 message GetObjectPoolResponse {
   ObjectPool object_pool = 1;
 }
-
-

@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
-import "lint.proto";
-import "shared.proto";
 import "errors.proto";
 import "google/protobuf/timestamp.proto";
+import "lint.proto";
+import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 // OperationService provides an interface for performing mutating git
 // operations on a repository on behalf of a user. The user's operation is

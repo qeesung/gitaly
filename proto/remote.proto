@@ -2,40 +2,40 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
 
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+
 service RemoteService {
 
-    // UpdateRemoteMirror compares the references in the target repository and its remote mirror
-    // repository. Any differences in the references are then addressed by pushing the differing
-    // references to the mirror. Created and modified references are updated, removed references are
-    // deleted from the mirror. UpdateRemoteMirror updates all tags. Branches are updated if they match
-    // the patterns specified in the requests.
-    rpc UpdateRemoteMirror(stream UpdateRemoteMirrorRequest) returns (UpdateRemoteMirrorResponse) {
-      option (op_type) = {
+  // UpdateRemoteMirror compares the references in the target repository and its remote mirror
+  // repository. Any differences in the references are then addressed by pushing the differing
+  // references to the mirror. Created and modified references are updated, removed references are
+  // deleted from the mirror. UpdateRemoteMirror updates all tags. Branches are updated if they match
+  // the patterns specified in the requests.
+  rpc UpdateRemoteMirror(stream UpdateRemoteMirrorRequest) returns (UpdateRemoteMirrorResponse) {
+    option (op_type) = {
         op: ACCESSOR
       };
-    }
-    rpc FindRemoteRepository(FindRemoteRepositoryRequest) returns (FindRemoteRepositoryResponse) {
-      option (op_type) = {
+  }
+  rpc FindRemoteRepository(FindRemoteRepositoryRequest) returns (FindRemoteRepositoryResponse) {
+    option (op_type) = {
         op: ACCESSOR
         scope_level: STORAGE
       };
-    }
+  }
 
-    // FindRemoteRootRef tries to find the root reference of a remote
-    // repository. The root reference is the default branch as pointed to by
-    // the remotes HEAD reference. Returns an InvalidArgument error if the
-    // specified remote does not exist and a NotFound error in case no HEAD
-    // branch was found.
-    rpc FindRemoteRootRef(FindRemoteRootRefRequest) returns (FindRemoteRootRefResponse) {
-      option (op_type) = {
+  // FindRemoteRootRef tries to find the root reference of a remote
+  // repository. The root reference is the default branch as pointed to by
+  // the remotes HEAD reference. Returns an InvalidArgument error if the
+  // specified remote does not exist and a NotFound error in case no HEAD
+  // branch was found.
+  rpc FindRemoteRootRef(FindRemoteRootRefRequest) returns (FindRemoteRootRefResponse) {
+    option (op_type) = {
         op: ACCESSOR
       };
-    }
+  }
 }
 
 message UpdateRemoteMirrorRequest {
@@ -63,7 +63,7 @@ message UpdateRemoteMirrorRequest {
   // branch name without the 'refs/heads/' prefix. "*" can be used as a
   // wildcard to match anything. only_branches_matching can be streamed to the
   // server over multiple messages. Optional.
-  repeated bytes only_branches_matching = 3;
+  repeated bytes only_branches_matching = 3; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
   // SshKey is the SSH key to use for accessing to the mirror repository.
   // Optional.
   string ssh_key = 4;

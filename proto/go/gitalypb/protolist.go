@@ -19,7 +19,7 @@ var GitalyProtos = []string{
 	"praefect.proto",
 	"ref.proto",
 	"remote.proto",
-	"repository-service.proto",
+	"repository.proto",
 	"server.proto",
 	"shared.proto",
 	"smarthttp.proto",

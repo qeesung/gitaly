@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service CleanupService {
   rpc ApplyBfgObjectMapStream(stream ApplyBfgObjectMapStreamRequest) returns (stream ApplyBfgObjectMapStreamResponse) {
@@ -26,13 +26,13 @@ message ApplyBfgObjectMapStreamRequest {
 }
 
 message ApplyBfgObjectMapStreamResponse {
-	// We send back each parsed entry in the request's object map so the client
-	// can take action
-	message Entry {
-		ObjectType type = 1;
-		string old_oid = 2;
-		string new_oid = 3;
-	}
+  // We send back each parsed entry in the request's object map so the client
+  // can take action
+  message Entry {
+    ObjectType type = 1;
+    string old_oid = 2;
+    string new_oid = 3;
+  }
 
-	repeated Entry entries = 1;
+  repeated Entry entries = 1;
 }

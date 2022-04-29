@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service RefTransaction {
   option (intercepted) = true;
@@ -59,4 +59,5 @@ message StopTransactionRequest {
   uint64 transaction_id = 2;
 }
 
-message StopTransactionResponse {}
+message StopTransactionResponse {
+}

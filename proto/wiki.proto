@@ -1,9 +1,9 @@
 syntax = "proto3";
 
+package gitaly;
+
 import "lint.proto";
 import "shared.proto";
-
-package gitaly;
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 

@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package gitaly;
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-
 import "lint.proto";
 import "shared.proto";
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
 service RepositoryService {
   rpc RepositoryExists(RepositoryExistsRequest) returns (RepositoryExistsResponse) {
@@ -295,20 +295,23 @@ message RepackIncrementalRequest {
   Repository repository = 1 [(target_repository)=true];
 }
 
-message RepackIncrementalResponse {}
+message RepackIncrementalResponse {
+}
 
 message RepackFullRequest {
   Repository repository = 1 [(target_repository)=true];
   bool create_bitmap = 2;
 }
 
-message RepackFullResponse {}
+message RepackFullResponse {
+}
 
 message MidxRepackRequest {
   Repository repository = 1 [(target_repository)=true];
 }
 
-message MidxRepackResponse {}
+message MidxRepackResponse {
+}
 
 message GarbageCollectRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -321,27 +324,30 @@ message GarbageCollectRequest {
   bool prune = 3;
 }
 
-message GarbageCollectResponse {}
+message GarbageCollectResponse {
+}
 
 message WriteCommitGraphRequest {
   enum SplitStrategy {
     // SizeMultiple requires to use '--split --size-multiple=4' strategy to create/update commit graph.
     // https://git-scm.com/docs/git-commit-graph#Documentation/git-commit-graph.txt-emwriteem
     // It is a default, there is no need to explicitly set it in the request.
-    SizeMultiple = 0;
+    SizeMultiple = 0; // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE
   }
   Repository repository = 1 [(target_repository)=true];
   // SplitStrategy is a strategy used to create/update commit graph.
-  SplitStrategy splitStrategy = 2;
+  SplitStrategy splitStrategy = 2; // protolint:disable:this FIELD_NAMES_LOWER_SNAKE_CASE
 }
 
-message WriteCommitGraphResponse {}
+message WriteCommitGraphResponse {
+}
 
 message CleanupRequest {
   Repository repository = 1 [(target_repository)=true];
 }
 
-message CleanupResponse {}
+message CleanupResponse {
+}
 
 message RepositorySizeRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -357,7 +363,8 @@ message ApplyGitattributesRequest {
   bytes revision = 2;
 }
 
-message ApplyGitattributesResponse {}
+message ApplyGitattributesResponse {
+}
 
 message FetchBundleRequest {
   // Repository into which the reference shall be fetched.
@@ -370,7 +377,8 @@ message FetchBundleRequest {
   bool update_head = 3;
 }
 
-message FetchBundleResponse {}
+message FetchBundleResponse {
+}
 
 message FetchRemoteRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -414,7 +422,8 @@ message CreateRepositoryRequest {
   bytes default_branch = 2;
 }
 
-message CreateRepositoryResponse {}
+message CreateRepositoryResponse {
+}
 
 message GetArchiveRequest {
   enum Format {
@@ -429,7 +438,7 @@ message GetArchiveRequest {
   string prefix = 3;
   Format format = 4;
   bytes path = 5;
-  repeated bytes exclude = 6;
+  repeated bytes exclude = 6; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
   // If `elide_path` is true and `path` refers to a subdirectory, that
   // subdirectory will be elided from archive entries. For example, if `dir`
   // contains `README.md`, with `elide_path = false` the corresponding entry
@@ -514,7 +523,8 @@ message CreateForkRequest {
   Repository source_repository = 2;
 }
 
-message CreateForkResponse {}
+message CreateForkResponse {
+}
 
 message CreateRepositoryFromURLRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -534,7 +544,8 @@ message CreateRepositoryFromURLRequest {
   bool mirror = 5;
 }
 
-message CreateRepositoryFromURLResponse {}
+message CreateRepositoryFromURLResponse {
+}
 
 message CreateBundleRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -576,7 +587,8 @@ message  RestoreCustomHooksRequest {
   bytes data = 2;
 }
 
-message RestoreCustomHooksResponse {}
+message RestoreCustomHooksResponse {
+}
 
 message BackupCustomHooksRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -592,7 +604,8 @@ message CreateRepositoryFromBundleRequest {
   bytes data = 2;
 }
 
-message CreateRepositoryFromBundleResponse {}
+message CreateRepositoryFromBundleResponse {
+}
 
 message FindLicenseRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -636,7 +649,8 @@ message CreateRepositoryFromSnapshotRequest {
   string http_host = 4;
 }
 
-message CreateRepositoryFromSnapshotResponse {}
+message CreateRepositoryFromSnapshotResponse {
+}
 
 message GetRawChangesRequest {
   Repository repository = 1 [(target_repository)=true];
@@ -770,13 +784,15 @@ message ReplicateRepositoryRequest {
   Repository source = 2;
 }
 
-message ReplicateRepositoryResponse{}
+message ReplicateRepositoryResponse{
+}
 
 message OptimizeRepositoryRequest {
   Repository repository = 1 [(target_repository)=true];
 }
 
-message OptimizeRepositoryResponse{}
+message OptimizeRepositoryResponse{
+}
 
 // PruneUnreachableObjectsRequest is a request for the PruneUnreachableObjects
 // RPC call.
@@ -798,4 +814,5 @@ message SetFullPathRequest {
 }
 
 // SetFullPathResponse is a response fqor the SetFullPath RPC.
-message SetFullPathResponse {}
+message SetFullPathResponse {
+}
