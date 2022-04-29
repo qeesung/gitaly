@@ -99,7 +99,16 @@ func TestInterceptor(t *testing.T) {
 				require.NoError(t, err)
 			},
 			expectedLogData: map[string]interface{}{
-				"command.count": 1,
+				// Until we bump our minimum required Git version to v2.36.0 we are
+				// forced to carry a version check whenever we spawn Git commands.
+				// The command count here is thus 2 because of the additional
+				// git-version(1) command. Note that the next command count remains
+				// 1 though: the version is cached, and consequentially we don't
+				// re-run git-version(1).
+				//
+				// This test will break again as soon as we bump the minimum Git
+				// version and thus remove the version check.
+				"command.count": 2,
 			},
 		},
 		{

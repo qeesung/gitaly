@@ -84,6 +84,12 @@ func (v Version) FlushesUpdaterefStatus() bool {
 	})
 }
 
+// HasGranularFsyncConfig determines whether the given Git version supports the new granular fsync
+// configuration via `core.fsync`. This new config has been introduced with Git v2.36.0.
+func (v Version) HasGranularFsyncConfig() bool {
+	return !v.LessThan(Version{major: 2, minor: 36, rc: true})
+}
+
 // LessThan determines whether the version is older than another version.
 func (v Version) LessThan(other Version) bool {
 	switch {

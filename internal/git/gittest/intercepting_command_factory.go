@@ -2,6 +2,7 @@ package gittest
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -19,6 +20,33 @@ var _ git.CommandFactory = &InterceptingCommandFactory{}
 type InterceptingCommandFactory struct {
 	realCommandFactory         git.CommandFactory
 	interceptingCommandFactory git.CommandFactory
+	interceptVersion           bool
+}
+
+type interceptingCommandFactoryConfig struct {
+	opts             []git.ExecCommandFactoryOption
+	interceptVersion bool
+}
+
+// InterceptingCommandFactoryOption is an option that can be passed to
+// NewInterceptingCommandFactory.
+type InterceptingCommandFactoryOption func(*interceptingCommandFactoryConfig)
+
+// WithRealCommandFactoryOptions is an option that allows the caller to pass options to the real
+// git.ExecCommandFactory.
+func WithRealCommandFactoryOptions(opts ...git.ExecCommandFactoryOption) InterceptingCommandFactoryOption {
+	return func(cfg *interceptingCommandFactoryConfig) {
+		cfg.opts = opts
+	}
+}
+
+// WithInterceptedVersion will cause `GitVersion()` to use the intercepting Git command factory
+// instead of the real Git command factory. This allows the caller to explicitly test version
+// detection.
+func WithInterceptedVersion() InterceptingCommandFactoryOption {
+	return func(cfg *interceptingCommandFactoryConfig) {
+		cfg.interceptVersion = true
+	}
 }
 
 // NewInterceptingCommandFactory creates a new command factory which intercepts Git commands. The
@@ -30,21 +58,50 @@ func NewInterceptingCommandFactory(
 	tb testing.TB,
 	cfg config.Cfg,
 	generateScript func(git.ExecutionEnvironment) string,
-	opts ...git.ExecCommandFactoryOption,
+	opts ...InterceptingCommandFactoryOption,
 ) *InterceptingCommandFactory {
+	var interceptingCommandFactoryCfg interceptingCommandFactoryConfig
+	for _, opt := range opts {
+		opt(&interceptingCommandFactoryCfg)
+	}
+
 	// We create two different command factories. The first one will set up the execution
 	// environment such that we can deterministically resolve the Git binary path as well as
 	// required environment variables for both bundled and non-bundled Git. The second one will
 	// then use a separate config which overrides the Git binary path to point to a custom
 	// script supplied by the user.
-	gitCmdFactory := NewCommandFactory(tb, cfg, opts...)
+	gitCmdFactory := NewCommandFactory(tb, cfg, interceptingCommandFactoryCfg.opts...)
+	execEnv := gitCmdFactory.GetExecutionEnvironment(ctx)
 
 	scriptPath := filepath.Join(testhelper.TempDir(tb), "git")
-	testhelper.WriteExecutable(tb, scriptPath, []byte(generateScript(gitCmdFactory.GetExecutionEnvironment(ctx))))
+	testhelper.WriteExecutable(tb, scriptPath, []byte(generateScript(execEnv)))
+
+	// In case the user requested us to not intercept the Git version we need to write another
+	// wrapper script. This wrapper script detects whether git-version(1) is executed and, if
+	// so, instead executes the real Git binary. Otherwise, it executes the Git script as
+	// provided by the user.
+	//
+	// This is required in addition to the interception of `GitVersion()` itself so that calls
+	// to `interceptingCommandFactory.GitVersion()` also return the correct results whenever the
+	// factory calls its own `GitVersion()` function.
+	if !interceptingCommandFactoryCfg.interceptVersion {
+		wrapperScriptPath := filepath.Join(testhelper.TempDir(tb), "git")
+		testhelper.WriteExecutable(tb, wrapperScriptPath, []byte(fmt.Sprintf(
+			`#!/bin/bash
+			if test "$1" = "version"
+			then
+				exec %q "$@"
+			fi
+			exec %q "$@"
+		`, execEnv.BinaryPath, scriptPath)))
+
+		scriptPath = wrapperScriptPath
+	}
 
 	return &InterceptingCommandFactory{
 		realCommandFactory:         gitCmdFactory,
 		interceptingCommandFactory: NewCommandFactory(tb, cfg, git.WithGitBinaryPath(scriptPath)),
+		interceptVersion:           interceptingCommandFactoryCfg.interceptVersion,
 	}
 }
 
@@ -86,5 +143,8 @@ func (f *InterceptingCommandFactory) HooksPath(ctx context.Context) string {
 
 // GitVersion returns the Git version as returned by the intercepted command.
 func (f *InterceptingCommandFactory) GitVersion(ctx context.Context) (git.Version, error) {
-	return f.interceptingCommandFactory.GitVersion(ctx)
+	if f.interceptVersion {
+		return f.interceptingCommandFactory.GitVersion(ctx)
+	}
+	return f.realCommandFactory.GitVersion(ctx)
 }

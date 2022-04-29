@@ -147,3 +147,27 @@ func TestVersion_FlushesUpdaterefStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestVersion_HasGranularFsyncConfig(t *testing.T) {
+	for _, tc := range []struct {
+		version string
+		expect  bool
+	}{
+		{"2.35.0", false},
+		{"2.35.0-rc0", false},
+		{"2.35.1", false},
+		{"2.35.1.gl3", false},
+		{"2.36.0-rc1", true},
+		{"2.36.0", true},
+		{"2.36.0.gl1", true},
+		{"2.36.1", true},
+		{"2.37.1", true},
+		{"3.0.0", true},
+	} {
+		t.Run(tc.version, func(t *testing.T) {
+			version, err := parseVersion(tc.version)
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, version.HasGranularFsyncConfig())
+		})
+	}
+}

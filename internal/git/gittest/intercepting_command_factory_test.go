@@ -58,3 +58,67 @@ func TestInterceptingCommandFactory(t *testing.T) {
 		require.Equal(t, expectedString, stdout.String())
 	})
 }
+
+func TestInterceptingCommandFactory_GitVersion(t *testing.T) {
+	cfg, _, _ := setup(t)
+	ctx := testhelper.Context(t)
+
+	generateVersionScript := func(execEnv git.ExecutionEnvironment) string {
+		return `#!/usr/bin/env bash
+			echo "git version 1.2.3"
+		`
+	}
+
+	// Obtain the real Git version so that we can compare that it matches what we expect.
+	realFactory, cleanup, err := git.NewExecCommandFactory(cfg)
+	require.NoError(t, err)
+	defer cleanup()
+
+	realVersion, err := realFactory.GitVersion(ctx)
+	require.NoError(t, err)
+
+	// Furthermore, we need to obtain the intercepted version here because we cannot construct
+	// `git.Version` structs ourselves.
+	fakeVersion, err := NewInterceptingCommandFactory(ctx, t, cfg, generateVersionScript, WithInterceptedVersion()).GitVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "1.2.3", fakeVersion.String())
+
+	for _, tc := range []struct {
+		desc            string
+		opts            []InterceptingCommandFactoryOption
+		expectedVersion git.Version
+	}{
+		{
+			desc:            "without version interception",
+			expectedVersion: realVersion,
+		},
+		{
+			desc: "with version interception",
+			opts: []InterceptingCommandFactoryOption{
+				WithInterceptedVersion(),
+			},
+			expectedVersion: fakeVersion,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			factory := NewInterceptingCommandFactory(ctx, t, cfg, generateVersionScript, tc.opts...)
+
+			version, err := factory.GitVersion(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedVersion, version)
+
+			// The real command factory should always return the real Git version.
+			version, err = factory.realCommandFactory.GitVersion(ctx)
+			require.NoError(t, err)
+			require.Equal(t, realVersion, version)
+
+			// On the other hand, the intercepting command factory should return
+			// different versions depending on whether the version is intercepted or
+			// not. This is required such that it correctly handles version checks in
+			// case it calls `GitVersion()` on itself.
+			version, err = factory.interceptingCommandFactory.GitVersion(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedVersion, version)
+		})
+	}
+}

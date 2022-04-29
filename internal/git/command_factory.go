@@ -20,29 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 )
 
-var globalOptions = []GlobalOption{
-	// Synchronize object files to lessen the likelihood of
-	// repository corruption in case the server crashes.
-	ConfigPair{Key: "core.fsyncObjectFiles", Value: "true"},
-
-	// Disable automatic garbage collection as we handle scheduling
-	// of it ourselves.
-	ConfigPair{Key: "gc.auto", Value: "0"},
-
-	// CRLF line endings will get replaced with LF line endings
-	// when writing blobs to the object database. No conversion is
-	// done when reading blobs from the object database. This is
-	// required for the web editor.
-	ConfigPair{Key: "core.autocrlf", Value: "input"},
-
-	// Git allows the use of replace refs, where a given object ID can be replaced with a
-	// different one. The result is that Git commands would use the new object instead of the
-	// old one in almost all contexts. This is a security threat: an adversary may use this
-	// mechanism to replace malicious commits with seemingly benign ones. We thus globally
-	// disable this mechanism.
-	ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
-}
-
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.
 type CommandFactory interface {
 	// New creates a new command for the repo repository.
@@ -317,10 +294,12 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	cf.cachedGitVersionLock.Lock()
 	defer cf.cachedGitVersionLock.Unlock()
 
+	execEnv := cf.GetExecutionEnvironment(ctx)
+
 	// We cannot reuse the stat(3P) information from above given that it wasn't acquired under
 	// the write-lock. As such, it may have been invalidated by a concurrent thread which has
 	// already updated the Git version information.
-	stat, err = os.Stat(cf.GetExecutionEnvironment(ctx).BinaryPath)
+	stat, err = os.Stat(execEnv.BinaryPath)
 	if err != nil {
 		return Version{}, fmt.Errorf("cannot stat Git binary: %w", err)
 	}
@@ -330,9 +309,11 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	// though: it can also happen after `GitVersion()` was called, so it doesn't really help to
 	// retry version detection here. Instead, we just live with this raciness -- the next call
 	// to `GitVersion()` would detect the version being out-of-date anyway and thus correct it.
-	cmd, err := cf.NewWithoutRepo(ctx, SubCmd{
-		Name: "version",
-	})
+	//
+	// Furthermore, note that we're not using `newCommand()` but instead hand-craft the command.
+	// This is required to avoid a cyclic dependency when we need to check the version in
+	// `newCommand()` itself.
+	cmd, err := command.New(ctx, exec.Command(execEnv.BinaryPath, "version"), nil, nil, nil, execEnv.EnvironmentVariables...)
 	if err != nil {
 		return Version{}, fmt.Errorf("spawning version command: %w", err)
 	}
@@ -340,6 +321,10 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	gitVersion, err := parseVersionFromCommand(cmd)
 	if err != nil {
 		return Version{}, err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return Version{}, fmt.Errorf("waiting for version: %w", err)
 	}
 
 	cf.cachedGitVersionByBinary[gitBinary] = cachedGitVersion{
@@ -436,6 +421,14 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, gitConfig []confi
 		return nil, fmt.Errorf("invalid sub command name %q: %w", sc.Subcommand(), ErrInvalidArg)
 	}
 
+	// It's fine to ask for the Git version whenever we spawn a command: the value is cached
+	// nowadays, so this would typically only boil down to a single stat(3P) call to determine
+	// whether the cache is stale or not.
+	gitVersion, err := cf.GitVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("determining Git version: %w", err)
+	}
+
 	// As global options may cancel out each other, we have a clearly defined order in which
 	// globals get applied. The order is similar to how git handles configuration options from
 	// most general to most specific. This allows callsites to override options which would
@@ -448,8 +441,44 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, gitConfig []confi
 	// 3. Globals passed via command options, e.g. as set up by
 	//    `WithReftxHook()`.
 	// 4. Configuration as provided by the admin in Gitaly's config.toml.
-	var combinedGlobals []GlobalOption
-	combinedGlobals = append(combinedGlobals, globalOptions...)
+	combinedGlobals := []GlobalOption{
+		// Disable automatic garbage collection as we handle scheduling
+		// of it ourselves.
+		ConfigPair{Key: "gc.auto", Value: "0"},
+
+		// CRLF line endings will get replaced with LF line endings
+		// when writing blobs to the object database. No conversion is
+		// done when reading blobs from the object database. This is
+		// required for the web editor.
+		ConfigPair{Key: "core.autocrlf", Value: "input"},
+
+		// Git allows the use of replace refs, where a given object ID can be replaced with a
+		// different one. The result is that Git commands would use the new object instead of the
+		// old one in almost all contexts. This is a security threat: an adversary may use this
+		// mechanism to replace malicious commits with seemingly benign ones. We thus globally
+		// disable this mechanism.
+		ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
+	}
+
+	// Git v2.36.0 introduced new fine-grained configuration for what data should be fsynced and
+	// how that should happen.
+	if gitVersion.HasGranularFsyncConfig() {
+		combinedGlobals = append(
+			combinedGlobals,
+			// This is the same as below, but in addition we're also syncing packed-refs
+			// and loose refs to disk. This fixes a long-standing issue we've had where
+			// hard reboots of a server could end up corrupting loose references.
+			ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
+			ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
+		)
+	} else {
+		// Synchronize object files to lessen the likelihood of
+		// repository corruption in case the server crashes.
+		combinedGlobals = append(
+			combinedGlobals, ConfigPair{Key: "core.fsyncObjectFiles", Value: "true"},
+		)
+	}
+
 	combinedGlobals = append(combinedGlobals, commandDescription.opts...)
 	combinedGlobals = append(combinedGlobals, cc.globals...)
 	for _, configPair := range gitConfig {
