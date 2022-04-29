@@ -275,6 +275,65 @@ Then delete it if that's the data you're expecting:
 
 	/chatops run feature delete gitaly_X
 
+### Git Version Upgrades
+
+With the introduction of [bundled Git][bundled-git] we have gained the ability
+to do feature-flag-based rollouts of new Git versions, and using feature flags
+for these upgrades has since then become mandatory.
+
+In the past, upgrades of the Git distribution simply happened in-place, where we
+just overwrote existing binaries with a new set of binaries. This has the
+potential to cause problems during zero-downtime upgrades: an old Gitaly process
+may be expecting a different Git version, or it may end up executing Git in an
+environment where some executables are the old version, where some other have
+already been replaced with the newer version. Naturally, this can lead to all
+kinds of problems.
+
+With the new process we thus do the upgrade in three separate steps to ensure
+that we have no such issues with zero-downtime upgrades:
+
+1. We roll out the new bundled Git binaries in parallel to the old bundled
+   Git binaries. The new version is guarded behind a feature flag at this
+   point in time.
+
+2. We roll out the feature flag and eventually remove it.
+
+3. We remove the old bundled Git binaries.
+
+Note that because we cannot remove the old Git binaries at the same time when we
+add the new ones. We must ensure that both sets exist in parallel for at least
+one release.
+
+[bundled-git]: git-execution-environments.md#bundled-git-recommended
+
+#### Detailed Process
+
+The following detailed steps need to be done to upgrade to a new Git version:
+
+1. Add the new bundled Git distribution to the `Makefile`. See
+   c0d05650be681c2accb4cec5aac74a6dd77a2fa6.
+
+2. Add a new bundled Git execution environment with a feature flag. See
+   b547b368c8f584e9aabe8eef9342f99440b0c248. Please note that execution
+   environments are ordered by decreasing priority: the first environment
+   whose feature flags are all turned on will be picked. You thus have to
+   add your new environment to the top.
+
+3. Roll out the feature flag by following our feature flag process. You may
+   decide to remove the feature flag before the feature flag is removed in
+   case it is a low-risk upgrade of the Git version (e.g. when you perform a
+   patch-release upgrade, only).
+
+4. Remove the feature flag. See 888e6233fd85691f0852ae6c4a3656da9bf3d8e4.
+
+5. Remove the execution environment of the old bundled Git version. See
+   af1a3fe7b536d22a6db9ba6591d222b23d01d83f.
+
+6. Remove the old set of bundled Git binaries from the `Makefile`. See
+   9c700ea473d781eea50eab685d643d95e9c4ffee. Note that this must only happen
+   _after_ both old and new bundled Git binaries have been installed in
+   parallel in a release already.
+
 ### Gitaly Releases
 
 Gitaly releases are tagged automatically by
