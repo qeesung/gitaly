@@ -97,6 +97,14 @@ danger-review:
   allow_failure: true
   variables:
     BUNDLE_GEMFILE: danger/Gemfile
+  cache:
+    key:
+      files:
+        - danger/Gemfile.lock
+      prefix: debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}
+    paths:
+      - .ruby
+    policy: pull-push
 
 build:
   stage: build
@@ -253,6 +261,7 @@ dbschema:
   stage: test
   cache:
     - *cache_deps_configuration
+    - *cache_gems_configuration
     - *cache_go_configuration
   services:
     # The database version we use must match the version of `pg_dump` we have
