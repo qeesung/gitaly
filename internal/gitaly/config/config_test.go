@@ -826,139 +826,289 @@ func TestLoadDailyMaintenance(t *testing.T) {
 }
 
 func TestValidateCgroups(t *testing.T) {
-	for _, tt := range []struct {
+	type testCase struct {
 		name        string
 		rawCfg      string
 		expect      cgroups.Config
 		validateErr error
-	}{
-		{
-			name: "enabled success",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = "/sys/fs/cgroup"
-			hierarchy_root = "gitaly"
-			[cgroups.memory]
-			enabled = true
-			limit = 1024
-			[cgroups.cpu]
-			enabled = true
-			shares = 512`,
-			expect: cgroups.Config{
-				Count:         10,
-				Mountpoint:    "/sys/fs/cgroup",
-				HierarchyRoot: "gitaly",
-				Memory: cgroups.Memory{
-					Enabled: true,
-					Limit:   1024,
-				},
-				CPU: cgroups.CPU{
-					Enabled: true,
-					Shares:  512,
-				},
-			},
-		},
-		{
-			name: "disabled success",
-			rawCfg: `[cgroups]
-			count = 0`,
-			expect: cgroups.Config{
-				Count: 0,
-			},
-		},
-		{
-			name: "empty mount point",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = ""`,
-			expect: cgroups.Config{
-				Count:      10,
-				Mountpoint: "",
-			},
-			validateErr: errors.New("cgroups.mountpoint: cannot be empty"),
-		},
-		{
-			name: "empty hierarchy_root",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = "/sys/fs/cgroup"
-			hierarchy_root = ""`,
-			expect: cgroups.Config{
-				Count:         10,
-				Mountpoint:    "/sys/fs/cgroup",
-				HierarchyRoot: "",
-			},
-			validateErr: errors.New("cgroups.hierarchy_root: cannot be empty"),
-		},
-		{
-			name: "invalid cpu shares",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = "/sys/fs/cgroup"
-			hierarchy_root = "gitaly"
-			[cgroups.cpu]
-			enabled = true
-			shares = 0`,
-			expect: cgroups.Config{
-				Count:         10,
-				Mountpoint:    "/sys/fs/cgroup",
-				HierarchyRoot: "gitaly",
-				CPU: cgroups.CPU{
-					Enabled: true,
-					Shares:  0,
-				},
-			},
-			validateErr: errors.New("cgroups.cpu.shares: has to be greater than zero"),
-		},
-		{
-			name: "invalid memory limit - zero",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = "/sys/fs/cgroup"
-			hierarchy_root = "gitaly"
-			[cgroups.memory]
-			enabled = true
-			limit = 0`,
-			expect: cgroups.Config{
-				Count:         10,
-				Mountpoint:    "/sys/fs/cgroup",
-				HierarchyRoot: "gitaly",
-				Memory: cgroups.Memory{
-					Enabled: true,
-					Limit:   0,
-				},
-			},
-			validateErr: errors.New("cgroups.memory.limit: has to be greater than zero or equal to -1"),
-		},
-		{
-			name: "invalid memory limit - negative",
-			rawCfg: `[cgroups]
-			count = 10
-			mountpoint = "/sys/fs/cgroup"
-			hierarchy_root = "gitaly"
-			[cgroups.memory]
-			enabled = true
-			limit = -5`,
-			expect: cgroups.Config{
-				Count:         10,
-				Mountpoint:    "/sys/fs/cgroup",
-				HierarchyRoot: "gitaly",
-				Memory: cgroups.Memory{
-					Enabled: true,
-					Limit:   -5,
-				},
-			},
-			validateErr: errors.New("cgroups.memory.limit: has to be greater than zero or equal to -1"),
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpFile := strings.NewReader(tt.rawCfg)
-			cfg, err := Load(tmpFile)
-			require.NoError(t, err)
-			require.Equal(t, tt.expect, cfg.Cgroups)
-			require.Equal(t, tt.validateErr, cfg.validateCgroups())
-		})
 	}
+
+	t.Run("old format", func(t *testing.T) {
+		testCases := []testCase{
+			{
+				name: "enabled success",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.memory]
+				enabled = true
+				limit = 1024
+				[cgroups.cpu]
+				enabled = true
+				shares = 512`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Memory: cgroups.Memory{
+						Enabled: true,
+						Limit:   1024,
+					},
+					CPU: cgroups.CPU{
+						Enabled: true,
+						Shares:  512,
+					},
+				},
+			},
+			{
+				name: "empty mount point",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = ""
+				hierarchy_root = "baz"
+				`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "baz",
+				},
+			},
+			{
+				name: "empty hierarchy_root",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = ""`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+				},
+			},
+			{
+				name: "cpu shares - zero",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.memory]
+				enabled = true
+				limit = 1024
+				[cgroups.cpu]
+				enabled = true
+				shares = 0`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Memory: cgroups.Memory{
+						Enabled: true,
+						Limit:   1024,
+					},
+					CPU: cgroups.CPU{
+						Enabled: true,
+						Shares:  0,
+					},
+				},
+			},
+			{
+				name: "memory limit - zero",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.memory]
+				enabled = true
+				limit = 0
+				[cgroups.cpu]
+				enabled = true
+				shares = 512
+				`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Memory: cgroups.Memory{
+						Enabled: true,
+						Limit:   0,
+					},
+					CPU: cgroups.CPU{
+						Enabled: true,
+						Shares:  512,
+					},
+				},
+			},
+			{
+				name: "memory limit - negative",
+				rawCfg: `[cgroups]
+				count = 10
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.memory]
+				enabled = true
+				limit = -5
+				[cgroups.cpu]
+				enabled = true
+				shares = 512
+				`,
+				expect: cgroups.Config{
+					Count:         10,
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Memory: cgroups.Memory{
+						Enabled: true,
+						Limit:   -5,
+					},
+					CPU: cgroups.CPU{
+						Enabled: true,
+						Shares:  512,
+					},
+				},
+			},
+			{
+				name: "repositories - zero count",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.repositories]
+				`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+				},
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				tmpFile := strings.NewReader(tt.rawCfg)
+				cfg, err := Load(tmpFile)
+				require.NoError(t, err)
+				require.Equal(t, tt.expect, cfg.Cgroups)
+				require.Equal(t, tt.validateErr, cfg.validateCgroups())
+			})
+		}
+	})
+
+	t.Run("new format", func(t *testing.T) {
+		testCases := []testCase{
+			{
+				name: "enabled success",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.repositories]
+				count = 10
+				memory_bytes = 1024
+				cpu_shares = 512
+				`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 1024,
+						CPUShares:   512,
+					},
+				},
+			},
+			{
+				name: "repositories count is zero",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.repositories]
+				count = 0
+				memory_bytes = 1024
+				cpu_shares = 512
+				`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Repositories: cgroups.Repositories{
+						MemoryBytes: 1024,
+						CPUShares:   512,
+					},
+				},
+			},
+			{
+				name: "memory is zero",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				[cgroups.repositories]
+				count = 10
+				cpu_shares = 512`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					Repositories: cgroups.Repositories{
+						Count:     10,
+						CPUShares: 512,
+					},
+				},
+			},
+			{
+				name: "repositories memory exceeds parent",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				memory_bytes = 1073741824
+				cpu_shares = 1024
+				[cgroups.repositories]
+				count = 10
+				memory_bytes = 2147483648
+				cpu_shares = 128
+				`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					MemoryBytes:   1073741824,
+					CPUShares:     1024,
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 2147483648,
+						CPUShares:   128,
+					},
+				},
+				validateErr: errors.New("cgroups.repositories: memory limit cannot exceed parent"),
+			},
+			{
+				name: "repositories cpu exceeds parent",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				memory_bytes = 1073741824
+				cpu_shares = 128
+				[cgroups.repositories]
+				count = 10
+				memory_bytes = 1024
+				cpu_shares = 512
+				`,
+				expect: cgroups.Config{
+					Mountpoint:    "/sys/fs/cgroup",
+					HierarchyRoot: "gitaly",
+					MemoryBytes:   1073741824,
+					CPUShares:     128,
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 1024,
+						CPUShares:   512,
+					},
+				},
+				validateErr: errors.New("cgroups.repositories: cpu shares cannot exceed parent"),
+			},
+		}
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				tmpFile := strings.NewReader(tt.rawCfg)
+				cfg, err := Load(tmpFile)
+				require.NoError(t, err)
+				require.Equal(t, tt.expect, cfg.Cgroups)
+				require.Equal(t, tt.validateErr, cfg.validateCgroups())
+			})
+		}
+	})
 }
 
 func TestConfigurePackObjectsCache(t *testing.T) {

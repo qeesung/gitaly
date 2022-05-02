@@ -283,6 +283,14 @@ func (cfg *Cfg) setDefaults() error {
 		cfg.DailyMaintenance = defaultMaintenanceWindow(cfg.Storages)
 	}
 
+	if cfg.Cgroups.Mountpoint == "" {
+		cfg.Cgroups.Mountpoint = "/sys/fs/cgroup"
+	}
+
+	if cfg.Cgroups.HierarchyRoot == "" {
+		cfg.Cgroups.HierarchyRoot = "gitaly"
+	}
+
 	return nil
 }
 
@@ -542,24 +550,12 @@ func (cfg *Cfg) validateMaintenance() error {
 func (cfg *Cfg) validateCgroups() error {
 	cg := cfg.Cgroups
 
-	if cg.Count == 0 {
-		return nil
+	if cg.MemoryBytes > 0 && (cg.Repositories.MemoryBytes > cg.MemoryBytes) {
+		return errors.New("cgroups.repositories: memory limit cannot exceed parent")
 	}
 
-	if cg.Mountpoint == "" {
-		return fmt.Errorf("cgroups.mountpoint: cannot be empty")
-	}
-
-	if cg.HierarchyRoot == "" {
-		return fmt.Errorf("cgroups.hierarchy_root: cannot be empty")
-	}
-
-	if cg.CPU.Enabled && cg.CPU.Shares == 0 {
-		return fmt.Errorf("cgroups.cpu.shares: has to be greater than zero")
-	}
-
-	if cg.Memory.Enabled && (cg.Memory.Limit == 0 || cg.Memory.Limit < -1) {
-		return fmt.Errorf("cgroups.memory.limit: has to be greater than zero or equal to -1")
+	if cg.MemoryBytes > 0 && (cg.Repositories.CPUShares > cg.CPUShares) {
+		return errors.New("cgroups.repositories: cpu shares cannot exceed parent")
 	}
 
 	return nil

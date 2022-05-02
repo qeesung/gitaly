@@ -24,6 +24,7 @@ type Manager interface {
 
 // NewManager returns the appropriate Cgroups manager
 func NewManager(cfg cgroups.Config) Manager {
+	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
 	if cfg.Count > 0 {
 		return newV1Manager(cfg)
 	}

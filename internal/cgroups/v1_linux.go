@@ -68,6 +68,7 @@ func (cg *CGroupV1Manager) Setup() error {
 		}
 	}
 
+	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
 	for i := 0; i < int(cg.cfg.Count); i++ {
 		_, err := cgroups.New(cg.hierarchy, cgroups.StaticPath(cg.cgroupPath(i)), resources)
 		if err != nil {
@@ -83,6 +84,7 @@ func (cg *CGroupV1Manager) Setup() error {
 // exited.
 func (cg *CGroupV1Manager) AddCommand(cmd *command.Command) error {
 	checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd.Args(), "")))
+	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
 	groupID := uint(checksum) % cg.cfg.Count
 	cgroupPath := cg.cgroupPath(int(groupID))
 

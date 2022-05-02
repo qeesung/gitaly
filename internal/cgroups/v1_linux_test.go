@@ -86,6 +86,7 @@ func TestAddCommand(t *testing.T) {
 	require.NoError(t, v1Manager2.AddCommand(cmd2))
 
 	checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd2.Args(), "")))
+	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
 	groupID := uint(checksum) % config.Count
 
 	for _, s := range mock.subsystems {

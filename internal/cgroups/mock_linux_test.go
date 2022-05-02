@@ -103,6 +103,7 @@ func (m *mockCgroup) setupMockCgroupFiles(
 			require.NoError(t, os.WriteFile(controlFilePath, []byte(content), 0o644))
 		}
 
+		// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
 		for shard := uint(0); shard < manager.cfg.Count; shard++ {
 			shardPath := filepath.Join(cgroupPath, fmt.Sprintf("shard-%d", shard))
 			require.NoError(t, os.MkdirAll(shardPath, 0o755))
