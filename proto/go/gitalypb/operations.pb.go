@@ -128,7 +128,7 @@ func (x UserRevertResponse_CreateTreeError) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UserRevertResponse_CreateTreeError.Descriptor instead.
 func (UserRevertResponse_CreateTreeError) EnumDescriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{21, 0}
+	return file_operations_proto_rawDescGZIP(), []int{22, 0}
 }
 
 type UserCommitFilesActionHeader_ActionType int32
@@ -192,7 +192,7 @@ func (x UserCommitFilesActionHeader_ActionType) Number() protoreflect.EnumNumber
 
 // Deprecated: Use UserCommitFilesActionHeader_ActionType.Descriptor instead.
 func (UserCommitFilesActionHeader_ActionType) EnumDescriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{22, 0}
+	return file_operations_proto_rawDescGZIP(), []int{23, 0}
 }
 
 type UserCreateBranchRequest struct {
@@ -1703,6 +1703,126 @@ func (x *UserCherryPickResponse) GetCreateTreeErrorCode() UserCherryPickResponse
 	return UserCherryPickResponse_NONE
 }
 
+// UserCherryPickError is an error returned by the UserCherryPick RPC.
+type UserCherryPickError struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Error:
+	//	*UserCherryPickError_CherryPickConflict
+	//	*UserCherryPickError_TargetBranchDiverged
+	//	*UserCherryPickError_ChangesAlreadyApplied
+	//	*UserCherryPickError_AccessCheck
+	Error isUserCherryPickError_Error `protobuf_oneof:"error"`
+}
+
+func (x *UserCherryPickError) Reset() {
+	*x = UserCherryPickError{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_operations_proto_msgTypes[20]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UserCherryPickError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserCherryPickError) ProtoMessage() {}
+
+func (x *UserCherryPickError) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[20]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserCherryPickError.ProtoReflect.Descriptor instead.
+func (*UserCherryPickError) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{20}
+}
+
+func (m *UserCherryPickError) GetError() isUserCherryPickError_Error {
+	if m != nil {
+		return m.Error
+	}
+	return nil
+}
+
+func (x *UserCherryPickError) GetCherryPickConflict() *MergeConflictError {
+	if x, ok := x.GetError().(*UserCherryPickError_CherryPickConflict); ok {
+		return x.CherryPickConflict
+	}
+	return nil
+}
+
+func (x *UserCherryPickError) GetTargetBranchDiverged() *NotAncestorError {
+	if x, ok := x.GetError().(*UserCherryPickError_TargetBranchDiverged); ok {
+		return x.TargetBranchDiverged
+	}
+	return nil
+}
+
+func (x *UserCherryPickError) GetChangesAlreadyApplied() *ChangesAlreadyAppliedError {
+	if x, ok := x.GetError().(*UserCherryPickError_ChangesAlreadyApplied); ok {
+		return x.ChangesAlreadyApplied
+	}
+	return nil
+}
+
+func (x *UserCherryPickError) GetAccessCheck() *AccessCheckError {
+	if x, ok := x.GetError().(*UserCherryPickError_AccessCheck); ok {
+		return x.AccessCheck
+	}
+	return nil
+}
+
+type isUserCherryPickError_Error interface {
+	isUserCherryPickError_Error()
+}
+
+type UserCherryPickError_CherryPickConflict struct {
+	// CherryPickConflict is returned if there is a conflict when applying the cherry
+	// pick.
+	CherryPickConflict *MergeConflictError `protobuf:"bytes,1,opt,name=cherry_pick_conflict,json=cherryPickConflict,proto3,oneof"`
+}
+
+type UserCherryPickError_TargetBranchDiverged struct {
+	// TargetBranchDiverged is returned whenever the tip commit of the branch we're
+	// about to apply the new commit on is not a direct ancestor of the newly created
+	// cherry-picked commit. This may happen either due to a race where the reference
+	// is modified while we compute the cherry-picked commit, or alternatively if the
+	// commit fetched from the start branch of the remote repository is not an ancestor
+	// of of the local target branch.
+	TargetBranchDiverged *NotAncestorError `protobuf:"bytes,2,opt,name=target_branch_diverged,json=targetBranchDiverged,proto3,oneof"`
+}
+
+type UserCherryPickError_ChangesAlreadyApplied struct {
+	// ChangesAlreadyApplied is returned if the result after applying the cherry pick is empty.
+	ChangesAlreadyApplied *ChangesAlreadyAppliedError `protobuf:"bytes,3,opt,name=changes_already_applied,json=changesAlreadyApplied,proto3,oneof"`
+}
+
+type UserCherryPickError_AccessCheck struct {
+	// AccessCheck is returned in case GitLab's `/internal/allowed` endpoint rejected
+	// the change.
+	AccessCheck *AccessCheckError `protobuf:"bytes,4,opt,name=access_check,json=accessCheck,proto3,oneof"`
+}
+
+func (*UserCherryPickError_CherryPickConflict) isUserCherryPickError_Error() {}
+
+func (*UserCherryPickError_TargetBranchDiverged) isUserCherryPickError_Error() {}
+
+func (*UserCherryPickError_ChangesAlreadyApplied) isUserCherryPickError_Error() {}
+
+func (*UserCherryPickError_AccessCheck) isUserCherryPickError_Error() {}
+
 type UserRevertRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1737,7 +1857,7 @@ type UserRevertRequest struct {
 func (x *UserRevertRequest) Reset() {
 	*x = UserRevertRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[20]
+		mi := &file_operations_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1750,7 +1870,7 @@ func (x *UserRevertRequest) String() string {
 func (*UserRevertRequest) ProtoMessage() {}
 
 func (x *UserRevertRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[20]
+	mi := &file_operations_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1763,7 +1883,7 @@ func (x *UserRevertRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRevertRequest.ProtoReflect.Descriptor instead.
 func (*UserRevertRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{20}
+	return file_operations_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UserRevertRequest) GetRepository() *Repository {
@@ -1852,7 +1972,7 @@ type UserRevertResponse struct {
 func (x *UserRevertResponse) Reset() {
 	*x = UserRevertResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[21]
+		mi := &file_operations_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1865,7 +1985,7 @@ func (x *UserRevertResponse) String() string {
 func (*UserRevertResponse) ProtoMessage() {}
 
 func (x *UserRevertResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[21]
+	mi := &file_operations_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1878,7 +1998,7 @@ func (x *UserRevertResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRevertResponse.ProtoReflect.Descriptor instead.
 func (*UserRevertResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{21}
+	return file_operations_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UserRevertResponse) GetBranchUpdate() *OperationBranchUpdate {
@@ -1952,7 +2072,7 @@ type UserCommitFilesActionHeader struct {
 func (x *UserCommitFilesActionHeader) Reset() {
 	*x = UserCommitFilesActionHeader{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[22]
+		mi := &file_operations_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1965,7 +2085,7 @@ func (x *UserCommitFilesActionHeader) String() string {
 func (*UserCommitFilesActionHeader) ProtoMessage() {}
 
 func (x *UserCommitFilesActionHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[22]
+	mi := &file_operations_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1978,7 +2098,7 @@ func (x *UserCommitFilesActionHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCommitFilesActionHeader.ProtoReflect.Descriptor instead.
 func (*UserCommitFilesActionHeader) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{22}
+	return file_operations_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UserCommitFilesActionHeader) GetAction() UserCommitFilesActionHeader_ActionType {
@@ -2038,7 +2158,7 @@ type UserCommitFilesAction struct {
 func (x *UserCommitFilesAction) Reset() {
 	*x = UserCommitFilesAction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[23]
+		mi := &file_operations_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2051,7 +2171,7 @@ func (x *UserCommitFilesAction) String() string {
 func (*UserCommitFilesAction) ProtoMessage() {}
 
 func (x *UserCommitFilesAction) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[23]
+	mi := &file_operations_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2064,7 +2184,7 @@ func (x *UserCommitFilesAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCommitFilesAction.ProtoReflect.Descriptor instead.
 func (*UserCommitFilesAction) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{23}
+	return file_operations_proto_rawDescGZIP(), []int{24}
 }
 
 func (m *UserCommitFilesAction) GetUserCommitFilesActionPayload() isUserCommitFilesAction_UserCommitFilesActionPayload {
@@ -2150,7 +2270,7 @@ type UserCommitFilesRequestHeader struct {
 func (x *UserCommitFilesRequestHeader) Reset() {
 	*x = UserCommitFilesRequestHeader{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[24]
+		mi := &file_operations_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2163,7 +2283,7 @@ func (x *UserCommitFilesRequestHeader) String() string {
 func (*UserCommitFilesRequestHeader) ProtoMessage() {}
 
 func (x *UserCommitFilesRequestHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[24]
+	mi := &file_operations_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2176,7 +2296,7 @@ func (x *UserCommitFilesRequestHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCommitFilesRequestHeader.ProtoReflect.Descriptor instead.
 func (*UserCommitFilesRequestHeader) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{24}
+	return file_operations_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UserCommitFilesRequestHeader) GetRepository() *Repository {
@@ -2271,7 +2391,7 @@ type UserCommitFilesRequest struct {
 func (x *UserCommitFilesRequest) Reset() {
 	*x = UserCommitFilesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[25]
+		mi := &file_operations_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2284,7 +2404,7 @@ func (x *UserCommitFilesRequest) String() string {
 func (*UserCommitFilesRequest) ProtoMessage() {}
 
 func (x *UserCommitFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[25]
+	mi := &file_operations_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2297,7 +2417,7 @@ func (x *UserCommitFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCommitFilesRequest.ProtoReflect.Descriptor instead.
 func (*UserCommitFilesRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{25}
+	return file_operations_proto_rawDescGZIP(), []int{26}
 }
 
 func (m *UserCommitFilesRequest) GetUserCommitFilesRequestPayload() isUserCommitFilesRequest_UserCommitFilesRequestPayload {
@@ -2358,7 +2478,7 @@ type UserCommitFilesResponse struct {
 func (x *UserCommitFilesResponse) Reset() {
 	*x = UserCommitFilesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[26]
+		mi := &file_operations_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2371,7 +2491,7 @@ func (x *UserCommitFilesResponse) String() string {
 func (*UserCommitFilesResponse) ProtoMessage() {}
 
 func (x *UserCommitFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[26]
+	mi := &file_operations_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2384,7 +2504,7 @@ func (x *UserCommitFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCommitFilesResponse.ProtoReflect.Descriptor instead.
 func (*UserCommitFilesResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{26}
+	return file_operations_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UserCommitFilesResponse) GetBranchUpdate() *OperationBranchUpdate {
@@ -2422,7 +2542,7 @@ type UserRebaseConfirmableRequest struct {
 func (x *UserRebaseConfirmableRequest) Reset() {
 	*x = UserRebaseConfirmableRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[27]
+		mi := &file_operations_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2435,7 +2555,7 @@ func (x *UserRebaseConfirmableRequest) String() string {
 func (*UserRebaseConfirmableRequest) ProtoMessage() {}
 
 func (x *UserRebaseConfirmableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[27]
+	mi := &file_operations_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2448,7 +2568,7 @@ func (x *UserRebaseConfirmableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRebaseConfirmableRequest.ProtoReflect.Descriptor instead.
 func (*UserRebaseConfirmableRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{27}
+	return file_operations_proto_rawDescGZIP(), []int{28}
 }
 
 func (m *UserRebaseConfirmableRequest) GetUserRebaseConfirmableRequestPayload() isUserRebaseConfirmableRequest_UserRebaseConfirmableRequestPayload {
@@ -2513,7 +2633,7 @@ type UserRebaseConfirmableResponse struct {
 func (x *UserRebaseConfirmableResponse) Reset() {
 	*x = UserRebaseConfirmableResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[28]
+		mi := &file_operations_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2526,7 +2646,7 @@ func (x *UserRebaseConfirmableResponse) String() string {
 func (*UserRebaseConfirmableResponse) ProtoMessage() {}
 
 func (x *UserRebaseConfirmableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[28]
+	mi := &file_operations_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2539,7 +2659,7 @@ func (x *UserRebaseConfirmableResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRebaseConfirmableResponse.ProtoReflect.Descriptor instead.
 func (*UserRebaseConfirmableResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{28}
+	return file_operations_proto_rawDescGZIP(), []int{29}
 }
 
 func (m *UserRebaseConfirmableResponse) GetUserRebaseConfirmableResponsePayload() isUserRebaseConfirmableResponse_UserRebaseConfirmableResponsePayload {
@@ -2627,7 +2747,7 @@ type UserSquashRequest struct {
 func (x *UserSquashRequest) Reset() {
 	*x = UserSquashRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[29]
+		mi := &file_operations_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2640,7 +2760,7 @@ func (x *UserSquashRequest) String() string {
 func (*UserSquashRequest) ProtoMessage() {}
 
 func (x *UserSquashRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[29]
+	mi := &file_operations_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2653,7 +2773,7 @@ func (x *UserSquashRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserSquashRequest.ProtoReflect.Descriptor instead.
 func (*UserSquashRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{29}
+	return file_operations_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *UserSquashRequest) GetRepository() *Repository {
@@ -2723,7 +2843,7 @@ type UserSquashResponse struct {
 func (x *UserSquashResponse) Reset() {
 	*x = UserSquashResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[30]
+		mi := &file_operations_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2736,7 +2856,7 @@ func (x *UserSquashResponse) String() string {
 func (*UserSquashResponse) ProtoMessage() {}
 
 func (x *UserSquashResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[30]
+	mi := &file_operations_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2749,7 +2869,7 @@ func (x *UserSquashResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserSquashResponse.ProtoReflect.Descriptor instead.
 func (*UserSquashResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{30}
+	return file_operations_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UserSquashResponse) GetSquashSha() string {
@@ -2781,7 +2901,7 @@ type UserRebaseConfirmableError struct {
 func (x *UserRebaseConfirmableError) Reset() {
 	*x = UserRebaseConfirmableError{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[31]
+		mi := &file_operations_proto_msgTypes[32]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2794,7 +2914,7 @@ func (x *UserRebaseConfirmableError) String() string {
 func (*UserRebaseConfirmableError) ProtoMessage() {}
 
 func (x *UserRebaseConfirmableError) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[31]
+	mi := &file_operations_proto_msgTypes[32]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2807,7 +2927,7 @@ func (x *UserRebaseConfirmableError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserRebaseConfirmableError.ProtoReflect.Descriptor instead.
 func (*UserRebaseConfirmableError) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{31}
+	return file_operations_proto_rawDescGZIP(), []int{32}
 }
 
 func (m *UserRebaseConfirmableError) GetError() isUserRebaseConfirmableError_Error {
@@ -2867,7 +2987,7 @@ type UserSquashError struct {
 func (x *UserSquashError) Reset() {
 	*x = UserSquashError{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[32]
+		mi := &file_operations_proto_msgTypes[33]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2880,7 +3000,7 @@ func (x *UserSquashError) String() string {
 func (*UserSquashError) ProtoMessage() {}
 
 func (x *UserSquashError) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[32]
+	mi := &file_operations_proto_msgTypes[33]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2893,7 +3013,7 @@ func (x *UserSquashError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserSquashError.ProtoReflect.Descriptor instead.
 func (*UserSquashError) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{32}
+	return file_operations_proto_rawDescGZIP(), []int{33}
 }
 
 func (m *UserSquashError) GetError() isUserSquashError_Error {
@@ -2951,7 +3071,7 @@ type UserApplyPatchRequest struct {
 func (x *UserApplyPatchRequest) Reset() {
 	*x = UserApplyPatchRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[33]
+		mi := &file_operations_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2964,7 +3084,7 @@ func (x *UserApplyPatchRequest) String() string {
 func (*UserApplyPatchRequest) ProtoMessage() {}
 
 func (x *UserApplyPatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[33]
+	mi := &file_operations_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2977,7 +3097,7 @@ func (x *UserApplyPatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserApplyPatchRequest.ProtoReflect.Descriptor instead.
 func (*UserApplyPatchRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{33}
+	return file_operations_proto_rawDescGZIP(), []int{34}
 }
 
 func (m *UserApplyPatchRequest) GetUserApplyPatchRequestPayload() isUserApplyPatchRequest_UserApplyPatchRequestPayload {
@@ -3032,7 +3152,7 @@ type UserApplyPatchResponse struct {
 func (x *UserApplyPatchResponse) Reset() {
 	*x = UserApplyPatchResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[34]
+		mi := &file_operations_proto_msgTypes[35]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3045,7 +3165,7 @@ func (x *UserApplyPatchResponse) String() string {
 func (*UserApplyPatchResponse) ProtoMessage() {}
 
 func (x *UserApplyPatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[34]
+	mi := &file_operations_proto_msgTypes[35]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3058,7 +3178,7 @@ func (x *UserApplyPatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserApplyPatchResponse.ProtoReflect.Descriptor instead.
 func (*UserApplyPatchResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{34}
+	return file_operations_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UserApplyPatchResponse) GetBranchUpdate() *OperationBranchUpdate {
@@ -3096,7 +3216,7 @@ type UserUpdateSubmoduleRequest struct {
 func (x *UserUpdateSubmoduleRequest) Reset() {
 	*x = UserUpdateSubmoduleRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[35]
+		mi := &file_operations_proto_msgTypes[36]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3109,7 +3229,7 @@ func (x *UserUpdateSubmoduleRequest) String() string {
 func (*UserUpdateSubmoduleRequest) ProtoMessage() {}
 
 func (x *UserUpdateSubmoduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[35]
+	mi := &file_operations_proto_msgTypes[36]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3122,7 +3242,7 @@ func (x *UserUpdateSubmoduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserUpdateSubmoduleRequest.ProtoReflect.Descriptor instead.
 func (*UserUpdateSubmoduleRequest) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{35}
+	return file_operations_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UserUpdateSubmoduleRequest) GetRepository() *Repository {
@@ -3191,7 +3311,7 @@ type UserUpdateSubmoduleResponse struct {
 func (x *UserUpdateSubmoduleResponse) Reset() {
 	*x = UserUpdateSubmoduleResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[36]
+		mi := &file_operations_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3204,7 +3324,7 @@ func (x *UserUpdateSubmoduleResponse) String() string {
 func (*UserUpdateSubmoduleResponse) ProtoMessage() {}
 
 func (x *UserUpdateSubmoduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[36]
+	mi := &file_operations_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3217,7 +3337,7 @@ func (x *UserUpdateSubmoduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserUpdateSubmoduleResponse.ProtoReflect.Descriptor instead.
 func (*UserUpdateSubmoduleResponse) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{36}
+	return file_operations_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UserUpdateSubmoduleResponse) GetBranchUpdate() *OperationBranchUpdate {
@@ -3281,7 +3401,7 @@ type UserRebaseConfirmableRequest_Header struct {
 func (x *UserRebaseConfirmableRequest_Header) Reset() {
 	*x = UserRebaseConfirmableRequest_Header{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[37]
+		mi := &file_operations_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3294,7 +3414,7 @@ func (x *UserRebaseConfirmableRequest_Header) String() string {
 func (*UserRebaseConfirmableRequest_Header) ProtoMessage() {}
 
 func (x *UserRebaseConfirmableRequest_Header) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[37]
+	mi := &file_operations_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3307,7 +3427,7 @@ func (x *UserRebaseConfirmableRequest_Header) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use UserRebaseConfirmableRequest_Header.ProtoReflect.Descriptor instead.
 func (*UserRebaseConfirmableRequest_Header) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{27, 0}
+	return file_operations_proto_rawDescGZIP(), []int{28, 0}
 }
 
 func (x *UserRebaseConfirmableRequest_Header) GetRepository() *Repository {
@@ -3394,7 +3514,7 @@ type UserApplyPatchRequest_Header struct {
 func (x *UserApplyPatchRequest_Header) Reset() {
 	*x = UserApplyPatchRequest_Header{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_operations_proto_msgTypes[38]
+		mi := &file_operations_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3407,7 +3527,7 @@ func (x *UserApplyPatchRequest_Header) String() string {
 func (*UserApplyPatchRequest_Header) ProtoMessage() {}
 
 func (x *UserApplyPatchRequest_Header) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[38]
+	mi := &file_operations_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3420,7 +3540,7 @@ func (x *UserApplyPatchRequest_Header) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserApplyPatchRequest_Header.ProtoReflect.Descriptor instead.
 func (*UserApplyPatchRequest_Header) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{33, 0}
+	return file_operations_proto_rawDescGZIP(), []int{34, 0}
 }
 
 func (x *UserApplyPatchRequest_Header) GetRepository() *Repository {
@@ -3692,7 +3812,29 @@ var file_operations_proto_rawDesc = []byte{
 	0x72, 0x6f, 0x72, 0x43, 0x6f, 0x64, 0x65, 0x22, 0x34, 0x0a, 0x0f, 0x43, 0x72, 0x65, 0x61, 0x74,
 	0x65, 0x54, 0x72, 0x65, 0x65, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x12, 0x08, 0x0a, 0x04, 0x4e, 0x4f,
 	0x4e, 0x45, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x45, 0x4d, 0x50, 0x54, 0x59, 0x10, 0x01, 0x12,
-	0x0c, 0x0a, 0x08, 0x43, 0x4f, 0x4e, 0x46, 0x4c, 0x49, 0x43, 0x54, 0x10, 0x02, 0x22, 0x93, 0x03,
+	0x0c, 0x0a, 0x08, 0x43, 0x4f, 0x4e, 0x46, 0x4c, 0x49, 0x43, 0x54, 0x10, 0x02, 0x22, 0xdd, 0x02,
+	0x0a, 0x13, 0x55, 0x73, 0x65, 0x72, 0x43, 0x68, 0x65, 0x72, 0x72, 0x79, 0x50, 0x69, 0x63, 0x6b,
+	0x45, 0x72, 0x72, 0x6f, 0x72, 0x12, 0x4e, 0x0a, 0x14, 0x63, 0x68, 0x65, 0x72, 0x72, 0x79, 0x5f,
+	0x70, 0x69, 0x63, 0x6b, 0x5f, 0x63, 0x6f, 0x6e, 0x66, 0x6c, 0x69, 0x63, 0x74, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4d, 0x65, 0x72,
+	0x67, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x6c, 0x69, 0x63, 0x74, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x48,
+	0x00, 0x52, 0x12, 0x63, 0x68, 0x65, 0x72, 0x72, 0x79, 0x50, 0x69, 0x63, 0x6b, 0x43, 0x6f, 0x6e,
+	0x66, 0x6c, 0x69, 0x63, 0x74, 0x12, 0x50, 0x0a, 0x16, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x5f,
+	0x62, 0x72, 0x61, 0x6e, 0x63, 0x68, 0x5f, 0x64, 0x69, 0x76, 0x65, 0x72, 0x67, 0x65, 0x64, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x4e,
+	0x6f, 0x74, 0x41, 0x6e, 0x63, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x48,
+	0x00, 0x52, 0x14, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x42, 0x72, 0x61, 0x6e, 0x63, 0x68, 0x44,
+	0x69, 0x76, 0x65, 0x72, 0x67, 0x65, 0x64, 0x12, 0x5c, 0x0a, 0x17, 0x63, 0x68, 0x61, 0x6e, 0x67,
+	0x65, 0x73, 0x5f, 0x61, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x5f, 0x61, 0x70, 0x70, 0x6c, 0x69,
+	0x65, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x22, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
+	0x79, 0x2e, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79,
+	0x41, 0x70, 0x70, 0x6c, 0x69, 0x65, 0x64, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x48, 0x00, 0x52, 0x15,
+	0x63, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x41, 0x70,
+	0x70, 0x6c, 0x69, 0x65, 0x64, 0x12, 0x3d, 0x0a, 0x0c, 0x61, 0x63, 0x63, 0x65, 0x73, 0x73, 0x5f,
+	0x63, 0x68, 0x65, 0x63, 0x6b, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x67, 0x69,
+	0x74, 0x61, 0x6c, 0x79, 0x2e, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x43, 0x68, 0x65, 0x63, 0x6b,
+	0x45, 0x72, 0x72, 0x6f, 0x72, 0x48, 0x00, 0x52, 0x0b, 0x61, 0x63, 0x63, 0x65, 0x73, 0x73, 0x43,
+	0x68, 0x65, 0x63, 0x6b, 0x42, 0x07, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x22, 0x93, 0x03,
 	0x0a, 0x11, 0x55, 0x73, 0x65, 0x72, 0x52, 0x65, 0x76, 0x65, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75,
 	0x65, 0x73, 0x74, 0x12, 0x38, 0x0a, 0x0a, 0x72, 0x65, 0x70, 0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72,
 	0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
@@ -4093,7 +4235,7 @@ func file_operations_proto_rawDescGZIP() []byte {
 }
 
 var file_operations_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_operations_proto_goTypes = []interface{}{
 	(UserCherryPickResponse_CreateTreeError)(0), // 0: gitaly.UserCherryPickResponse.CreateTreeError
 	(UserRevertResponse_CreateTreeError)(0),     // 1: gitaly.UserRevertResponse.CreateTreeError
@@ -4118,142 +4260,149 @@ var file_operations_proto_goTypes = []interface{}{
 	(*UserFFBranchResponse)(nil),                // 20: gitaly.UserFFBranchResponse
 	(*UserCherryPickRequest)(nil),               // 21: gitaly.UserCherryPickRequest
 	(*UserCherryPickResponse)(nil),              // 22: gitaly.UserCherryPickResponse
-	(*UserRevertRequest)(nil),                   // 23: gitaly.UserRevertRequest
-	(*UserRevertResponse)(nil),                  // 24: gitaly.UserRevertResponse
-	(*UserCommitFilesActionHeader)(nil),         // 25: gitaly.UserCommitFilesActionHeader
-	(*UserCommitFilesAction)(nil),               // 26: gitaly.UserCommitFilesAction
-	(*UserCommitFilesRequestHeader)(nil),        // 27: gitaly.UserCommitFilesRequestHeader
-	(*UserCommitFilesRequest)(nil),              // 28: gitaly.UserCommitFilesRequest
-	(*UserCommitFilesResponse)(nil),             // 29: gitaly.UserCommitFilesResponse
-	(*UserRebaseConfirmableRequest)(nil),        // 30: gitaly.UserRebaseConfirmableRequest
-	(*UserRebaseConfirmableResponse)(nil),       // 31: gitaly.UserRebaseConfirmableResponse
-	(*UserSquashRequest)(nil),                   // 32: gitaly.UserSquashRequest
-	(*UserSquashResponse)(nil),                  // 33: gitaly.UserSquashResponse
-	(*UserRebaseConfirmableError)(nil),          // 34: gitaly.UserRebaseConfirmableError
-	(*UserSquashError)(nil),                     // 35: gitaly.UserSquashError
-	(*UserApplyPatchRequest)(nil),               // 36: gitaly.UserApplyPatchRequest
-	(*UserApplyPatchResponse)(nil),              // 37: gitaly.UserApplyPatchResponse
-	(*UserUpdateSubmoduleRequest)(nil),          // 38: gitaly.UserUpdateSubmoduleRequest
-	(*UserUpdateSubmoduleResponse)(nil),         // 39: gitaly.UserUpdateSubmoduleResponse
-	(*UserRebaseConfirmableRequest_Header)(nil), // 40: gitaly.UserRebaseConfirmableRequest.Header
-	(*UserApplyPatchRequest_Header)(nil),        // 41: gitaly.UserApplyPatchRequest.Header
-	(*Repository)(nil),                          // 42: gitaly.Repository
-	(*User)(nil),                                // 43: gitaly.User
-	(*Branch)(nil),                              // 44: gitaly.Branch
-	(*timestamppb.Timestamp)(nil),               // 45: google.protobuf.Timestamp
-	(*Tag)(nil),                                 // 46: gitaly.Tag
-	(*AccessCheckError)(nil),                    // 47: gitaly.AccessCheckError
-	(*ReferenceUpdateError)(nil),                // 48: gitaly.ReferenceUpdateError
-	(*GitCommit)(nil),                           // 49: gitaly.GitCommit
-	(*MergeConflictError)(nil),                  // 50: gitaly.MergeConflictError
-	(*ResolveRevisionError)(nil),                // 51: gitaly.ResolveRevisionError
+	(*UserCherryPickError)(nil),                 // 23: gitaly.UserCherryPickError
+	(*UserRevertRequest)(nil),                   // 24: gitaly.UserRevertRequest
+	(*UserRevertResponse)(nil),                  // 25: gitaly.UserRevertResponse
+	(*UserCommitFilesActionHeader)(nil),         // 26: gitaly.UserCommitFilesActionHeader
+	(*UserCommitFilesAction)(nil),               // 27: gitaly.UserCommitFilesAction
+	(*UserCommitFilesRequestHeader)(nil),        // 28: gitaly.UserCommitFilesRequestHeader
+	(*UserCommitFilesRequest)(nil),              // 29: gitaly.UserCommitFilesRequest
+	(*UserCommitFilesResponse)(nil),             // 30: gitaly.UserCommitFilesResponse
+	(*UserRebaseConfirmableRequest)(nil),        // 31: gitaly.UserRebaseConfirmableRequest
+	(*UserRebaseConfirmableResponse)(nil),       // 32: gitaly.UserRebaseConfirmableResponse
+	(*UserSquashRequest)(nil),                   // 33: gitaly.UserSquashRequest
+	(*UserSquashResponse)(nil),                  // 34: gitaly.UserSquashResponse
+	(*UserRebaseConfirmableError)(nil),          // 35: gitaly.UserRebaseConfirmableError
+	(*UserSquashError)(nil),                     // 36: gitaly.UserSquashError
+	(*UserApplyPatchRequest)(nil),               // 37: gitaly.UserApplyPatchRequest
+	(*UserApplyPatchResponse)(nil),              // 38: gitaly.UserApplyPatchResponse
+	(*UserUpdateSubmoduleRequest)(nil),          // 39: gitaly.UserUpdateSubmoduleRequest
+	(*UserUpdateSubmoduleResponse)(nil),         // 40: gitaly.UserUpdateSubmoduleResponse
+	(*UserRebaseConfirmableRequest_Header)(nil), // 41: gitaly.UserRebaseConfirmableRequest.Header
+	(*UserApplyPatchRequest_Header)(nil),        // 42: gitaly.UserApplyPatchRequest.Header
+	(*Repository)(nil),                          // 43: gitaly.Repository
+	(*User)(nil),                                // 44: gitaly.User
+	(*Branch)(nil),                              // 45: gitaly.Branch
+	(*timestamppb.Timestamp)(nil),               // 46: google.protobuf.Timestamp
+	(*Tag)(nil),                                 // 47: gitaly.Tag
+	(*AccessCheckError)(nil),                    // 48: gitaly.AccessCheckError
+	(*ReferenceUpdateError)(nil),                // 49: gitaly.ReferenceUpdateError
+	(*GitCommit)(nil),                           // 50: gitaly.GitCommit
+	(*MergeConflictError)(nil),                  // 51: gitaly.MergeConflictError
+	(*NotAncestorError)(nil),                    // 52: gitaly.NotAncestorError
+	(*ChangesAlreadyAppliedError)(nil),          // 53: gitaly.ChangesAlreadyAppliedError
+	(*ResolveRevisionError)(nil),                // 54: gitaly.ResolveRevisionError
 }
 var file_operations_proto_depIdxs = []int32{
-	42, // 0: gitaly.UserCreateBranchRequest.repository:type_name -> gitaly.Repository
-	43, // 1: gitaly.UserCreateBranchRequest.user:type_name -> gitaly.User
-	44, // 2: gitaly.UserCreateBranchResponse.branch:type_name -> gitaly.Branch
-	42, // 3: gitaly.UserUpdateBranchRequest.repository:type_name -> gitaly.Repository
-	43, // 4: gitaly.UserUpdateBranchRequest.user:type_name -> gitaly.User
-	42, // 5: gitaly.UserDeleteBranchRequest.repository:type_name -> gitaly.Repository
-	43, // 6: gitaly.UserDeleteBranchRequest.user:type_name -> gitaly.User
-	42, // 7: gitaly.UserDeleteTagRequest.repository:type_name -> gitaly.Repository
-	43, // 8: gitaly.UserDeleteTagRequest.user:type_name -> gitaly.User
-	42, // 9: gitaly.UserCreateTagRequest.repository:type_name -> gitaly.Repository
-	43, // 10: gitaly.UserCreateTagRequest.user:type_name -> gitaly.User
-	45, // 11: gitaly.UserCreateTagRequest.timestamp:type_name -> google.protobuf.Timestamp
-	46, // 12: gitaly.UserCreateTagResponse.tag:type_name -> gitaly.Tag
-	42, // 13: gitaly.UserMergeBranchRequest.repository:type_name -> gitaly.Repository
-	43, // 14: gitaly.UserMergeBranchRequest.user:type_name -> gitaly.User
-	45, // 15: gitaly.UserMergeBranchRequest.timestamp:type_name -> google.protobuf.Timestamp
+	43, // 0: gitaly.UserCreateBranchRequest.repository:type_name -> gitaly.Repository
+	44, // 1: gitaly.UserCreateBranchRequest.user:type_name -> gitaly.User
+	45, // 2: gitaly.UserCreateBranchResponse.branch:type_name -> gitaly.Branch
+	43, // 3: gitaly.UserUpdateBranchRequest.repository:type_name -> gitaly.Repository
+	44, // 4: gitaly.UserUpdateBranchRequest.user:type_name -> gitaly.User
+	43, // 5: gitaly.UserDeleteBranchRequest.repository:type_name -> gitaly.Repository
+	44, // 6: gitaly.UserDeleteBranchRequest.user:type_name -> gitaly.User
+	43, // 7: gitaly.UserDeleteTagRequest.repository:type_name -> gitaly.Repository
+	44, // 8: gitaly.UserDeleteTagRequest.user:type_name -> gitaly.User
+	43, // 9: gitaly.UserCreateTagRequest.repository:type_name -> gitaly.Repository
+	44, // 10: gitaly.UserCreateTagRequest.user:type_name -> gitaly.User
+	46, // 11: gitaly.UserCreateTagRequest.timestamp:type_name -> google.protobuf.Timestamp
+	47, // 12: gitaly.UserCreateTagResponse.tag:type_name -> gitaly.Tag
+	43, // 13: gitaly.UserMergeBranchRequest.repository:type_name -> gitaly.Repository
+	44, // 14: gitaly.UserMergeBranchRequest.user:type_name -> gitaly.User
+	46, // 15: gitaly.UserMergeBranchRequest.timestamp:type_name -> google.protobuf.Timestamp
 	18, // 16: gitaly.UserMergeBranchResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	47, // 17: gitaly.UserMergeBranchError.access_check:type_name -> gitaly.AccessCheckError
-	48, // 18: gitaly.UserMergeBranchError.reference_update:type_name -> gitaly.ReferenceUpdateError
-	42, // 19: gitaly.UserMergeToRefRequest.repository:type_name -> gitaly.Repository
-	43, // 20: gitaly.UserMergeToRefRequest.user:type_name -> gitaly.User
-	45, // 21: gitaly.UserMergeToRefRequest.timestamp:type_name -> google.protobuf.Timestamp
-	42, // 22: gitaly.UserFFBranchRequest.repository:type_name -> gitaly.Repository
-	43, // 23: gitaly.UserFFBranchRequest.user:type_name -> gitaly.User
+	48, // 17: gitaly.UserMergeBranchError.access_check:type_name -> gitaly.AccessCheckError
+	49, // 18: gitaly.UserMergeBranchError.reference_update:type_name -> gitaly.ReferenceUpdateError
+	43, // 19: gitaly.UserMergeToRefRequest.repository:type_name -> gitaly.Repository
+	44, // 20: gitaly.UserMergeToRefRequest.user:type_name -> gitaly.User
+	46, // 21: gitaly.UserMergeToRefRequest.timestamp:type_name -> google.protobuf.Timestamp
+	43, // 22: gitaly.UserFFBranchRequest.repository:type_name -> gitaly.Repository
+	44, // 23: gitaly.UserFFBranchRequest.user:type_name -> gitaly.User
 	18, // 24: gitaly.UserFFBranchResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	42, // 25: gitaly.UserCherryPickRequest.repository:type_name -> gitaly.Repository
-	43, // 26: gitaly.UserCherryPickRequest.user:type_name -> gitaly.User
-	49, // 27: gitaly.UserCherryPickRequest.commit:type_name -> gitaly.GitCommit
-	42, // 28: gitaly.UserCherryPickRequest.start_repository:type_name -> gitaly.Repository
-	45, // 29: gitaly.UserCherryPickRequest.timestamp:type_name -> google.protobuf.Timestamp
+	43, // 25: gitaly.UserCherryPickRequest.repository:type_name -> gitaly.Repository
+	44, // 26: gitaly.UserCherryPickRequest.user:type_name -> gitaly.User
+	50, // 27: gitaly.UserCherryPickRequest.commit:type_name -> gitaly.GitCommit
+	43, // 28: gitaly.UserCherryPickRequest.start_repository:type_name -> gitaly.Repository
+	46, // 29: gitaly.UserCherryPickRequest.timestamp:type_name -> google.protobuf.Timestamp
 	18, // 30: gitaly.UserCherryPickResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
 	0,  // 31: gitaly.UserCherryPickResponse.create_tree_error_code:type_name -> gitaly.UserCherryPickResponse.CreateTreeError
-	42, // 32: gitaly.UserRevertRequest.repository:type_name -> gitaly.Repository
-	43, // 33: gitaly.UserRevertRequest.user:type_name -> gitaly.User
-	49, // 34: gitaly.UserRevertRequest.commit:type_name -> gitaly.GitCommit
-	42, // 35: gitaly.UserRevertRequest.start_repository:type_name -> gitaly.Repository
-	45, // 36: gitaly.UserRevertRequest.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 37: gitaly.UserRevertResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	1,  // 38: gitaly.UserRevertResponse.create_tree_error_code:type_name -> gitaly.UserRevertResponse.CreateTreeError
-	2,  // 39: gitaly.UserCommitFilesActionHeader.action:type_name -> gitaly.UserCommitFilesActionHeader.ActionType
-	25, // 40: gitaly.UserCommitFilesAction.header:type_name -> gitaly.UserCommitFilesActionHeader
-	42, // 41: gitaly.UserCommitFilesRequestHeader.repository:type_name -> gitaly.Repository
-	43, // 42: gitaly.UserCommitFilesRequestHeader.user:type_name -> gitaly.User
-	42, // 43: gitaly.UserCommitFilesRequestHeader.start_repository:type_name -> gitaly.Repository
-	45, // 44: gitaly.UserCommitFilesRequestHeader.timestamp:type_name -> google.protobuf.Timestamp
-	27, // 45: gitaly.UserCommitFilesRequest.header:type_name -> gitaly.UserCommitFilesRequestHeader
-	26, // 46: gitaly.UserCommitFilesRequest.action:type_name -> gitaly.UserCommitFilesAction
-	18, // 47: gitaly.UserCommitFilesResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	40, // 48: gitaly.UserRebaseConfirmableRequest.header:type_name -> gitaly.UserRebaseConfirmableRequest.Header
-	42, // 49: gitaly.UserSquashRequest.repository:type_name -> gitaly.Repository
-	43, // 50: gitaly.UserSquashRequest.user:type_name -> gitaly.User
-	43, // 51: gitaly.UserSquashRequest.author:type_name -> gitaly.User
-	45, // 52: gitaly.UserSquashRequest.timestamp:type_name -> google.protobuf.Timestamp
-	50, // 53: gitaly.UserRebaseConfirmableError.rebase_conflict:type_name -> gitaly.MergeConflictError
-	47, // 54: gitaly.UserRebaseConfirmableError.access_check:type_name -> gitaly.AccessCheckError
-	51, // 55: gitaly.UserSquashError.resolve_revision:type_name -> gitaly.ResolveRevisionError
-	50, // 56: gitaly.UserSquashError.rebase_conflict:type_name -> gitaly.MergeConflictError
-	41, // 57: gitaly.UserApplyPatchRequest.header:type_name -> gitaly.UserApplyPatchRequest.Header
-	18, // 58: gitaly.UserApplyPatchResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	42, // 59: gitaly.UserUpdateSubmoduleRequest.repository:type_name -> gitaly.Repository
-	43, // 60: gitaly.UserUpdateSubmoduleRequest.user:type_name -> gitaly.User
-	45, // 61: gitaly.UserUpdateSubmoduleRequest.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 62: gitaly.UserUpdateSubmoduleResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
-	42, // 63: gitaly.UserRebaseConfirmableRequest.Header.repository:type_name -> gitaly.Repository
-	43, // 64: gitaly.UserRebaseConfirmableRequest.Header.user:type_name -> gitaly.User
-	42, // 65: gitaly.UserRebaseConfirmableRequest.Header.remote_repository:type_name -> gitaly.Repository
-	45, // 66: gitaly.UserRebaseConfirmableRequest.Header.timestamp:type_name -> google.protobuf.Timestamp
-	42, // 67: gitaly.UserApplyPatchRequest.Header.repository:type_name -> gitaly.Repository
-	43, // 68: gitaly.UserApplyPatchRequest.Header.user:type_name -> gitaly.User
-	45, // 69: gitaly.UserApplyPatchRequest.Header.timestamp:type_name -> google.protobuf.Timestamp
-	3,  // 70: gitaly.OperationService.UserCreateBranch:input_type -> gitaly.UserCreateBranchRequest
-	5,  // 71: gitaly.OperationService.UserUpdateBranch:input_type -> gitaly.UserUpdateBranchRequest
-	7,  // 72: gitaly.OperationService.UserDeleteBranch:input_type -> gitaly.UserDeleteBranchRequest
-	11, // 73: gitaly.OperationService.UserCreateTag:input_type -> gitaly.UserCreateTagRequest
-	9,  // 74: gitaly.OperationService.UserDeleteTag:input_type -> gitaly.UserDeleteTagRequest
-	16, // 75: gitaly.OperationService.UserMergeToRef:input_type -> gitaly.UserMergeToRefRequest
-	13, // 76: gitaly.OperationService.UserMergeBranch:input_type -> gitaly.UserMergeBranchRequest
-	19, // 77: gitaly.OperationService.UserFFBranch:input_type -> gitaly.UserFFBranchRequest
-	21, // 78: gitaly.OperationService.UserCherryPick:input_type -> gitaly.UserCherryPickRequest
-	28, // 79: gitaly.OperationService.UserCommitFiles:input_type -> gitaly.UserCommitFilesRequest
-	30, // 80: gitaly.OperationService.UserRebaseConfirmable:input_type -> gitaly.UserRebaseConfirmableRequest
-	23, // 81: gitaly.OperationService.UserRevert:input_type -> gitaly.UserRevertRequest
-	32, // 82: gitaly.OperationService.UserSquash:input_type -> gitaly.UserSquashRequest
-	36, // 83: gitaly.OperationService.UserApplyPatch:input_type -> gitaly.UserApplyPatchRequest
-	38, // 84: gitaly.OperationService.UserUpdateSubmodule:input_type -> gitaly.UserUpdateSubmoduleRequest
-	4,  // 85: gitaly.OperationService.UserCreateBranch:output_type -> gitaly.UserCreateBranchResponse
-	6,  // 86: gitaly.OperationService.UserUpdateBranch:output_type -> gitaly.UserUpdateBranchResponse
-	8,  // 87: gitaly.OperationService.UserDeleteBranch:output_type -> gitaly.UserDeleteBranchResponse
-	12, // 88: gitaly.OperationService.UserCreateTag:output_type -> gitaly.UserCreateTagResponse
-	10, // 89: gitaly.OperationService.UserDeleteTag:output_type -> gitaly.UserDeleteTagResponse
-	17, // 90: gitaly.OperationService.UserMergeToRef:output_type -> gitaly.UserMergeToRefResponse
-	14, // 91: gitaly.OperationService.UserMergeBranch:output_type -> gitaly.UserMergeBranchResponse
-	20, // 92: gitaly.OperationService.UserFFBranch:output_type -> gitaly.UserFFBranchResponse
-	22, // 93: gitaly.OperationService.UserCherryPick:output_type -> gitaly.UserCherryPickResponse
-	29, // 94: gitaly.OperationService.UserCommitFiles:output_type -> gitaly.UserCommitFilesResponse
-	31, // 95: gitaly.OperationService.UserRebaseConfirmable:output_type -> gitaly.UserRebaseConfirmableResponse
-	24, // 96: gitaly.OperationService.UserRevert:output_type -> gitaly.UserRevertResponse
-	33, // 97: gitaly.OperationService.UserSquash:output_type -> gitaly.UserSquashResponse
-	37, // 98: gitaly.OperationService.UserApplyPatch:output_type -> gitaly.UserApplyPatchResponse
-	39, // 99: gitaly.OperationService.UserUpdateSubmodule:output_type -> gitaly.UserUpdateSubmoduleResponse
-	85, // [85:100] is the sub-list for method output_type
-	70, // [70:85] is the sub-list for method input_type
-	70, // [70:70] is the sub-list for extension type_name
-	70, // [70:70] is the sub-list for extension extendee
-	0,  // [0:70] is the sub-list for field type_name
+	51, // 32: gitaly.UserCherryPickError.cherry_pick_conflict:type_name -> gitaly.MergeConflictError
+	52, // 33: gitaly.UserCherryPickError.target_branch_diverged:type_name -> gitaly.NotAncestorError
+	53, // 34: gitaly.UserCherryPickError.changes_already_applied:type_name -> gitaly.ChangesAlreadyAppliedError
+	48, // 35: gitaly.UserCherryPickError.access_check:type_name -> gitaly.AccessCheckError
+	43, // 36: gitaly.UserRevertRequest.repository:type_name -> gitaly.Repository
+	44, // 37: gitaly.UserRevertRequest.user:type_name -> gitaly.User
+	50, // 38: gitaly.UserRevertRequest.commit:type_name -> gitaly.GitCommit
+	43, // 39: gitaly.UserRevertRequest.start_repository:type_name -> gitaly.Repository
+	46, // 40: gitaly.UserRevertRequest.timestamp:type_name -> google.protobuf.Timestamp
+	18, // 41: gitaly.UserRevertResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
+	1,  // 42: gitaly.UserRevertResponse.create_tree_error_code:type_name -> gitaly.UserRevertResponse.CreateTreeError
+	2,  // 43: gitaly.UserCommitFilesActionHeader.action:type_name -> gitaly.UserCommitFilesActionHeader.ActionType
+	26, // 44: gitaly.UserCommitFilesAction.header:type_name -> gitaly.UserCommitFilesActionHeader
+	43, // 45: gitaly.UserCommitFilesRequestHeader.repository:type_name -> gitaly.Repository
+	44, // 46: gitaly.UserCommitFilesRequestHeader.user:type_name -> gitaly.User
+	43, // 47: gitaly.UserCommitFilesRequestHeader.start_repository:type_name -> gitaly.Repository
+	46, // 48: gitaly.UserCommitFilesRequestHeader.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 49: gitaly.UserCommitFilesRequest.header:type_name -> gitaly.UserCommitFilesRequestHeader
+	27, // 50: gitaly.UserCommitFilesRequest.action:type_name -> gitaly.UserCommitFilesAction
+	18, // 51: gitaly.UserCommitFilesResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
+	41, // 52: gitaly.UserRebaseConfirmableRequest.header:type_name -> gitaly.UserRebaseConfirmableRequest.Header
+	43, // 53: gitaly.UserSquashRequest.repository:type_name -> gitaly.Repository
+	44, // 54: gitaly.UserSquashRequest.user:type_name -> gitaly.User
+	44, // 55: gitaly.UserSquashRequest.author:type_name -> gitaly.User
+	46, // 56: gitaly.UserSquashRequest.timestamp:type_name -> google.protobuf.Timestamp
+	51, // 57: gitaly.UserRebaseConfirmableError.rebase_conflict:type_name -> gitaly.MergeConflictError
+	48, // 58: gitaly.UserRebaseConfirmableError.access_check:type_name -> gitaly.AccessCheckError
+	54, // 59: gitaly.UserSquashError.resolve_revision:type_name -> gitaly.ResolveRevisionError
+	51, // 60: gitaly.UserSquashError.rebase_conflict:type_name -> gitaly.MergeConflictError
+	42, // 61: gitaly.UserApplyPatchRequest.header:type_name -> gitaly.UserApplyPatchRequest.Header
+	18, // 62: gitaly.UserApplyPatchResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
+	43, // 63: gitaly.UserUpdateSubmoduleRequest.repository:type_name -> gitaly.Repository
+	44, // 64: gitaly.UserUpdateSubmoduleRequest.user:type_name -> gitaly.User
+	46, // 65: gitaly.UserUpdateSubmoduleRequest.timestamp:type_name -> google.protobuf.Timestamp
+	18, // 66: gitaly.UserUpdateSubmoduleResponse.branch_update:type_name -> gitaly.OperationBranchUpdate
+	43, // 67: gitaly.UserRebaseConfirmableRequest.Header.repository:type_name -> gitaly.Repository
+	44, // 68: gitaly.UserRebaseConfirmableRequest.Header.user:type_name -> gitaly.User
+	43, // 69: gitaly.UserRebaseConfirmableRequest.Header.remote_repository:type_name -> gitaly.Repository
+	46, // 70: gitaly.UserRebaseConfirmableRequest.Header.timestamp:type_name -> google.protobuf.Timestamp
+	43, // 71: gitaly.UserApplyPatchRequest.Header.repository:type_name -> gitaly.Repository
+	44, // 72: gitaly.UserApplyPatchRequest.Header.user:type_name -> gitaly.User
+	46, // 73: gitaly.UserApplyPatchRequest.Header.timestamp:type_name -> google.protobuf.Timestamp
+	3,  // 74: gitaly.OperationService.UserCreateBranch:input_type -> gitaly.UserCreateBranchRequest
+	5,  // 75: gitaly.OperationService.UserUpdateBranch:input_type -> gitaly.UserUpdateBranchRequest
+	7,  // 76: gitaly.OperationService.UserDeleteBranch:input_type -> gitaly.UserDeleteBranchRequest
+	11, // 77: gitaly.OperationService.UserCreateTag:input_type -> gitaly.UserCreateTagRequest
+	9,  // 78: gitaly.OperationService.UserDeleteTag:input_type -> gitaly.UserDeleteTagRequest
+	16, // 79: gitaly.OperationService.UserMergeToRef:input_type -> gitaly.UserMergeToRefRequest
+	13, // 80: gitaly.OperationService.UserMergeBranch:input_type -> gitaly.UserMergeBranchRequest
+	19, // 81: gitaly.OperationService.UserFFBranch:input_type -> gitaly.UserFFBranchRequest
+	21, // 82: gitaly.OperationService.UserCherryPick:input_type -> gitaly.UserCherryPickRequest
+	29, // 83: gitaly.OperationService.UserCommitFiles:input_type -> gitaly.UserCommitFilesRequest
+	31, // 84: gitaly.OperationService.UserRebaseConfirmable:input_type -> gitaly.UserRebaseConfirmableRequest
+	24, // 85: gitaly.OperationService.UserRevert:input_type -> gitaly.UserRevertRequest
+	33, // 86: gitaly.OperationService.UserSquash:input_type -> gitaly.UserSquashRequest
+	37, // 87: gitaly.OperationService.UserApplyPatch:input_type -> gitaly.UserApplyPatchRequest
+	39, // 88: gitaly.OperationService.UserUpdateSubmodule:input_type -> gitaly.UserUpdateSubmoduleRequest
+	4,  // 89: gitaly.OperationService.UserCreateBranch:output_type -> gitaly.UserCreateBranchResponse
+	6,  // 90: gitaly.OperationService.UserUpdateBranch:output_type -> gitaly.UserUpdateBranchResponse
+	8,  // 91: gitaly.OperationService.UserDeleteBranch:output_type -> gitaly.UserDeleteBranchResponse
+	12, // 92: gitaly.OperationService.UserCreateTag:output_type -> gitaly.UserCreateTagResponse
+	10, // 93: gitaly.OperationService.UserDeleteTag:output_type -> gitaly.UserDeleteTagResponse
+	17, // 94: gitaly.OperationService.UserMergeToRef:output_type -> gitaly.UserMergeToRefResponse
+	14, // 95: gitaly.OperationService.UserMergeBranch:output_type -> gitaly.UserMergeBranchResponse
+	20, // 96: gitaly.OperationService.UserFFBranch:output_type -> gitaly.UserFFBranchResponse
+	22, // 97: gitaly.OperationService.UserCherryPick:output_type -> gitaly.UserCherryPickResponse
+	30, // 98: gitaly.OperationService.UserCommitFiles:output_type -> gitaly.UserCommitFilesResponse
+	32, // 99: gitaly.OperationService.UserRebaseConfirmable:output_type -> gitaly.UserRebaseConfirmableResponse
+	25, // 100: gitaly.OperationService.UserRevert:output_type -> gitaly.UserRevertResponse
+	34, // 101: gitaly.OperationService.UserSquash:output_type -> gitaly.UserSquashResponse
+	38, // 102: gitaly.OperationService.UserApplyPatch:output_type -> gitaly.UserApplyPatchResponse
+	40, // 103: gitaly.OperationService.UserUpdateSubmodule:output_type -> gitaly.UserUpdateSubmoduleResponse
+	89, // [89:104] is the sub-list for method output_type
+	74, // [74:89] is the sub-list for method input_type
+	74, // [74:74] is the sub-list for extension type_name
+	74, // [74:74] is the sub-list for extension extendee
+	0,  // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -4506,7 +4655,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRevertRequest); i {
+			switch v := v.(*UserCherryPickError); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4518,7 +4667,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRevertResponse); i {
+			switch v := v.(*UserRevertRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4530,7 +4679,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserCommitFilesActionHeader); i {
+			switch v := v.(*UserRevertResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4542,7 +4691,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserCommitFilesAction); i {
+			switch v := v.(*UserCommitFilesActionHeader); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4554,7 +4703,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserCommitFilesRequestHeader); i {
+			switch v := v.(*UserCommitFilesAction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4566,7 +4715,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserCommitFilesRequest); i {
+			switch v := v.(*UserCommitFilesRequestHeader); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4578,7 +4727,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserCommitFilesResponse); i {
+			switch v := v.(*UserCommitFilesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4590,7 +4739,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRebaseConfirmableRequest); i {
+			switch v := v.(*UserCommitFilesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4602,7 +4751,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRebaseConfirmableResponse); i {
+			switch v := v.(*UserRebaseConfirmableRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4614,7 +4763,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserSquashRequest); i {
+			switch v := v.(*UserRebaseConfirmableResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4626,7 +4775,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserSquashResponse); i {
+			switch v := v.(*UserSquashRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4638,7 +4787,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRebaseConfirmableError); i {
+			switch v := v.(*UserSquashResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4650,7 +4799,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserSquashError); i {
+			switch v := v.(*UserRebaseConfirmableError); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4662,7 +4811,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserApplyPatchRequest); i {
+			switch v := v.(*UserSquashError); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4674,7 +4823,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserApplyPatchResponse); i {
+			switch v := v.(*UserApplyPatchRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4686,7 +4835,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserUpdateSubmoduleRequest); i {
+			switch v := v.(*UserApplyPatchResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4698,7 +4847,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserUpdateSubmoduleResponse); i {
+			switch v := v.(*UserUpdateSubmoduleRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4710,7 +4859,7 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UserRebaseConfirmableRequest_Header); i {
+			switch v := v.(*UserUpdateSubmoduleResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4722,6 +4871,18 @@ func file_operations_proto_init() {
 			}
 		}
 		file_operations_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*UserRebaseConfirmableRequest_Header); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_operations_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*UserApplyPatchRequest_Header); i {
 			case 0:
 				return &v.state
@@ -4738,31 +4899,37 @@ func file_operations_proto_init() {
 		(*UserMergeBranchError_AccessCheck)(nil),
 		(*UserMergeBranchError_ReferenceUpdate)(nil),
 	}
-	file_operations_proto_msgTypes[23].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[20].OneofWrappers = []interface{}{
+		(*UserCherryPickError_CherryPickConflict)(nil),
+		(*UserCherryPickError_TargetBranchDiverged)(nil),
+		(*UserCherryPickError_ChangesAlreadyApplied)(nil),
+		(*UserCherryPickError_AccessCheck)(nil),
+	}
+	file_operations_proto_msgTypes[24].OneofWrappers = []interface{}{
 		(*UserCommitFilesAction_Header)(nil),
 		(*UserCommitFilesAction_Content)(nil),
 	}
-	file_operations_proto_msgTypes[25].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[26].OneofWrappers = []interface{}{
 		(*UserCommitFilesRequest_Header)(nil),
 		(*UserCommitFilesRequest_Action)(nil),
 	}
-	file_operations_proto_msgTypes[27].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[28].OneofWrappers = []interface{}{
 		(*UserRebaseConfirmableRequest_Header_)(nil),
 		(*UserRebaseConfirmableRequest_Apply)(nil),
 	}
-	file_operations_proto_msgTypes[28].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[29].OneofWrappers = []interface{}{
 		(*UserRebaseConfirmableResponse_RebaseSha)(nil),
 		(*UserRebaseConfirmableResponse_RebaseApplied)(nil),
 	}
-	file_operations_proto_msgTypes[31].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[32].OneofWrappers = []interface{}{
 		(*UserRebaseConfirmableError_RebaseConflict)(nil),
 		(*UserRebaseConfirmableError_AccessCheck)(nil),
 	}
-	file_operations_proto_msgTypes[32].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[33].OneofWrappers = []interface{}{
 		(*UserSquashError_ResolveRevision)(nil),
 		(*UserSquashError_RebaseConflict)(nil),
 	}
-	file_operations_proto_msgTypes[33].OneofWrappers = []interface{}{
+	file_operations_proto_msgTypes[34].OneofWrappers = []interface{}{
 		(*UserApplyPatchRequest_Header_)(nil),
 		(*UserApplyPatchRequest_Patches)(nil),
 	}
@@ -4772,7 +4939,7 @@ func file_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_operations_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   39,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

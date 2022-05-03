@@ -131,6 +131,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       value :EMPTY, 1
       value :CONFLICT, 2
     end
+    add_message "gitaly.UserCherryPickError" do
+      oneof :error do
+        optional :cherry_pick_conflict, :message, 1, "gitaly.MergeConflictError"
+        optional :target_branch_diverged, :message, 2, "gitaly.NotAncestorError"
+        optional :changes_already_applied, :message, 3, "gitaly.ChangesAlreadyAppliedError"
+        optional :access_check, :message, 4, "gitaly.AccessCheckError"
+      end
+    end
     add_message "gitaly.UserRevertRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :user, :message, 2, "gitaly.User"
@@ -304,6 +312,7 @@ module Gitaly
   UserCherryPickRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickRequest").msgclass
   UserCherryPickResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickResponse").msgclass
   UserCherryPickResponse::CreateTreeError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickResponse.CreateTreeError").enummodule
+  UserCherryPickError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCherryPickError").msgclass
   UserRevertRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertRequest").msgclass
   UserRevertResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertResponse").msgclass
   UserRevertResponse::CreateTreeError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserRevertResponse.CreateTreeError").enummodule

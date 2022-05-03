@@ -19,6 +19,22 @@ message AccessCheckError {
   bytes changes = 4;
 }
 
+// NotAncestorError is an error returned when parent_revision is not an ancestor
+// of the child_revision.
+message NotAncestorError {
+  // ParentRevision is the revision checked against ChildRevision for whether it
+  // is an ancestor of ChildRevision
+  bytes parent_revision = 1;
+  // ChildRevision is the revision checked against ParentRevision for whether
+  // it is a descendent of ChildRevision.
+  bytes child_revision = 2;
+}
+
+// ChangesAlreadyAppliedError is an error returned when the operation would 
+// have resulted in no changes because these changes have already been applied.
+message ChangesAlreadyAppliedError {
+}
+
 // MergeConflictError is an error returned in the case when merging two commits
 // fails due to a merge conflict.
 message MergeConflictError {

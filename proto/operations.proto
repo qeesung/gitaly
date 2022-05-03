@@ -394,6 +394,27 @@ message UserCherryPickResponse {
   CreateTreeError create_tree_error_code = 5;
 }
 
+// UserCherryPickError is an error returned by the UserCherryPick RPC.
+message UserCherryPickError {
+  oneof error {
+    // CherryPickConflict is returned if there is a conflict when applying the cherry
+    // pick.
+    MergeConflictError cherry_pick_conflict = 1; 
+    // TargetBranchDiverged is returned whenever the tip commit of the branch we're
+    // about to apply the new commit on is not a direct ancestor of the newly created
+    // cherry-picked commit. This may happen either due to a race where the reference
+    // is modified while we compute the cherry-picked commit, or alternatively if the
+    // commit fetched from the start branch of the remote repository is not an ancestor
+    // of of the local target branch.
+    NotAncestorError target_branch_diverged = 2;
+    // ChangesAlreadyApplied is returned if the result after applying the cherry pick is empty.
+    ChangesAlreadyAppliedError changes_already_applied = 3;
+    // AccessCheck is returned in case GitLab's `/internal/allowed` endpoint rejected
+    // the change.
+    AccessCheckError access_check = 4;
+  }
+}
+
 message UserRevertRequest {
   // repository is the repository in which the revert shall be applied.
   Repository repository = 1 [(target_repository)=true];

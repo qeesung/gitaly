@@ -12,6 +12,12 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :user_id, :string, 3
       optional :changes, :bytes, 4
     end
+    add_message "gitaly.NotAncestorError" do
+      optional :parent_revision, :bytes, 1
+      optional :child_revision, :bytes, 2
+    end
+    add_message "gitaly.ChangesAlreadyAppliedError" do
+    end
     add_message "gitaly.MergeConflictError" do
       repeated :conflicting_files, :bytes, 1
     end
@@ -32,6 +38,8 @@ end
 
 module Gitaly
   AccessCheckError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AccessCheckError").msgclass
+  NotAncestorError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NotAncestorError").msgclass
+  ChangesAlreadyAppliedError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangesAlreadyAppliedError").msgclass
   MergeConflictError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MergeConflictError").msgclass
   ReferenceUpdateError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceUpdateError").msgclass
   ResolveRevisionError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ResolveRevisionError").msgclass
