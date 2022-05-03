@@ -159,6 +159,7 @@ ifeq ($(origin GIT_BUILD_OPTIONS),undefined)
     GIT_BUILD_OPTIONS += NO_TCLTK=YesPlease
     GIT_BUILD_OPTIONS += NO_GETTEXT=YesPlease
     GIT_BUILD_OPTIONS += NO_PYTHON=YesPlease
+    GIT_BUILD_OPTIONS += INSTALL_SYMLINKS=YesPlease
     PCRE_PC=libpcre2-8
     ifeq ($(shell pkg-config --exists ${PCRE_PC} && echo exists),exists)
 	    GIT_BUILD_OPTIONS += LIBPCREDIR=$(shell pkg-config ${PCRE_PC} --variable prefix)
