@@ -839,7 +839,8 @@ func TestPostReceive_allRejected(t *testing.T) {
 			ctx context.Context,
 			repo *gitalypb.Repository,
 			pushOptions, env []string,
-			stdin io.Reader, stdout, stderr io.Writer) error {
+			stdin io.Reader, stdout, stderr io.Writer,
+		) error {
 			return errors.New("not allowed")
 		},
 		gitalyhook.NopPostReceive,

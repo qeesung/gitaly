@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
@@ -124,6 +125,11 @@ func (p *parser) ParseCommit(object git.Object) (*gitalypb.GitCommit, error) {
 
 const maxUnixCommitDate = 1 << 53
 
+// fallbackTimeValue is the value returned in case there is a parse error. It's the maximum
+// time value possible in golang. See
+// https://gitlab.com/gitlab-org/gitaly/issues/556#note_40289573
+var fallbackTimeValue = time.Unix(1<<63-62135596801, 999999999)
+
 func parseCommitAuthor(line string) *gitalypb.CommitAuthor {
 	author := &gitalypb.CommitAuthor{}
 
@@ -149,7 +155,7 @@ func parseCommitAuthor(line string) *gitalypb.CommitAuthor {
 
 	sec, err := strconv.ParseInt(secSplit[0], 10, 64)
 	if err != nil || sec > maxUnixCommitDate || sec < 0 {
-		sec = git.FallbackTimeValue.Unix()
+		sec = fallbackTimeValue.Unix()
 	}
 
 	author.Date = &timestamppb.Timestamp{Seconds: sec}

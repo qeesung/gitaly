@@ -3401,7 +3401,9 @@ func (x *GetCommitMessagesResponse) GetMessage() []byte {
 	return nil
 }
 
-// CheckObjectsExistRequest is a request for the CheckObjectsExist RPC.
+// CheckObjectsExistRequest is a request for the CheckObjectsExist RPC. Only
+// the initial request must contain a repository, the repository of all
+// subsequent requests will be ignored.
 type CheckObjectsExistRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -1,121 +1,224 @@
 package commit
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 )
 
 func TestCheckObjectsExist(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, client := setupCommitService(ctx, t)
 
-	// write a few commitIDs we can use
-	commitID1 := gittest.WriteCommit(t, cfg, repoPath)
-	commitID2 := gittest.WriteCommit(t, cfg, repoPath)
-	commitID3 := gittest.WriteCommit(t, cfg, repoPath)
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	// remove a ref from the repository so we know it doesn't exist
-	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/many_files")
+	commitID1 := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("master"), gittest.WithMessage("commit-1"), gittest.WithParents(),
+	)
+	commitID2 := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("feature"), gittest.WithMessage("commit-2"), gittest.WithParents(commitID1),
+	)
+	commitID3 := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithMessage("commit-3"), gittest.WithParents(commitID1),
+	)
 
-	nonexistingObject := "abcdefg"
-	cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", nonexistingObject)
-	require.Error(t, cmd.Wait(), "ensure the object doesn't exist")
-
-	testCases := []struct {
-		desc               string
-		input              [][]byte
-		revisionsExistence map[string]bool
-		returnCode         codes.Code
+	for _, tc := range []struct {
+		desc            string
+		requests        []*gitalypb.CheckObjectsExistRequest
+		expectedResults map[string]bool
+		expectedErr     error
 	}{
 		{
-			desc: "commit ids and refs that exist",
-			input: [][]byte{
-				[]byte(commitID1),
-				[]byte("master"),
-				[]byte(commitID2),
-				[]byte(commitID3),
-				[]byte("feature"),
+			desc:     "no requests",
+			requests: []*gitalypb.CheckObjectsExistRequest{},
+			// Ideally, we'd return an invalid-argument error in case there aren't any
+			// requests. We can't do this though as this would diverge from Praefect's
+			// behaviour, which always returns `io.EOF`.
+			expectedResults: map[string]bool{},
+		},
+		{
+			desc: "missing repository",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Revisions: [][]byte{},
+				},
 			},
-			revisionsExistence: map[string]bool{
+			expectedErr: func() error {
+				if testhelper.IsPraefectEnabled() {
+					return helper.ErrInvalidArgumentf("repo scoped: empty Repository")
+				}
+				return helper.ErrInvalidArgumentf("empty Repository")
+			}(),
+			expectedResults: map[string]bool{},
+		},
+		{
+			desc: "request without revisions",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+				},
+			},
+			expectedResults: map[string]bool{},
+		},
+		{
+			desc: "commit ids and refs that exist",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte(commitID1),
+						[]byte("master"),
+						[]byte(commitID2),
+						[]byte(commitID3),
+						[]byte("feature"),
+					},
+				},
+			},
+			expectedResults: map[string]bool{
+				commitID1.String(): true,
 				"master":           true,
 				commitID2.String(): true,
 				commitID3.String(): true,
 				"feature":          true,
 			},
-			returnCode: codes.OK,
 		},
 		{
 			desc: "ref and objects missing",
-			input: [][]byte{
-				[]byte(commitID1),
-				[]byte("master"),
-				[]byte(commitID2),
-				[]byte(commitID3),
-				[]byte("feature"),
-				[]byte("many_files"),
-				[]byte(nonexistingObject),
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte(commitID1),
+						[]byte("master"),
+						[]byte(commitID2),
+						[]byte(commitID3),
+						[]byte("feature"),
+						[]byte("refs/does/not/exist"),
+					},
+				},
 			},
-			revisionsExistence: map[string]bool{
-				"master":           true,
-				commitID2.String(): true,
-				commitID3.String(): true,
-				"feature":          true,
-				"many_files":       false,
-				nonexistingObject:  false,
+			expectedResults: map[string]bool{
+				commitID1.String():    true,
+				"master":              true,
+				commitID2.String():    true,
+				commitID3.String():    true,
+				"feature":             true,
+				"refs/does/not/exist": false,
 			},
-			returnCode: codes.OK,
 		},
 		{
-			desc:               "empty input",
-			input:              [][]byte{},
-			returnCode:         codes.OK,
-			revisionsExistence: map[string]bool{},
+			desc: "chunked input",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte(commitID1),
+					},
+				},
+				{
+					Revisions: [][]byte{
+						[]byte(commitID2),
+					},
+				},
+				{
+					Revisions: [][]byte{
+						[]byte("refs/does/not/exist"),
+					},
+				},
+				{
+					Revisions: [][]byte{
+						[]byte(commitID3),
+					},
+				},
+			},
+			expectedResults: map[string]bool{
+				commitID1.String():    true,
+				commitID2.String():    true,
+				commitID3.String():    true,
+				"refs/does/not/exist": false,
+			},
 		},
 		{
-			desc:       "invalid input",
-			input:      [][]byte{[]byte("-not-a-rev")},
-			returnCode: codes.InvalidArgument,
+			desc: "invalid input",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte("-not-a-rev"),
+					},
+				},
+			},
+			expectedErr:     helper.ErrInvalidArgumentf("invalid revision %q: revision can't start with '-'", "-not-a-rev"),
+			expectedResults: map[string]bool{},
 		},
-	}
-
-	for _, tc := range testCases {
+		{
+			desc: "input with whitespace",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte(fmt.Sprintf("%s\n%s", commitID1, commitID2)),
+					},
+				},
+			},
+			expectedErr:     helper.ErrInvalidArgumentf("invalid revision %q: revision can't contain whitespace", fmt.Sprintf("%s\n%s", commitID1, commitID2)),
+			expectedResults: map[string]bool{},
+		},
+		{
+			desc: "chunked invalid input",
+			requests: []*gitalypb.CheckObjectsExistRequest{
+				{
+					Repository: repo,
+					Revisions: [][]byte{
+						[]byte(commitID1),
+					},
+				},
+				{
+					Revisions: [][]byte{
+						[]byte("-not-a-rev"),
+					},
+				},
+			},
+			expectedErr:     helper.ErrInvalidArgumentf("invalid revision %q: revision can't start with '-'", "-not-a-rev"),
+			expectedResults: map[string]bool{},
+		},
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			c, err := client.CheckObjectsExist(ctx)
+			client, err := client.CheckObjectsExist(ctx)
 			require.NoError(t, err)
 
-			require.NoError(t, c.Send(
-				&gitalypb.CheckObjectsExistRequest{
-					Repository: repo,
-					Revisions:  tc.input,
-				},
-			))
-			require.NoError(t, c.CloseSend())
-
-			for {
-				resp, err := c.Recv()
-				if tc.returnCode != codes.OK {
-					testhelper.RequireGrpcCode(t, err, tc.returnCode)
-					break
-				} else if err != nil {
-					require.Error(t, err, io.EOF)
-					break
-				}
-
-				actualRevisionsExistence := make(map[string]bool)
-				for _, revisionExistence := range resp.GetRevisions() {
-					actualRevisionsExistence[string(revisionExistence.GetName())] = revisionExistence.GetExists()
-				}
-				assert.Equal(t, tc.revisionsExistence, actualRevisionsExistence)
+			for _, request := range tc.requests {
+				require.NoError(t, client.Send(request))
 			}
+			require.NoError(t, client.CloseSend())
+
+			results := map[string]bool{}
+			for {
+				var response *gitalypb.CheckObjectsExistResponse
+				response, err = client.Recv()
+				if err != nil {
+					break
+				}
+
+				for _, revision := range response.GetRevisions() {
+					results[string(revision.GetName())] = revision.GetExists()
+				}
+			}
+
+			if tc.expectedErr == nil {
+				tc.expectedErr = io.EOF
+			}
+
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedResults, results)
 		})
 	}
 }

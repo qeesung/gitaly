@@ -19,11 +19,17 @@ func (s *server) CheckObjectsExist(
 
 	request, err := stream.Recv()
 	if err != nil {
-		return err
+		if err == io.EOF {
+			// Ideally, we'd return an invalid-argument error in case there aren't any
+			// requests. We can't do this though as this would diverge from Praefect's
+			// behaviour, which always returns `io.EOF`.
+			return err
+		}
+		return helper.ErrInternalf("receiving initial request: %w", err)
 	}
 
-	if err := validateCheckObjectsExistRequest(request); err != nil {
-		return err
+	if request.GetRepository() == nil {
+		return helper.ErrInvalidArgumentf("empty Repository")
 	}
 
 	objectInfoReader, cancel, err := s.catfileCache.ObjectInfoReader(
@@ -31,24 +37,39 @@ func (s *server) CheckObjectsExist(
 		s.localrepo(request.GetRepository()),
 	)
 	if err != nil {
-		return err
+		return helper.ErrInternalf("creating object info reader: %w", err)
 	}
 	defer cancel()
 
 	chunker := chunk.New(&checkObjectsExistSender{stream: stream})
 	for {
-		request, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				return chunker.Flush()
+		// Note: we have already fetched the first request containing revisions further up,
+		// so we only fetch the next request at the end of this loop.
+		for _, revision := range request.GetRevisions() {
+			if err := git.ValidateRevision(revision); err != nil {
+				return helper.ErrInvalidArgumentf("invalid revision %q: %w", revision, err)
 			}
-			return err
 		}
 
-		if err = checkObjectsExist(ctx, request, objectInfoReader, chunker); err != nil {
-			return err
+		if err := checkObjectsExist(ctx, request, objectInfoReader, chunker); err != nil {
+			return helper.ErrInternalf("checking object existence: %w", err)
+		}
+
+		request, err = stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return helper.ErrInternalf("receiving request: %w", err)
 		}
 	}
+
+	if err := chunker.Flush(); err != nil {
+		return helper.ErrInternalf("flushing results: %w", err)
+	}
+
+	return nil
 }
 
 type checkObjectsExistSender struct {
@@ -63,7 +84,7 @@ func (c *checkObjectsExistSender) Send() error {
 }
 
 func (c *checkObjectsExistSender) Reset() {
-	c.revisions = make([]*gitalypb.CheckObjectsExistResponse_RevisionExistence, 0)
+	c.revisions = c.revisions[:0]
 }
 
 func (c *checkObjectsExistSender) Append(m proto.Message) {
@@ -88,22 +109,12 @@ func checkObjectsExist(
 			if catfile.IsNotFound(err) {
 				revisionExistence.Exists = false
 			} else {
-				return err
+				return helper.ErrInternalf("reading object info: %w", err)
 			}
 		}
 
 		if err := chunker.Send(&revisionExistence); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateCheckObjectsExistRequest(in *gitalypb.CheckObjectsExistRequest) error {
-	for _, revision := range in.GetRevisions() {
-		if err := git.ValidateRevision(revision); err != nil {
-			return helper.ErrInvalidArgument(err)
+			return helper.ErrInternalf("adding to chunker: %w", err)
 		}
 	}
 
