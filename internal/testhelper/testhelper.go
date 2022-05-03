@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	mrand "math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -159,6 +160,8 @@ func Context(t testing.TB, opts ...ContextOpt) context.Context {
 func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx := context.Background()
 
+	rnd := mrand.New(mrand.NewSource(time.Now().Unix()))
+
 	// Enable use of explicit feature flags. Each feature flag which is checked must have been
 	// explicitly injected into the context, or otherwise we panic. This is a sanity check to
 	// verify that all feature flags we introduce are tested both with the flag enabled and
@@ -174,6 +177,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// ConcurrencyQueueMaxWait is in the codepath of every RPC call since it's in the limithandler
 	// middleware.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueMaxWait, true)
+	// Randomly inject the Git flag so that we have coverage of tests with both old and new Git
+	// version by pure chance.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2360Gl1, rnd.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)

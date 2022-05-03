@@ -101,7 +101,7 @@ func TestServer_FetchBundle_transaction(t *testing.T) {
 
 	tmp := testhelper.TempDir(t)
 	bundlePath := filepath.Join(tmp, "test.bundle")
-	gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+	gittest.BundleRepo(t, cfg, repoPath, bundlePath)
 
 	hookManager.Reset()
 	_, stopGitServer := gittest.HTTPServer(ctx, t, gitCmdFactory, repoPath, nil)

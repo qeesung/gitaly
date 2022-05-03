@@ -26,6 +26,12 @@ var (
 	// case `IsEnabled()` returns `false` though.
 	ExecutionEnvironmentConstructors = []ExecutionEnvironmentConstructor{
 		BundledGitEnvironmentConstructor{
+			Suffix: "-v2.36.0.gl1",
+			FeatureFlags: []featureflag.FeatureFlag{
+				featureflag.GitV2360Gl1,
+			},
+		},
+		BundledGitEnvironmentConstructor{
 			Suffix: "-v2.35.1.gl1",
 		},
 		DistributedGitEnvironmentConstructor{},

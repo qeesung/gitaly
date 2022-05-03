@@ -301,8 +301,12 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 		return repo
 	}
 
+	_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
+	repoChecksum := gittest.ChecksumRepo(t, cfg, repoPath)
+
 	path := testhelper.TempDir(t)
-	testRepoChecksum := gittest.ChecksumTestRepo(t, cfg, "gitlab-test.git")
 
 	for _, tc := range []struct {
 		desc          string
@@ -320,9 +324,9 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 				repo := createRepo(t)
 				require.NoError(t, os.MkdirAll(filepath.Join(path, repo.RelativePath), os.ModePerm))
 				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
-				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+				gittest.BundleRepo(t, cfg, repoPath, bundlePath)
 
-				return repo, testRepoChecksum
+				return repo, repoChecksum
 			},
 			expectExists: true,
 		},
@@ -334,10 +338,10 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
 				customHooksPath := filepath.Join(path, repo.RelativePath, "custom_hooks.tar")
 				require.NoError(t, os.MkdirAll(filepath.Join(path, repo.RelativePath), os.ModePerm))
-				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+				gittest.BundleRepo(t, cfg, repoPath, bundlePath)
 				testhelper.CopyFile(t, "../gitaly/service/repository/testdata/custom_hooks.tar", customHooksPath)
 
-				return repo, testRepoChecksum
+				return repo, repoChecksum
 			},
 			expectedPaths: []string{
 				"custom_hooks/pre-commit.sample",
@@ -376,9 +380,9 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 
 				require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(path, repo.RelativePath)), os.ModePerm))
 				bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
-				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+				gittest.BundleRepo(t, cfg, repoPath, bundlePath)
 
-				return repo, testRepoChecksum
+				return repo, repoChecksum
 			},
 			expectExists: true,
 		},
@@ -394,9 +398,9 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 				require.NoError(t, os.WriteFile(filepath.Join(repoBackupPath, "LATEST"), []byte(backupID), os.ModePerm))
 				require.NoError(t, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), os.ModePerm))
 				bundlePath := filepath.Join(backupPath, "001.bundle")
-				gittest.BundleTestRepo(t, cfg, "gitlab-test.git", bundlePath)
+				gittest.BundleRepo(t, cfg, repoPath, bundlePath)
 
-				return repo, testRepoChecksum
+				return repo, repoChecksum
 			},
 			expectExists: true,
 		},

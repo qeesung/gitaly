@@ -315,22 +315,18 @@ func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Clo
 	return repo, absolutePath
 }
 
-// BundleTestRepo creates a bundle of a local test repo. E.g.
-// `gitlab-test.git`. `patterns` define the bundle contents as per
+// BundleRepo creates a bundle of a repository. `patterns` define the bundle contents as per
 // `git-rev-list-args`. If there are no patterns then `--all` is assumed.
-func BundleTestRepo(t testing.TB, cfg config.Cfg, sourceRepo, bundlePath string, patterns ...string) {
+func BundleRepo(t testing.TB, cfg config.Cfg, repoPath, bundlePath string, patterns ...string) {
 	if len(patterns) == 0 {
 		patterns = []string{"--all"}
 	}
-	repoPath := testRepositoryPath(t, sourceRepo)
 	Exec(t, cfg, append([]string{"-C", repoPath, "bundle", "create", bundlePath}, patterns...)...)
 }
 
-// ChecksumTestRepo calculates the checksum of a local test repo. E.g.
-// `gitlab-test.git`.
-func ChecksumTestRepo(t testing.TB, cfg config.Cfg, sourceRepo string) *git.Checksum {
+// ChecksumRepo calculates the checksum of a repository.
+func ChecksumRepo(t testing.TB, cfg config.Cfg, repoPath string) *git.Checksum {
 	var checksum git.Checksum
-	repoPath := testRepositoryPath(t, sourceRepo)
 	lines := bytes.Split(Exec(t, cfg, "-C", repoPath, "show-ref", "--head"), []byte("\n"))
 	for _, line := range lines {
 		checksum.AddBytes(line)
