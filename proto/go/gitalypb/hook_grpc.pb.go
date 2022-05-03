@@ -22,9 +22,6 @@ type HookServiceClient interface {
 	PostReceiveHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PostReceiveHookClient, error)
 	UpdateHook(ctx context.Context, in *UpdateHookRequest, opts ...grpc.CallOption) (HookService_UpdateHookClient, error)
 	ReferenceTransactionHook(ctx context.Context, opts ...grpc.CallOption) (HookService_ReferenceTransactionHookClient, error)
-	// Deprecated: Do not use.
-	// PackObjectsHook has been replaced by PackObjectsHookWithSidechannel. Remove in 15.0.
-	PackObjectsHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PackObjectsHookClient, error)
 	// PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
 	// a unix socket side channel.
 	PackObjectsHookWithSidechannel(ctx context.Context, in *PackObjectsHookWithSidechannelRequest, opts ...grpc.CallOption) (*PackObjectsHookWithSidechannelResponse, error)
@@ -163,38 +160,6 @@ func (x *hookServiceReferenceTransactionHookClient) Recv() (*ReferenceTransactio
 	return m, nil
 }
 
-// Deprecated: Do not use.
-func (c *hookServiceClient) PackObjectsHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PackObjectsHookClient, error) {
-	stream, err := c.cc.NewStream(ctx, &HookService_ServiceDesc.Streams[4], "/gitaly.HookService/PackObjectsHook", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &hookServicePackObjectsHookClient{stream}
-	return x, nil
-}
-
-type HookService_PackObjectsHookClient interface {
-	Send(*PackObjectsHookRequest) error
-	Recv() (*PackObjectsHookResponse, error)
-	grpc.ClientStream
-}
-
-type hookServicePackObjectsHookClient struct {
-	grpc.ClientStream
-}
-
-func (x *hookServicePackObjectsHookClient) Send(m *PackObjectsHookRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *hookServicePackObjectsHookClient) Recv() (*PackObjectsHookResponse, error) {
-	m := new(PackObjectsHookResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func (c *hookServiceClient) PackObjectsHookWithSidechannel(ctx context.Context, in *PackObjectsHookWithSidechannelRequest, opts ...grpc.CallOption) (*PackObjectsHookWithSidechannelResponse, error) {
 	out := new(PackObjectsHookWithSidechannelResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.HookService/PackObjectsHookWithSidechannel", in, out, opts...)
@@ -212,9 +177,6 @@ type HookServiceServer interface {
 	PostReceiveHook(HookService_PostReceiveHookServer) error
 	UpdateHook(*UpdateHookRequest, HookService_UpdateHookServer) error
 	ReferenceTransactionHook(HookService_ReferenceTransactionHookServer) error
-	// Deprecated: Do not use.
-	// PackObjectsHook has been replaced by PackObjectsHookWithSidechannel. Remove in 15.0.
-	PackObjectsHook(HookService_PackObjectsHookServer) error
 	// PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
 	// a unix socket side channel.
 	PackObjectsHookWithSidechannel(context.Context, *PackObjectsHookWithSidechannelRequest) (*PackObjectsHookWithSidechannelResponse, error)
@@ -236,9 +198,6 @@ func (UnimplementedHookServiceServer) UpdateHook(*UpdateHookRequest, HookService
 }
 func (UnimplementedHookServiceServer) ReferenceTransactionHook(HookService_ReferenceTransactionHookServer) error {
 	return status.Errorf(codes.Unimplemented, "method ReferenceTransactionHook not implemented")
-}
-func (UnimplementedHookServiceServer) PackObjectsHook(HookService_PackObjectsHookServer) error {
-	return status.Errorf(codes.Unimplemented, "method PackObjectsHook not implemented")
 }
 func (UnimplementedHookServiceServer) PackObjectsHookWithSidechannel(context.Context, *PackObjectsHookWithSidechannelRequest) (*PackObjectsHookWithSidechannelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackObjectsHookWithSidechannel not implemented")
@@ -355,32 +314,6 @@ func (x *hookServiceReferenceTransactionHookServer) Recv() (*ReferenceTransactio
 	return m, nil
 }
 
-func _HookService_PackObjectsHook_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(HookServiceServer).PackObjectsHook(&hookServicePackObjectsHookServer{stream})
-}
-
-type HookService_PackObjectsHookServer interface {
-	Send(*PackObjectsHookResponse) error
-	Recv() (*PackObjectsHookRequest, error)
-	grpc.ServerStream
-}
-
-type hookServicePackObjectsHookServer struct {
-	grpc.ServerStream
-}
-
-func (x *hookServicePackObjectsHookServer) Send(m *PackObjectsHookResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *hookServicePackObjectsHookServer) Recv() (*PackObjectsHookRequest, error) {
-	m := new(PackObjectsHookRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func _HookService_PackObjectsHookWithSidechannel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackObjectsHookWithSidechannelRequest)
 	if err := dec(in); err != nil {
@@ -432,12 +365,6 @@ var HookService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "ReferenceTransactionHook",
 			Handler:       _HookService_ReferenceTransactionHook_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "PackObjectsHook",
-			Handler:       _HookService_PackObjectsHook_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
