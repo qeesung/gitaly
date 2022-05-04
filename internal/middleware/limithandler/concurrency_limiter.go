@@ -7,10 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // ErrMaxQueueTime indicates a request has reached the maximum time allowed to wait in the
@@ -146,7 +149,27 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 
 	var decremented bool
 
+	log := ctxlogrus.Extract(ctx)
 	if err := c.queueInc(ctx); err != nil {
+		if errors.Is(err, ErrMaxQueueSize) {
+			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+				helper.ErrUnavailable(ErrMaxQueueSize),
+				&gitalypb.LimitError{
+					ErrorMessage: err.Error(),
+					RetryAfter:   durationpb.New(0),
+				},
+			)
+			if errGeneratingDetailedErr != nil {
+				log.WithField("max_queue_size_error", err).
+					WithError(errGeneratingDetailedErr).
+					Error("failed to generate detailed error")
+
+				return nil, helper.ErrUnavailable(ErrMaxQueueSize)
+			}
+
+			return nil, detailedErr
+		}
+
 		return nil, err
 	}
 	defer c.queueDec(&decremented)
@@ -164,7 +187,25 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, lockKey string, f Limite
 	if err != nil {
 		if errors.Is(err, ErrMaxQueueTime) {
 			c.monitor.Dropped(ctx, "max_time")
+
+			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+				helper.ErrUnavailable(ErrMaxQueueTime),
+				&gitalypb.LimitError{
+					ErrorMessage: err.Error(),
+					RetryAfter:   durationpb.New(0),
+				},
+			)
+			if errGeneratingDetailedErr != nil {
+				log.WithField("max_queue_wait_error", err).
+					WithError(errGeneratingDetailedErr).
+					Error("failed to generate detailed error")
+
+				return nil, helper.ErrUnavailable(ErrMaxQueueTime)
+			}
+
+			return nil, detailedErr
 		}
+
 		return nil, err
 	}
 	defer sem.release()

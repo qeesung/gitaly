@@ -10,7 +10,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/labkit/log"
 	"golang.org/x/time/rate"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // RateLimiter is an implementation of Limiter that puts a hard limit on the
@@ -22,6 +25,10 @@ type RateLimiter struct {
 	requestsDroppedMetric            prometheus.Counter
 	ticker                           helper.Ticker
 }
+
+// ErrRateLimit is returned when RateLimiter determined a request has breached
+// the rate request limit.
+var ErrRateLimit = errors.New("rate limit reached")
 
 // Limit rejects an incoming reequest if the maximum number of requests per
 // second has been reached
@@ -37,7 +44,24 @@ func (r *RateLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) 
 		// of traffic.
 		r.requestsDroppedMetric.Inc()
 		if featureflag.RateLimit.IsEnabled(ctx) {
-			return nil, helper.ErrUnavailable(errors.New("too many requests"))
+			err := helper.ErrUnavailable(ErrRateLimit)
+
+			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+				err,
+				&gitalypb.LimitError{
+					ErrorMessage: ErrRateLimit.Error(),
+					RetryAfter:   durationpb.New(0),
+				},
+			)
+			if errGeneratingDetailedErr != nil {
+				log.WithField("rate_limit_error", err).
+					WithError(errGeneratingDetailedErr).
+					Error("failed to generate detailed error")
+
+				return nil, err
+			}
+
+			return nil, detailedErr
 		}
 	}
 

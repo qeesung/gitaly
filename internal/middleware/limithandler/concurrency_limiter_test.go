@@ -12,6 +12,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type counter struct {
@@ -313,7 +316,17 @@ func TestConcurrencyLimiter_queueLimit(t *testing.T) {
 			if tc.featureFlagOn {
 				err := <-errChan
 				assert.Error(t, err)
-				assert.Equal(t, "maximum queue size reached", err.Error())
+
+				s, ok := status.FromError(err)
+				require.True(t, ok)
+				details := s.Details()
+				require.Len(t, details, 1)
+
+				limitErr, ok := details[0].(*gitalypb.LimitError)
+				require.True(t, ok)
+
+				assert.Equal(t, ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
+				assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
 				assert.Equal(t, monitor.droppedSize, 1)
 			} else {
 				<-monitorCh
@@ -391,7 +404,17 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 		<-dequeuedCh
 		err := <-errChan
 
-		assert.Equal(t, ErrMaxQueueTime, err)
+		s, ok := status.FromError(err)
+		require.True(t, ok)
+		details := s.Details()
+		require.Len(t, details, 1)
+
+		limitErr, ok := details[0].(*gitalypb.LimitError)
+		require.True(t, ok)
+
+		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
+		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+
 		assert.Equal(t, monitor.droppedTime, 1)
 		close(ch)
 		wg.Wait()

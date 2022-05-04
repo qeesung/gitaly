@@ -18,9 +18,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestMain(m *testing.M) {
@@ -386,7 +387,17 @@ func TestConcurrencyLimitHandlerMetrics(t *testing.T) {
 
 	var errs int
 	for err := range errChan {
-		testhelper.RequireGrpcError(t, limithandler.ErrMaxQueueSize, err)
+		s, ok := status.FromError(err)
+		require.True(t, ok)
+		details := s.Details()
+		require.Len(t, details, 1)
+
+		limitErr, ok := details[0].(*gitalypb.LimitError)
+		require.True(t, ok)
+
+		assert.Equal(t, limithandler.ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
+		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+
 		errs++
 		if errs == 9 {
 			break
@@ -458,7 +469,17 @@ func testRateLimitHandler(t *testing.T, ctx context.Context) {
 			_, err := client.Unary(ctx, &pb.UnaryRequest{})
 
 			if featureflag.RateLimit.IsEnabled(ctx) {
-				testhelper.RequireGrpcError(t, status.Error(codes.Unavailable, "too many requests"), err)
+				s, ok := status.FromError(err)
+				require.True(t, ok)
+				details := s.Details()
+				require.Len(t, details, 1)
+
+				limitErr, ok := details[0].(*gitalypb.LimitError)
+				require.True(t, ok)
+
+				assert.Equal(t, limithandler.ErrRateLimit.Error(), limitErr.ErrorMessage)
+				assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+
 			} else {
 				require.NoError(t, err)
 			}
