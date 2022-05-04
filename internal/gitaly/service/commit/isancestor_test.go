@@ -19,7 +19,7 @@ func TestCommitIsAncestorFailure(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	queries := []struct {
 		Request   *gitalypb.CommitIsAncestorRequest
@@ -79,7 +79,7 @@ func TestCommitIsAncestorSuccess(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	queries := []struct {
 		Request  *gitalypb.CommitIsAncestorRequest
@@ -166,7 +166,7 @@ func TestSuccessfulIsAncestorRequestWithAltGitObjectDirs(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	parentCommitID := git.ObjectID(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", "HEAD")))
 

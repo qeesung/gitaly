@@ -153,6 +153,35 @@ func TestWriteCommit(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "with tree",
+			opts: []gittest.WriteCommitOption{
+				gittest.WithTree(gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{
+						Content: "something",
+						Mode:    "100644",
+						Path:    "file",
+					},
+				})),
+			},
+			expectedCommit: &gitalypb.GitCommit{
+				Author:    defaultCommitter,
+				Committer: defaultCommitter,
+				Subject:   []byte("message"),
+				Body:      []byte("message"),
+				Id:        "fc157fcabd57d95752ade820a791899f9891b984",
+				ParentIds: []string{
+					defaultParentID,
+				},
+			},
+			expectedTreeEntries: []gittest.TreeEntry{
+				{
+					Content: "something",
+					Mode:    "100644",
+					Path:    "file",
+				},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			oid := gittest.WriteCommit(t, cfg, repoPath, tc.opts...)

@@ -13,7 +13,7 @@ func TestSuccessfulListCommitsByRefNameRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	testCases := []struct {
 		desc        string
@@ -169,7 +169,7 @@ func TestSuccessfulListCommitsByRefNameLargeRequest(t *testing.T) {
 	}
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	refNames := [][]byte{}
 	for _, refName := range repositoryRefNames {

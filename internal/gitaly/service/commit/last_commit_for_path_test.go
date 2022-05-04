@@ -15,7 +15,7 @@ func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	commit := testhelper.GitLabTestCommit("570e7b2abdd848b95f2f578043fc23bd6f6fd24d")
 
@@ -75,7 +75,7 @@ func TestFailedLastCommitForPathRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	invalidRepo := &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}
 
@@ -120,7 +120,7 @@ func TestSuccessfulLastCommitWithGlobCharacters(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	// This is an arbitrary blob known to exist in the test repository
 	const blobID = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"

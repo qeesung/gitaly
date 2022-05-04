@@ -47,7 +47,7 @@ func TestListAllCommits(t *testing.T) {
 	})
 
 	t.Run("normal repo", func(t *testing.T) {
-		_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+		_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 		stream, err := client.ListAllCommits(ctx, &gitalypb.ListAllCommitsRequest{
 			Repository: repo,
@@ -78,7 +78,7 @@ func TestListAllCommits(t *testing.T) {
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+		_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 		stream, err := client.ListAllCommits(ctx, &gitalypb.ListAllCommitsRequest{
 			Repository: repo,
@@ -95,7 +95,7 @@ func TestListAllCommits(t *testing.T) {
 	})
 
 	t.Run("quarantine directory", func(t *testing.T) {
-		cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+		cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 		quarantineDir := filepath.Join("objects", "incoming-123456")
 		require.NoError(t, os.Mkdir(filepath.Join(repoPath, quarantineDir), 0o777))
@@ -150,7 +150,7 @@ func BenchmarkListAllCommits(b *testing.B) {
 	b.StopTimer()
 	ctx := testhelper.Context(b)
 
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, b, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, b)
 
 	b.Run("ListAllCommits", func(b *testing.B) {
 		b.ReportAllocs()

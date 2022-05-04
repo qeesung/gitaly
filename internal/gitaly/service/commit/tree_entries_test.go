@@ -4,14 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -22,50 +20,49 @@ func TestGetTreeEntries_curlyBraces(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, false)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
-	normalFolderName := "issue-46261/folder"
-	curlyFolderName := "issue-46261/{{curly}}"
-	normalFolder := filepath.Join(repoPath, normalFolderName)
-	curlyFolder := filepath.Join(repoPath, curlyFolderName)
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(gittest.TreeEntry{
+		Path: "issue-46261", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+			{
+				Path: "folder", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{Path: "test1.txt", Mode: "100644", Content: "test1"},
+				}),
+			},
+			{
+				Path: "{{curly}}", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{Path: "test2.txt", Mode: "100644", Content: "test2"},
+				}),
+			},
+		}),
+	}))
 
-	require.NoError(t, os.MkdirAll(normalFolder, 0o755))
-	require.NoError(t, os.MkdirAll(curlyFolder, 0o755))
-
-	testhelper.MustRunCommand(t, nil, "touch", filepath.Join(normalFolder, "/test1.txt"))
-	testhelper.MustRunCommand(t, nil, "touch", filepath.Join(curlyFolder, "/test2.txt"))
-
-	gittest.Exec(t, cfg, "-C", repoPath, "add", "--all")
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-m", "Test commit")
-
-	testCases := []struct {
-		description string
-		revision    []byte
-		path        []byte
-		recursive   bool
-		filename    []byte
+	for _, tc := range []struct {
+		desc      string
+		revision  []byte
+		path      []byte
+		recursive bool
+		filename  []byte
 	}{
 		{
-			description: "with a normal folder",
-			revision:    []byte("master"),
-			path:        []byte(normalFolderName),
-			filename:    []byte("issue-46261/folder/test1.txt"),
+			desc:     "with a normal folder",
+			revision: []byte("master"),
+			path:     []byte("issue-46261/folder"),
+			filename: []byte("issue-46261/folder/test1.txt"),
 		},
 		{
-			description: "with a folder with curly braces",
-			revision:    []byte("master"),
-			path:        []byte(curlyFolderName),
-			filename:    []byte("issue-46261/{{curly}}/test2.txt"),
+			desc:     "with a folder with curly braces",
+			revision: []byte("master"),
+			path:     []byte("issue-46261/{{curly}}"),
+			filename: []byte("issue-46261/{{curly}}/test2.txt"),
 		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
 			request := &gitalypb.GetTreeEntriesRequest{
 				Repository: repo,
-				Revision:   []byte("HEAD"),
-				Path:       testCase.path,
-				Recursive:  testCase.recursive,
+				Revision:   []byte(commitID.String()),
+				Path:       tc.path,
+				Recursive:  tc.recursive,
 			}
 
 			c, err := client.GetTreeEntries(ctx, request)
@@ -73,7 +70,7 @@ func TestGetTreeEntries_curlyBraces(t *testing.T) {
 
 			fetchedEntries, _ := getTreeEntriesFromTreeEntryClient(t, c, nil)
 			require.Equal(t, 1, len(fetchedEntries))
-			require.Equal(t, testCase.filename, fetchedEntries[0].FlatPath)
+			require.Equal(t, tc.filename, fetchedEntries[0].FlatPath)
 		})
 	}
 }
@@ -85,7 +82,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 	commitID := "d25b6d94034242f3930dfcfeb6d8d9aac3583992"
 	rootOid := "21bdc8af908562ae485ed46d71dd5426c08b084a"
 
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	rootEntries := []*gitalypb.TreeEntry{
 		{
@@ -488,7 +485,7 @@ func TestGetTreeEntries_unsuccessful(t *testing.T) {
 
 	commitID := "d25b6d94034242f3930dfcfeb6d8d9aac3583992"
 
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	testCases := []struct {
 		description   string
@@ -535,53 +532,58 @@ func TestGetTreeEntries_deepFlatpath(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, false)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
-	folderName := "1/2/3/4/5/6/7/8/9/10/11/12"
-	require.GreaterOrEqual(t, strings.Count(strings.Trim(folderName, "/"), "/"), defaultFlatTreeRecursion, "sanity check: construct folder deeper than default recursion value")
+	nestingLevel := 12
+	require.Greater(t, nestingLevel, defaultFlatTreeRecursion, "sanity check: construct folder deeper than default recursion value")
 
-	nestedFolder := filepath.Join(repoPath, folderName)
-	require.NoError(t, os.MkdirAll(nestedFolder, 0o755))
-	// put single file into the deepest directory
-	testhelper.MustRunCommand(t, nil, "touch", filepath.Join(nestedFolder, ".gitkeep"))
-	gittest.Exec(t, cfg, "-C", repoPath, "add", "--all")
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-m", "Deep folder struct")
+	// We create a tree structure that is one deeper than the flat-tree recursion limit.
+	var treeID git.ObjectID
+	for i := nestingLevel; i >= 0; i-- {
+		var treeEntry gittest.TreeEntry
+		if treeID == "" {
+			treeEntry = gittest.TreeEntry{Path: ".gitkeep", Mode: "100644", Content: "something"}
+		} else {
+			// We use a numbered directory name to make it easier to see when things get
+			// truncated.
+			treeEntry = gittest.TreeEntry{Path: strconv.Itoa(i), Mode: "040000", OID: treeID}
+		}
 
-	commitID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
-	rootOid := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD^{tree}"))
+		treeID = gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{treeEntry})
+	}
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTree(treeID))
 
-	// make request to folder that contains nothing except one folder
-	request := &gitalypb.GetTreeEntriesRequest{
+	// We make a non-recursive request which tries to fetch tree entrie for the tree structure
+	// we have created above. This should return a single entry, which is the directory we're
+	// requesting.
+	stream, err := client.GetTreeEntries(ctx, &gitalypb.GetTreeEntriesRequest{
 		Repository: repo,
 		Revision:   []byte(commitID),
-		Path:       []byte("1"),
+		Path:       []byte("0"),
 		Recursive:  false,
-	}
-
-	// request entries of the tree with single-folder structure on each level
-	entriesClient, err := client.GetTreeEntries(ctx, request)
+	})
 	require.NoError(t, err)
+	treeEntries, _ := getTreeEntriesFromTreeEntryClient(t, stream, nil)
 
-	fetchedEntries, _ := getTreeEntriesFromTreeEntryClient(t, entriesClient, nil)
-	// We know that there is a directory "1/2/3/4/5/6/7/8/9/10/11/12"
-	// but here we only get back "1/2/3/4/5/6/7/8/9/10/11".
-	// This proves that FlatPath recursion is bounded, which is the point of this test.
+	// We know that there is a directory "1/2/3/4/5/6/7/8/9/10/11/12", but here we only get
+	// "1/2/3/4/5/6/7/8/9/10/11" as flat path. This proves that FlatPath recursion is bounded,
+	// which is the point of this test.
 	require.Equal(t, []*gitalypb.TreeEntry{{
-		Oid:       "c836b95b37958e7179f5a42a32b7197b5dec7321",
-		RootOid:   rootOid,
-		Path:      []byte("1/2"),
-		FlatPath:  []byte("1/2/3/4/5/6/7/8/9/10/11"),
+		Oid:       "ba0cae41e396836584a4114feac0b943faf786da",
+		RootOid:   treeID.String(),
+		Path:      []byte("0/1"),
+		FlatPath:  []byte("0/1/2/3/4/5/6/7/8/9/10"),
 		Type:      gitalypb.TreeEntry_TREE,
 		Mode:      0o40000,
-		CommitOid: commitID,
-	}}, fetchedEntries)
+		CommitOid: commitID.String(),
+	}}, treeEntries)
 }
 
 func TestGetTreeEntries_file(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithTreeEntries(gittest.TreeEntry{
@@ -611,7 +613,7 @@ func TestGetTreeEntries_validation(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
 	path := []byte("a/b/c")

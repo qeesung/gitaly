@@ -38,7 +38,7 @@ var defaultFiles = [][]byte{
 
 func TestListFiles_success(t *testing.T) {
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/test-do-not-touch")
 
@@ -125,7 +125,7 @@ func TestListFiles_unbornBranch(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, _, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, _, _, client := setupCommitServiceWithRepo(ctx, t)
 	repo, _ := gittest.CreateRepository(ctx, t, cfg)
 
 	tests := []struct {
@@ -199,7 +199,7 @@ func TestListFiles_failure(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, _, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, _, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	tests := []struct {
 		desc string
@@ -253,7 +253,7 @@ func TestListFiles_invalidRevision(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	stream, err := client.ListFiles(ctx, &gitalypb.ListFilesRequest{
 		Repository: repo,

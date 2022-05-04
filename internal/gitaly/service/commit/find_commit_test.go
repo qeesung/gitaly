@@ -23,7 +23,7 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 	windows1251Message := testhelper.MustReadFile(t, "testdata/commit-c809470461118b7bcab850f6e9a7ca97ac42f8ea-message.txt")
 
 	ctx := testhelper.Context(t)
-	cfg, repoProto, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repoProto, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -255,7 +255,7 @@ func TestFailedFindCommitRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	invalidRepo := &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}
 
@@ -294,7 +294,7 @@ func BenchmarkFindCommitWithCache(b *testing.B) {
 func benchmarkFindCommit(withCache bool, b *testing.B) {
 	ctx := testhelper.Context(b)
 
-	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, b, false)
+	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, b)
 
 	// get a list of revisions
 	gitCmdFactory := gittest.NewCommandFactory(b, cfg)
@@ -332,7 +332,7 @@ func TestFindCommitWithCache(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	// get a list of revisions
 

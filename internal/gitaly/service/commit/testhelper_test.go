@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,19 +34,12 @@ func setupCommitService(ctx context.Context, t testing.TB) (config.Cfg, gitalypb
 
 // setupCommitServiceWithRepo makes a basic configuration, creates a test repository and starts the service with the client.
 func setupCommitServiceWithRepo(
-	ctx context.Context, t testing.TB, bare bool,
+	ctx context.Context, t testing.TB,
 ) (config.Cfg, *gitalypb.Repository, string, gitalypb.CommitServiceClient) {
 	return setupCommitServiceCreateRepo(ctx, t, func(ctx context.Context, tb testing.TB, cfg config.Cfg) (*gitalypb.Repository, string) {
 		repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 			Seed: gittest.SeedGitLabTest,
 		})
-
-		if !bare {
-			gittest.AddWorktree(t, cfg, repoPath, "worktree")
-			repoPath = filepath.Join(repoPath, "worktree")
-			gittest.Exec(t, cfg, "-C", repoPath, "checkout", "master")
-		}
-
 		return repo, repoPath
 	})
 }

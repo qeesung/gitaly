@@ -14,7 +14,7 @@ import (
 
 func TestListCommits(t *testing.T) {
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	for _, tc := range []struct {
 		desc            string

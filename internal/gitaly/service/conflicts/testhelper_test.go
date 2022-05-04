@@ -2,7 +2,6 @@ package conflicts
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
@@ -24,7 +23,7 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func SetupConflictsService(ctx context.Context, t testing.TB, bare bool, hookManager hook.Manager) (config.Cfg, *gitalypb.Repository, string, gitalypb.ConflictsServiceClient) {
+func setupConflictsService(ctx context.Context, t testing.TB, hookManager hook.Manager) (config.Cfg, *gitalypb.Repository, string, gitalypb.ConflictsServiceClient) {
 	cfg := testcfg.Build(t)
 
 	testcfg.BuildGitalyGit2Go(t, cfg)
@@ -38,14 +37,6 @@ func SetupConflictsService(ctx context.Context, t testing.TB, bare bool, hookMan
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
-
-	if !bare {
-		gittest.AddWorktree(t, cfg, repoPath, "worktree")
-		repoPath = filepath.Join(repoPath, "worktree")
-		// AddWorktree creates a detached worktree. Checkout master here so the
-		// branch pointer moves as we later commit.
-		gittest.Exec(t, cfg, "-C", repoPath, "checkout", "master")
-	}
 
 	return cfg, repo, repoPath, client
 }

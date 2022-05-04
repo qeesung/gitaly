@@ -56,7 +56,7 @@ func TestFileCountIsZeroWhenFeatureIsDisabled(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	request := &gitalypb.CommitLanguagesRequest{
 		Repository: repo,
@@ -87,7 +87,7 @@ func TestLanguagesEmptyRevision(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	request := &gitalypb.CommitLanguagesRequest{
 		Repository: repo,
@@ -110,7 +110,7 @@ func TestInvalidCommitLanguagesRequestRevision(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	_, err := client.CommitLanguages(ctx, &gitalypb.CommitLanguagesRequest{
 		Repository: repo,
@@ -123,7 +123,7 @@ func TestAmbiguousRefCommitLanguagesRequestRevision(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	// gitlab-test repo has both a branch and a tag named 'v1.1.0'
 	// b83d6e391c22777fca1ed3012fce84f633d7fed0 refs/heads/v1.1.0

@@ -1,17 +1,13 @@
 package commit
 
 import (
-	"bytes"
 	"io"
-	"os"
-	"path/filepath"
 	"testing"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -26,7 +22,7 @@ func TestSuccessfulListLastCommitsForTreeRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	testCases := []struct {
 		desc     string
@@ -215,7 +211,7 @@ func TestFailedListLastCommitsForTreeRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t, true)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	invalidRepo := &gitalypb.Repository{StorageName: "broken", RelativePath: "path"}
 
@@ -323,7 +319,7 @@ func TestNonUtf8ListLastCommitsForTreeRequest(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, true)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
 	// This is an arbitrary blob known to exist in the test repository
 	const blobID = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"
@@ -354,55 +350,66 @@ func TestSuccessfulListLastCommitsForTreeRequestWithGlobCharacters(t *testing.T)
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t, false)
+	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
-	path := ":wq"
-	err := os.Mkdir(filepath.Join(repoPath, path), 0o755)
-	require.NoError(t, err)
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(gittest.TreeEntry{
+		Path: ":wq", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+			{Path: "README.md", Mode: "100644", Content: "something"},
+		}),
+	}), gittest.WithParents())
 
-	gittest.Exec(t, cfg, "-C", repoPath, "mv", "README.md", path)
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-a", "-m", "renamed test file")
-	commitID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
+	t.Run("with literal pathspecs", func(t *testing.T) {
+		stream, err := client.ListLastCommitsForTree(ctx, &gitalypb.ListLastCommitsForTreeRequest{
+			Repository:    repo,
+			Revision:      commitID.String(),
+			Path:          []byte(":wq"),
+			GlobalOptions: &gitalypb.GlobalOptions{LiteralPathspecs: true},
+			Limit:         100,
+		})
+		require.NoError(t, err)
+		require.Equal(t, []string{":wq"}, fetchCommitPaths(t, stream))
+	})
 
-	request := &gitalypb.ListLastCommitsForTreeRequest{
-		Repository:    repo,
-		Revision:      commitID,
-		Path:          []byte(path),
-		GlobalOptions: &gitalypb.GlobalOptions{LiteralPathspecs: true},
-		Limit:         100,
-		Offset:        0,
-	}
-	stream, err := client.ListLastCommitsForTree(ctx, request)
-	require.NoError(t, err)
-
-	assert.True(t, fileExistsInCommits(t, stream, path))
-
-	request.GlobalOptions = &gitalypb.GlobalOptions{LiteralPathspecs: false}
-	stream, err = client.ListLastCommitsForTree(ctx, request)
-	require.NoError(t, err)
-	assert.False(t, fileExistsInCommits(t, stream, path))
+	t.Run("without literal pathspecs", func(t *testing.T) {
+		stream, err := client.ListLastCommitsForTree(ctx, &gitalypb.ListLastCommitsForTreeRequest{
+			Repository:    repo,
+			Revision:      commitID.String(),
+			Path:          []byte(":wq"),
+			GlobalOptions: &gitalypb.GlobalOptions{LiteralPathspecs: false},
+			Limit:         100,
+		})
+		require.NoError(t, err)
+		require.Nil(t, fetchCommitPaths(t, stream))
+	})
 }
 
 func fileExistsInCommits(t *testing.T, stream gitalypb.CommitService_ListLastCommitsForTreeClient, path string) bool {
 	t.Helper()
 
-	var filenameFound bool
-	for {
-		fetchedCommits, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-
-		require.NoError(t, err)
-
-		commits := fetchedCommits.GetCommits()
-
-		for _, fetchedCommit := range commits {
-			if bytes.Equal(fetchedCommit.PathBytes, []byte(path)) {
-				filenameFound = true
-			}
+	for _, commitPath := range fetchCommitPaths(t, stream) {
+		if commitPath == path {
+			return true
 		}
 	}
 
-	return filenameFound
+	return false
+}
+
+func fetchCommitPaths(t *testing.T, stream gitalypb.CommitService_ListLastCommitsForTreeClient) []string {
+	t.Helper()
+
+	var files []string
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+
+		for _, commit := range response.GetCommits() {
+			files = append(files, string(commit.PathBytes))
+		}
+	}
+
+	return files
 }

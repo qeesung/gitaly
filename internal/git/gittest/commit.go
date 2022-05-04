@@ -25,6 +25,7 @@ type writeCommitConfig struct {
 	committerName      string
 	message            string
 	treeEntries        []TreeEntry
+	treeID             git.ObjectID
 	alternateObjectDir string
 }
 
@@ -67,6 +68,15 @@ func WithTreeEntries(entries ...TreeEntry) WriteCommitOption {
 	}
 }
 
+// WithTree is an option for WriteCommit which will cause it to use the given object ID as the root
+// tree of the resulting commit.
+// as root tree of the resulting commit.
+func WithTree(treeID git.ObjectID) WriteCommitOption {
+	return func(cfg *writeCommitConfig) {
+		cfg.treeID = treeID
+	}
+}
+
 // WithCommitterName is an option for WriteCommit which will set the committer name.
 func WithCommitterName(name string) WriteCommitOption {
 	return func(cfg *writeCommitConfig) {
@@ -104,9 +114,15 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		parents = writeCommitConfig.parents
 	}
 
+	if len(writeCommitConfig.treeEntries) > 0 && writeCommitConfig.treeID != "" {
+		require.FailNow(t, "cannot set tree entries and tree ID at the same time")
+	}
+
 	var tree string
 	if len(writeCommitConfig.treeEntries) > 0 {
 		tree = WriteTree(t, cfg, repoPath, writeCommitConfig.treeEntries).String()
+	} else if writeCommitConfig.treeID != "" {
+		tree = writeCommitConfig.treeID.String()
 	} else if len(parents) == 0 {
 		// If there are no parents, then we set the root tree to the empty tree.
 		tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"

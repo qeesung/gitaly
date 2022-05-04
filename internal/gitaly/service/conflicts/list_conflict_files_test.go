@@ -1,18 +1,12 @@
 package conflicts
 
 import (
-	"bytes"
-	"context"
 	"io"
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -26,7 +20,7 @@ type conflictFile struct {
 func TestSuccessfulListConflictFilesRequest(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := SetupConflictsService(ctx, t, false, nil)
+	_, repo, _, client := setupConflictsService(ctx, t, nil)
 
 	ourCommitOid := "1a35b5a77cf6af7edf6703f88e82f6aff613666f"
 	theirCommitOid := "8309e68585b28d61eb85b7e2834849dda6bf1733"
@@ -92,7 +86,7 @@ end
 func TestSuccessfulListConflictFilesRequestWithAncestor(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := SetupConflictsService(ctx, t, true, nil)
+	_, repo, _, client := setupConflictsService(ctx, t, nil)
 
 	ourCommitOid := "824be604a34828eb682305f0d963056cfac87b2d"
 	theirCommitOid := "1450cd639e0bc6721eb02800169e464f212cde06"
@@ -138,67 +132,46 @@ func TestSuccessfulListConflictFilesRequestWithAncestor(t *testing.T) {
 func TestListConflictFilesHugeDiff(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, client := SetupConflictsService(ctx, t, false, nil)
+	cfg, repo, repoPath, client := setupConflictsService(ctx, t, nil)
 
-	our := buildCommit(t, ctx, cfg, repo, repoPath, map[string][]byte{
-		"a": bytes.Repeat([]byte("a\n"), 128*1024),
-		"b": bytes.Repeat([]byte("b\n"), 128*1024),
-	})
-
-	their := buildCommit(t, ctx, cfg, repo, repoPath, map[string][]byte{
-		"a": bytes.Repeat([]byte("x\n"), 128*1024),
-		"b": bytes.Repeat([]byte("y\n"), 128*1024),
-	})
+	ourCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "a", Mode: "100644", Content: strings.Repeat("a\n", 128*1024)},
+		gittest.TreeEntry{Path: "b", Mode: "100644", Content: strings.Repeat("b\n", 128*1024)},
+	))
+	theirCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "a", Mode: "100644", Content: strings.Repeat("x\n", 128*1024)},
+		gittest.TreeEntry{Path: "b", Mode: "100644", Content: strings.Repeat("y\n", 128*1024)},
+	))
 
 	request := &gitalypb.ListConflictFilesRequest{
 		Repository:     repo,
-		OurCommitOid:   our,
-		TheirCommitOid: their,
+		OurCommitOid:   ourCommitID.String(),
+		TheirCommitOid: theirCommitID.String(),
 	}
 
 	c, err := client.ListConflictFiles(ctx, request)
 	require.NoError(t, err)
 
 	receivedFiles := getConflictFiles(t, c)
-	require.Len(t, receivedFiles, 2)
 	testhelper.ProtoEqual(t, &gitalypb.ConflictFileHeader{
-		CommitOid: our,
+		CommitOid: ourCommitID.String(),
 		OurMode:   int32(0o100644),
 		OurPath:   []byte("a"),
 		TheirPath: []byte("a"),
 	}, receivedFiles[0].Header)
 
 	testhelper.ProtoEqual(t, &gitalypb.ConflictFileHeader{
-		CommitOid: our,
+		CommitOid: ourCommitID.String(),
 		OurMode:   int32(0o100644),
 		OurPath:   []byte("b"),
 		TheirPath: []byte("b"),
 	}, receivedFiles[1].Header)
 }
 
-func buildCommit(t *testing.T, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, repoPath string, files map[string][]byte) string {
-	t.Helper()
-
-	for file, contents := range files {
-		filePath := filepath.Join(repoPath, file)
-		require.NoError(t, os.WriteFile(filePath, contents, 0o666))
-		gittest.Exec(t, cfg, "-C", repoPath, "add", filePath)
-	}
-
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-m", "message")
-
-	oid, err := localrepo.NewTestRepo(t, cfg, repo).ResolveRevision(ctx, git.Revision("HEAD"))
-	require.NoError(t, err)
-
-	gittest.Exec(t, cfg, "-C", repoPath, "reset", "--hard", "HEAD~")
-
-	return oid.String()
-}
-
 func TestListConflictFilesFailedPrecondition(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := SetupConflictsService(ctx, t, true, nil)
+	_, repo, _, client := setupConflictsService(ctx, t, nil)
 
 	testCases := []struct {
 		desc           string
@@ -255,7 +228,7 @@ func TestListConflictFilesFailedPrecondition(t *testing.T) {
 func TestListConflictFilesAllowTreeConflicts(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := SetupConflictsService(ctx, t, true, nil)
+	_, repo, _, client := setupConflictsService(ctx, t, nil)
 
 	ourCommitOid := "eb227b3e214624708c474bdab7bde7afc17cefcc"
 	theirCommitOid := "824be604a34828eb682305f0d963056cfac87b2d"
@@ -347,7 +320,7 @@ end
 func TestFailedListConflictFilesRequestDueToValidation(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _, client := SetupConflictsService(ctx, t, true, nil)
+	_, repo, _, client := setupConflictsService(ctx, t, nil)
 
 	ourCommitOid := "0b4bc9a49b562e85de7cc9e834518ea6828729b9"
 	theirCommitOid := "bb5206fee213d983da88c47f9cf4cc6caf9c66dc"
