@@ -91,7 +91,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	log.Info("Starting Gitaly", "version", version.GetVersionString())
+	log.Infof("Starting %s", version.GetVersionString())
 	boring.CheckBoring()
 
 	cfg, err := configure(flag.Arg(0))
