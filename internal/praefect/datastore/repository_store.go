@@ -576,7 +576,7 @@ func (rs *PostgresRepositoryStore) GetConsistentStoragesByRepositoryID(ctx conte
 	return rs.getConsistentStorages(ctx, `
 SELECT replica_path, ARRAY_AGG(storage)
 FROM repositories
-LEFT JOIN storage_repositories USING (repository_id, relative_path, generation)
+JOIN storage_repositories USING (repository_id, relative_path, generation)
 WHERE repository_id = $1
 GROUP BY replica_path
 	`, repositoryID)
@@ -587,7 +587,7 @@ func (rs *PostgresRepositoryStore) GetConsistentStorages(ctx context.Context, vi
 	replicaPath, storages, err := rs.getConsistentStorages(ctx, `
 SELECT replica_path, ARRAY_AGG(storage)
 FROM repositories
-LEFT JOIN storage_repositories USING (repository_id, relative_path, generation)
+JOIN storage_repositories USING (repository_id, relative_path, generation)
 WHERE repositories.virtual_storage = $1
 AND repositories.relative_path = $2
 GROUP BY replica_path
@@ -613,10 +613,6 @@ func (rs *PostgresRepositoryStore) getConsistentStorages(ctx context.Context, qu
 	}
 
 	result := storages.Slice()
-	if len(result) == 0 {
-		return "", nil, fmt.Errorf("repository has no up to date replicas")
-	}
-
 	consistentStorages := make(map[string]struct{}, len(result))
 	for _, storage := range result {
 		consistentStorages[storage] = struct{}{}

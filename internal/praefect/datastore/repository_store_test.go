@@ -972,20 +972,6 @@ func TestRepositoryStore_Postgres(t *testing.T) {
 			require.Equal(t, "new-path", replicaPath)
 			require.Equal(t, map[string]struct{}{"storage-1": {}, "storage-2": {}}, storages)
 		})
-
-		t.Run("returns error when no up to date replicas", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.NoError(t, rs.CreateRepository(ctx, 1, vs, repo, "replica-path", "primary", []string{"secondary"}, nil, false, false))
-			require.NoError(t, rs.IncrementGeneration(ctx, 1, "primary", nil))
-			require.NoError(t, rs.DeleteReplica(ctx, 1, "primary"))
-
-			_, _, err := rs.GetConsistentStorages(ctx, vs, repo)
-			require.EqualError(t, err, "repository has no up to date replicas")
-
-			_, _, err = rs.GetConsistentStoragesByRepositoryID(ctx, 1)
-			require.EqualError(t, err, "repository has no up to date replicas")
-		})
 	})
 
 	t.Run("DeleteInvalidRepository", func(t *testing.T) {
