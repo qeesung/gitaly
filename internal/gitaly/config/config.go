@@ -18,7 +18,6 @@ import (
 	internallog "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/sentry"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 )
 
 const (
@@ -399,7 +398,7 @@ func (cfg *Cfg) InternalSocketDir() string {
 
 // InternalSocketPath is the path to the internal Gitaly socket.
 func (cfg *Cfg) InternalSocketPath() string {
-	return filepath.Join(cfg.InternalSocketDir(), fmt.Sprintf("internal_%d.sock", os.Getpid()))
+	return filepath.Join(cfg.InternalSocketDir(), "intern")
 }
 
 func (cfg *Cfg) validateBinDir() error {
@@ -478,7 +477,7 @@ func (cfg *Cfg) validateInternalSocketDir() error {
 	}
 
 	if err := trySocketCreation(cfg.InternalSocketDir()); err != nil {
-		return fmt.Errorf("internal_socket_dir: try create socket: %w", err)
+		return fmt.Errorf("failed creating internal test socket: %w", err)
 	}
 
 	return nil
@@ -487,13 +486,14 @@ func (cfg *Cfg) validateInternalSocketDir() error {
 func trySocketCreation(dir string) error {
 	// To validate the socket can actually be created, we open and close a socket.
 	// Any error will be assumed persistent for when the gitaly-ruby sockets are created
-	// and thus fatal at boot time
-	b, err := text.RandomHex(4)
-	if err != nil {
-		return err
-	}
-
-	socketPath := filepath.Join(dir, fmt.Sprintf("test-%s.sock", b))
+	// and thus fatal at boot time.
+	//
+	// There are two kinds of internal sockets we create: the internal server socket
+	// called "intern", and then the Ruby worker sockets called "ruby.$N", with "$N"
+	// being the number of the Ruby worker. Given that we typically wouldn't spawn
+	// hundreds of Ruby workers, the maximum internal socket path name would thus be 7
+	// characters long.
+	socketPath := filepath.Join(dir, "tsocket")
 	defer func() { _ = os.Remove(socketPath) }()
 
 	// Attempt to create an actual socket and not just a file to catch socket path length problems

@@ -680,9 +680,9 @@ func TestValidateInternalSocketDir(t *testing.T) {
 				require.Error(t, actualErr)
 				require.Regexp(t,
 					fmt.Sprintf(
-						"internal_socket_dir: try create socket: socket could not be created in %s: listen unix %s: bind: invalid argument",
+						"failed creating internal test socket: socket could not be created in %s: listen unix %s: bind: invalid argument",
 						filepath.Join(runtimeDir, "sock\\.d"),
-						filepath.Join(runtimeDir, "sock\\.d", "test-.{8}\\.sock"),
+						filepath.Join(runtimeDir, "sock\\.d", "tsocket"),
 					),
 					actualErr.Error(),
 				)
