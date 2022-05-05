@@ -14,5 +14,6 @@ Gitlab::Dangerfiles.for_project(self) do |gitlab_dangerfiles|
     danger.import_dangerfile(path: "danger/rules/#{rule}")
   end
 
-  gitlab_dangerfiles.import_defaults
+  gitlab_dangerfiles.import_plugins
+  gitlab_dangerfiles.import_dangerfiles(except: %w[changes_size])
 end

@@ -1,0 +1,15 @@
+# frozen_string_literal: true
+
+thresholds = helper.config.code_size_thresholds
+
+lines_changed = (git.added_files + git.modified_files).sum do |file|
+  next 0 if file.end_with?('.pb.go') || file.end_with?('_pb.rb')
+
+  git.info_for_file(file)[:insertions]
+end
+
+if lines_changed > thresholds[:high]
+  warn "This merge request is definitely too big (#{lines_changed} lines changed), please split it into multiple merge requests."
+elsif lines_changed > thresholds[:medium]
+  warn "This merge request is quite big (#{lines_changed} lines changed), please consider splitting it into multiple merge requests."
+end
