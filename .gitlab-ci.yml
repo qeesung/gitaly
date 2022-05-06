@@ -182,7 +182,9 @@ test:coverage:
     - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make cover SKIP_RSPEC_BUILD=YesPlease
   artifacts:
     reports:
-      cobertura: _build/cover/cobertura.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: _build/cover/cobertura.xml
 
 test:pgbouncer:
   <<: *test_definition
