@@ -5,7 +5,7 @@ package test;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/internal/linter/testdata";
+option go_package = "gitlab.com/gitlab-org/gitaly/v14/tools/protoc-gen-gitaly-lint/testdata";
 
 message ValidRequest {
   gitaly.Repository destination = 1 [(gitaly.target_repository)=true];

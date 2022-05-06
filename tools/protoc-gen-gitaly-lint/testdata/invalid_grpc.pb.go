@@ -100,7 +100,7 @@ var InterceptedWithOperationType_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "go/internal/linter/testdata/invalid.proto",
+	Metadata: "protoc-gen-gitaly-lint/testdata/invalid.proto",
 }
 
 // InvalidServiceClient is the client API for InvalidService service.
@@ -970,5 +970,5 @@ var InvalidService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "go/internal/linter/testdata/invalid.proto",
+	Metadata: "protoc-gen-gitaly-lint/testdata/invalid.proto",
 }

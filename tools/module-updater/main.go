@@ -18,18 +18,18 @@ import (
 )
 
 var skipDirs = map[string]bool{
-	".git":                              true,
-	".gitlab":                           true,
-	"_build":                            true,
-	"_support":                          true,
-	"changelogs":                        true,
-	"danger":                            true,
-	"doc":                               true,
-	"proto/go/gitalypb":                 true,
-	"proto/go/internal/linter/testdata": true,
-	"ruby":                              true,
-	"scripts":                           true,
-	"unreleased":                        true,
+	".git":                                  true,
+	".gitlab":                               true,
+	"_build":                                true,
+	"_support":                              true,
+	"changelogs":                            true,
+	"danger":                                true,
+	"doc":                                   true,
+	"proto/go/gitalypb":                     true,
+	"ruby":                                  true,
+	"scripts":                               true,
+	"tools/protoc-gen-gitaly-lint/testdata": true,
+	"unreleased":                            true,
 }
 
 func main() {
@@ -119,7 +119,7 @@ func getModule(modDir string) (string, error) {
 		return "", fmt.Errorf("command %q: %w", strings.Join(cmd.Args, " "), err)
 	}
 
-	var modInfo = struct{ Module struct{ Path string } }{}
+	modInfo := struct{ Module struct{ Path string } }{}
 	if err := json.Unmarshal(data, &modInfo); err != nil {
 		return "", err
 	}

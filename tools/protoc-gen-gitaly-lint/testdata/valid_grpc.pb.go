@@ -97,7 +97,7 @@ var InterceptedService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "go/internal/linter/testdata/valid.proto",
+	Metadata: "protoc-gen-gitaly-lint/testdata/valid.proto",
 }
 
 // ValidServiceClient is the client API for ValidService service.
@@ -653,5 +653,5 @@ var ValidService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "go/internal/linter/testdata/valid.proto",
+	Metadata: "protoc-gen-gitaly-lint/testdata/valid.proto",
 }

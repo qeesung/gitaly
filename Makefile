@@ -45,18 +45,19 @@ GIT_PREFIX       ?= ${GIT_DEFAULT_PREFIX}
 FIPS_MODE        ?= 0
 
 # Tools
-GIT               := $(shell command -v git)
-GOIMPORTS         := ${TOOLS_DIR}/goimports
-GOFUMPT           := ${TOOLS_DIR}/gofumpt
-GOLANGCI_LINT     := ${TOOLS_DIR}/golangci-lint
-PROTOLINT         := ${TOOLS_DIR}/protolint
-GO_LICENSES       := ${TOOLS_DIR}/go-licenses
-PROTOC            := ${TOOLS_DIR}/protoc
-PROTOC_GEN_GO     := ${TOOLS_DIR}/protoc-gen-go
-PROTOC_GEN_GO_GRPC:= ${TOOLS_DIR}/protoc-gen-go-grpc
-PROTOC_GEN_GITALY := ${TOOLS_DIR}/protoc-gen-gitaly
-GOTESTSUM         := ${TOOLS_DIR}/gotestsum
-GOCOVER_COBERTURA := ${TOOLS_DIR}/gocover-cobertura
+GIT                         := $(shell command -v git)
+GOIMPORTS                   := ${TOOLS_DIR}/goimports
+GOFUMPT                     := ${TOOLS_DIR}/gofumpt
+GOLANGCI_LINT               := ${TOOLS_DIR}/golangci-lint
+PROTOLINT                   := ${TOOLS_DIR}/protolint
+GO_LICENSES                 := ${TOOLS_DIR}/go-licenses
+PROTOC                      := ${TOOLS_DIR}/protoc
+PROTOC_GEN_GO               := ${TOOLS_DIR}/protoc-gen-go
+PROTOC_GEN_GO_GRPC          := ${TOOLS_DIR}/protoc-gen-go-grpc
+PROTOC_GEN_GITALY_LINT      := ${TOOLS_DIR}/protoc-gen-gitaly-lint
+PROTOC_GEN_GITALY_PROTOLIST := ${TOOLS_DIR}/protoc-gen-gitaly-protolist
+GOTESTSUM                   := ${TOOLS_DIR}/gotestsum
+GOCOVER_COBERTURA           := ${TOOLS_DIR}/gocover-cobertura
 
 # Tool options
 GOLANGCI_LINT_OPTIONS ?=
@@ -439,11 +440,11 @@ cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
 
 .PHONY: proto
 ## Regenerate protobuf definitions.
-proto: SHARED_PROTOC_OPTS = --plugin=${PROTOC_GEN_GO} --plugin=${PROTOC_GEN_GO_GRPC} --plugin=${PROTOC_GEN_GITALY} --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
-proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${PROTOC_GEN_GITALY} ${SOURCE_DIR}/.ruby-bundle
+proto: SHARED_PROTOC_OPTS = --plugin=${PROTOC_GEN_GO} --plugin=${PROTOC_GEN_GO_GRPC} --plugin=${PROTOC_GEN_GITALY_PROTOLIST} --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
+proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${PROTOC_GEN_GITALY_PROTOLIST} ${SOURCE_DIR}/.ruby-bundle
 	${Q}mkdir -p ${SOURCE_DIR}/proto/go/gitalypb
 	${Q}rm -f ${SOURCE_DIR}/proto/go/gitalypb/*.pb.go
-	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/proto/go/gitalypb --go-grpc_out=${SOURCE_DIR}/proto/go/gitalypb ${SOURCE_DIR}/proto/*.proto
+	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/proto/go/gitalypb --gitaly-protolist_out=proto_dir=${SOURCE_DIR}/proto,gitalypb_dir=${SOURCE_DIR}/proto/go/gitalypb:${SOURCE_DIR} --go-grpc_out=${SOURCE_DIR}/proto/go/gitalypb ${SOURCE_DIR}/proto/*.proto
 	${SOURCE_DIR}/_support/generate-proto-ruby
 	@ # this part is related to the generation of sources from testing proto files
 	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/internal --go_out=${SOURCE_DIR}/internal --go-grpc_out=${SOURCE_DIR}/internal ${SOURCE_DIR}/internal/praefect/grpc-proxy/testdata/test.proto
@@ -452,13 +453,14 @@ proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${PROTOC_GEN_GITALY} ${S
 		${SOURCE_DIR}/internal/middleware/cache/testdata/stream.proto \
 		${SOURCE_DIR}/internal/helper/chunk/testdata/test.proto \
 		${SOURCE_DIR}/internal/middleware/limithandler/testdata/test.proto
-	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/proto --go-grpc_out=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto/go/internal/linter/testdata/*.proto
+	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${SOURCE_DIR}/tools -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/tools --go-grpc_out=${SOURCE_DIR}/tools ${SOURCE_DIR}/tools/protoc-gen-gitaly-lint/testdata/*.proto
 
 .PHONY: check-proto
 check-proto: proto no-proto-changes lint-proto
 
 .PHONY: lint-proto
-lint-proto: ${PROTOLINT}
+lint-proto: ${PROTOC} ${PROTOLINT} ${PROTOC_GEN_GITALY_LINT}
+	${Q}${PROTOC} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --plugin=${PROTOC_GEN_GITALY_LINT} --gitaly-lint_out=${SOURCE_DIR} ${SOURCE_DIR}/proto/*.proto
 	${Q}${PROTOLINT} lint -config_dir_path=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto
 
 .PHONY: no-changes
@@ -476,7 +478,7 @@ dump-database-schema: build
 
 .PHONY: upgrade-module
 upgrade-module:
-	${Q}go run ${SOURCE_DIR}/_support/module-updater/main.go -dir . -from=${FROM_MODULE} -to=${TO_MODULE}
+	${Q}go run ${SOURCE_DIR}/tools/module-updater/main.go -dir . -from=${FROM_MODULE} -to=${TO_MODULE}
 	${Q}${MAKE} proto
 
 .PHONY: git
@@ -500,7 +502,7 @@ ${SOURCE_DIR}/NOTICE: ${BUILD_DIR}/NOTICE
 ${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go
 	${Q}rm -rf ${BUILD_DIR}/licenses
 	${Q}GOOS=linux GOFLAGS="-tags=${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}" ${GO_LICENSES} save ${SOURCE_DIR}/... --save_path=${BUILD_DIR}/licenses
-	${Q}go run ${SOURCE_DIR}/_support/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/_support/noticegen/notice.template > ${BUILD_DIR}/NOTICE
+	${Q}go run ${SOURCE_DIR}/tools/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/tools/noticegen/notice.template > ${BUILD_DIR}/NOTICE
 
 ${BUILD_DIR}:
 	${Q}mkdir -p ${BUILD_DIR}
@@ -605,8 +607,11 @@ ${TOOLS_DIR}/%: GOBIN = ${TOOLS_DIR}
 ${TOOLS_DIR}/%: ${TOOLS_DIR}/%.version
 	${Q}go install ${TOOL_PACKAGE}@${TOOL_VERSION}
 
-${PROTOC_GEN_GITALY}: proto | ${TOOLS_DIR}
-	${Q}go build -o $@ ${SOURCE_DIR}/proto/go/internal/cmd/protoc-gen-gitaly
+${PROTOC_GEN_GITALY_LINT}: proto | ${TOOLS_DIR}
+	${Q}go build -o $@ ${SOURCE_DIR}/tools/protoc-gen-gitaly-lint
+
+${PROTOC_GEN_GITALY_PROTOLIST}: | ${TOOLS_DIR}
+	${Q}go build -o $@ ${SOURCE_DIR}/tools/protoc-gen-gitaly-protolist
 
 # External tools
 ${GOCOVER_COBERTURA}: TOOL_PACKAGE = github.com/t-yuki/gocover-cobertura

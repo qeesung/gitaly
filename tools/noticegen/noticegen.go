@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var modInfo = struct {
+	modInfo := struct {
 		Module struct {
 			Path string
 		}
@@ -62,7 +62,7 @@ func main() {
 		}
 
 		if p == modInfo.Module.Path {
-			return nil
+			return filepath.SkipDir
 		}
 
 		t, err := os.ReadFile(path)
