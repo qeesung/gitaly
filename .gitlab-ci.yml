@@ -49,6 +49,11 @@ include:
   variables:
     BUNDLE_PATH: "${CI_PROJECT_DIR}/.ruby"
     GOPATH: "${CI_PROJECT_DIR}/.go"
+    # We use symlinks instead of hardlinks to install Git and also strip
+    # binaries of their symbol tables. These options significantly reduce the
+    # size of the installed Git distribution, which is required so that we
+    # don't bust the artifact size limits.
+    GIT_APPEND_BUILD_OPTIONS: "INSTALL_SYMLINKS=YesPlease INSTALL_STRIP=-s"
   artifacts:
     expire_in: 1 hour
     paths:
@@ -63,22 +68,20 @@ include:
       - _build/tools
     exclude:
       # Exclude Git's tests, which are almost 40MB in size.
-      - _build/deps/git-*/t
+      - _build/deps/git-*/t/**
     reports:
       dotenv: build.env
   script:
     - go version
     # Build all dependencies required for our testing infrastructure such that
-    # downstream jobs don't have to rebuild anything. Note that we're building
-    # Git with `INSTALL_SYMLINKS=YesPlease INSTALL_STRIP=-s` to significantly
-    # reduce the size of the installed Git distribution.
-    - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura $(pwd)/_build/tools/protoc WITH_BUNDLED_GIT=$(test "${GIT_VERSION}" = "default" && echo "YesPlease") GIT_APPEND_BUILD_OPTIONS="INSTALL_SYMLINKS=YesPlease INSTALL_STRIP=-s"
+    # downstream jobs don't have to rebuild anything.
+    - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura $(pwd)/_build/tools/protoc WITH_BUNDLED_GIT=$(test "${GIT_VERSION}" = "default" && echo "YesPlease")
     - _support/test-boot . $(test "${GIT_VERSION}" = "default" && echo "--bundled-git")
   after_script: |
     # Write all relevant variables into the `build.env` file. These files are
     # then propagated to dependents so that they don't have to manually set
     # those variables again.
-    for variable in GO_VERSION GIT_VERSION RUBY_VERSION BUNDLE_PATH GOPATH
+    for variable in GO_VERSION GIT_VERSION GIT_APPEND_BUILD_OPTIONS RUBY_VERSION BUNDLE_PATH GOPATH
     do
         echo "${variable}=${!variable}"
     done >build.env
