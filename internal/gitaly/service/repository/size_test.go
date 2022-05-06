@@ -1,10 +1,13 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
@@ -26,7 +29,7 @@ func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 }
 
 func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {
-	_, repo, _, client := setupRepositoryService(ctx, t)
+	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
 	request := &gitalypb.RepositorySizeRequest{Repository: repo}
 	response, err := client.RepositorySize(ctx, request)
@@ -36,9 +39,39 @@ func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {
 		response.Size > testRepoMinSizeKB,
 		"repository size %d should be at least %d", response.Size, testRepoMinSizeKB,
 	)
+
+	blob := bytes.Repeat([]byte("a"), 1000)
+	blobOID := gittest.WriteBlob(t, cfg, repoPath, blob)
+	treeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			OID:  blobOID,
+			Mode: "100644",
+			Path: "1kbblob",
+		},
+	})
+	commitOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(treeOID))
+
+	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/keep-around/keep1"), commitOID)
+	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/merge-requests/1123"), commitOID)
+	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/pipelines/pipeline2"), commitOID)
+	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/environments/env1"), commitOID)
+
+	responseAfterRefs, err := client.RepositorySize(ctx, request)
+	require.NoError(t, err)
+
+	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
+		assert.Equal(
+			t,
+			response.Size,
+			responseAfterRefs.Size,
+			"excluded refs do not contribute to the repository size",
+		)
+	} else {
+		assert.Less(t, response.Size, responseAfterRefs.Size)
+	}
 }
 
-func TestRepositorySixe_FailedRequest(t *testing.T) {
+func TestRepositorySize_FailedRequest(t *testing.T) {
 	t.Parallel()
 	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
 		Run(t, testFailedRepositorySizeRequest)

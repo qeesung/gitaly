@@ -94,18 +94,55 @@ func errorWithStderr(err error, stderr []byte) error {
 	return fmt.Errorf("%w, stderr: %q", err, stderr)
 }
 
+// repoSizeConfig can be used to pass in different options to
+// git rev-list in determining the size of a repository.
+type repoSizeConfig struct {
+	// Excludes is a list of ref glob patterns to exclude from the size
+	// calculation.
+	Excludes []string
+}
+
+// RepoSizeOption is an option which can be passed to Size
+type RepoSizeOption func(*repoSizeConfig)
+
+// WithExcludes is an option for Size that excludes certain refs from the size
+// calculation. The format must be a glob pattern.
+// see https://git-scm.com/docs/git-rev-list#Documentation/git-rev-list.txt---excludeltglob-patterngt
+func WithExcludes(excludes ...string) RepoSizeOption {
+	return func(cfg *repoSizeConfig) {
+		cfg.Excludes = excludes
+	}
+}
+
 // Size calculates the size of all reachable objects in bytes
-func (repo *Repo) Size(ctx context.Context) (int64, error) {
+func (repo *Repo) Size(ctx context.Context, opts ...RepoSizeOption) (int64, error) {
 	var stdout bytes.Buffer
+
+	var cfg repoSizeConfig
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	var options []git.Option
+	for _, exclude := range cfg.Excludes {
+		options = append(
+			options,
+			git.Flag{Name: fmt.Sprintf("--exclude=%s", exclude)},
+		)
+	}
+
+	options = append(options,
+		git.Flag{Name: "--all"},
+		git.Flag{Name: "--objects"},
+		git.Flag{Name: "--use-bitmap-index"},
+		git.Flag{Name: "--disk-usage"},
+	)
+
 	if err := repo.ExecAndWait(ctx,
 		git.SubCmd{
-			Name: "rev-list",
-			Flags: []git.Option{
-				git.Flag{Name: "--all"},
-				git.Flag{Name: "--objects"},
-				git.Flag{Name: "--use-bitmap-index"},
-				git.Flag{Name: "--disk-usage"},
-			},
+			Name:  "rev-list",
+			Flags: options,
 		},
 		git.WithStdout(&stdout),
 	); err != nil {

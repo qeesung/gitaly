@@ -171,3 +171,39 @@ func TestSize(t *testing.T) {
 		})
 	}
 }
+
+func TestSize_excludes(t *testing.T) {
+	cfg := testcfg.Build(t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+
+	pbRepo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	blob := bytes.Repeat([]byte("a"), 1000)
+	blobOID := gittest.WriteBlob(t, cfg, repoPath, blob)
+	treeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			OID:  blobOID,
+			Mode: "100644",
+			Path: "1kbblob",
+		},
+	})
+	commitOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(treeOID))
+
+	repo := New(config.NewLocator(cfg), gitCmdFactory, catfileCache, pbRepo)
+
+	ctx := testhelper.Context(t)
+	sizeBeforeKeepAround, err := repo.Size(ctx)
+	require.NoError(t, err)
+
+	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/keep-around/keep1"), commitOID)
+
+	sizeWithKeepAround, err := repo.Size(ctx)
+	require.NoError(t, err)
+	assert.Less(t, sizeBeforeKeepAround, sizeWithKeepAround)
+
+	sizeWithoutKeepAround, err := repo.Size(ctx, WithExcludes("refs/keep-around/*"))
+	require.NoError(t, err)
+
+	assert.Equal(t, sizeBeforeKeepAround, sizeWithoutKeepAround)
+}

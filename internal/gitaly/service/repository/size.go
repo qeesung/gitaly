@@ -10,6 +10,8 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
@@ -19,8 +21,16 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 	var size int64
 	var err error
 
+	var excludes []string
+	for _, prefix := range git.InternalRefPrefixes {
+		excludes = append(excludes, prefix+"*")
+	}
+
 	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
-		size, err = repo.Size(ctx)
+		size, err = repo.Size(
+			ctx,
+			localrepo.WithExcludes(excludes...),
+		)
 		if err != nil {
 			return nil, err
 		}
