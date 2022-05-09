@@ -48,48 +48,52 @@ func CatfileObject(
 	go func() {
 		defer close(requestChan)
 
-		var i int64
-		for it.Next() {
-			if err := queue.RequestRevision(it.ObjectID().Revision()); err != nil {
-				select {
-				case requestChan <- catfileObjectRequest{err: err}:
-				case <-ctx.Done():
-					return
-				}
+		sendRequest := func(request catfileObjectRequest) bool {
+			// Please refer to `sendResult()` for why we treat the context specially.
+			select {
+			case <-ctx.Done():
+				return true
+			default:
 			}
 
 			select {
-			case requestChan <- catfileObjectRequest{objectName: it.ObjectName()}:
+			case requestChan <- request:
+				return false
 			case <-ctx.Done():
+				return true
+			}
+		}
+
+		var i int64
+		for it.Next() {
+			if err := queue.RequestRevision(it.ObjectID().Revision()); err != nil {
+				sendRequest(catfileObjectRequest{err: err})
+				return
+			}
+
+			if isDone := sendRequest(catfileObjectRequest{
+				objectName: it.ObjectName(),
+			}); isDone {
 				return
 			}
 
 			i++
 			if i%int64(cap(requestChan)) == 0 {
 				if err := queue.Flush(); err != nil {
-					select {
-					case requestChan <- catfileObjectRequest{err: err}:
-					case <-ctx.Done():
-						return
-					}
+					sendRequest(catfileObjectRequest{err: err})
+					return
 				}
 			}
 		}
 
 		if err := it.Err(); err != nil {
-			select {
-			case requestChan <- catfileObjectRequest{err: err}:
-			case <-ctx.Done():
-				return
-			}
+			sendRequest(catfileObjectRequest{err: err})
+			return
 		}
 
 		if err := queue.Flush(); err != nil {
-			select {
-			case requestChan <- catfileObjectRequest{err: err}:
-			case <-ctx.Done():
-				return
-			}
+			sendRequest(catfileObjectRequest{err: err})
+			return
 		}
 	}()
 
@@ -164,7 +168,8 @@ func CatfileObject(
 	}()
 
 	return &catfileObjectIterator{
-		ch: resultChan,
+		ctx: ctx,
+		ch:  resultChan,
 	}, nil
 }
 

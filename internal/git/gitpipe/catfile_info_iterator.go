@@ -1,6 +1,10 @@
 package gitpipe
 
-import "gitlab.com/gitlab-org/gitaly/v14/internal/git"
+import (
+	"context"
+
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+)
 
 // CatfileInfoIterator is an iterator returned by the Revlist function.
 type CatfileInfoIterator interface {
@@ -10,7 +14,7 @@ type CatfileInfoIterator interface {
 }
 
 // NewCatfileInfoIterator returns a new CatfileInfoIterator for the given items.
-func NewCatfileInfoIterator(items []CatfileInfoResult) CatfileInfoIterator {
+func NewCatfileInfoIterator(ctx context.Context, items []CatfileInfoResult) CatfileInfoIterator {
 	itemChan := make(chan CatfileInfoResult, len(items))
 	for _, item := range items {
 		itemChan <- item
@@ -18,11 +22,13 @@ func NewCatfileInfoIterator(items []CatfileInfoResult) CatfileInfoIterator {
 	close(itemChan)
 
 	return &catfileInfoIterator{
-		ch: itemChan,
+		ctx: ctx,
+		ch:  itemChan,
 	}
 }
 
 type catfileInfoIterator struct {
+	ctx    context.Context
 	ch     <-chan CatfileInfoResult
 	result CatfileInfoResult
 }
@@ -32,13 +38,31 @@ func (it *catfileInfoIterator) Next() bool {
 		return false
 	}
 
-	var ok bool
-	it.result, ok = <-it.ch
-	if !ok || it.result.err != nil {
+	// Prioritize context cancellation errors so that we don't try to fetch results anymore when
+	// the context is done.
+	select {
+	case <-it.ctx.Done():
+		it.result = CatfileInfoResult{err: it.ctx.Err()}
 		return false
+	default:
 	}
 
-	return true
+	select {
+	case <-it.ctx.Done():
+		it.result = CatfileInfoResult{err: it.ctx.Err()}
+		return false
+	case result, ok := <-it.ch:
+		if !ok {
+			return false
+		}
+
+		it.result = result
+		if result.err != nil {
+			return false
+		}
+
+		return true
+	}
 }
 
 func (it *catfileInfoIterator) Err() error {

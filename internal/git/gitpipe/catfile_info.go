@@ -74,48 +74,34 @@ func CatfileInfo(
 		var i int64
 		for it.Next() {
 			if err := queue.RequestRevision(it.ObjectID().Revision()); err != nil {
-				select {
-				case requestChan <- catfileInfoRequest{err: err}:
-				case <-ctx.Done():
-					return
-				}
+				sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: err})
+				return
 			}
 
-			select {
-			case requestChan <- catfileInfoRequest{
+			if isDone := sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{
 				objectID:   it.ObjectID(),
 				objectName: it.ObjectName(),
-			}:
-			case <-ctx.Done():
+			}); isDone {
 				return
 			}
 
 			i++
 			if i%int64(cap(requestChan)) == 0 {
 				if err := queue.Flush(); err != nil {
-					select {
-					case requestChan <- catfileInfoRequest{err: err}:
-					case <-ctx.Done():
-						return
-					}
+					sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: err})
+					return
 				}
 			}
 		}
 
 		if err := it.Err(); err != nil {
-			select {
-			case requestChan <- catfileInfoRequest{err: err}:
-			case <-ctx.Done():
-				return
-			}
+			sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: err})
+			return
 		}
 
 		if err := queue.Flush(); err != nil {
-			select {
-			case requestChan <- catfileInfoRequest{err: err}:
-			case <-ctx.Done():
-				return
-			}
+			sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: err})
+			return
 		}
 	}()
 
@@ -154,7 +140,8 @@ func CatfileInfo(
 	}()
 
 	return &catfileInfoIterator{
-		ch: resultChan,
+		ctx: ctx,
+		ch:  resultChan,
 	}, nil
 }
 
@@ -229,7 +216,8 @@ func CatfileInfoAllObjects(
 	}()
 
 	return &catfileInfoIterator{
-		ch: resultChan,
+		ctx: ctx,
+		ch:  resultChan,
 	}
 }
 
@@ -247,6 +235,22 @@ func sendCatfileInfoResult(ctx context.Context, ch chan<- CatfileInfoResult, res
 
 	select {
 	case ch <- result:
+		return false
+	case <-ctx.Done():
+		return true
+	}
+}
+
+func sendCatfileInfoRequest(ctx context.Context, ch chan<- catfileInfoRequest, request catfileInfoRequest) bool {
+	// Please refer to `sendCatfileInfoResult()` for why we treat the context specially.
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+	}
+
+	select {
+	case ch <- request:
 		return false
 	case <-ctx.Done():
 		return true

@@ -314,7 +314,8 @@ func Revlist(
 	}()
 
 	return &revisionIterator{
-		ch: resultChan,
+		ctx: ctx,
+		ch:  resultChan,
 	}
 }
 
@@ -443,7 +444,8 @@ func ForEachRef(
 	}()
 
 	return &revisionIterator{
-		ch: resultChan,
+		ctx: ctx,
+		ch:  resultChan,
 	}
 }
 

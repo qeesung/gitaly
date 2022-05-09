@@ -1,6 +1,10 @@
 package gitpipe
 
-import "gitlab.com/gitlab-org/gitaly/v14/internal/git"
+import (
+	"context"
+
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+)
 
 // RevisionIterator is an iterator returned by the Revlist function.
 type RevisionIterator interface {
@@ -10,7 +14,7 @@ type RevisionIterator interface {
 }
 
 // NewRevisionIterator returns a new RevisionIterator for the given items.
-func NewRevisionIterator(items []RevisionResult) RevisionIterator {
+func NewRevisionIterator(ctx context.Context, items []RevisionResult) RevisionIterator {
 	itemChan := make(chan RevisionResult, len(items))
 	for _, item := range items {
 		itemChan <- item
@@ -18,11 +22,13 @@ func NewRevisionIterator(items []RevisionResult) RevisionIterator {
 	close(itemChan)
 
 	return &revisionIterator{
-		ch: itemChan,
+		ctx: ctx,
+		ch:  itemChan,
 	}
 }
 
 type revisionIterator struct {
+	ctx    context.Context
 	ch     <-chan RevisionResult
 	result RevisionResult
 }
@@ -32,13 +38,31 @@ func (it *revisionIterator) Next() bool {
 		return false
 	}
 
-	var ok bool
-	it.result, ok = <-it.ch
-	if !ok || it.result.err != nil {
+	// Prioritize context cancellation errors so that we don't try to fetch results anymore when
+	// the context is done.
+	select {
+	case <-it.ctx.Done():
+		it.result = RevisionResult{err: it.ctx.Err()}
 		return false
+	default:
 	}
 
-	return true
+	select {
+	case <-it.ctx.Done():
+		it.result = RevisionResult{err: it.ctx.Err()}
+		return false
+	case result, ok := <-it.ch:
+		if !ok {
+			return false
+		}
+
+		it.result = result
+		if result.err != nil {
+			return false
+		}
+
+		return true
+	}
 }
 
 func (it *revisionIterator) Err() error {

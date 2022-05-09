@@ -1,6 +1,7 @@
 package gitpipe
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -504,6 +505,26 @@ func TestRevlist(t *testing.T) {
 			require.Equal(t, tc.expectedResults, results)
 		})
 	}
+
+	t.Run("context cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(testhelper.Context(t))
+
+		it := Revlist(ctx, repo, []string{"refs/heads/master"})
+
+		require.True(t, it.Next())
+		require.NoError(t, it.Err())
+		require.Equal(t, RevisionResult{
+			OID: "1e292f8fedd741b75372e19097c76d327140c312",
+		}, it.Result())
+
+		cancel()
+
+		require.False(t, it.Next())
+		require.Equal(t, context.Canceled, it.Err())
+		require.Equal(t, RevisionResult{
+			err: context.Canceled,
+		}, it.Result())
+	})
 }
 
 func TestForEachRef(t *testing.T) {
@@ -602,6 +623,27 @@ func TestForEachRef(t *testing.T) {
 
 	t.Run("nonexisting pattern", func(t *testing.T) {
 		require.Nil(t, readRefs(t, repo, []string{"refs/idontexist/*"}))
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(testhelper.Context(t))
+
+		it := ForEachRef(ctx, repo, []string{"refs/heads/*"})
+
+		require.True(t, it.Next())
+		require.NoError(t, it.Err())
+		require.Equal(t, RevisionResult{
+			OID:        "e56497bb5f03a90a51293fc6d516788730953899",
+			ObjectName: []byte("refs/heads/'test'"),
+		}, it.Result())
+
+		cancel()
+
+		require.False(t, it.Next())
+		require.Equal(t, context.Canceled, it.Err())
+		require.Equal(t, RevisionResult{
+			err: context.Canceled,
+		}, it.Result())
 	})
 }
 

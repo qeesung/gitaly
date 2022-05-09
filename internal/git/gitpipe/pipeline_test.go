@@ -310,7 +310,7 @@ func TestPipeline_revlist(t *testing.T) {
 			}
 		}
 
-		require.NoError(t, catfileObjectIter.Err())
+		require.Equal(t, context.Canceled, catfileObjectIter.Err())
 
 		// Context cancellation is timing sensitive: at the point of cancelling the context,
 		// the last pipeline step may already have queued up an additional result. We thus
