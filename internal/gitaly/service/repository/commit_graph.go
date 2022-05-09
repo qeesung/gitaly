@@ -3,10 +3,10 @@ package repository
 import (
 	"context"
 
-	gitalyerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/housekeeping"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/internal/errors"
+	"gitlab.com/gitlab-org/gitaly/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // WriteCommitGraph write or update commit-graph file in a repository

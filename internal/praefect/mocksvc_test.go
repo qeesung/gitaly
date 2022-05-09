@@ -3,7 +3,7 @@ package praefect
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/mock"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/mock"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 

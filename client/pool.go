@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/auth"
 	"google.golang.org/grpc"
 )
 

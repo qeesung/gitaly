@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes/tracker"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/nodes/tracker"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/internal/sidechannel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )

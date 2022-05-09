@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 // HookService is a service which provides the implementation of a subset of
 // Git hooks. These are typically invoked via the `gitaly-hooks` binary to

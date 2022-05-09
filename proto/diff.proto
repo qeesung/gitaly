@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 // DiffService is a service which provides RPCs to inspect differences
 // introduced between a set of commits.

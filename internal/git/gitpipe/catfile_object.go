@@ -7,8 +7,8 @@ import (
 	"io"
 	"sync"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/catfile"
 )
 
 // CatfileObjectResult is a result for the CatfileObject pipeline step.

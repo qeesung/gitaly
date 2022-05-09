@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 )
 
 // HTTPFetchPack is a FetchPack obtained via a clone of a target repository via HTTP. It contains

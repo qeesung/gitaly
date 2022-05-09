@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 // RepositoryService is a service providing RPCs accessing repositories as a whole.
 service RepositoryService {

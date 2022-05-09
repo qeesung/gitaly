@@ -4,7 +4,7 @@ package gitaly;
 
 import "google/protobuf/duration.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 // AccessCheckError is an error returned by GitLab's `/internal/allowed`
 // endpoint.

@@ -1,6 +1,6 @@
 package lstree
 
-import "gitlab.com/gitlab-org/gitaly/v14/internal/git"
+import "gitlab.com/gitlab-org/gitaly/internal/git"
 
 // ObjectType is an Enum for the type of object of
 // the ls-tree entry, which can be can be tree, blob or commit

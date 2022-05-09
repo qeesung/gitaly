@@ -12,7 +12,7 @@ import (
 	"time"
 
 	sentry "github.com/getsentry/sentry-go"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/log"
 )
 
 // Try will wrap the provided function with a panic recovery. If a panic occurs,

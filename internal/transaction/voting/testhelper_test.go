@@ -3,7 +3,7 @@ package voting
 import (
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 func TestMain(m *testing.M) {

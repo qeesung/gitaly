@@ -3,7 +3,7 @@ package info
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 //nolint: revive,stylecheck // This is unintentionally missing documentation.

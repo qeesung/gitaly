@@ -5,8 +5,8 @@ import (
 	"io"
 	"net"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
-	"gitlab.com/gitlab-org/gitaly/v14/streamio"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/streamio"
 )
 
 // ServerConn and ClientConn implement an asymmetric framing protocol to

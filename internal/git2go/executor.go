@@ -10,14 +10,13 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/alternates"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
-	glog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/storage"
+	glog "gitlab.com/gitlab-org/gitaly/internal/log"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
 
@@ -26,7 +25,7 @@ var (
 	ErrInvalidArgument = errors.New("invalid parameters")
 
 	// BinaryName is a binary name with version suffix .
-	BinaryName = "gitaly-git2go-" + version.GetModuleVersion()
+	BinaryName = "gitaly-git2go"
 )
 
 // Executor executes gitaly-git2go.

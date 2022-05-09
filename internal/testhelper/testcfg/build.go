@@ -8,15 +8,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 var buildOnceByName sync.Map
 
 // BuildGitalyGit2Go builds the gitaly-git2go command and installs it into the binary directory.
 func BuildGitalyGit2Go(t testing.TB, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go-v14"))
+	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go"))
 }
 
 // BuildGitalyWrapper builds the gitaly-wrapper command and installs it into the binary directory.
@@ -100,5 +100,5 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 }
 
 func gitalyCommandPath(command string) string {
-	return fmt.Sprintf("gitlab.com/gitlab-org/gitaly/v14/cmd/%s", command)
+	return fmt.Sprintf("gitlab.com/gitlab-org/gitaly/cmd/%s", command)
 }

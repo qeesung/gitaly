@@ -4,7 +4,7 @@ package gitaly;
 
 import "google/protobuf/descriptor.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
 
 // This comment is left unintentionally blank.
 message OperationMsg {

@@ -3,7 +3,7 @@ package voting
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 )
 
 // Phase is the transactional phase a given vote can be cast on.

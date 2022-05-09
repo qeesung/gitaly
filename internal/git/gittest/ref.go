@@ -3,8 +3,8 @@ package gittest
 import (
 	"testing"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
 )
 
 // WriteRef writes a reference into the repository pointing to the given object ID.

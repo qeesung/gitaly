@@ -1,7 +1,7 @@
 package gittest
 
 import (
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/proto/go/gitalypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

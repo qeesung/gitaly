@@ -64,7 +64,7 @@ GOLANGCI_LINT_OPTIONS ?=
 GOLANGCI_LINT_CONFIG  ?= ${SOURCE_DIR}/.golangci.yml
 
 # Build information
-GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly/v14
+GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly
 BUILD_TIME        := $(shell date +"%Y%m%d.%H%M%S")
 GITALY_VERSION    := $(shell ${GIT} describe --match v* 2>/dev/null | sed 's/^v//' || cat ${SOURCE_DIR}/VERSION 2>/dev/null || echo unknown)
 GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERSION} -X ${GITALY_PACKAGE}/internal/version.buildtime=${BUILD_TIME} -X ${GITALY_PACKAGE}/internal/version.moduleVersion=${MODULE_VERSION}
@@ -278,8 +278,13 @@ build: ${SOURCE_DIR}/.ruby-bundle ${GITALY_EXECUTABLES}
 
 gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
+gitaly-git2go: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
+gitaly-git2go: libgit2
 gitaly-git2go-v14: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
 gitaly-git2go-v14: libgit2
+	# This pulls directly from a commit sha so that the gitaly-git2go-v14
+	# binary can continue to be installed.
+	go install -ldflags "'${GO_LDFLAGS}'" -tags "${GO_BUILD_TAGS}" gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14@c7c7c936c302ab435a0a56fbc19cfbd9bea0c835
 
 .PHONY: ${GITALY_EXECUTABLES}
 ${GITALY_EXECUTABLES}:
@@ -475,11 +480,6 @@ no-proto-changes: | ${BUILD_DIR}
 ## Dump the clean database schema of Praefect into a file.
 dump-database-schema: build
 	${Q}"${SOURCE_DIR}"/_support/generate-praefect-schema >"${SOURCE_DIR}"/_support/praefect-schema.sql
-
-.PHONY: upgrade-module
-upgrade-module:
-	${Q}go run ${SOURCE_DIR}/tools/module-updater/main.go -dir . -from=${FROM_MODULE} -to=${TO_MODULE}
-	${Q}${MAKE} proto
 
 .PHONY: git
 ## Build Git.

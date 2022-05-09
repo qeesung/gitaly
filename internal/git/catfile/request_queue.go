@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 )
 
 const (
