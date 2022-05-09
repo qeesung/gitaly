@@ -6,7 +6,6 @@ import (
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"google.golang.org/grpc"
 )
 
@@ -164,6 +163,6 @@ func (w *wrappedStream) RecvMsg(m interface{}) error {
 		// It's our turn!
 		return nil
 	case err := <-errs:
-		return helper.ErrInternalf("rate limiting stream request: %v", err)
+		return err
 	}
 }

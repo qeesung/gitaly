@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -285,11 +285,15 @@ func TestStreamLimitHandler_error(t *testing.T) {
 	}
 
 	err := <-errChan
-	testhelper.RequireGrpcError(
-		t,
-		helper.ErrInternalf("rate limiting stream request: %w",
-			limithandler.ErrMaxQueueSize),
-		err)
+	testhelper.RequireGrpcCode(t, err, codes.Unavailable)
+	// ensure it is a structured error
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+
+	testhelper.ProtoEqual(t, []interface{}{&gitalypb.LimitError{
+		ErrorMessage: "maximum queue size reached",
+		RetryAfter:   &durationpb.Duration{},
+	}}, st.Details())
 
 	// allow the first request to finish
 	close(s.blockCh)
