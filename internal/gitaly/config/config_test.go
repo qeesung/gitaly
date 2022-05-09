@@ -677,15 +677,7 @@ func TestValidateInternalSocketDir(t *testing.T) {
 				return runtimeDirTooLongForSockets
 			},
 			verify: func(t *testing.T, runtimeDir string, actualErr error) {
-				require.Error(t, actualErr)
-				require.Regexp(t,
-					fmt.Sprintf(
-						"failed creating internal test socket: socket could not be created in %s: listen unix %s: bind: invalid argument",
-						filepath.Join(runtimeDir, "sock\\.d"),
-						filepath.Join(runtimeDir, "sock\\.d", "tsocket"),
-					),
-					actualErr.Error(),
-				)
+				require.EqualError(t, actualErr, "failed creating internal test socket: invalid argument: your socket path is likely too long, please change Gitaly's runtime directory")
 			},
 		},
 	}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -499,7 +500,12 @@ func trySocketCreation(dir string) error {
 	// Attempt to create an actual socket and not just a file to catch socket path length problems
 	l, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return fmt.Errorf("socket could not be created in %s: %s", dir, err)
+		var errno syscall.Errno
+		if errors.As(err, &errno) && errno == syscall.EINVAL {
+			return fmt.Errorf("%w: your socket path is likely too long, please change Gitaly's runtime directory", errno)
+		}
+
+		return fmt.Errorf("socket could not be created in %s: %w", dir, err)
 	}
 
 	return l.Close()
