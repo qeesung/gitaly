@@ -181,8 +181,8 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	})
 
 	t.Run("set using GITALY_TESTING_BUNDLED_GIT_PATH", func(t *testing.T) {
-		ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2360Gl1, true)
-		suffix := "-v2.36.0.gl1"
+		ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2361Gl1, true)
+		suffix := "-v2.36.1.gl1"
 
 		bundledGitDir := testhelper.TempDir(t)
 

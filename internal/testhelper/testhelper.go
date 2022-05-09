@@ -179,7 +179,7 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueMaxWait, true)
 	// Randomly inject the Git flag so that we have coverage of tests with both old and new Git
 	// version by pure chance.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2360Gl1, rnd.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2361Gl1, rnd.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
