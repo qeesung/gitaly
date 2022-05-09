@@ -311,7 +311,7 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 			desc:          "source invalid",
 			invalidSource: true,
 			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, actual, ErrInvalidSourceRepository)
+				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
 			},
 		},
 		{
@@ -319,7 +319,7 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 			invalidSource: true,
 			invalidTarget: true,
 			error: func(t testing.TB, actual error) {
-				require.Equal(t, ErrInvalidSourceRepository, actual)
+				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
 			},
 		},
 	} {

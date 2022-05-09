@@ -204,7 +204,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 			return
 		}
 
-		require.Equal(t, errQuickRPC, err)
+		testhelper.RequireGrpcError(t, errQuickRPC, err)
 	}
 
 	invokeBlocking := func(conn *grpc.ClientConn) chan struct{} {
@@ -212,7 +212,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 
 		go func() {
 			defer close(rpcFinished)
-			assert.Equal(t,
+			testhelper.RequireGrpcError(t,
 				errBlockingRPC,
 				conn.Invoke(ctx, "/Service/Blocking", &healthpb.HealthCheckRequest{}, &healthpb.HealthCheckRequest{}),
 			)

@@ -500,7 +500,7 @@ func TestConnectionMultiplexing(t *testing.T) {
 			require.Len(t, shard.Secondaries, 1)
 
 			for _, node := range []Node{shard.Primary, shard.Secondaries[0]} {
-				require.Equal(t,
+				testhelper.RequireGrpcError(t,
 					tc.error,
 					node.GetConnection().Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{}),
 				)
@@ -509,7 +509,7 @@ func TestConnectionMultiplexing(t *testing.T) {
 			nodes := mgr.Nodes()["virtual-storage-1"]
 			require.Len(t, nodes, 2)
 			for _, node := range nodes {
-				require.Equal(t,
+				testhelper.RequireGrpcError(t,
 					tc.error,
 					node.GetConnection().Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{}),
 				)

@@ -50,7 +50,8 @@ func TestDial(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, nonMuxedConn.Close()) }()
 
-		require.Equal(t, errNonMuxed, nonMuxedConn.Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{}))
+		dialErr := nonMuxedConn.Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{})
+		testhelper.RequireGrpcError(t, errNonMuxed, dialErr)
 	})
 
 	t.Run("muxed conn", func(t *testing.T) {
@@ -59,6 +60,7 @@ func TestDial(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, nonMuxedConn.Close()) }()
 
-		require.Equal(t, errMuxed, nonMuxedConn.Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{}))
+		dialErr := nonMuxedConn.Invoke(ctx, "/Service/Method", &gitalypb.VoteTransactionRequest{}, &gitalypb.VoteTransactionResponse{})
+		testhelper.RequireGrpcError(t, errMuxed, dialErr)
 	})
 }

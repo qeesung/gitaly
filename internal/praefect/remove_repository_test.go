@@ -128,7 +128,7 @@ func TestRemoveRepositoryHandler(t *testing.T) {
 
 			client := gitalypb.NewRepositoryServiceClient(clientConn)
 			_, err = client.RepositorySize(ctx, &gitalypb.RepositorySizeRequest{Repository: tc.repository})
-			require.Equal(t, errServedByGitaly, err, "other RPCs should be passed through")
+			testhelper.RequireGrpcError(t, errServedByGitaly, err)
 
 			assertExistence := require.DirExists
 			if tc.repoDeleted {

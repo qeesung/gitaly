@@ -107,10 +107,10 @@ func TestRepositoryExistsHandler(t *testing.T) {
 
 			client := gitalypb.NewRepositoryServiceClient(clientConn)
 			_, err = client.RepositorySize(ctx, &gitalypb.RepositorySizeRequest{Repository: tc.repository})
-			require.Equal(t, errServedByGitaly, err, "other RPCs should be passed through")
+			testhelper.RequireGrpcError(t, errServedByGitaly, err)
 
 			resp, err := client.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{Repository: tc.repository})
-			require.Equal(t, tc.error, err)
+			testhelper.RequireGrpcError(t, tc.error, err)
 			testhelper.ProtoEqual(t, tc.response, resp)
 		})
 	}
